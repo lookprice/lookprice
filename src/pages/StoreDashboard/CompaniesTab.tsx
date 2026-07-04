@@ -153,14 +153,14 @@ const CompaniesTab = ({
                             return (
                               <div key={currency} className={`flex items-center gap-2 pl-3 pr-2 py-1 rounded-lg border transition-all ${isDebt ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}>
                                 <div className="flex flex-col items-end leading-none">
-                                  <span className="text-xs font-black tabular-nums">
+                                  <span className="text-xs font-medium font-mono tabular-nums">
                                     {Math.abs(numBal).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
                                   </span>
-                                  <span className="text-[8px] font-bold uppercase tracking-widest opacity-70">
+                                  <span className="text-[8px] font-medium uppercase tracking-widest opacity-70">
                                     {isDebt ? t.statements.debt : t.statements.credit}
                                   </span>
                                 </div>
-                                <div className={`px-1.5 py-0.5 rounded md text-[10px] font-black ${isDebt ? 'bg-rose-600/10' : 'bg-emerald-600/10'}`}>
+                                <div className={`px-1.5 py-0.5 rounded md text-[10px] font-medium ${isDebt ? 'bg-rose-600/10' : 'bg-emerald-600/10'}`}>
                                   {currency.substring(0, 3)}
                                 </div>
                               </div>
@@ -168,8 +168,8 @@ const CompaniesTab = ({
                           })
                         ) : (
                           <div className="flex items-center gap-2 pl-3 pr-2 py-1 rounded-lg border bg-slate-50 border-slate-100 text-slate-400 opacity-60">
-                            <span className="text-xs font-black">0</span>
-                            <div className="px-1.5 py-0.5 rounded md text-[10px] font-black bg-slate-200">
+                            <span className="text-xs font-medium font-mono">0</span>
+                            <div className="px-1.5 py-0.5 rounded md text-[10px] font-medium bg-slate-200">
                               {defaultCurrency}
                             </div>
                           </div>

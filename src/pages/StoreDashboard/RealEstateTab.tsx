@@ -103,7 +103,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   
   const [newFeedbackAgent, setNewFeedbackAgent] = useState("");
   const [newFeedbackStatus, setNewFeedbackStatus] = useState("pending");
-  const [statusTabFilter, setStatusTabFilter] = useState<'all' | 'sale' | 'rent' | 'optioned' | 'sold'>('all');
+  const [statusTabFilter, setStatusTabFilter] = useState<'all' | 'sale' | 'rent' | 'optioned' | 'sold' | 'rented'>('all');
 
   const uniqueRegions = Array.from(new Set(safeProperties.map(p => p.kktc_region).filter(Boolean))) as string[];
 
@@ -124,18 +124,20 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
   const displayedProperties = filteredProperties.filter(p => {
     if (statusTabFilter === 'all') return true;
-    if (statusTabFilter === 'sale') return p.listing_intent === 'sale' || !p.listing_intent;
-    if (statusTabFilter === 'rent') return p.listing_intent === 'rent';
+    if (statusTabFilter === 'sale') return (p.listing_intent === 'sale' || !p.listing_intent) && p.status !== 'sold';
+    if (statusTabFilter === 'rent') return p.listing_intent === 'rent' && p.status !== 'rented';
     if (statusTabFilter === 'optioned') return p.status === 'optioned';
     if (statusTabFilter === 'sold') return p.status === 'sold';
+    if (statusTabFilter === 'rented') return p.status === 'rented';
     return true;
   });
 
   const totalCount = filteredProperties.length;
-  const saleCount = filteredProperties.filter(p => p.listing_intent === 'sale' || !p.listing_intent).length;
-  const rentCount = filteredProperties.filter(p => p.listing_intent === 'rent').length;
+  const saleCount = filteredProperties.filter(p => (p.listing_intent === 'sale' || !p.listing_intent) && p.status !== 'sold').length;
+  const rentCount = filteredProperties.filter(p => p.listing_intent === 'rent' && p.status !== 'rented').length;
   const optionedCount = filteredProperties.filter(p => p.status === 'optioned').length;
   const soldCount = filteredProperties.filter(p => p.status === 'sold').length;
+  const rentedCount = filteredProperties.filter(p => p.status === 'rented').length;
 
   const unescapeEntities = (str: string) => {
     if (!str) return '';
@@ -403,6 +405,16 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           >
             ✅ SATILDI ({soldCount})
           </button>
+          <button 
+            onClick={() => setStatusTabFilter('rented')}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+              statusTabFilter === 'rented'
+                ? 'bg-sky-700 text-white shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            🔑 KİRALANDI ({rentedCount})
+          </button>
         </div>
       </div>
       
@@ -441,18 +453,31 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   )}
 
                   {/* Minimalistic Badge */}
-                  <div className="absolute top-3 left-3">
+                  <div className="absolute top-3 left-3 z-20">
                     <span className={`font-black text-[10px] px-2.5 py-1.5 rounded-xl shadow-lg tracking-wide ${
                       property.status === 'optioned' ? 'bg-amber-600 text-white' :
                       property.status === 'sold' ? 'bg-rose-600 text-white' :
+                      property.status === 'rented' ? 'bg-sky-700 text-white' :
                       property.listing_intent === 'rent' ? 'bg-sky-600 text-white' :
                       'bg-emerald-600 text-white'
                     }`}>
                       {property.status === 'optioned' ? '✍ OPSİYONLU' :
                        property.status === 'sold' ? '✅ SATILDI' :
+                       property.status === 'rented' ? '🔑 KİRALANDI' :
                        property.listing_intent === 'rent' ? '🔑 KİRALIK' : '🏠 SATILIK'}
                     </span>
                   </div>
+
+                  {/* Diagonal Banner for SOLD/RENTED */}
+                  {(property.status === 'sold' || property.status === 'rented') && (
+                    <div className="absolute top-0 right-0 w-32 h-32 overflow-hidden z-10 pointer-events-none">
+                      <div className={`absolute top-0 right-0 w-[170px] py-1 text-center text-[10px] font-black tracking-[0.2em] text-white shadow-lg transform translate-x-[45px] translate-y-[25px] rotate-45 uppercase ${
+                        property.status === 'sold' ? 'bg-rose-600/90' : 'bg-sky-700/90'
+                      }`}>
+                        {property.status === 'sold' ? 'SATILDI' : 'KİRALANDI'}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Content body */}

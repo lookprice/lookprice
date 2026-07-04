@@ -80,15 +80,15 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                   className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
                 />
               </th>
-              <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
-              <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
-              <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Durum' : 'Status'}</th>
-              <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
-              <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
-              <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
-              <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
-              <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{isTr ? 'Döviz' : 'Curr'}</th>
-              <th className="px-3 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{isTr ? 'İşlemler' : 'Actions'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Durum' : 'Status'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{isTr ? 'Döviz' : 'Curr'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'İşlemler' : 'Actions'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -138,12 +138,12 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                     <td className="px-3 py-4">
                       <div className="text-sm font-bold text-slate-900">#{inv.invoice_number}</div>
                       {inv.document_number && (
-                         <div className="text-[10px] text-indigo-600 font-black tracking-widest mt-0.5">{inv.document_number}</div>
+                         <div className="text-[10px] text-indigo-600 font-bold tracking-widest mt-0.5">{inv.document_number}</div>
                       )}
                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{inv.payment_method}</div>
                     </td>
                     <td className="px-3 py-4 w-[120px]">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
                         inv.status === 'draft' ? 'bg-amber-100 text-amber-700' :
                         inv.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
                         inv.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
@@ -196,7 +196,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             )}
                             {inv.waybill_number && (
                               <div className="flex flex-col gap-1.5 mt-1 pt-1 border-t border-slate-100">
-                                <span className="text-[8px] font-black tracking-wider text-slate-400 uppercase">
+                                <span className="text-[8px] font-bold tracking-wider text-slate-400 uppercase">
                                   {isTr ? 'SEVK İRSALİYESİ' : 'WAYBILL'}
                                 </span>
                                 <div className="inline-flex px-1.5 py-0.5 rounded text-[9px] font-black tracking-widest border border-indigo-200 bg-indigo-50 text-indigo-700">
@@ -228,21 +228,21 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                       </div>
                     </td>
                     <td className="px-3 py-4 text-right">
-                      <div className="text-sm font-medium text-slate-700">
+                      <div className="text-sm font-medium text-slate-700 font-mono tabular-nums">
                         {Number(inv.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
                     <td className="px-3 py-4 text-right">
-                      <div className="text-sm font-medium text-slate-600">
+                      <div className="text-sm font-medium text-slate-600 font-mono tabular-nums">
                         {Number(inv.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
                     <td className="px-3 py-4 text-right">
-                      <div className="text-sm font-semibold text-slate-800">
+                      <div className="text-sm font-medium text-slate-800 font-mono tabular-nums">
                         {Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
-                    <td className="px-3 py-4 text-center text-xs font-black text-slate-400">
+                    <td className="px-3 py-4 text-center text-xs font-bold text-slate-400">
                       {inv.currency}
                     </td>
                     <td className="px-3 py-4 text-right">

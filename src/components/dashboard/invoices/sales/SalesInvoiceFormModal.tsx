@@ -670,14 +670,14 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                         items.map((item, idx) => (
                           <tr key={idx} className="bg-white/50 hover:bg-white transition-colors group">
                             <td className="px-6 py-4">
-                              <div className="text-sm font-bold text-slate-700">{item.product_name}</div>
+                              <div className="text-sm font-medium text-slate-700">{item.product_name}</div>
                               <div className="text-[10px] text-slate-400 font-medium">{item.barcode}</div>
                             </td>
                             <td className="px-6 py-4">
                               <input 
                                 type="text"
                                 inputMode="numeric"
-                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-slate-700 focus:bg-white transition-all"
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center font-medium text-slate-700 focus:bg-white transition-all font-mono tabular-nums"
                                 value={item.quantity}
                                 onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
                               />
@@ -686,27 +686,27 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                               <div className="relative">
                                 <input 
                                   type="text"
-                                  className="w-full pl-2 pr-6 py-2 bg-slate-50 border border-slate-200 rounded-xl text-right font-bold text-slate-700 text-xs focus:bg-white transition-all"
+                                  className="w-full pl-2 pr-6 py-2 bg-slate-50 border border-slate-200 rounded-xl text-right font-medium text-slate-700 text-xs focus:bg-white transition-all font-mono tabular-nums"
                                   value={item.unit_price}
                                   onChange={(e) => updateItem(idx, 'unit_price', e.target.value)}
                                 />
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-400">{currency}</span>
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-400 font-sans">{currency}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4">
                               <input 
                                 type="text"
-                                className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-slate-700 focus:bg-white transition-all"
+                                className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center font-medium text-slate-700 focus:bg-white transition-all font-mono tabular-nums"
                                 value={Math.floor(Number(item.tax_rate) || 0)}
                                 onChange={(e) => updateItem(idx, 'tax_rate', e.target.value)}
                               />
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <div className="text-sm font-black text-slate-900">
+                              <div className="text-sm font-medium text-slate-900 font-mono tabular-nums">
                                 {(isTaxInclusive 
                                   ? ((Number(String(item.quantity).replace(',', '.')) || 0) * (Number(String(item.unit_price).replace(',', '.')) || 0))
                                   : ((Number(String(item.quantity).replace(',', '.')) || 0) * (Number(String(item.unit_price).replace(',', '.')) || 0)) * (1 + (Number(item.tax_rate) || 0) / 100)
-                                ).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400">{currency}</span>
+                                ).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-sans">{currency}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4 text-right">
@@ -741,11 +741,11 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                   <div className="space-y-4">
                     <div className="flex justify-between items-center opacity-60">
                       <span className="text-xs font-bold uppercase tracking-widest">{isTr ? 'ARA TOPLAM' : 'SUBTOTAL'}</span>
-                      <span className="font-bold">{totals.subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
+                      <span className="font-medium font-mono tabular-nums">{totals.subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                     </div>
                     <div className="flex justify-between items-center opacity-60">
                       <span className="text-xs font-bold uppercase tracking-widest">{isTr ? 'KDV TOPLAM' : 'VAT TOTAL'}</span>
-                      <span className="font-bold">{totals.taxTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
+                      <span className="font-medium font-mono tabular-nums">{totals.taxTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                     </div>
                   </div>
                   <div className="pt-6 border-t border-white/10 flex justify-between items-end">
@@ -756,8 +756,8 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                       </div>
                     </div>
                     <div className="text-right flex items-baseline gap-2">
-                      <div className="text-4xl font-black tracking-tighter whitespace-nowrap">{totals.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      <div className="text-sm font-bold opacity-40 uppercase tracking-widest">{currency}</div>
+                      <div className="text-4xl font-medium tracking-tighter whitespace-nowrap font-mono tabular-nums">{totals.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="text-sm font-bold opacity-40 uppercase tracking-widest font-sans">{currency}</div>
                     </div>
                   </div>
                 </div>

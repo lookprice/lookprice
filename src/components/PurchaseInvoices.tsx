@@ -743,7 +743,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
 
               <table className="w-full text-left text-xs border-collapse border border-slate-200 mb-8">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-500 uppercase font-black border-b border-slate-200">
+                  <tr className="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
                     <th className="p-2 border border-slate-200">{isTr ? 'Ürün/Hizmet' : 'Product/Service'}</th>
                     <th className="p-2 border border-slate-200 text-center">{isTr ? 'Miktar' : 'Qty'}</th>
                     <th className="p-2 border border-slate-200 text-right">{isTr ? 'Birim Fiyat' : 'Price'}</th>

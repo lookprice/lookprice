@@ -1257,7 +1257,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                             <button
                               type="button"
                               onClick={() => setDeliveryAddress(selectedComp.address || "")}
-                              className={`px-2 py-0.5 text-[9px] font-black rounded-lg transition-all cursor-pointer ${
+                              className={`px-2 py-0.5 text-[9px] font-bold rounded-lg transition-all cursor-pointer ${
                                 deliveryAddress === selectedComp.address
                                   ? "bg-rose-600 text-white"
                                   : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -1269,7 +1269,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                               <button
                                 type="button"
                                 onClick={() => setDeliveryAddress(selectedComp.delivery_address || "")}
-                                className={`px-2 py-0.5 text-[9px] font-black rounded-lg transition-all cursor-pointer ${
+                                className={`px-2 py-0.5 text-[9px] font-bold rounded-lg transition-all cursor-pointer ${
                                   deliveryAddress === selectedComp.delivery_address
                                     ? "bg-rose-600 text-white"
                                     : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -1295,7 +1295,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                 {/* section 2: Shipment carrier driver plate logitics info details */}
                 <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 space-y-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
                       <Truck className="h-4 w-4 text-indigo-500" />
                       {isTr ? "Lojistik / Sevkiyat Bilgileri" : "Logistics & Despatch Details"}
                     </h3>
@@ -1326,7 +1326,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                       {/* Fleet Quick Selection */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-slate-100">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block">
+                          <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block">
                             {isTr ? "⚡ Hızlı Sürücü Seçimi (Filo)" : "⚡ Quick Driver Selection (Fleet)"}
                           </label>
                           <select
@@ -1352,7 +1352,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block">
+                          <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block">
                             {isTr ? "⚡ Hızlı Araç Seçimi (Filo)" : "⚡ Quick Vehicle Selection (Fleet)"}
                           </label>
                           <select
@@ -1637,7 +1637,7 @@ export default function EWaybillsTab({ storeId, lang, api, branding }: any) {
                                                 </div>
                                               </div>
                                               <div className="text-right shrink-0">
-                                                <div className="text-xs font-black text-indigo-600">{Number(p.price).toLocaleString('tr-TR')} {p.currency || 'TRY'}</div>
+                                                <div className="text-xs font-bold text-indigo-600">{Number(p.price).toLocaleString('tr-TR')} {p.currency || 'TRY'}</div>
                                                 <div className="text-[9px] font-bold text-slate-400">{isTr ? 'Stok' : 'Stock'}: {p.stock || 0}</div>
                                               </div>
                                             </button>

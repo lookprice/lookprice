@@ -164,7 +164,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         authorized_branch_id: property.authorized_branch_id,
         responsible_agent: property.responsible_agent || '',
         responsible_consultant_id: property.responsible_consultant_id,
-        listing_intent: property.listing_intent || 'sale',
+        listing_intent: property.listing_intent || (property.reference_no?.toUpperCase().includes('-K-') ? 'rent' : 'sale'),
         owner_info: property.owner_info || { fullName: '', phone: '' },
         sharing_scope: property.sharing_scope || 'shared_pool',
         reserved_by_branch: property.reserved_by_branch || '',

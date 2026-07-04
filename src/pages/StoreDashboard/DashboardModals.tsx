@@ -352,7 +352,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
               <div className="p-4 bg-slate-900 rounded-2xl text-white">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.total?.toUpperCase() || 'TOTAL'}</span>
-                  <span className="text-xl font-black">
+                  <span className="text-xl font-bold">
                     {Number(selectedPurchaseInvoice.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedPurchaseInvoice.currency?.slice(0, 3)}
                   </span>
                 </div>
@@ -371,7 +371,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                       <p className="text-sm font-bold text-gray-900">{item.product_name}</p>
                       <p className="text-xs text-gray-500">{item.quantity} x {Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedPurchaseInvoice.currency?.slice(0, 3)}</p>
                     </div>
-                    <p className="text-sm font-black text-gray-900">
+                    <p className="text-sm font-semibold text-gray-900">
                       {Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedPurchaseInvoice.currency?.slice(0, 3)}
                     </p>
                   </div>
@@ -414,7 +414,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
               <div className="p-4 bg-indigo-600 rounded-2xl text-white">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.total?.toUpperCase() || 'TOTAL'}</span>
-                  <span className="text-xl font-black">{Number(selectedSale.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</span>
+                  <span className="text-xl font-bold">{Number(selectedSale.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</span>
                 </div>
               </div>
               {/* Display items */}
@@ -425,7 +425,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                       <p className="text-sm font-bold text-gray-900">{item.product_name}</p>
                       <p className="text-xs text-gray-500">{item.quantity} x {Number(item.unit_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</p>
                     </div>
-                    <p className="text-sm font-black text-gray-900">{Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</p>
+                    <p className="text-sm font-semibold text-gray-900">{Number(item.total_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {selectedSale.currency?.slice(0, 3)}</p>
                   </div>
                 ))}
               </div>
@@ -530,7 +530,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                 <div className="w-full md:w-80 space-y-3">
                   <div className="flex justify-between items-center text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
                     <span>{selectedQuotationDetails.is_tax_inclusive ? (t.grandTotal || "Genel Toplam") : (isTr ? "Toplam (Vergi Hariç)" : "Total (Excl. Tax)")}</span>
-                    <span className="text-indigo-600 text-lg font-black">
+                    <span className="text-indigo-600 text-lg font-bold">
                       {(() => {
                         const sub = (selectedQuotationDetails.items || []).reduce((s: any, i: any) => s + Number(i.total_price), 0);
                         return sub.toLocaleString('tr-TR', { minimumFractionDigits: 2 });
@@ -580,7 +580,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.startDate}</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.startDate}</label>
                   <input 
                     type="date" 
                     value={reportStartDate} 
@@ -589,7 +589,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.endDate}</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.endDate}</label>
                   <input 
                     type="date" 
                     value={reportEndDate} 
@@ -617,7 +617,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                           {data.transaction_count} {t.transactionCount}
                         </span>
                       </div>
-                      <p className="text-xl font-black text-gray-900">
+                      <p className="text-xl font-semibold text-gray-900">
                         {Number(data.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {branding.default_currency?.slice(0, 3)}
                       </p>
                     </div>
@@ -629,13 +629,13 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-xs font-bold opacity-80 uppercase tracking-widest mb-1">{lang === 'tr' ? 'TOPLAM GENEL' : 'GRAND TOTAL'}</p>
-                    <p className="text-3xl font-black">
+                    <p className="text-3xl font-bold">
                       {(dailyReportData.summary || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {branding.default_currency?.slice(0, 3)}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-bold opacity-80 uppercase tracking-widest mb-1">{t.transactionCount}</p>
-                    <p className="text-xl font-black">
+                    <p className="text-xl font-bold">
                       {(dailyReportData.summary || []).reduce((acc, curr) => acc + Number(curr.transaction_count), 0)}
                     </p>
                   </div>
@@ -691,7 +691,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
 
             <div className="p-4 bg-white border-b border-gray-100 flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lang === 'tr' ? 'Para Birimi' : 'Currency'}</label>
                 <select
                   value={selectedCurrency}
                   onChange={(e) => setSelectedCurrency(e.target.value)}
@@ -707,7 +707,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.startDate}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.startDate}</label>
                 <input 
                   type="date" 
                   value={transactionStartDate}
@@ -716,7 +716,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.endDate}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.endDate}</label>
                 <input 
                   type="date" 
                   value={transactionEndDate}
@@ -763,7 +763,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                               <span className={`text-[10px] font-black uppercase tracking-widest opacity-70 ${isSelected ? 'text-white' : 'text-gray-400'}`}>
                                 {curr}
                               </span>
-                              <span className="text-sm font-black tabular-nums">
+                              <span className="text-sm font-semibold tabular-nums">
                                 {Math.abs(nBal).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
                               </span>
                             </div>
@@ -782,19 +782,19 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg">
                         <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{t.statements.balance.toUpperCase()}</p>
-                        <p className="text-2xl font-black">
+                        <p className="text-2xl font-bold">
                           {currentBalance.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                         </p>
                       </div>
                       <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.debt.toUpperCase()}</p>
-                        <p className="text-2xl font-black text-red-600">
+                        <p className="text-2xl font-bold text-red-600">
                           {filteredTransactions.filter(t => t.type === 'debt').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                         </p>
                       </div>
                       <div className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t.statements.credit.toUpperCase()}</p>
-                        <p className="text-2xl font-black text-green-600">
+                        <p className="text-2xl font-bold text-green-600">
                           {filteredTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedCurrency.slice(0, 3)}
                         </p>
                       </div>
@@ -816,12 +816,12 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                           <table className="w-full text-left border-collapse">
                             <thead>
                               <tr className="border-b border-gray-100">
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">{isTr ? 'İşlem' : 'Action'}</th>
+                                <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.statements.date}</th>
+                                <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.statements.description}</th>
+                                <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">{t.statements.debt}</th>
+                                <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">{t.statements.credit}</th>
+                                <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">{t.statements.balance}</th>
+                                <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">{isTr ? 'İşlem' : 'Action'}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -842,20 +842,20 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                                       </td>
                                       <td className="py-4 px-4 text-right">
                                         {tx.type === 'debt' ? (
-                                          <span className="text-xs font-black text-red-600">
+                                          <span className="text-xs font-semibold text-red-600">
                                             {amount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
                                           </span>
                                         ) : '-'}
                                       </td>
                                       <td className="py-4 px-4 text-right">
                                         {tx.type === 'credit' ? (
-                                          <span className="text-xs font-black text-green-600">
+                                          <span className="text-xs font-semibold text-green-600">
                                             {amount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
                                           </span>
                                         ) : '-'}
                                       </td>
                                       <td className="py-4 px-4 text-right">
-                                        <span className={`text-xs font-black ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                                        <span className={`text-xs font-semibold ${runningBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
                                           {runningBalance.toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
                                         </span>
                                       </td>
@@ -1056,14 +1056,14 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                   <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.amount}</span>
                   <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-0.5 rounded-lg">#{selectedQuotation.id}</span>
                 </div>
-                <p className="text-2xl font-black">
+                <p className="text-2xl font-bold">
                   {Number(selectedQuotation.total_amount).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })} {selectedQuotation.currency}
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isTr ? "Vade Tarihi" : "Due Date"}</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{isTr ? "Vade Tarihi" : "Due Date"}</label>
                   <div className="relative">
                     <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input 

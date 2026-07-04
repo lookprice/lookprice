@@ -752,7 +752,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-semibold text-gray-900">
+                      <span className="font-medium text-gray-900 font-mono tabular-nums">
                         {Number(record.total_amount).toLocaleString('tr-TR', { style: 'currency', currency: record.currency })}
                       </span>
                     </td>
@@ -1150,7 +1150,7 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
               <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
                 <div className="text-right">
                   <p className="text-xs font-bold text-slate-400 uppercase">{t.service_tab.totalAmount}</p>
-                  <p className="text-2xl font-black text-slate-900">
+                  <p className="text-2xl font-bold text-slate-900">
                     {totalServiceAmount.toLocaleString('tr-TR', { style: 'currency', currency: (editingRecord?.currency || storeInfo?.default_currency || 'TRY').toUpperCase() })}
                   </p>
                 </div>
