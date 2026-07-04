@@ -20,12 +20,14 @@ import {
   Trash2,
   Cloud,
   Award,
-  CalendarDays
+  CalendarDays,
+  Layout
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { ConsultingInsights } from "../../components/ConsultingInsights";
 import { RealEstateCalendar } from "../../components/RealEstateCalendar";
+import { RealEstateCRM } from "../../components/RealEstateCRM";
 
 const RealEstateModal = React.lazy(() => import("../../components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
 const LegalContractModal = React.lazy(() => import("../../components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
@@ -59,6 +61,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [search, setSearch] = useState("");
+  const [tasks, setTasks] = useState<any[]>([]);
   const [driveConnected, setDriveConnected] = useState(false);
   const [isBackupLoading, setIsBackupLoading] = useState(false);
 
@@ -66,9 +69,17 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
     api.getGoogleDriveSettings().then(res => {
       setDriveConnected(!!res?.connected);
     }).catch(err => console.error("Error fetching drive connected status in RealEstateTab", err));
-  }, []);
 
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'calendar'>('list');
+    // Fetch tasks for CRM/Calendar
+    const sid = storeId || user?.store_id;
+    if (sid) {
+      api.getTasks(sid).then(res => {
+        if (Array.isArray(res)) setTasks(res);
+      }).catch(err => console.error("Error fetching tasks:", err));
+    }
+  }, [storeId, user?.store_id]);
+
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'calendar' | 'pipeline'>('list');
   const [filterBranch, setFilterBranch] = useState("all");
   const [branches, setBranches] = useState<any[]>([]);
   const [filterScope, setFilterScope] = useState("all");
@@ -311,6 +322,14 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             Takvim
           </button>
           <button
+            onClick={() => setViewMode('pipeline')}
+            className={`flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-sm active:scale-95 hover:bg-slate-50 ${viewMode === 'pipeline' ? 'ring-2 ring-indigo-500' : ''}`}
+            title="CRM Pipeline"
+          >
+            <Layout className="h-4 w-4 text-indigo-600" />
+            CRM Pipeline
+          </button>
+          <button
             onClick={() => {
               setSelectedProperty(null);
               setIsModalOpen(true);
@@ -433,6 +452,17 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           storeId={storeId || user?.store_id} 
           properties={safeProperties} 
           onClose={() => setViewMode('list')}
+        />
+      ) : viewMode === 'pipeline' ? (
+        <RealEstateCRM
+          storeId={storeId || user?.store_id}
+          properties={safeProperties}
+          tasks={tasks}
+          onOpenCalendar={() => setViewMode('calendar')}
+          onOpenTourModal={(p) => {
+            setActiveTourProperty(p);
+            setIsTourModalOpen(true);
+          }}
         />
       ) : loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-100">

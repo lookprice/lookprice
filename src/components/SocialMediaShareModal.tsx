@@ -460,10 +460,10 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.fillRect(-bannerWidth / 2, -bannerHeight / 2, bannerWidth, bannerHeight);
       
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'black 900 120px system-ui, sans-serif';
+      ctx.font = 'black 900 100px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.letterSpacing = '15px';
+      ctx.letterSpacing = '8px';
       ctx.fillText(forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI', 0, 0);
       ctx.restore();
     }
@@ -617,7 +617,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                   {/* Diagonal Banner for SOLD/RENTED (HTML Preview) */}
                   {forcedStatus && (
                     <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none">
-                      <div className={`w-[200%] py-6 text-center text-5xl font-black tracking-[0.3em] text-white shadow-2xl transform -rotate-12 uppercase ${
+                      <div className={`w-[200%] py-4 text-center text-4xl font-black tracking-[0.1em] text-white shadow-2xl transform -rotate-12 uppercase ${
                         forcedStatus === 'sold' ? 'bg-rose-600/90' : 'bg-sky-700/90'
                       }`}>
                         {forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI'}
