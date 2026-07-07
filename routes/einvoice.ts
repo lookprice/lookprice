@@ -1112,8 +1112,8 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
     const service = await getEInvoiceService(storeId);
     
     if ('getInvoiceHtml' in service) {
-      console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}`);
-      let html = await (service as any).getInvoiceHtml(ettn, document_number);
+      console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}, DocType: ${invData.e_document_type}`);
+      let html = await (service as any).getInvoiceHtml(ettn, document_number, invData.e_document_type);
       
       // 1. Prepare Amount in Words and Currency Info
       const amountWordsRaw = numberToTurkishWords(Number(grand_total), currency || 'TRY');

@@ -626,7 +626,7 @@ export class MySoftService {
   }
 
   // 7. Get Invoice HTML
-  async getInvoiceHtml(ettn: string, invoiceNumber?: string): Promise<string> {
+  async getInvoiceHtml(ettn: string, invoiceNumber?: string, docType?: string): Promise<string> {
     try {
       const token = await this.authenticate();
       const tId = this.credentials.tenant_id;
@@ -645,19 +645,40 @@ export class MySoftService {
       }
 
       const endpoints = [
+        `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`,
+        `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`,
+        `${this.baseUrl}/EArchiveInvoice/GetEArchiveInvoiceHTMLAsZip`,
+        `${this.baseUrl}/EArchiveInvoice/GetEArchiveInvoiceHTML`,
+        `${this.baseUrl}/EArchive/GetEArchiveInvoiceHTMLAsZip`,
+        `${this.baseUrl}/EArchive/GetEArchiveInvoiceHTML`,
+        `${this.baseUrl}/InvoiceOutbox/GetEArchiveInvoiceHTMLAsZip`,
+        `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTML`,
+        `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`,
+        `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTML`,
+        `${this.baseUrl}/Invoice/GetInvoiceHTML`,
         `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTMLAsZip`,
+        `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxDraftHTMLAsZip`,
+        `${this.baseUrl}/EArchiveInvoice/getEArchiveInvoiceHTMLAsZip`,
         `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTMLAsZip`,
-        `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTML`,
-        `${this.baseUrl}/Invoice/getInvoiceHTML`,
-        `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTML`
       ];
 
       const storeVkn = this.credentials.vkn;
+      const mysoftDocType = docType === 'E-ARSIV' ? 'EARSIVFATURA' : (docType === 'E-FATURA' ? 'EFATURA' : undefined);
+      
       // Try variations of params
       const paramVariations: any[] = [
+        { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn },
+        { invoiceUuid: ettn, tenantIdentifierNumber: storeVkn },
+        { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn, EDocumentType: 2 },
         { invoiceETTN: ettn, InvoiceETTN: ettn },
         { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: storeVkn },
+        { invoiceETTN: ettn, InvoiceETTN: ettn, eDocumentType: mysoftDocType },
+        { invoiceETTN: ettn, InvoiceETTN: ettn, eDocumentType: docType === 'E-ARSIV' ? 2 : 1 },
+        { invoiceETTN: ettn, InvoiceETTN: ettn, eDocumentType: docType },
+        { invoiceETTN: ettn, InvoiceETTN: ettn, isEarchive: docType === 'E-ARSIV', isEArchive: docType === 'E-ARSIV' },
+        { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: storeVkn, eDocumentType: mysoftDocType },
         { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: tId },
+        { invoiceUuidList: [ettn], tenantIdentifierNumber: storeVkn },
         { invoiceUUID: ettn, InvoiceUUID: ettn },
         { uuid: ettn, UUID: ettn },
         { id: ettn, ID: ettn }
@@ -665,78 +686,93 @@ export class MySoftService {
 
       if (invoiceNumber) {
         paramVariations.push({ invoiceNumber: invoiceNumber });
+        paramVariations.push({ invoiceNumber: invoiceNumber, tenantIdentifierNumber: storeVkn });
         paramVariations.push({ invoiceID: invoiceNumber });
+        paramVariations.push({ invoiceNo: invoiceNumber });
         paramVariations.push({ id: invoiceNumber });
       }
 
       for (const url of endpoints) {
         for (const params of paramVariations) {
-          try {
-            console.log(`[HTML-FETCH] Trying URL: ${url} with params: ${JSON.stringify(params)}`);
-            const response = await axios.get(url, {
-              ...config,
-              params: params
-            });
-            
-            if (response.status === 200 && response.data) {
-              const buffer = Buffer.from(response.data);
+          const methods: ("get" | "post")[] = ["get", "post"];
+          
+          for (const method of methods) {
+            try {
+              console.log(`[HTML-FETCH] Trying ${method.toUpperCase()} URL: ${url} with params: ${JSON.stringify(params)}`);
               
-              // Handle JSON response
-              if (buffer[0] === 123) { // 123 is '{'
-                const jsonObj = JSON.parse(buffer.toString('utf8'));
-                const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
+              let response;
+              if (method === "get") {
+                response = await axios.get(url, {
+                  ...config,
+                  params: params
+                });
+              } else {
+                response = await axios.post(url, params, config);
+              }
+              
+              if (response.status === 200 && response.data) {
+                const buffer = Buffer.from(response.data);
                 
-                if (isSuccess) {
-                  const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
-                  if (base64Data && typeof base64Data === 'string' && base64Data.length > 50) {
-                    const decoded = Buffer.from(base64Data, 'base64');
-                    // Check if zip
-                    if (decoded[0] === 0x50 && decoded[1] === 0x4B) {
-                      const AdmZip = (await import('adm-zip')).default;
-                      const zip = new AdmZip(decoded);
-                      for (const entry of zip.getEntries()) {
-                        const content = entry.getData().toString('utf8');
-                        if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                           console.log(`[HTML-FETCH] SUCCESS from JSON[base64->zip] ${url}`);
-                           return content;
+                // Handle JSON response
+                if (buffer.length > 0 && buffer[0] === 123) { // 123 is '{'
+                  try {
+                    const jsonObj = JSON.parse(buffer.toString('utf8'));
+                    const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
+                    
+                    if (isSuccess) {
+                      const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
+                      if (base64Data && typeof base64Data === 'string' && base64Data.length > 50) {
+                        const decoded = Buffer.from(base64Data, 'base64');
+                        // Check if zip
+                        if (decoded.length > 2 && decoded[0] === 0x50 && decoded[1] === 0x4B) {
+                          const AdmZip = (await import('adm-zip')).default;
+                          const zip = new AdmZip(decoded);
+                          for (const entry of zip.getEntries()) {
+                            const content = entry.getData().toString('utf8');
+                            if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                               console.log(`[HTML-FETCH] SUCCESS from JSON[base64->zip] ${url}`);
+                               return content;
+                            }
+                          }
+                        } else {
+                          const content = decoded.toString('utf8');
+                          if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                             console.log(`[HTML-FETCH] SUCCESS from JSON[base64->string] ${url}`);
+                             return content;
+                          }
                         }
                       }
                     } else {
-                      const content = decoded.toString('utf8');
-                      if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                         console.log(`[HTML-FETCH] SUCCESS from JSON[base64->string] ${url}`);
-                         return content;
-                      }
+                      console.log(`[HTML-FETCH] JSON-Failure from ${url}: ${jsonObj.message || 'unknown error'}`);
+                    }
+                  } catch (jsonErr) {
+                    // Not valid JSON
+                  }
+                }
+                
+                // Handle direct ZIP
+                if (buffer.length > 2 && buffer[0] === 0x50 && buffer[1] === 0x4B) {
+                  const AdmZip = (await import('adm-zip')).default;
+                  const zip = new AdmZip(buffer);
+                  for (const entry of zip.getEntries()) {
+                    const content = entry.getData().toString('utf8');
+                    if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                      console.log(`[HTML-FETCH] SUCCESS from Direct ZIP ${url}`);
+                      return content;
                     }
                   }
-                } else {
-                  console.log(`[HTML-FETCH] JSON-Failure from ${url}: ${jsonObj.message || 'unknown error'}`);
-                  continue;
+                }
+                
+                // Handle direct HTML/XML
+                const contentStr = buffer.toString('utf8');
+                if (contentStr.includes('<html') || contentStr.includes('<body') || contentStr.includes('<?xml')) {
+                  console.log(`[HTML-FETCH] SUCCESS from Direct String ${url}`);
+                  return contentStr;
                 }
               }
-              
-              // Handle direct ZIP
-              if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
-                const AdmZip = (await import('adm-zip')).default;
-                const zip = new AdmZip(buffer);
-                for (const entry of zip.getEntries()) {
-                  const content = entry.getData().toString('utf8');
-                  if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                    console.log(`[HTML-FETCH] SUCCESS from Direct ZIP ${url}`);
-                    return content;
-                  }
-                }
-              }
-              
-              // Handle direct HTML/XML
-              const content = buffer.toString('utf8');
-              if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                console.log(`[HTML-FETCH] SUCCESS from Direct String ${url}`);
-                return content;
-              }
+            } catch (e: any) {
+              // continue to next variation/method
             }
-          } catch (e: any) {
-             // continue to next variation
           }
         }
       }
