@@ -474,14 +474,20 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     setBranding({ ...branding, [field]: value });
   };
 
+  const [savingBranding, setSavingBranding] = useState(false);
+
   const handleSaveBranding = async () => {
     const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
+    setSavingBranding(true);
     try {
       await api.updateBranding(branding, targetStoreId);
-      await fetchData(); 
+      // No longer calling fetchData() to avoid slow re-fetches. 
+      // The local state 'branding' is already up-to-date.
       toast.success(t.saveSuccess || (lang === 'tr' ? "Başarıyla kaydedildi" : "Saved successfully"));
     } catch (error) {
-      toast.error("Hata oluştu");
+      toast.error(lang === 'tr' ? "Ayarlar kaydedilirken bir hata oluştu" : "An error occurred while saving settings");
+    } finally {
+      setSavingBranding(false);
     }
   };
 
@@ -930,6 +936,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   setBulkPriceForm={setBulkPriceForm}
                   handleBulkPriceSubmit={handleBulkPriceSubmit}
                   initialSubTab={activeTab === "settings_yedekleme" ? "integrations" : undefined}
+                  savingBranding={savingBranding}
                 />
               )}
               {activeTab === "blog" && (

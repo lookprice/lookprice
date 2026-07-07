@@ -430,10 +430,10 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     setShowHtmlModal(true);
     try {
       const res = await api.getPurchaseInvoiceHtml(id, role === 'superadmin' ? storeId : undefined);
-      if (res.html) {
+      if (res && res.html) {
         setSelectedHtml(res.html);
       } else {
-        toast.error(isTr ? "Fatura görseli bulunamadı" : "Invoice image not found");
+        toast.error(res?.error || (isTr ? "Fatura görseli bulunamadı" : "Invoice image not found"));
         setShowHtmlModal(false);
       }
       if (inv && inv.is_read === false) {

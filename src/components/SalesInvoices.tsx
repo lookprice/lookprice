@@ -588,10 +588,11 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setHtmlLoading(true);
     setShowHtmlModal(true);
     try {
-      const res = await api.getSalesInvoiceHtml(id);
-      if (res && res.html) setHtmlContent(res.html);
-      else {
-        toast.error(isTr ? "Fatura görseli bulunamadı." : "Invoice HTML not found.");
+      const res = await api.getSalesInvoiceHtml(id, role === 'superadmin' ? storeId : undefined);
+      if (res && res.html) {
+        setHtmlContent(res.html);
+      } else {
+        toast.error(res?.error || (isTr ? "Fatura görseli bulunamadı." : "Invoice HTML not found."));
         setShowHtmlModal(false);
       }
     } catch (err) {

@@ -1056,7 +1056,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
 // 5. Test Connection
 router.post("/einvoice/test-connection", authenticate, async (req: any, res) => {
   try {
-    const storeId = req.user.store_id;
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
     console.log(`[test-connection] Starting for storeId: ${storeId}`);
     const service = await getEInvoiceService(storeId);
     
@@ -1077,11 +1077,11 @@ router.post("/einvoice/test-connection", authenticate, async (req: any, res) => 
 
 // 6. Get Invoice HTML
 router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
-  try {
-    const storeId = req.user.store_id;
-    const invoiceId = req.params.id;
-    const invoiceType = req.query.type || 'purchase';
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const invoiceId = req.params.id;
+  const invoiceType = req.query.type || 'purchase';
 
+  try {
     let invoiceRes;
     try {
         if (invoiceType === 'sales') {
@@ -1091,36 +1091,220 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
         }
     } catch (queryErr) {
         console.error("[DB-ERROR] Error fetching invoice details:", queryErr);
-        // Fallback to basic query if full select fails (to avoid crash if columns missing)
         if (invoiceType === 'sales') {
-            invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+            invoiceRes = await pool.query("SELECT ettn, document_number, notes, invoice_date, currency, exchange_rate, grand_total, tax_number, company_title, customer_name FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
         } else {
-            invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+            invoiceRes = await pool.query("SELECT ettn, document_number, notes, invoice_date, currency, exchange_rate, grand_total, tax_number, supplier_name FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
         }
     }
     
     if (invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
 
     const invData = invoiceRes.rows[0];
-    const { ettn, document_number, notes, currency, exchange_rate } = invData;
-    // Map various potential field names for totals to be defensive
-    const grand_total = invData.grand_total || invData.payable_amount || invData.total_amount || 0;
-    const subtotal = invData.subtotal || invData.total_amount || (Number(grand_total) - Number(invData.tax_amount || 0));
-    const tax_amount = invData.tax_amount || 0;
-    if (!ettn && !document_number) return res.status(400).json({ error: "Faturanın ETTN'si veya numarası bulunmuyor." });
+    const { ettn, document_number, notes, currency, exchange_rate, invoice_date } = invData;
+    const grand_total = Number(invData.grand_total || invData.payable_amount || invData.total_amount || 0);
+    const tax_amount = Number(invData.tax_amount || 0);
+    const subtotal = Number(invData.subtotal || invData.total_amount || (grand_total - tax_amount));
 
     const service = await getEInvoiceService(storeId);
     
-    if ('getInvoiceHtml' in service) {
-      console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}`);
-      let html = await (service as any).getInvoiceHtml(ettn, document_number);
+    let html = "";
+    let isFallback = false;
+
+    if (ettn && 'getInvoiceHtml' in service) {
+      console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}, StoreID: ${storeId}`);
+      try {
+        html = await (service as any).getInvoiceHtml(ettn, document_number);
+        console.log(`[HTML-FETCH] SUCCESS: HTML length is ${html?.length}`);
+      } catch (htmlErr: any) {
+        console.warn(`[HTML-FETCH] Integrator fetch failed: ${htmlErr.message}. Generating fallback visual...`);
+        isFallback = true;
+      }
+    }
+
+    // 1. Prepare Fallback or Process existing HTML
+    if (!html || html.length < 10) {
+      isFallback = true;
+      const itemsRes = await pool.query(
+        invoiceType === 'sales' 
+          ? "SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1"
+          : "SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1",
+        [invoiceId]
+      );
+      const items = itemsRes.rows;
+      const storeRes = await pool.query("SELECT name, branding, einvoice_settings, address, phone FROM stores WHERE id = $1", [storeId]);
+      const store = storeRes.rows[0] || {};
+      const branding = store.branding || {};
       
-      // 1. Prepare Amount in Words and Currency Info
-      const amountWordsRaw = numberToTurkishWords(Number(grand_total), currency || 'TRY');
+      let customerName = invData.company_title || invData.customer_name || invData.supplier_name || 'Bilinmeyen Alıcı';
+      let customerVkn = invData.tax_number || invData.supplier_tax_number || '---';
+      let customerAddress = invData.address || '---';
+
+      // Deep lookup for missing customer/company data
+      if (customerName === 'Bilinmeyen Alıcı' || customerVkn === '---') {
+        if (invData.company_id) {
+          const comp = await pool.query("SELECT title, tax_number, address FROM companies WHERE id = $1", [invData.company_id]);
+          if (comp.rows.length > 0) {
+            customerName = customerName === 'Bilinmeyen Alıcı' ? comp.rows[0].title : customerName;
+            customerVkn = customerVkn === '---' ? comp.rows[0].tax_number : customerVkn;
+            customerAddress = customerAddress === '---' ? comp.rows[0].address : customerAddress;
+          }
+        } else if (invData.customer_id) {
+          const cust = await pool.query("SELECT name, full_name, tax_number, address FROM customers WHERE id = $1", [invData.customer_id]);
+          if (cust.rows.length > 0) {
+            customerName = customerName === 'Bilinmeyen Alıcı' ? (cust.rows[0].full_name || cust.rows[0].name) : customerName;
+            customerVkn = customerVkn === '---' ? cust.rows[0].tax_number : customerVkn;
+            customerAddress = customerAddress === '---' ? cust.rows[0].address : customerAddress;
+          }
+        }
+      }
+
+      html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: #f1f5f9; line-height: 1.5; }
+            .invoice-card { background: white; max-width: 900px; margin: 0 auto; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #e2e8f0; }
+            .fallback-ribbon { position: absolute; top: 20px; right: -35px; background: #f59e0b; color: white; padding: 8px 45px; transform: rotate(45deg); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10; }
+            .header { padding: 40px; background: #fff; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: start; }
+            .logo-section { max-width: 250px; }
+            .logo-section img { max-height: 60px; margin-bottom: 15px; }
+            .company-name { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 5px 0; }
+            .company-details { font-size: 13px; color: #64748b; }
+            .invoice-info { text-align: right; }
+            .invoice-type { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #3b82f6; letter-spacing: 0.05em; margin-bottom: 8px; }
+            .invoice-id { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }
+            .invoice-date { font-size: 14px; color: #64748b; margin-top: 5px; }
+            .details-grid { padding: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; background: #fff; }
+            .detail-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 12px; }
+            .party-name { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+            .party-sub { font-size: 13px; color: #64748b; }
+            .table-container { padding: 0 40px; }
+            table { width: 100%; border-collapse: collapse; }
+            th { text-align: left; padding: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #f1f5f9; }
+            td { padding: 16px 12px; font-size: 14px; color: #334155; border-bottom: 1px solid #f1f5f9; }
+            .text-right { text-align: right; }
+            .totals-container { padding: 40px; display: flex; justify-content: flex-end; }
+            .totals-box { width: 300px; }
+            .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #64748b; }
+            .total-row.grand { padding-top: 15px; margin-top: 10px; border-top: 2px solid #f1f5f9; color: #0f172a; font-weight: 800; font-size: 20px; }
+            .notes-section { padding: 0 40px 40px 40px; border-top: 1px solid #f1f5f9; margin-top: 20px; }
+            .notes-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.1em; margin: 20px 0 10px 0; }
+            .notes-content { font-size: 13px; color: #64748b; white-space: pre-wrap; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+            .footer { padding: 20px 40px; background: #f8fafc; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #f1f5f9; }
+            @media print {
+              body { background: white; padding: 0; }
+              .invoice-card { box-shadow: none; border-radius: 0; padding: 0; border: none; }
+              .fallback-ribbon { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-card">
+            <div class="fallback-ribbon">TASLAK GÖRÜNÜM</div>
+            <div class="header">
+              <div class="logo-section">
+                ${branding.logo_url ? `<img src="${branding.logo_url}" alt="Logo">` : ''}
+                <h1 class="company-name">${store.name || branding.store_name || 'Mağaza'}</h1>
+                <div class="company-details">
+                  ${store.address || branding.address || ''}<br/>
+                  ${store.phone || branding.phone ? `Tel: ${store.phone || branding.phone}<br/>` : ''}
+                  VKN/TCKN: ${store.einvoice_settings?.vkn || branding.tax_number || '---'}
+                </div>
+              </div>
+              <div class="invoice-info">
+                <div class="invoice-type">${invoiceType === 'sales' ? (invData.e_document_type || 'SATIŞ FATURASI') : 'ALIŞ FATURASI'}</div>
+                <div class="invoice-id">${document_number || 'TASLAK'}</div>
+                <div class="invoice-date">Tarih: ${new Date(invoice_date).toLocaleDateString('tr-TR')}</div>
+                ${ettn ? `<div class="invoice-date" style="font-size: 11px; margin-top: 8px;">ETTN: ${ettn}</div>` : ''}
+              </div>
+            </div>
+            
+            <div class="details-grid">
+              <div>
+                <div class="detail-section-title">${invoiceType === 'sales' ? 'Alıcı Bilgileri' : 'Satıcı Bilgileri'}</div>
+                <div class="party-name">${customerName}</div>
+                <div class="party-sub">VKN/TCKN: ${customerVkn}</div>
+                <div class="party-sub">${customerAddress}</div>
+              </div>
+              <div>
+                <div class="detail-section-title">Ödeme Bilgileri</div>
+                <div class="party-sub">Para Birimi: ${currency || 'TRY'}</div>
+                ${exchange_rate && Number(exchange_rate) !== 1 ? `<div class="party-sub">Döviz Kuru: 1 ${currency} = ${Number(exchange_rate).toFixed(4)} TRY</div>` : ''}
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Açıklama</th>
+                    <th class="text-right">Miktar</th>
+                    <th class="text-right">Birim Fiyat</th>
+                    <th class="text-right">KDV</th>
+                    <th class="text-right">Toplam</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${items.map(item => `
+                    <tr>
+                      <td style="font-weight: 500;">${item.product_name}</td>
+                      <td class="text-right">${item.quantity} ${item.unit_code || 'Adet'}</td>
+                      <td class="text-right">${Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-right">%${item.tax_rate}</td>
+                      <td class="text-right" style="font-weight: 600;">${Number(item.total_price || (item.quantity * item.unit_price)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="totals-container">
+              <div class="totals-box">
+                <div class="total-row">
+                  <span>Ara Toplam</span>
+                  <span>${subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${currency || 'TRY'}</span>
+                </div>
+                <div class="total-row">
+                  <span>KDV Toplam</span>
+                  <span>${tax_amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${currency || 'TRY'}</span>
+                </div>
+                <div class="total-row grand">
+                  <span>GENEL TOPLAM</span>
+                  <span>${grand_total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${currency || 'TRY'}</span>
+                </div>
+                <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; text-align: right; margin-top: 10px;">
+                  Yalnız: ${numberToTurkishWords(grand_total, currency || 'TRY')}
+                </div>
+              </div>
+            </div>
+
+            ${notes ? `
+              <div class="notes-section">
+                <div class="notes-title">Notlar</div>
+                <div class="notes-content">${notes}</div>
+              </div>
+            ` : ''}
+
+            <div class="footer">
+              Bu görsel faturanın resmi kopyası değildir. Bilgilendirme amaçlı yerel verilerle üretilmiştir.<br/>
+              Resmi görüntü entegratör tescili sonrası oluşacaktır.
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+    }
+
+    // 2. Post-processing for foreign currency box (if NOT fallback)
+    if (!isFallback) {
+      const amountWordsRaw = numberToTurkishWords(grand_total, currency || 'TRY');
       const amountWords = amountWordsRaw.replace(/\s+/g, '');
       const alonePart = `<div style="border-bottom: 2px solid #000; margin-bottom: 15px; padding-bottom: 8px; font-weight: bold; font-size: 15px; color: #000; text-align: left;">YALNIZ: # ${amountWords} #</div>`;
 
-      // 2. Exchange Rate and TRY conversion if foreign currency
       let tryTotalsBlock = "";
       let exchangeRateBlock = "";
       if (exchange_rate && Number(exchange_rate) > 0 && currency && currency.toUpperCase() !== 'TRY') {
@@ -1131,9 +1315,9 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
             </div>
           `;
           
-          const trySubtotal = (Number(subtotal || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          const tryTax = (Number(tax_amount || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          const tryTotal = (Number(grand_total || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const trySubtotal = (subtotal * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const tryTax = (tax_amount * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const tryTotal = (grand_total * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
           tryTotalsBlock = `
             <table style="width: 100%; margin-top: 20px; border-collapse: collapse; border: 2px solid #000; font-family: 'Inter', sans-serif; font-size: 12px; background: #fff;">
@@ -1160,8 +1344,6 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
           `;
       }
 
-      // 3. Notes and Boxing
-      const notesWithBr = (notes || "").replace(/\n/g, '<br/>');
       const boxedNotes = `
         <div class="invoice-notes-box" style="margin-top: 40px; border: 3px solid #000; padding: 20px; font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.6; background: #fff; color: #000; clear: both; page-break-inside: avoid;">
           ${alonePart}
@@ -1174,25 +1356,19 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
         </div>
       `;
 
-      // Surgery to inject the box correctly and avoid double notes
       const notesClean = (notes || "").trim();
       if (html.includes('id="notesTable"')) {
           const notesTableStart = html.indexOf('<table id="notesTable"');
           const notesTableEnd = html.indexOf('</table>', notesTableStart) + 8;
           html = html.slice(0, notesTableStart) + boxedNotes + html.slice(notesTableEnd);
       } else if (notesClean && html.includes(notesClean)) {
-          // Replace specific notes text if found
           html = html.replace(notesClean, boxedNotes);
       } else {
-          // Final fallback
           html = html.replace('</body>', `${boxedNotes}</body>`);
       }
-      
-      console.log(`[HTML-FETCH] HTML processed for ${invoiceId}`);
-      return res.json({ html });
     }
-
-    res.status(400).json({ error: "Kullandığınız entegratör için HTML önizleme desteği bulunmuyor." });
+    
+    return res.json({ html });
   } catch (error: any) {
     console.error("Get HTML endpoint error:", error);
     res.status(500).json({ error: error.message || "Bilinmeyen bir hata oluştu" });

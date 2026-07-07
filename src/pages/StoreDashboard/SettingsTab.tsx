@@ -83,6 +83,7 @@ interface SettingsTabProps {
   setBulkPriceForm: (form: any) => void;
   handleBulkPriceSubmit: (e: React.FormEvent) => Promise<void>;
   initialSubTab?: string;
+  savingBranding?: boolean;
 }
 
 const SettingsTab = ({ 
@@ -102,7 +103,8 @@ const SettingsTab = ({
   bulkPriceForm,
   setBulkPriceForm,
   handleBulkPriceSubmit,
-  initialSubTab
+  initialSubTab,
+  savingBranding
 }: SettingsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang]?.dashboard || {};
@@ -537,6 +539,7 @@ const SettingsTab = ({
           setBulkPriceForm={setBulkPriceForm} 
           handleBulkPriceSubmit={handleBulkPriceSubmit} 
           products={products}
+          savingBranding={savingBranding}
         />
       )}
 
@@ -642,12 +645,21 @@ const SettingsTab = ({
         <div className="pointer-events-auto">
           <button 
             onClick={onSaveBranding}
-            className="flex items-center space-x-4 px-10 py-4 bg-slate-900 text-white rounded-[2rem] font-black text-sm hover:bg-indigo-600 transition-all duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.2)] hover:shadow-indigo-500/40 active:scale-95 group border border-white/10"
+            disabled={savingBranding}
+            className={`flex items-center space-x-4 px-10 py-4 text-white rounded-[2rem] font-black text-sm transition-all duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.2)] active:scale-95 group border border-white/10 ${savingBranding ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-indigo-600 hover:shadow-indigo-500/40'}`}
           >
             <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center group-hover:bg-white/20 transition-colors">
-              <Save className="h-4 w-4 text-white" />
+              {savingBranding ? (
+                <RefreshCw className="h-4 w-4 text-white animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 text-white" />
+              )}
             </div>
-            <span className="uppercase tracking-[0.2em]">{translations[lang]?.dashboard?.saveSettings || 'Save Settings'}</span>
+            <span className="uppercase tracking-[0.2em]">
+              {savingBranding 
+                ? (lang === 'tr' ? 'Kaydediliyor...' : 'Saving...') 
+                : (translations[lang]?.dashboard?.saveSettings || 'Save Settings')}
+            </span>
           </button>
         </div>
       </div>

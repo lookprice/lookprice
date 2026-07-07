@@ -630,118 +630,125 @@ export class MySoftService {
     try {
       const token = await this.authenticate();
       const tId = this.credentials.tenant_id;
-      
-      const config: any = {
-        headers: { 
-          Authorization: token.toLowerCase().startsWith('bearer') ? token : `Bearer ${token}` 
-        },
-        responseType: 'arraybuffer',
-        timeout: 15000
-      };
+      const storeVkn = this.credentials.vkn;
 
-      if (this.credentials.tenant_id) {
-        config.headers['TenantId'] = this.credentials.tenant_id;
-        config.headers['ApplicationId'] = this.credentials.tenant_id;
-      }
+      // Extract default tenant from token if possible (OID)
+      let defaultTid = "";
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        defaultTid = payload.oid || "";
+      } catch (e) {}
 
-      const endpoints = [
-        `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTMLAsZip`,
-        `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTMLAsZip`,
+      // Try these TenantId / ApplicationId combinations
+      const contextVariations = [
+        { tenantId: tId, applicationId: tId },
+        { tenantId: defaultTid, applicationId: defaultTid },
+        { tenantId: tId, applicationId: "1" },
+        { tenantId: defaultTid, applicationId: "1" },
+        { tenantId: storeVkn, applicationId: storeVkn },
+        { tenantId: "", applicationId: "" }
+      ].filter(v => v.tenantId || v.applicationId || v === contextVariations[5]);
+
+      const isEArchive = invoiceNumber?.startsWith('GEA') || invoiceNumber?.startsWith('GAP') || invoiceNumber?.startsWith('EAR');
+
+      // Targeted endpoints based on document type - reduced for performance
+      const endpoints = isEArchive ? [
+        `${this.baseUrl}/EArchiveOutbox/getEArchiveOutboxHTML`,
+        `${this.baseUrl}/EArchive/getEArchiveHTML`,
+      ] : [
+        `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTML`,
         `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTML`,
         `${this.baseUrl}/Invoice/getInvoiceHTML`,
-        `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTML`
       ];
 
-      const storeVkn = this.credentials.vkn;
-      // Try variations of params
       const paramVariations: any[] = [
-        { invoiceETTN: ettn, InvoiceETTN: ettn },
-        { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: storeVkn },
-        { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: tId },
-        { invoiceUUID: ettn, InvoiceUUID: ettn },
-        { uuid: ettn, UUID: ettn },
-        { id: ettn, ID: ettn }
+        { earchiveUUID: ettn, vknTckn: storeVkn },
+        { uuid: ettn, vknTckn: storeVkn },
+        { ettn: ettn, vknTckn: storeVkn },
+        { invoiceNumber: invoiceNumber, vknTckn: storeVkn },
+        { uuid: ettn },
+        { ettn: ettn },
       ];
 
-      if (invoiceNumber) {
-        paramVariations.push({ invoiceNumber: invoiceNumber });
-        paramVariations.push({ invoiceID: invoiceNumber });
-        paramVariations.push({ id: invoiceNumber });
-      }
+      console.log(`[HTML-FETCH] Starting exhaustive search for ${isEArchive ? 'E-Archive' : 'Invoice'} ${ettn} (${invoiceNumber})`);
 
-      for (const url of endpoints) {
-        for (const params of paramVariations) {
-          try {
-            console.log(`[HTML-FETCH] Trying URL: ${url} with params: ${JSON.stringify(params)}`);
-            const response = await axios.get(url, {
-              ...config,
-              params: params
-            });
-            
-            if (response.status === 200 && response.data) {
-              const buffer = Buffer.from(response.data);
+      for (const ctx of contextVariations) {
+        const config: any = {
+          headers: { 
+            Authorization: token.toLowerCase().startsWith('bearer') ? token : `Bearer ${token}`,
+            'vknTckn': storeVkn
+          },
+          responseType: 'arraybuffer',
+          timeout: 5000
+        };
+        if (ctx.tenantId) config.headers['TenantId'] = ctx.tenantId;
+        if (ctx.applicationId) config.headers['ApplicationId'] = ctx.applicationId;
+
+        for (const url of endpoints) {
+          for (const params of paramVariations) {
+            try {
+              // Only try relevant combinations
+              const response = await axios.get(url, {
+                ...config,
+                params: params
+              });
               
-              // Handle JSON response
-              if (buffer[0] === 123) { // 123 is '{'
-                const jsonObj = JSON.parse(buffer.toString('utf8'));
-                const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
+              if (response.status === 200 && response.data) {
+                const buffer = Buffer.from(response.data);
+                if (buffer.length < 10) continue;
+
+                // Handle responses as before...
+                // (Optimized for space, reusing the existing buffer handling logic)
                 
-                if (isSuccess) {
-                  const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
-                  if (base64Data && typeof base64Data === 'string' && base64Data.length > 50) {
-                    const decoded = Buffer.from(base64Data, 'base64');
-                    // Check if zip
-                    if (decoded[0] === 0x50 && decoded[1] === 0x4B) {
-                      const AdmZip = (await import('adm-zip')).default;
-                      const zip = new AdmZip(decoded);
-                      for (const entry of zip.getEntries()) {
-                        const content = entry.getData().toString('utf8');
-                        if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                           console.log(`[HTML-FETCH] SUCCESS from JSON[base64->zip] ${url}`);
-                           return content;
+                // 1. Handle JSON response
+                if (buffer[0] === 123) { // '{'
+                  try {
+                    const jsonObj = JSON.parse(buffer.toString('utf8'));
+                    const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
+                    if (isSuccess) {
+                      const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
+                      if (base64Data && typeof base64Data === 'string' && base64Data.length > 50) {
+                        const decoded = Buffer.from(base64Data, 'base64');
+                        if (decoded[0] === 0x50 && decoded[1] === 0x4B) {
+                          const AdmZip = (await import('adm-zip')).default;
+                          const zip = new AdmZip(decoded);
+                          for (const entry of zip.getEntries()) {
+                            const content = entry.getData().toString('utf8');
+                            if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+                          }
+                        } else {
+                          const content = decoded.toString('utf8');
+                          if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
                         }
                       }
-                    } else {
-                      const content = decoded.toString('utf8');
-                      if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                         console.log(`[HTML-FETCH] SUCCESS from JSON[base64->string] ${url}`);
-                         return content;
-                      }
                     }
-                  }
-                } else {
-                  console.log(`[HTML-FETCH] JSON-Failure from ${url}: ${jsonObj.message || 'unknown error'}`);
-                  continue;
+                  } catch (e) {}
                 }
-              }
-              
-              // Handle direct ZIP
-              if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
-                const AdmZip = (await import('adm-zip')).default;
-                const zip = new AdmZip(buffer);
-                for (const entry of zip.getEntries()) {
-                  const content = entry.getData().toString('utf8');
-                  if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                    console.log(`[HTML-FETCH] SUCCESS from Direct ZIP ${url}`);
-                    return content;
-                  }
+                
+                // 2. Handle direct ZIP
+                if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
+                  try {
+                    const AdmZip = (await import('adm-zip')).default;
+                    const zip = new AdmZip(buffer);
+                    for (const entry of zip.getEntries()) {
+                      const content = entry.getData().toString('utf8');
+                      if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
+                    }
+                  } catch (e) {}
                 }
+                
+                // 3. Handle direct string
+                const content = buffer.toString('utf8');
+                if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) return content;
               }
-              
-              // Handle direct HTML/XML
-              const content = buffer.toString('utf8');
-              if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                console.log(`[HTML-FETCH] SUCCESS from Direct String ${url}`);
-                return content;
-              }
+            } catch (e: any) {
+              // Silently continue to next variation
             }
-          } catch (e: any) {
-             // continue to next variation
           }
         }
       }
       
-      throw new Error("Fatura görseli bulunamadı.");
+      throw new Error("Fatura görseli entegratör sisteminde bulunamadı. Lütfen daha sonra tekrar deneyiniz veya faturanın onaylanmış olduğundan emin olunuz.");
     } catch (error: any) {
       console.error("MySoft HTML Error:", error.message);
       throw new Error(error.message);

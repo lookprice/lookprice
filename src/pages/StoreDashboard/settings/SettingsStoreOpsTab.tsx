@@ -12,6 +12,7 @@ import {
   Save 
 } from "lucide-react";
 import { motion } from "motion/react";
+import { toast } from "sonner";
 
 interface SettingsStoreOpsTabProps {
   branding: any;
@@ -24,6 +25,7 @@ interface SettingsStoreOpsTabProps {
   setBulkPriceForm: (val: any) => void;
   handleBulkPriceSubmit: (e: React.FormEvent) => void;
   products?: any[];
+  savingBranding?: boolean;
 }
 
 export const SettingsStoreOpsTab = ({
@@ -36,7 +38,8 @@ export const SettingsStoreOpsTab = ({
   bulkPriceForm,
   setBulkPriceForm,
   handleBulkPriceSubmit,
-  products = []
+  products = [],
+  savingBranding
 }: SettingsStoreOpsTabProps) => {
   const t = translations || {};
 
@@ -463,74 +466,121 @@ export const SettingsStoreOpsTab = ({
           )}
 
           <div className="space-y-4">
-             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest font-sans">
-               {isPortfolio ? (lang === 'tr' ? 'Ofis Konumları' : 'Office Locations') : (lang === 'tr' ? 'Mağaza Konumları' : 'Store Locations')}
-             </h4>
-                {(branding.locations || []).map((loc: any, idx: number) => (
-                  <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
-                      <input 
-                        name={`location_name_${idx}`} 
-                        id={`location_name_${idx}`} 
-                        value={loc.name} 
-                        onChange={(e) => { 
-                          const l = [...(branding.locations||[])]; 
-                          l[idx] = { ...l[idx], name: e.target.value }; 
-                          onBrandingChange('locations', l); 
-                        }} 
-                        placeholder="Mağaza Adı" 
-                        className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
-                      />
-                      <input 
-                        name={`location_address_${idx}`} 
-                        id={`location_address_${idx}`} 
-                        value={loc.address} 
-                        onChange={(e) => { 
-                          const l = [...(branding.locations||[])]; 
-                          l[idx] = { ...l[idx], address: e.target.value }; 
-                          onBrandingChange('locations', l); 
-                        }} 
-                        placeholder="Adres" 
-                        className="md:col-span-3 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">LAT</span>
-                        <input 
-                          type="number"
-                          step="0.000001"
-                          value={loc.lat || ''} 
-                          onChange={(e) => { 
-                            const l = [...(branding.locations||[])]; 
-                            l[idx] = { ...l[idx], lat: parseFloat(e.target.value) }; 
-                            onBrandingChange('locations', l); 
-                          }} 
-                          placeholder="Latitude" 
-                          className="w-full pl-10 pr-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
-                        />
-                      </div>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">LNG</span>
-                        <input 
-                          type="number"
-                          step="0.000001"
-                          value={loc.lng || ''} 
-                          onChange={(e) => { 
-                            const l = [...(branding.locations||[])]; 
-                            l[idx] = { ...l[idx], lng: parseFloat(e.target.value) }; 
-                            onBrandingChange('locations', l); 
-                          }} 
-                          placeholder="Longitude" 
-                          className="w-full pl-10 pr-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest font-sans flex items-center justify-between">
+              <span>{isPortfolio ? (lang === 'tr' ? 'Ofis Konumları' : 'Office Locations') : (lang === 'tr' ? 'Mağaza Konumları' : 'Store Locations')}</span>
+              <span className="text-[9px] lowercase font-bold text-slate-300 normal-case">{lang === 'tr' ? '(enlem, boylam yapıştırabilirsiniz)' : '(you can paste lat, lng)'}</span>
+            </h4>
+               {(branding.locations || []).map((loc: any, idx: number) => (
+                 <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3 relative group/loc">
+                   <button 
+                     type="button"
+                     onClick={() => {
+                       const l = [...(branding.locations||[])];
+                       l.splice(idx, 1);
+                       onBrandingChange('locations', l);
+                     }}
+                     className="absolute -right-2 -top-2 w-6 h-6 bg-white border border-slate-200 text-red-500 rounded-full flex items-center justify-center opacity-0 group-hover/loc:opacity-100 transition-opacity shadow-sm z-10 hover:bg-red-50"
+                   >
+                     <Trash2 className="w-3 h-3" />
+                   </button>
+                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                     <input 
+                       name={`location_name_${idx}`} 
+                       id={`location_name_${idx}`} 
+                       value={loc.name} 
+                       onChange={(e) => { 
+                         const l = [...(branding.locations||[])]; 
+                         l[idx] = { ...l[idx], name: e.target.value }; 
+                         onBrandingChange('locations', l); 
+                       }} 
+                       placeholder="Mağaza Adı" 
+                       className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                     />
+                     <input 
+                       name={`location_address_${idx}`} 
+                       id={`location_address_${idx}`} 
+                       value={loc.address} 
+                       onChange={(e) => { 
+                         const l = [...(branding.locations||[])]; 
+                         l[idx] = { ...l[idx], address: e.target.value }; 
+                         onBrandingChange('locations', l); 
+                       }} 
+                       placeholder="Adres" 
+                       className="md:col-span-3 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                     />
+                   </div>
+                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                     <div className="relative">
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">LAT</span>
+                       <input 
+                         type="text"
+                         value={loc.lat || ''} 
+                         onChange={(e) => { 
+                           const val = e.target.value;
+                           const l = [...(branding.locations||[])]; 
+                           if (val.includes(',')) {
+                             const [latStr, lngStr] = val.split(',').map(s => s.trim());
+                             const lat = parseFloat(latStr);
+                             const lng = parseFloat(lngStr);
+                             l[idx] = { ...l[idx], lat: isNaN(lat) ? 0 : lat, lng: isNaN(lng) ? 0 : lng }; 
+                           } else {
+                             const lat = parseFloat(val);
+                             l[idx] = { ...l[idx], lat: isNaN(lat) ? 0 : lat }; 
+                           }
+                           onBrandingChange('locations', l); 
+                         }} 
+                         placeholder="Latitude" 
+                         className="w-full pl-10 pr-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans focus:border-amber-400 outline-none transition-colors" 
+                       />
+                     </div>
+                     <div className="relative">
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">LNG</span>
+                       <input 
+                         type="text"
+                         value={loc.lng || ''} 
+                         onChange={(e) => { 
+                           const val = e.target.value;
+                           const l = [...(branding.locations||[])]; 
+                           if (val.includes(',')) {
+                             const [latStr, lngStr] = val.split(',').map(s => s.trim());
+                             const lat = parseFloat(latStr);
+                             const lng = parseFloat(lngStr);
+                             l[idx] = { ...l[idx], lat: isNaN(lat) ? 0 : lat, lng: isNaN(lng) ? 0 : lng }; 
+                           } else {
+                             const lng = parseFloat(val);
+                             l[idx] = { ...l[idx], lng: isNaN(lng) ? 0 : lng }; 
+                           }
+                           onBrandingChange('locations', l); 
+                         }} 
+                         placeholder="Longitude" 
+                         className="w-full pl-10 pr-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans focus:border-amber-400 outline-none transition-colors" 
+                       />
+                     </div>
+                     <button 
+                      type="button"
+                      onClick={() => {
+                        if (navigator.geolocation) {
+                          navigator.geolocation.getCurrentPosition((pos) => {
+                            const l = [...(branding.locations||[])];
+                            l[idx] = { ...l[idx], lat: pos.coords.latitude, lng: pos.coords.longitude };
+                            onBrandingChange('locations', l);
+                            toast.success(lang === 'tr' ? "Konum alındı" : "Location captured");
+                          }, (err) => {
+                            toast.error(lang === 'tr' ? "Konum alınamadı" : "Could not get location");
+                          });
+                        }
+                      }}
+                      className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-600 hover:bg-slate-50 transition-colors uppercase tracking-tight flex items-center justify-center gap-2"
+                     >
+                       <MapPin className="w-3 h-3" />
+                       {lang === 'tr' ? 'Şu Anki Konum' : 'Current Location'}
+                     </button>
+                   </div>
+                 </div>
+               ))}
                <button 
                  type="button"
-                 onClick={() => onBrandingChange('locations', [...(branding.locations || []), { name: '', address: '', active: true }])}
+                 onClick={() => onBrandingChange('locations', [...(branding.locations || []), { name: '', address: '', active: true, lat: 0, lng: 0 }])}
                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"
                >
                  Mağaza Ekle
@@ -615,16 +665,7 @@ export const SettingsStoreOpsTab = ({
         </div>
       )}
 
-      <div className="flex justify-end pt-6">
-        <button 
-          type="button"
-          onClick={onSaveBranding} 
-          className="px-10 py-5 bg-slate-900 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-black transition-all shadow-2xl active:scale-95 flex items-center gap-3 cursor-pointer"
-        >
-          <Save className="w-5 h-5" />
-          Tüm Mağaza Ayarlarını Kaydet
-        </button>
-      </div>
+      <div className="pb-20"></div>
     </motion.div>
   );
 };
