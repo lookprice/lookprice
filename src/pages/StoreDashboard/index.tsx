@@ -481,8 +481,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     setSavingBranding(true);
     try {
       await api.updateBranding(branding, targetStoreId);
-      // No longer calling fetchData() to avoid slow re-fetches. 
-      // The local state 'branding' is already up-to-date.
+      await fetchData(); 
       toast.success(t.saveSuccess || (lang === 'tr' ? "Başarıyla kaydedildi" : "Saved successfully"));
     } catch (error) {
       toast.error(lang === 'tr' ? "Ayarlar kaydedilirken bir hata oluştu" : "An error occurred while saving settings");
