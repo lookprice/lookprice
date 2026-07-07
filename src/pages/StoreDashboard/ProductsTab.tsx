@@ -443,42 +443,11 @@ const ProductsTab = ({
                       <Plus className="h-4.5 w-4.5" />
                     </button>
                     <button 
-                      onClick={() => onBulkAdd?.([])} // Placeholder for bulk add
-                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95"
-                      title={lang === 'tr' ? "Toplu Ürün Ekle" : "Bulk Add Products"}
-                    >
-                      <Plus className="h-4.5 w-4.5" />
-                    </button>
-                    <button 
                       onClick={() => onBulkRename?.(products.map(p => ({ id: p.id, name: p.name })))} // Placeholder for bulk rename
                       className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95"
                       title={lang === 'tr' ? "Ürün İsimlerini Revize Et" : "Revise Product Names"}
                     >
                       <Edit2 className="h-4.5 w-4.5" />
-                    </button>
-                    <button 
-                      onClick={() => handleAutoFindImages({ allMissing: true })}
-                      disabled={isFindingImages}
-                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95 disabled:opacity-50"
-                      title={lang === 'tr' ? "Eksik Resimleri Bul" : "Auto-find Missing Images"}
-                    >
-                      {isFindingImages ? (
-                        <div className="h-4.5 w-4.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <ImageIcon className="h-4.5 w-4.5" />
-                      )}
-                    </button>
-                    <button 
-                      onClick={handleFixNames}
-                      disabled={isFixingNames}
-                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95 disabled:opacity-50"
-                      title={lang === 'tr' ? "İsimleri Düzenle (Title Case)" : "Fix Names (Title Case)"}
-                    >
-                      {isFixingNames ? (
-                        <div className="h-4.5 w-4.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="h-4.5 w-4.5" />
-                      )}
                     </button>
                     <button 
                       onClick={() => {

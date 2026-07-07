@@ -61,12 +61,12 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   };
 
   const storeNameDisplay = React.useMemo(() => {
-    const rawStoreName = branding?.store_name || branding?.name || storeName || "";
+    const rawStoreName = branding?.store_name || branding?.name || "";
     if (!rawStoreName || rawStoreName.toLowerCase().includes('lookprice')) {
       return 'Seçkin Emlak';
     }
     return rawStoreName;
-  }, [branding, storeName]);
+  }, [branding]);
 
   useEffect(() => {
     if (copySuccess) {

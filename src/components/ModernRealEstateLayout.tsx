@@ -41,6 +41,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   const { lang } = useLanguage();
   const [blogs, setBlogs] = useState<any[]>([]);
   const [selectedBlogPost, setSelectedBlogPost] = useState<any>(null);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   // Financing Calculator States
   const [finPropertyPrice, setFinPropertyPrice] = useState<number>(5000000);

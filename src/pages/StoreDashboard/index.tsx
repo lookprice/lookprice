@@ -641,7 +641,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'category', key: "operations", title: isTr ? "Operasyonlar" : "Operations", items: [
       { id: "products", label: t.products, icon: Package },
       { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices },
-      { id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck },
       { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
       { id: "fleet", label: isTr ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
       { id: "procurements", label: t.procurements, icon: Truck },
@@ -654,9 +653,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "companies", label: t.companies, icon: Store },
       { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
       { id: "fast-pos", label: t.fastPos, icon: Scan },
-    ]},
-    { type: 'category', key: "team", title: isTr ? "Personel Yönetimi" : "Team Management", items: [
-      { id: "team-crm", label: isTr ? "Personel & Şube Yönetimi" : "Staff & Branch CRM", icon: Users },
     ]},
     { type: 'category', key: "integrations", title: isTr ? "Yedekleme & Kanallar" : "Backup & Channels", items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },

@@ -1617,7 +1617,6 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             loading="lazy"
                             className="w-full h-full object-contain p-6 transition-transform duration-1000 group-hover:scale-110"
                             referrerPolicy="no-referrer"
-                                loading="lazy"
                           />
 
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-700" />

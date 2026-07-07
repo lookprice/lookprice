@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
-import { Eye, Package, Plus, Star, MapPin, Ruler, BedDouble, Car, Settings, Fuel, Home, Calendar } from "lucide-react";
+import { Eye, Package, Plus, Star, MapPin, Ruler, BedDouble, Car, Settings, Fuel, Home, Calendar, ArrowRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Product, Store as StoreInfo } from "../types";
 
