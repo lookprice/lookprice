@@ -626,17 +626,19 @@ export class MySoftService {
   }
 
   // 7. Get Invoice HTML
-  async getInvoiceHtml(ettn: string, invoiceNumber?: string, docType?: string): Promise<string> {
+  async getInvoiceHtml(ettn: string, invoiceNumber?: string, docType?: string, isPurchase?: boolean): Promise<string> {
     try {
       const token = await this.authenticate();
       const tId = this.credentials.tenant_id;
+      const storeVkn = this.credentials.vkn;
+      const mysoftDocType = docType === 'E-ARSIV' ? 'EARSIVFATURA' : (docType === 'E-FATURA' ? 'EFATURA' : undefined);
       
       const config: any = {
         headers: { 
           Authorization: token.toLowerCase().startsWith('bearer') ? token : `Bearer ${token}` 
         },
         responseType: 'arraybuffer',
-        timeout: 15000
+        timeout: 5000
       };
 
       if (this.credentials.tenant_id) {
@@ -644,139 +646,165 @@ export class MySoftService {
         config.headers['ApplicationId'] = this.credentials.tenant_id;
       }
 
-      const endpoints = [
+      const attempts: { url: string; method: 'get' | 'post'; params: any }[] = [];
+      const seen = new Set<string>();
+
+      function addAttempt(url: string, method: 'get' | 'post', params: any) {
+        const hash = `${method}:${url.toLowerCase()}:${JSON.stringify(params).toLowerCase()}`;
+        if (!seen.has(hash)) {
+          seen.add(hash);
+          attempts.push({ url, method, params });
+        }
+      }
+
+      // 1. High-Priority Direct Paths
+      if (isPurchase) {
+        // Incoming Purchase Invoices (usually GET to Inbox)
+        addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn });
+        addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: tId });
+        addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`, 'get', { invoiceETTN: ettn });
+        addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`, 'get', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
+        addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTML`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn });
+      } else {
+        // Outgoing Sales Invoices
+        if (docType === 'E-ARSIV') {
+          // Try Outbox Drafts first (for newly created drafts)
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: tId });
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { invoiceUuid: ettn, tenantIdentifierNumber: storeVkn });
+          
+          // Try Sent E-Arşiv (via GET to Outbox or custom E-Arşiv endpoint)
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn });
+          addAttempt(`${this.baseUrl}/EArchiveInvoice/GetEArchiveInvoiceHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
+          addAttempt(`${this.baseUrl}/EArchive/GetEArchiveInvoiceHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
+        } else {
+          // Sent E-Fatura (via GET to Outbox)
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn });
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: tId });
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'get', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
+          
+          // Fallbacks for E-Fatura sales
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
+        }
+      }
+
+      // 2. Generic Fallbacks for maximum robustness
+      const fallbackUrls = [
         `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`,
         `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`,
         `${this.baseUrl}/EArchiveInvoice/GetEArchiveInvoiceHTMLAsZip`,
-        `${this.baseUrl}/EArchiveInvoice/GetEArchiveInvoiceHTML`,
         `${this.baseUrl}/EArchive/GetEArchiveInvoiceHTMLAsZip`,
-        `${this.baseUrl}/EArchive/GetEArchiveInvoiceHTML`,
-        `${this.baseUrl}/InvoiceOutbox/GetEArchiveInvoiceHTMLAsZip`,
-        `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTML`,
         `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`,
+        `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTML`,
         `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTML`,
-        `${this.baseUrl}/Invoice/GetInvoiceHTML`,
-        `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxHTMLAsZip`,
-        `${this.baseUrl}/InvoiceOutbox/getInvoiceOutboxDraftHTMLAsZip`,
-        `${this.baseUrl}/EArchiveInvoice/getEArchiveInvoiceHTMLAsZip`,
-        `${this.baseUrl}/InvoiceInbox/getInvoiceInboxHTMLAsZip`,
+        `${this.baseUrl}/Invoice/GetInvoiceHTML`
       ];
 
-      const storeVkn = this.credentials.vkn;
-      const mysoftDocType = docType === 'E-ARSIV' ? 'EARSIVFATURA' : (docType === 'E-FATURA' ? 'EFATURA' : undefined);
-      
-      // Try variations of params
-      const paramVariations: any[] = [
+      const fallbackParams: any[] = [
         { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn },
         { invoiceUuid: ettn, tenantIdentifierNumber: storeVkn },
-        { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn, EDocumentType: 2 },
+        { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn },
         { invoiceETTN: ettn, InvoiceETTN: ettn },
-        { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: storeVkn },
-        { invoiceETTN: ettn, InvoiceETTN: ettn, eDocumentType: mysoftDocType },
-        { invoiceETTN: ettn, InvoiceETTN: ettn, eDocumentType: docType === 'E-ARSIV' ? 2 : 1 },
-        { invoiceETTN: ettn, InvoiceETTN: ettn, eDocumentType: docType },
-        { invoiceETTN: ettn, InvoiceETTN: ettn, isEarchive: docType === 'E-ARSIV', isEArchive: docType === 'E-ARSIV' },
-        { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: storeVkn, eDocumentType: mysoftDocType },
-        { invoiceETTN: ettn, InvoiceETTN: ettn, tenantIdentifierNumber: tId },
         { invoiceUuidList: [ettn], tenantIdentifierNumber: storeVkn },
-        { invoiceUUID: ettn, InvoiceUUID: ettn },
-        { uuid: ettn, UUID: ettn },
-        { id: ettn, ID: ettn }
+        { InvoiceUuid: ettn, EDocumentType: docType === 'E-ARSIV' ? 2 : 1 }
       ];
 
       if (invoiceNumber) {
-        paramVariations.push({ invoiceNumber: invoiceNumber });
-        paramVariations.push({ invoiceNumber: invoiceNumber, tenantIdentifierNumber: storeVkn });
-        paramVariations.push({ invoiceID: invoiceNumber });
-        paramVariations.push({ invoiceNo: invoiceNumber });
-        paramVariations.push({ id: invoiceNumber });
+        fallbackParams.push({ invoiceNumber: invoiceNumber });
+        fallbackParams.push({ invoiceNumber: invoiceNumber, tenantIdentifierNumber: storeVkn });
+        fallbackParams.push({ invoiceID: invoiceNumber });
+        fallbackParams.push({ invoiceNo: invoiceNumber });
       }
 
-      for (const url of endpoints) {
-        for (const params of paramVariations) {
-          const methods: ("get" | "post")[] = ["get", "post"];
-          
-          for (const method of methods) {
-            try {
-              console.log(`[HTML-FETCH] Trying ${method.toUpperCase()} URL: ${url} with params: ${JSON.stringify(params)}`);
-              
-              let response;
-              if (method === "get") {
-                response = await axios.get(url, {
-                  ...config,
-                  params: params
-                });
-              } else {
-                response = await axios.post(url, params, config);
-              }
-              
-              if (response.status === 200 && response.data) {
-                const buffer = Buffer.from(response.data);
-                
-                // Handle JSON response
-                if (buffer.length > 0 && buffer[0] === 123) { // 123 is '{'
-                  try {
-                    const jsonObj = JSON.parse(buffer.toString('utf8'));
-                    const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
-                    
-                    if (isSuccess) {
-                      const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
-                      if (base64Data && typeof base64Data === 'string' && base64Data.length > 50) {
-                        const decoded = Buffer.from(base64Data, 'base64');
-                        // Check if zip
-                        if (decoded.length > 2 && decoded[0] === 0x50 && decoded[1] === 0x4B) {
-                          const AdmZip = (await import('adm-zip')).default;
-                          const zip = new AdmZip(decoded);
-                          for (const entry of zip.getEntries()) {
-                            const content = entry.getData().toString('utf8');
-                            if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                               console.log(`[HTML-FETCH] SUCCESS from JSON[base64->zip] ${url}`);
-                               return content;
-                            }
-                          }
-                        } else {
-                          const content = decoded.toString('utf8');
-                          if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                             console.log(`[HTML-FETCH] SUCCESS from JSON[base64->string] ${url}`);
-                             return content;
-                          }
-                        }
-                      }
-                    } else {
-                      console.log(`[HTML-FETCH] JSON-Failure from ${url}: ${jsonObj.message || 'unknown error'}`);
-                    }
-                  } catch (jsonErr) {
-                    // Not valid JSON
-                  }
-                }
-                
-                // Handle direct ZIP
-                if (buffer.length > 2 && buffer[0] === 0x50 && buffer[1] === 0x4B) {
-                  const AdmZip = (await import('adm-zip')).default;
-                  const zip = new AdmZip(buffer);
-                  for (const entry of zip.getEntries()) {
-                    const content = entry.getData().toString('utf8');
-                    if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
-                      console.log(`[HTML-FETCH] SUCCESS from Direct ZIP ${url}`);
-                      return content;
-                    }
-                  }
-                }
-                
-                // Handle direct HTML/XML
-                const contentStr = buffer.toString('utf8');
-                if (contentStr.includes('<html') || contentStr.includes('<body') || contentStr.includes('<?xml')) {
-                  console.log(`[HTML-FETCH] SUCCESS from Direct String ${url}`);
-                  return contentStr;
-                }
-              }
-            } catch (e: any) {
-              // continue to next variation/method
-            }
+      const fallbackMethods: ('get' | 'post')[] = ['get', 'post'];
+
+      for (const url of fallbackUrls) {
+        for (const params of fallbackParams) {
+          for (const method of fallbackMethods) {
+            addAttempt(url, method, params);
           }
         }
       }
-      
+
+      console.log(`[HTML-FETCH] Smart scheduler prepared ${attempts.length} unique combinations.`);
+
+      // 3. Execution of attempts
+      for (let i = 0; i < attempts.length; i++) {
+        const { url, method, params } = attempts[i];
+        try {
+          let response;
+          if (method === 'get') {
+            response = await axios.get(url, { ...config, params });
+          } else {
+            response = await axios.post(url, params, config);
+          }
+
+          if (response.status === 200 && response.data) {
+            const buffer = Buffer.from(response.data);
+            
+            // Handle JSON response
+            if (buffer.length > 0 && buffer[0] === 123) { // 123 is '{'
+              try {
+                const jsonObj = JSON.parse(buffer.toString('utf8'));
+                const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
+                
+                if (isSuccess) {
+                  const base64Data = jsonObj.data || jsonObj.Data || jsonObj.html || jsonObj.Html;
+                  if (base64Data && typeof base64Data === 'string' && base64Data.length > 50) {
+                    const decoded = Buffer.from(base64Data, 'base64');
+                    // Check if zip
+                    if (decoded.length > 2 && decoded[0] === 0x50 && decoded[1] === 0x4B) {
+                      const AdmZip = (await import('adm-zip')).default;
+                      const zip = new AdmZip(decoded);
+                      for (const entry of zip.getEntries()) {
+                        const content = entry.getData().toString('utf8');
+                        if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                           console.log(`[HTML-FETCH] SUCCESS from JSON[base64->zip] via ${url}`);
+                           return content;
+                        }
+                      }
+                    } else {
+                      const content = decoded.toString('utf8');
+                      if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                         console.log(`[HTML-FETCH] SUCCESS from JSON[base64->string] via ${url}`);
+                         return content;
+                      }
+                    }
+                  }
+                } else {
+                  console.log(`[HTML-FETCH] JSON-Failure from ${url}: ${jsonObj.message || 'unknown error'}`);
+                }
+              } catch (jsonErr) {
+                // Not valid JSON, continue
+              }
+            }
+            
+            // Handle direct ZIP
+            if (buffer.length > 2 && buffer[0] === 0x50 && buffer[1] === 0x4B) {
+              const AdmZip = (await import('adm-zip')).default;
+              const zip = new AdmZip(buffer);
+              for (const entry of zip.getEntries()) {
+                const content = entry.getData().toString('utf8');
+                if (content.includes('<html') || content.includes('<body') || content.includes('<?xml')) {
+                  console.log(`[HTML-FETCH] SUCCESS from Direct ZIP via ${url}`);
+                  return content;
+                }
+              }
+            }
+            
+            // Handle direct HTML/XML
+            const contentStr = buffer.toString('utf8');
+            if (contentStr.includes('<html') || contentStr.includes('<body') || contentStr.includes('<?xml')) {
+              console.log(`[HTML-FETCH] SUCCESS from Direct String via ${url}`);
+              return contentStr;
+            }
+          }
+        } catch (e: any) {
+          // Request failed, continue to next attempt silently
+        }
+      }
+
       throw new Error("Fatura görseli bulunamadı.");
     } catch (error: any) {
       console.error("MySoft HTML Error:", error.message);
