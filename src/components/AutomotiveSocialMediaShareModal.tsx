@@ -219,9 +219,12 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
   // Dynamic Captions generator (100% Client-side robust copywriting for vehicles)
   const getCaptionText = () => {
-    const brandName = storeName || branding?.store_name || branding?.name || 'Seçkin Otomotiv';
-    const contactPhoneText = (branding?.phone || branding?.whatsapp_number) 
-      ? `iletişim Hattı: ${branding.phone || branding.whatsapp_number}` 
+    const rawName = storeName || branding?.store_name || branding?.name || "";
+    const brandName = (!rawName || rawName.toLowerCase().includes("lookprice")) ? "Seçkin Otomotiv" : rawName;
+    
+    const contactPhone = branding?.whatsapp_number || branding?.phone || '';
+    const contactPhoneText = contactPhone 
+      ? `iletişim Hattı: ${contactPhone}` 
       : 'DM yoluyla iletişim kurabilirsiniz.';
     const brokerName = vehicle.responsible_agent || branding?.owner_name || `${brandName} Sorumlu Danışmanı`;
     const storeHastagPart = brandName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '');

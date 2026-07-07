@@ -37,6 +37,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   radarNews = [],
   onViewProduct,
 }) => {
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   // Vehicle-specific share modal state
   const [shareProduct, setShareProduct] = useState<Product | null>(null);
 
@@ -343,8 +344,20 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
       <div className="max-w-7xl mx-auto w-full px-4 lg:px-8 pb-32">
         {/* Advanced Search Strip for Automotive */}
         {isSectionEnabled("search") && (
-          <div className="-mt-12 relative z-30 w-full mb-24">
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-2xl grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="-mt-12 relative z-30 w-full mb-12 md:mb-24">
+            {/* Mobile Filter Button */}
+            <div className="md:hidden flex justify-center w-full relative z-40">
+                <button
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="bg-slate-900 text-white px-8 py-3.5 rounded-2xl shadow-xl flex items-center gap-2 font-black tracking-widest text-xs uppercase"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  {lang === "tr" ? "Araç Filtrele" : "Filter Vehicles"}
+                </button>
+            </div>
+
+            {/* Desktop Filters */}
+            <div className="hidden md:grid bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-2xl grid-cols-4 gap-6">
               {["BRAND", "MODEL", "BUDGET", "YEAR"].map((filt, idx) => {
                 let displayTitle = filt;
                 let value = "all";

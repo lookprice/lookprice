@@ -200,27 +200,31 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
   // Dynamic Captions generator (100% Client-side robust copywriting for products)
   const getCaptionText = () => {
-    const contactPhoneText = (branding?.phone || branding?.whatsapp_number) 
-      ? `iletişim Hattı: ${branding.phone || branding.whatsapp_number}` 
+    const rawName = storeName || branding?.store_name || branding?.name || "";
+    const displayName = (!rawName || rawName.toLowerCase().includes("lookprice")) ? "Seçkin Mağaza" : rawName;
+    
+    const contactPhone = branding?.whatsapp_number || branding?.phone || '';
+    const contactPhoneText = contactPhone 
+      ? `iletişim Hattı: ${contactPhone}` 
       : 'DM yoluyla iletişim kurabilirsiniz.';
-    const storeHashtag = `#${storeName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')}`;
+    const storeHashtag = `#${displayName.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')}`;
     const activeHashtags = `#alisveris #kampanya #kampanyaliurunler #kalite #indirim #firsat #hediyelik #${productCategory.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} #${(productBrand || 'urun').toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '')} ${storeHashtag}`;
 
     switch (selectedTone) {
       case 'luxury':
         return `⚜️ YAŞAMINIZA ZERAFET KATIN: ${productTitle.toUpperCase()} ⚜️\n\n` +
-               `Adını özgün tasarımdan, gücünü ise kaliteden alan muhteşem bir ürünle stilinizi taçlandırın. ${storeName} koleksiyonunun gözde tasarımları arasında yer alan bu nadide parça cazibesiyle göz kamaştırıyor.\n\n` +
+               `Adını özgün tasarımdan, gücünü ise kaliteden alan muhteşem bir ürünle stilinizi taçlandırın. ${displayName} koleksiyonunun gözde tasarımları arasında yer alan bu nadide parça cazibesiyle göz kamaştırıyor.\n\n` +
                `🛍️ Ürün Bilgileri ve Özellikleri:\n` +
                `• Ürün Adı: ${productTitle}\n` +
                `• Kategori / Marka: ${productCategory} ${productBrand ? `• ${productBrand}` : ''}\n` +
-               `• Güvence: %100 Orijinal Ürün & ${storeName} Güvencesi\n` +
+               `• Güvence: %100 Orijinal Ürün & ${displayName} Güvencesi\n` +
                (discountPercentage > 0 ? `• Kampanya Ayrıcalığı: Net %${discountPercentage} Seçkin İndirim Oranı\n` : '') +
                `• Barkod ID: ${product.barcode || 'LP-PROD'}\n\n` +
                `💰 Ayrıcalıklı Liste Satış Bedeli: ${priceText}\n` +
                (oldPriceText ? `❌ Önceki Fiyat: ${oldPriceText}\n` : '') +
                `\nHayatına prestij ve asalet katmak isteyen, detaylardaki mükemmelliği önemseyen tüm seçkin misafirlerimizi mağazamıza davet ediyoruz. İncelemeniz ve dilediğiniz adrese randevulu kurye gönderimleri için bize hemen ulaşabilirsiniz.\n\n` +
                `📞 ${contactPhoneText}\n` +
-               `🏢 Koleksiyon Sahibi / Mağaza: ${storeName}\n\n` +
+               `🏢 Koleksiyon Sahibi / Mağaza: ${displayName}\n\n` +
                `${activeHashtags}`;
 
       case 'promo':
@@ -231,17 +235,17 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                (productBrand ? `• Marka Kalitesi: ${productBrand}\n` : '') +
                (discountPercentage > 0 ? `🎊 Dev İndirim Oranı: %${discountPercentage} İndirim Fırsatı!\n` : '') +
                `• Barkod / Kod: ${product.barcode || 'LP-PROD'}\n` +
-               `• Güvence: %100 Orijinal Ürün & ${storeName} Güvencesi\n\n` +
+               `• Güvence: %100 Orijinal Ürün & ${displayName} Güvencesi\n\n` +
                `💰 Şok Liste Fiyatı: ${priceText}\n` +
                (oldPriceText ? `❌ Eski Satış Fiyatı: ${oldPriceText} (Büyük İndirim Yapıldı!)\n` : '') +
                `\nBu bütçe dostu, Premium tasarımı kapınıza kadar ulaştırmak ve hızlı sipariş geçmek için bize hemen DM atabilir veya telefon hattımızdan iletişime geçebilirsiniz. Fırsatı kaçırmayın!\n\n` +
                `📞 ${contactPhoneText}\n` +
-               `🏪 Yetkili Satıcı Mağaza: ${storeName}\n\n` +
+               `🏪 Yetkili Satıcı Mağaza: ${displayName}\n\n` +
                `#indirimvar #sezonindirimi #alisveriszamani #firsatfiyat #alisverisonline ${activeHashtags}`;
 
       case 'friendly':
         return `🌟 Günün Harika Ürünü İle Karşınızdayız! 🌟\n\n` +
-               `Selamlar sevgili ${storeName} takipçileri! 😍 Bugün mağazamızın en beğenilen, her köşede tarzınızı ve günlük kullanım konforunuzu tazeleyecek pırıl pırıl bir parçayı sizinle paylaşmak için çok heyecanlıyız: ${productTitle}! ✨\n\n` +
+               `Selamlar sevgili ${displayName} takipçileri! 😍 Bugün mağazamızın en beğenilen, her köşede tarzınızı ve günlük kullanım konforunuzu tazeleyecek pırıl pırıl bir parçayı sizinle paylaşmak için çok heyecanlıyız: ${productTitle}! ✨\n\n` +
                `🌸 Neden Bu Ürüne Bayılacaksınız?\n` +
                `👉 Kalite & Zarafet bir arada: ${productCategory} koleksiyonunun en yeni tarzı\n` +
                (productBrand ? `👉 Güvendiğiniz Marka: ${productBrand} güvencesiyle\n` : '') +
@@ -252,7 +256,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                `\nEv sahipliği yapmak, detaylı sormak ya da bir Türk kahvemizi içerken ürünü yakından incelemek için bizimle hemen iletişime geçin. Sizler için mağazamızda özenle paketlemek için hazırız!\n\n` +
                `💬 DM üzerinden veya buraya yazarak bana anında ulaşabilirsiniz:\n` +
                `📞 ${contactPhoneText}\n` +
-               `🛍️ Güvenli Mağaza: ${storeName}\n\n` +
+               `🛍️ Güvenli Mağaza: ${displayName}\n\n` +
                `${activeHashtags}`;
     }
   };

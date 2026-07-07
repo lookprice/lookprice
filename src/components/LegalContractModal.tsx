@@ -117,10 +117,17 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
   const currentTemplate = contractTemplates.find(t => t.id === selectedTemplateId) || contractTemplates[0];
 
-  // Dynamic values pulled from store settings / branding
-  const storeNameVal = branding?.store_name || branding?.name || "Seçkin Emlak";
-  const storePhoneVal = branding?.phone || "+90 533 800 00 00";
-  const storeEmailVal = branding?.email || "bilgi@seckinemlak.com";
+  const getDisplayStoreName = () => {
+    const rawName = branding?.store_name || branding?.name || "Seçkin Emlak";
+    if (!rawName || rawName.toLowerCase().includes("lookprice")) {
+      return "Premium VIP Emlak";
+    }
+    return rawName;
+  };
+
+  const storeNameVal = getDisplayStoreName();
+  const storePhoneVal = branding?.phone || branding?.whatsapp_number || "+90 (5XX) 000 00 00";
+  const storeEmailVal = branding?.email || `bilgi@${branding?.slug || 'premium'}.com`;
 
   // Standardized prices: thousands separator with 0 decimal places inside real estate contracts
   const formattedPriceNum = Number(property.price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });

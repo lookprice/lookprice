@@ -147,5 +147,37 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     });
   };
 
-  return { handleAddProduct, handleDeleteProduct, handleDeleteAllProducts, handleBulkDelete, editingProduct, setEditingProduct };
+  const handleBulkAdd = async (products: any[]) => {
+    const targetStoreId = (user.role === 'superadmin' || user.store_id !== currentStoreId) ? currentStoreId : undefined;
+    
+    const addPromise = (async () => {
+      const res = await api.addBulkProducts(products, targetStoreId);
+      fetchData(true);
+      return res;
+    })();
+
+    toast.promise(addPromise, {
+      loading: lang === 'tr' ? "Ürünler ekleniyor..." : "Adding products...",
+      success: lang === 'tr' ? "Ürünler başarıyla eklendi" : "Products added successfully",
+      error: lang === 'tr' ? "Ürünler eklenemedi" : "Failed to add products"
+    });
+  };
+
+  const handleBulkRename = async (renames: { id: number, name: string }[]) => {
+    const targetStoreId = (user.role === 'superadmin' || user.store_id !== currentStoreId) ? currentStoreId : undefined;
+    
+    const renamePromise = (async () => {
+      const res = await api.bulkRenameProducts(renames, targetStoreId);
+      fetchData(true);
+      return res;
+    })();
+
+    toast.promise(renamePromise, {
+      loading: lang === 'tr' ? "İsimler güncelleniyor..." : "Updating names...",
+      success: lang === 'tr' ? "İsimler başarıyla güncellendi" : "Names updated successfully",
+      error: lang === 'tr' ? "İsimler güncellenemedi" : "Failed to update names"
+    });
+  };
+
+  return { handleAddProduct, handleDeleteProduct, handleDeleteAllProducts, handleBulkDelete, handleBulkAdd, handleBulkRename, editingProduct, setEditingProduct };
 };

@@ -9,12 +9,28 @@ interface AboutModalProps {
   store: any;
 }
 
+const getDisplayStoreName = (store: any) => {
+  const rawName = store?.branding?.store_name || store?.branding?.name || store?.name || "";
+  if (!rawName || rawName.toLowerCase().includes("lookprice")) {
+    const type = store?.store_type || store?.branding?.store_type;
+    if (type === 'real_estate') {
+      return "Premium VIP Emlak";
+    } else if (type === 'motor_vehicle' || type === 'automotive') {
+      return "Seçkin Otomotiv";
+    }
+    return "Seçkin Mağaza";
+  }
+  return rawName;
+};
+
 export const AboutModal: React.FC<AboutModalProps> = ({
   isOpen,
   onClose,
   lang,
   store
 }) => {
+  const displayName = getDisplayStoreName(store);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -78,7 +94,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                       : "Trusted Shopping"}
                   </h4>
                   <p className="text-slate-400 text-xs md:text-sm font-medium">
-                    {store?.name}{" "}
+                    {displayName}{" "}
                     {lang === "tr" ? "güvencesiyle." : "guarantee."}
                   </p>
                 </div>

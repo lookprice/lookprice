@@ -470,14 +470,27 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
        tax: [{
          taxAmount: Number(totalTax.toFixed(2)),
-         taxSubTotal: InvoiceDetail.map(detail => ({
-            taxableAmount: Number(Number(detail.taxableAmtTra).toFixed(2)),
-            taxAmount: Number(Number(detail.amtVatTra).toFixed(2)),
-            calculationSequenceNumeric: 0,
-            percent: String(detail.vatRate),
-            taxName: "Katma Değer Vergisi",
-            taxTypeCode: "0015"
-         }))
+         taxSubTotal: (() => {
+            const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
+            InvoiceDetail.forEach(detail => {
+               const rate = String(detail.vatRate);
+               const taxable = Number(detail.taxableAmtTra);
+               const tax = Number(detail.amtVatTra);
+               if (!groups[rate]) {
+                  groups[rate] = { taxableAmount: 0, taxAmount: 0 };
+               }
+               groups[rate].taxableAmount += taxable;
+               groups[rate].taxAmount += tax;
+            });
+            return Object.keys(groups).map(rate => ({
+               taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
+               taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
+               calculationSequenceNumeric: 0,
+               percent: rate,
+               taxName: "Katma Değer Vergisi",
+               taxTypeCode: "0015"
+            }));
+         })()
        }],
 
        invoiceDetail: InvoiceDetail,
@@ -1114,6 +1127,11 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
     if ('getInvoiceHtml' in service) {
       console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}, DocType: ${invData.e_document_type}`);
       let html = await (service as any).getInvoiceHtml(ettn, document_number, invData.e_document_type, invoiceType === 'purchase');
+      
+      if (invoiceType === 'purchase') {
+        console.log(`[HTML-FETCH] Purchase invoice - returning raw HTML as received without custom additions.`);
+        return res.json({ html });
+      }
       
       // 1. Prepare Amount in Words and Currency Info
       const amountWordsRaw = numberToTurkishWords(Number(grand_total), currency || 'TRY');

@@ -20,13 +20,15 @@ interface AutoContractModalProps {
   onClose: () => void;
   vehicle: any;
   storeName: string;
+  branding?: any;
 }
 
 export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   isOpen,
   onClose,
   vehicle,
-  storeName
+  storeName,
+  branding
 }) => {
   const [contractType, setContractType] = useState<'consignment' | 'booking'>('consignment');
   const [clientName, setClientName] = useState("");
@@ -38,6 +40,17 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   const [signedName, setSignedName] = useState("");
   const [isSigned, setIsSigned] = useState(false);
   const [previewMode, setPreviewMode] = useState<'editor' | 'code'>('editor');
+
+  const getDisplayStoreName = () => {
+    const rawName = branding?.store_name || branding?.name || storeName || "";
+    if (!rawName || rawName.toLowerCase().includes("lookprice")) {
+      return "Seçkin Otomotiv";
+    }
+    return rawName;
+  };
+
+  const displayName = getDisplayStoreName();
+  const displayPhone = branding?.phone || branding?.whatsapp_number || "+90 (5XX) 000 00 00";
 
   const numberToWords = (n: string) => {
     const num = parseInt(n.replace(/\./g, ''));
@@ -102,7 +115,11 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
     <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">YETKİLİ GALERİ / DEALER</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${storeName.replace(/lookprice/gi, 'Seçkin')}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${displayName}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; background: #f8fafc; font-weight: bold; width: 30%;">İletişim:</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${displayPhone}</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">ARAÇ SAHİBİ / OWNER</td>
@@ -149,7 +166,10 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
         <span style="display: block; font-size: 10px; color: #94a3b8;">GALERİ YETKİLİ ADI</span>
       </div>
       <div style="font-size: 14px; font-weight: bold; color: #475569; font-style: italic;">
-        ${storeName.replace(/lookprice/gi, 'Seçkin')}
+        ${displayName}
+      </div>
+      <div style="font-size: 10px; color: #64748b;">
+        İletişim: ${displayPhone}
       </div>
       <div style="font-size: 9px; color: #94a3b8;">Kaşe & Güvenli İmza / Stamp</div>
     </div>
@@ -178,7 +198,11 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
     <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">ARACI GALERİ / DEALER</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${storeName.replace(/lookprice/gi, 'Seçkin')}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${displayName}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; background: #f8fafc; font-weight: bold; width: 30%;">İletişim:</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${displayPhone}</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">ALICI (Müşteri) / INVESTOR</td>
@@ -214,7 +238,8 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   <div style="margin-top: 45px; display: flex; justify-content: space-between; gap: 40px;">
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center;">
       <span style="font-size: 11px; font-weight: bold; color: #64748b;">ARACI / BROADCAST DEPT</span><br/><br/>
-      <span style="font-weight: bold; color: #475569;">${storeName.replace(/lookprice/gi, 'Seçkin')}</span>
+      <span style="font-weight: bold; color: #475569;">${displayName}</span><br/>
+      <span style="font-size: 10px; color: #94a3b8;">${displayPhone}</span>
     </div>
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center;">
       <span style="font-size: 11px; font-weight: bold; color: #64748b;">MÜŞTERİ / BUYER</span><br/><br/>
@@ -267,7 +292,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   const handleShareWhatsApp = () => {
     const formattedPhone = clientPhone ? clientPhone.replace(/[^\d+]/g, '') : '';
     const contractTitle = contractType === 'consignment' ? 'Araç Emanet Sözleşmesi' : 'Araç Rezervasyon Protokolü';
-    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*${vehicle.brand} ${vehicle.model}* marka aracınız için düzenlenen resmi *${contractTitle}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 https://lookprice.me/contract/sign/vehicle-${vehicle.id}?client=${encodeURIComponent(clientName || '')}\n\nSözleşme Tarihi: ${contractDate}\n\nSaygılarımızla,\n*${storeName.replace(/lookprice/gi, 'Seçkin')}*\nİrtibat: ${clientPhone || '+90 533 ...'}`;
+    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*${vehicle.brand} ${vehicle.model}* marka aracınız için düzenlenen resmi *${contractTitle}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 https://lookprice.me/contract/sign/vehicle-${vehicle.id}?client=${encodeURIComponent(clientName || '')}\n\nSözleşme Tarihi: ${contractDate}\n\nSaygılarımızla,\n*${displayName}*\nİrtibat: ${displayPhone}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 

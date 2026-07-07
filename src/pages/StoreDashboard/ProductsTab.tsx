@@ -38,6 +38,7 @@ import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import ProductMovementModal from "../../components/ProductMovementModal";
 import { ProductSocialMediaShareModal } from "../../components/ProductSocialMediaShareModal";
+import ProductsFilterBar from "../../components/dashboard/ProductsFilterBar";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 
@@ -55,6 +56,8 @@ interface ProductsTabProps {
   onApplyTaxRule?: (category: string, taxRate: number) => void;
   onBulkPriceUpdate?: () => void;
   onBulkRecalculatePrice2?: () => void;
+  onBulkAdd?: (products: any[]) => void;
+  onBulkRename?: (renames: { id: number, name: string }[]) => void;
   onShowQr: () => void;
   branding?: any;
   showStoreName?: boolean;
@@ -78,6 +81,8 @@ const ProductsTab = ({
   onApplyTaxRule,
   onBulkPriceUpdate,
   onBulkRecalculatePrice2,
+  onBulkAdd,
+  onBulkRename,
   onShowQr,
   branding,
   showStoreName,
@@ -150,6 +155,7 @@ const ProductsTab = ({
   };
 
   const handleFixNames = async () => {
+    toast.info("handleFixNames triggered");
     if (isFixingNames) return;
     if (!window.confirm(lang === 'tr' ? "Tüm ürün isimleri 'Title Case' (İlk Harfler Büyük) formatına getirilecek. Devam etmek istiyor musunuz?" : "All product names will be converted to 'Title Case'. Do you want to continue?")) {
       return;
@@ -160,11 +166,6 @@ const ProductsTab = ({
       const res = await api.reformatProductNames(currentStoreId);
       if (res && res.success) {
         toast.success(res.message || (lang === 'tr' ? "Ürün isimleri başarıyla düzeltildi." : "Product names reformatted successfully."));
-        // We might need to refresh the parent data, but since the parent handles data, 
-        // we'll assume the user will see changes or we can suggest a refresh.
-        // Actually, the parent `fetchData` should be called.
-        // But ProductsTab doesn't have a direct refresh callback in props.
-        // Let's assume the parent updates or suggest refresh.
         window.location.reload(); 
       } else {
         toast.error(res?.error || "Error");
@@ -440,6 +441,20 @@ const ProductsTab = ({
                       title={t.addEntry}
                     >
                       <Plus className="h-4.5 w-4.5" />
+                    </button>
+                    <button 
+                      onClick={() => onBulkAdd?.([])} // Placeholder for bulk add
+                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95"
+                      title={lang === 'tr' ? "Toplu Ürün Ekle" : "Bulk Add Products"}
+                    >
+                      <Plus className="h-4.5 w-4.5" />
+                    </button>
+                    <button 
+                      onClick={() => onBulkRename?.(products.map(p => ({ id: p.id, name: p.name })))} // Placeholder for bulk rename
+                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95"
+                      title={lang === 'tr' ? "Ürün İsimlerini Revize Et" : "Revise Product Names"}
+                    >
+                      <Edit2 className="h-4.5 w-4.5" />
                     </button>
                     <button 
                       onClick={() => handleAutoFindImages({ allMissing: true })}

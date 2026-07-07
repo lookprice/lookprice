@@ -973,6 +973,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         }}
         vehicle={autoContractVehicle}
         storeName={branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Otomotiv" : "Premium Automotive")}
+        branding={branding}
       />
       <AutomotiveSocialMediaShareModal
         isOpen={isShareModalOpen}

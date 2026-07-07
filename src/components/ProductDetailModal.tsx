@@ -855,6 +855,39 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </button>
           )}
         </div>
+
+        {/* Mobile Sticky Contact Bar */}
+        {(store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || product.type === "vehicle" || product.type === "real_estate") && (
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-50 flex gap-3 pb-safe">
+            <button
+              onClick={() => {
+                const phone = store?.phone;
+                if (phone) {
+                  window.open(`tel:${phone.replace(/[^0-9+]/g, "")}`, "_self");
+                }
+              }}
+              className="flex-1 py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 shadow-lg"
+            >
+              {lang === "tr" ? "Randevu Al" : "Book Info"}
+            </button>
+            <button
+              onClick={() => {
+                const phone = store?.whatsapp_number || store?.phone;
+                if (phone) {
+                  const message = lang === "tr"
+                    ? `Merhaba, #${product.id} portföy numaralı ${product.name} ilanı hakkında bilgi almak istiyorum.`
+                    : `Hello, I would like to inquire about listing #${product.id} - ${product.name}.`;
+                  window.open(`https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`, "_blank");
+                }
+              }}
+              className="flex-[1.5] py-3.5 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 shadow-lg"
+              style={{ backgroundColor: "#25D366" }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg>
+              {lang === "tr" ? "Hızlı İletişim" : "WhatsApp"}
+            </button>
+          </div>
+        )}
       </motion.div>
 
       {/* Lightbox / Fullscreen Image Viewer Modal Overlay */}
@@ -904,11 +937,27 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               )}
 
               {/* Large Active Image inside Enlarged View */}
-              <img
+              <motion.img
+                key={activeImageIdx}
                 src={getAnnotatedImageUrl(productImages[activeImageIdx])}
                 alt={product.name}
-                className="max-w-full max-h-[70vh] md:max-h-[82vh] object-contain select-none shadow-2xl rounded-xl"
+                className="max-w-full max-h-[70vh] md:max-h-[82vh] object-contain select-none shadow-2xl rounded-xl cursor-grab active:cursor-grabbing touch-pan-y"
                 referrerPolicy="no-referrer"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.8}
+                onDragEnd={(e, { offset, velocity }) => {
+                  const swipe = offset.x;
+                  if (swipe < -50) {
+                    setActiveImageIdx((prev) => (prev + 1) % productImages.length);
+                  } else if (swipe > 50) {
+                    setActiveImageIdx((prev) => (prev - 1 + productImages.length) % productImages.length);
+                  }
+                }}
               />
 
               {/* Right Arrow Button */}

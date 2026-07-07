@@ -13,6 +13,7 @@ import { UserModal } from "./modals/UserModal";
 import { CompanyModal } from "./modals/CompanyModal";
 import { ProductModal } from "./modals/ProductModal";
 import { QuotationModal } from "./modals/QuotationModal";
+import { ImportModal } from "./modals/ImportModal";
 
 interface DashboardModalsProps {
   // Common
@@ -153,6 +154,18 @@ interface DashboardModalsProps {
   quickProductForm?: any;
   setQuickProductForm?: any;
   handleQuickAddProduct?: (e: React.FormEvent) => void;
+
+  showImportModal: boolean;
+  setShowImportModal: (show: boolean) => void;
+  isImporting: boolean;
+  importFile: File | null;
+  importColumns: string[];
+  mapping: any;
+  setMapping: (m: any) => void;
+  convertCurrency: boolean;
+  setConvertCurrency: (c: boolean) => void;
+  handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleImport: (e: React.FormEvent) => void;
 }
 
 export const DashboardModals = (props: DashboardModalsProps) => {
@@ -173,7 +186,8 @@ export const DashboardModals = (props: DashboardModalsProps) => {
     showCompanyModal, setShowCompanyModal, editingCompany, setEditingCompany, handleAddCompany,
     showUserModal, setShowUserModal, handleAddUser,
     showQuotationModal, setShowQuotationModal, editingQuotation, setEditingQuotation, quotationItems = [], setQuotationItems, handleAddQuotation, isTaxInclusive = false, setIsTaxInclusive, quotationNotes, setQuotationNotes,
-    showQuickProductModal, setShowQuickProductModal, quickProductForm, setQuickProductForm, handleQuickAddProduct
+    showQuickProductModal, setShowQuickProductModal, quickProductForm, setQuickProductForm, handleQuickAddProduct,
+    showImportModal, setShowImportModal, isImporting, importFile, importColumns, mapping, setMapping, convertCurrency, setConvertCurrency, handleFileSelect, handleImport
   } = props;
 
   const [copied, setCopied] = useState(false);
@@ -1432,6 +1446,21 @@ export const DashboardModals = (props: DashboardModalsProps) => {
         handleAddUser={handleAddUser}
         isTr={isTr}
         translations={t}
+      />
+      <ImportModal 
+        showImportModal={showImportModal}
+        setShowImportModal={setShowImportModal}
+        isImporting={isImporting}
+        importFile={importFile}
+        importColumns={importColumns}
+        mapping={mapping}
+        setMapping={setMapping}
+        convertCurrency={convertCurrency}
+        setConvertCurrency={setConvertCurrency}
+        handleFileSelect={handleFileSelect}
+        handleImport={handleImport}
+        t={t}
+        lang={lang}
       />
 
     </AnimatePresence>

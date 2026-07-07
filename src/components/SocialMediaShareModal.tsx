@@ -61,12 +61,12 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   };
 
   const storeNameDisplay = React.useMemo(() => {
-    const rawStoreName = branding?.store_name || branding?.name;
-    if (!rawStoreName || rawStoreName.toLowerCase().trim() === 'lookprice' || rawStoreName.toLowerCase().trim() === 'lookprice premium gallery') {
+    const rawStoreName = branding?.store_name || branding?.name || storeName || "";
+    if (!rawStoreName || rawStoreName.toLowerCase().includes('lookprice')) {
       return 'Seçkin Emlak';
     }
     return rawStoreName;
-  }, [branding]);
+  }, [branding, storeName]);
 
   useEffect(() => {
     if (copySuccess) {
@@ -172,7 +172,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
   // Dynamic Captions generator (100% Client-side robust copywriting)
   const getCaptionText = () => {
-    const brandName = branding?.store_name || branding?.name || 'Seçkin Gayrimenkul';
+    const brandName = storeNameDisplay;
     const brokerName = property.responsible_agent || branding?.owner_name || `${brandName} Sorumlu Danışmanı`;
     const contactPhoneText = property.consultant_phone 
       ? `iletişim Hattı: ${property.consultant_phone}` 

@@ -2340,6 +2340,117 @@ router.post("/products/bulk-delete", async (req: any, res) => {
   }
 });
 
+router.post("/products/bulk-add", async (req: any, res) => {
+  try {
+    const requestedStoreId = req.query.storeId || req.body.storeId;
+    const storeId = req.user.role === "superadmin" ? requestedStoreId : req.user.store_id;
+    if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
+
+    const { products } = req.body;
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: "No products provided" });
+    }
+
+    const canAddBatch = await checkProductLimit(storeId, products.length);
+    if (!canAddBatch) {
+      return res.status(400).json({ error: "Ürün limitine ulaşıldı. Lütfen planınızı yükseltin." });
+    }
+
+    const insertedIds = [];
+    for (const p of products) {
+      const barcode = p.barcode || `B-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const name = p.name;
+      const price = p.price || 0;
+      if (!name) continue;
+
+      const result = await pool.query(
+        `INSERT INTO products (
+          store_id, barcode, name, price, currency, cost_price, cost_currency,
+          description, stock_quantity, min_stock_level, unit, category, sub_category,
+          brand, author, labels, image_url, is_web_sale, product_type, price_2,
+          price_2_currency, tax_rate
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
+        [
+          storeId,
+          String(barcode),
+          name,
+          price,
+          p.currency || 'TRY',
+          p.cost_price || 0,
+          p.cost_currency || 'TRY',
+          p.description || '',
+          p.stock_quantity || 0,
+          p.min_stock_level || 0,
+          p.unit || 'Adet',
+          p.category || '',
+          p.sub_category || '',
+          p.brand || '',
+          p.author || '',
+          p.labels || '',
+          p.image_url || '',
+          p.is_web_sale !== false,
+          p.product_type || 'standard',
+          p.price_2 || 0,
+          p.price_2_currency || 'TRY',
+          p.tax_rate ?? 20
+        ]
+      );
+      insertedIds.push(result.rows[0].id);
+    }
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "product_bulk_add",
+      "product",
+      null,
+      `${products.length} adet ürün toplu olarak eklendi`,
+      null,
+      null
+    );
+
+    res.json({ success: true, message: `${products.length} products added.`, insertedIds });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put("/products/bulk-rename", async (req: any, res) => {
+  try {
+    const requestedStoreId = req.query.storeId || req.body.storeId;
+    const storeId = req.user.role === "superadmin" ? requestedStoreId : req.user.store_id;
+    if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
+
+    const { renames } = req.body;
+    if (!Array.isArray(renames) || renames.length === 0) {
+      return res.status(400).json({ error: "No renames provided" });
+    }
+
+    for (const item of renames) {
+      if (!item.id || !item.name) continue;
+      await pool.query(
+        "UPDATE products SET name = $1 WHERE store_id = $2 AND id = $3",
+        [item.name, storeId, item.id]
+      );
+    }
+
+    await logAction(
+      storeId,
+      req.user.id,
+      "product_bulk_rename",
+      "product",
+      null,
+      `${renames.length} adet ürün toplu olarak yeniden adlandırıldı`,
+      null,
+      null
+    );
+
+    res.json({ success: true, message: `${renames.length} products renamed.` });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.delete("/products/:id", async (req: any, res) => {
   try {
     const requestedStoreId = req.query.storeId || req.user.store_id;

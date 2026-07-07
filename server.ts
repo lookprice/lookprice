@@ -687,35 +687,9 @@ function sanitizeFilename(originalName: string): string {
           template = await vite.transformIndexHtml(url, template);
           
           // Then inject process.env into the head
-          const envVars = {
-            GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.Gemini_API_Key || process.env.GOOGLE_API_KEY || process.env.API_KEY || "",
-            GOOGLE_MAPS_PLATFORM_KEY: process.env.GOOGLE_MAPS_PLATFORM_KEY || "",
-            Gemini_API_Key: process.env.Gemini_API_Key || process.env.GEMINI_API_KEY || "",
-            GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || "",
-            API_KEY: process.env.API_KEY || process.env.GEMINI_API_KEY || "",
-            VITE_API_KEY: process.env.VITE_API_KEY || process.env.API_KEY || "",
-            VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "",
-            NODE_ENV: process.env.NODE_ENV || "development"
-          };
-
           const customMetaTags = await generateMetaTags(url, req);
 
-          console.log("Injecting API Keys into HTML (Dev):", {
-            keys: Object.keys(envVars),
-            hasValues: Object.values(envVars).map(v => !!v)
-          });
-
-          const injection = `<script>
-            (function() {
-              globalThis.process = globalThis.process || { env: {} };
-              globalThis.process.env = globalThis.process.env || {};
-              const env = ${JSON.stringify(envVars)};
-              Object.keys(env).forEach(key => {
-                globalThis.process.env[key] = globalThis.process.env[key] || env[key];
-              });
-              console.log("Runtime env injection complete. Keys:", Object.keys(globalThis.process.env));
-            })();
-          </script>${customMetaTags}`;
+          const injection = `${customMetaTags}`;
           template = template.replace("</head>", `${injection}</head>`);
           
           res.status(200).set({ "Content-Type": "text/html" }).end(template);
@@ -761,21 +735,8 @@ function sanitizeFilename(originalName: string): string {
 
         const customMetaTags = await generateMetaTags(req.originalUrl, req);
 
-        console.log("Injecting API Keys into HTML (Prod):", {
-          keys: Object.keys(envVars),
-          hasValues: Object.values(envVars).map(v => !!v)
-        });
-
-        const injection = `<script>
-          (function() {
-            globalThis.process = globalThis.process || { env: {} };
-            globalThis.process.env = globalThis.process.env || {};
-            const env = ${JSON.stringify(envVars)};
-            Object.keys(env).forEach(key => {
-              globalThis.process.env[key] = globalThis.process.env[key] || env[key];
-            });
-          })();
-        </script>${customMetaTags}`;
+        console.log(`Serving index.html for path: ${req.originalUrl}`);
+        const injection = `${customMetaTags}`;
         template = template.replace("</head>", `${injection}</head>`);
         
         res.status(200).set({ "Content-Type": "text/html" }).end(template);

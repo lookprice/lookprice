@@ -98,6 +98,11 @@ import { BlogModal } from '../components/showcase/BlogModal';
 import { LegalModal } from '../components/showcase/LegalModal';
 import { AboutModal } from '../components/showcase/AboutModal';
 import { StoreHeader } from '../components/showcase/StoreHeader';
+import { HeroSection } from '../components/showcase/HeroSection';
+import { FeaturedSection } from '../components/showcase/FeaturedSection';
+import { BlogSection } from '../components/showcase/BlogSection';
+import { AboutSection } from '../components/showcase/AboutSection';
+import { ContactSection } from '../components/showcase/ContactSection';
 import { NewsletterSection } from '../components/showcase/NewsletterSection';
 import { StoreFooter } from '../components/showcase/StoreFooter';
 const StoreMapSection = React.lazy(() => import("../components/StoreMapSection").then(m => ({ default: m.StoreMapSection })));
@@ -261,6 +266,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       }
     }
   }, [slug]);
+
+  useEffect(() => {
+    if (searchQuery) {
+      document.getElementById("products-grid")?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [searchQuery]);
 
   useEffect(() => {
     if (basket.length > 0) {
@@ -1390,6 +1401,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                                 alt={cat}
                                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                                 referrerPolicy="no-referrer"
+                                loading="lazy"
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300">
@@ -1602,8 +1614,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                               "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=400&auto=format&fit=crop"
                             }
                             alt={product.name}
+                            loading="lazy"
                             className="w-full h-full object-contain p-6 transition-transform duration-1000 group-hover:scale-110"
                             referrerPolicy="no-referrer"
+                                loading="lazy"
                           />
 
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-700" />
@@ -2180,121 +2194,29 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                       {store.page_layout.map((section: any) => {
                         switch (section.type) {
                           case "hero":
-                            return (
-                              <section
-                                key={section.id}
-                                className="relative h-[650px] flex items-center justify-center rounded-3xl overflow-hidden shadow-2xl border border-white/5"
-                              >
-                                <img
-                                  src={store.hero_image_url}
-                                  className="absolute inset-0 w-full h-full object-cover brightness-[0.85] contrast-[1.05]"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-transparent" />
-                                <div className="absolute inset-0 bg-black/25" />
-                                <div className="relative z-10 text-center text-white px-6 py-12 max-w-3xl bg-slate-950/35 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl mx-4">
-                                  <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-3 block">
-                                    {store.name}
-                                  </span>
-                                  <h1 className="text-4xl md:text-5xl font-semibold font-display tracking-tight text-white mb-4">
-                                    {store.hero_title}
-                                  </h1>
-                                  <p className="text-slate-300 font-medium leading-relaxed">
-                                    {store.hero_subtitle}
-                                  </p>
-                                </div>
-                              </section>
-                            );
+                            return <HeroSection key={section.id} store={store} />;
                           case "featured":
                             return (
-                              <section key={section.id}>
-                                <h2 className="text-3xl font-semibold text-gray-900 mb-10">
-                                  {t.dashboard.featuredProducts}
-                                </h2>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                  {featuredProducts.map((p) => (
-                                    <ProductCard
-                                      key={p.id}
-                                      product={p}
-                                      store={store}
-                                      t={t}
-                                      addToBasket={addToBasket}
-                                      onView={setSelectedProduct}
-                                      primaryColor={primaryColor}
-                                      isLuxury={isLuxury}
-                                      sector={sector}
-                                    />
-                                  ))}
-                                </div>
-                              </section>
+                              <FeaturedSection
+                                key={section.id}
+                                store={store}
+                                featuredProducts={featuredProducts}
+                                t={t}
+                                addToBasket={addToBasket}
+                                onView={setSelectedProduct}
+                                primaryColor={primaryColor}
+                                isLuxury={isLuxury}
+                                sector={sector}
+                              />
                             );
                           case "blog":
                             return (
-                              <section
+                              <BlogSection
                                 key={section.id}
-                                id="blog"
-                                className="py-12"
-                              >
-                                <div className="flex items-center justify-between mb-10">
-                                  <h2 className="text-4xl font-semibold text-gray-900 tracking-tight">
-                                    {isTr ? "Blog Yazıları" : "Blog Posts"}
-                                  </h2>
-                                  <div className="hidden md:flex items-center space-x-2 text-sm font-semibold text-indigo-600 tracking-wide">
-                                    <Sparkles className="w-4 h-4" />
-                                    <span>
-                                      {isTr ? "YENİ İÇERİKLER" : "NEW CONTENT"}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                  {store.blog_posts?.map((post) => (
-                                    <motion.div
-                                      key={post.id}
-                                      whileHover={{ y: -8 }}
-                                      onClick={() => setSelectedBlogPost(post)}
-                                      className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-500"
-                                    >
-                                      <div className="relative h-64 overflow-hidden">
-                                        <img
-                                          src={
-                                            post.image_url ||
-                                            "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop&q=60"
-                                          }
-                                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                        <div className="absolute bottom-6 left-6 right-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
-                                          <span className="px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-lg text-xss font-semibold text-indigo-600 tracking-wide">
-                                            {isTr
-                                              ? "Okumaya Devam Et"
-                                              : "Read More"}
-                                          </span>
-                                        </div>
-                                      </div>
-                                      <div className="p-8">
-                                        <div className="flex items-center gap-3 mb-4">
-                                          <span className="text-[10px] font-semibold text-indigo-600 tracking-wide bg-indigo-50 px-2 py-1 rounded-md">
-                                            {post.date}
-                                          </span>
-                                          <span className="w-1 h-1 rounded-lg bg-gray-300" />
-                                          <span className="text-[10px] font-semibold text-gray-400 tracking-wide">
-                                            {Math.ceil(
-                                              (post.content?.length || 0) /
-                                                1000,
-                                            )}{" "}
-                                            {isTr ? "DAKİKA" : "MIN READ"}
-                                          </span>
-                                        </div>
-                                        <h4 className="text-xsl font-semibold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">
-                                          {post.title}
-                                        </h4>
-                                        <p className="text-gray-500 text-sm leading-relaxed font-medium line-clamp-3">
-                                          {post.excerpt}
-                                        </p>
-                                      </div>
-                                    </motion.div>
-                                  ))}
-                                </div>
-                              </section>
+                                store={store}
+                                isTr={isTr}
+                                onSelectPost={setSelectedBlogPost}
+                              />
                             );
                           case "news":
                             if (!radarNews || radarNews.length === 0) return null;
@@ -2340,33 +2262,19 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                             */
                           case "about":
                             return (
-                              <section
+                              <AboutSection
                                 key={section.id}
-                                id="about"
-                                className="bg-gray-50 p-8 rounded-2xl"
-                              >
-                                <h2 className="text-3xl font-semibold text-gray-900 mb-6">
-                                  {lang === "tr" ? "Hakkımızda" : "About Us"}
-                                </h2>
-                                <p className="text-gray-600 leading-relaxed">
-                                  {store.about_text}
-                                </p>
-                              </section>
+                                store={store}
+                                isTr={isTr}
+                              />
                             );
                           case "contact":
                             return (
-                              <section
+                              <ContactSection
                                 key={section.id}
-                                id="contact"
-                                className="bg-gray-900 text-white p-8 rounded-2xl"
-                              >
-                                <h2 className="text-3xl font-semibold mb-6">
-                                  {lang === "tr" ? "İletişim" : "Contact"}
-                                </h2>
-                                <p>{store.address}</p>
-                                <p>{store.email}</p>
-                                <p>{store.phone}</p>
-                              </section>
+                                store={store}
+                                isTr={isTr}
+                              />
                             );
                           default:
                             return null;
@@ -2577,17 +2485,21 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                           className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isOrdersView ? "bg-gray-900 text-white shadow-xl" : "text-gray-500 hover:bg-white"}`}
                         >
                           <ShoppingBag className="w-5 h-5" />
-                          {lang === "tr" ? "Siparişlerim" : "My Orders"}
+                          {lang === "tr" 
+                            ? (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "Taleplerim" : "Siparişlerim")
+                            : (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "My Requests" : "My Orders")}
                         </button>
-                        <button
-                          onClick={() => navigate(`/s/${slug}/return`)}
-                          className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isReturnView ? "bg-gray-900 text-white shadow-xl" : "text-gray-500 hover:bg-white"}`}
-                        >
-                          <RotateCcw className="w-5 h-5" />
-                          {lang === "tr"
-                            ? "İade Taleplerim"
-                            : "Return Requests"}
-                        </button>
+                        {store?.store_type !== 'real_estate' && store?.store_type !== 'motor_vehicle' && (
+                          <button
+                            onClick={() => navigate(`/s/${slug}/return`)}
+                            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-semibold text-sm transition-all ${isReturnView ? "bg-gray-900 text-white shadow-xl" : "text-gray-500 hover:bg-white"}`}
+                          >
+                            <RotateCcw className="w-5 h-5" />
+                            {lang === "tr"
+                              ? "İade Taleplerim"
+                              : "Return Requests"}
+                          </button>
+                        )}
                         <div className="pt-8">
                           <button
                             onClick={handleLogout}

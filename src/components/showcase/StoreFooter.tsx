@@ -20,12 +20,28 @@ interface StoreFooterProps {
   setShowStoreLocatorModal: (show: boolean) => void;
 }
 
+const getDisplayStoreName = (store: any) => {
+  const rawName = store?.branding?.store_name || store?.branding?.name || store?.name || "";
+  if (!rawName || rawName.toLowerCase().includes("lookprice")) {
+    const type = store?.store_type || store?.branding?.store_type;
+    if (type === 'real_estate') {
+      return "Premium VIP Emlak";
+    } else if (type === 'motor_vehicle' || type === 'automotive') {
+      return "Seçkin Otomotiv";
+    }
+    return "Seçkin Mağaza";
+  }
+  return rawName;
+};
+
 export const StoreFooter: React.FC<StoreFooterProps> = ({
   store,
   lang,
   setShowAboutModal,
   setShowStoreLocatorModal
 }) => {
+  const displayName = getDisplayStoreName(store);
+
   return (
     <footer className="bg-black pt-32 pb-12 overflow-hidden relative">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
@@ -37,7 +53,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
               {store?.logo_url ? (
                 <img
                   src={store.logo_url}
-                  alt={store.name}
+                  alt={displayName}
                   className="h-12 w-auto object-contain"
                   referrerPolicy="no-referrer"
                 />
@@ -47,7 +63,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
                 </div>
               )}
               <span className="text-3xl font-bold tracking-tighter text-white">
-                {store?.name}
+                {displayName}
               </span>
             </div>
             <p className="text-gray-500 text-lg font-medium max-w-md leading-relaxed mb-10">
@@ -227,7 +243,7 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
             </div>
 
             <p className="text-gray-600 font-bold text-[10px] tracking-wide">
-              © {new Date().getFullYear()} {store?.name}.{" "}
+              © {new Date().getFullYear()} {displayName}.{" "}
               {lang === "tr"
                 ? "TÜM HAKLARI SAKLIDIR."
                 : "ALL RIGHTS RESERVED."}

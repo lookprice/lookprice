@@ -377,10 +377,14 @@ export const StoreProfile: React.FC<StoreProfileProps> = ({
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-gray-900 tracking-tighter">
-              {lang === "tr" ? "Siparişlerim" : "My Orders"}
+              {lang === "tr" 
+                ? (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "Taleplerim" : "Siparişlerim") 
+                : (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "My Requests" : "My Orders")}
             </h2>
             <div className="px-4 py-1.5 bg-gray-100 rounded-lg text-[10px] font-semibold text-gray-500 tracking-wide">
-              {orders.length} {lang === "tr" ? "SİPARİŞ" : "ORDERS"}
+              {orders.length} {lang === "tr" 
+                ? (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "KAYIT" : "SİPARİŞ") 
+                : (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "RECORDS" : "ORDERS")}
             </div>
           </div>
 
@@ -389,8 +393,8 @@ export const StoreProfile: React.FC<StoreProfileProps> = ({
               <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
               <p className="text-gray-500 font-bold">
                 {lang === "tr"
-                  ? "Siparişler yükleniyor..."
-                  : "Loading orders..."}
+                  ? (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "Talepler yükleniyor..." : "Siparişler yükleniyor...")
+                  : (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "Loading requests..." : "Loading orders...")}
               </p>
             </div>
           ) : orders.length > 0 ? (
@@ -421,7 +425,9 @@ export const StoreProfile: React.FC<StoreProfileProps> = ({
                         </div>
                         <p className="text-sm font-semibold text-gray-900">
                           {order.items_count || order.items?.length || 1}{" "}
-                          {lang === "tr" ? "Ürün" : "Items"}
+                          {lang === "tr" 
+                            ? (store?.store_type === 'real_estate' ? "İlan" : store?.store_type === 'motor_vehicle' ? "Araç" : "Ürün") 
+                            : (store?.store_type === 'real_estate' ? "Listing" : store?.store_type === 'motor_vehicle' ? "Vehicle" : "Items")}
                         </p>
                       </div>
                     </div>
@@ -545,7 +551,9 @@ export const StoreProfile: React.FC<StoreProfileProps> = ({
                 <ShoppingBag className="w-10 h-10 text-gray-200" />
               </div>
               <p className="text-gray-400 font-bold">
-                {lang === "tr" ? "Henüz bir siparişiniz bulunmuyor." : "You don't have any orders yet."}
+                {lang === "tr" 
+                  ? (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "Henüz bir talebiniz bulunmuyor." : "Henüz bir siparişiniz bulunmuyor.") 
+                  : (store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle' ? "You don't have any requests yet." : "You don't have any orders yet.")}
               </p>
             </div>
           )}

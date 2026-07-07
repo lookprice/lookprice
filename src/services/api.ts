@@ -116,6 +116,8 @@ export const api = {
   updateProductStock: (id: number, quantityChange: number, storeId?: number) => api.post(`/api/store/products/${id}/stock${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { quantityChange }),
   deleteProduct: (id: number, storeId?: number) => api.delete(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   deleteBulkProducts: (ids: number[], storeId?: number) => api.post(`/api/store/products/bulk-delete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ids }),
+  addBulkProducts: (products: any[], storeId?: number) => api.post(`/api/store/products/bulk-add${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { products }),
+  bulkRenameProducts: (renames: { id: number, name: string }[], storeId?: number) => api.put(`/api/store/products/bulk-rename${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { renames }),
   reformatProductNames: (storeId?: number) => api.post(`/api/store/products/reformat-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   deleteAllProducts: (storeId?: number) => api.delete(`/api/store/products/all${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   autoFindImage: (data: { productIds?: number[], allMissing?: boolean, id?: number }, storeId?: number, includeBranches?: boolean) => api.post(`/api/store/products/auto-image${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ...data, includeBranches }),

@@ -143,6 +143,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleImport,
     handleExportProducts,
     handleBulkRecalculatePrice2,
+    handleBulkAdd,
+    handleBulkRename,
     fetchData: fetchProductsData,
     currentStoreId
   } = useProducts(user, slug, includeBranches, branding, planLimits, lang);
@@ -758,6 +760,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onApplyTaxRule={handleApplyTaxRule}
                   onBulkPriceUpdate={() => setShowBulkPriceModal(true)}
                   onBulkRecalculatePrice2={handleBulkRecalculatePrice2}
+                  onBulkAdd={handleBulkAdd}
+                  onBulkRename={handleBulkRename}
                   onShowQr={() => setShowQrModal(true)}
                   branding={branding}
                   showStoreName={branding?.show_store_name}
@@ -1119,6 +1123,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         quickProductForm={quickProductForm}
         setQuickProductForm={setQuickProductForm}
         handleQuickAddProduct={handleQuickAddProduct}
+        
+        showImportModal={showImportModal}
+        setShowImportModal={setShowImportModal}
+        isImporting={isImporting}
+        importFile={importFile}
+        importColumns={importColumns}
+        mapping={mapping}
+        setMapping={setMapping}
+        convertCurrency={convertCurrency}
+        setConvertCurrency={setConvertCurrency}
+        handleFileSelect={handleFileSelect}
+        handleImport={handleImport}
       />
     </DashboardLayout>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
-import { Eye, Package, Plus, Star, MapPin } from "lucide-react";
+import { Eye, Package, Plus, Star, MapPin, Ruler, BedDouble, Car, Settings, Fuel, Home, Calendar } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Product, Store as StoreInfo } from "../types";
 
@@ -80,61 +80,141 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     return originalUrl;
   };
 
+  const isRealEstate = product.type === "real_estate" || sector === "real_estate";
+  const isAutomotive = product.type === "vehicle" || sector === "automotive";
+
+  const renderBentoRealEstate = () => (
+    <div className="grid grid-cols-2 gap-2 my-4">
+      {product.sector_data?.square_meters && (
+        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <Ruler className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Net (m²)' : 'Net Area'}</span>
+            <span className="text-xs font-bold text-slate-700 truncate">{product.sector_data.square_meters}</span>
+          </div>
+        </div>
+      )}
+      {product.sector_data?.rooms && (
+        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <BedDouble className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Oda' : 'Rooms'}</span>
+            <span className="text-xs font-bold text-slate-700 truncate">{product.sector_data.rooms}</span>
+          </div>
+        </div>
+      )}
+      {product.sector_data?.building_age && (
+        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <Home className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Bina Yaşı' : 'Age'}</span>
+            <span className="text-xs font-bold text-slate-700 truncate">{product.sector_data.building_age}</span>
+          </div>
+        </div>
+      )}
+      {product.sector_data?.floor && (
+        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div className="w-6 h-6 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+            <MapPin className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Kat' : 'Floor'}</span>
+            <span className="text-xs font-bold text-slate-700 truncate">{product.sector_data.floor}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderBentoAutomotive = () => (
+    <div className="grid grid-cols-2 gap-2 my-4">
+      {((product as any).current_mileage || (product.sector_data as any)?.current_mileage) && (
+        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div className="w-6 h-6 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+            <Car className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Kilometre' : 'Mileage'}</span>
+            <span className="text-xs font-bold text-slate-700 truncate">
+              {Number((product as any).current_mileage || (product.sector_data as any)?.current_mileage).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
+            </span>
+          </div>
+        </div>
+      )}
+      {((product as any).year || product.name.match(/^(\d{4})/)?.[1]) && (
+        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+            <Calendar className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Yıl' : 'Year'}</span>
+            <span className="text-xs font-bold text-slate-700 truncate">
+              {(product as any).year || product.name.match(/^(\d{4})/)?.[1]}
+            </span>
+          </div>
+        </div>
+      )}
+      {product.sector_data?.transmission && (
+        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <Settings className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Vites' : 'Trans.'}</span>
+            <span className="text-xs font-bold text-slate-700 truncate">{product.sector_data.transmission}</span>
+          </div>
+        </div>
+      )}
+      {product.sector_data?.fuel_type && (
+        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <Fuel className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Yakıt' : 'Fuel'}</span>
+            <span className="text-xs font-bold text-slate-700 truncate">{product.sector_data.fuel_type}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-white rounded-lg border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-700 group relative flex flex-col h-full ${isLuxury ? "font-sans tracking-tight" : ""}`}
+      className={`bg-white rounded-2xl border ${isLuxury ? "border-amber-200/50" : "border-gray-100"} overflow-hidden hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-500 group relative flex flex-col h-full ${isLuxury ? "font-sans tracking-tight" : ""}`}
     >
-      <div className="aspect-[4/5] bg-slate-50 relative overflow-hidden">
+      <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden cursor-pointer" onClick={() => onView(product)}>
         {product.image_url ? (
           <img
             src={getAnnotatedImageUrl(product.image_url)}
             alt={product.name}
-            className="w-full h-full object-contain p-4 bg-white group-hover:scale-105 transition-transform duration-1000"
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
             referrerPolicy="no-referrer"
             loading="lazy"
-            onClick={() => onView(product)}
           />
         ) : (
-          <div
-            className="w-full h-full flex items-center justify-center text-gray-200"
-            onClick={() => onView(product)}
-          >
+          <div className="w-full h-full flex items-center justify-center text-gray-300">
             <Package className="w-16 h-16" />
           </div>
         )}
-
-        {/* Sector Specific Mini Specs */}
-        {product.sector_data && (
-          <div className="absolute top-24 left-4 flex flex-col gap-1 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-            {(sector === "automotive" || product.type === "vehicle") &&
-              product.sector_data.hp && (
-                <span className="px-2 py-1 bg-black/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-white/10 tracking-wide">
-                  {product.sector_data.hp} HP
-                </span>
-              )}
-            {sector === "tech" && product.sector_data.ram && (
-              <span className="px-2 py-1 bg-indigo-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-indigo-500/20 tracking-wide">
-                {product.sector_data.ram} RAM
-              </span>
-            )}
-            {product.type === "real_estate" &&
-              product.sector_data.square_meters && (
-                <span className="px-2 py-1 bg-emerald-600/80 text-white text-[8px] font-semibold rounded backdrop-blur-sm border border-emerald-500/20 tracking-wide">
-                  {product.sector_data.square_meters} m²
-                </span>
-              )}
-          </div>
-        )}
+        
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
         {/* Product Labels */}
         {getLabels(product.labels).length > 0 && (
-          <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
+          <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
             {getLabels(product.labels).map((label, idx) => (
               <span
                 key={idx}
-                className="px-3 py-1 bg-white/90 backdrop-blur-md text-[10px] font-semibold tracking-wide rounded-lg shadow-sm"
+                className="px-3 py-1.5 bg-white/90 backdrop-blur-md text-[10px] font-black tracking-widest uppercase rounded shadow-lg"
                 style={{ color: primaryColor }}
               >
                 {label}
@@ -142,180 +222,79 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             ))}
           </div>
         )}
+      </div>
 
-        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
+      <div className="p-5 sm:p-6 flex flex-col flex-1 relative bg-white">
+        {/* Luxury Gold Trim */}
+        {isLuxury && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-300 via-amber-500 to-amber-300 opacity-50" />}
+
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span
+              className="text-[10px] uppercase tracking-widest font-black"
+              style={{ color: isLuxury ? '#d97706' : primaryColor }}
+            >
+              {isRealEstate && lang === "tr"
+                ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
+                : (product.category || t.dashboard.uncategorized)}
+            </span>
+          </div>
+        </div>
+
+        <h3
+          className={`font-semibold text-slate-900 line-clamp-2 h-12 mb-1 transition-colors cursor-pointer hover:text-indigo-600 text-base leading-snug tracking-tight ${isLuxury ? "!font-display !font-medium" : ""}`}
+          onClick={() => onView(product)}
+        >
+          {product.name}
+        </h3>
+        
+        {product.branch_name && product.branch_name !== store?.name && (
+          <div className="flex items-center gap-1.5 text-slate-400 mt-1 mb-2">
+            <MapPin className="w-3 h-3" />
+            <span className="text-[10px] font-bold tracking-tight">
+              {product.branch_name}
+            </span>
+          </div>
+        )}
+
+        {isRealEstate ? renderBentoRealEstate() : isAutomotive ? renderBentoAutomotive() : (
+           <div className="flex-1 my-4">
+              <p className="text-sm text-slate-500 line-clamp-3">{product.description || t.dashboard.noDescription}</p>
+           </div>
+        )}
+
+        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
+              {isRealEstate || isAutomotive ? (lang === 'tr' ? 'Fiyat' : 'Price') : t.dashboard.price}
+            </span>
+            <span className={`text-lg font-bold text-slate-900 ${isLuxury ? 'font-display' : ''}`}>
+              {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
+            </span>
+          </div>
           <button
             onClick={() => {
-              if (
-                product.type === "vehicle" ||
-                product.type === "real_estate" ||
-                (product.available_branches &&
-                  product.available_branches.length > 1)
-              ) {
+              if (isRealEstate || isAutomotive || (product.available_branches && product.available_branches.length > 1)) {
                 onView(product);
               } else {
                 addToBasket(product);
               }
             }}
-            className="w-full py-3.5 bg-white text-gray-900 rounded-2xl font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95"
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2
+              ${isLuxury ? 'bg-slate-900 text-amber-400 hover:bg-slate-800' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
           >
-            {product.type === "vehicle" || product.type === "real_estate" ? (
+            {isRealEstate || isAutomotive ? (
               <>
-                <Eye className="w-4 h-4" />{" "}
-                {lang === "tr" ? "Detayları İncele" : "View Details"}
+                {lang === "tr" ? "İncele" : "View"} <ArrowRight className="w-4 h-4" />
               </>
             ) : (
               <>
-                <Plus className="w-4 h-4" />{" "}
-                {product.available_branches &&
-                product.available_branches.length > 1
-                  ? lang === "tr"
-                    ? "Seçenekleri Gör"
-                    : "View Options"
+                <Plus className="w-4 h-4" />
+                {product.available_branches && product.available_branches.length > 1
+                  ? lang === "tr" ? "Seçenekler" : "Options"
                   : t.dashboard.addToBasket}
               </>
             )}
-          </button>
-        </div>
-      </div>
-      <div className="p-6 flex flex-col flex-1">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span
-              className="text-[10px] uppercase tracking-[0.15em] font-semibold"
-              style={{ color: primaryColor }}
-            >
-              {product.type === "real_estate" && lang === "tr"
-                ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
-                : (product.category || t.dashboard.uncategorized)}
-            </span>
-            {product.brand && (
-              <span className="text-[9px] font-bold text-gray-400 tracking-normal">
-                {product.brand}
-              </span>
-            )}
-            {product.branch_name && product.branch_name !== store?.name && (
-              <div className="flex items-center gap-1 mt-0.5">
-                <MapPin className="w-2 h-2 text-gray-400" />
-                <span className="text-[9px] font-bold text-gray-500 tracking-tight">
-                  {product.available_branches &&
-                  product.available_branches.length > 1
-                    ? lang === "tr"
-                      ? `${product.available_branches.length} Şubede Mevcut`
-                      : `Available in ${product.available_branches.length} Branches`
-                    : product.branch_name}
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-1 text-yellow-400">
-            <Star className="w-3 h-3 fill-current" />
-            <span className="text-[10px] font-bold text-gray-400">4.8</span>
-          </div>
-        </div>
-
-        <h3
-          className={`font-semibold text-slate-800 line-clamp-2 h-11 mb-3 transition-colors cursor-pointer hover:text-indigo-600 text-[14px] leading-snug tracking-tight ${isLuxury ? "!font-sans !font-medium text-gray-800" : ""}`}
-          onClick={() => onView(product)}
-        >
-          {product.name}
-        </h3>
-
-        {/* Portfolio Card Spec Sheet Row & Grid */}
-        {product.type === "real_estate" && (
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2 my-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100 text-[10px] font-medium text-slate-600">
-            {product.sector_data?.square_meters ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={`${product.sector_data.square_meters} m² Net`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Net:' : 'Net:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.square_meters} m²</span>
-              </div>
-            ) : null}
-            {product.sector_data?.sqm_gross ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={`${product.sector_data.sqm_gross} m² Brüt`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Brüt:' : 'Gross:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.sqm_gross} m²</span>
-              </div>
-            ) : null}
-            {product.sector_data?.rooms ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.rooms}>
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Oda:' : 'Rooms:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.rooms}</span>
-              </div>
-            ) : null}
-            {product.sector_data?.building_age ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.building_age}>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Yaş:' : 'Age:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.building_age}</span>
-              </div>
-            ) : null}
-            {product.sector_data?.floor ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.floor}>
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Kat:' : 'Floor:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.floor}</span>
-              </div>
-            ) : null}
-            {product.sector_data?.furnished !== undefined ? (
-              <div className="flex items-center gap-1.5 min-w-0" title={product.sector_data.furnished ? 'Eşyalı' : 'Boş'}>
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Eşya:' : 'Furn:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">
-                  {product.sector_data.furnished ? (lang === 'tr' ? 'Eşyalı' : 'Furnished') : (lang === 'tr' ? 'Boş' : 'Unfurnished')}
-                </span>
-              </div>
-            ) : null}
-            {product.sector_data?.kktc_title_type && product.sector_data?.listing_intent !== 'rent' ? (
-              <div className="flex items-center gap-1.5 col-span-2 border-t border-slate-100 pt-1.5 mt-0.5 min-w-0" title={product.sector_data.kktc_title_type}>
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Koçan:' : 'Title:'}</span>
-                <span className="font-extrabold text-slate-800 truncate">{product.sector_data.kktc_title_type}</span>
-              </div>
-            ) : null}
-            {product.reference_no || product.sector_data?.reference_no ? (
-              <div className="flex items-center gap-1.5 col-span-2 border-t border-slate-100 pt-1 mt-0.5 min-w-0" title={product.reference_no || product.sector_data?.reference_no}>
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
-                <span className="text-slate-400 font-semibold shrink-0">{lang === 'tr' ? 'Ref No:' : 'Ref No:'}</span>
-                <span className="font-extrabold text-slate-600 font-mono truncate">{product.reference_no || product.sector_data?.reference_no}</span>
-              </div>
-            ) : null}
-          </div>
-        )}
-
-        {product.type === "vehicle" && (
-          <div className="flex items-center gap-3 my-3 text-[11px] font-bold text-slate-500 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
-            <span className="flex items-center gap-1.5">
-              <span className="text-rose-600 font-extrabold">
-                {lang === "tr" ? "Yıl" : "Year"}
-              </span>
-              {(product as any).year || product.name.match(/^(\d{4})/)?.[1] || "---"}
-            </span>
-            {((product as any).current_mileage || (product.sector_data as any)?.current_mileage) !== undefined && (
-              <span className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-                <span className="text-sky-600 font-extrabold">KM</span>
-                {Number((product as any).current_mileage || (product.sector_data as any)?.current_mileage).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 font-bold tracking-wide leading-none mb-1">
-              {t.dashboard.price}
-            </span>
-            <span className="text-xsl font-bold text-gray-900">
-              {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
-            </span>
-          </div>
-          <button
-            onClick={() => onView(product)}
-            className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-900 transition-all"
-          >
-            <Eye className="w-5 h-5" />
           </button>
         </div>
       </div>

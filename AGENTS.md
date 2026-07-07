@@ -45,3 +45,20 @@ This file outlines strict engineering, performance, and naming directives that m
 - **Ortak Özelliklerin/Hataların Korunması**:
   - Ürün Yönetimi, Alış/Satış Faturaları, Cari Hesaplar ve Stok sistemleri üzerinde hata giderilirken ortak arayüzlerin veya statik doğrulamaların (örneğin fatura durumları, ödeme yöntemleri) sektörel filtrelerle (Emlak/Oto) çakışmaması sağlanmalıdır.
   - Tüm geliştirici ajanlar, her turn öncesinde bu izolasyon kurallarını okumak ve modül sınırlarına harfiyen uymakla yükümlüdür.
+
+---
+
+## 4. E-Fatura, E-Arşiv ve Alış/Satış Görsel Kuralları
+
+- **Alış (Gelen/Purchase) Faturaları HTML Görüntüleme**:
+  - Alınan e-faturaların HTML görsellerine kesinlikle hiçbir ek açıklama, döviz kur bilgisi, TL cinsinden hesaplama tablosu ("Döviz Karşılıkları") ya da harici müdahale eklenmemelidir.
+  - Alış faturaları entegratörden geldiği orijinal formatta ve bilgilerle, "geldiği gibi" ham HTML olarak temiz bir şekilde ekrana yansıtılmalıdır.
+
+- **Satış (Giden/Sales) Faturaları ve Döviz/Kur Bilgileri**:
+  - Sadece dövizli satış faturalarında, açıklama kısmında döviz kuru bilgisi ile TL cinsinden hesaplama tablosu ("Döviz Karşılıkları (TRY)" başlığı altında Mal Hizmet Toplam Tutarı, Hesaplanan KDV ve Vergiler Dahil Toplam Tutar) HTML görseline entegre edilmelidir.
+
+- **Satış Faturalarında KDV Oran Gruplama Kuralı**:
+  - Çok kalemli (örn. 100 satır) satış faturalarında her kalem için ayrı ayrı KDV satırı oluşturulmamalıdır.
+  - Faturadaki tüm ürünlerin KDV oranları aynı ise, bu KDV tutarlarının toplamı tek bir "Hesaplanan Katma Değer Vergisi (%X)" satırında gösterilmelidir.
+  - Eğer faturada farklı yüzdelere sahip KDV oranları mevcut ise (örn. hem %10 hem %20), her bir benzersiz KDV oranı kendi içinde gruplanarak alt alta ayrı satırlar halinde (örn. biri %10, diğeri %20 toplamı olarak) gösterilmelidir.
+
