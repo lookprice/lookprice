@@ -151,7 +151,14 @@ const CampaignCarousel = ({
   formatPrice, 
   store 
 }: any) => {
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 768 : false);
   const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const campaignProducts = useMemo(() => {
     const isCampaign = (p: any) => p.labels?.includes("Kampanya") || p.labels?.includes("Fırsat");
@@ -159,8 +166,12 @@ const CampaignCarousel = ({
     return camps.length > 0 ? camps : products;
   }, [products]);
 
-  const itemsPerPage = 4;
+  const itemsPerPage = isMobile ? 1 : 4;
   const totalPages = Math.ceil(campaignProducts.length / itemsPerPage);
+
+  useEffect(() => {
+    setPage(0); // Reset page when itemsPerPage changes
+  }, [itemsPerPage]);
 
   useEffect(() => {
     if (totalPages <= 1) return;
@@ -176,12 +187,12 @@ const CampaignCarousel = ({
     <div className="relative w-full overflow-hidden min-h-[400px]">
       <AnimatePresence mode="wait">
         <motion.div
-          key={page}
+          key={`${page}-${itemsPerPage}`}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.5 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full"
+          className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-4"} gap-6 w-full`}
         >
           {currentProducts.map((product: any, idx: number) => (
             <div
@@ -878,6 +889,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         : products;
 
     let result = baseProducts.filter((p) => {
+      // Filter by status for portfolio types (real estate & automotive)
+      const isPortfolio = p.type === "real_estate" || p.type === "vehicle";
+      if (isPortfolio && p.status && p.status !== 'active') {
+        return false;
+      }
+
       const searchTerms = searchQuery.toLowerCase().split(" ").filter(Boolean);
       const matchesSearch =
         searchTerms.length === 0 ||

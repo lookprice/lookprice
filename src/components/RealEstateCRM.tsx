@@ -179,7 +179,7 @@ export const RealEstateCRM = ({ storeId, properties, tasks, onOpenCalendar, onOp
   });
 
   return (
-    <div className="flex flex-col h-[85vh] gap-6">
+    <div className="flex flex-col h-[88vh] gap-4">
       {/* CRM Stats & Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -231,13 +231,13 @@ export const RealEstateCRM = ({ storeId, properties, tasks, onOpenCalendar, onOp
 
       {/* Kanban Board */}
       <div className="flex-1 overflow-x-auto pb-8 custom-scrollbar">
-        <div className="flex gap-6 h-full min-w-[1450px] pr-20 overflow-x-auto">
+        <div className="flex gap-4 h-full min-w-[1200px] pr-10 overflow-x-auto">
           {STAGES.map(stage => {
             const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
             const StageIcon = stage.icon;
 
             return (
-              <div key={stage.id} className="flex-1 flex flex-col gap-4 min-w-[340px] max-w-[400px]">
+              <div key={stage.id} className="flex-1 flex flex-col gap-4 min-w-[260px] max-w-[300px]">
                 {/* Column Header */}
                 <div className="flex items-center justify-between px-3">
                   <div className="flex items-center gap-3">
@@ -266,30 +266,30 @@ export const RealEstateCRM = ({ storeId, properties, tasks, onOpenCalendar, onOp
                           exit={{ opacity: 0, scale: 0.95 }}
                           className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden"
                         >
-                          <div className="flex items-start gap-4 mb-4">
-                            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100 shadow-inner">
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100 shadow-inner">
                               {deal.property.images?.[0] ? (
                                 <img src={deal.property.images[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                  <MapPin className="w-8 h-8" />
+                                  <MapPin className="w-6 h-6" />
                                 </div>
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between">
-                                <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-lg uppercase tracking-tighter">
+                                <span className="text-[8px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg uppercase tracking-tighter">
                                   REF: {deal.property.reference_no}
                                 </span>
                                 <button className="text-slate-400 hover:text-slate-600 transition-colors">
-                                  <MoreVertical className="w-4 h-4" />
+                                  <MoreVertical className="w-3 h-3" />
                                 </button>
                               </div>
-                              <h4 className="text-sm font-black text-slate-900 truncate mt-2 leading-tight">
+                              <h4 className="text-[13px] font-black text-slate-900 truncate mt-1 leading-tight">
                                 {deal.property.title}
                               </h4>
-                              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold mt-2">
-                                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                              <div className="flex items-center gap-1 text-[9px] text-slate-500 font-bold mt-1">
+                                <MapPin className="w-3 h-3 text-slate-400" />
                                 <span className="truncate">{deal.property.location}</span>
                               </div>
                             </div>

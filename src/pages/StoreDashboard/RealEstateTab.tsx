@@ -205,7 +205,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
     <div className="p-4 md:p-6 space-y-6">
       
       {/* ENRAKİPSİZ ÇOK ŞUBELİ CRM STATS BENTO PANEL */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
             <Building2 className="w-5 h-5 stroke-[2.5]" />
@@ -254,9 +255,11 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           </div>
         </div>
       </div>
+      )}
 
       {/* ŞUBELER ARASI ENRAKİPSİZ FİLTRE KAPLÜLLERİ */}
-      <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-200/40 space-y-3">
+      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
+        <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-200/40 space-y-3">
         <div className="flex flex-col gap-2">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Şubeler Arası Portföy Süzgeci</span>
           <div className="flex flex-wrap gap-1.5">
@@ -286,6 +289,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           </div>
         </div>
       </div>
+      )}
 
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
@@ -349,7 +353,8 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
       </div>
 
       {/* Filters and Search Grid */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60 grid grid-cols-1 md:grid-cols-4 gap-3">
+      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60 grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="relative md:col-span-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
           <input 
@@ -386,9 +391,11 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           </select>
         </div>
       </div>
+      )}
 
       {/* Segmented status filter tab header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
+      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
         <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-205/60">
           <button 
             onClick={() => setStatusTabFilter('all')}
@@ -452,6 +459,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           </button>
         </div>
       </div>
+      )}
       
       {viewMode === 'calendar' ? (
         <RealEstateCalendar 

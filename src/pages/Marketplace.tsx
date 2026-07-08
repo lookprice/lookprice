@@ -264,6 +264,9 @@ export const Marketplace = () => {
   // Filter & Sort Logic
   const filteredListings = listings
     .filter(item => {
+      // Filter by status: Only show active listings on the marketplace
+      if (item.status && item.status !== 'active') return false;
+
       // Exclude products from enrakipsiz portal
       if (item.listing_type === "product") return false;
       const matchesCategory = activeCategory === "all" || item.listing_type === activeCategory;
