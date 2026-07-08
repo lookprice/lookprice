@@ -182,6 +182,25 @@ export interface EInvoiceSettings {
   tax_office?: string;          // Vergi Dairesi
 }
 
+export interface SEOPage {
+  id: string; // Supabase/UUID
+  store_id: number;
+  category_id: string;
+  features_hash: string; // Identifies the specific filter combination
+  slug: string;
+  h1: string;
+  title: string;
+  description: string;
+  descriptions?: any[]; // JSON array
+  faq?: any[]; // JSON array of {q: string, a: string}
+  keywords?: string;
+  breadcrumb?: string;
+  status: 'active' | 'hidden' | 'deleted';
+  is_manual: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Quotation {
   id: number;
   customer_name: string;

@@ -9,6 +9,7 @@ import { useLanguage } from "./contexts/LanguageContext";
 import { translations } from "./translations";
 import { useParams } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 
 // Lazy load pages for optimum initial bundle size and near-instant load speed
 const CustomerScanPage = React.lazy(() => import("./pages/CustomerScan"));
@@ -171,7 +172,8 @@ export default function App() {
               {/* Default fallback is the Marketplace portal */}
               <Route path="*" element={<Marketplace />} />
             </Routes>
-          </React.Suspense>
+          <ScrollToTopButton />
+        </React.Suspense>
         </div>
       );
     }
@@ -197,6 +199,7 @@ export default function App() {
             <Route path="/s/:slug" element={<StoreShowcase customSlug={detectedSlug} />} />
             <Route path="*" element={<StoreShowcase customSlug={detectedSlug} />} />
           </Routes>
+        <ScrollToTopButton />
         </React.Suspense>
       </div>
     );
@@ -287,7 +290,8 @@ export default function App() {
               <Marketplace />
             } />
         </Routes>
-      </React.Suspense>
+      <ScrollToTopButton />
+        </React.Suspense>
     </div>
   );
 }

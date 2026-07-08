@@ -373,6 +373,18 @@ export const ProductModal = ({
             </div>
 
             <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                {isTr ? "Eski Fiyat (Üstü Çizili Fiyat)" : "Old Price (Strikethrough)"}
+              </label>
+              <input
+                type="text"
+                name="old_price"
+                placeholder="0.00"
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                defaultValue={editingProduct?.old_price || ""}
+              />
+            </div>
+            <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
                 {isTr ? "Alternatif Satış Fiyatı (Nakit Fiyatı vb)" : "Backup Sales Price"}
               </label>

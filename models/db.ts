@@ -160,6 +160,24 @@ export async function initDb() {
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS seo_pages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        store_id INTEGER NOT NULL,
+        category_id TEXT,
+        features_hash TEXT,
+        slug TEXT NOT NULL,
+        h1 TEXT,
+        title TEXT,
+        description TEXT,
+        keywords TEXT,
+        breadcrumb TEXT,
+        status TEXT DEFAULT 'active' CHECK (status IN ('active', 'hidden', 'deleted')),
+        is_manual BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
+      );
+
       CREATE TABLE IF NOT EXISTS radar_news (
         id SERIAL PRIMARY KEY,
         store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,

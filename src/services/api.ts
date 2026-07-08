@@ -98,6 +98,13 @@ export const api = {
     return handleResponse(res);
   },
 
+  // SEO Methods
+  getSEOPage: (id: string) => api.get(`/api/store/seo/${id}`),
+  addSEOPage: (data: any, storeId?: number) => api.post(`/api/store/seo${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateSEOPage: (id: string, data: any, storeId?: number) => api.put(`/api/store/seo/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteSEOPage: (id: string, storeId?: number) => api.delete(`/api/store/seo/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getSEOPages: (storeId?: number) => api.get(`/api/store/seo${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  
   // Store Methods
   getProducts: (search = "", storeId?: number, includeBranches = false) => {
     const params = new URLSearchParams();

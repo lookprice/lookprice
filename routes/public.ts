@@ -4,7 +4,40 @@ import crypto from "crypto";
 
 const router = express.Router();
 
+
+router.get("/sitemap.xml", async (req, res) => {
+  try {
+    const stores = await pool.query("SELECT id, slug, custom_domain FROM stores WHERE status = 'active' OR status IS NULL");
+    const seoPages = await pool.query("SELECT slug, store_id, updated_at FROM seo_pages WHERE status = 'active'");
+    
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+
+    for (const store of stores.rows) {
+      const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+      const host = store.custom_domain || req.get('host');
+      const baseUrl = `${protocol}://${host}`;
+
+      // Base store URL
+      xml += `\n  <url>\n    <loc>${baseUrl}</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`;
+
+      // SEO Pages for this store
+      const storeSeoPages = seoPages.rows.filter((p: any) => p.store_id === store.id);
+      for (const page of storeSeoPages) {
+        xml += `\n  <url>\n    <loc>${baseUrl}/seo/${page.slug}</loc>\n    <lastmod>${new Date(page.updated_at).toISOString().split('T')[0]}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
+      }
+    }
+
+    xml += `\n</urlset>`;
+    res.type('application/xml');
+    res.send(xml);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get("/fix-db", async (req, res) => {
+
   const result = await pool.query("SELECT id, branding FROM stores");
   for (const row of result.rows) {
     if (row.branding && typeof row.branding === 'object') {

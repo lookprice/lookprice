@@ -40,7 +40,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       product_type: rawData.product_type || 'product',
       sync_group: rawData.sync_group === 'on'
     };
-    ['price', 'price_2', 'cost_price', 'tax_rate'].forEach(field => {
+    ['price', 'price_2', 'old_price', 'cost_price', 'tax_rate'].forEach(field => {
       if (data[field]) {
         data[field] = Number(String(data[field]).replace(',', '.'));
       }

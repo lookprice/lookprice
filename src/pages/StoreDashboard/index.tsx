@@ -85,7 +85,7 @@ const GoogleMerchantTab = React.lazy(() => import("./GoogleMerchantTab"));
 const RealEstateTab = React.lazy(() => import("./RealEstateTab"));
 const RadarAlertsTab = React.lazy(() => import("./RadarAlertsTab").then(m => ({ default: m.RadarAlertsTab })));
 const PortfolioFinancesTab = React.lazy(() => import("./PortfolioFinancesTab"));
-const EWaybillsTab = React.lazy(() => import("../../components/EWaybillsTab"));
+const SEOTab = React.lazy(() => import("./SEOTab"));
 
 import ShippingSlip from "../../components/ShippingSlip";
 
@@ -632,6 +632,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "radar_alerts", label: isTr ? (isAutomotive ? "Motorlu Taşıtlar & Haber Radarı" : "İmar & Haber Radarı") : "Radar & Alerts", icon: Radar },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
+      { id: "seo", label: isTr ? "SEO Sayfaları" : "SEO Pages", icon: Globe },
       { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
@@ -834,14 +835,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onFetchDetails={handleFetchSalesInvoiceDetails} 
                 />
               )}
-              {activeTab === "e_waybills" && !isPortfolio && (
-                <EWaybillsTab
-                  storeId={currentStoreId}
-                  lang={lang}
-                  api={api}
-                  branding={branding}
-                />
-              )}
               {activeTab === "quotations" && (
                 <QuotationsTab 
                   quotations={quotationList}
@@ -944,6 +937,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   storeName={branding?.store_name || branding?.name || ""} 
                   isTr={lang === 'tr'} 
                 />
+              )}
+              {activeTab === "seo" && (
+                <SEOTab storeId={currentStoreId!} />
               )}
               {activeTab === "meta" && (
                 <MetaIntegrationTab />
