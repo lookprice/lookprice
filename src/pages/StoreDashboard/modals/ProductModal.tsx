@@ -518,6 +518,25 @@ export const ProductModal = ({
                 defaultValue={editingProduct?.description || ""}
               />
             </div>
+            <div className="space-y-1.5 col-span-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                {isTr ? "Etiketler (Virgülle Ayırın)" : "Labels (Comma separated)"}
+              </label>
+              <input
+                type="text"
+                name="labels"
+                placeholder={isTr ? "Örn: Kampanya, Fırsat, Yeni" : "e.g. Campaign, Deal, New"}
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-semibold text-slate-800"
+                defaultValue={
+                  Array.isArray(editingProduct?.labels) 
+                    ? editingProduct.labels.join(", ") 
+                    : (typeof editingProduct?.labels === 'string' ? editingProduct.labels.replace(/[\[\]"]/g, '') : "")
+                }
+              />
+              <p className="text-[10px] text-slate-500 font-medium ml-1">
+                {isTr ? "Haftanın fırsatları bölümünde çıkması için 'Kampanya' veya 'Fırsat' ekleyin." : "Add 'Kampanya' or 'Fırsat' to show in Deals of the Week."}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 col-span-2">

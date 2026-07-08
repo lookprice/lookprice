@@ -203,20 +203,16 @@ export const api = {
   getPropertyAuditLog: (id: number, storeId?: number) => api.get(`/api/real-estate/properties/${id}/audit-log${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   publishRadarNews: (data: any, storeId?: number) => api.post(`/api/real-estate/radar-news/publish${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   getRadarNews: (storeId?: number) => api.get(`/api/real-estate/radar-news${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  deleteRadarNews: (storeId?: number) => api.delete(`/api/real-estate/radar-news${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  getPublicRadarNews: (slug: string) => api.get(`/api/public/stores/${slug}/radar-news`),
-  getPublicEnrakipsizRadarNews: () => api.get(`/api/public/enrakipsiz/radar-news`),
+  deleteRadarNews: (storeId?: number) => api.delete(`/api/real-estate/radar-news${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),  getPublicRadarNews: (slug: string) => api.get(`/api/public/stores/${slug}/radar-news?t=${Date.now()}`),
+  getPublicEnrakipsizRadarNews: () => api.get(`/api/public/enrakipsiz/radar-news?t=${Date.now()}`),
   getPortfolioTransactions: (storeId?: number) => api.get(`/api/real-estate/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addPortfolioTransaction: (data: any, storeId?: number) => api.post(`/api/real-estate/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deletePortfolioTransaction: (id: number, storeId?: number) => api.delete(`/api/real-estate/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-
   getAcquisitionLeads: (source: string = "101evler", filter: string = "individual", keywords?: string) => api.post(`/api/real-estate/acquisition-radar`, { source, filter, keywords }),
-
   getSalesInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html?type=sales`),
   addSalesInvoice: (data: any, storeId?: number) => api.post(`/api/store/sales-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateSalesInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteSalesInvoice: (id: number, storeId?: number) => api.delete(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-
   getPurchaseInvoices: (storeId?: number, search?: string, startDate?: string, endDate?: string) => {
     let url = `/api/store/purchase-invoices?`;
     if (storeId !== undefined && storeId !== null) url += `storeId=${storeId}&`;
@@ -235,13 +231,12 @@ export const api = {
   updatePurchaseInvoicePaymentStatus: (id: number, status: 'paid' | 'unpaid') => api.patch(`/api/store/purchase-invoices/${id}/payment-status`, { status }),
   generateProductDescription: (name: string, category: string, lang: string) => api.post("/api/store/generate-description", { name, category, lang }),
   generateBlog: (topic: string, storeName: string, lang: string) => api.post("/api/store/generate-blog", { topic, storeName, lang }),
-
   getBlogPosts: (storeId?: number) => api.get(`/api/store/blog-posts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getBlogPost: (id: number, storeId?: number) => api.get(`/api/blog-posts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addBlogPost: (data: any, storeId?: number) => api.post(`/api/store/blog-posts`, { ...data, storeId }),
   updateBlogPost: (id: number, data: any, storeId?: number) => api.put(`/api/store/blog-posts/${id}`, { ...data, storeId }),
   deleteBlogPost: (id: number, storeId?: number) => api.delete(`/api/store/blog-posts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  getPublicBlogPosts: (slug: string) => api.get(`/api/public/stores/${slug}/blog-posts`),
+  getPublicBlogPosts: (slug: string) => api.get(`/api/public/stores/${slug}/blog-posts?t=${Date.now()}`),
   getPublicBlogPost: (slug: string, id: number) => api.get(`/api/public/stores/${slug}/blog-posts/${id}`),
 
   getUsers: (storeId?: number) => api.get(`/api/store/users${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
@@ -326,8 +321,8 @@ export const api = {
   
   // Public Methods
   getMarketplaceListings: () => api.get(`/api/public/marketplace/listings`),
-  getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products`),
-  getPublicStore: (slug: string) => api.get(`/api/public/store/${slug}`),
+  getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products?t=${Date.now()}`),
+  getPublicStore: (slug: string) => api.get(`/api/public/store/${slug}?t=${Date.now()}`),
   getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),
   getSaleStatus: (id: number) => api.get(`/api/public/sales/${id}/status`),
   createPublicSale: (data: any) => api.post("/api/public/sales", data),
