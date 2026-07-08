@@ -5,17 +5,20 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
 import { RealEstateCRM } from '../../components/RealEstateCRM';
 import { RealEstateCalendar } from '../../components/RealEstateCalendar';
+import { AutomotiveCRM } from '../../components/AutomotiveCRM';
+import { AutomotiveCalendar } from '../../components/AutomotiveCalendar';
 import { RealEstateModal } from '../../components/RealEstateModal';
 import { ArrangeTourModal } from '../../components/ArrangeTourModal';
 import { toast } from 'sonner';
 
 interface TeamCrmTabProps {
   storeId?: number;
+  storeName?: string;
   isAutomotive?: boolean;
   isRealEstate?: boolean;
 }
 
-export const TeamCrmTab = ({ storeId, isAutomotive = false, isRealEstate = true }: TeamCrmTabProps) => {
+export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEstate = true }: TeamCrmTabProps) => {
   const { lang } = useLanguage();
   const isTr = lang === 'tr';
   const [agents, setAgents] = useState<any[]>([]);

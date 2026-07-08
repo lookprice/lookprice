@@ -964,6 +964,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               {activeTab === "team-crm" && (
                 <TeamCrmTab 
                   storeId={currentStoreId!} 
+                  storeName={branding?.store_name || branding?.name || ""}
                   isAutomotive={isAutomotive} 
                   isRealEstate={isRealEstate}
                 />

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
+import { compressImageToWebP } from "../../utils/imageUtils";
 
 interface SectionConfig {
   id: string;
@@ -868,9 +869,10 @@ export const AutomotiveWebsiteGenerator = ({
                         accept="image/*"
                         className="hidden"
                         onChange={async (e) => {
-                          const file = e.target.files?.[0];
+                          let file = e.target.files?.[0];
                           if (file) {
                             try {
+                              file = await compressImageToWebP(file);
                               const formData = new FormData();
                               formData.append("file", file);
                               const uploadRes = await api.upload("/api/upload", formData);

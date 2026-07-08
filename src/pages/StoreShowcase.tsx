@@ -420,8 +420,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       console.log(`Fetching store data for slug: ${slug}`);
       try {
         const [storeRes, productsRes, radarNewsRes] = await Promise.all([
-          api.getPublicStore(slug),
-          api.getPublicStoreProducts(slug),
+          api.getPublicStore(slug + '?t=' + Date.now()),
+          api.getPublicStoreProducts(slug + '?t=' + Date.now()),
           api.getPublicRadarNews(slug).catch((err: any) => {
             console.error("Failed to load radar news:", err);
             return [];
