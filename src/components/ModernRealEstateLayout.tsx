@@ -363,17 +363,42 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
     };
   }, [store.page_layout_full, store.page_layout]);
 
+  const banners = React.useMemo(() => {
+    const customBanners = (store as any).branding?.banners || [];
+    if (customBanners.length > 0) {
+      return customBanners;
+    }
+    const configBanners = layoutConfig.banners || [];
+    if (configBanners.length > 0) {
+      return configBanners.map((url: string, i: number) => ({
+        id: `config_${i}`,
+        image_url: url,
+        title: content.hero.title,
+        subtitle: content.hero.subtitle,
+        text_position: 'center',
+        show_store_name: true,
+      }));
+    }
+    return [{
+      id: "fallback",
+      image_url: content.hero.bgImage,
+      title: content.hero.title,
+      subtitle: content.hero.subtitle,
+      text_position: 'center',
+      show_store_name: true,
+    }];
+  }, [(store as any).branding?.banners, layoutConfig.banners, content.hero]);
+
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
   useEffect(() => {
-    const banners = layoutConfig.banners;
     if (banners && banners.length > 1) {
       const interval = setInterval(() => {
         setActiveBannerIndex((prev) => (prev + 1) % banners.length);
-      }, 5000);
+      }, 6000);
       return () => clearInterval(interval);
     }
-  }, [layoutConfig.banners]);
+  }, [banners]);
 
   const isSectionEnabled = (sectionId: string) => {
     if (!layoutConfig.sections || !Array.isArray(layoutConfig.sections) || layoutConfig.sections.length === 0) return true;
@@ -522,45 +547,96 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
 
       {/* Hero Container */}
       {isSectionEnabled("hero") && (
-        <div className="h-[450px] relative flex flex-col items-center justify-center p-12 text-center w-full">
-          {(!layoutConfig.banners || layoutConfig.banners.length === 0) ? (
-            <div
-              className="absolute inset-0 transition-opacity duration-1000"
-              style={{
-                backgroundImage: `url(${content.hero.bgImage})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            ></div>
-          ) : (
-            layoutConfig.banners.map((bannerUrl: string, idx: number) => (
+        <div className="h-[480px] relative flex flex-col items-center justify-center w-full overflow-hidden rounded-3xl shadow-xl border border-white/5">
+          {banners.map((slide: any, idx: number) => {
+            const isActive = activeBannerIndex === idx;
+            return (
               <div
-                key={idx}
-                className={`absolute inset-0 transition-opacity duration-1000 ${activeBannerIndex === idx ? 'opacity-100' : 'opacity-0'}`}
+                key={slide.id || idx}
+                className={`absolute inset-0 transition-opacity duration-1000 ${isActive ? 'opacity-100' : 'opacity-0'}`}
                 style={{
-                  backgroundImage: `url(${bannerUrl})`,
+                  backgroundImage: `url(${slide.image_url})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
+                  zIndex: isActive ? 1 : 0
                 }}
               ></div>
-            ))
-          )}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/35 to-white/95"></div>
+            );
+          })}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/35 to-slate-950/90" style={{ zIndex: 2 }}></div>
 
-          <div className="relative z-10 space-y-6 max-w-2xl transform translate-y-4">
-            <div className="inline-flex items-center gap-2 bg-indigo-600/20 backdrop-blur-xl px-4 py-1.5 rounded-full border border-indigo-400/30">
-              <Check className="h-4 w-4 text-indigo-400" />
-              <span className="text-[12px] font-black text-indigo-300 uppercase tracking-widest">
-                {content.trustSlogan}
-              </span>
+          {/* Active slide details overlay */}
+          {(() => {
+            const activeSlide = banners[activeBannerIndex] || banners[0];
+            if (!activeSlide) return null;
+            const rawName = (store as any)?.branding?.store_name || (store as any)?.branding?.name || store?.name || "";
+            const getDisplayStoreName = (name: string) => {
+              if (!name || name.toLowerCase().includes("lookprice")) {
+                return "Seçkin Emlak";
+              }
+              return name;
+            };
+            const displayName = getDisplayStoreName(rawName);
+
+            return (
+              <div 
+                className={`relative w-full h-full flex items-center px-8 md:px-16 py-12 ${
+                  activeSlide.text_position === 'left' 
+                    ? 'justify-start text-left' 
+                    : activeSlide.text_position === 'right' 
+                      ? 'justify-end text-right' 
+                      : 'justify-center text-center'
+                }`}
+                style={{ zIndex: 10 }}
+              >
+                <div className={`max-w-2xl flex flex-col space-y-4 ${
+                  activeSlide.text_position === 'left' 
+                    ? 'items-start' 
+                    : activeSlide.text_position === 'right' 
+                      ? 'items-end' 
+                      : 'items-center'
+                }`}>
+                  {activeSlide.show_store_name !== false && (
+                    <div className="inline-flex items-center gap-2 bg-indigo-600/20 backdrop-blur-xl px-4 py-1.5 rounded-full border border-indigo-400/30">
+                      <Check className="h-4 w-4 text-indigo-400" />
+                      <span className="text-[12px] font-black text-indigo-300 uppercase tracking-widest">
+                        {displayName}
+                      </span>
+                    </div>
+                  )}
+                  <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter leading-[0.95] drop-shadow-2xl">
+                    {activeSlide.title || content.hero.title}
+                  </h1>
+                  <p className="text-slate-300 text-sm md:text-base font-medium max-w-lg leading-relaxed italic drop-shadow-sm">
+                    "{activeSlide.subtitle || content.hero.subtitle}"
+                  </p>
+                  {activeSlide.button_text && (
+                    <a
+                      href={activeSlide.button_link || "#portfolio"}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg transition-all hover:scale-105"
+                    >
+                      {activeSlide.button_text}
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Slide dots indicators */}
+          {banners.length > 1 && (
+            <div className="absolute bottom-6 right-6 z-20 flex gap-2">
+              {banners.map((_: any, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveBannerIndex(idx)}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    activeBannerIndex === idx ? "bg-white scale-125 w-4" : "bg-white/40 hover:bg-white/60"
+                  }`}
+                />
+              ))}
             </div>
-            <h1 className="text-5xl font-black text-white uppercase tracking-tighter leading-[0.9] drop-shadow-2xl">
-              {content.hero.title}
-            </h1>
-            <p className="text-white text-lg font-bold max-w-lg mx-auto leading-relaxed italic drop-shadow-sm">
-              "{content.hero.subtitle}"
-            </p>
-          </div>
+          )}
         </div>
       )}
 

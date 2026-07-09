@@ -40,7 +40,7 @@ export const RealEstateWebsiteGenerator = ({
   const [blogs, setBlogs] = useState<any[]>([]);
   const [radarNews, setRadarNews] = useState<any[]>([]);
   const [originalBranding, setOriginalBranding] = useState<any>({});
-  const [banners, setBanners] = useState<string[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
   const [logoUrl, setLogoUrl] = useState("");
   const [faviconUrl, setFaviconUrl] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("modern");
@@ -132,15 +132,34 @@ export const RealEstateWebsiteGenerator = ({
               if (layout.count) setFeaturedCount(layout.count);
               if (layout.quickLinks) setQuickLinks(layout.quickLinks);
               if (layout.corporateLinks) setCorporateLinks(layout.corporateLinks);
-              if (layout.banners && Array.isArray(layout.banners)) {
-                setBanners(layout.banners);
-                if (layout.banners.length > 0) setContent((prev) => ({ ...prev, hero: { ...prev.hero, bgImage: layout.banners[0] } }));
-              }
             } else if (Array.isArray(layout)) {
               setSections((prev) => prev.map((s) => {
                 const found = (layout as any[]).find((ls) => ls.id === s.id);
                 return found ? { ...s, enabled: found.enabled } : s;
               }));
+            }
+          }
+
+          const dbBanners = res.banners || (res.page_layout && typeof res.page_layout === "object" && !Array.isArray(res.page_layout) ? res.page_layout.banners : null);
+          if (dbBanners && Array.isArray(dbBanners)) {
+            const normalized = dbBanners.map((b: any, idx: number) => {
+              if (typeof b === 'string') {
+                return {
+                  id: `slide_legacy_${idx}`,
+                  image_url: b,
+                  title: "",
+                  subtitle: "",
+                  text_position: "center",
+                  show_store_name: true,
+                  button_text: isTr ? "İncele" : "Explore",
+                  button_link: "#portfolio"
+                };
+              }
+              return b;
+            });
+            setBanners(normalized);
+            if (normalized.length > 0) {
+              setContent((prev) => ({ ...prev, hero: { ...prev.hero, bgImage: normalized[0].image_url } }));
             }
           }
           if (res.slug) {
@@ -178,7 +197,19 @@ export const RealEstateWebsiteGenerator = ({
     if (!storeId) return;
     try {
       const updatedLayout = { sections: sections.map((s) => ({ id: s.id, enabled: s.enabled })), grid: gridLayout, count: featuredCount, banners: banners, quickLinks, corporateLinks };
-      const payload = { ...originalBranding, logo_url: logoUrl, favicon_url: faviconUrl, page_layout: updatedLayout, page_layout_settings: { ...originalBranding.page_layout_settings, web_content: content }, slogan: content.trustSlogan, slug: storeSlug, custom_domain: useCustomDomain ? customDomain : null, hero_image_url: banners.length > 0 ? banners[0] : originalBranding.hero_image_url };
+      const firstBannerUrl = banners.length > 0 ? (typeof banners[0] === 'string' ? banners[0] : banners[0].image_url) : originalBranding.hero_image_url;
+      const payload = { 
+        ...originalBranding, 
+        logo_url: logoUrl, 
+        favicon_url: faviconUrl, 
+        page_layout: updatedLayout, 
+        page_layout_settings: { ...originalBranding.page_layout_settings, web_content: content }, 
+        slogan: content.trustSlogan, 
+        slug: storeSlug, 
+        custom_domain: useCustomDomain ? customDomain : null, 
+        hero_image_url: firstBannerUrl,
+        banners: banners
+      };
       await api.updateBranding(payload, storeId);
       alert(isTr ? "Ayarlar başarıyla kaydedildi!" : "Settings saved successfully!");
     } catch (error) { console.error(error); alert(isTr ? "Kaydedilirken bir hata oluştu." : "An error occurred while saving."); }
@@ -216,7 +247,7 @@ export const RealEstateWebsiteGenerator = ({
             lang={lang} originalBranding={originalBranding} logoUrl={logoUrl} content={content} 
             sections={sections} gridLayout={gridLayout} featuredCount={featuredCount} blogs={blogs} 
             radarNews={radarNews} team={team} quickLinks={quickLinks} corporateLinks={corporateLinks}
-            openEditor={openEditor} removeLink={removeLink} addLink={addLink}
+            openEditor={openEditor} removeLink={removeLink} addLink={addLink} banners={banners}
           />
         </div>
       </div>

@@ -64,6 +64,8 @@ import { SettingsLayoutTab } from "./settings/SettingsLayoutTab";
 import { SettingsMenuTab } from "./settings/SettingsMenuTab";
 import { SettingsDomainTab } from "./settings/SettingsDomainTab";
 import { SettingsWebTab } from "./settings/SettingsWebTab";
+import { RealEstateWebsiteGenerator } from "./RealEstateWebsiteGenerator";
+import { AutomotiveWebsiteGenerator } from "./AutomotiveWebsiteGenerator";
 
 interface SettingsTabProps {
   branding: any;
@@ -229,10 +231,13 @@ const SettingsTab = ({
     currentUser?.store_slug?.toLowerCase() === 'gap';
 
   const isPortfolio = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
+  const isAutomotive = branding?.store_type === 'motor_vehicle' || branding?.page_layout_settings?.sector === 'automotive';
 
   React.useEffect(() => {
     if (isPortfolio && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice')) {
       setActiveSubTab('financing');
+    } else if (isPortfolio && activeSubTab === 'web') {
+      setActiveSubTab('store-ops');
     }
   }, [isPortfolio, activeSubTab]);
 
@@ -422,13 +427,15 @@ const SettingsTab = ({
             <Database className="h-4 w-4" />
             <span>Yedekleme</span>
           </button>
-          <button 
-            onClick={() => setActiveSubTab('web')}
-            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'web' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-          >
-            <Palette className="h-4 w-4" />
-            <span>{t.settingsCategories?.webSettings}</span>
-          </button>
+          {!isPortfolio && (
+            <button 
+              onClick={() => setActiveSubTab('web')}
+              className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'web' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+              <Palette className="h-4 w-4" />
+              <span>{t.settingsCategories?.webSettings}</span>
+            </button>
+          )}
           <button 
             onClick={() => setActiveSubTab('store-ops')}
             className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
@@ -615,7 +622,7 @@ const SettingsTab = ({
         />
       )}
 
-      {activeSubTab === 'web' && (
+      {activeSubTab === 'web' && !isPortfolio && (
         <SettingsWebTab
           branding={branding}
           onBrandingChange={onBrandingChange}

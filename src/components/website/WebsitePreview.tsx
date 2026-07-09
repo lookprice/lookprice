@@ -30,6 +30,7 @@ interface WebsitePreviewProps {
   openEditor: (list: "quick" | "corporate", index: number) => void;
   removeLink: (list: "quick" | "corporate", index: number) => void;
   addLink: (list: "quick" | "corporate") => void;
+  banners?: any[];
 }
 
 export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
@@ -48,9 +49,60 @@ export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
   openEditor,
   removeLink,
   addLink,
+  banners,
 }) => {
   const isTr = lang === "tr";
   const isEnabled = (id: string) => sections.find((s) => s.id === id)?.enabled;
+
+  const previewBanners = React.useMemo(() => {
+    if (!banners || banners.length === 0) {
+      return [{
+        id: "default",
+        image_url: content.hero.bgImage,
+        title: content.hero.title,
+        subtitle: content.hero.subtitle,
+        text_position: "center",
+        show_store_name: true,
+        button_text: isTr ? "PORTFÖYÜ İNCELE" : "EXPLORE NOW",
+        button_link: "#portfolio"
+      }];
+    }
+    return banners.map((b, idx) => {
+      if (typeof b === "string") {
+        return {
+          id: `slide_legacy_${idx}`,
+          image_url: b,
+          title: content.hero.title,
+          subtitle: content.hero.subtitle,
+          text_position: "center",
+          show_store_name: true,
+          button_text: isTr ? "PORTFÖYÜ İNCELE" : "EXPLORE NOW",
+          button_link: "#portfolio"
+        };
+      }
+      return {
+        id: b.id || `slide_${idx}`,
+        image_url: b.image_url || b.imageUrl || content.hero.bgImage,
+        title: b.title || content.hero.title,
+        subtitle: b.subtitle || content.hero.subtitle,
+        text_position: b.text_position || "center",
+        show_store_name: b.show_store_name !== false,
+        button_text: b.button_text || (isTr ? "PORTFÖYÜ İNCELE" : "EXPLORE NOW"),
+        button_link: b.button_link || "#portfolio"
+      };
+    });
+  }, [banners, content.hero, isTr]);
+
+  const [activeSlideIdx, setActiveSlideIdx] = React.useState(0);
+
+  // Auto clamp activeSlideIdx when previewBanners changes
+  React.useEffect(() => {
+    if (activeSlideIdx >= previewBanners.length) {
+      setActiveSlideIdx(Math.max(0, previewBanners.length - 1));
+    }
+  }, [previewBanners.length, activeSlideIdx]);
+
+  const currentSlide = previewBanners[activeSlideIdx] || previewBanners[0];
 
   return (
     <div className="bg-slate-950 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl sticky top-6">
@@ -87,26 +139,52 @@ export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
 
         {/* Hero Section */}
         {isEnabled("hero") && (
-          <div className="relative h-[450px] bg-slate-900 overflow-hidden flex items-center justify-center text-center p-8">
-            <img src={content.hero.bgImage} className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105" alt="Hero Background" />
+          <div className="relative h-[450px] bg-slate-900 overflow-hidden flex items-center justify-center p-8">
+            <img src={currentSlide.image_url} className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105 transition-all duration-700" alt="Hero Background" />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
-            <div className="relative z-10 max-w-2xl space-y-4">
-              <span className="inline-block px-4 py-1.5 bg-indigo-600 text-white text-[9px] font-black tracking-[0.3em] rounded-full uppercase">
-                {content.trustSlogan}
-              </span>
-              <h1 className="text-4xl font-black text-white leading-[1.1] tracking-tight">
-                {content.hero.title}
+            <div className={`relative z-10 max-w-2xl w-full flex flex-col space-y-4 ${
+              currentSlide.text_position === 'left' 
+                ? 'items-start text-left' 
+                : currentSlide.text_position === 'right' 
+                  ? 'items-end text-right' 
+                  : 'items-center text-center'
+            }`}>
+              {currentSlide.show_store_name && (
+                <span className="inline-block px-4 py-1.5 bg-indigo-600 text-white text-[9px] font-black tracking-[0.3em] rounded-full uppercase">
+                  {originalBranding?.store_name || originalBranding?.name || content.trustSlogan}
+                </span>
+              )}
+              <h1 className="text-4xl font-black text-white leading-[1.1] tracking-tight uppercase">
+                {currentSlide.title || content.hero.title}
               </h1>
-              <p className="text-sm text-slate-200 font-medium leading-relaxed opacity-80">
-                {content.hero.subtitle}
+              <p className="text-sm text-slate-200 font-medium leading-relaxed opacity-80 max-w-lg">
+                {currentSlide.subtitle || content.hero.subtitle}
               </p>
-              <div className="pt-4 flex items-center justify-center gap-3">
-                <button className="px-6 py-3 bg-white text-slate-950 text-[10px] font-black rounded-xl uppercase tracking-widest flex items-center gap-2">
-                  {isTr ? "PORTFÖYÜ İNCELE" : "EXPLORE NOW"}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              {currentSlide.button_text && (
+                <div className="pt-2 flex items-center gap-3">
+                  <button className="px-6 py-3 bg-white text-slate-950 text-[10px] font-black rounded-xl uppercase tracking-widest flex items-center gap-2 transition-all hover:scale-105">
+                    {currentSlide.button_text}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Carousel navigation indicators */}
+            {previewBanners.length > 1 && (
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
+                {previewBanners.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveSlideIdx(idx)}
+                    className={`h-2 rounded-full transition-all ${
+                      idx === activeSlideIdx ? "w-6 bg-white" : "w-2 bg-white/40 hover:bg-white/65"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

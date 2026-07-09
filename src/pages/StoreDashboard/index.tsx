@@ -86,6 +86,7 @@ const RealEstateTab = React.lazy(() => import("./RealEstateTab"));
 const RadarAlertsTab = React.lazy(() => import("./RadarAlertsTab").then(m => ({ default: m.RadarAlertsTab })));
 const PortfolioFinancesTab = React.lazy(() => import("./PortfolioFinancesTab"));
 const SEOTab = React.lazy(() => import("./SEOTab"));
+const EWaybillsTab = React.lazy(() => import("../../components/EWaybillsTab"));
 
 import ShippingSlip from "../../components/ShippingSlip";
 
@@ -833,6 +834,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   api={api} 
                   branding={branding} 
                   onFetchDetails={handleFetchSalesInvoiceDetails} 
+                />
+              )}
+              {activeTab === "e_waybills" && !isPortfolio && (
+                <EWaybillsTab 
+                  storeId={currentStoreId} 
+                  lang={lang} 
+                  api={api} 
+                  branding={branding} 
                 />
               )}
               {activeTab === "quotations" && (

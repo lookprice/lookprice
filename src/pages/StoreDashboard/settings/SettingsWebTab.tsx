@@ -19,6 +19,12 @@ import {
   MessageCircle,
   Tag,
   Lock,
+  Trash2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface SettingsWebTabProps {
@@ -64,6 +70,86 @@ export const SettingsWebTab = ({
   onAddUser,
   onDeleteUser,
 }: SettingsWebTabProps) => {
+  const rawBanners = Array.isArray(branding?.banners) ? branding.banners : [];
+
+  const displayBanners = React.useMemo(() => {
+    if (rawBanners.length > 0) return rawBanners;
+    if (branding?.hero_image_url || branding?.hero_title) {
+      return [{
+        id: "legacy",
+        image_url: branding?.hero_image_url || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80",
+        title: branding?.hero_title || "",
+        subtitle: branding?.hero_subtitle || "",
+        text_position: "center",
+        show_store_name: true,
+        button_text: lang === "tr" ? "İncele" : "Explore",
+        button_link: "#portfolio"
+      }];
+    }
+    return [];
+  }, [rawBanners, branding?.hero_image_url, branding?.hero_title, branding?.hero_subtitle, lang]);
+
+  const handleAddBanner = () => {
+    const newBanner = {
+      id: Date.now().toString(),
+      image_url: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80",
+      title: "",
+      subtitle: "",
+      text_position: "center",
+      show_store_name: true,
+      button_text: lang === "tr" ? "İncele" : "Explore",
+      button_link: "#portfolio"
+    };
+    
+    const baseBanners = rawBanners.length > 0 ? rawBanners : displayBanners;
+    const updated = [...baseBanners, newBanner];
+    onBrandingChange("banners", updated);
+    
+    if (updated.length > 0) {
+      onBrandingChange("hero_image_url", updated[0].image_url || "");
+      onBrandingChange("hero_title", updated[0].title || "");
+      onBrandingChange("hero_subtitle", updated[0].subtitle || "");
+    }
+  };
+
+  const handleUpdateBannerFieldSafe = (id: string, field: string, value: any) => {
+    const baseBanners = rawBanners.length > 0 ? rawBanners : displayBanners;
+    const currentList = baseBanners.map((b: any) => b.id === id ? { ...b, [field]: value } : b);
+    
+    onBrandingChange("banners", currentList);
+    if (currentList.length > 0) {
+      onBrandingChange("hero_image_url", currentList[0].image_url || "");
+      onBrandingChange("hero_title", currentList[0].title || "");
+      onBrandingChange("hero_subtitle", currentList[0].subtitle || "");
+    }
+  };
+
+  const handleRemoveBannerSafe = (id: string) => {
+    const currentList = displayBanners.filter((b: any) => b.id !== id);
+    onBrandingChange("banners", currentList);
+    if (currentList.length > 0) {
+      onBrandingChange("hero_image_url", currentList[0].image_url || "");
+      onBrandingChange("hero_title", currentList[0].title || "");
+      onBrandingChange("hero_subtitle", currentList[0].subtitle || "");
+    } else {
+      onBrandingChange("hero_image_url", "");
+      onBrandingChange("hero_title", "");
+      onBrandingChange("hero_subtitle", "");
+    }
+  };
+
+  const handleBannerImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const b64 = uploadEvent.target?.result as string;
+        handleUpdateBannerFieldSafe(id, "image_url", b64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -310,61 +396,246 @@ export const SettingsWebTab = ({
         )}
       </div>
 
-      {/* Banner & Text Section */}
-      {!isPortfolio && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">
-              {lang === "tr" ? "AFİŞ VE BAŞLIKLAR" : "BANNER & TITLES"}
+      {/* Banner & Sliders Section (For All Stores) */}
+      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-150">
+          <div>
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-indigo-600" />
+              {lang === "tr" ? "SÜRGÜLÜ AFİŞ VE SLIDER YÖNETİMİ" : "SLIDER & BANNER MANAGEMENT"}
             </h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                    {lang === "tr" ? "MAĞAZA ADI" : "STORE NAME"}
-                  </label>
-                  <input
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
-                    value={branding?.name || ""}
-                    onChange={(e) => onBrandingChange("name", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                    {lang === "tr" ? "HERO BAŞLIK" : "HERO TITLE"}
-                  </label>
-                  <input
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
-                    value={branding?.hero_title || ""}
-                    onChange={(e) => onBrandingChange("hero_title", e.target.value)}
-                  />
-                </div>
-              </div>
+            <p className="text-xs text-slate-400 mt-1">
+              {lang === "tr" 
+                ? "Mağazanızın en üstündeki reklam alanına birden fazla görsel ekleyip sıralayabilir, üzerindeki metinlerin konumunu ve görünürlüğünü yönetebilirsiniz."
+                : "Add and arrange multiple banner slides for your shop's main showcase, customize overlay texts, positioning, and action buttons."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleAddBanner}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition-colors self-start sm:self-center uppercase tracking-wider"
+          >
+            <Plus className="w-4 h-4" />
+            {lang === "tr" ? "Yeni Afiş Ekle" : "Add New Slide"}
+          </button>
+        </div>
 
-              <div className="relative group w-full h-32 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center">
-                {branding?.hero_image_url ? (
-                  <img
-                    src={branding.hero_image_url}
-                    alt="Banner"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <Upload className="w-6 h-6 text-slate-300 mb-1" />
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">BANNER</span>
+        {/* Store display name general setting */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+          <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">
+              {lang === "tr" ? "MAĞAZA ADI" : "STORE DISPLAY NAME"}
+            </label>
+            <input
+              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-400"
+              value={branding?.name || ""}
+              onChange={(e) => onBrandingChange("name", e.target.value)}
+              placeholder={lang === "tr" ? "Örn: Seçkin Emlak" : "e.g. Premium Real Estate"}
+            />
+            <p className="text-[9px] text-slate-400 mt-1">
+              {lang === "tr" ? "Web sitenizin başlığında ve marka alanlarında gösterilecek ad." : "This name will be displayed in the header and branding areas."}
+            </p>
+          </div>
+          <div className="flex items-center justify-center p-4 bg-white rounded-xl border border-dashed border-slate-200">
+            <span className="text-[10px] text-slate-400 font-medium">
+              {lang === "tr" 
+                ? "💡 Mağaza ismi 'lookprice' içerirse sistem otomatik olarak seçkin yerel firma fallbacks uygular." 
+                : "💡 If the store name contains 'lookprice', the system automatically applies premium fallbacks."}
+            </span>
+          </div>
+        </div>
+
+        {displayBanners.length === 0 ? (
+          <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+            <ImageIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500 text-sm font-medium">
+              {lang === "tr" ? "Henüz afiş eklemediniz." : "No banner slides added yet."}
+            </p>
+            <button
+              type="button"
+              onClick={handleAddBanner}
+              className="mt-3 px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-xs font-bold rounded-lg transition-colors"
+            >
+              {lang === "tr" ? "İlk Afişi Ekle" : "Add First Slide"}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {displayBanners.map((banner: any, idx: number) => (
+                <div key={banner.id || idx} className="p-5 bg-slate-50/50 rounded-2xl border border-slate-200 relative group flex flex-col gap-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <span className="text-xs font-black text-indigo-600 tracking-wider">
+                      {lang === "tr" ? `SLAYT #${idx + 1}` : `SLIDE #${idx + 1}`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveBannerSafe(banner.id)}
+                      className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      {lang === "tr" ? "SİL" : "DELETE"}
+                    </button>
                   </div>
-                )}
-                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onBannerUpload} />
-              </div>
-              <input
-                className="w-full px-4 py-2 bg-slate-100/50 border-none rounded-lg text-[10px] font-mono text-slate-400"
-                value={branding?.hero_image_url || ""}
-                onChange={(e) => onBrandingChange("hero_image_url", e.target.value)}
-                placeholder="Banner URL..."
-              />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Image Selector & Preview */}
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                        {lang === "tr" ? "Görsel Seçimi" : "Banner Image"}
+                      </label>
+                      <div className="relative group/img h-32 bg-white border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center shadow-sm">
+                        {banner.image_url ? (
+                          <img
+                            src={banner.image_url}
+                            alt={`Slide ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-center">
+                            <Upload className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                            <span className="text-[8px] font-black text-slate-400 uppercase">YÜKLE</span>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          onChange={(e) => handleBannerImageUpload(banner.id, e)}
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono text-slate-600 shadow-sm outline-none"
+                        placeholder="Görsel URL veya base64..."
+                        value={banner.image_url || ""}
+                        onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "image_url", e.target.value)}
+                      />
+                    </div>
+
+                    {/* Content Fields */}
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                          {lang === "tr" ? "AFİŞ BAŞLIĞI" : "SLIDE TITLE"}
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-400 shadow-sm"
+                          value={banner.title || ""}
+                          onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "title", e.target.value)}
+                          placeholder={lang === "tr" ? "Örn: %50 Sezon İndirimi!" : "e.g. Summer Sale!"}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                          {lang === "tr" ? "AFİŞ ALT BAŞLIĞI" : "SLIDE SUBTITLE"}
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 outline-none focus:border-indigo-400 shadow-sm"
+                          value={banner.subtitle || ""}
+                          onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "subtitle", e.target.value)}
+                          placeholder={lang === "tr" ? "Örn: Seçili ürünlerde dev fırsat." : "e.g. Shop now."}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                    {/* Positioning Controls */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                        {lang === "tr" ? "Yazı Hizalaması" : "Text Alignment"}
+                      </span>
+                      <div className="flex gap-2">
+                        {[
+                          { key: 'left', label: lang === 'tr' ? 'Sol' : 'Left', icon: <AlignLeft className="w-3.5 h-3.5" /> },
+                          { key: 'center', label: lang === 'tr' ? 'Orta' : 'Center', icon: <AlignCenter className="w-3.5 h-3.5" /> },
+                          { key: 'right', label: lang === 'tr' ? 'Sağ' : 'Right', icon: <AlignRight className="w-3.5 h-3.5" /> },
+                        ].map((pos) => (
+                          <button
+                            key={pos.key}
+                            type="button"
+                            onClick={() => handleUpdateBannerFieldSafe(banner.id, "text_position", pos.key)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-[10px] font-bold border transition-colors ${
+                              (banner.text_position || "center") === pos.key
+                                ? "bg-indigo-600 border-indigo-600 text-white"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            {pos.icon}
+                            {pos.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Store Name Visibility & Action Buttons */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                        {lang === "tr" ? "Diğer Gösterimler" : "Visibility & Buttons"}
+                      </span>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                          <span className="text-[10px] font-bold text-slate-600">
+                            {lang === "tr" ? "Mağaza İsmini Göster" : "Show Store Name"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateBannerFieldSafe(banner.id, "show_store_name", banner.show_store_name === false ? true : false)}
+                            className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                              banner.show_store_name !== false ? "bg-indigo-600" : "bg-slate-300"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform ${
+                                banner.show_store_name !== false ? "translate-x-3.5" : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Button customization */}
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        {lang === "tr" ? "BUTON YAZISI" : "BUTTON TEXT"}
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold outline-none"
+                        value={banner.button_text || ""}
+                        onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "button_text", e.target.value)}
+                        placeholder={lang === "tr" ? "Boş bırakılırsa gizlenir" : "Leave blank to hide"}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        {lang === "tr" ? "BUTON BAĞLANTISI (LINK)" : "BUTTON LINK"}
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono outline-none"
+                        value={banner.button_link || ""}
+                        onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "button_link", e.target.value)}
+                        placeholder="Örn: #portfolio veya #contact"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+        )}
+      </div>
 
+      {/* Label & About Section (For Non-Portfolios only) */}
+      {!isPortfolio && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Label Customization */}
           <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
             <div className="flex items-center justify-between mb-6">

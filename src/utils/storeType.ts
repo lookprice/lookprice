@@ -6,12 +6,14 @@ export const getStoreType = (store: StoreInfo | null): StoreType => {
   if (!store) return "product";
 
   const s = store as any;
-  const storeType = s.store_type;
-  const sector = s.sector || s.page_layout_settings?.sector || s.branding?.page_layout_settings?.sector;
+  const storeType = s.store_type || s.branding?.store_type;
+  const sector = s.sector || s.page_layout_settings?.sector || s.branding?.page_layout_settings?.sector || s.branding?.sector;
 
   if (
     storeType === "real_estate" || 
-    sector === "real_estate"
+    storeType === "portfolio" ||
+    sector === "real_estate" ||
+    sector === "portfolio"
   ) {
     return "real_estate";
   }
