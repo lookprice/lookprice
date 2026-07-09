@@ -553,7 +553,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 showAllCategories={showAllCategories} setShowAllCategories={setShowAllCategories}
                 brands={brands} selectedBrand={selectedBrand} setSelectedBrand={setSelectedBrand}
                 brandSearch={brandSearch} setBrandSearch={setBrandSearch} lang={lang} t={t}
-                categoriesLabel={categoriesLabel} brandsLabel={translations[lang].superAdmin.brands} brandLabel={brandLabel}
+                categoriesLabel={categoriesLabel} brandsLabel={translations[lang].stats.brands} brandLabel={brandLabel}
               />
 
               <div className="flex-1">
