@@ -261,6 +261,18 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                       EnRakipsiz.com'da Yayınla
                     </label>
                   </div>
+                  <div className="flex items-center gap-3 px-3.5 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl mt-2">
+                    <input
+                      type="checkbox"
+                      id="auto_post_instagram"
+                      checked={!!formData.auto_post_instagram}
+                      onChange={(e) => setFormData({ ...formData, auto_post_instagram: e.target.checked })}
+                      className="w-4 h-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <label htmlFor="auto_post_instagram" className="text-xs font-bold text-indigo-950 cursor-pointer select-none">
+                      Instagram'da Paylaş (Onaylı)
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

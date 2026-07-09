@@ -23,7 +23,7 @@ export const LandingPage = () => {
       window.history.replaceState({}, document.title);
     }
   }, [location]);
-  const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "" });
+  const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" });
   const [demoStatus, setDemoStatus] = useState({ type: "", text: "" });
   const [selectedInsight, setSelectedInsight] = useState<any>(null);
   const [activeScenario, setActiveScenario] = useState<'new' | 'existing'>('new');
@@ -40,7 +40,7 @@ export const LandingPage = () => {
           type: "success", 
           text: lang === 'tr' ? "Talebiniz alındı! En kısa sürede sizinle iletişime geçeceğiz." : "Request received! We will contact you shortly." 
         });
-        setDemoForm({ name: "", storeName: "", phone: "", email: "", notes: "" });
+        setDemoForm({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" });
         setTimeout(() => {
           setShowDemoModal(false);
           setDemoStatus({ type: "", text: "" });
@@ -1006,6 +1006,30 @@ export const LandingPage = () => {
                 ) : (
                   <form onSubmit={handleDemoSubmit} className="space-y-5">
                     <div className="space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">{lang === 'tr' ? 'Sektörünüz' : 'Your Sector'}</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { id: 'real_estate', label: lang === 'tr' ? 'Emlak' : 'Real Estate', icon: Building2 },
+                            { id: 'motor_vehicle', label: lang === 'tr' ? 'Otomotiv' : 'Automotive', icon: Car },
+                            { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: Package }
+                          ].map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => setDemoForm({ ...demoForm, storeType: s.id as any })}
+                              className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
+                                demoForm.storeType === s.id 
+                                  ? 'bg-rose-600/20 border-rose-500 text-white' 
+                                  : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                              }`}
+                            >
+                              <s.icon className="w-4 h-4" />
+                              <span className="text-[9px] font-bold uppercase tracking-tighter">{s.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <div>
                         <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">
                           {lang === 'tr' ? 'Ad Soyad' : 'Full Name'}

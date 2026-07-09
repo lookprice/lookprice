@@ -29,6 +29,7 @@ const PaymentGatewayPage = React.lazy(() => import("./pages/PaymentGatewayPage")
 const StoreShowcase = React.lazy(() => import("./pages/StoreShowcase"));
 const Marketplace = React.lazy(() => import("./pages/Marketplace").then(m => ({ default: m.Marketplace })));
 const StoreDashboard = React.lazy(() => import("./pages/StoreDashboard/index"));
+const LegalPage = React.lazy(() => import("./pages/Legal"));
 const ContractSignPage = React.lazy(() => import("./pages/ContractSignPage"));
 
 const SuspenseLoader = () => (
@@ -168,6 +169,9 @@ export default function App() {
               <Route path="/s/:slug/profile" element={<StoreShowcase />} />
               <Route path="/s/:slug/orders" element={<StoreShowcase />} />
               <Route path="/s/:slug/return" element={<StoreShowcase />} />
+              <Route path="/privacy" element={<LegalPage type="privacy" />} />
+              <Route path="/terms" element={<LegalPage type="terms" />} />
+              <Route path="/data-deletion" element={<LegalPage type="deletion" />} />
               
               {/* Default fallback is the Marketplace portal */}
               <Route path="*" element={<Marketplace />} />
@@ -194,6 +198,9 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             <Route path="/contract/sign/:id" element={<ContractSignPage />} />
+            <Route path="/privacy" element={<LegalPage type="privacy" />} />
+            <Route path="/terms" element={<LegalPage type="terms" />} />
+            <Route path="/data-deletion" element={<LegalPage type="deletion" />} />
             <Route path="/s/:slug/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
             <Route path="/p/:barcode" element={<StoreShowcase customSlug={detectedSlug} />} />
             <Route path="/s/:slug" element={<StoreShowcase customSlug={detectedSlug} />} />
@@ -227,6 +234,9 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             <Route path="/contract/sign/:id" element={<ContractSignPage />} />
+            <Route path="/privacy" element={<LegalPage type="privacy" />} />
+            <Route path="/terms" element={<LegalPage type="terms" />} />
+            <Route path="/data-deletion" element={<LegalPage type="deletion" />} />
             
             {/* Auth Routes */}
             <Route path="/login" element={

@@ -119,9 +119,9 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
       `INSERT INTO vehicles (
         store_id, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
         package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-        description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency
+        description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency, auto_post_instagram
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36) RETURNING *`,
       [
         storeId, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status || 'active',
         package_name, transmission, fuel_type, color, body_type, 
@@ -140,10 +140,32 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
         !!is_verified,
         verification_status || 'none',
         !!is_on_enrakipsiz,
-        buying_currency || 'TRY'
+        buying_currency || 'TRY',
+        !!req.body.auto_post_instagram
       ]
     );
-    res.status(201).json(result.rows[0]);
+    const newVehicle = result.rows[0];
+    res.status(201).json(newVehicle);
+
+    // Background Instagram Posting
+    if (newVehicle.auto_post_instagram && newVehicle.images?.length > 0) {
+      (async () => {
+        try {
+          const { InstagramService } = await import('../src/services/instagramService');
+          const storeRes = await pool.query("SELECT name FROM stores WHERE id = $1", [storeId]);
+          const storeName = storeRes.rows[0]?.name || "Seçkin Galeri";
+          const caption = InstagramService.generateCaption(newVehicle, 'vehicle', storeName);
+          
+          // Scenario 2: Post to Store's own account
+          await InstagramService.postToInstagram(storeId, newVehicle.images[0], caption).catch(err => console.warn("Store IG post failed:", err.message));
+          
+          // Scenario 1: Post to enrakipsiz global account
+          await InstagramService.postToInstagram('global', newVehicle.images[0], caption).catch(err => console.warn("Global IG post failed:", err.message));
+        } catch (e) {
+          console.error("Background Instagram posting task error:", e);
+        }
+      })();
+    }
   } catch (error: any) {
     console.error('Error creating vehicle:', error);
     if (error.code === '23505') {
@@ -171,8 +193,8 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
            description = $23, market_story = $24, technical_description = $25, is_trade_in_available = $26,
            images = $27, virtual_tour_url = $28, ai_tour_enabled = $29,
            seller_type = $30, is_verified = $31, verification_status = $32, is_on_enrakipsiz = $33,
-           buying_currency = $34, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $35 RETURNING *`,
+           buying_currency = $34, auto_post_instagram = $35, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $36 RETURNING *`,
       [
         plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
         package_name, transmission, fuel_type, color, body_type, 
@@ -192,6 +214,7 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
         verification_status || 'none',
         !!is_on_enrakipsiz,
         buying_currency || 'TRY',
+        !!req.body.auto_post_instagram,
         id
       ]
     );

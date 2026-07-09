@@ -247,11 +247,14 @@ export async function initDb() {
         store_name TEXT NOT NULL,
         phone TEXT NOT NULL,
         email TEXT,
+        store_type TEXT DEFAULT 'product',
         status TEXT DEFAULT 'Yeni',
         probability TEXT DEFAULT 'Ilık',
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS store_type TEXT DEFAULT 'product';
 
       CREATE TABLE IF NOT EXISTS quotations (
         id SERIAL PRIMARY KEY,
@@ -669,6 +672,7 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS phone TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS country TEXT;
       ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'TR';
+      ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS store_type TEXT DEFAULT 'product';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS favicon_url TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS background_image_url TEXT;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS fiscal_brand TEXT;
@@ -735,6 +739,11 @@ export async function initDb() {
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS google_drive_settings JSONB DEFAULT '{}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS meta_settings JSONB DEFAULT '{"enabled": false, "pixel_id": "", "catalog_id": ""}';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS google_merchant_settings JSONB DEFAULT '{"enabled": false, "merchant_id": ""}';
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS instagram_access_token TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS instagram_business_account_id TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS instagram_page_id TEXT;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS instagram_token_expires_at TIMESTAMP;
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS instagram_settings JSONB DEFAULT '{}';
 
       -- Mağaza Onay, Kota ve Sektörel Limit Modülü Sütunları
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'approved';
@@ -1538,7 +1547,9 @@ export async function initDb() {
     await client.query(`
       -- Add missing columns to avoid runtime alterations in public endpoints
       ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;
+      ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS auto_post_instagram BOOLEAN DEFAULT FALSE;
       ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;
+      ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS auto_post_instagram BOOLEAN DEFAULT FALSE;
       
       -- Ensure enrakipsiz tables exist
       CREATE TABLE IF NOT EXISTS enrakipsiz_settings (

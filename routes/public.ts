@@ -573,11 +573,11 @@ router.get("/scan/:slug/:barcode", async (req, res) => {
 
 // Public: Demo Request
 router.post("/demo-request", async (req, res) => {
-  const { name, storeName, phone, email, notes } = req.body;
+  const { name, storeName, phone, email, notes, storeType } = req.body;
   try {
     await pool.query(
-      "INSERT INTO leads (name, store_name, phone, email, notes) VALUES ($1, $2, $3, $4, $5)",
-      [name, storeName, phone, email, notes]
+      "INSERT INTO leads (name, store_name, phone, email, notes, store_type) VALUES ($1, $2, $3, $4, $5, $6)",
+      [name, storeName, phone, email, notes, storeType || 'product']
     );
     res.json({ success: true, message: "Talebiniz başarıyla alındı." });
   } catch (e: any) {
@@ -1830,15 +1830,15 @@ router.post("/register-request", async (req, res) => {
   const { 
     storeName, username, password, companyTitle, 
     address, phone, country, language, currency, plan, 
-    uploadMethod, excelData, mapping 
+    uploadMethod, excelData, mapping, storeType 
   } = req.body;
   
   try {
     await pool.query(
       `INSERT INTO registration_requests 
-      (store_name, username, password, company_title, address, phone, country, language, currency, plan, upload_method, excel_data, mapping) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-      [storeName, username, password, companyTitle, address, phone, country || 'TR', language, currency, plan, uploadMethod, JSON.stringify(excelData || []), JSON.stringify(mapping || {})]
+      (store_name, username, password, company_title, address, phone, country, language, currency, plan, upload_method, excel_data, mapping, store_type) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [storeName, username, password, companyTitle, address, phone, country || 'TR', language, currency, plan, uploadMethod, JSON.stringify(excelData || []), JSON.stringify(mapping || {}), storeType || 'product']
     );
     res.json({ success: true });
   } catch (e: any) {

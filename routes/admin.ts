@@ -47,12 +47,21 @@ router.post("/stores", async (req: any, res) => {
   } = req.body;
   try {
     await pool.query("BEGIN");
+    // Initialize branding based on store_type
+    const defaultBranding = {
+      store_name: name,
+      store_type: store_type || 'product',
+      page_layout_settings: {
+        sector: store_type || 'product'
+      }
+    };
+
     const storeRes = await pool.query(
       `INSERT INTO stores (
         name, slug, address, contact_person, phone, country, email, subscription_end, 
         default_currency, language, plan, parent_id, store_type, sub_sector,
-        status, is_approved, max_products, max_properties, max_vehicles, max_users, max_customers
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
+        status, is_approved, max_products, max_properties, max_vehicles, max_users, max_customers, branding
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
       [
         name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, 
         default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || null,
@@ -62,7 +71,8 @@ router.post("/stores", async (req: any, res) => {
         max_properties !== undefined ? Number(max_properties) : 20,
         max_vehicles !== undefined ? Number(max_vehicles) : 20,
         max_users !== undefined ? Number(max_users) : 5,
-        max_customers !== undefined ? Number(max_customers) : 50
+        max_customers !== undefined ? Number(max_customers) : 50,
+        JSON.stringify(defaultBranding)
       ]
     );
     const storeId = storeRes.rows[0].id;
@@ -84,12 +94,31 @@ router.put("/stores/:id", async (req: any, res) => {
   } = req.body;
   try {
     await pool.query("BEGIN");
+
+    // Fetch existing store to check if store_type changed
+    const existingStore = await pool.query("SELECT store_type, branding FROM stores WHERE id = $1", [req.params.id]);
+    let currentBranding = existingStore.rows[0]?.branding;
+    
+    if (typeof currentBranding === 'string') {
+      try { currentBranding = JSON.parse(currentBranding); } catch (e) { currentBranding = {}; }
+    } else if (!currentBranding) {
+      currentBranding = {};
+    }
+
+    // If store_type is provided and different, update branding defaults
+    if (store_type && store_type !== existingStore.rows[0]?.store_type) {
+      currentBranding.store_type = store_type;
+      if (!currentBranding.page_layout_settings) currentBranding.page_layout_settings = {};
+      currentBranding.page_layout_settings.sector = store_type;
+    }
+
     await pool.query(`
       UPDATE stores 
       SET name = $1, slug = $2, address = $3, contact_person = $4, phone = $5, country = $6, email = $7, subscription_end = $8, 
           default_currency = $9, language = $10, plan = $11, parent_id = $12, store_type = $13, sub_sector = $14,
-          status = $15, is_approved = $16, max_products = $17, max_properties = $18, max_vehicles = $19, max_users = $20, max_customers = $21
-      WHERE id = $22
+          status = $15, is_approved = $16, max_products = $17, max_properties = $18, max_vehicles = $19, max_users = $20, max_customers = $21,
+          branding = $22
+      WHERE id = $23
     `, [
       name, slug, address, contact_person, phone, country || 'TR', email, subscription_end, 
       default_currency || 'TRY', language || 'tr', plan || 'free', parent_id || null, store_type || 'product', sub_sector || null,
@@ -100,6 +129,7 @@ router.put("/stores/:id", async (req: any, res) => {
       max_vehicles !== undefined ? Number(max_vehicles) : 20,
       max_users !== undefined ? Number(max_users) : 5,
       max_customers !== undefined ? Number(max_customers) : 50,
+      JSON.stringify(currentBranding),
       req.params.id
     ]);
 
@@ -330,9 +360,22 @@ router.post("/registration-requests/:id/approve", async (req: any, res) => {
 
     // 1. Create Store
     const slug = request.store_name.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Math.random().toString(36).substring(2, 5);
+    const storeType = request.store_type || 'product';
+    
+    // Initialize branding based on store_type
+    const defaultBranding = {
+      store_name: request.store_name,
+      store_type: storeType,
+      page_layout_settings: {
+        sector: storeType
+      }
+    };
+
     const storeRes = await client.query(
-      "INSERT INTO stores (name, slug, address, contact_person, phone, email, default_currency, language, plan, country, subscription_end) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_DATE + INTERVAL '1 year') RETURNING id",
-      [request.store_name, slug, request.address, request.company_title, request.phone, request.username, request.currency, request.language, request.plan || 'free', request.country || 'TR']
+      `INSERT INTO stores (
+        name, slug, address, contact_person, phone, email, default_currency, language, plan, country, subscription_end, store_type, branding
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_DATE + INTERVAL '1 year', $11, $12) RETURNING id`,
+      [request.store_name, slug, request.address, request.company_title, request.phone, request.username, request.currency, request.language, request.plan || 'free', request.country || 'TR', storeType, JSON.stringify(defaultBranding)]
     );
     const storeId = storeRes.rows[0].id;
 

@@ -267,7 +267,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
     images: [],
     virtual_tour_url: '',
     ai_tour_enabled: false,
-    is_on_enrakipsiz: false
+    is_on_enrakipsiz: false,
+    auto_post_instagram: false
   });
 
   useEffect(() => {
@@ -381,6 +382,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         currency: 'GBP', expenses: '[]', target_profit_margin: 0,
         description: '', images: [], virtual_tour_url: '',
         ai_tour_enabled: false, is_on_enrakipsiz: false,
+        auto_post_instagram: false,
         market_story: '', technical_description: '', is_trade_in_available: false
       });
       alert(t.successSaved);
@@ -776,7 +778,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
                   tramer_currency: 'GBP', buying_price: 0, buying_currency: 'GBP',
                   currency: 'GBP', expenses: '[]', target_profit_margin: 0,
                   description: '', images: [], virtual_tour_url: '',
-                  ai_tour_enabled: false, is_on_enrakipsiz: false
+                  ai_tour_enabled: false, is_on_enrakipsiz: false,
+                  auto_post_instagram: false
                 });
                 setShowAddModal(true);
               }}
@@ -959,7 +962,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
             images: selectedVehicle.images || [],
             virtual_tour_url: selectedVehicle.virtual_tour_url || '',
             ai_tour_enabled: selectedVehicle.ai_tour_enabled || false,
-            is_on_enrakipsiz: selectedVehicle.is_on_enrakipsiz || false
+            is_on_enrakipsiz: selectedVehicle.is_on_enrakipsiz || false,
+            auto_post_instagram: selectedVehicle.auto_post_instagram || false
           });
           setShowAddModal(true);
         }}

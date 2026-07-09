@@ -44,6 +44,15 @@ const MetaIntegration = () => {
 
   useEffect(() => {
     fetchSettings();
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'INSTAGRAM_AUTH_SUCCESS') {
+        fetchSettings();
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   const fetchSettings = async () => {
@@ -131,6 +140,36 @@ const MetaIntegration = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Settings */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Instagram Integration */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-pink-50 rounded-lg">
+                  <Instagram className="w-5 h-5 text-pink-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900">Instagram Entegrasyonu</h2>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">Portföylerinizi otomatik olarak paylaşmak için Instagram hesabınızı bağlayın.</p>
+              <button 
+                onClick={async () => {
+                  try {
+                    const response = await api.get("/api/instagram/auth-url");
+                    if (response.data?.url) {
+                      window.open(response.data.url, '_blank', 'width=600,height=600');
+                    }
+                  } catch (error) {
+                    toast.error("Bağlantı adresi alınamadı.");
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors"
+              >
+                <Instagram className="w-4 h-4" /> Instagram Hesabını Bağla
+              </button>
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">

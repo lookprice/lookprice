@@ -294,6 +294,7 @@ export interface RealEstateProperty {
   cati_terasi?: boolean;
   images?: string[];
   is_on_enrakipsiz?: boolean;
+  auto_post_instagram?: boolean;
   virtual_tour_url?: string;
   ai_tour_enabled?: boolean;
   seller_type?: 'professional' | 'individual';
@@ -377,6 +378,7 @@ export interface Vehicle {
   is_trade_in_available?: boolean;
   images?: string[];
   is_on_enrakipsiz?: boolean;
+  auto_post_instagram?: boolean;
   virtual_tour_url?: string;
   ai_tour_enabled?: boolean;
   seller_type?: 'professional' | 'individual';

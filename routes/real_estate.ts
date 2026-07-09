@@ -373,8 +373,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
         branch_name, responsible_agent, sharing_scope, reserved_by_branch, reservation_notes,
         authorized_branch_id, responsible_consultant_id, is_verified, documents,
         owner_name, owner_phone, owner_id_number, tour_blueprint, reference_no, listing_intent,
-        deposit, billing_period, subtype, kktc_sub_region, trafo_bedeli, kdv_status, cati_terasi
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51) RETURNING *`,
+        deposit, billing_period, subtype, kktc_sub_region, trafo_bedeli, kdv_status, cati_terasi, auto_post_instagram
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52) RETURNING *`,
       [
         storeId, property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
@@ -392,10 +392,32 @@ router.post('/properties', authenticate, async (req: any, res) => {
         property.kktc_sub_region || '',
         !!property.trafo_bedeli,
         property.kdv_status || 'to_be_paid',
-        !!property.cati_terasi
+        !!property.cati_terasi,
+        !!property.auto_post_instagram
       ]
     );
-    res.json(result.rows[0]);
+    const newProperty = result.rows[0];
+    res.json(newProperty);
+
+    // Background Instagram Posting
+    if (newProperty.auto_post_instagram && newProperty.images?.length > 0) {
+      (async () => {
+        try {
+          const { InstagramService } = await import('../src/services/instagramService');
+          const storeRes = await pool.query("SELECT name FROM stores WHERE id = $1", [storeId]);
+          const storeName = storeRes.rows[0]?.name || "Seçkin Emlak";
+          const caption = InstagramService.generateCaption(newProperty, 'property', storeName);
+          
+          // Scenario 2: Post to Store's own account
+          await InstagramService.postToInstagram(storeId, newProperty.images[0], caption).catch(err => console.warn("Store IG post failed:", err.message));
+          
+          // Scenario 1: Post to enrakipsiz global account
+          await InstagramService.postToInstagram('global', newProperty.images[0], caption).catch(err => console.warn("Global IG post failed:", err.message));
+        } catch (e) {
+          console.error("Background Instagram posting task error:", e);
+        }
+      })();
+    }
   } catch (error: any) {
     console.error('Error adding property:', error);
     res.status(500).json({ error: 'Internal server error: ' + error.message });
@@ -419,8 +441,8 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         branch_name = $29, responsible_agent = $30, sharing_scope = $31, reserved_by_branch = $32, reservation_notes = $33, 
         authorized_branch_id = $34, responsible_consultant_id = $35, is_verified = $36, documents = $37,
         owner_name = $38, owner_phone = $39, owner_id_number = $40, tour_blueprint = $41, listing_intent = $42, reference_no = $43,
-        deposit = $44, billing_period = $45, subtype = $46, kktc_sub_region = $47, trafo_bedeli = $48, kdv_status = $49, cati_terasi = $50, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $51 AND (store_id = $52 OR authorized_branch_id = $52) RETURNING *`,
+        deposit = $44, billing_period = $45, subtype = $46, kktc_sub_region = $47, trafo_bedeli = $48, kdv_status = $49, cati_terasi = $50, auto_post_instagram = $51, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $52 AND (store_id = $53 OR authorized_branch_id = $53) RETURNING *`,
       [
         property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
@@ -438,6 +460,7 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         !!property.trafo_bedeli,
         property.kdv_status || 'to_be_paid',
         !!property.cati_terasi,
+        !!property.auto_post_instagram,
         id,
         storeId
       ]

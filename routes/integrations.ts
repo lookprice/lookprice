@@ -1477,4 +1477,37 @@ router.get("/google-merchant/settings", authenticate, async (req: any, res) => {
   }
 });
 
+// --- Instagram Integration ---
+
+// 1. Save Instagram Settings
+router.post("/instagram/settings", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { enabled, auto_post, account_id, access_token } = req.body;
+
+  try {
+    const settings = {
+      enabled: !!enabled,
+      auto_post: !!auto_post,
+      account_id: account_id || "",
+      access_token: access_token || ""
+    };
+
+    await pool.query("UPDATE stores SET instagram_settings = $1 WHERE id = $2", [settings, storeId]);
+    res.json({ success: true, settings });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 2. Get Instagram Settings
+router.get("/instagram/settings", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query("SELECT instagram_settings FROM stores WHERE id = $1", [storeId]);
+    res.json(result.rows[0]?.instagram_settings || { enabled: false, auto_post: false, account_id: "", access_token: "" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

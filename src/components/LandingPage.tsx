@@ -31,7 +31,10 @@ import {
   Barcode,
   QrCode,
   Tag,
-  ArrowRight
+  ArrowRight,
+  Building2,
+  Car,
+  Package
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
@@ -56,6 +59,7 @@ export const LandingPage = () => {
     storeName: "",
     username: "",
     password: "",
+    storeType: "product" as "product" | "real_estate" | "motor_vehicle",
     companyTitle: "",
     address: "",
     phone: "",
@@ -74,7 +78,7 @@ export const LandingPage = () => {
   const [registerStatus, setRegisterStatus] = useState({ type: "", text: "" });
   const [currentSlide, setCurrentSlide] = useState(0);
   const [liveActivity, setLiveActivity] = useState<{name: string, location: string} | null>(null);
-  const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "" });
+  const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" });
   const [demoStatus, setDemoStatus] = useState({ type: "", text: "" });
   const [isMuted, setIsMuted] = useState(true);
   const [showStickyCta, setShowStickyCta] = useState(false);
@@ -138,7 +142,7 @@ export const LandingPage = () => {
           type: "success", 
           text: lang === 'tr' ? "Talebiniz alındı! En kısa sürede sizinle iletişime geçeceğiz." : "Request received! We will contact you shortly." 
         });
-        setDemoForm({ name: "", storeName: "", phone: "", email: "", notes: "" });
+        setDemoForm({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" });
         setTimeout(() => {
           setShowDemoModal(false);
           setDemoStatus({ type: "", text: "" });
@@ -218,20 +222,21 @@ export const LandingPage = () => {
           setShowRegisterModal(false);
           setRegisterStep(1);
           setRegisterStatus({ type: "", text: "" });
-          setRegisterForm({
-            storeName: "",
-            username: "",
-            password: "",
-            companyTitle: "",
-            address: "",
-            phone: "",
-            country: "TR",
-            language: lang as string,
-            currency: "TRY",
-            uploadMethod: "manual",
-            excelData: [],
-            mapping: { barcode: "", name: "", price: "", description: "" }
-          });
+            setRegisterForm({
+              storeName: "",
+              username: "",
+              password: "",
+              storeType: "product",
+              companyTitle: "",
+              address: "",
+              phone: "",
+              country: "TR",
+              language: lang as string,
+              currency: "TRY",
+              uploadMethod: "manual",
+              excelData: [],
+              mapping: { barcode: "", name: "", price: "", description: "" }
+            });
         }, 5000);
       } else {
         setRegisterStatus({ 
@@ -1422,6 +1427,30 @@ export const LandingPage = () => {
                     </div>
                   )}
                   <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'Sektörünüz' : 'Your Sector'}</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'real_estate', label: lang === 'tr' ? 'Emlak' : 'Real Estate', icon: Building2 },
+                        { id: 'motor_vehicle', label: lang === 'tr' ? 'Otomotiv' : 'Automotive', icon: Car },
+                        { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: Package }
+                      ].map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => setDemoForm({ ...demoForm, storeType: s.id as any })}
+                          className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
+                            demoForm.storeType === s.id 
+                              ? 'bg-indigo-600/10 border-indigo-600 text-indigo-600 shadow-sm' 
+                              : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
+                          }`}
+                        >
+                          <s.icon className="w-4 h-4" />
+                          <span className="text-[9px] font-bold uppercase tracking-tighter">{s.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'Ad Soyad' : 'Full Name'}</label>
                     <input 
                       type="text" 
@@ -1547,6 +1576,30 @@ export const LandingPage = () => {
 
               {registerStep === 1 && (
                 <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 ml-1">{lang === 'tr' ? 'İşletme Türü / Sektör' : 'Business Type / Sector'}</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'real_estate', label: lang === 'tr' ? 'Emlak' : 'Real Estate', icon: () => <Scan className="h-4 w-4" /> },
+                        { id: 'motor_vehicle', label: lang === 'tr' ? 'Otomotiv' : 'Automotive', icon: () => <Barcode className="h-4 w-4" /> },
+                        { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: () => <Tag className="h-4 w-4" /> }
+                      ].map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => setRegisterForm({ ...registerForm, storeType: s.id as any })}
+                          className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
+                            registerForm.storeType === s.id 
+                              ? 'bg-indigo-600/10 border-indigo-600 text-indigo-600' 
+                              : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
+                          }`}
+                        >
+                          {s.icon()}
+                          <span className="text-[9px] font-bold uppercase tracking-tighter">{s.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 ml-1">{translations[lang].registration.account.storeName}</label>
                     <input 

@@ -85,6 +85,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     kdv_status: 'to_be_paid',
     cati_terasi: false,
     is_on_enrakipsiz: true,
+    auto_post_instagram: false,
     images: [],
     virtual_tour_url: '',
     ai_tour_enabled: false,
@@ -159,6 +160,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         trafo_bedeli: property.trafo_bedeli || false,
         kdv_status: property.kdv_status || 'to_be_paid',
         cati_terasi: property.cati_terasi || false,
+        is_on_enrakipsiz: property.is_on_enrakipsiz ?? true,
+        auto_post_instagram: property.auto_post_instagram || false,
         subtype: property.subtype || '',
         branch_name: property.branch_name || 'Merkez Ofis',
         authorized_branch_id: property.authorized_branch_id,
@@ -205,6 +208,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         kdv_status: 'to_be_paid',
         cati_terasi: false,
         is_on_enrakipsiz: true,
+        auto_post_instagram: false,
         branch_name: 'Merkez Ofis',
         authorized_branch_id: undefined,
         responsible_agent: '',
@@ -327,6 +331,17 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                 />
                 <label htmlFor="enrakipsiz-toggle" className="text-xs font-bold text-indigo-950">EnRakipsiz.com'da Yayınla</label>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 mt-2">
+                <input 
+                  type="checkbox" 
+                  id="auto-post-instagram"
+                  checked={!!formData.auto_post_instagram}
+                  onChange={(e) => setFormData({...formData, auto_post_instagram: e.target.checked})}
+                  className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                />
+                <label htmlFor="auto-post-instagram" className="text-xs font-bold text-indigo-950">Instagram'da Otomatik Paylaş (Onaylı)</label>
             </div>
 
             {formData.country === 'KKTC' ? (

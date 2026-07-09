@@ -14,6 +14,7 @@ import storeRoutes from "./routes/store";
 import fleetRoutes from "./routes/fleet";
 import paymentRoutes from "./routes/payment";
 import integrationRoutes from "./routes/integrations";
+import instagramRoutes from "./routes/instagram";
 import einvoiceRoutes, { runGlobalEInvoiceSync } from "./routes/einvoice";
 import realEstateRoutes from "./routes/real_estate";
 import aiJobsRoutes from "./routes/ai_jobs.js";
@@ -268,6 +269,7 @@ function sanitizeFilename(originalName: string): string {
   app.use("/api/google-drive", googleDriveRoutes);
   app.use("/api/payment", paymentRoutes);
   app.use("/api/integrations", integrationRoutes);
+  app.use("/api/instagram", instagramRoutes);
   app.use("/api", einvoiceRoutes);
 
   // CRM: Tickets (Special case, mounted at /api/tickets)
