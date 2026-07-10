@@ -105,7 +105,25 @@ export const useStoreShowcase = (customSlug?: string) => {
           : [];
         setRadarNews(filteredNews);
         
-        document.title = storeRes.name || "Store";
+        const metaSettings = typeof storeRes.meta_settings === 'string' ? JSON.parse(storeRes.meta_settings) : (storeRes.meta_settings || {});
+        const sector = metaSettings.sector || 'general';
+        const isRealEstate = storeRes.name.toLowerCase().includes("emlak") || 
+                             storeRes.name.toLowerCase().includes("investment") || 
+                             storeRes.name.toLowerCase().includes("gayrimenkul") || 
+                             storeRes.name.toLowerCase().includes("portfolio") || 
+                             sector === "real_estate";
+        
+        const isAutomotive = storeRes.name.toLowerCase().includes("oto") || 
+                             storeRes.name.toLowerCase().includes("galeri") ||
+                             sector === "automotive";
+
+        let titleSuffix = storeRes.hero_title;
+        if (!titleSuffix) {
+          if (isRealEstate) titleSuffix = "KKTC Satılık Lüks Villalar, Daireler ve Arsalar";
+          else if (isAutomotive) titleSuffix = "KKTC Güvenilir Oto Galeri & Satılık Araçlar";
+          else titleSuffix = "Online Katalog & Alışveriş";
+        }
+        document.title = `${storeRes.name} | ${titleSuffix}`;
       } catch (err: any) {
         setError(err.message || t.dashboard.storeLoadingError);
       } finally {

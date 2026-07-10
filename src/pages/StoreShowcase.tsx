@@ -174,6 +174,35 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   }, []);
 
   useEffect(() => {
+    if (!store) return;
+    
+    const metaSettings = typeof store.meta_settings === 'string' ? JSON.parse(store.meta_settings) : (store.meta_settings || {});
+    const sType = metaSettings.sector || 'general';
+    const isRealEstate = store.name.toLowerCase().includes("emlak") || 
+                         store.name.toLowerCase().includes("investment") || 
+                         store.name.toLowerCase().includes("gayrimenkul") || 
+                         store.name.toLowerCase().includes("portfolio") || 
+                         sType === "real_estate";
+    
+    const isAutomotive = store.name.toLowerCase().includes("oto") || 
+                         store.name.toLowerCase().includes("galeri") ||
+                         sType === "automotive";
+
+    let titleSuffix = store.hero_title;
+    if (!titleSuffix) {
+      if (isRealEstate) titleSuffix = "KKTC Satılık Lüks Villalar, Daireler ve Arsalar";
+      else if (isAutomotive) titleSuffix = "KKTC Güvenilir Oto Galeri & Satılık Araçlar";
+      else titleSuffix = "Online Katalog & Alışveriş";
+    }
+
+    if (selectedProduct) {
+      document.title = `${selectedProduct.name} | ${store.name}`;
+    } else {
+      document.title = `${store.name} | ${titleSuffix}`;
+    }
+  }, [selectedProduct, store]);
+
+  useEffect(() => {
     const fetchData = async () => {
       if (!slug) return;
       setLoading(true);
@@ -220,14 +249,34 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         storeRes.currency = storeRes.default_currency || "TRY";
         setStore(storeRes);
 
-        if (storeRes.favicon_url) {
+        const faviconUrl = storeRes.favicon_url || storeRes.logo_url;
+        if (faviconUrl) {
           const link = (document.querySelector("link[rel~='icon']") as HTMLLinkElement) || document.createElement("link");
           link.rel = "icon";
-          link.href = storeRes.favicon_url;
+          link.href = faviconUrl;
           document.head.appendChild(link);
         }
 
-        document.title = storeRes.name || "Store";
+        // Set rich default storefront title
+        const metaSettings = typeof storeRes.meta_settings === 'string' ? JSON.parse(storeRes.meta_settings) : (storeRes.meta_settings || {});
+        const sector = metaSettings.sector || 'general';
+        const isRealEstate = storeRes.name.toLowerCase().includes("emlak") || 
+                             storeRes.name.toLowerCase().includes("investment") || 
+                             storeRes.name.toLowerCase().includes("gayrimenkul") || 
+                             storeRes.name.toLowerCase().includes("portfolio") || 
+                             sector === "real_estate";
+        
+        const isAutomotive = storeRes.name.toLowerCase().includes("oto") || 
+                             storeRes.name.toLowerCase().includes("galeri") ||
+                             sector === "automotive";
+
+        let titleSuffix = storeRes.hero_title;
+        if (!titleSuffix) {
+          if (isRealEstate) titleSuffix = "KKTC Satılık Lüks Villalar, Daireler ve Arsalar";
+          else if (isAutomotive) titleSuffix = "KKTC Güvenilir Oto Galeri & Satılık Araçlar";
+          else titleSuffix = "Online Katalog & Alışveriş";
+        }
+        document.title = `${storeRes.name} | ${titleSuffix}`;
         setProducts(productsRes.filter((p: Product) => p.is_web_sale !== false));
         
         const currentSector = storeRes.store_type === 'motor_vehicle' || storeRes.store_type === 'automotive' ? 'automotive' : 'real_estate';

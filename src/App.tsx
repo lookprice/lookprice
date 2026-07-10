@@ -99,9 +99,17 @@ export default function App() {
   }, [isCheckingDomain]);
 
   useEffect(() => {
-    document.title = translations[lang].meta.title;
+    const isPortal = window.location.hostname.includes("enrakipsiz.com");
+    const isStoreOrListing = location.pathname.startsWith("/s/") || 
+                             location.pathname.startsWith("/p/") ||
+                             location.pathname.startsWith("/store/");
+    const isCustomDomain = detectedSlug && detectedSlug !== "__portal__";
+
+    if (!isPortal && !isStoreOrListing && !isCustomDomain) {
+      document.title = translations[lang].meta.title;
+    }
     document.documentElement.lang = lang;
-  }, [lang]);
+  }, [lang, detectedSlug, location.pathname]);
 
   const [token, setToken] = useState<string | null>(() => {
     try {

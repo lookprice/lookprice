@@ -162,6 +162,7 @@ export interface Store {
     payoneer_email?: string;
   };
   einvoice_settings?: EInvoiceSettings;
+  meta_settings?: any;
   created_at: string;
 }
 

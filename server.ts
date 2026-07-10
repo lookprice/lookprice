@@ -33,6 +33,41 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function injectEnrakipsizGtm(template: string, req: any): string {
+  const host = req.get('host') || "";
+  const normalizedHost = host.startsWith("www.") ? host.substring(4) : host;
+  
+  if (normalizedHost === "enrakipsiz.com") {
+    // 1. Remove lookprice platform tracking & GTM to avoid duplicates or data leakage
+    const lookpriceTrackingPattern = /<!-- Platform Tracking \(lookprice\.net\) -->[\s\S]*?<!-- End Platform Google Tag Manager -->/;
+    template = template.replace(lookpriceTrackingPattern, "");
+
+    const lookpriceNoscriptPattern = /<!-- Platform GTM \(noscript\) -->[\s\S]*?<!-- End Platform GTM \(noscript\) -->/;
+    template = template.replace(lookpriceNoscriptPattern, "");
+
+    // 2. Inject new GTM GTM-5PR778HH at the top of <head>
+    const gtmScript = `<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-5PR778HH');</script>
+<!-- End Google Tag Manager -->`;
+
+    template = template.replace("<head>", `<head>\n${gtmScript}`);
+
+    // 3. Inject new GTM noscript right after <body>
+    const gtmNoscript = `<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5PR778HH"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->`;
+
+    template = template.replace("<body>", `<body>\n${gtmNoscript}`);
+  }
+  
+  return template;
+}
+
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -693,6 +728,7 @@ function sanitizeFilename(originalName: string): string {
 
           const injection = `${customMetaTags}`;
           template = template.replace("</head>", `${injection}</head>`);
+          template = injectEnrakipsizGtm(template, req);
           
           res.status(200).set({ "Content-Type": "text/html" }).end(template);
         } catch (e: any) {
@@ -740,6 +776,7 @@ function sanitizeFilename(originalName: string): string {
         console.log(`Serving index.html for path: ${req.originalUrl}`);
         const injection = `${customMetaTags}`;
         template = template.replace("</head>", `${injection}</head>`);
+        template = injectEnrakipsizGtm(template, req);
         
         res.status(200).set({ "Content-Type": "text/html" }).end(template);
       } catch (e) {
