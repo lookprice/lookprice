@@ -63,3 +63,21 @@ This file outlines strict engineering, performance, and naming directives that m
   - Faturadaki tüm ürünlerin KDV oranları aynı ise, bu KDV tutarlarının toplamı tek bir "Hesaplanan Katma Değer Vergisi (%X)" satırında gösterilmelidir.
   - Eğer faturada farklı yüzdelere sahip KDV oranları mevcut ise (örn. hem %10 hem %20), her bir benzersiz KDV oranı kendi içinde gruplanarak alt alta ayrı satırlar halinde (örn. biri %10, diğeri %20 toplamı olarak) gösterilmelidir.
 
+---
+
+## 6. Core Financial & Integration Stability (e-Fatura / e-Arşiv)
+
+- **High-Risk Module Designation**:
+  - Files `/routes/einvoice.ts`, `/src/services/backend/mysoftService.ts`, and related invoice processing logic are designated as **CRITICAL FINANCIAL MODULES**. Any modification here is considered HIGH-RISK.
+  - Development agents must exercise extreme caution. **Refactoring is strictly forbidden** without an explicit, verifiable test plan that mimics production API responses for each invoice type (Purchase, Sales, E-Archive).
+
+- **Defensive Integration Policy**:
+  - All external API integrations (e.g., HTML invoice retrieval) **MUST** implement robust defensive programming.
+  - Unexpected or missing metadata (e.g., `e_document_type`) **MUST NOT** trigger runtime failures. Implement safe, documented fallbacks (e.g., defaulting to 'E-ARSIV') to ensure continuity of service.
+  - Logging **MUST** be verbose for HTML retrieval steps to allow immediate debugging in production without code modification.
+
+- **Mandatory Regression Verification**:
+  - Any change, no matter how small, affecting these modules **MUST** be verified by the developer agent by triggering the affected functionality (e.g., attempting to fetch a known invoice HTML) immediately after the change, before completing the turn. 
+  - If integration tests fail, the change MUST be rolled back immediately.
+
+

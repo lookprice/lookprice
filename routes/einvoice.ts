@@ -1126,8 +1126,12 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
     
     if ('getInvoiceHtml' in service) {
       console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}, DocType: ${invData.e_document_type}`);
-      let html = await (service as any).getInvoiceHtml(ettn, document_number, invData.e_document_type, invoiceType === 'purchase');
+      // Default docType to 'E-ARSIV' if missing to be more flexible, as reported by user
+      const docTypeToUse = invData.e_document_type || 'E-ARSIV';
+      let html = await (service as any).getInvoiceHtml(ettn, document_number, docTypeToUse, invoiceType === 'purchase');
       
+      console.log(`[HTML-FETCH] Result HTML length: ${html ? html.length : 0}`);
+
       if (invoiceType === 'purchase') {
         console.log(`[HTML-FETCH] Purchase invoice - returning raw HTML as received without custom additions.`);
         return res.json({ html });
