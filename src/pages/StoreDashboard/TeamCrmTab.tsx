@@ -353,14 +353,14 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
 
                 <div className="space-y-3 p-5 bg-slate-50/50 rounded-3xl border border-slate-100">
                    <div className="flex items-center gap-4 text-xs font-bold text-slate-600">
-                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400">
-                        <Mail className="w-3.5 h-3.5" />
+                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-indigo-500">
+                        <Mail className="w-4 h-4" />
                       </div>
                       {agent.email || '---'}
                    </div>
                    <div className="flex items-center gap-4 text-xs font-bold text-slate-600">
-                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400">
-                        <Phone className="w-3.5 h-3.5" />
+                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-indigo-500">
+                        <Phone className="w-4 h-4" />
                       </div>
                       {agent.phone || '---'}
                    </div>

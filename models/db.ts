@@ -183,6 +183,7 @@ export async function initDb() {
         store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
         title TEXT NOT NULL,
         summary TEXT NOT NULL,
+        url TEXT,
         source TEXT,
         image_url TEXT,
         date TEXT,
@@ -195,6 +196,7 @@ export async function initDb() {
       );
 
       ALTER TABLE radar_news ADD COLUMN IF NOT EXISTS sector TEXT DEFAULT 'real_estate';
+      ALTER TABLE radar_news ADD COLUMN IF NOT EXISTS url TEXT;
 
       CREATE TABLE IF NOT EXISTS scan_logs (
         id SERIAL PRIMARY KEY,

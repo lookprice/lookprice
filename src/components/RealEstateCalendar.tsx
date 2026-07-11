@@ -121,7 +121,7 @@ export const RealEstateCalendar = ({ storeId, properties, onClose }: RealEstateC
       <div className="flex flex-1 overflow-hidden">
         {/* Calendar Grid */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar border-r border-slate-100">
-          <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-2xl overflow-hidden shadow-sm text-xs sm:text-[10px]">
             {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map(day => (
               <div key={day} className="bg-slate-50 p-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 {day}

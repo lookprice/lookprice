@@ -5,6 +5,12 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
   const normalizedHost = host.startsWith("www.") ? host.substring(4) : host;
   const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
 
+  // Extract clean path and handle trailing slashes for canonical tags
+  let pathOnly = url.split("?")[0];
+  if (pathOnly.length > 1 && pathOnly.endsWith("/")) {
+    pathOnly = pathOnly.slice(0, -1);
+  }
+
   // Advanced Route Matches
   const sMatch = url.match(/^\/s\/([^\/]+)/);
   const isProductS = url.match(/^\/s\/([^\/]+)\/p\/([^\/\?]+)/);
@@ -87,8 +93,11 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
             }
           };
 
+          const canonicalUrl = `${protocol}://${host}${pathOnly}`;
+
           return `
             <title>${prop.title} | ${storeName}</title>
+            <link rel="canonical" href="${canonicalUrl}" />
             <meta name="description" content="${compoundDesc.substring(0, 160)}" />
             <meta name="keywords" content="${prop.title}, kıbrıs emlak, kktc emlak, sahibinden satılık, ${prop.kktc_region || 'girne'}, ${storeName}" />
             <meta name="robots" content="index, follow" />
@@ -155,8 +164,11 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
             }
           };
 
+          const canonicalUrl = `${protocol}://${host}${pathOnly}`;
+
           return `
             <title>${vTitle}</title>
+            <link rel="canonical" href="${canonicalUrl}" />
             <meta name="description" content="${vDesc.substring(0, 160)}" />
             <meta name="keywords" content="${vehicle.brand} ${vehicle.model}, kktc satılık araba, kıbrıs oto galeri, sahibinden ikinci el, ${storeName}" />
             <meta name="robots" content="index, follow" />
@@ -228,8 +240,11 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
           const productUrl = `${protocol}://${host}${url}`;
           const storeLogo = store.logo_url || "";
           
+          const canonicalUrl = `${protocol}://${host}${pathOnly}`;
+
           return `
             <title>${product.name} | ${store.name}</title>
+            <link rel="canonical" href="${canonicalUrl}" />
             <meta name="description" content="${(product.description || product.name).substring(0, 160)}" />
             <meta name="keywords" content="${product.name}, ${product.brand || store.name}, alışveriş, kıbrıs mağaza" />
             <meta name="robots" content="index, follow" />
@@ -298,8 +313,11 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       const primaryColor = portalSettings.primary_color || "#ea580c";
       const escColor = encodeURIComponent(primaryColor);
 
+      const canonicalUrl = `https://enrakipsiz.com${pathOnly}`;
+
       let tags = `
         <title>${title}</title>
+        <link rel="canonical" href="${canonicalUrl}" />
         <meta name="description" content="${desc}" />
         <meta name="keywords" content="${keywords}" />
         <meta name="robots" content="index, follow" />
@@ -368,11 +386,20 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       const desc = "LookPrice, işletmeniz için akıllı e-ticaret, gayrimenkul (emlak) portföy yönetimi ve otomotiv galeri tescil çözümlerini tek bir çatı altında sunan bulut tabanlı modern yönetim platformudur.";
       const keywords = "lookprice, emlak yönetim paneli, oto galeri yazılımı, barkodlu satış sistemi, e-ticaret sitesi kur, kktc emlak, kıbrıs emlak portalı, bulut erp";
       
+      const canonicalUrl = `https://${host}${pathOnly}`;
+
+      const envVerificationId = process.env.GOOGLE_SITE_VERIFICATION || 
+                                process.env.GOOGLE_SITE_VERIFICATION_ID || 
+                                process.env.GSC_VERIFICATION_ID ||
+                                process.env.GOOGLE_SEARCH_CONSOLE_ID;
+
       return `
         <title>${title}</title>
+        <link rel="canonical" href="${canonicalUrl}" />
         <meta name="description" content="${desc}" />
         <meta name="keywords" content="${keywords}" />
         <meta name="robots" content="index, follow" />
+        ${envVerificationId ? `<meta name="google-site-verification" content="${envVerificationId}" />` : ""}
         <meta property="og:title" content="${title}" />
         <meta property="og:description" content="${desc}" />
         <meta property="og:type" content="website" />
@@ -437,9 +464,14 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       } : undefined
     };
 
+    const storeCanonicalUrl = store.custom_domain 
+      ? `https://${store.custom_domain}${pathOnly}` 
+      : `https://${host}${pathOnly}`;
+
     let tags = `
       <!-- Custom Storefront SEO Meta Tags -->
       <title>${defaultTitle}</title>
+      <link rel="canonical" href="${storeCanonicalUrl}" />
       <meta name="description" content="${defaultDesc.substring(0, 160)}" />
       <meta name="keywords" content="${defaultKeywords}" />
       <meta name="robots" content="index, follow" />

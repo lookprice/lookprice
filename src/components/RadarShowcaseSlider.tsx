@@ -20,6 +20,7 @@ interface RadarNewsItem {
   id: string | number;
   title: string;
   summary: string;
+  url?: string;
   source?: string;
   date?: string;
   intensity?: "high" | "medium" | "low" | string;
@@ -313,17 +314,33 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
 
               {/* Slider Interaction Overlay panel */}
               <div className="flex items-center justify-between border-t pt-4 border-slate-100/10 gap-4 mt-auto">
-                <button
-                  onClick={() => setSelectedItem(currentNews)}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer ${
-                    isDark 
-                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20" 
-                      : "bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10"
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  {lang === "tr" ? "HABER DETAYINI OKU" : "READ DETAILS"}
-                </button>
+                {currentNews.url ? (
+                  <a 
+                    href={currentNews.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer ${
+                      isDark 
+                        ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20" 
+                        : "bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10"
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    {lang === "tr" ? "HABER KAYNAĞINA GİT" : "GO TO SOURCE"}
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => setSelectedItem(currentNews)}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer ${
+                      isDark 
+                        ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20" 
+                        : "bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10"
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    {lang === "tr" ? "HABER DETAYINI OKU" : "READ DETAILS"}
+                  </button>
+                )}
 
                 {/* Manual triggers & Visual pagination dots */}
                 <div className="flex items-center gap-3">
@@ -379,7 +396,10 @@ export const RadarShowcaseSlider: React.FC<RadarShowcaseSliderProps> = ({
               return (
                 <div 
                   key={item.id}
-                  onClick={() => setSelectedItem(item)}
+                  onClick={() => {
+                    if (item.url) window.open(item.url, "_blank");
+                    else setSelectedItem(item);
+                  }}
                   className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer flex items-start gap-4 hover:-translate-y-0.5 ${
                     isDark 
                       ? "bg-slate-900/40 border-slate-850 hover:bg-indigo-950/20 hover:border-indigo-900/60" 

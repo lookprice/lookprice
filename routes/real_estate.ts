@@ -822,7 +822,7 @@ router.post('/acquisition-radar', authenticate, async (req: any, res) => {
 // Update or publish a radar news item with upsert on store_id + title
 router.post('/radar-news/publish', authenticate, async (req: any, res) => {
   const storeId = req.query.store_id || req.query.storeId || req.body.store_id || req.body.storeId || req.user.store_id;
-  const { title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity, sector } = req.body;
+  const { title, summary, url, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity, sector } = req.body;
 
   try {
     const existing = await pool.query(
@@ -834,15 +834,15 @@ router.post('/radar-news/publish', authenticate, async (req: any, res) => {
     if (existing.rows.length > 0) {
       result = await pool.query(
         `UPDATE radar_news 
-         SET summary = $1, source = $2, image_url = $3, date = $4, tags = $5, published_on_store = $6, published_on_enrakipsiz = $7, intensity = $8, sector = $9
-         WHERE id = $10 RETURNING *`,
-        [summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal', sector || 'real_estate', existing.rows[0].id]
+         SET summary = $1, url = $2, source = $3, image_url = $4, date = $5, tags = $6, published_on_store = $7, published_on_enrakipsiz = $8, intensity = $9, sector = $10
+         WHERE id = $11 RETURNING *`,
+        [summary, url, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal', sector || 'real_estate', existing.rows[0].id]
       );
     } else {
       result = await pool.query(
-        `INSERT INTO radar_news (store_id, title, summary, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity, sector)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-        [storeId, title, summary, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal', sector || 'real_estate']
+        `INSERT INTO radar_news (store_id, title, summary, url, source, image_url, date, tags, published_on_store, published_on_enrakipsiz, intensity, sector)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        [storeId, title, summary, url, source, image_url, date, JSON.stringify(tags || []), published_on_store, published_on_enrakipsiz, intensity || 'normal', sector || 'real_estate']
       );
     }
     res.json(result.rows[0]);

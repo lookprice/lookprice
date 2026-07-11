@@ -18,7 +18,7 @@ export const StoreFeaturedRow: React.FC<StoreFeaturedRowProps> = ({ store, onSav
   }, [store]);
 
   return (
-    <div className={`p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
+    <div className={`p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all overflow-hidden ${
       isFeatured ? 'bg-amber-50/20 border-amber-200/60 shadow-[0_2px_8px_rgba(245,158,11,0.04)]' : 'bg-white border-gray-150'
     }`}>
       <div className="flex items-center gap-3 min-w-[200px] max-w-sm">
