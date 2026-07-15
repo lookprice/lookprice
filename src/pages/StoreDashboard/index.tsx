@@ -749,7 +749,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           return {
             ...category,
             items: category.items.filter(item => 
-              ['fast-pos', 'products', 'sales_invoices', 'settings'].includes(item.id)
+              // Hide these specifically for cafe/restaurant
+              !['service', 'fleet', 'quotations', 'e_waybills', 'google-merchant'].includes(item.id)
             )
           };
         }
@@ -766,11 +767,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       return [
         { type: 'item', id: "fast-pos", label: isTr ? "Hızlı POS / Masalar" : "Fast POS / Tables", icon: Scan },
         { type: 'item', id: "products", label: isTr ? "Ürün & Fiyat Listesi" : "Products", icon: Package },
-        { type: 'item', id: "sales_invoices", label: isTr ? "Satış Faturaları" : "Satış Faturaları", icon: FileText }
+        { type: 'item', id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
+        { type: 'item', id: "procurements", label: t.procurements, icon: Truck },
+        { type: 'item', id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight },
+        { type: 'item', id: "sales_invoices", label: isTr ? "Satış Faturaları" : "Sales Invoices", icon: FileText },
+        { type: 'item', id: "companies", label: t.companies, icon: Store },
+        { type: 'item', id: "pos", label: t.pos, icon: CreditCard }
       ];
     }
     return restaurantItems;
-  }, [rawNavItems, activeStaffRole, isCafeRestaurant, isTr]);
+  }, [rawNavItems, activeStaffRole, isCafeRestaurant, isTr, t.companies, t.purchase_invoices, t.procurements, t.stock_transfer]);
 
   return (
     <DashboardLayout
@@ -786,6 +792,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         isPortfolio,
         isRealEstate,
         isAutomotive,
+        isCafeRestaurant,
+        currentStoreId,
         onLogout,
         setShowQrModal,
         sidebarOpen,
@@ -902,12 +910,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onBulkRename={handleBulkRename}
                   onShowQr={() => setShowQrModal(true)}
                   branding={branding}
+                  isCafeRestaurant={isCafeRestaurant}
                   showStoreName={branding?.show_store_name}
                   currentStoreId={currentStoreId!}
                   includeBranches={includeBranches}
                   propertiesCount={properties.length}
                   onSwitchTab={(tab) => setActiveTab(tab)}
-                  isCafeRestaurant={isCafeRestaurant}
                 />
               )}
               {activeTab === "real_estate" && (

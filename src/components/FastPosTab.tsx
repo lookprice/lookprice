@@ -25,6 +25,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { TableGrid } from './TableGrid';
 import { api } from "../services/api";
 import { motion, AnimatePresence } from "motion/react";
+import { toast } from "sonner";
 
 interface FastPosTabProps {
   storeId?: number;

@@ -578,22 +578,24 @@ const ProductsTab = ({
                 </select>
               </div>
               {/* Marketplace Status Filter */}
-              <div className="relative w-36 sm:w-44 shrink-0 group">
-                <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
-                <select 
-                  className="os-input w-full pr-8 py-2.5 text-[13px] font-bold appearance-none cursor-pointer truncate"
-                  style={{ paddingLeft: '2.75rem' }}
-                  value={marketplaceFilter}
-                  onChange={(e) => {
-                    setMarketplaceFilter(e.target.value);
-                    setPage(1);
-                  }}
-                >
-                  <option value="all">{lang === 'tr' ? 'Tüm İlanlar' : 'All Listings'}</option>
-                  <option value="listed">{lang === 'tr' ? 'Pazarama: İlanda' : 'Pazarama: Listed'}</option>
-                  <option value="not_listed">{lang === 'tr' ? 'Pazarama: İlanda Değil' : 'Pazarama: Not Listed'}</option>
-                </select>
-              </div>
+              {!isCafeRestaurant && (
+                <div className="relative w-36 sm:w-44 shrink-0 group">
+                  <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
+                  <select 
+                    className="os-input w-full pr-8 py-2.5 text-[13px] font-bold appearance-none cursor-pointer truncate"
+                    style={{ paddingLeft: '2.75rem' }}
+                    value={marketplaceFilter}
+                    onChange={(e) => {
+                      setMarketplaceFilter(e.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="all">{lang === 'tr' ? 'Tüm İlanlar' : 'All Listings'}</option>
+                    <option value="listed">{lang === 'tr' ? 'Pazarama: İlanda' : 'Pazarama: Listed'}</option>
+                    <option value="not_listed">{lang === 'tr' ? 'Pazarama: İlanda Değil' : 'Pazarama: Not Listed'}</option>
+                  </select>
+                </div>
+              )}
             </div>
             <label className="flex items-center cursor-pointer group shrink-0 ml-1">
               <div className="relative flex items-center">
@@ -826,14 +828,15 @@ const ProductsTab = ({
                       {!isViewer && (
                         <div className="flex justify-end items-center gap-1">
                           {/* Marketplace / Channels Hub */}
-                          <div className="relative">
-                            <button 
-                              onClick={() => setOpenMarketMenu(openMarketMenu === p.id ? null : p.id)}
-                              className={`p-2.5 rounded-xl transition-all border active:scale-90 flex items-center justify-center ${openMarketMenu === p.id ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border-transparent hover:border-indigo-100'}`}
-                              title={lang === 'tr' ? "Pazaryeri İşlemleri" : "Marketplace Channels"}
-                            >
-                              <Globe className="h-4.5 w-4.5" />
-                            </button>
+                          {!isCafeRestaurant && (
+                            <div className="relative">
+                              <button 
+                                onClick={() => setOpenMarketMenu(openMarketMenu === p.id ? null : p.id)}
+                                className={`p-2.5 rounded-xl transition-all border active:scale-90 flex items-center justify-center ${openMarketMenu === p.id ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border-transparent hover:border-indigo-100'}`}
+                                title={lang === 'tr' ? "Pazaryeri İşlemleri" : "Marketplace Channels"}
+                              >
+                                <Globe className="h-4.5 w-4.5" />
+                              </button>
 
                             {openMarketMenu === p.id && (
                               <>
@@ -993,6 +996,7 @@ const ProductsTab = ({
                               </>
                             )}
                           </div>
+                          )}
 
                           <button 
                             onClick={() => setSelectedProduct(p)}

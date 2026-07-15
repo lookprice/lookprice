@@ -8,6 +8,7 @@ import {
   ChevronUp,
   ChevronDown,
   LayoutDashboard,
+  UtensilsCrossed,
   PanelLeftClose,
   Menu,
   Cloud,
@@ -30,6 +31,8 @@ interface SidebarProps {
   isPortfolio: boolean;
   isRealEstate: boolean;
   isAutomotive: boolean;
+  isCafeRestaurant?: boolean;
+  currentStoreId?: number;
   onLogout: () => void;
   setShowQrModal: (show: boolean) => void;
   sidebarOpen: boolean;
@@ -50,6 +53,8 @@ export const DashboardSidebar = ({
   isPortfolio,
   isRealEstate,
   isAutomotive,
+  isCafeRestaurant,
+  currentStoreId,
   onLogout,
   setShowQrModal,
   sidebarOpen,
@@ -216,7 +221,7 @@ export const DashboardSidebar = ({
                 <Globe className="h-4.5 w-4.5 text-slate-500" />
                 <span className="tracking-tight">{t.storeWebsite}</span>
               </a>
-              {!isPortfolio && (
+              {!isPortfolio && !isCafeRestaurant && (
                 <a
                   href={scanUrl}
                   target="_blank"
@@ -225,6 +230,17 @@ export const DashboardSidebar = ({
                 >
                   <Scan className="h-4.5 w-4.5 text-slate-500" />
                   <span className="tracking-tight">{t.barcodeScanner}</span>
+                </a>
+              )}
+              {isCafeRestaurant && currentStoreId && (
+                <a
+                  href={`${window.location.origin}/digital-menu/${currentStoreId}/garson`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
+                >
+                  <UtensilsCrossed className="h-4.5 w-4.5 text-slate-500" />
+                  <span className="tracking-tight">{t.barcodeScanner === 'Barcode Scanner' ? 'Menu / Order Screen' : 'Menü / Sipariş Ekranı'}</span>
                 </a>
               )}
             </div>
