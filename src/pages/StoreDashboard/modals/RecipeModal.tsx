@@ -28,7 +28,13 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
       try {
         const res = await api.get(`/api/store/products/${product.id}/recipe`);
         if (res && res.success) {
-          setRecipeItems(res.items || []);
+          // Map incoming amount to quantity for local state if needed, or just use amount
+          const mappedItems = (res.items || []).map((item: any) => ({
+            ...item,
+            ingredient_product_id: item.ingredient_id,
+            quantity: item.amount
+          }));
+          setRecipeItems(mappedItems);
         } else {
           toast.error(isTr ? "Reçete yüklenirken hata oluştu." : "Failed to load recipe.");
         }
@@ -65,11 +71,13 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
     if (!ingredientProd) return;
 
     const newItem = {
-      ingredient_product_id: ingredientIdNum,
+      ingredient_id: ingredientIdNum,
+      ingredient_product_id: ingredientIdNum, // keep for UI compatibility if needed
       ingredient_name: ingredientProd.name,
       ingredient_unit: ingredientProd.unit || 'Adet',
       ingredient_stock: ingredientProd.stock_quantity || 0,
-      quantity: parseFloat(quantity),
+      amount: parseFloat(quantity),
+      quantity: parseFloat(quantity), // keep for UI compatibility
       unit: unit
     };
 
@@ -89,8 +97,8 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
     setSaving(true);
     try {
       const itemsToSave = recipeItems.map(item => ({
-        ingredient_product_id: item.ingredient_product_id,
-        quantity: item.quantity,
+        ingredient_id: item.ingredient_id || item.ingredient_product_id,
+        amount: item.amount || item.quantity,
         unit: item.unit
       }));
 

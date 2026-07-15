@@ -741,6 +741,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
   const navItems = React.useMemo(() => {
     if (!isCafeRestaurant) return rawNavItems;
+    
+    // Cafe/Restaurant menu: Only show required items
+    const restaurantItems = rawNavItems
+      .map(category => {
+        if (category.type === 'category') {
+          return {
+            ...category,
+            items: category.items.filter(item => 
+              ['fast-pos', 'products', 'sales_invoices', 'settings'].includes(item.id)
+            )
+          };
+        }
+        return category;
+      })
+      .filter(category => category.type === 'item' || (category.type === 'category' && category.items.length > 0));
+
     if (activeStaffRole === 'waiter') {
       return [
         { type: 'item', id: "fast-pos", label: isTr ? "Hızlı POS / Masalar" : "Fast POS / Tables", icon: Scan }
@@ -753,7 +769,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         { type: 'item', id: "sales_invoices", label: isTr ? "Satış Faturaları" : "Satış Faturaları", icon: FileText }
       ];
     }
-    return rawNavItems;
+    return restaurantItems;
   }, [rawNavItems, activeStaffRole, isCafeRestaurant, isTr]);
 
   return (
@@ -891,6 +907,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   includeBranches={includeBranches}
                   propertiesCount={properties.length}
                   onSwitchTab={(tab) => setActiveTab(tab)}
+                  isCafeRestaurant={isCafeRestaurant}
                 />
               )}
               {activeTab === "real_estate" && (

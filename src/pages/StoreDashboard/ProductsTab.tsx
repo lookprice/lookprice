@@ -66,6 +66,7 @@ interface ProductsTabProps {
   includeBranches?: boolean;
   propertiesCount?: number;
   onSwitchTab?: (tab: string) => void;
+  isCafeRestaurant?: boolean;
 }
 
 const ProductsTab = ({ 
@@ -90,7 +91,8 @@ const ProductsTab = ({
   currentStoreId,
   includeBranches,
   propertiesCount,
-  onSwitchTab
+  onSwitchTab,
+  isCafeRestaurant
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -848,125 +850,129 @@ const ProductsTab = ({
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'PAZARYERLERİ' : 'CHANNELS'}</p>
                                   </div>
                                   <div className="p-2 space-y-1">
-                                    {/* Pazarama */}
-                                    <button
-                                      disabled={publishingId === p.id}
-                                      onClick={() => {
-                                        handlePublishToPazarama(p);
-                                        setOpenMarketMenu(null);
-                                      }}
-                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <div className={`p-1.5 rounded-lg transition-colors ${p.is_pazarama_active ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white' : 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white'}`}>
-                                          <Store className="h-4 w-4" />
-                                        </div>
-                                        <div className="text-left">
-                                          <p className="text-xs font-bold text-slate-700">Pazarama</p>
-                                          <p className={`text-[10px] ${p.pazarama_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
-                                            {p.pazarama_last_error 
-                                              ? (lang === 'tr' ? `HATA: ${p.pazarama_last_error.substring(0, 30)}...` : `ERROR: ${p.pazarama_last_error.substring(0, 30)}...`)
-                                              : (p.is_pazarama_active 
-                                                ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
-                                                : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {p.pazarama_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
-                                        {p.is_pazarama_active && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                                        {publishingId === p.id && <div className="h-2 w-2 bg-orange-500 rounded-full animate-ping" />}
-                                      </div>
-                                    </button>
+                            {!isCafeRestaurant && (
+                                <button
+                                  disabled={publishingId === p.id}
+                                  onClick={() => {
+                                    handlePublishToPazarama(p);
+                                    setOpenMarketMenu(null);
+                                  }}
+                                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-1.5 rounded-lg transition-colors ${p.is_pazarama_active ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white' : 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white'}`}>
+                                      <Store className="h-4 w-4" />
+                                    </div>
+                                    <div className="text-left">
+                                      <p className="text-xs font-bold text-slate-700">Pazarama</p>
+                                      <p className={`text-[10px] ${p.pazarama_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
+                                        {p.pazarama_last_error 
+                                          ? (lang === 'tr' ? `HATA: ${p.pazarama_last_error.substring(0, 30)}...` : `ERROR: ${p.pazarama_last_error.substring(0, 30)}...`)
+                                          : (p.is_pazarama_active 
+                                            ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
+                                            : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {p.pazarama_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
+                                    {p.is_pazarama_active && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+                                    {publishingId === p.id && <div className="h-2 w-2 bg-orange-500 rounded-full animate-ping" />}
+                                  </div>
+                                </button>
+                              )}
 
-                                    {/* Trendyol */}
-                                    <button
-                                      disabled={publishingId === p.id}
-                                      onClick={() => {
-                                        handlePublishToTrendyol(p);
-                                        setOpenMarketMenu(null);
-                                      }}
-                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <div className={`p-1.5 rounded-lg transition-colors ${p.trendyol_id ? 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
-                                          <Package className="h-4 w-4" />
-                                        </div>
-                                        <div className="text-left">
-                                          <p className="text-xs font-bold text-slate-700">Trendyol</p>
-                                          <p className={`text-[10px] ${p.trendyol_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
-                                            {p.trendyol_last_error 
-                                              ? (lang === 'tr' ? `HATA: ${p.trendyol_last_error.substring(0, 30)}...` : `ERROR: ${p.trendyol_last_error.substring(0, 30)}...`)
-                                              : (p.trendyol_id 
-                                                ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
-                                                : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {p.trendyol_id && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                                      </div>
-                                    </button>
+                              {!isCafeRestaurant && (
+                                <button
+                                  disabled={publishingId === p.id}
+                                  onClick={() => {
+                                    handlePublishToTrendyol(p);
+                                    setOpenMarketMenu(null);
+                                  }}
+                                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-1.5 rounded-lg transition-colors ${p.trendyol_id ? 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                                      <Package className="h-4 w-4" />
+                                    </div>
+                                    <div className="text-left">
+                                      <p className="text-xs font-bold text-slate-700">Trendyol</p>
+                                      <p className={`text-[10px] ${p.trendyol_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
+                                        {p.trendyol_last_error 
+                                          ? (lang === 'tr' ? `HATA: ${p.trendyol_last_error.substring(0, 30)}...` : `ERROR: ${p.trendyol_last_error.substring(0, 30)}...`)
+                                          : (p.trendyol_id 
+                                            ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
+                                            : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {p.trendyol_id && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+                                  </div>
+                                </button>
+                              )}
 
-                                    {/* N11 */}
-                                    <button
-                                      disabled={publishingId === p.id}
-                                      onClick={() => {
-                                        handlePublishToN11(p);
-                                        setOpenMarketMenu(null);
-                                      }}
-                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <div className={`p-1.5 rounded-lg transition-colors ${p.n11_id ? 'bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
-                                          <CircleDot className="h-4 w-4" />
-                                        </div>
-                                        <div className="text-left">
-                                          <p className="text-xs font-bold text-slate-700">N11</p>
-                                          <p className={`text-[10px] ${p.n11_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
-                                            {p.n11_last_error 
-                                              ? (lang === 'tr' ? `HATA: ${p.n11_last_error.substring(0, 30)}...` : `ERROR: ${p.n11_last_error.substring(0, 30)}...`)
-                                              : (p.n11_id 
-                                                ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
-                                                : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {p.n11_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
-                                        {p.n11_id && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                                      </div>
-                                    </button>
+                              {!isCafeRestaurant && (
+                                <button
+                                  disabled={publishingId === p.id}
+                                  onClick={() => {
+                                    handlePublishToN11(p);
+                                    setOpenMarketMenu(null);
+                                  }}
+                                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-1.5 rounded-lg transition-colors ${p.n11_id ? 'bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                                      <CircleDot className="h-4 w-4" />
+                                    </div>
+                                    <div className="text-left">
+                                      <p className="text-xs font-bold text-slate-700">N11</p>
+                                      <p className={`text-[10px] ${p.n11_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
+                                        {p.n11_last_error 
+                                          ? (lang === 'tr' ? `HATA: ${p.n11_last_error.substring(0, 30)}...` : `ERROR: ${p.n11_last_error.substring(0, 30)}...`)
+                                          : (p.n11_id 
+                                            ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
+                                            : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {p.n11_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
+                                    {p.n11_id && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+                                  </div>
+                                </button>
+                              )}
 
-                                    {/* Hepsiburada */}
-                                    <button
-                                      disabled={publishingId === p.id}
-                                      onClick={() => {
-                                        handlePublishToHepsiburada(p);
-                                        setOpenMarketMenu(null);
-                                      }}
-                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <div className={`p-1.5 rounded-lg transition-colors ${p.is_hepsiburada_active ? 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
-                                          <Zap className="h-4 w-4" />
-                                        </div>
-                                        <div className="text-left">
-                                          <p className="text-xs font-bold text-slate-700">Hepsiburada</p>
-                                          <p className={`text-[10px] ${p.hepsiburada_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
-                                            {p.hepsiburada_last_error 
-                                              ? (lang === 'tr' ? `HATA: ${p.hepsiburada_last_error.substring(0, 30)}...` : `ERROR: ${p.hepsiburada_last_error.substring(0, 30)}...`)
-                                              : (p.is_hepsiburada_active 
-                                                ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
-                                                : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {p.hepsiburada_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
-                                        {p.is_hepsiburada_active && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                                      </div>
-                                    </button>
+                              {!isCafeRestaurant && (
+                                <button
+                                  disabled={publishingId === p.id}
+                                  onClick={() => {
+                                    handlePublishToHepsiburada(p);
+                                    setOpenMarketMenu(null);
+                                  }}
+                                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-1.5 rounded-lg transition-colors ${p.is_hepsiburada_active ? 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                                      <Zap className="h-4 w-4" />
+                                    </div>
+                                    <div className="text-left">
+                                      <p className="text-xs font-bold text-slate-700">Hepsiburada</p>
+                                      <p className={`text-[10px] ${p.hepsiburada_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
+                                        {p.hepsiburada_last_error 
+                                          ? (lang === 'tr' ? `HATA: ${p.hepsiburada_last_error.substring(0, 30)}...` : `ERROR: ${p.hepsiburada_last_error.substring(0, 30)}...`)
+                                          : (p.is_hepsiburada_active 
+                                            ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
+                                            : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {p.hepsiburada_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
+                                    {p.is_hepsiburada_active && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+                                  </div>
+                                </button>
+                              )}
 
                                     {/* Amazon */}
                                     <button
@@ -997,18 +1003,20 @@ const ProductsTab = ({
                           </button>
                           <button 
                             onClick={() => setRecipeProduct(p)}
-                            className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all border border-transparent hover:border-amber-100 active:scale-90"
+                            className={`p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all border border-transparent hover:border-amber-100 active:scale-90 ${!isCafeRestaurant ? "hidden" : ""}`}
                             title={lang === "tr" ? "Ürün Reçetesi" : "Product Recipe"}
                           >
                             <Sparkles className="h-4.5 w-4.5" />
                           </button>
-                          <button 
-                            onClick={() => setSharingProduct(p)}
-                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100 active:scale-90"
-                            title={lang === "tr" ? "Sosyal Medya Afişi" : "Social Media Poster"}
-                          >
-                            <Share2 className="h-4.5 w-4.5" />
-                          </button>
+                          {!isCafeRestaurant && (
+                            <button 
+                              onClick={() => setSharingProduct(p)}
+                              className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100 active:scale-90"
+                              title={lang === "tr" ? "Sosyal Medya Afişi" : "Social Media Poster"}
+                            >
+                              <Share2 className="h-4.5 w-4.5" />
+                            </button>
+                          )}
                           <button 
                             onClick={() => onEdit(p)}
                             className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-300 active:scale-90"

@@ -198,13 +198,26 @@ export async function initDb() {
       ALTER TABLE radar_news ADD COLUMN IF NOT EXISTS sector TEXT DEFAULT 'real_estate';
       ALTER TABLE radar_news ADD COLUMN IF NOT EXISTS url TEXT;
 
-      CREATE TABLE IF NOT EXISTS scan_logs (
+      CREATE TABLE IF NOT EXISTS restaurant_tables (
         id SERIAL PRIMARY KEY,
-        store_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
+        store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+        table_number TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'empty',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (store_id) REFERENCES stores(id),
-        FOREIGN KEY (product_id) REFERENCES products(id)
+        UNIQUE(store_id, table_number)
+      );
+
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS restaurant_table_id INTEGER REFERENCES restaurant_tables(id) ON DELETE SET NULL;
+
+      DROP TABLE IF EXISTS product_recipes;
+      CREATE TABLE IF NOT EXISTS product_recipes (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        ingredient_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        amount DECIMAL NOT NULL,
+        unit VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS official_taxpayer_cache (
@@ -1618,21 +1631,8 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_consultants_store_id ON consultants (store_id);
       CREATE INDEX IF NOT EXISTS idx_radar_news_store_id ON radar_news (store_id);
 
-      CREATE TABLE IF NOT EXISTS product_recipes (
-        id SERIAL PRIMARY KEY,
-        store_id INTEGER NOT NULL,
-        parent_product_id INTEGER NOT NULL,
-        ingredient_product_id INTEGER NOT NULL,
-        quantity REAL NOT NULL,
-        unit TEXT NOT NULL DEFAULT 'Adet',
-        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
-        FOREIGN KEY (parent_product_id) REFERENCES products(id) ON DELETE CASCADE,
-        FOREIGN KEY (ingredient_product_id) REFERENCES products(id) ON DELETE CASCADE,
-        UNIQUE(parent_product_id, ingredient_product_id)
-      );
 
-      CREATE INDEX IF NOT EXISTS idx_product_recipes_parent ON product_recipes (parent_product_id);
-      CREATE INDEX IF NOT EXISTS idx_product_recipes_store ON product_recipes (store_id);
+
     `);
     console.log("Database optimizations and indexes applied successfully.");
 

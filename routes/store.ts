@@ -164,6 +164,43 @@ router.delete("/blog-posts/:id", async (req: any, res) => {
   }
 });
 
+// Restaurant Tables
+router.get("/restaurant-tables", async (req: any, res) => {
+    const storeId = await getAuthorizedStoreId(req, req.query.storeId);
+    if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+    try {
+        const result = await pool.query("SELECT * FROM restaurant_tables WHERE store_id = $1 ORDER BY table_number ASC", [storeId]);
+        res.json(result.rows);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post("/restaurant-tables", async (req: any, res) => {
+    const storeId = await getAuthorizedStoreId(req, req.body.storeId);
+    if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+    const { tableNumber } = req.body;
+    try {
+        const result = await pool.query("INSERT INTO restaurant_tables (store_id, table_number) VALUES ($1, $2) RETURNING *", [storeId, tableNumber]);
+        res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.put("/restaurant-tables/:id", async (req: any, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    const storeId = req.user.store_id; // Simple for now
+    try {
+        const result = await pool.query("UPDATE restaurant_tables SET status = $1 WHERE id = $2 AND store_id = $3 RETURNING *", [status, id, storeId]);
+        if (result.rows.length === 0) return res.status(404).json({ error: "Table not found" });
+        res.json(result.rows[0]);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // SEO Pages
 router.get("/seo", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
@@ -840,7 +877,6 @@ router.post("/domain/manual", async (req: any, res) => {
   }
 });
 
-// --- PRODUCT IMAGE AUTOMATION ---
 router.post("/products/auto-image", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   const { productIds, allMissing, includeBranches } = req.body;
@@ -2446,8 +2482,8 @@ router.get("/products/:id/recipe", async (req: any, res) => {
     const recipeRes = await pool.query(
       `SELECT r.*, p.name as ingredient_name, p.unit as ingredient_unit, p.stock_quantity as ingredient_stock 
        FROM product_recipes r
-       JOIN products p ON r.ingredient_product_id = p.id
-       WHERE r.parent_product_id = $1 AND r.store_id = $2`,
+       JOIN products p ON r.ingredient_id = p.id
+       WHERE r.product_id = $1 AND r.store_id = $2`,
       [productId, storeId]
     );
     res.json({ success: true, items: recipeRes.rows });
@@ -2469,17 +2505,17 @@ router.post("/products/:id/recipe", async (req: any, res) => {
 
     // Clear existing
     await client.query(
-      "DELETE FROM product_recipes WHERE parent_product_id = $1 AND store_id = $2",
+      "DELETE FROM product_recipes WHERE product_id = $1 AND store_id = $2",
       [productId, storeId]
     );
 
     // Insert new items
     if (Array.isArray(items)) {
       for (const item of items) {
-        if (!item.ingredient_product_id || !item.quantity) continue;
+        if (!item.ingredient_id || !item.amount) continue;
         await client.query(
-          "INSERT INTO product_recipes (store_id, parent_product_id, ingredient_product_id, quantity, unit) VALUES ($1, $2, $3, $4, $5)",
-          [storeId, productId, item.ingredient_product_id, item.quantity, item.unit || 'Adet']
+          "INSERT INTO product_recipes (store_id, product_id, ingredient_id, amount, unit) VALUES ($1, $2, $3, $4, $5)",
+          [storeId, productId, item.ingredient_id, item.amount, item.unit || 'Adet']
         );
       }
     }
@@ -3863,21 +3899,21 @@ router.post("/pos/sale", async (req: any, res) => {
 
         // Check if this product has a recipe
         const recipeRes = await client.query(
-          "SELECT ingredient_product_id, quantity, unit FROM product_recipes WHERE parent_product_id = $1 AND store_id = $2",
+          "SELECT ingredient_id, amount, unit FROM product_recipes WHERE product_id = $1 AND store_id = $2",
           [item.id, storeId]
         );
 
         if (recipeRes.rows.length > 0) {
           for (const recItem of recipeRes.rows) {
-            const totalIngredientQty = Number(item.quantity) * Number(recItem.quantity);
+            const totalIngredientQty = Number(item.quantity) * Number(recItem.amount);
             await client.query(
               "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
-              [totalIngredientQty, recItem.ingredient_product_id]
+              [totalIngredientQty, recItem.ingredient_id]
             );
             await addStockMovement(
               client, 
               storeId, 
-              recItem.ingredient_product_id, 
+              recItem.ingredient_id, 
               'out', 
               totalIngredientQty, 
               'pos', 
@@ -3945,6 +3981,45 @@ router.post("/pos/sale", async (req: any, res) => {
     await client.query("ROLLBACK");
     console.error("Fast POS sale error:", e);
     res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Restaurant Table Transfer
+router.post("/restaurant/tables/transfer", async (req: any, res) => {
+  const { fromTableId, toTableId } = req.body;
+  const storeId = req.user.store_id;
+
+  if (!fromTableId || !toTableId) {
+    return res.status(400).json({ error: "From and To table IDs are required" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Verify 'toTable' is empty (no pending sales)
+    const toTableRes = await client.query(
+      "SELECT id FROM sales WHERE restaurant_table_id = $1 AND store_id = $2 AND status = 'pending'",
+      [toTableId, storeId]
+    );
+
+    if (toTableRes.rows.length > 0) {
+      throw new Error("Target table is not empty. Please merge or close it first.");
+    }
+
+    // Update pending sales from fromTable to toTable
+    await client.query(
+      "UPDATE sales SET restaurant_table_id = $1 WHERE restaurant_table_id = $2 AND store_id = $3 AND status = 'pending'",
+      [toTableId, fromTableId, storeId]
+    );
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Table transferred successfully" });
+  } catch (error: any) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: error.message });
   } finally {
     client.release();
   }
@@ -4047,21 +4122,21 @@ router.post("/sales/:id/complete", async (req: any, res) => {
 
           // Check if this product has a recipe
           const recipeRes = await client.query(
-            "SELECT ingredient_product_id, quantity, unit FROM product_recipes WHERE parent_product_id = $1 AND store_id = $2",
+            "SELECT ingredient_id, amount, unit FROM product_recipes WHERE product_id = $1 AND store_id = $2",
             [item.product_id, storeId]
           );
 
           if (recipeRes.rows.length > 0) {
             for (const recItem of recipeRes.rows) {
-              const totalIngredientQty = Number(item.quantity) * Number(recItem.quantity);
+              const totalIngredientQty = Number(item.quantity) * Number(recItem.amount);
               await client.query(
                 "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
-                [totalIngredientQty, recItem.ingredient_product_id]
+                [totalIngredientQty, recItem.ingredient_id]
               );
               await addStockMovement(
                 client, 
                 storeId, 
-                recItem.ingredient_product_id, 
+                recItem.ingredient_id, 
                 'out', 
                 totalIngredientQty, 
                 'pos', 

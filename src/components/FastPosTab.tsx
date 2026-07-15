@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
+import { TableGrid } from './TableGrid';
 import { api } from "../services/api";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -62,10 +63,13 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [loadingPending, setLoadingPending] = useState(false);
   const [activeSaleId, setActiveSaleId] = useState<number | null>(null);
   const [isChangingTable, setIsChangingTable] = useState(false);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [allTables, setAllTables] = useState<any[]>([]);
   const [showQrModal, setShowQrModal] = useState(false);
 
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>("all");
 
   const categories = React.useMemo(() => {
     const cats = new Set<string>();
@@ -77,13 +81,25 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     return Array.from(cats);
   }, [allProducts]);
 
+  const subCategories = React.useMemo(() => {
+    if (selectedCategory === "all") return [];
+    const subs = new Set<string>();
+    allProducts.filter(p => p.category === selectedCategory).forEach(p => {
+      if (p.sub_category) subs.add(p.sub_category);
+    });
+    return Array.from(subs);
+  }, [allProducts, selectedCategory]);
+
   const filteredProducts = React.useMemo(() => {
     let list = searchResults;
     if (selectedCategory !== "all") {
       list = list.filter(p => p.category === selectedCategory);
+      if (selectedSubCategory !== "all") {
+        list = list.filter(p => p.sub_category === selectedSubCategory);
+      }
     }
     return list;
-  }, [searchResults, selectedCategory]);
+  }, [searchResults, selectedCategory, selectedSubCategory]);
 
   const fetchPendingSales = async () => {
     if (!isCafeRestaurant) return;
@@ -368,6 +384,15 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   useEffect(() => {
     const fetchProducts = async () => {
       if (searchTerm.length >= 2) {
+        // Check if scanned value is a table QR code
+        const tableUrlMatch = searchTerm.match(/\/digital-menu\/\d+\/(.+)/);
+        if (tableUrlMatch) {
+            const decodedTableNumber = decodeURIComponent(tableUrlMatch[1]);
+            setSelectedTable(decodedTableNumber);
+            setSearchTerm("");
+            return;
+        }
+
         try {
           const res = await api.getProducts(searchTerm, storeId);
           const products = Array.isArray(res) ? res : [];
@@ -595,6 +620,54 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }
   };
 
+  const handleTableTransfer = async (targetTableNumber: string) => {
+    if (!selectedTable || !targetTableNumber) return;
+    if (selectedTable === targetTableNumber) {
+      setIsChangingTable(false);
+      return;
+    }
+
+    try {
+      setTransferLoading(true);
+      // We need IDs for transfer, but our POS uses table_numbers as identifiers in many places.
+      // Let's fetch table IDs first or update API to handle numbers.
+      // For now, let's assume the API handles it or we find the IDs.
+      const fromTable = allTables.find(t => t.table_number === selectedTable);
+      const toTable = allTables.find(t => t.table_number === targetTableNumber);
+
+      if (!fromTable || !toTable) {
+        toast.error(lang === 'tr' ? "Masa bilgileri bulunamadı." : "Table info not found.");
+        return;
+      }
+
+      const res = await api.post("/api/store/restaurant/tables/transfer", {
+        fromTableId: fromTable.id,
+        toTableId: toTable.id
+      });
+
+      if (res && res.success) {
+        toast.success(lang === 'tr' ? "Masa başarıyla taşındı." : "Table transferred successfully.");
+        setIsChangingTable(false);
+        setSelectedTable(null);
+        setActiveSaleId(null);
+        setCart([]);
+        fetchPendingSales();
+      } else {
+        toast.error(res?.error || "Transfer failed");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Error");
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isChangingTable) {
+      api.getRestaurantTables(storeId!).then(setAllTables).catch(console.error);
+    }
+  }, [isChangingTable, storeId]);
+
   const handleSaveToTable = async () => {
     if (cart.length === 0 || !selectedTable) return;
     try {
@@ -790,71 +863,31 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           </div>
 
           {/* Tables Grid */}
-          {loadingPending ? (
-            <div className="flex flex-col items-center justify-center py-24 text-indigo-600">
-              <RefreshCw className="h-10 w-10 animate-spin mb-4" />
-              <p className="text-sm font-bold text-slate-500">{lang === 'tr' ? 'Masa durumları yükleniyor...' : 'Loading tables...'}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {Array.from({ length: 24 }, (_, i) => `Masa ${i + 1}`).map((tableName) => {
-                const sale = pendingSales.find(s => s.customer_name === tableName);
-                const isOccupied = !!sale;
-                
-                return (
-                  <button
-                    key={tableName}
-                    onClick={() => {
-                      setSelectedTable(tableName);
-                      if (isOccupied) {
-                        setActiveSaleId(sale.id);
-                        const mappedCart = sale.items.map((it: any) => ({
-                          id: it.product_id,
-                          name: it.product_name,
-                          price: it.unit_price.toString(),
-                          quantity: it.quantity,
-                          barcode: it.barcode || '',
-                          currency: sale.currency || 'TRY'
-                        }));
-                        setCart(mappedCart);
-                      } else {
-                        setActiveSaleId(null);
-                        setCart([]);
-                      }
-                    }}
-                    className={`h-36 rounded-2xl p-4 border-2 flex flex-col justify-between text-left transition-all active:scale-[0.98] group relative ${
-                      isOccupied 
-                        ? 'border-rose-200 bg-rose-50/20 hover:border-rose-400' 
-                        : 'border-slate-200 bg-white hover:border-indigo-500 hover:shadow-md'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start w-full">
-                      <div className={`p-2 rounded-xl ${isOccupied ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'} transition-all`}>
-                        <Coffee className="h-5 w-5" />
-                      </div>
-                      <span className={`px-2 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase ${
-                        isOccupied ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
-                      }`}>
-                        {isOccupied ? (lang === 'tr' ? 'DOLU' : 'OCCUPIED') : (lang === 'tr' ? 'BOŞ' : 'EMPTY')}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h4 className="text-base font-extrabold text-slate-800 tracking-tight">{tableName}</h4>
-                      {isOccupied ? (
-                        <div className="mt-1 flex items-baseline justify-between">
-                          <span className="text-sm font-black text-rose-600">{(parseFloat(sale.total_amount) || 0).toFixed(2)} ₺</span>
-                          <span className="text-[10px] text-slate-400 font-bold">{sale.items?.length || 0} Ürün</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs font-semibold text-slate-400 mt-0.5 block">{lang === 'tr' ? 'Masa Boş' : 'Empty Table'}</span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <TableGrid 
+            storeId={storeId!} 
+            onTableSelect={(table) => {
+              setSelectedTable(table.table_number);
+              if (table.status === 'occupied') {
+                // Find the sale for this table
+                const sale = pendingSales.find(s => s.customer_name === table.table_number);
+                if (sale) {
+                  setActiveSaleId(sale.id);
+                  const mappedCart = sale.items.map((it: any) => ({
+                    id: it.product_id,
+                    name: it.product_name,
+                    price: it.unit_price.toString(),
+                    quantity: it.quantity,
+                    barcode: it.barcode || '',
+                    currency: sale.currency || 'TRY'
+                  }));
+                  setCart(mappedCart);
+                }
+              } else {
+                setActiveSaleId(null);
+                setCart([]);
+              }
+            }}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 overflow-hidden">
@@ -881,30 +914,60 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
             {/* Category Filter Pills */}
             {categories.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none px-1">
-                <button
-                  onClick={() => setSelectedCategory("all")}
-                  className={`px-4 py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 ${
-                    selectedCategory === "all"
-                      ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
-                      : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  {lang === 'tr' ? 'HEPSİ' : 'ALL'}
-                </button>
-                {categories.map((category) => (
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none px-1">
                   <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
+                    onClick={() => { setSelectedCategory("all"); setSelectedSubCategory("all"); }}
                     className={`px-4 py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 ${
-                      selectedCategory === category
-                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                      selectedCategory === "all"
+                        ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
                         : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
                     }`}
                   >
-                    {category}
+                    {lang === 'tr' ? 'HEPSİ' : 'ALL'}
                   </button>
-                ))}
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => { setSelectedCategory(category); setSelectedSubCategory("all"); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 ${
+                        selectedCategory === category
+                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                          : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+
+                {subCategories.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none px-1">
+                    <button
+                      onClick={() => setSelectedSubCategory("all")}
+                      className={`px-4 py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 ${
+                        selectedSubCategory === "all"
+                          ? "bg-indigo-400 text-white shadow-md shadow-indigo-400/10"
+                          : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {lang === 'tr' ? 'TÜMÜ' : 'ALL'}
+                    </button>
+                    {subCategories.map((subCategory) => (
+                      <button
+                        key={subCategory}
+                        onClick={() => setSelectedSubCategory(subCategory)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 ${
+                          selectedSubCategory === subCategory
+                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                            : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        {subCategory}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1678,6 +1741,68 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all active:scale-[0.98]"
                 >
                   {lang === 'tr' ? 'Kapat' : 'Close'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isChangingTable && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col border border-slate-100 max-h-[90vh]"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100">
+                    <ArrowLeftRight className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-base">{lang === 'tr' ? 'Masa Taşıma / Değiştirme' : 'Table Transfer / Change'}</h3>
+                    <p className="text-xs text-slate-400 font-semibold">{lang === 'tr' ? `${selectedTable} masasındaki adisyonu taşıyın` : `Transfer bill from ${selectedTable}`}</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsChangingTable(false)} className="p-2 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-xl transition-all">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {allTables.map((table) => (
+                    <button
+                      key={table.id}
+                      disabled={table.status === 'occupied' || table.table_number === selectedTable || transferLoading}
+                      onClick={() => handleTableTransfer(table.table_number)}
+                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 group relative ${
+                        table.table_number === selectedTable ? 'border-indigo-600 bg-indigo-50 opacity-50' :
+                        table.status === 'occupied' ? 'border-rose-100 bg-rose-50 opacity-50 cursor-not-allowed' :
+                        'border-slate-100 bg-white hover:border-indigo-500 hover:bg-indigo-50/30'
+                      }`}
+                    >
+                      <span className={`text-sm font-black ${table.status === 'occupied' ? 'text-rose-600' : 'text-slate-900'}`}>{table.table_number}</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                        {table.status === 'occupied' ? (lang === 'tr' ? 'DOLU' : 'FULL') : (lang === 'tr' ? 'BOŞ' : 'EMPTY')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+                <button 
+                  onClick={() => setIsChangingTable(false)}
+                  className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold transition-all active:scale-[0.98]"
+                >
+                  {lang === 'tr' ? 'İptal' : 'Cancel'}
                 </button>
               </div>
             </motion.div>
