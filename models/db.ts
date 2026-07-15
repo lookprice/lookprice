@@ -1617,6 +1617,22 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_blog_posts_store_id ON blog_posts (store_id);
       CREATE INDEX IF NOT EXISTS idx_consultants_store_id ON consultants (store_id);
       CREATE INDEX IF NOT EXISTS idx_radar_news_store_id ON radar_news (store_id);
+
+      CREATE TABLE IF NOT EXISTS product_recipes (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        parent_product_id INTEGER NOT NULL,
+        ingredient_product_id INTEGER NOT NULL,
+        quantity REAL NOT NULL,
+        unit TEXT NOT NULL DEFAULT 'Adet',
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY (ingredient_product_id) REFERENCES products(id) ON DELETE CASCADE,
+        UNIQUE(parent_product_id, ingredient_product_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_product_recipes_parent ON product_recipes (parent_product_id);
+      CREATE INDEX IF NOT EXISTS idx_product_recipes_store ON product_recipes (store_id);
     `);
     console.log("Database optimizations and indexes applied successfully.");
 

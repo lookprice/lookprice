@@ -38,6 +38,7 @@ import { translations } from "@/translations";
 import { useLanguage } from "../../contexts/LanguageContext";
 import ProductMovementModal from "../../components/ProductMovementModal";
 import { ProductSocialMediaShareModal } from "../../components/ProductSocialMediaShareModal";
+import { RecipeModal } from "./modals/RecipeModal";
 import ProductsFilterBar from "../../components/dashboard/ProductsFilterBar";
 import { api } from "../../services/api";
 import { toast } from "sonner";
@@ -114,6 +115,7 @@ const ProductsTab = ({
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isFindingImages, setIsFindingImages] = useState(false);
   const [sharingProduct, setSharingProduct] = useState<any>(null);
+  const [recipeProduct, setRecipeProduct] = useState<any>(null);
 
   const handleAutoFindImages = async (params: { productIds?: number[], allMissing?: boolean, id?: number }) => {
     if (isFindingImages) return;
@@ -413,6 +415,14 @@ const ProductsTab = ({
           branding={branding}
         />
       )}
+      {recipeProduct && (
+        <RecipeModal 
+          product={recipeProduct} 
+          products={products}
+          onClose={() => setRecipeProduct(null)} 
+          lang={lang}
+        />
+      )}
       {sharingProduct && (
         <ProductSocialMediaShareModal 
           isOpen={!!sharingProduct}
@@ -694,7 +704,7 @@ const ProductsTab = ({
                                   {p.name.length > 40 ? p.name.substring(0, 40) + '...' : p.name}
                                 </div>
                                 {p.description && (
-                                  <div className="group/desc relative">
+                                  <div className="group/desc relative hover:z-[60]">
                                     <div className="p-1 text-indigo-500 bg-indigo-50 rounded-lg cursor-help">
                                       <FileText className="h-3 w-3" />
                                     </div>
@@ -984,6 +994,13 @@ const ProductsTab = ({
                             title={t.movementHistory}
                           >
                             <History className="h-4.5 w-4.5" />
+                          </button>
+                          <button 
+                            onClick={() => setRecipeProduct(p)}
+                            className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all border border-transparent hover:border-amber-100 active:scale-90"
+                            title={lang === "tr" ? "Ürün Reçetesi" : "Product Recipe"}
+                          >
+                            <Sparkles className="h-4.5 w-4.5" />
                           </button>
                           <button 
                             onClick={() => setSharingProduct(p)}

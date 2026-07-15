@@ -1515,6 +1515,65 @@ router.get("/reports/daily-sales", async (req: any, res) => {
   }
 });
 
+router.get("/reports/pos-daily", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const { date } = req.query; // YYYY-MM-DD
+    
+    const targetDate = date ? new Date(date) : new Date();
+    
+    // Start of day in local time
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    // End of day in local time
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    // 1. Payment summary grouped by payment_method from sales table for completed POS sales
+    const paymentQuery = `
+      SELECT 
+        payment_method,
+        COALESCE(SUM(total_amount), 0)::FLOAT as total_amount,
+        COUNT(id)::INT as transaction_count
+      FROM sales
+      WHERE store_id = $1 
+        AND status = 'completed'
+        AND created_at >= $2 
+        AND created_at <= $3
+      GROUP BY payment_method
+    `;
+    const paymentRes = await pool.query(paymentQuery, [storeId, startOfDay, endOfDay]);
+
+    // 2. Product sales quantities for Cafe/Restaurant or simple items
+    const productQuery = `
+      SELECT 
+        si.product_name,
+        COALESCE(SUM(si.quantity), 0)::FLOAT as total_quantity,
+        COALESCE(SUM(si.total_price), 0)::FLOAT as total_revenue
+      FROM sale_items si
+      JOIN sales s ON si.sale_id = s.id
+      WHERE s.store_id = $1 
+        AND s.status = 'completed'
+        AND s.created_at >= $2 
+        AND s.created_at <= $3
+      GROUP BY si.product_name
+      ORDER BY total_quantity DESC
+    `;
+    const productRes = await pool.query(productQuery, [storeId, startOfDay, endOfDay]);
+
+    res.json({
+      success: true,
+      date: startOfDay.toISOString().split('T')[0],
+      payments: paymentRes.rows,
+      products: productRes.rows
+    });
+  } catch (err: any) {
+    console.error("Error in pos-daily report:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/analytics", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
   if (storeId === undefined || storeId === null || storeId === "") return res.status(400).json({ error: "Store ID required" });
@@ -2375,6 +2434,64 @@ router.put("/products/:id", async (req: any, res) => {
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
+  }
+});
+
+// 1. Get Product Recipe
+router.get("/products/:id/recipe", async (req: any, res) => {
+  const productId = parseInt(req.params.id);
+  const storeId = req.user.store_id;
+
+  try {
+    const recipeRes = await pool.query(
+      `SELECT r.*, p.name as ingredient_name, p.unit as ingredient_unit, p.stock_quantity as ingredient_stock 
+       FROM product_recipes r
+       JOIN products p ON r.ingredient_product_id = p.id
+       WHERE r.parent_product_id = $1 AND r.store_id = $2`,
+      [productId, storeId]
+    );
+    res.json({ success: true, items: recipeRes.rows });
+  } catch (error: any) {
+    console.error("Get recipe error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 2. Save Product Recipe
+router.post("/products/:id/recipe", async (req: any, res) => {
+  const productId = parseInt(req.params.id);
+  const storeId = req.user.store_id;
+  const { items } = req.body; // array of { ingredient_product_id, quantity, unit }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Clear existing
+    await client.query(
+      "DELETE FROM product_recipes WHERE parent_product_id = $1 AND store_id = $2",
+      [productId, storeId]
+    );
+
+    // Insert new items
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        if (!item.ingredient_product_id || !item.quantity) continue;
+        await client.query(
+          "INSERT INTO product_recipes (store_id, parent_product_id, ingredient_product_id, quantity, unit) VALUES ($1, $2, $3, $4, $5)",
+          [storeId, productId, item.ingredient_product_id, item.quantity, item.unit || 'Adet']
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Reçete başarıyla kaydedildi." });
+  } catch (error: any) {
+    await client.query("ROLLBACK");
+    console.error("Save recipe error:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -3718,19 +3835,20 @@ router.get("/sales", async (req: any, res) => {
 // StoreAdmin: Fast POS Sale
 router.post("/pos/sale", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { items, total, paymentMethod, customerName, notes, currency, exchangeRate } = req.body;
+  const { items, total, paymentMethod, customerName, notes, currency, exchangeRate, status } = req.body;
+  const saleStatus = status || 'completed';
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     
     // 1. Create Sale
     const saleRes = await client.query(
-      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, 'completed', $5, $6, $7) RETURNING id",
-      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı']
+      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı']
     );
     const saleId = saleRes.rows[0].id;
 
-    // 2. Add Items and Update Stock
+    // 2. Add Items and Update Stock (only if not pending)
     for (const item of items) {
       const itemTotal = Number(item.quantity) * Number(item.price);
       await client.query(
@@ -3738,12 +3856,38 @@ router.post("/pos/sale", async (req: any, res) => {
         [saleId, item.id || null, item.name, item.barcode || '', item.quantity, item.price, itemTotal]
       );
 
-      if (item.id) {
+      if (item.id && saleStatus !== 'pending') {
         // Fetch product type to check if it's a service
         const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [item.id]);
         const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
 
-        if (productType !== 'service') {
+        // Check if this product has a recipe
+        const recipeRes = await client.query(
+          "SELECT ingredient_product_id, quantity, unit FROM product_recipes WHERE parent_product_id = $1 AND store_id = $2",
+          [item.id, storeId]
+        );
+
+        if (recipeRes.rows.length > 0) {
+          for (const recItem of recipeRes.rows) {
+            const totalIngredientQty = Number(item.quantity) * Number(recItem.quantity);
+            await client.query(
+              "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+              [totalIngredientQty, recItem.ingredient_product_id]
+            );
+            await addStockMovement(
+              client, 
+              storeId, 
+              recItem.ingredient_product_id, 
+              'out', 
+              totalIngredientQty, 
+              'pos', 
+              `Reçete Çıkışı (Hızlı POS Satışı #${saleId}, Ürün: ${item.name})`, 
+              0, 
+              customerName || 'Hızlı Satış', 
+              currency || 'TRY'
+            );
+          }
+        } else if (productType !== 'service') {
           await client.query(
             "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
             [item.quantity, item.id]
@@ -3753,34 +3897,36 @@ router.post("/pos/sale", async (req: any, res) => {
       }
     }
 
-    // 3. Fiscal Simulation
-    const storeBrandingRes = await client.query("SELECT fiscal_active, fiscal_brand, fiscal_terminal_id FROM stores WHERE id = $1", [storeId]);
-    const branding = storeBrandingRes.rows[0];
     let fiscalResult = null;
-    
-    if (branding && branding.fiscal_active) {
-      fiscalResult = {
-        success: true,
-        receiptNo: `F-${Math.floor(Math.random() * 1000000)}`,
-        zNo: `Z-${Math.floor(Math.random() * 10000)}`,
-        brand: branding.fiscal_brand,
-        terminal: branding.fiscal_terminal_id,
-        timestamp: new Date().toISOString()
-      };
+    if (saleStatus !== 'pending') {
+      // 3. Fiscal Simulation
+      const storeBrandingRes = await client.query("SELECT fiscal_active, fiscal_brand, fiscal_terminal_id FROM stores WHERE id = $1", [storeId]);
+      const branding = storeBrandingRes.rows[0];
       
-      const fiscalNote = `\n[FISCAL] Receipt: ${fiscalResult.receiptNo}, Z-No: ${fiscalResult.zNo}, Brand: ${branding.fiscal_brand}`;
-      await client.query("UPDATE sales SET notes = COALESCE(notes, '') || $1 WHERE id = $2", [fiscalNote, saleId]);
-    }
+      if (branding && branding.fiscal_active) {
+        fiscalResult = {
+          success: true,
+          receiptNo: `F-${Math.floor(Math.random() * 1000000)}`,
+          zNo: `Z-${Math.floor(Math.random() * 10000)}`,
+          brand: branding.fiscal_brand,
+          terminal: branding.fiscal_terminal_id,
+          timestamp: new Date().toISOString()
+        };
+        
+        const fiscalNote = `\n[FISCAL] Receipt: ${fiscalResult.receiptNo}, Z-No: ${fiscalResult.zNo}, Brand: ${branding.fiscal_brand}`;
+        await client.query("UPDATE sales SET notes = COALESCE(notes, '') || $1 WHERE id = $2", [fiscalNote, saleId]);
+      }
 
-    // 4. Record Payment for Cash Register Report
-    await client.query(
-      "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
-      [saleId, paymentMethod || 'cash', total || 0]
-    );
+      // 4. Record Payment for Cash Register Report
+      await client.query(
+        "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
+        [saleId, paymentMethod || 'cash', total || 0]
+      );
+    }
 
     await client.query("COMMIT");
 
-    console.log(`[DEBUG] POS Sale completed and payment recorded: saleId=${saleId}, method=${paymentMethod || 'cash'}`);
+    console.log(`[DEBUG] POS Sale completed and payment recorded: saleId=${saleId}, method=${paymentMethod || 'cash'}, status=${saleStatus}`);
 
     // Log the action
     await logAction(
@@ -3789,15 +3935,63 @@ router.post("/pos/sale", async (req: any, res) => {
       "pos_sale", 
       "sale", 
       saleId, 
-      `Hızlı POS Satışı: ${total} ₺, Ödeme: ${paymentMethod}`,
+      saleStatus === 'pending' ? `Adisyon Açıldı: Masa ${customerName}, Tutar: ${total} ₺` : `Hızlı POS Satışı: ${total} ₺, Ödeme: ${paymentMethod}`,
       null,
-      { saleId, total, itemsCount: items.length, fiscal: fiscalResult }
+      { saleId, total, itemsCount: items.length, fiscal: fiscalResult, status: saleStatus }
     );
 
     res.json({ success: true, saleId, fiscal: fiscalResult });
   } catch (e: any) {
     await client.query("ROLLBACK");
     console.error("Fast POS sale error:", e);
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Update Pending Sale (Adisyon Güncelleme)
+router.post("/sales/:id/update-pending", async (req: any, res) => {
+  const { id } = req.params;
+  const { items, total, customerName, notes } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    // Check if sale exists and is pending
+    const saleRes = await client.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2 FOR UPDATE", [id, storeId]);
+    if (saleRes.rows.length === 0) {
+      throw new Error("Sale not found");
+    }
+    const sale = saleRes.rows[0];
+    if (sale.status !== 'pending') {
+      throw new Error("Sale is not pending");
+    }
+
+    // Delete existing items
+    await client.query("DELETE FROM sale_items WHERE sale_id = $1", [id]);
+    
+    // Insert new items
+    for (const item of items) {
+      const itemTotal = Number(item.quantity) * Number(item.price);
+      await client.query(
+        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [id, item.id || null, item.name, item.barcode || '', item.quantity, item.price, itemTotal]
+      );
+    }
+    
+    // Update sale total and table name (customer_name)
+    await client.query(
+      "UPDATE sales SET total_amount = $1, customer_name = $2, notes = $3 WHERE id = $4",
+      [total || 0, customerName || sale.customer_name, notes || sale.notes, id]
+    );
+
+    await client.query("COMMIT");
+    res.json({ success: true, saleId: id });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    console.error("Update pending sale error:", e);
     res.status(400).json({ error: e.message });
   } finally {
     client.release();
@@ -3851,7 +4045,33 @@ router.post("/sales/:id/complete", async (req: any, res) => {
           const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [item.product_id]);
           const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
 
-          if (productType !== 'service') {
+          // Check if this product has a recipe
+          const recipeRes = await client.query(
+            "SELECT ingredient_product_id, quantity, unit FROM product_recipes WHERE parent_product_id = $1 AND store_id = $2",
+            [item.product_id, storeId]
+          );
+
+          if (recipeRes.rows.length > 0) {
+            for (const recItem of recipeRes.rows) {
+              const totalIngredientQty = Number(item.quantity) * Number(recItem.quantity);
+              await client.query(
+                "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+                [totalIngredientQty, recItem.ingredient_product_id]
+              );
+              await addStockMovement(
+                client, 
+                storeId, 
+                recItem.ingredient_product_id, 
+                'out', 
+                totalIngredientQty, 
+                'pos', 
+                `Reçete Çıkışı (Satış #${id}, Ürün: ${item.product_name})`, 
+                0, 
+                sale.customer_name, 
+                sale.currency || 'TRY'
+              );
+            }
+          } else if (productType !== 'service') {
             await client.query(
               "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
               [item.quantity, item.product_id]

@@ -299,7 +299,7 @@ export const SettingsWebTab = ({
                 {lang === "tr" ? "SEKTÖR MODU" : "SECTOR MODE"}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {["general", "fashion", "automotive", "tech", "real_estate"].map((sect) => (
+                {["general", "fashion", "automotive", "tech", "real_estate", "cafe_restaurant"].map((sect) => (
                   <button
                     key={sect}
                     onClick={() =>
@@ -330,9 +330,13 @@ export const SettingsWebTab = ({
                       ? lang === "tr"
                         ? "Teknoloji"
                         : "Tech"
+                      : sect === "real_estate"
+                      ? lang === "tr"
+                        ? "Gayrimenkul"
+                        : "Real Estate"
                       : lang === "tr"
-                      ? "Gayrimenkul"
-                      : "Real Estate"}
+                      ? "Cafe / Restaurant"
+                      : "Cafe / Restaurant"}
                   </button>
                 ))}
               </div>

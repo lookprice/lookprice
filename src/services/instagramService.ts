@@ -122,7 +122,7 @@ export class InstagramService {
   /**
    * Main function to post to Instagram (Single or Carousel)
    */
-  static async postToInstagram(accessToken: string, instagramUserId: string, imageUrls: string[], caption: string) {
+  static async postCarouselToInstagram(accessToken: string, instagramUserId: string, imageUrls: string[], caption: string) {
     if (imageUrls.length === 0) throw new Error("No images provided");
 
     // 1. Ensure absolute URLs

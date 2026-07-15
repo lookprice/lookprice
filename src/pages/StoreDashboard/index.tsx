@@ -596,6 +596,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const isPortfolio = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
   const isRealEstate = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate');
   const isAutomotive = !isGapStore && (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive');
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
   useEffect(() => {
     if (isPortfolio && (['products', 'pos', 'fast-pos', 'procurements', 'stock_transfer', 'service'].includes(activeTab))) {
@@ -643,22 +644,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'category', key: "operations", title: isTr ? "Operasyonlar" : "Operations", items: [
       { id: "products", label: t.products, icon: Package },
       { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices },
-      { id: "service", label: t.service, icon: Wrench, badge: notifications.service },
-      { id: "fleet", label: isTr ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet },
+      ...(!isCafeRestaurant ? [{ id: "service", label: t.service, icon: Wrench, badge: notifications.service }] : []),
+      ...(!isCafeRestaurant ? [{ id: "fleet", label: isTr ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet }] : []),
       { id: "procurements", label: t.procurements, icon: Truck },
       { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
     ]},
     { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
-      { id: "quotations", label: t.quotations, icon: FileCheck },
+      ...(!isCafeRestaurant ? [{ id: "quotations", label: t.quotations, icon: FileCheck }] : []),
       { id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' },
-      { id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck },
+      ...(!isCafeRestaurant ? [{ id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck }] : []),
       { id: "companies", label: t.companies, icon: Store },
       { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
       { id: "fast-pos", label: t.fastPos, icon: Scan },
     ]},
     { type: 'category', key: "integrations", title: isTr ? "Yedekleme & Kanallar" : "Backup & Channels", items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
-      { id: "google-merchant", label: "Google Merchant", icon: ShoppingBag },
+      ...(!isCafeRestaurant ? [{ id: "google-merchant", label: "Google Merchant", icon: ShoppingBag }] : []),
       { id: "settings_yedekleme", label: isTr ? "Yedekleme" : "Backup", icon: Database },
     ]},
     { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Blog" : "Analytics & Blog", items: [
