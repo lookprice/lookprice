@@ -44,7 +44,7 @@ export default function DigitalMenuPage() {
         total: cart.reduce((sum, p) => sum + p.price, 0),
         status: 'pending'
       };
-      await api.createPosSale(orderData, Number(storeId));
+      await api.createPublicPosSale(orderData, Number(storeId));
       setCart([]);
       alert("Siparişiniz başarıyla mutfağa iletildi.");
     } catch (error) {

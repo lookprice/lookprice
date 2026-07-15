@@ -557,6 +557,53 @@ export const SettingsStoreOpsTab = ({
           </div>
         </div>
 
+      {/* Cafe/Restaurant Settings */}
+      {(branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant') && (
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50 mb-8">
+          <div className="flex items-center space-x-3 mb-8">
+            <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
+              <Globe className="h-6 w-6" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Kafe / Restoran Ayarları</h3>
+          </div>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Masa Sayısı</label>
+                <div className="relative">
+                   <input
+                     type="number"
+                     min="1"
+                     max="200"
+                     value={branding?.page_layout_settings?.table_count || 12}
+                     onChange={(e) => onBrandingChange('page_layout_settings', { ...branding?.page_layout_settings, table_count: parseInt(e.target.value) || 12 })}
+                     className="w-full pl-4 pr-3 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-900 font-sans"
+                   />
+                </div>
+                <p className="text-xs text-slate-500 font-medium ml-1">
+                  Mekanınızdaki toplam masa sayısını belirtin. Bu sayı Fast POS / Masalar ekranında görünecektir.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={onSaveBranding}
+                disabled={savingBranding}
+                className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 flex items-center gap-2 active:scale-95 transition-all"
+              >
+                {savingBranding ? (
+                  <RefreshCw className="h-4.5 w-4.5 animate-spin" />
+                ) : (
+                  <Save className="h-4.5 w-4.5" />
+                )}
+                {t.saveChanges || "Kaydet"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bulk Price Update */}
       {!isPortfolio && (
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">

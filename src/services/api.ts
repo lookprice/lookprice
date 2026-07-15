@@ -179,6 +179,7 @@ export const api = {
 
   getSales: (status = "all", start = "", end = "", storeId?: number) => api.get(`/api/store/sales?status=${status}&startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   createPosSale: (data: any, storeId?: number) => api.post(`/api/store/pos/sale${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  createPublicPosSale: (data: any, storeId?: number) => api.post(`/api/public/pos/sale${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updatePendingSale: (id: number, data: any, storeId?: number) => api.post(`/api/store/sales/${id}/update-pending${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   completeSale: (id: number, data: any, storeId?: number) => api.post(`/api/store/sales/${id}/complete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   shipSale: (id: number, data: { carrier: string, trackingNumber: string }, storeId?: number) => api.post(`/api/store/sales/${id}/ship${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),

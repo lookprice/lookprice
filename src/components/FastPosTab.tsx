@@ -836,7 +836,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Dolu Masalar' : 'Occupied Tables'}</p>
-                <p className="text-2xl font-black text-slate-800">{pendingSales.length} / 24</p>
+                <p className="text-2xl font-black text-slate-800">{pendingSales.length} / {allTables.length > 0 ? allTables.length : (branding?.page_layout_settings?.table_count || 12)}</p>
               </div>
             </div>
             
@@ -846,7 +846,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Boş Masalar' : 'Empty Tables'}</p>
-                <p className="text-2xl font-black text-slate-800">{24 - pendingSales.length} / 24</p>
+                <p className="text-2xl font-black text-slate-800">{(allTables.length > 0 ? allTables.length : (branding?.page_layout_settings?.table_count || 12)) - pendingSales.length} / {allTables.length > 0 ? allTables.length : (branding?.page_layout_settings?.table_count || 12)}</p>
               </div>
             </div>
 
