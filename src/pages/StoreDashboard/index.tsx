@@ -107,6 +107,63 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     activeTab, setActiveTab,
     branding, setBranding
   } = useDashboardController(user);
+
+  // Cafe/Restaurant Role-based authorization state
+  const [activeStaffRole, setActiveStaffRole] = useState<'manager' | 'cashier' | 'waiter'>(() => {
+    return (localStorage.getItem('lookprice_active_staff_role') as 'manager' | 'cashier' | 'waiter') || 'manager';
+  });
+
+  const [managerPin, setManagerPin] = useState(() => localStorage.getItem('lookprice_manager_pin') || '1234');
+  const [cashierPin, setCashierPin] = useState(() => localStorage.getItem('lookprice_cashier_pin') || '2222');
+  const [waiterPin, setWaiterPin] = useState(() => localStorage.getItem('lookprice_waiter_pin') || '3333');
+
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [modalRole, setModalRole] = useState<'manager' | 'cashier' | 'waiter'>('waiter');
+  const [pinValue, setPinValue] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const [isEditingPins, setIsEditingPins] = useState(false);
+
+  // Sync state with localStorage
+  useEffect(() => {
+    localStorage.setItem('lookprice_active_staff_role', activeStaffRole);
+  }, [activeStaffRole]);
+
+  useEffect(() => {
+    localStorage.setItem('lookprice_manager_pin', managerPin);
+  }, [managerPin]);
+
+  useEffect(() => {
+    localStorage.setItem('lookprice_cashier_pin', cashierPin);
+  }, [cashierPin]);
+
+  useEffect(() => {
+    localStorage.setItem('lookprice_waiter_pin', waiterPin);
+  }, [waiterPin]);
+
+  const handleVerifyRolePin = (pinToVerify: string) => {
+    let targetPin = '';
+    if (modalRole === 'manager') targetPin = managerPin;
+    else if (modalRole === 'cashier') targetPin = cashierPin;
+    else if (modalRole === 'waiter') targetPin = waiterPin;
+
+    if (pinToVerify === targetPin) {
+      setActiveStaffRole(modalRole);
+      setShowRoleModal(false);
+      setPinValue('');
+      setPinError(false);
+      toast.success(isTr 
+        ? `${modalRole === 'manager' ? 'Yönetici' : modalRole === 'cashier' ? 'Kasiyer' : 'Garson'} oturumu açıldı!` 
+        : `Switched to ${modalRole === 'manager' ? 'Manager' : modalRole === 'cashier' ? 'Cashier' : 'Waiter'} role!`
+      );
+    } else {
+      setPinError(true);
+      setPinValue('');
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+    }
+  };
+  
   
   const [isPending, startTransition] = useTransition();
 
@@ -608,7 +665,18 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   }, [isPortfolio, isAutomotive, isRealEstate, activeTab, setActiveTab]);
 
-  const navItems = isPortfolio ? [
+  // Active role restricted tabs safety effect
+  useEffect(() => {
+    if (isCafeRestaurant) {
+      if (activeStaffRole === 'waiter' && activeTab !== 'fast-pos') {
+        setActiveTab('fast-pos');
+      } else if (activeStaffRole === 'cashier' && !['fast-pos', 'products', 'sales_invoices'].includes(activeTab)) {
+        setActiveTab('fast-pos');
+      }
+    }
+  }, [activeStaffRole, activeTab, isCafeRestaurant, setActiveTab]);
+
+  const rawNavItems = isPortfolio ? [
     { type: 'item', id: "system_cockpit", label: isTr ? "Kokpit" : "Cockpit", icon: LayoutDashboard },
     { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
       ...(isRealEstate ? [{ id: "real_estate", label: isTr ? 'Gayrimenkul Portföyü' : 'Real Estate Portfolio', icon: Home }] : []),
@@ -671,6 +739,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ];
 
+  const navItems = React.useMemo(() => {
+    if (!isCafeRestaurant) return rawNavItems;
+    if (activeStaffRole === 'waiter') {
+      return [
+        { type: 'item', id: "fast-pos", label: isTr ? "Hızlı POS / Masalar" : "Fast POS / Tables", icon: Scan }
+      ];
+    }
+    if (activeStaffRole === 'cashier') {
+      return [
+        { type: 'item', id: "fast-pos", label: isTr ? "Hızlı POS / Masalar" : "Fast POS / Tables", icon: Scan },
+        { type: 'item', id: "products", label: isTr ? "Ürün & Fiyat Listesi" : "Products", icon: Package },
+        { type: 'item', id: "sales_invoices", label: isTr ? "Satış Faturaları" : "Satış Faturaları", icon: FileText }
+      ];
+    }
+    return rawNavItems;
+  }, [rawNavItems, activeStaffRole, isCafeRestaurant, isTr]);
+
   return (
     <DashboardLayout
       lang={lang}
@@ -696,7 +781,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }}
     >
       <div className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -712,6 +797,44 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               </p>
             </div>
           </motion.div>
+
+          {isCafeRestaurant && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center gap-3 bg-slate-100 border border-slate-200 p-1.5 rounded-2xl shrink-0 shadow-xs"
+            >
+              <div className="px-3 py-1.5 rounded-xl bg-white shadow-xs flex items-center gap-2">
+                <span className="text-base">
+                  {activeStaffRole === 'manager' ? '👑' : activeStaffRole === 'cashier' ? '💳' : '🍽️'}
+                </span>
+                <span className="text-xs font-black tracking-wider uppercase text-slate-700">
+                  {activeStaffRole === 'manager' 
+                    ? (isTr ? 'YÖNETİCİ' : 'MANAGER') 
+                    : activeStaffRole === 'cashier' 
+                      ? (isTr ? 'KASİYER' : 'CASHIER') 
+                      : (isTr ? 'GARSON' : 'WAITER')}
+                </span>
+                {activeStaffRole !== 'manager' && (
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 rounded-md">
+                    {isTr ? 'KİLİTLİ' : 'LOCKED'}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setModalRole(activeStaffRole);
+                  setPinValue('');
+                  setPinError(false);
+                  setIsEditingPins(false);
+                  setShowRoleModal(true);
+                }}
+                className="px-4 py-1.5 bg-slate-900 hover:bg-slate-850 text-white rounded-xl text-xs font-bold transition-all uppercase tracking-wider active:scale-95"
+              >
+                {isTr ? 'Rol Değiştir' : 'Switch Role'}
+              </button>
+            </motion.div>
+          )}
         </div>
 
         {['products', 'quotations', 'companies'].includes(activeTab) && (
@@ -748,7 +871,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <ProductsTab 
                   products={products}
                   loading={loading}
-                  isViewer={isViewer}
+                  isViewer={isViewer || (isCafeRestaurant && activeStaffRole !== 'manager')}
                   onDeleteAll={handleDeleteAllProducts}
                   onBulkDelete={handleBulkDelete}
                   onEdit={(p) => { setEditingProduct(p); setShowProductModal(true); }}
@@ -825,6 +948,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   branding={branding} 
                   onSaleComplete={handleSaleSuccess}
                   storeId={currentStoreId!} 
+                  activeStaffRole={activeStaffRole}
                 />
               )}
               {activeTab === "sales_invoices" && !isPortfolio && (
@@ -1139,6 +1263,233 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         handleFileSelect={handleFileSelect}
         handleImport={handleImport}
       />
+
+      {/* Cafe/Restaurant Role Switcher Keypad Modal */}
+      <AnimatePresence>
+        {showRoleModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                    {isTr ? 'Çalışan Oturumu & Rolü' : 'Staff Session & Role'}
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                    {isTr ? 'Terminal Yetkilendirme Modeli' : 'Terminal Authorization Model'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowRoleModal(false)}
+                  className="p-2 hover:bg-slate-200 rounded-xl transition-all"
+                >
+                  <X className="h-5 w-5 text-slate-500" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                {!isEditingPins ? (
+                  <>
+                    {/* Role Selection Row */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['manager', 'cashier', 'waiter'] as const).map((r) => {
+                        const isSel = modalRole === r;
+                        const label = r === 'manager' ? (isTr ? 'Yönetici' : 'Manager') : r === 'cashier' ? (isTr ? 'Kasiyer' : 'Cashier') : (isTr ? 'Garson' : 'Waiter');
+                        const emoji = r === 'manager' ? '👑' : r === 'cashier' ? '💳' : '🍽️';
+                        return (
+                          <button
+                            key={r}
+                            onClick={() => {
+                              setModalRole(r);
+                              setPinValue('');
+                              setPinError(false);
+                            }}
+                            className={`p-3 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all font-bold text-xs ${
+                              isSel
+                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-100 bg-slate-50 hover:border-slate-200 text-slate-500'
+                            }`}
+                          >
+                            <span className="text-xl">{emoji}</span>
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* PIN Input Dots Preview */}
+                    <div className="flex flex-col items-center justify-center space-y-2 py-4">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        {isTr ? '4 Haneli Giriş PIN Kodu' : '4-Digit Entry PIN'}
+                      </p>
+                      <div className="flex gap-4 justify-center py-2">
+                        {Array.from({ length: 4 }).map((_, idx) => {
+                          const hasChar = pinValue.length > idx;
+                          return (
+                            <motion.div
+                              key={idx}
+                              animate={pinError ? { x: [0, -10, 10, -10, 10, 0] } : {}}
+                              transition={{ duration: 0.4 }}
+                              className={`w-4 h-4 rounded-full border-2 transition-all ${
+                                hasChar
+                                  ? 'bg-indigo-600 border-indigo-600 scale-110 shadow-sm'
+                                  : 'border-slate-300 bg-transparent'
+                              }`}
+                            />
+                          );
+                        })}
+                      </div>
+                      {pinError && (
+                        <p className="text-xs font-black text-rose-500 uppercase tracking-wider animate-pulse">
+                          {isTr ? 'Hatalı Şifre!' : 'Incorrect PIN!'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Keypad Grid */}
+                    <div className="grid grid-cols-3 gap-2.5 max-w-[280px] mx-auto pb-4">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => {
+                            if (pinValue.length < 4) {
+                              setPinError(false);
+                              const newVal = pinValue + num;
+                              setPinValue(newVal);
+                              
+                              // Auto trigger verification on 4th digit
+                              if (newVal.length === 4) {
+                                handleVerifyRolePin(newVal);
+                              }
+                            }
+                          }}
+                          className="h-14 bg-slate-100 hover:bg-slate-200 active:scale-95 text-lg font-black text-slate-700 rounded-2xl transition-all flex items-center justify-center"
+                        >
+                          {num}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setPinValue('');
+                          setPinError(false);
+                        }}
+                        className="h-14 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center"
+                      >
+                        {isTr ? 'TEMİZLE' : 'CLEAR'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (pinValue.length < 4) {
+                            setPinError(false);
+                            const newVal = pinValue + '0';
+                            setPinValue(newVal);
+                            if (newVal.length === 4) {
+                              handleVerifyRolePin(newVal);
+                            }
+                          }
+                        }}
+                        className="h-14 bg-slate-100 hover:bg-slate-200 active:scale-95 text-lg font-black text-slate-700 rounded-2xl transition-all flex items-center justify-center"
+                      >
+                        0
+                      </button>
+                      <button
+                        onClick={() => handleVerifyRolePin(pinValue)}
+                        className="h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center"
+                      >
+                        {isTr ? 'GİRİŞ' : 'ENTER'}
+                      </button>
+                    </div>
+
+                    {/* Footer Controls / Pin customisation for manager */}
+                    {activeStaffRole === 'manager' && (
+                      <div className="pt-4 border-t border-slate-100 text-center">
+                        <button
+                          onClick={() => setIsEditingPins(true)}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-widest transition-colors"
+                        >
+                          ⚙️ {isTr ? 'PIN Kodlarını Güncelle' : 'Update PIN Codes'}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* Edit PINs Form (Only accessible to authenticated managers) */
+                  <div className="space-y-4 py-2">
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">
+                      {isTr ? 'YÖNETİCİ ŞİFRE AYARLARI' : 'MANAGER PIN CONFIGURATION'}
+                    </h4>
+                    
+                    <div className="space-y-3.5">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                          👑 {isTr ? 'Yönetici PIN Kodu' : 'Manager PIN'}
+                        </label>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          value={managerPin}
+                          onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ''))}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-center tracking-[0.5em] text-slate-700 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                          💳 {isTr ? 'Kasiyer PIN Kodu' : 'Cashier PIN'}
+                        </label>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          value={cashierPin}
+                          onChange={(e) => setCashierPin(e.target.value.replace(/\D/g, ''))}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-center tracking-[0.5em] text-slate-700 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                          🍽️ {isTr ? 'Garson PIN Kodu' : 'Waiter PIN'}
+                        </label>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          value={waiterPin}
+                          onChange={(e) => setWaiterPin(e.target.value.replace(/\D/g, ''))}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-center tracking-[0.5em] text-slate-700 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-4 flex gap-2">
+                      <button
+                        onClick={() => setIsEditingPins(false)}
+                        className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                      >
+                        {isTr ? 'Geri Dön' : 'Go Back'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          toast.success(isTr ? 'PIN kodları başarıyla kaydedildi!' : 'PIN codes updated successfully!');
+                          setIsEditingPins(false);
+                        }}
+                        className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                      >
+                        {isTr ? 'Değişiklikleri Kaydet' : 'Save Changes'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

@@ -29,9 +29,10 @@ interface FastPosTabProps {
   storeId?: number;
   onSaleComplete?: () => void;
   branding?: any;
+  activeStaffRole?: 'manager' | 'cashier' | 'waiter';
 }
 
-const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
+const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'manager' }: FastPosTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const [searchTerm, setSearchTerm] = useState("");
@@ -1048,68 +1049,104 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
                   <span className="text-3xl font-black text-slate-900">{total.toFixed(2)} ₺</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={() => setPaymentMethod('cash')}
-                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all font-bold ${
-                      paymentMethod === 'cash' 
-                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
-                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                    }`}
-                  >
-                    <Banknote className="h-5 w-5" />
-                    {lang === 'tr' ? 'Nakit' : 'Cash'}
-                  </button>
-                  <button 
-                    onClick={() => setPaymentMethod('credit_card')}
-                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all font-bold ${
-                      paymentMethod === 'credit_card' 
-                        ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                    }`}
-                  >
-                    <CreditCard className="h-5 w-5" />
-                    {lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}
-                  </button>
-                </div>
+                {activeStaffRole === 'waiter' ? (
+                  /* Waiter specific view - No payment buttons, just save to table and change table */
+                  <div className="space-y-3">
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 text-amber-800 text-xs font-semibold leading-relaxed">
+                      ⚠️ {lang === 'tr' 
+                        ? 'Garson Yetki Sınırı: Sadece sipariş alabilir ve masaları güncelleyebilirsiniz. Hesap kapatma / ödeme alma yetkisi kasiyer veya yöneticidedir.' 
+                        : 'Waiter Permission: You can only take orders and update tables. Payment collection and closing bills is restricted to Cashiers or Managers.'}
+                    </div>
 
-                {isCafeRestaurant && selectedTable !== null && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      disabled={cart.length === 0 || completing}
-                      onClick={handleSaveToTable}
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
-                    >
-                      <Coffee className="h-4 w-4" />
-                      {lang === 'tr' ? 'Adisyona Kaydet' : 'Save to Table'}
-                    </button>
-                    <button
-                      disabled={activeSaleId === null || completing}
-                      onClick={() => setIsChangingTable(true)}
-                      className="w-full py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
-                    >
-                      <ArrowLeftRight className="h-4 w-4" />
-                      {lang === 'tr' ? 'Masa Değiştir' : 'Change Table'}
-                    </button>
+                    <div className="flex flex-col gap-2.5">
+                      <button
+                        disabled={cart.length === 0 || completing}
+                        onClick={handleSaveToTable}
+                        className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/10 active:scale-98 disabled:opacity-50"
+                      >
+                        <Coffee className="h-5 w-5" />
+                        {lang === 'tr' ? 'Siparişi Masaya Gönder' : 'Send Order to Table'}
+                      </button>
+
+                      {isCafeRestaurant && selectedTable !== null && (
+                        <button
+                          disabled={activeSaleId === null || completing}
+                          onClick={() => setIsChangingTable(true)}
+                          className="w-full py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
+                        >
+                          <ArrowLeftRight className="h-4 w-4" />
+                          {lang === 'tr' ? 'Masa Değiştir' : 'Change Table'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                )}
+                ) : (
+                  /* Manager & Cashier View - Full checkout & payment options */
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={() => setPaymentMethod('cash')}
+                        className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all font-bold ${
+                          paymentMethod === 'cash' 
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
+                            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                        }`}
+                      >
+                        <Banknote className="h-5 w-5" />
+                        {lang === 'tr' ? 'Nakit' : 'Cash'}
+                      </button>
+                      <button 
+                        onClick={() => setPaymentMethod('credit_card')}
+                        className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all font-bold ${
+                          paymentMethod === 'credit_card' 
+                            ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                        }`}
+                      >
+                        <CreditCard className="h-5 w-5" />
+                        {lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}
+                      </button>
+                    </div>
 
-                <button 
-                  disabled={cart.length === 0 || completing}
-                  onClick={handleFinalizeSale}
-                  className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-slate-200 flex items-center justify-center gap-2"
-                >
-                  {completing ? (
-                    <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-6 w-6" />
-                      {isCafeRestaurant && selectedTable !== null 
-                        ? (lang === 'tr' ? 'Hesabı Kapat / Öde' : 'Close Table & Pay') 
-                        : (lang === 'tr' ? 'Satışı Tamamla' : 'Complete Sale')}
-                    </>
-                  )}
-                </button>
+                    {isCafeRestaurant && selectedTable !== null && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          disabled={cart.length === 0 || completing}
+                          onClick={handleSaveToTable}
+                          className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+                        >
+                          <Coffee className="h-4 w-4" />
+                          {lang === 'tr' ? 'Adisyona Kaydet' : 'Save to Table'}
+                        </button>
+                        <button
+                          disabled={activeSaleId === null || completing}
+                          onClick={() => setIsChangingTable(true)}
+                          className="w-full py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+                        >
+                          <ArrowLeftRight className="h-4 w-4" />
+                          {lang === 'tr' ? 'Masa Değiştir' : 'Change Table'}
+                        </button>
+                      </div>
+                    )}
+
+                    <button 
+                      disabled={cart.length === 0 || completing}
+                      onClick={handleFinalizeSale}
+                      className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-slate-200 flex items-center justify-center gap-2"
+                    >
+                      {completing ? (
+                        <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-6 w-6" />
+                          {isCafeRestaurant && selectedTable !== null 
+                            ? (lang === 'tr' ? 'Hesabı Kapat / Öde' : 'Close Table & Pay') 
+                            : (lang === 'tr' ? 'Satışı Tamamla' : 'Complete Sale')}
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1611,7 +1648,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
 
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6 flex items-center justify-center">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + "/s/" + (branding?.slug || ""))}`} 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + "/digital-menu/" + storeId + "/" + (selectedTable || "1"))}`} 
                       alt="Digital Menu QR" 
                       className="h-48 w-48 object-contain"
                     />

@@ -459,6 +459,7 @@ export const EditStoreModal: React.FC<{
           <option value="product">Ürün & Perakende (Standart Satış)</option>
           <option value="real_estate">Emlak (Gayrimenkul)</option>
           <option value="motor_vehicle">Motorlu Taşıtlar (Oto, Moto, Deniz, İş, Tarım)</option>
+          <option value="cafe_restaurant">Cafe & Restaurant</option>
         </select>
 
         {store.store_type === 'motor_vehicle' && (
@@ -718,6 +719,19 @@ export const AddStoreModal: React.FC<{
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{st.storeInformation}</h3>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">Mağaza Türü</label>
+                  <select 
+                    className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                    value={newStore.store_type || "product"} 
+                    onChange={e => setNewStore({...newStore, store_type: e.target.value as any})}
+                  >
+                    <option value="product">Ürün & Perakende (Standart Satış)</option>
+                    <option value="real_estate">Emlak (Gayrimenkul)</option>
+                    <option value="motor_vehicle">Motorlu Taşıtlar (Oto, Moto, Deniz, İş, Tarım)</option>
+                    <option value="cafe_restaurant">Cafe & Restaurant</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700">{st.storeName}</label>
                   <input required className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} placeholder="e.g. Migros" />

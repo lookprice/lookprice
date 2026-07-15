@@ -31,6 +31,7 @@ const Marketplace = React.lazy(() => import("./pages/Marketplace").then(m => ({ 
 const StoreDashboard = React.lazy(() => import("./pages/StoreDashboard/index"));
 const LegalPage = React.lazy(() => import("./pages/Legal"));
 const ContractSignPage = React.lazy(() => import("./pages/ContractSignPage"));
+const DigitalMenuPage = React.lazy(() => import("./pages/DigitalMenu"));
 
 const SuspenseLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -206,6 +207,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             <Route path="/contract/sign/:id" element={<ContractSignPage />} />
+            <Route path="/digital-menu/:storeId/:tableId" element={<DigitalMenuPage />} />
             <Route path="/privacy" element={<LegalPage type="privacy" />} />
             <Route path="/terms" element={<LegalPage type="terms" />} />
             <Route path="/data-deletion" element={<LegalPage type="deletion" />} />
@@ -242,6 +244,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             <Route path="/contract/sign/:id" element={<ContractSignPage />} />
+            <Route path="/digital-menu/:storeId/:tableId" element={<DigitalMenuPage />} />
             <Route path="/privacy" element={<LegalPage type="privacy" />} />
             <Route path="/terms" element={<LegalPage type="terms" />} />
             <Route path="/data-deletion" element={<LegalPage type="deletion" />} />
