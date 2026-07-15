@@ -35,12 +35,19 @@ export class InstagramService {
     }
 
     try {
+      // Ensure the image URL is a fully qualified absolute URL
+      let finalImageUrl = imageUrl;
+      if (imageUrl && !imageUrl.startsWith("http://") && !imageUrl.startsWith("https://")) {
+        const domain = process.env.APP_URL || "https://www.enrakipsiz.com";
+        finalImageUrl = `${domain.replace(/\/$/, "")}/${imageUrl.replace(/^\//, "")}`;
+      }
+
       // 1. Create Media Container
       // Reference: https://developers.facebook.com/docs/instagram-api/reference/ig-user/media#creating
       const containerRes = await axios.post(
         `https://graph.facebook.com/v19.0/${businessAccountId}/media`,
         {
-          image_url: imageUrl,
+          image_url: finalImageUrl,
           caption: caption,
           access_token: accessToken,
         }
@@ -68,25 +75,137 @@ export class InstagramService {
   }
 
   /**
+   * Helper to strip HTML tags and decode HTML entities from descriptions
+   */
+  private static stripHtml(html: string): string {
+    if (!html) return "";
+    
+    // 1. Decode basic entities first
+    let text = html
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&deg;/gi, "°");
+
+    // 2. Replace block tags with space/newlines to avoid fusing words
+    text = text.replace(/<\/(p|div|h[1-6])>/gi, "\n");
+    text = text.replace(/<(br|hr)\s*\/?>/gi, "\n");
+    
+    // 3. Strip remaining tags
+    text = text.replace(/<[^>]*>/g, "");
+    
+    // 4. Normalize
+    text = text.replace(/[ \t]+/g, " ");
+    text = text.replace(/\n\s*\n+/g, "\n\n");
+    return text.trim();
+  }
+
+  /**
+   * Translitterates and sanitizes a string to make it a clean hashtag
+   */
+  private static toHashtag(str: string): string {
+    if (!str) return "";
+    return str
+      .toLowerCase()
+      .replace(/ı/g, "i")
+      .replace(/ğ/g, "g")
+      .replace(/ü/g, "u")
+      .replace(/ş/g, "s")
+      .replace(/ö/g, "o")
+      .replace(/ç/g, "c")
+      .replace(/[^a-z0-9]/g, "");
+  }
+
+  /**
+   * Main function to post to Instagram (Single or Carousel)
+   */
+  static async postToInstagram(accessToken: string, instagramUserId: string, imageUrls: string[], caption: string) {
+    if (imageUrls.length === 0) throw new Error("No images provided");
+
+    // 1. Ensure absolute URLs
+    const domain = process.env.APP_URL || "https://www.enrakipsiz.com";
+    const absoluteUrls = imageUrls.map(url => 
+        url.startsWith("http") ? url : `${domain.replace(/\/$/, "")}/${url.replace(/^\//, "")}`
+    );
+
+    if (absoluteUrls.length === 1) {
+        // Single Image Post
+        const containerRes = await axios.post(
+            `https://graph.facebook.com/v20.0/${instagramUserId}/media`,
+            { image_url: absoluteUrls[0], caption, access_token: accessToken }
+        );
+        return await this.publishMedia(instagramUserId, containerRes.data.id, accessToken);
+    } else {
+        // Carousel Post
+        const childContainerIds = await Promise.all(absoluteUrls.map(async (url) => {
+            const res = await axios.post(
+                `https://graph.facebook.com/v20.0/${instagramUserId}/media`,
+                { image_url: url, is_carousel_item: true, access_token: accessToken }
+            );
+            return res.data.id;
+        }));
+
+        const carouselContainerRes = await axios.post(
+            `https://graph.facebook.com/v20.0/${instagramUserId}/media`,
+            { 
+                media_type: 'CAROUSEL', 
+                children: childContainerIds.join(','), 
+                caption, 
+                access_token: accessToken 
+            }
+        );
+        return await this.publishMedia(instagramUserId, carouselContainerRes.data.id, accessToken);
+    }
+  }
+
+  private static async publishMedia(instagramUserId: string, creationId: string, accessToken: string) {
+      return await axios.post(
+          `https://graph.facebook.com/v20.0/${instagramUserId}/media_publish`,
+          { creation_id: creationId, access_token: accessToken }
+      );
+  }
+
+  /**
    * Generates a caption based on vehicle/property data
    */
   static generateCaption(item: any, type: 'vehicle' | 'property', storeName: string) {
+    const cleanDesc = this.stripHtml(item.description || "");
+    const descExcerpt = cleanDesc.length > 250 
+      ? cleanDesc.substring(0, 250) + "..." 
+      : cleanDesc;
+
+    const brandTag = type === 'vehicle' ? this.toHashtag(item.brand || "arac") : "";
+    const storeTag = this.toHashtag(storeName || "seckin");
+
     if (type === 'vehicle') {
-      return `🚗 ${item.brand} ${item.model} (${item.year})\n\n` +
-             `💰 Fiyat: ${item.selling_price} ${item.currency}\n` +
-             `📍 Kilometre: ${item.current_mileage} km\n` +
-             `⚙️ Şanzıman: ${item.transmission}\n` +
-             `⛽ Yakıt: ${item.fuel_type}\n\n` +
-             `${item.description ? item.description.substring(0, 100) + '...' : ''}\n\n` +
-             `#enrakipsiz #otogaleri #satilikarac #${item.brand.replace(/\s+/g, '')} #${storeName.replace(/\s+/g, '')}`;
+      const fuelText = item.fuel_type || "Belirtilmedi";
+      const transText = item.transmission || "Belirtilmedi";
+      const priceText = item.selling_price ? `${item.selling_price} ${item.currency || 'TRY'}` : "Görüşülecek";
+      const kmText = item.current_mileage !== undefined ? `${item.current_mileage} km` : "Belirtilmedi";
+
+      return `🚗 ${item.brand || ''} ${item.model || ''} (${item.year || ''})\n\n` +
+             `💰 Fiyat: ${priceText}\n` +
+             `📍 Kilometre: ${kmText}\n` +
+             `⚙️ Şanzıman: ${transText}\n` +
+             `⛽ Yakıt: ${fuelText}\n\n` +
+             `${descExcerpt ? descExcerpt + '\n\n' : ''}` +
+             `#enrakipsiz #otogaleri #satilikarac${brandTag ? ' #' + brandTag : ''}${storeTag ? ' #' + storeTag : ''}`;
     } else {
-      return `🏠 ${item.title}\n\n` +
-             `💰 Fiyat: ${item.price} ${item.currency}\n` +
-             `📍 Konum: ${item.location}\n` +
-             `📐 Alan: ${item.square_meters} m²\n` +
-             `🛏️ Oda: ${item.room_count}\n\n` +
-             `${item.description ? item.description.substring(0, 100) + '...' : ''}\n\n` +
-             `#enrakipsiz #emlak #satilikdaire #gayrimenkul #${storeName.replace(/\s+/g, '')}`;
+      const priceText = item.price ? `${item.price} ${item.currency || 'TRY'}` : "Görüşülecek";
+      const locationText = item.location || item.kktc_region || "Kıbrıs";
+      const areaText = item.square_meters ? `${item.square_meters} m²` : "Belirtilmedi";
+      const roomText = item.room_count || "Belirtilmedi";
+
+      return `🏠 ${item.title || 'Lüks Gayrimenkul Fırsatı'}\n\n` +
+             `💰 Fiyat: ${priceText}\n` +
+             `📍 Konum: ${locationText}\n` +
+             `📐 Alan: ${areaText}\n` +
+             `🛏️ Oda: ${roomText}\n\n` +
+             `${descExcerpt ? descExcerpt + '\n\n' : ''}` +
+             `#enrakipsiz #emlak #satilikdaire #gayrimenkul${storeTag ? ' #' + storeTag : ''}`;
     }
   }
 }

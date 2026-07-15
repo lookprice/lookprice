@@ -75,34 +75,49 @@ const FastPosTab = ({ storeId, onSaleComplete, branding }: FastPosTabProps) => {
   }, []);
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
+    const fetchAllProducts = async () => {
+      setLoading(true);
+      try {
+        const res = await api.getProducts("", storeId);
+        const products = Array.isArray(res) ? res : [];
+        setSearchResults(products);
+      } catch (error) {
+        console.error("Fetch all products error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAllProducts();
+  }, [storeId]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
       if (searchTerm.length >= 2) {
-        handleSearch();
-      } else {
-        setSearchResults([]);
+        try {
+          const res = await api.getProducts(searchTerm, storeId);
+          const products = Array.isArray(res) ? res : [];
+          setSearchResults(products);
+          
+          // If exact barcode match, add to cart immediately
+          const exactMatch = products.find((p: any) => p.barcode === searchTerm);
+          if (exactMatch) {
+            addToCart(exactMatch);
+            setSearchTerm("");
+          }
+        } catch (error) {
+          console.error("Search error:", error);
+          setSearchResults([]);
+        }
+      } else if (searchTerm.length === 0) {
+        // Reset to all products if search term is cleared
+        const res = await api.getProducts("", storeId);
+        setSearchResults(Array.isArray(res) ? res : []);
       }
-    }, 300);
+    };
 
+    const delayDebounceFn = setTimeout(fetchProducts, 300);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
-
-  const handleSearch = async () => {
-    try {
-      const res = await api.getProducts(searchTerm, storeId);
-      const products = Array.isArray(res) ? res : [];
-      setSearchResults(products);
-      
-      // If exact barcode match, add to cart immediately
-      const exactMatch = products.find((p: any) => p.barcode === searchTerm);
-      if (exactMatch) {
-        addToCart(exactMatch);
-        setSearchTerm("");
-      }
-    } catch (error) {
-      console.error("Search error:", error);
-      setSearchResults([]);
-    }
-  };
+  }, [searchTerm, storeId]);
 
   const getExchangeRate = (currency: string) => {
     if (!currency || currency === (branding?.default_currency || 'TRY')) return 1;

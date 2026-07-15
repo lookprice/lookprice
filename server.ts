@@ -307,6 +307,31 @@ function sanitizeFilename(originalName: string): string {
   app.use("/api/instagram", instagramRoutes);
   app.use("/api", einvoiceRoutes);
 
+  // Special case: Single Blog Post getter for dashboard
+  app.get("/api/blog-posts/:id", authenticate, async (req: any, res) => {
+    const blogId = req.params.id;
+    const requestedId = req.query.storeId;
+    const currentStoreId = req.user.store_id;
+    let storeId = currentStoreId;
+    if (req.user.role === "superadmin" && requestedId) {
+      storeId = parseInt(requestedId as string);
+    }
+
+    try {
+      const result = await pool.query(
+        "SELECT * FROM blog_posts WHERE id = $1 AND store_id = $2",
+        [blogId, storeId]
+      );
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Yazı bulunamadı." });
+      }
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      console.error("Error fetching single blog post:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // CRM: Tickets (Special case, mounted at /api/tickets)
   app.get("/api/tickets", authenticate, async (req: any, res) => {
     try {
