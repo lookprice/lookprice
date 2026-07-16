@@ -49,6 +49,7 @@ export interface Product {
   is_trade_in_available?: boolean;
   market_story?: string;
   technical_description?: string;
+  tags?: string;
   created_at: string;
   updated_at: string;
 }
@@ -136,6 +137,7 @@ export interface Store {
     theme?: 'modern' | 'minimal' | 'bold';
     theme_variety?: 'modern' | 'minimal' | 'bold' | 'luxury';
     sector?: string;
+    table_count?: number;
   };
   menu_links?: any[];
   footer_links?: any[];

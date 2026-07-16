@@ -247,13 +247,15 @@ export const DashboardSidebar = ({
           </nav>
           
           <div className="p-4 md:p-6 border-t border-white/5 bg-slate-900/30">
-            <button
-              onClick={() => setShowQrModal(true)}
-              className="flex w-full items-center justify-center space-x-2 py-3 mb-3 md:mb-4 rounded-2xl text-[10px] md:text-xs font-black text-indigo-400 hover:bg-indigo-600/10 transition-all border border-indigo-500/20 group uppercase tracking-[0.1em]"
-            >
-              <QrCode className="h-4 w-4 md:h-3 md:w-3" />
-              <span>{t.storeQR || "QR Kodu"}</span>
-            </button>
+            {!isCafeRestaurant && (
+              <button
+                onClick={() => setShowQrModal(true)}
+                className="flex w-full items-center justify-center space-x-2 py-3 mb-3 md:mb-4 rounded-2xl text-[10px] md:text-xs font-black text-indigo-400 hover:bg-indigo-600/10 transition-all border border-indigo-500/20 group uppercase tracking-[0.1em]"
+              >
+                <QrCode className="h-4 w-4 md:h-3 md:w-3" />
+                <span>{t.storeQR || "QR Kodu"}</span>
+              </button>
+            )}
             <button
               onClick={onLogout}
               className="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl text-[10px] md:text-xs font-black text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/20 group uppercase tracking-[0.1em]"

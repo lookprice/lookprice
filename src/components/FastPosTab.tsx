@@ -70,6 +70,24 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [transferLoading, setTransferLoading] = useState(false);
   const [allTables, setAllTables] = useState<any[]>([]);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [qrModalTab, setQrModalTab] = useState<'single' | 'all' | 'manage'>('single');
+  const [newTableCount, setNewTableCount] = useState<number>(branding?.page_layout_settings?.table_count || 12);
+  const [savingTableCount, setSavingTableCount] = useState(false);
+  const [singleQrTable, setSingleQrTable] = useState<string>("1");
+
+  useEffect(() => {
+    if (selectedTable) {
+      setSingleQrTable(selectedTable);
+    } else if (allTables.length > 0) {
+      setSingleQrTable(allTables[0].table_number);
+    }
+  }, [selectedTable, allTables]);
+
+  useEffect(() => {
+    if (branding?.page_layout_settings?.table_count) {
+      setNewTableCount(branding.page_layout_settings.table_count);
+    }
+  }, [branding]);
 
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -291,9 +309,10 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }
   };
 
-  const handlePrintQr = () => {
-    const printContent = document.getElementById("pos-qr-card-printable-content");
-    if (!printContent) return;
+  const handlePrintSingleQr = (tableNum: string) => {
+    const cleanNum = tableNum.replace(/Masa/gi, '').trim();
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + "/digital-menu/" + storeId + "/" + cleanNum)}`;
+    const storeTitle = branding?.store_name || branding?.name || 'Seçkin Restoran';
     
     const iframe = document.createElement("iframe");
     iframe.style.position = "absolute";
@@ -308,7 +327,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       doc.write(`
         <html>
           <head>
-            <title>Dijital Menü QR Kodu</title>
+            <title>Masa ${cleanNum} QR Kodu</title>
             <style>
               body { 
                 font-family: system-ui, -apple-system, sans-serif; 
@@ -319,49 +338,85 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 text-align: center; 
                 padding: 40px; 
                 color: #0f172a; 
+                background: white;
               }
               .card { 
                 border: 3px solid #e2e8f0; 
                 border-radius: 24px; 
                 padding: 40px; 
-                max-width: 400px; 
-                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
+                max-width: 320px; 
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); 
+                display: flex;
+                flex-direction: column;
+                align-items: center;
               }
               .logo { 
-                max-height: 60px; 
-                margin-bottom: 20px; 
+                font-size: 18px;
+                font-weight: 800;
+                color: #0f172a;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 280px;
               }
               h2 { 
-                font-size: 24px; 
-                font-weight: 800; 
-                margin: 0 0 8px 0; 
+                font-size: 32px; 
+                font-weight: 900; 
+                color: #e11d48;
+                margin: 6px 0; 
                 text-transform: uppercase; 
                 letter-spacing: -0.5px; 
               }
-              p { 
-                font-size: 14px; 
+              p.menu-sub { 
+                font-size: 12px; 
                 color: #64748b; 
-                margin: 0 0 24px 0; 
-                font-weight: 500; 
+                margin: 0 0 20px 0; 
+                font-weight: 700; 
+                letter-spacing: 1.5px;
               }
-              .qr { 
-                width: 250px; 
-                height: 250px; 
-                margin: 0 auto; 
+              .qr-container {
+                background: #f8fafc;
+                padding: 16px;
+                border-radius: 20px;
+                border: 1px solid #e2e8f0;
+                margin-bottom: 20px;
+              }
+              .qr-container img { 
+                width: 200px; 
+                height: 200px; 
+                display: block;
+              }
+              p.instructions {
+                font-size: 12px;
+                color: #475569;
+                font-weight: 600;
+                line-height: 1.4;
+                margin: 0 0 16px 0;
+                max-width: 240px;
               }
               .footer { 
-                font-size: 10px; 
+                font-size: 9px; 
                 color: #94a3b8; 
-                margin-top: 30px; 
                 text-transform: uppercase; 
-                font-weight: 700; 
+                font-weight: 800; 
                 letter-spacing: 1px; 
               }
             </style>
           </head>
           <body>
             <div class="card">
-              \${printContent.innerHTML}
+              <div class="logo">${storeTitle}</div>
+              <h2>MASA ${cleanNum}</h2>
+              <p class="menu-sub">DİJİTAL MENÜ</p>
+              <div class="qr-container">
+                <img src="${qrUrl}" alt="Masa ${cleanNum}" />
+              </div>
+              <p class="instructions">
+                \${lang === 'tr' ? 'Menüyü incelemek ve sipariş vermek için QR kodu cep telefonunuzla taratın.' : 'Scan the QR code with your phone to view menu and order.'}
+              </p>
+              <div class="footer">POWERED BY LOOKPRICE</div>
             </div>
             <script>
               window.onload = function() {
@@ -376,6 +431,187 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       `);
       doc.close();
     }
+  };
+
+  const handlePrintAllQrs = () => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      
+      const tablesHtml = allTables.map((table) => {
+        const cleanNum = table.table_number.replace(/Masa/gi, '').trim();
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + "/digital-menu/" + storeId + "/" + cleanNum)}`;
+        return `
+          <div class="qr-card">
+            <div class="logo-text">${branding?.store_name || branding?.name || 'Seçkin Restoran'}</div>
+            <div class="table-title">MASA ${cleanNum}</div>
+            <div class="subtitle">DİJİTAL MENÜ</div>
+            <div class="qr-container">
+              <img src="${qrUrl}" alt="Masa ${cleanNum}" />
+            </div>
+            <div class="instructions">
+              \${lang === 'tr' ? 'Menüyü incelemek ve sipariş vermek için QR kodu cep telefonunuzla taratın.' : 'Scan the QR code with your phone to view menu and order.'}
+            </div>
+            <div class="footer-powered">POWERED BY LOOKPRICE</div>
+          </div>
+        `;
+      }).join('');
+
+      doc.write(`
+        <html>
+          <head>
+            <title>Tüm Masalar QR Kodları</title>
+            <style>
+              @media print {
+                body {
+                  margin: 0;
+                  padding: 0;
+                  background: white;
+                }
+                .page {
+                  page-break-after: always;
+                }
+              }
+              body { 
+                font-family: system-ui, -apple-system, sans-serif; 
+                background-color: #f8fafc;
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 24px;
+                justify-content: center;
+              }
+              .qr-card { 
+                background: white;
+                border: 3px solid #e2e8f0; 
+                border-radius: 20px; 
+                padding: 30px; 
+                width: 280px; 
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: space-between;
+                box-sizing: border-box;
+                page-break-inside: avoid;
+              }
+              .logo-text { 
+                font-size: 16px;
+                font-weight: 800;
+                color: #0f172a;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 240px;
+              }
+              .table-title { 
+                font-size: 26px; 
+                font-weight: 900; 
+                color: #e11d48;
+                margin: 4px 0;
+                letter-spacing: -0.5px; 
+              }
+              .subtitle {
+                font-size: 11px;
+                font-weight: 700;
+                color: #64748b;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+                margin-bottom: 12px;
+              }
+              .qr-container { 
+                background-color: #f8fafc;
+                padding: 12px;
+                border-radius: 16px;
+                border: 1px solid #f1f5f9;
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
+              .qr-container img {
+                width: 180px; 
+                height: 180px; 
+                display: block;
+              }
+              .instructions { 
+                font-size: 11px; 
+                color: #475569; 
+                margin: 0 0 12px 0; 
+                font-weight: 600; 
+                line-height: 1.4;
+                max-width: 220px;
+              }
+              .footer-powered { 
+                font-size: 8px; 
+                color: #94a3b8; 
+                text-transform: uppercase; 
+                font-weight: 800; 
+                letter-spacing: 1px; 
+              }
+            </style>
+          </head>
+          <body>
+            ${tablesHtml}
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(function() {
+                  window.frameElement.remove();
+                }, 100);
+              }
+            </script>
+          </body>
+        </html>
+      `);
+      doc.close();
+    }
+  };
+
+  const handleSaveTableCount = async () => {
+    if (newTableCount < 1 || newTableCount > 200) {
+      toast.error(lang === 'tr' ? "Lütfen 1 ile 200 arasında bir masa sayısı girin." : "Please enter a table count between 1 and 200.");
+      return;
+    }
+    setSavingTableCount(true);
+    try {
+      const updatedBranding = {
+        ...(branding || {}),
+        page_layout_settings: {
+          ...(branding?.page_layout_settings || {}),
+          table_count: newTableCount
+        }
+      };
+      await api.updateBranding(updatedBranding, storeId);
+      toast.success(lang === 'tr' ? "Masa sayısı başarıyla güncellendi." : "Table count updated successfully.");
+      
+      // Refresh the table list from server
+      const tablesRes = await api.getRestaurantTables(storeId!);
+      if (Array.isArray(tablesRes)) {
+        setAllTables(tablesRes);
+        setTablesRefreshTrigger(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error("Error updating table count:", err);
+      toast.error(lang === 'tr' ? "Masa sayısı güncellenirken hata oluştu." : "Error updating table count.");
+    } finally {
+      setSavingTableCount(false);
+    }
+  };
+
+  const handlePrintQr = () => {
+    handlePrintSingleQr(singleQrTable);
   };
 
   useEffect(() => {
@@ -1758,7 +1994,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col border border-slate-100"
+              className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col border border-slate-100 max-h-[90vh]"
             >
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -1767,7 +2003,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                     <Coffee className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-slate-800 text-base">{lang === 'tr' ? 'Dijital Menü QR Kodu' : 'Digital Menu QR Code'}</h3>
+                    <h3 className="font-extrabold text-slate-800 text-base">
+                      {lang === 'tr' ? 'Masalar & Dijital Menü QR Kodları' : 'Tables & Digital Menu QR Codes'}
+                    </h3>
                     <p className="text-xs text-slate-400 font-semibold">{branding?.store_name || branding?.name || 'LOOKPRICE'}</p>
                   </div>
                 </div>
@@ -1780,51 +2018,237 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 </button>
               </div>
 
+              {/* Navigation Tabs */}
+              <div className="flex border-b border-slate-100 bg-slate-50/30 p-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQrModalTab('single')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                    qrModalTab === 'single'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  }`}
+                >
+                  {lang === 'tr' ? 'Tek Masa QR' : 'Single Table QR'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQrModalTab('all')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                    qrModalTab === 'all'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  }`}
+                >
+                  {lang === 'tr' ? 'Tüm Masalar Kataloğu' : 'All Tables Catalogue'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQrModalTab('manage')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                    qrModalTab === 'manage'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  }`}
+                >
+                  {lang === 'tr' ? 'Masa Sayısı & Yönetimi' : 'Table Count & Management'}
+                </button>
+              </div>
+
               {/* Modal Body */}
-              <div className="p-8 flex flex-col items-center justify-center bg-slate-50/50">
-                <div id="pos-qr-card-printable-content" className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm text-center flex flex-col items-center max-w-xs w-full">
-                  {branding?.logo_url ? (
-                    <img src={branding.logo_url} alt="" className="max-h-12 max-w-full mb-4 object-contain" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="h-12 w-12 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 flex items-center justify-center mb-4 font-black text-lg">
-                      {branding?.store_name?.[0] || branding?.name?.[0] || 'M'}
+              <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                {qrModalTab === 'single' && (
+                  <div className="flex flex-col items-center">
+                    <div className="w-full max-w-sm mb-6">
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">
+                        {lang === 'tr' ? 'Yazdırılacak Masayı Seçin' : 'Select Table to Print'}
+                      </label>
+                      <select
+                        value={singleQrTable}
+                        onChange={(e) => setSingleQrTable(e.target.value)}
+                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl font-bold text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all cursor-pointer"
+                      >
+                        {allTables.map((t) => (
+                          <option key={t.id} value={t.table_number}>
+                            {lang === 'tr' ? `Masa ${t.table_number}` : `Table ${t.table_number}`}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  )}
-                  <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-1 text-center">
-                    {branding?.store_name || branding?.name || 'Seçkin Restoran'}
-                  </h4>
-                  <p className="text-xs text-slate-400 font-bold mb-6 text-center tracking-wide uppercase">
-                    {lang === 'tr' ? 'DİJİTAL MENÜ' : 'DIGITAL MENU'}
-                  </p>
 
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6 flex items-center justify-center">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + "/digital-menu/" + storeId + "/" + (selectedTable || "1"))}`} 
-                      alt="Digital Menu QR" 
-                      className="h-48 w-48 object-contain"
-                    />
+                    <div id="pos-qr-card-printable-content" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center flex flex-col items-center max-w-xs w-full">
+                      {branding?.logo_url ? (
+                        <img src={branding.logo_url} alt="" className="max-h-12 max-w-full mb-3 object-contain" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 flex items-center justify-center mb-3 font-black text-base">
+                          {branding?.store_name?.[0] || branding?.name?.[0] || 'M'}
+                        </div>
+                      )}
+                      <h4 className="text-base font-black text-slate-800 uppercase tracking-tight mb-1 text-center truncate max-w-full">
+                        {branding?.store_name || branding?.name || 'Seçkin Restoran'}
+                      </h4>
+                      <h3 className="text-xl font-black text-rose-600 mb-2">
+                        {lang === 'tr' ? `MASA ${singleQrTable.replace(/Masa/gi, '').trim()}` : `TABLE ${singleQrTable.replace(/Masa/gi, '').trim()}`}
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-bold mb-4 text-center tracking-wide uppercase">
+                        {lang === 'tr' ? 'DİJİTAL MENÜ' : 'DIGITAL MENU'}
+                      </p>
+
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4 flex items-center justify-center">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + "/digital-menu/" + storeId + "/" + singleQrTable.replace(/Masa/gi, '').trim())}`} 
+                          alt="Digital Menu QR" 
+                          className="h-36 w-36 object-contain"
+                        />
+                      </div>
+
+                      <p className="text-[11px] font-bold text-slate-500 leading-relaxed text-center">
+                        {lang === 'tr' ? 'Sipariş vermek ve menüyü incelemek için cep telefonunuzla taratın.' : 'Scan with your phone to view menu and order.'}
+                      </p>
+                      
+                      <span className="text-[8px] text-slate-300 font-black mt-4 tracking-widest uppercase">
+                        POWERED BY LOOKPRICE
+                      </span>
+                    </div>
                   </div>
+                )}
 
-                  <p className="text-xs font-bold text-slate-500 max-w-[200px] leading-relaxed text-center">
-                    {lang === 'tr' ? 'Menümüzü incelemek için QR kodu cep telefonunuzla taratın.' : 'Scan the QR code with your phone to view our menu.'}
-                  </p>
-                  
-                  <span className="text-[9px] text-slate-300 font-black mt-4 tracking-widest uppercase">
-                    POWERED BY LOOKPRICE
-                  </span>
-                </div>
+                {qrModalTab === 'all' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-700">
+                          {lang === 'tr' ? 'Tüm Masa QR Kartları' : 'All Table QR Cards'}
+                        </h4>
+                        <p className="text-xs text-slate-400 font-medium mt-0.5">
+                          {lang === 'tr' ? `${allTables.length} masanın tamamına ait QR katalog çıktılarını alın.` : `Get QR catalogue printouts for all ${allTables.length} tables.`}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handlePrintAllQrs}
+                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all flex items-center gap-2 shadow-sm shadow-indigo-100 active:scale-95"
+                      >
+                        <Printer className="h-4 w-4" />
+                        {lang === 'tr' ? 'Hepsini Yazdır (A4)' : 'Print All (A4)'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto pr-1">
+                      {allTables.map((table) => {
+                        const cleanNum = table.table_number.replace(/Masa/gi, '').trim();
+                        return (
+                          <div 
+                            key={table.id}
+                            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-rose-200 transition-all flex flex-col items-center text-center relative group"
+                          >
+                            <h5 className="font-extrabold text-xs text-slate-400 tracking-wider mb-1 uppercase">
+                              {lang === 'tr' ? `MASA ${cleanNum}` : `TABLE ${cleanNum}`}
+                            </h5>
+                            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 mb-3 flex items-center justify-center">
+                              <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(window.location.origin + "/digital-menu/" + storeId + "/" + cleanNum)}`} 
+                                alt="" 
+                                className="h-20 w-20 object-contain"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handlePrintSingleQr(cleanNum)}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 w-full justify-center"
+                            >
+                              <Printer className="h-3 w-3" />
+                              {lang === 'tr' ? 'Yazdır' : 'Print'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {qrModalTab === 'manage' && (
+                  <div className="flex flex-col items-center py-4">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-md w-full text-center">
+                      <div className="h-12 w-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 border border-rose-100 mx-auto mb-4">
+                        <Coffee className="h-6 w-6" />
+                      </div>
+                      <h4 className="font-extrabold text-slate-800 text-lg mb-2">
+                        {lang === 'tr' ? 'Masa Sayısını Arttırın / Azaltın' : 'Increase / Decrease Table Count'}
+                      </h4>
+                      <p className="text-xs text-slate-400 font-medium leading-relaxed mb-6">
+                        {lang === 'tr' 
+                          ? 'Masa sayısını güncellediğinizde sistem yeni masaları otomatik olarak ekler ve QR kodlarını anında oluşturur. Mevcut siparişi (doluluğu) olan masalar korunur.'
+                          : 'When you update the table count, the system automatically adds new tables and creates QR codes instantly. Tables with active orders remain protected.'}
+                      </p>
+
+                      <div className="flex items-center justify-center gap-6 mb-8">
+                        <button
+                          type="button"
+                          onClick={() => setNewTableCount(prev => Math.max(1, prev - 1))}
+                          className="h-12 w-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all font-black text-xl active:scale-95"
+                        >
+                          <Minus className="h-5 w-5" />
+                        </button>
+                        <span className="text-4xl font-black text-slate-800 tracking-tight font-sans min-w-[80px]">
+                          {newTableCount}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setNewTableCount(prev => Math.min(200, prev + 1))}
+                          className="h-12 w-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all font-black text-xl active:scale-95"
+                        >
+                          <Plus className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleSaveTableCount}
+                        disabled={savingTableCount}
+                        className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-rose-100 flex items-center justify-center gap-2 active:scale-95"
+                      >
+                        {savingTableCount ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            {lang === 'tr' ? 'Masalar Güncelleniyor...' : 'Updating Tables...'}
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="h-4 w-4" />
+                            {lang === 'tr' ? 'Masa Sayısını Güncelle & Kaydet' : 'Update & Save Table Count'}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Modal Footer */}
               <div className="p-6 border-t border-slate-100 flex gap-3 bg-slate-50/50">
+                {qrModalTab === 'single' && (
+                  <button 
+                    type="button"
+                    onClick={handlePrintQr}
+                    className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+                  >
+                    <Printer className="h-4 w-4" />
+                    {lang === 'tr' ? 'Seçili Masayı Yazdır' : 'Print Selected Table'}
+                  </button>
+                )}
+                {qrModalTab === 'all' && (
+                  <button 
+                    type="button"
+                    onClick={handlePrintAllQrs}
+                    className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+                  >
+                    <Printer className="h-4 w-4" />
+                    {lang === 'tr' ? 'Tüm Kataloğu Yazdır (A4)' : 'Print All Catalogue (A4)'}
+                  </button>
+                )}
                 <button 
-                  onClick={handlePrintQr}
-                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
-                >
-                  <Printer className="h-4 w-4" />
-                  {lang === 'tr' ? 'QR Kartını Yazdır' : 'Print QR Card'}
-                </button>
-                <button 
+                  type="button"
                   onClick={() => setShowQrModal(false)}
                   className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all active:scale-[0.98]"
                 >

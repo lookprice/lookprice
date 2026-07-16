@@ -15,6 +15,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/translations";
 import { ModernRealEstateLayout } from "../components/ModernRealEstateLayout";
 import { ModernAutomotiveLayout } from "../components/ModernAutomotiveLayout";
+import { ModernCafeRestaurantLayout } from "../components/ModernCafeRestaurantLayout";
 import ErrorBoundary from "../components/ErrorBoundary";
 
 // Types
@@ -531,6 +532,33 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   const storeType = getStoreType(store);
   const isPortfolio = storeType === "real_estate" || storeType === "automotive";
+  const isCafeRestaurant = storeType === "cafe_restaurant" || sector === "cafe_restaurant";
+
+  if (isCafeRestaurant) {
+    return (
+      <ErrorBoundary lang={lang}>
+        <div className="relative min-h-screen bg-stone-50 overflow-x-hidden font-sans">
+          <ModernCafeRestaurantLayout
+            store={store}
+            products={products}
+            onViewProduct={setSelectedProduct}
+            lang={lang}
+            t={t}
+          />
+          <AnimatePresence>
+            {selectedProduct && (
+              <ProductDetailModal
+                product={selectedProduct} store={store} t={t} slug={slug}
+                onClose={() => setSelectedProduct(null)} addToBasket={addToBasket}
+                primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
+                showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
+              />
+            )}
+          </AnimatePresence>
+        </div>
+      </ErrorBoundary>
+    );
+  }
 
   if (isPortfolio) {
     return (

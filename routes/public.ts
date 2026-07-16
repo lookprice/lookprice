@@ -2266,22 +2266,59 @@ router.post("/pos/sale", async (req: any, res) => {
       }
     }
 
-    const saleRes = await client.query(
-      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes, restaurant_table_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
-      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, resolvedCustomerName, paymentMethod || 'cash', finalNotes, resolvedTableId]
-    );
-    const saleId = saleRes.rows[0].id;
-
-    // Update table status to occupied in database if pending
+    // Check if there is an existing pending sale for this table
+    let existingSaleId = null;
+    let existingTotal = 0;
+    
     if (saleStatus === 'pending') {
+      let existingSaleRes = { rows: [] as any[] };
       if (resolvedTableId) {
-        await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
+        existingSaleRes = await client.query(
+          "SELECT id, total_amount FROM sales WHERE store_id = $1 AND restaurant_table_id = $2 AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+          [storeId, resolvedTableId]
+        );
       } else if (tableNumber) {
         const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
-        await client.query(
-          "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
-          [storeId, tableNumber.toString(), cleanNum]
+        existingSaleRes = await client.query(
+          "SELECT id, total_amount FROM sales WHERE store_id = $1 AND status = 'pending' AND (customer_name = $2 OR customer_name = $3 OR customer_name = $4) ORDER BY created_at DESC LIMIT 1",
+          [storeId, `Masa ${cleanNum}`, cleanNum, tableNumber.toString()]
         );
+      }
+      
+      if (existingSaleRes.rows.length > 0) {
+        existingSaleId = existingSaleRes.rows[0].id;
+        existingTotal = Number(existingSaleRes.rows[0].total_amount);
+      }
+    }
+
+    let saleId = existingSaleId;
+
+    if (existingSaleId) {
+      // Append to existing pending sale
+      const newTotal = existingTotal + Number(total || 0);
+      await client.query(
+        "UPDATE sales SET total_amount = $1, notes = COALESCE(notes, '') || '\n' || $2 WHERE id = $3",
+        [newTotal, `Ek Sipariş: ${finalNotes}`, existingSaleId]
+      );
+    } else {
+      // Create new pending sale
+      const saleRes = await client.query(
+        "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes, restaurant_table_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+        [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, resolvedCustomerName, paymentMethod || 'cash', finalNotes, resolvedTableId]
+      );
+      saleId = saleRes.rows[0].id;
+
+      // Update table status to occupied in database if pending
+      if (saleStatus === 'pending') {
+        if (resolvedTableId) {
+          await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
+        } else if (tableNumber) {
+          const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
+          await client.query(
+            "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+            [storeId, tableNumber.toString(), cleanNum]
+          );
+        }
       }
     }
 

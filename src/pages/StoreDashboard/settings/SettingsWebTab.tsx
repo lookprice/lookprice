@@ -70,6 +70,7 @@ export const SettingsWebTab = ({
   onAddUser,
   onDeleteUser,
 }: SettingsWebTabProps) => {
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const rawBanners = Array.isArray(branding?.banners) ? branding.banners : [];
 
   const displayBanners = React.useMemo(() => {
@@ -660,6 +661,22 @@ export const SettingsWebTab = ({
                 >
                   {lang === "tr" ? "Kitapçı Konsepti Uygula" : "Apply Bookstore Concept"}
                 </button>
+                {isCafeRestaurant && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onBrandingChange("brand_label", lang === "tr" ? "Şefler" : "Chefs");
+                      onBrandingChange("category_label", lang === "tr" ? "Menü Kategorileri" : "Menu Categories");
+                      onBrandingChange("product_label", lang === "tr" ? "Lezzet / Yemek" : "Dish / Delicacy");
+                      onBrandingChange("stock_label", lang === "tr" ? "Masa Servis Durumu" : "Table Service Status");
+                      onBrandingChange("hero_title", lang === "tr" ? "Gurme Lezzetler & Keyifli Anlar" : "Gourmet Flavors & Cozy Moments");
+                      onBrandingChange("hero_subtitle", lang === "tr" ? "Usta şeflerimizin özenle hazırladığı taze lezzetler ve kaliteli ürünlerimizle günün her anına keyif katıyoruz." : "We elevate every moment of your day with fresh dishes masterfully crafted by our chefs and premium ingredients.");
+                    }}
+                    className="px-3 py-1.5 bg-amber-50 text-amber-600 rounded-lg text-[10px] font-black uppercase tracking-tight hover:bg-amber-100 transition-colors"
+                  >
+                    {lang === "tr" ? "Kafe Konsepti Uygula" : "Apply Cafe Concept"}
+                  </button>
+                )}
               </div>
             </div>
             <div className="space-y-4">
@@ -740,7 +757,7 @@ export const SettingsWebTab = ({
       )}
 
       {/* Legal Policies Section */}
-      {!isPortfolio && (
+      {!isPortfolio && !isCafeRestaurant && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
           <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
             <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">

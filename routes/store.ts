@@ -4097,18 +4097,40 @@ router.post("/restaurant/tables/transfer", async (req: any, res) => {
 
     // Verify 'toTable' is empty (no pending sales)
     const toTableRes = await client.query(
+      "SELECT id, table_number FROM restaurant_tables WHERE id = $1 AND store_id = $2",
+      [toTableId, storeId]
+    );
+
+    if (toTableRes.rows.length === 0) {
+      throw new Error("Target table not found");
+    }
+
+    const targetTableNum = toTableRes.rows[0].table_number;
+
+    const toTableSalesRes = await client.query(
       "SELECT id FROM sales WHERE restaurant_table_id = $1 AND store_id = $2 AND status = 'pending'",
       [toTableId, storeId]
     );
 
-    if (toTableRes.rows.length > 0) {
+    if (toTableSalesRes.rows.length > 0) {
       throw new Error("Target table is not empty. Please merge or close it first.");
     }
 
     // Update pending sales from fromTable to toTable
     await client.query(
-      "UPDATE sales SET restaurant_table_id = $1 WHERE restaurant_table_id = $2 AND store_id = $3 AND status = 'pending'",
-      [toTableId, fromTableId, storeId]
+      "UPDATE sales SET restaurant_table_id = $1, customer_name = $2 WHERE restaurant_table_id = $3 AND store_id = $4 AND status = 'pending'",
+      [toTableId, `Masa ${targetTableNum.replace(/Masa/gi, '').trim()}`, fromTableId, storeId]
+    );
+
+    // Update restaurant tables status
+    await client.query(
+      "UPDATE restaurant_tables SET status = 'empty' WHERE id = $1 AND store_id = $2",
+      [fromTableId, storeId]
+    );
+
+    await client.query(
+      "UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2",
+      [toTableId, storeId]
     );
 
     await client.query("COMMIT");
