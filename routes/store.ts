@@ -207,6 +207,25 @@ router.get("/restaurant-tables", async (req: any, res) => {
             // Or just return everything and let UI handle, but here we can just return all or slice.
         }
         
+        // Dynamically resolve table status from pending sales
+        const pendingSalesRes = await pool.query(
+            "SELECT DISTINCT customer_name, restaurant_table_id FROM sales WHERE store_id = $1 AND status = 'pending'",
+            [storeId]
+        );
+        const normalize = (str: string) => str ? str.toLowerCase().replace(/\s+/g, '') : '';
+        const pendingTableNames = pendingSalesRes.rows.map((s: any) => normalize(s.customer_name));
+        const pendingTableIds = new Set(pendingSalesRes.rows.filter((s: any) => s.restaurant_table_id !== null).map((s: any) => s.restaurant_table_id));
+
+        for (let row of result.rows) {
+            const num = row.table_number;
+            const isOccupied = pendingTableIds.has(row.id) || pendingTableNames.some(name => {
+                if (!name) return false;
+                const normNum = normalize(num);
+                return name === normNum || name === `masa${normNum}` || name.includes(`masa${normNum}`) || name === `table${normNum}`;
+            });
+            row.status = isOccupied ? 'occupied' : 'empty';
+        }
+
         // Sort properly by number
         const sortedRows = result.rows.sort((a: any, b: any) => {
            const numA = parseInt(a.table_number);
@@ -3928,12 +3947,38 @@ router.post("/pos/sale", async (req: any, res) => {
   try {
     await client.query("BEGIN");
     
-    // 1. Create Sale
+    // Resolve restaurant table ID from customer name
+    let resolvedTableId = null;
+    if (customerName) {
+      const cleanName = customerName.replace(/Masa/gi, '').trim();
+      const tableRes = await client.query(
+        "SELECT id FROM restaurant_tables WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, customerName, cleanName]
+      );
+      if (tableRes.rows.length > 0) {
+        resolvedTableId = tableRes.rows[0].id;
+      }
+    }
+
+    // 1. Create Sale with restaurant_table_id
     const saleRes = await client.query(
-      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı']
+      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes, restaurant_table_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı', resolvedTableId]
     );
     const saleId = saleRes.rows[0].id;
+
+    // Update table status to occupied in database if pending
+    if (saleStatus === 'pending') {
+      if (resolvedTableId) {
+        await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
+      } else if (customerName) {
+        const cleanName = customerName.replace(/Masa/gi, '').trim();
+        await client.query(
+          "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+          [storeId, customerName, cleanName]
+        );
+      }
+    }
 
     // 2. Add Items and Update Stock (only if not pending)
     for (const item of items) {
@@ -4107,11 +4152,36 @@ router.post("/sales/:id/update-pending", async (req: any, res) => {
       );
     }
     
-    // Update sale total and table name (customer_name)
+    // Resolve restaurant table ID from customer name
+    let resolvedTableId = null;
+    const nameToResolve = customerName || sale.customer_name;
+    if (nameToResolve) {
+      const cleanName = nameToResolve.replace(/Masa/gi, '').trim();
+      const tableRes = await client.query(
+        "SELECT id FROM restaurant_tables WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, nameToResolve, cleanName]
+      );
+      if (tableRes.rows.length > 0) {
+        resolvedTableId = tableRes.rows[0].id;
+      }
+    }
+
+    // Update sale total, table name (customer_name) and restaurant_table_id
     await client.query(
-      "UPDATE sales SET total_amount = $1, customer_name = $2, notes = $3 WHERE id = $4",
-      [total || 0, customerName || sale.customer_name, notes || sale.notes, id]
+      "UPDATE sales SET total_amount = $1, customer_name = $2, notes = $3, restaurant_table_id = $4 WHERE id = $5",
+      [total || 0, customerName || sale.customer_name, notes || sale.notes, resolvedTableId, id]
     );
+
+    // Update table status to occupied
+    if (resolvedTableId) {
+      await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
+    } else if (nameToResolve) {
+      const cleanName = nameToResolve.replace(/Masa/gi, '').trim();
+      await client.query(
+        "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, nameToResolve, cleanName]
+      );
+    }
 
     await client.query("COMMIT");
     res.json({ success: true, saleId: id });
@@ -4288,6 +4358,17 @@ router.post("/sales/:id/complete", async (req: any, res) => {
       // Store fiscal info in sale notes or a new column if we had one. For now, notes.
       const fiscalNote = `\n[FISCAL] Receipt: ${fiscalResult.receiptNo}, Z-No: ${fiscalResult.zNo}, Brand: ${fiscalResult.brand}`;
       await client.query("UPDATE sales SET notes = COALESCE(notes, '') || $1 WHERE id = $2", [fiscalNote, id]);
+    }
+
+    // Update table status to empty in database
+    if (sale.restaurant_table_id) {
+      await client.query("UPDATE restaurant_tables SET status = 'empty' WHERE id = $1 AND store_id = $2", [sale.restaurant_table_id, storeId]);
+    } else if (sale.customer_name) {
+      const cleanName = sale.customer_name.replace(/Masa/gi, '').trim();
+      await client.query(
+        "UPDATE restaurant_tables SET status = 'empty' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, sale.customer_name, cleanName]
+      );
     }
 
     await client.query("COMMIT");

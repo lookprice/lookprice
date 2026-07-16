@@ -12,9 +12,10 @@ interface Table {
 interface TableGridProps {
   storeId: number;
   onTableSelect: (table: Table) => void;
+  refreshTrigger?: number;
 }
 
-export const TableGrid = ({ storeId, onTableSelect }: TableGridProps) => {
+export const TableGrid = ({ storeId, onTableSelect, refreshTrigger }: TableGridProps) => {
   const [tables, setTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +33,7 @@ export const TableGrid = ({ storeId, onTableSelect }: TableGridProps) => {
       }
     };
     fetchTables();
-  }, [storeId]);
+  }, [storeId, refreshTrigger]);
 
   if (loading) return <div className="text-center p-4">Yükleniyor...</div>;
 

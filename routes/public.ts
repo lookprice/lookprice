@@ -2246,23 +2246,59 @@ router.post("/pos/sale", async (req: any, res) => {
   
   const { items, total, paymentMethod, customerName, notes, currency, exchangeRate, status, tableNumber } = req.body;
   const saleStatus = status || 'pending';
+  const resolvedCustomerName = customerName || (tableNumber ? `Masa ${tableNumber}` : 'Masa Siparişi');
   const finalNotes = tableNumber ? `Masa ${tableNumber} - Dijital Menü` + (notes ? ` | ${notes}` : '') : (notes || 'Dijital Menü Siparişi');
   
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     
+    // Resolve restaurant table ID from tableNumber
+    let resolvedTableId = null;
+    if (tableNumber) {
+      const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
+      const tableRes = await client.query(
+        "SELECT id FROM restaurant_tables WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, tableNumber.toString(), cleanNum]
+      );
+      if (tableRes.rows.length > 0) {
+        resolvedTableId = tableRes.rows[0].id;
+      }
+    }
+
     const saleRes = await client.query(
-      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, customerName || 'Masa Siparişi', paymentMethod || 'cash', finalNotes]
+      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes, restaurant_table_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, resolvedCustomerName, paymentMethod || 'cash', finalNotes, resolvedTableId]
     );
     const saleId = saleRes.rows[0].id;
 
+    // Update table status to occupied in database if pending
+    if (saleStatus === 'pending') {
+      if (resolvedTableId) {
+        await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
+      } else if (tableNumber) {
+        const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
+        await client.query(
+          "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+          [storeId, tableNumber.toString(), cleanNum]
+        );
+      }
+    }
+
     for (const item of items) {
+      let itemName = item.name;
+      if (!itemName && item.productId) {
+         const pRes = await client.query("SELECT name FROM products WHERE id = $1", [item.productId]);
+         if (pRes.rows.length > 0) {
+            itemName = pRes.rows[0].name;
+         }
+      }
+      if (!itemName) itemName = 'Ürün';
+
       const itemTotal = Number(item.quantity) * Number(item.price);
       await client.query(
         "INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6)",
-        [saleId, item.productId || null, item.name || 'Ürün', item.quantity, item.price, itemTotal]
+        [saleId, item.productId || null, itemName, item.quantity, item.price, itemTotal]
       );
     }
     

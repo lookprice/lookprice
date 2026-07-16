@@ -18,7 +18,8 @@ import {
   FileText,
   ArrowLeft,
   Coffee,
-  ArrowLeftRight
+  ArrowLeftRight,
+  MessageSquare
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -61,6 +62,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [pendingSales, setPendingSales] = useState<any[]>([]);
+  const [prevPendingCount, setPrevPendingCount] = useState<number | null>(null);
+  const [tablesRefreshTrigger, setTablesRefreshTrigger] = useState(0);
   const [loadingPending, setLoadingPending] = useState(false);
   const [activeSaleId, setActiveSaleId] = useState<number | null>(null);
   const [isChangingTable, setIsChangingTable] = useState(false);
@@ -102,26 +105,69 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     return list;
   }, [searchResults, selectedCategory, selectedSubCategory]);
 
-  const fetchPendingSales = async () => {
+  const fetchPendingSales = async (isPoll: boolean = false) => {
     if (!isCafeRestaurant) return;
     try {
-      setLoadingPending(true);
+      if (!isPoll) setLoadingPending(true);
       const res = await api.getSales('pending', '', '', storeId);
       if (Array.isArray(res)) {
         setPendingSales(res);
+        setTablesRefreshTrigger(prev => prev + 1);
+
+        if (prevPendingCount !== null && res.length > prevPendingCount) {
+          // Play a beautiful, gentle dual-tone workspace alert sound using Web Audio API
+          try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+              const audioCtx = new AudioContextClass();
+              const oscillator = audioCtx.createOscillator();
+              const gainNode = audioCtx.createGain();
+              oscillator.connect(gainNode);
+              gainNode.connect(audioCtx.destination);
+              oscillator.type = 'sine';
+              oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
+              gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+              oscillator.start();
+              oscillator.stop(audioCtx.currentTime + 0.12);
+              
+              setTimeout(() => {
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.connect(gain2);
+                gain2.connect(audioCtx.destination);
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+                gain2.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                osc2.start();
+                osc2.stop(audioCtx.currentTime + 0.22);
+              }, 120);
+            }
+          } catch (soundErr) {
+            console.log("Audio play blocked by browser policies:", soundErr);
+          }
+          toast.success(lang === 'tr' ? "Yeni masa siparişi alındı!" : "New table order received!");
+        }
+        setPrevPendingCount(res.length);
       }
     } catch (e) {
       console.error("Error fetching pending sales:", e);
     } finally {
-      setLoadingPending(false);
+      if (!isPoll) setLoadingPending(false);
     }
   };
 
   useEffect(() => {
-    if (isCafeRestaurant) {
-      fetchPendingSales();
-    }
-  }, [storeId, isCafeRestaurant]);
+    if (!isCafeRestaurant) return;
+    
+    fetchPendingSales();
+    
+    // Poll for updates every 10 seconds to keep order state fresh
+    const interval = setInterval(() => {
+      fetchPendingSales(true);
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [storeId, isCafeRestaurant, prevPendingCount]);
 
   const fetchReport = async (dateStr: string) => {
     try {
@@ -478,6 +524,15 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }));
   };
 
+  const updateNote = (productId: number, note: string) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === productId) {
+        return { ...item, note };
+      }
+      return item;
+    }));
+  };
+
   const total = cart.reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * item.quantity), 0);
 
   const handleFinalizeSale = async () => {
@@ -558,7 +613,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           paymentMethod,
           items: cart.map(item => ({
             product_id: item.id,
-            product_name: item.name,
+            product_name: item.note ? `${item.name} (${item.note})` : item.name,
             unit_price: parseFloat(item.price) || 0,
             quantity: item.quantity
           }))
@@ -567,7 +622,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         if (res.success) {
           setLastSaleId(activeSaleId);
           setLastFiscal(res.fiscal);
-          setLastCart(cart.map(item => ({ ...item, price: parseFloat(item.price) || 0 })));
+          setLastCart(cart.map(item => ({ ...item, price: parseFloat(item.price) || 0, name: item.note ? `${item.name} (${item.note})` : item.name })));
           setShowSuccess(true);
           setCart([]);
           setActiveSaleId(null);
@@ -583,7 +638,11 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         }
       } else {
         // Direct cash register sale (can be standard or first-time immediately completed table)
-        const currentCart = cart.map(item => ({ ...item, price: parseFloat(item.price) || 0 }));
+        const currentCart = cart.map(item => ({
+          ...item,
+          name: item.note ? `${item.name} (${item.note})` : item.name,
+          price: parseFloat(item.price) || 0
+        }));
         const res = await api.createPosSale({
           items: currentCart,
           total,
@@ -675,7 +734,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       setCompleting(true);
       const itemsToSave = cart.map(it => ({
         id: it.id,
-        name: it.name,
+        name: it.note ? `${it.name} (${it.note})` : it.name,
         price: it.price,
         quantity: it.quantity,
         barcode: it.barcode || ''
@@ -725,7 +784,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       const res = await api.updatePendingSale(activeSaleId, {
         items: cart.map(it => ({
           id: it.id,
-          name: it.name,
+          name: it.note ? `${it.name} (${it.note})` : it.name,
           price: it.price,
           quantity: it.quantity,
           barcode: it.barcode || ''
@@ -866,21 +925,35 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           {/* Tables Grid */}
           <TableGrid 
             storeId={storeId!} 
+            refreshTrigger={tablesRefreshTrigger}
             onTableSelect={(table) => {
               setSelectedTable(table.table_number);
               if (table.status === 'occupied') {
-                // Find the sale for this table
-                const sale = pendingSales.find(s => s.customer_name === table.table_number);
+                // Find the sale for this table using normalization
+                const normalizeName = (str: string) => str ? str.toLowerCase().replace(/\s+/g, '') : '';
+                const sale = pendingSales.find(s => {
+                  if (s.restaurant_table_id === table.id) return true;
+                  const sName = normalizeName(s.customer_name);
+                  const tNum = normalizeName(table.table_number);
+                  return sName === tNum || sName === `masa${tNum}` || sName.includes(`masa${tNum}`) || sName === `table${tNum}`;
+                });
                 if (sale) {
                   setActiveSaleId(sale.id);
-                  const mappedCart = sale.items.map((it: any) => ({
-                    id: it.product_id,
-                    name: it.product_name,
-                    price: it.unit_price.toString(),
-                    quantity: it.quantity,
-                    barcode: it.barcode || '',
-                    currency: sale.currency || 'TRY'
-                  }));
+                  const mappedCart = sale.items.map((it: any) => {
+                    const fullName = it.product_name || '';
+                    const match = fullName.match(/(.+?)\s*\((.+?)\)$/);
+                    const cleanName = match ? match[1].trim() : fullName;
+                    const parsedNote = match ? match[2].trim() : '';
+                    return {
+                      id: it.product_id,
+                      name: cleanName,
+                      note: parsedNote,
+                      price: it.unit_price.toString(),
+                      quantity: it.quantity,
+                      barcode: it.barcode || '',
+                      currency: sale.currency || 'TRY'
+                    };
+                  });
                   setCart(mappedCart);
                 }
               } else {
@@ -1057,44 +1130,58 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl"
+                      className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-2 flex flex-col"
                     >
-                      <div className="flex-1 min-w-0 mr-4">
-                        <p className="text-sm font-bold text-slate-800 truncate">{item.name}</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.price}
-                            onChange={(e) => updatePrice(item.id, e.target.value)}
-                            className="w-20 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded px-2 py-0.5 outline-none focus:border-indigo-500 transition-colors"
-                          />
-                          <span className="text-xs font-medium text-slate-500">{item.currency || 'TRY'}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0 mr-4">
+                          <p className="text-sm font-bold text-slate-800 truncate">{item.name}</p>
+                          <div className="flex items-center gap-1 mt-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.price}
+                              onChange={(e) => updatePrice(item.id, e.target.value)}
+                              className="w-20 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded px-2 py-0.5 outline-none focus:border-indigo-500 transition-colors"
+                            />
+                            <span className="text-xs font-medium text-slate-500">{item.currency || 'TRY'}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                            <button 
+                              onClick={() => updateQuantity(item.id, -1)}
+                              className="p-1.5 hover:bg-slate-50 text-slate-600 transition-colors"
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="w-10 text-center text-sm font-bold text-slate-800">{item.quantity}</span>
+                            <button 
+                              onClick={() => updateQuantity(item.id, 1)}
+                              className="p-1.5 hover:bg-slate-50 text-slate-600 transition-colors"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <button 
+                            onClick={() => removeFromCart(item.id)}
+                            className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
-                          <button 
-                            onClick={() => updateQuantity(item.id, -1)}
-                            className="p-1.5 hover:bg-slate-50 text-slate-600 transition-colors"
-                          >
-                            <Minus className="h-3.5 w-3.5" />
-                          </button>
-                          <span className="w-10 text-center text-sm font-bold text-slate-800">{item.quantity}</span>
-                          <button 
-                            onClick={() => updateQuantity(item.id, 1)}
-                            className="p-1.5 hover:bg-slate-50 text-slate-600 transition-colors"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <button 
-                          onClick={() => removeFromCart(item.id)}
-                          className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+
+                      {/* Item level special request/note input */}
+                      <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
+                        <MessageSquare className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <input
+                          type="text"
+                          placeholder={lang === 'tr' ? 'Özel istek / Mutfağa not (örn: Demli, Açık)' : 'Special note for kitchen (e.g. strong, light)'}
+                          value={item.note || ''}
+                          onChange={(e) => updateNote(item.id, e.target.value)}
+                          className="w-full bg-transparent border-none text-[11px] font-medium text-slate-600 outline-none placeholder-slate-400"
+                        />
                       </div>
                     </motion.div>
                   ))}
