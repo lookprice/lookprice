@@ -46,7 +46,8 @@ export const PortfolioFilters: React.FC<PortfolioFiltersProps> = ({
             >
               <option value="all">{lang === "tr" ? "Tüm İlanlar" : "All Listings"}</option>
               <option value="real_estate">{lang === "tr" ? "Gayrimenkul" : "Real Estate"}</option>
-              <option value="car">{lang === "tr" ? "Otomobil & Hafif Ticari" : "Car & Light Commercial"}</option>
+              <option value="otomobil">{lang === "tr" ? "Otomobil" : "Car"}</option>
+              <option value="hafif_ticari">{lang === "tr" ? "Hafif Ticari" : "Light Commercial"}</option>
               <option value="motorcycle">{lang === "tr" ? "Motosiklet" : "Motorcycle"}</option>
               <option value="marine">{lang === "tr" ? "Deniz Taşıtları" : "Marine"}</option>
               <option value="construction">{lang === "tr" ? "İş Makineleri" : "Construction Equipment"}</option>

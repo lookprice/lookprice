@@ -164,6 +164,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
   };
 
   const [statusFilter, setStatusFilter] = useState('all');
+  const [brandFilter, setBrandFilter] = useState('all');
+  const [modelFilter, setModelFilter] = useState('all');
   const [driverSearch, setDriverSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
@@ -243,6 +245,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
     model: '',
     year: new Date().getFullYear(),
     type: 'company',
+    category: 'otomobil',
     chassis_number: '',
     engine_number: '',
     current_mileage: 0,
@@ -267,7 +270,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
     images: [],
     virtual_tour_url: '',
     ai_tour_enabled: false,
-    is_on_enrakipsiz: false,
+    is_on_enrakipsiz: true,
+    is_on_website: true,
     auto_post_instagram: false
   });
 
@@ -374,14 +378,15 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
       setShowAddModal(false);
       setFormData({
         plate: '', brand: '', model: '', year: new Date().getFullYear(),
-        type: 'company', chassis_number: '', engine_number: '',
+        type: 'company', category: 'otomobil', chassis_number: '', engine_number: '',
         current_mileage: 0, status: 'active', package_name: '',
         transmission: 'manual', fuel_type: 'gasoline', color: '',
         body_type: '', paint_report: '{}', tramer_amount: 0,
         tramer_currency: 'GBP', buying_price: 0, buying_currency: 'GBP',
         currency: 'GBP', expenses: '[]', target_profit_margin: 0,
         description: '', images: [], virtual_tour_url: '',
-        ai_tour_enabled: false, is_on_enrakipsiz: false,
+        ai_tour_enabled: false, is_on_enrakipsiz: true,
+        is_on_website: true,
         auto_post_instagram: false,
         market_story: '', technical_description: '', is_trade_in_available: false
       });
@@ -681,7 +686,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
                           (v.brand?.toLowerCase() || '').includes((searchQuery || '').toLowerCase()) ||
                           (v.model?.toLowerCase() || '').includes((searchQuery || '').toLowerCase());
     const matchesStatus = statusFilter === 'all' || v.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesBrand = brandFilter === 'all' || !brandFilter || v.brand === brandFilter;
+    const matchesModel = modelFilter === 'all' || !modelFilter || v.model === modelFilter;
+    return matchesSearch && matchesStatus && matchesBrand && matchesModel;
   });
 
   const paginatedVehicles = filteredVehicles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -778,7 +785,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
                   tramer_currency: 'GBP', buying_price: 0, buying_currency: 'GBP',
                   currency: 'GBP', expenses: '[]', target_profit_margin: 0,
                   description: '', images: [], virtual_tour_url: '',
-                  ai_tour_enabled: false, is_on_enrakipsiz: false,
+                  ai_tour_enabled: false, is_on_enrakipsiz: true,
+                  is_on_website: true,
                   auto_post_instagram: false
                 });
                 setShowAddModal(true);
@@ -801,6 +809,10 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         setSearchQuery={setSearchQuery}
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
+        brandFilter={brandFilter}
+        setBrandFilter={setBrandFilter}
+        modelFilter={modelFilter}
+        setModelFilter={setModelFilter}
         setCurrentPage={setCurrentPage}
         lang={lang}
         t={t}
@@ -962,7 +974,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
             images: selectedVehicle.images || [],
             virtual_tour_url: selectedVehicle.virtual_tour_url || '',
             ai_tour_enabled: selectedVehicle.ai_tour_enabled || false,
-            is_on_enrakipsiz: selectedVehicle.is_on_enrakipsiz || false,
+            category: selectedVehicle.category || 'otomobil',
+            is_on_enrakipsiz: selectedVehicle.is_on_enrakipsiz !== undefined ? selectedVehicle.is_on_enrakipsiz : true,
+            is_on_website: selectedVehicle.is_on_website !== undefined ? selectedVehicle.is_on_website : true,
             auto_post_instagram: selectedVehicle.auto_post_instagram || false
           });
           setShowAddModal(true);

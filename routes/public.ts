@@ -263,10 +263,10 @@ router.get("/marketplace/listings", async (req, res) => {
     let vehiclesList: any[] = [];
     try {
       const vehiclesRes = await pool.query(`
-        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
+        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, v.market_story, v.technical_description, v.category, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
         FROM vehicles v
         JOIN stores s ON v.store_id = s.id
-        WHERE v.status <> 'sold' AND (v.is_on_enrakipsiz = true) AND v.type <> 'company'
+        WHERE v.status <> 'sold' AND (v.is_on_enrakipsiz = true)
         ORDER BY v.id DESC
         LIMIT 100
       `);
@@ -275,7 +275,7 @@ router.get("/marketplace/listings", async (req, res) => {
       console.warn("Marketplace vehicles queries had an issue. Retrying with simple select fallback:", error);
       try {
         const fallbackRes = await pool.query(`
-          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
+          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, v.market_story, v.technical_description, v.category, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
           FROM vehicles v
           JOIN stores s ON v.store_id = s.id
           LIMIT 100
@@ -352,7 +352,7 @@ router.get("/marketplace/listings", async (req, res) => {
         id: `v_${v.db_id}`,
         db_id: v.db_id,
         listing_type: 'vehicle',
-        sub_sector: v.store_sub_sector,
+        sub_sector: v.category === 'hafif_ticari' ? 'hafif_ticari' : (v.category === 'otomobil' ? 'otomobil' : (v.store_sub_sector === 'car' ? 'otomobil' : (v.store_sub_sector || 'otomobil'))),
         title: generatedTitle,
         price: v.selling_price || 0,
         currency: v.currency,
@@ -368,6 +368,8 @@ router.get("/marketplace/listings", async (req, res) => {
         paint_report: v.paint_report,
         is_trade_in_available: v.is_trade_in_available,
         created_at: v.created_at || new Date(),
+        market_story: v.market_story,
+        technical_description: v.technical_description,
         sector_data: {
           hp: v.hp || '',
           engine: v.engine_number ? 'Mevcut' : '',
@@ -380,7 +382,9 @@ router.get("/marketplace/listings", async (req, res) => {
           color: v.color,
           body_type: v.body_type,
           tramer_amount: v.tramer_amount,
-          tramer_currency: v.tramer_currency
+          tramer_currency: v.tramer_currency,
+          market_story: v.market_story,
+          technical_description: v.technical_description
         }
       });
     });
@@ -740,11 +744,11 @@ const PUBLIC_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=3600';
 // Public: Get Store Products by Slug
 router.get("/store/:slug/products", async (req, res) => {
   const { slug } = req.params;
-  const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+  const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates, store_type FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
   let store = storeRes.rows[0];
 
   if (!store && (slug === 'demo-store' || slug === 'demo')) {
-    store = { id: -1, default_currency: 'TRY', currency_rates: { "USD": 45.0, "EUR": 48.5, "GBP": 56.2 } };
+    store = { id: -1, default_currency: 'TRY', currency_rates: { "USD": 45.0, "EUR": 48.5, "GBP": 56.2 }, store_type: 'product' };
   }
 
   if (!store) return res.status(404).json({ error: "Store not found" });
@@ -767,37 +771,42 @@ router.get("/store/:slug/products", async (req, res) => {
     ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC
   `, [store.id]);
 
-  const vehiclesRes = await pool.query(`
-    SELECT v.*, s.name as branch_name, s.slug as branch_slug 
-    FROM vehicles v 
-    JOIN stores s ON v.store_id = s.id
-    WHERE (v.store_id = $1 OR s.parent_id = $1) 
-    AND v.status IN ('active', 'for_sale')
-    AND v.type <> 'company'
-  `, [store.id]);
+  let vehiclesRes = { rows: [] };
+  if (store.store_type === 'motor_vehicle') {
+    vehiclesRes = await pool.query(`
+      SELECT v.*, s.name as branch_name, s.slug as branch_slug 
+      FROM vehicles v 
+      JOIN stores s ON v.store_id = s.id
+      WHERE (v.store_id = $1 OR s.parent_id = $1) 
+      AND v.status IN ('active', 'for_sale')
+      AND (v.is_on_website = true OR v.is_on_website IS NULL)
+    `, [store.id]);
+  }
 
   let realEstateRes: any = { rows: [] };
-  try {
-    realEstateRes = await pool.query(`
-      SELECT r.*, s.name as branch_name, s.slug as branch_slug,
-             c.name as consultant_name, c.phone as consultant_phone
-      FROM real_estate_properties r 
-      JOIN stores s ON r.store_id = s.id
-      LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
-      WHERE (r.store_id = $1 OR s.parent_id = $1) 
-      AND r.status IN ('active', 'rented', 'optioned', 'sold')
-    `, [store.id]);
-  } catch (e: any) {
+  if (store.store_type === 'real_estate') {
     try {
       realEstateRes = await pool.query(`
-        SELECT r.*, s.name as branch_name, s.slug as branch_slug 
-        FROM real_estate r 
+        SELECT r.*, s.name as branch_name, s.slug as branch_slug,
+               c.name as consultant_name, c.phone as consultant_phone
+        FROM real_estate_properties r 
         JOIN stores s ON r.store_id = s.id
+        LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
         WHERE (r.store_id = $1 OR s.parent_id = $1) 
         AND r.status IN ('active', 'rented', 'optioned', 'sold')
       `, [store.id]);
-    } catch (inner) {
-      console.warn("real_estate queried failed");
+    } catch (e: any) {
+      try {
+        realEstateRes = await pool.query(`
+          SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+          FROM real_estate r 
+          JOIN stores s ON r.store_id = s.id
+          WHERE (r.store_id = $1 OR s.parent_id = $1) 
+          AND r.status IN ('active', 'rented', 'optioned', 'sold')
+        `, [store.id]);
+      } catch (inner) {
+        console.warn("real_estate queried failed");
+      }
     }
   }
 
@@ -857,7 +866,10 @@ router.get("/store/:slug/products", async (req, res) => {
       branch_slug: v.branch_slug,
       image_url: coverImage,
       images: vehicleImages,
+      market_story: v.market_story,
+      technical_description: v.technical_description,
       sector_data: { 
+        sub_sector: v.category === 'hafif_ticari' ? 'hafif_ticari' : 'otomobil',
         brand: v.brand,
         model: v.model,
         year: v.year,

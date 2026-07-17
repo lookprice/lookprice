@@ -17,6 +17,10 @@ interface FleetStatsProps {
   setSearchQuery: (val: string) => void;
   statusFilter: string;
   setStatusFilter: (val: string) => void;
+  brandFilter: string;
+  setBrandFilter: (val: string) => void;
+  modelFilter: string;
+  setModelFilter: (val: string) => void;
   setCurrentPage: (val: number) => void;
 }
 
@@ -28,10 +32,20 @@ export const FleetStats: React.FC<FleetStatsProps> = ({
   setSearchQuery,
   statusFilter,
   setStatusFilter,
+  brandFilter,
+  setBrandFilter,
+  modelFilter,
+  setModelFilter,
   setCurrentPage,
 }) => {
   const expiringDocsCount = vehicles.reduce((acc, v) => acc + (Number(v.expiring_docs) || 0), 0);
   const maintenanceDueCount = vehicles.reduce((acc, v) => acc + (Number(v.maintenance_due) || 0), 0);
+
+  // Dynamic cascading filter options based on portfolio
+  const uniqueBrands = Array.from(new Set((vehicles || []).map(v => v.brand).filter(Boolean))).sort();
+  const uniqueModels = brandFilter && brandFilter !== 'all'
+    ? Array.from(new Set((vehicles || []).filter(v => v.brand === brandFilter).map(v => v.model).filter(Boolean))).sort()
+    : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,8 +86,9 @@ export const FleetStats: React.FC<FleetStatsProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 group">
+      <div className="flex flex-col gap-3">
+        {/* Search Input Row */}
+        <div className="relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-blue-500 transition-colors" />
           <input
             type="text"
@@ -83,16 +98,61 @@ export const FleetStats: React.FC<FleetStatsProps> = ({
             className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:flex-none">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+
+        {/* Dynamic Filters Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Brand Filter */}
+          <div className="relative">
+            <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              value={brandFilter}
+              onChange={(e) => {
+                setBrandFilter(e.target.value);
+                setModelFilter('all'); // reset model selection when brand changes
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-8 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm font-medium text-gray-700 text-sm appearance-none"
+            >
+              <option value="all">{lang === 'tr' ? 'Tüm Markalar' : 'All Brands'}</option>
+              {uniqueBrands.map((brand) => (
+                <option key={brand} value={brand}>{brand}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Model Filter */}
+          <div className="relative">
+            <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              value={modelFilter}
+              onChange={(e) => {
+                setModelFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              disabled={!brandFilter || brandFilter === 'all'}
+              className="w-full pl-10 pr-8 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm font-medium text-gray-700 text-sm appearance-none disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+            >
+              <option value="all">
+                {brandFilter && brandFilter !== 'all'
+                  ? (lang === 'tr' ? 'Tüm Modeller' : 'All Models')
+                  : (lang === 'tr' ? 'Önce Marka Seçin' : 'Select Brand First')}
+              </option>
+              {uniqueModels.map((model) => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="relative">
+            <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <select
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full sm:w-48 pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm appearance-none font-medium text-gray-700"
+              className="w-full pl-10 pr-8 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm font-medium text-gray-700 text-sm appearance-none"
             >
               <option value="all">{t.allStatuses}</option>
               <option value="active">{t.active}</option>

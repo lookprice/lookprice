@@ -226,12 +226,49 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                 </div>
 
                 <div className="space-y-4 pt-4 border-t border-gray-50">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{t.chassisNo}</span>
-                    <span className="text-xs font-mono font-bold text-gray-500 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 break-all">{vehicle.chassis_number || '-'}</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{isTr ? 'KATEGORİ' : 'CATEGORY'}</span>
+                      <span className="text-xs font-bold text-gray-600 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
+                        {vehicle.category === 'hafif_ticari' ? (isTr ? 'Hafif Ticari' : 'Light Commercial') : (isTr ? 'Otomobil' : 'Car')}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{t.chassisNo}</span>
+                      <span className="text-xs font-mono font-bold text-gray-500 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 break-all">{vehicle.chassis_number || '-'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Descriptions (Pazar Hikayesi & Teknik Açıklama) */}
+              {(vehicle.market_story || vehicle.technical_description) && (
+                <div className="space-y-4">
+                  {vehicle.market_story && (
+                    <div className="bg-blue-50/50 p-6 rounded-[28px] border border-blue-100/50 shadow-sm relative overflow-hidden group">
+                      <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                        <span className="w-4 h-[1px] bg-blue-200" />
+                        {isTr ? 'PAZAR HİKAYESİ' : 'MARKET STORY'}
+                      </h4>
+                      <p className="text-slate-800 text-xs font-medium leading-relaxed whitespace-pre-wrap">
+                        {vehicle.market_story}
+                      </p>
+                    </div>
+                  )}
+
+                  {vehicle.technical_description && (
+                    <div className="bg-slate-50/50 p-6 rounded-[28px] border border-slate-200/50 shadow-sm relative overflow-hidden group">
+                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                        <span className="w-4 h-[1px] bg-slate-300" />
+                        {isTr ? 'TEKNİK İLAN AÇIKLAMASI' : 'TECHNICAL DESCRIPTION'}
+                      </h4>
+                      <p className="text-slate-700 text-xs font-medium leading-relaxed whitespace-pre-wrap">
+                        {vehicle.technical_description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Status info */}
               <div className="bg-slate-900 rounded-[32px] p-6 text-white overflow-hidden relative group">

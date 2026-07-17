@@ -581,7 +581,8 @@ export const Marketplace = () => {
                   <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider mr-1">Vasıta Türü:</span>
                   {[
                     { value: "all", label: "Tümü" },
-                    { value: "car", label: "Otomobil & Hafif Ticari" },
+                    { value: "otomobil", label: "Otomobil" },
+                    { value: "hafif_ticari", label: "Hafif Ticari" },
                     { value: "motorcycle", label: "Motosiklet" },
                     { value: "marine", label: "Deniz Taşıtları" },
                     { value: "construction", label: "İş Makineleri" },
@@ -1044,7 +1045,8 @@ export const Marketplace = () => {
                   <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider mr-1">Vasıta Türü:</span>
                   {[
                     { value: "all", label: "Tümü" },
-                    { value: "car", label: "Otomobil & Hafif Ticari" },
+                    { value: "otomobil", label: "Otomobil" },
+                    { value: "hafif_ticari", label: "Hafif Ticari" },
                     { value: "motorcycle", label: "Motosiklet" },
                     { value: "marine", label: "Deniz Taşıtları" },
                     { value: "construction", label: "İş Makineleri" },

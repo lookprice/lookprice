@@ -117,7 +117,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [showAllBrands, setShowAllBrands] = useState(false);
 
   // Portfolio-specific filter states
-  const [portfolioType, setPortfolioType] = useState<"all" | "real_estate" | "car" | "motorcycle" | "marine" | "construction" | "agricultural" | "other">("all");
+  const [portfolioType, setPortfolioType] = useState<"all" | "real_estate" | "otomobil" | "hafif_ticari" | "motorcycle" | "marine" | "construction" | "agricultural" | "other">("all");
   const [portfolioMinPrice, setPortfolioMinPrice] = useState("");
   const [portfolioMaxPrice, setPortfolioMaxPrice] = useState("");
   const [portfolioRooms, setPortfolioRooms] = useState("all");

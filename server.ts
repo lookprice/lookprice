@@ -28,6 +28,11 @@ import { generateMetaTags } from "./src/utils/metaTags";
 import axios from "axios";
 import sharp from "sharp";
 
+// Optimize sharp for low-memory container environments (such as Render.com)
+// This disables libvips caching and limits image processing threads to avoid memory overhead spikes
+sharp.cache(false);
+sharp.concurrency(1);
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);

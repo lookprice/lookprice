@@ -162,6 +162,17 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                   </select>
                 </div>
                 <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-600">İlan Kategorisi *</label>
+                  <select
+                    value={formData.category || 'otomobil'}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium"
+                  >
+                    <option value="otomobil">{isTr ? 'Otomobil' : 'Car'}</option>
+                    <option value="hafif_ticari">{isTr ? 'Hafif Ticari' : 'Light Commercial'}</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
                   <label className="text-xs font-semibold text-gray-600">Marka *</label>
                   <input
                     required
@@ -248,12 +259,24 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                     <option value="sold">{t.sold}</option>
                   </select>
                 </div>
-                <div className="space-y-1 flex flex-col justify-end pb-1">
+                <div className="space-y-1 flex flex-col justify-end pb-1 gap-2">
+                  <div className="flex items-center gap-3 px-3.5 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                    <input
+                      type="checkbox"
+                      id="is_on_website"
+                      checked={formData.is_on_website !== undefined ? !!formData.is_on_website : true}
+                      onChange={(e) => setFormData({ ...formData, is_on_website: e.target.checked })}
+                      className="w-4 h-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <label htmlFor="is_on_website" className="text-xs font-bold text-indigo-950 cursor-pointer select-none">
+                      Kendi Web Sitemde Yayınla
+                    </label>
+                  </div>
                   <div className="flex items-center gap-3 px-3.5 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl">
                     <input
                       type="checkbox"
                       id="is_on_enrakipsiz"
-                      checked={!!formData.is_on_enrakipsiz}
+                      checked={formData.is_on_enrakipsiz !== undefined ? !!formData.is_on_enrakipsiz : true}
                       onChange={(e) => setFormData({ ...formData, is_on_enrakipsiz: e.target.checked })}
                       className="w-4 h-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer"
                     />
@@ -261,7 +284,7 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                       EnRakipsiz.com'da Yayınla
                     </label>
                   </div>
-                  <div className="flex items-center gap-3 px-3.5 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl mt-2">
+                  <div className="flex items-center gap-3 px-3.5 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl">
                     <input
                       type="checkbox"
                       id="auto_post_instagram"

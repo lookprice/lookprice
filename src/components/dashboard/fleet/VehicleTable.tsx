@@ -134,10 +134,19 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-black text-gray-900 text-lg">{vehicle.plate}</p>
                     <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold">#{vehicle.id}</span>
+                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase tracking-wider">
+                      {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : (lang === 'tr' ? 'Otomobil' : 'Car')}
+                    </span>
                     <div className="flex items-center gap-1 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded">
-                      <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_enrakipsiz ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]' : 'bg-gray-300'}`} />
-                      <span className={`text-[9px] font-black uppercase tracking-wider ${vehicle.is_on_enrakipsiz ? 'text-emerald-600' : 'text-gray-400'}`}>
-                        {vehicle.is_on_enrakipsiz ? 'enrakipsiz: aktif' : 'enrakipsiz: pasif'}
+                      <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_website !== false ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]' : 'bg-gray-300'}`} />
+                      <span className={`text-[9px] font-black uppercase tracking-wider ${vehicle.is_on_website !== false ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {vehicle.is_on_website !== false ? 'Web Sitem: Aktif' : 'Web Sitem: Pasif'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded">
+                      <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_enrakipsiz ? 'bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.4)]' : 'bg-gray-300'}`} />
+                      <span className={`text-[9px] font-black uppercase tracking-wider ${vehicle.is_on_enrakipsiz ? 'text-indigo-600' : 'text-gray-400'}`}>
+                        {vehicle.is_on_enrakipsiz ? 'EnRakipsiz: Aktif' : 'EnRakipsiz: Pasif'}
                       </span>
                     </div>
                   </div>
@@ -262,7 +271,8 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                       images: vehicle.images || [],
                       virtual_tour_url: vehicle.virtual_tour_url || '',
                       ai_tour_enabled: !!vehicle.ai_tour_enabled,
-                      is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz,
+                      is_on_enrakipsiz: vehicle.is_on_enrakipsiz !== undefined ? !!vehicle.is_on_enrakipsiz : true,
+                      is_on_website: vehicle.is_on_website !== undefined ? !!vehicle.is_on_website : true,
                       market_story: vehicle.market_story || '',
                       technical_description: vehicle.technical_description || '',
                       is_trade_in_available: !!vehicle.is_trade_in_available
@@ -296,7 +306,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Portföy No</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.vehicleInfo}</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.status}</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Enrakipsiz</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Yayın Durumu</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">KM</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.alerts}</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">{t.actions}</th>
@@ -333,7 +343,12 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                         );
                       })()}
                       <div>
-                        <p className="font-bold text-gray-900">{vehicle.plate}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-gray-900">{vehicle.plate}</p>
+                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black uppercase tracking-wider">
+                            {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : (lang === 'tr' ? 'Otomobil' : 'Car')}
+                          </span>
+                        </div>
                         <p className="text-xs text-gray-500">{generateVehicleTitle(vehicle)}</p>
                       </div>
                     </div>
@@ -351,11 +366,19 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                     </div>
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-1.5">
-                      <div className={`w-2 h-2 rounded-full ${vehicle.is_on_enrakipsiz ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-gray-300'}`} />
-                      <span className={`text-[10px] font-black uppercase tracking-wider ${vehicle.is_on_enrakipsiz ? 'text-emerald-600' : 'text-gray-400'}`}>
-                        {vehicle.is_on_enrakipsiz ? (lang === 'tr' ? 'Aktif' : 'Active') : (lang === 'tr' ? 'Pasif' : 'Passive')}
-                      </span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_website !== false ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${vehicle.is_on_website !== false ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          Web: {vehicle.is_on_website !== false ? 'Aktif' : 'Pasif'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_enrakipsiz ? 'bg-indigo-500' : 'bg-gray-300'}`} />
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${vehicle.is_on_enrakipsiz ? 'text-indigo-600' : 'text-gray-400'}`}>
+                          EnR: {vehicle.is_on_enrakipsiz ? 'Aktif' : 'Pasif'}
+                        </span>
+                      </div>
                     </div>
                   </td>
                   <td className="p-4">
@@ -470,7 +493,8 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                             images: vehicle.images || [],
                             virtual_tour_url: vehicle.virtual_tour_url || '',
                             ai_tour_enabled: !!vehicle.ai_tour_enabled,
-                            is_on_enrakipsiz: !!vehicle.is_on_enrakipsiz,
+                            is_on_enrakipsiz: vehicle.is_on_enrakipsiz !== undefined ? !!vehicle.is_on_enrakipsiz : true,
+                            is_on_website: vehicle.is_on_website !== undefined ? !!vehicle.is_on_website : true,
                             market_story: vehicle.market_story || '',
                             technical_description: vehicle.technical_description || '',
                             is_trade_in_available: !!vehicle.is_trade_in_available

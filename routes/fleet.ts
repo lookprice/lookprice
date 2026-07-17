@@ -20,6 +20,11 @@ const upload = multer({ storage: multer.memoryStorage() });
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'none';`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_on_website BOOLEAN DEFAULT TRUE;`);
+    // One-time migration: default existing active vehicles to published on both platforms
+    await pool.query(`UPDATE vehicles SET is_on_website = TRUE WHERE is_on_website IS NULL OR (status <> 'sold' AND is_on_website = FALSE);`);
+    await pool.query(`UPDATE vehicles SET is_on_enrakipsiz = TRUE WHERE is_on_enrakipsiz IS NULL OR (status <> 'sold' AND is_on_enrakipsiz = FALSE);`);
+    await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'otomobil';`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS buying_currency TEXT DEFAULT 'TRY';`);
     await pool.query(`ALTER TABLE drivers ADD COLUMN IF NOT EXISTS national_id TEXT;`);
     console.log("Self-healing schema verification: vehicles and drivers table columns processed successfully.");
@@ -101,7 +106,7 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
   const { 
     plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
     package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-    description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency
+    description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, is_on_website, buying_currency, category
   } = req.body;
   const storeId = req.body.store_id || req.user.store_id;
 
@@ -119,9 +124,9 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
       `INSERT INTO vehicles (
         store_id, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status,
         package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-        description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency, auto_post_instagram
+        description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, is_on_website, buying_currency, auto_post_instagram, category
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38) RETURNING *`,
       [
         storeId, plate, brand, model, year, type, chassis_number, engine_number, current_mileage, selling_price, currency, status || 'active',
         package_name, transmission, fuel_type, color, body_type, 
@@ -139,9 +144,11 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
         seller_type || 'professional',
         !!is_verified,
         verification_status || 'none',
-        !!is_on_enrakipsiz,
+        is_on_enrakipsiz !== undefined ? !!is_on_enrakipsiz : true,
+        is_on_website !== undefined ? !!is_on_website : true,
         buying_currency || 'TRY',
-        !!req.body.auto_post_instagram
+        !!req.body.auto_post_instagram,
+        category || 'otomobil'
       ]
     );
     const newVehicle = result.rows[0];
@@ -222,7 +229,7 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
   const { 
     plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
     package_name, transmission, fuel_type, color, body_type, paint_report, tramer_amount, tramer_currency, buying_price, expenses, target_profit_margin,
-    description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, buying_currency
+    description, market_story, technical_description, is_trade_in_available, images, virtual_tour_url, ai_tour_enabled, seller_type, is_verified, verification_status, is_on_enrakipsiz, is_on_website, buying_currency, category
   } = req.body;
 
   try {
@@ -233,9 +240,9 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
            paint_report = $17, tramer_amount = $18, tramer_currency = $19, buying_price = $20, expenses = $21, target_profit_margin = $22,
            description = $23, market_story = $24, technical_description = $25, is_trade_in_available = $26,
            images = $27, virtual_tour_url = $28, ai_tour_enabled = $29,
-           seller_type = $30, is_verified = $31, verification_status = $32, is_on_enrakipsiz = $33,
-           buying_currency = $34, auto_post_instagram = $35, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $36 RETURNING *`,
+           seller_type = $30, is_verified = $31, verification_status = $32, is_on_enrakipsiz = $33, is_on_website = $34,
+           buying_currency = $35, auto_post_instagram = $36, category = $37, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $38 RETURNING *`,
       [
         plate, brand, model, year, type, chassis_number, engine_number, current_mileage, status, selling_price, currency,
         package_name, transmission, fuel_type, color, body_type, 
@@ -253,9 +260,11 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
         seller_type || 'professional',
         !!is_verified,
         verification_status || 'none',
-        !!is_on_enrakipsiz,
+        is_on_enrakipsiz !== undefined ? !!is_on_enrakipsiz : true,
+        is_on_website !== undefined ? !!is_on_website : true,
         buying_currency || 'TRY',
         !!req.body.auto_post_instagram,
+        category || 'otomobil',
         id
       ]
     );
