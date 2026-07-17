@@ -16,31 +16,68 @@ export class InstagramService {
     let businessAccountId: string | undefined;
 
     if (storeId === 'global') {
-      accessToken = this.GLOBAL_ACCESS_TOKEN;
-      businessAccountId = this.GLOBAL_BUSINESS_ACCOUNT_ID;
+      accessToken = this.GLOBAL_ACCESS_TOKEN || process.env.GLOBAL_INSTAGRAM_ACCESS_TOKEN;
+      businessAccountId = this.GLOBAL_BUSINESS_ACCOUNT_ID || process.env.GLOBAL_INSTAGRAM_BUSINESS_ACCOUNT_ID;
     } else {
       const res = await pool.query(
-        "SELECT instagram_access_token, instagram_business_account_id FROM stores WHERE id = $1",
+        "SELECT instagram_access_token, instagram_business_account_id, instagram_settings FROM stores WHERE id = $1",
         [storeId]
       );
       if (res.rows.length > 0) {
         accessToken = res.rows[0].instagram_access_token;
         businessAccountId = res.rows[0].instagram_business_account_id;
+
+        // Fallback to instagram_settings JSONB if direct columns are not set
+        if ((!accessToken || !businessAccountId) && res.rows[0].instagram_settings) {
+          const igSettings = typeof res.rows[0].instagram_settings === 'string'
+            ? JSON.parse(res.rows[0].instagram_settings)
+            : res.rows[0].instagram_settings;
+          accessToken = igSettings.access_token || accessToken;
+          businessAccountId = igSettings.account_id || businessAccountId;
+        }
       }
     }
 
     if (!accessToken || !businessAccountId) {
-      console.warn(`Instagram not configured for store ${storeId}`);
+      console.warn(`Instagram not configured for store ${storeId}. Missing access token or business account ID.`);
       return null;
     }
 
     try {
-      // Ensure the image URL is a fully qualified absolute URL
+      // Ensure the image URL is parsed correctly if it's a JSON array string
       let finalImageUrl = imageUrl;
-      if (imageUrl && !imageUrl.startsWith("http://") && !imageUrl.startsWith("https://")) {
-        const domain = process.env.APP_URL || "https://www.enrakipsiz.com";
-        finalImageUrl = `${domain.replace(/\/$/, "")}/${imageUrl.replace(/^\//, "")}`;
+      if (typeof finalImageUrl === 'string' && (finalImageUrl.startsWith('[') || finalImageUrl.startsWith('"'))) {
+        try {
+          const parsed = JSON.parse(finalImageUrl);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            finalImageUrl = parsed[0];
+          } else if (typeof parsed === 'string') {
+            finalImageUrl = parsed;
+          }
+        } catch (e) {
+          // Fallback to original string
+        }
       }
+
+      // Ensure the image URL is a fully qualified absolute URL
+      if (finalImageUrl) {
+        if (!finalImageUrl.startsWith("http://") && !finalImageUrl.startsWith("https://")) {
+          const domain = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "https://www.enrakipsiz.com";
+          finalImageUrl = `${domain.replace(/\/$/, "")}/${finalImageUrl.replace(/^\//, "")}`;
+        }
+
+        // WebP format check and rewrite to use proxy-image converter (Instagram Graph API only supports JPEG/PNG)
+        if (
+          finalImageUrl.toLowerCase().endsWith(".webp") ||
+          finalImageUrl.includes(".webp") ||
+          finalImageUrl.includes("supabase.co/storage")
+        ) {
+          const domain = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "https://www.enrakipsiz.com";
+          finalImageUrl = `${domain.replace(/\/$/, "")}/api/instagram/proxy-image?url=${encodeURIComponent(finalImageUrl)}`;
+        }
+      }
+
+      console.log(`[Instagram] Preparing to post to ${storeId} with URL: ${finalImageUrl}`);
 
       // 1. Create Media Container
       // Reference: https://developers.facebook.com/docs/instagram-api/reference/ig-user/media#creating
@@ -69,7 +106,8 @@ export class InstagramService {
       return publishRes.data.id;
     } catch (error: any) {
       const errorData = error.response?.data?.error || {};
-      console.error("Instagram Post Error:", errorData.message || error.message);
+      console.error("Instagram Post Error detail:", JSON.stringify(errorData));
+      console.error("Instagram Post Error message:", errorData.message || error.message);
       throw new Error(`Instagram post failed: ${errorData.message || error.message}`);
     }
   }

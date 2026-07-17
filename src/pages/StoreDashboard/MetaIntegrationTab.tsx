@@ -36,12 +36,21 @@ const MetaIntegration = () => {
     pixel_id: '',
     catalog_id: ''
   });
+  const [instagramSettings, setInstagramSettings] = useState({
+    enabled: false,
+    auto_post: false,
+    account_id: '',
+    access_token: ''
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingIg, setSavingIg] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successIg, setSuccessIg] = useState(false);
   const [storeSlug, setStoreSlug] = useState('');
   const [customDomain, setCustomDomain] = useState('');
+  const [showAdvancedIg, setShowAdvancedIg] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -58,13 +67,15 @@ const MetaIntegration = () => {
 
   const fetchSettings = async () => {
     try {
-      const [settingsRes, storeRes] = await Promise.all([
+      const [settingsRes, storeRes, igRes] = await Promise.all([
         api.getMetaSettings(),
-        api.getBranding()
+        api.getBranding(),
+        api.getInstagramSettings()
       ]);
       setSettings(settingsRes || { enabled: false, pixel_id: '', catalog_id: '' });
       setStoreSlug(storeRes?.slug || '');
       setCustomDomain(storeRes?.custom_domain || '');
+      setInstagramSettings(igRes || { enabled: false, auto_post: false, account_id: '', access_token: '' });
     } catch (err: any) {
       setError(t.metaIntegration.loadingError);
     } finally {
@@ -84,6 +95,44 @@ const MetaIntegration = () => {
       setError(err.message || t.metaIntegration.error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveInstagram = async (updatedSettings?: typeof instagramSettings) => {
+    setSavingIg(true);
+    setSuccessIg(false);
+    try {
+      const targetSettings = updatedSettings || instagramSettings;
+      await api.saveInstagramSettings(targetSettings);
+      setSuccessIg(true);
+      toast.success("Instagram ayarları başarıyla kaydedildi.");
+      setTimeout(() => setSuccessIg(false), 3000);
+      fetchSettings();
+    } catch (err: any) {
+      toast.error(err.message || "Ayarlar kaydedilirken hata oluştu.");
+    } finally {
+      setSavingIg(false);
+    }
+  };
+
+  const handleDisconnectInstagram = async () => {
+    if (!window.confirm("Instagram bağlantısını kesmek istediğinizden emin misiniz?")) return;
+    setSavingIg(true);
+    try {
+      const resetSettings = {
+        enabled: false,
+        auto_post: false,
+        account_id: '',
+        access_token: ''
+      };
+      await api.saveInstagramSettings(resetSettings);
+      setInstagramSettings(resetSettings);
+      toast.success("Instagram bağlantısı kesildi.");
+      fetchSettings();
+    } catch (err: any) {
+      toast.error(err.message || "Bağlantı kesilirken hata oluştu.");
+    } finally {
+      setSavingIg(false);
     }
   };
 
@@ -148,26 +197,157 @@ const MetaIntegration = () => {
                 <div className="p-2 bg-pink-50 rounded-lg">
                   <Instagram className="w-5 h-5 text-pink-600" />
                 </div>
-                <h2 className="text-lg font-semibold text-gray-900">Instagram Entegrasyonu</h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Instagram Entegrasyonu</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">İlanlarınızı otomatik olarak Instagram hesabınızda paylaşın</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {instagramSettings.access_token && instagramSettings.account_id ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Bağlı (Aktif)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                    Bağlı Değil
+                  </span>
+                )}
               </div>
             </div>
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600">Portföylerinizi otomatik olarak paylaşmak için Instagram hesabınızı bağlayın.</p>
-              <button 
-                onClick={async () => {
-                  try {
-                    const response = await api.get("/api/instagram/auth-url");
-                    if (response.data?.url) {
-                      window.open(response.data.url, '_blank', 'width=600,height=600');
-                    }
-                  } catch (error) {
-                    toast.error("Bağlantı adresi alınamadı.");
-                  }
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors"
-              >
-                <Instagram className="w-4 h-4" /> Instagram Hesabını Bağla
-              </button>
+            
+            <div className="p-6 space-y-6">
+              {instagramSettings.access_token && instagramSettings.account_id ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Instagram Hesabınız Başarıyla Bağlandı!
+                      </h4>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Business Account ID: <span className="font-mono bg-white px-1.5 py-0.5 rounded border">{instagramSettings.account_id}</span>
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleDisconnectInstagram}
+                      disabled={savingIg}
+                      className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-xs font-medium"
+                    >
+                      Bağlantıyı Kes
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200/60">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900">Yeni İlanları Otomatik Paylaş</h4>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Gayrimenkul portföyü veya otomotiv aracı eklediğinizde Instagram'da otomatik gönderi oluşturulur.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={instagramSettings.auto_post}
+                        onChange={(e) => {
+                          const updated = { ...instagramSettings, auto_post: e.target.checked };
+                          setInstagramSettings(updated);
+                          handleSaveInstagram(updated);
+                        }}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="text-sm font-semibold text-blue-900">Instagram Mağaza Paylaşımı Nasıl Çalışır?</h4>
+                      <p className="text-xs text-blue-700/80 mt-1 leading-relaxed">
+                        Instagram İşletme hesabınızı bağladığınızda, sisteme eklediğiniz her yeni portföy veya araç ilanı için başlık, fiyat, açıklama ve görsellerle profesyonel bir sosyal medya gönderisi otomatik olarak yayınlanır. Manuel uğraşa gerek kalmaz!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 border border-gray-100 rounded-xl bg-gray-50/50">
+                    <p className="text-xs text-gray-600 max-w-md">
+                      Güvenli Facebook/Meta Login API'sini kullanarak Instagram Profesyonel/İşletme hesabınızı saniyeler içinde bağlayabilirsiniz.
+                    </p>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const response = await api.get("/api/instagram/auth-url");
+                          const url = response.url || response.data?.url;
+                          if (url) {
+                            window.open(url, '_blank', 'width=600,height=600');
+                          } else {
+                            toast.error("Bağlantı adresi alınamadı. Lütfen daha sonra tekrar deneyiniz.");
+                          }
+                        } catch (error) {
+                          toast.error("Bağlantı adresi alınamadı.");
+                        }
+                      }}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-pink-600 to-rose-500 text-white rounded-lg hover:from-pink-700 hover:to-rose-600 shadow-sm transition-all text-sm font-medium"
+                    >
+                      <Instagram className="w-4 h-4" /> Instagram Hesabını Bağla
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Collapsible Advanced Credentials Toggle */}
+              <div className="border-t border-gray-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedIg(!showAdvancedIg)}
+                  className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors font-medium"
+                >
+                  {showAdvancedIg ? "▲ Gelişmiş Ayarları Gizle" : "▼ Gelişmiş Instagram Ayarları (Manuel Giriş)"}
+                </button>
+
+                {showAdvancedIg && (
+                  <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-xl border border-gray-200/60">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-700">Instagram Access Token (Erişim Jetonu)</label>
+                        <input
+                          type="password"
+                          value={instagramSettings.access_token || ""}
+                          onChange={(e) => setInstagramSettings({ ...instagramSettings, access_token: e.target.value })}
+                          placeholder="EAA..."
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-700">Instagram Business Account ID</label>
+                        <input
+                          type="text"
+                          value={instagramSettings.account_id || ""}
+                          onChange={(e) => setInstagramSettings({ ...instagramSettings, account_id: e.target.value })}
+                          placeholder="Örn: 178414..."
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200/50">
+                      <p className="text-[10px] text-gray-500 max-w-sm">
+                        Manuel olarak kendi Facebook/Meta Graph API tokenlarınızı girmek isterseniz yukarıdaki alanları doldurup kaydedebilirsiniz.
+                      </p>
+                      <button
+                        onClick={() => handleSaveInstagram()}
+                        disabled={savingIg}
+                        className="px-4 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors text-xs font-medium flex items-center gap-1.5"
+                      >
+                        {savingIg ? "Kaydediliyor..." : "Manuel Ayarları Kaydet"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

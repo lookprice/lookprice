@@ -1492,7 +1492,14 @@ router.post("/instagram/settings", authenticate, async (req: any, res) => {
       access_token: access_token || ""
     };
 
-    await pool.query("UPDATE stores SET instagram_settings = $1 WHERE id = $2", [settings, storeId]);
+    await pool.query(
+      `UPDATE stores SET 
+        instagram_settings = $1,
+        instagram_access_token = $2,
+        instagram_business_account_id = $3
+      WHERE id = $4`,
+      [settings, settings.access_token, settings.account_id, storeId]
+    );
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -1503,8 +1510,25 @@ router.post("/instagram/settings", authenticate, async (req: any, res) => {
 router.get("/instagram/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
-    const result = await pool.query("SELECT instagram_settings FROM stores WHERE id = $1", [storeId]);
-    res.json(result.rows[0]?.instagram_settings || { enabled: false, auto_post: false, account_id: "", access_token: "" });
+    const result = await pool.query(
+      "SELECT instagram_settings, instagram_access_token, instagram_business_account_id FROM stores WHERE id = $1", 
+      [storeId]
+    );
+    const row = result.rows[0] || {};
+    const settings = row.instagram_settings || { enabled: false, auto_post: false, account_id: "", access_token: "" };
+    
+    // Merge database columns if they exist
+    if (row.instagram_access_token) {
+      settings.access_token = row.instagram_access_token;
+    }
+    if (row.instagram_business_account_id) {
+      settings.account_id = row.instagram_business_account_id;
+    }
+    if (settings.access_token && settings.account_id) {
+      if (settings.enabled === undefined) settings.enabled = true;
+    }
+
+    res.json(settings);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

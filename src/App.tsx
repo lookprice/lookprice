@@ -207,6 +207,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             <Route path="/contract/sign/:id" element={<ContractSignPage />} />
+            <Route path="/digital-menu/:storeId" element={<DigitalMenuPage />} />
             <Route path="/digital-menu/:storeId/:tableId" element={<DigitalMenuPage />} />
             <Route path="/privacy" element={<LegalPage type="privacy" />} />
             <Route path="/terms" element={<LegalPage type="terms" />} />
@@ -244,6 +245,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             <Route path="/contract/sign/:id" element={<ContractSignPage />} />
+            <Route path="/digital-menu/:storeId" element={<DigitalMenuPage />} />
             <Route path="/digital-menu/:storeId/:tableId" element={<DigitalMenuPage />} />
             <Route path="/privacy" element={<LegalPage type="privacy" />} />
             <Route path="/terms" element={<LegalPage type="terms" />} />

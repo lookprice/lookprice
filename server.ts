@@ -160,6 +160,25 @@ async function startServer() {
     }
   });
 
+  app.get("/api/instagram/proxy-image", async (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).send("Missing url parameter");
+
+    try {
+      const response = await axios.get(url as string, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(response.data);
+      const converted = await sharp(imageBuffer)
+        .jpeg({ quality: 90 })
+        .toBuffer();
+      
+      res.set('Content-Type', 'image/jpeg');
+      res.send(converted);
+    } catch (err: any) {
+      console.error("Instagram proxy-image error:", err.message);
+      res.status(500).send("Error converting image");
+    }
+  });
+
 
 function sanitizeFilename(originalName: string): string {
   const turkishMap: { [key: string]: string } = {
