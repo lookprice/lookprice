@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";
-import * as XLSX from 'xlsx';
+// import * as XLSX from 'xlsx';
 import { useReactToPrint } from 'react-to-print';
 
 import { SalesInvoiceStats } from "./dashboard/invoices/sales/SalesInvoiceStats";
@@ -667,7 +667,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const XLSX = await import('xlsx');
     const targetInvoices = selectedIds.length > 0 
       ? invoices.filter((i: any) => selectedIds.includes(i.id))
       : invoices;

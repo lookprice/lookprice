@@ -14,9 +14,9 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { normalizeSearch } from "../lib/searchUtils";
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// import * as XLSX from 'xlsx';
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
 
 import { PurchaseInvoiceStats } from "./dashboard/invoices/purchase/PurchaseInvoiceStats";
 import { PurchaseInvoiceTable } from "./dashboard/invoices/purchase/PurchaseInvoiceTable";
@@ -357,7 +357,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     );
   });
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await import('xlsx');
     const targetInvoices = selectedIds.length > 0 
       ? invoices.filter((i: any) => selectedIds.includes(i.id))
       : invoices;

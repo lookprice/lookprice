@@ -49,7 +49,7 @@ import { useCompanies } from "../../hooks/useCompanies";
 import { useRealEstate } from "../../hooks/useRealEstate";
 import { api } from "../../services/api";
 import { User, Product } from "../../types";
-import * as XLSX from 'xlsx';
+// import * as XLSX from 'xlsx';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from "sonner";
 import { handleDownloadQuotationPDF } from "../../utils/dashboardUtils";
@@ -456,7 +456,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const handleDownloadDailyReportExcel = () => {
+  const handleDownloadDailyReportExcel = async () => {
+    const XLSX = await import('xlsx');
     if (!dailyReportData.details || dailyReportData.details.length === 0) {
       alert(t.noDataToDownload || "İndirilecek veri bulunamadı");
       return;
@@ -583,7 +584,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     contentRef: quotationPrintRef,
   });
 
-  const handleExportQuotations = () => {
+  const handleExportQuotations = async () => {
+    const XLSX = await import('xlsx');
     const data = quotationList.map(q => ({
       [t.quotationNo || 'Quotation No']: q.id,
       [t.statements.date]: new Date(q.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US'),

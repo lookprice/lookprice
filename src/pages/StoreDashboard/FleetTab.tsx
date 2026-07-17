@@ -23,10 +23,10 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import * as XLSX from 'xlsx';
+// import * as XLSX from 'xlsx';
 import { api } from '../../services/api';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// import { jsPDF } from 'jspdf';
+// import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { translations } from '../../translations';
@@ -649,7 +649,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
 
   const getVehiclePlate = (id: number) => (vehicles || []).find(v => v.id === id)?.plate || `ID: ${id}`;
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await import('xlsx');
     const data = (vehicles || []).map(v => ({
       [t.plate]: v.plate,
       [t.brand]: v.brand,
@@ -666,7 +667,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
     XLSX.writeFile(wb, `${t.fleetReport}_${format(new Date(), 'dd_MM_yyyy')}.xlsx`);
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF();
     doc.text(t.fleet, 14, 15);
     autoTable(doc, {
