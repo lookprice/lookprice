@@ -152,15 +152,54 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
       (async () => {
         try {
           const { InstagramService } = await import('../src/services/instagramService');
-          const storeRes = await pool.query("SELECT name FROM stores WHERE id = $1", [storeId]);
+          const storeRes = await pool.query("SELECT name, phone, whatsapp_number FROM stores WHERE id = $1", [storeId]);
           const storeName = storeRes.rows[0]?.name || "Seçkin Galeri";
+          const storePhone = storeRes.rows[0]?.phone || storeRes.rows[0]?.whatsapp_number || "+90 548 890 23 09";
+
+          const formatPrice = (p: any, curr: string) => {
+            if (!p) return 'Görüşülecek';
+            const num = Number(p);
+            if (isNaN(num)) return `${p} ${curr}`;
+            const formattedNum = new Intl.NumberFormat('tr-TR').format(num);
+            let symbol = curr || 'TRY';
+            if (symbol === 'TRY') symbol = 'TL';
+            if (symbol === 'GBP') symbol = '£';
+            if (symbol === 'EUR') symbol = '€';
+            if (symbol === 'USD') symbol = '$';
+            return `${symbol}${formattedNum}`;
+          };
+
+          const priceStr = formatPrice(newVehicle.selling_price, newVehicle.currency);
+          const vehicleTitle = `${newVehicle.brand || ''} ${newVehicle.model || ''} (${newVehicle.year || ''})`.trim() || 'Seçkin Otomobil';
+          
+          const sub1 = newVehicle.body_type || 'Vasıta';
+          const sub2 = newVehicle.transmission || 'Otomatik';
+          const sub3 = newVehicle.fuel_type || 'Benzin';
+          const sub4 = newVehicle.current_mileage ? `${new Intl.NumberFormat('tr-TR').format(Number(newVehicle.current_mileage))} km` : '0 km';
+
           const caption = InstagramService.generateCaption(newVehicle, 'vehicle', storeName);
           
+          const meta = {
+            type: 'vehicle' as const,
+            title: vehicleTitle,
+            price: priceStr,
+            location: 'KIBRIS',
+            storeName: storeName,
+            referenceNo: newVehicle.plate || 'OTO-PORTFÖY',
+            status: newVehicle.status,
+            sub1,
+            sub2,
+            sub3,
+            sub4,
+            agentName: storeName,
+            agentPhone: storePhone
+          };
+
           // Scenario 2: Post to Store's own account
-          await InstagramService.postToInstagram(storeId, newVehicle.images[0], caption).catch(err => console.warn("Store IG post failed:", err.message));
+          await InstagramService.postToInstagram(storeId, newVehicle.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
           
           // Scenario 1: Post to enrakipsiz global account
-          await InstagramService.postToInstagram('global', newVehicle.images[0], caption).catch(err => console.warn("Global IG post failed:", err.message));
+          await InstagramService.postToInstagram('global', newVehicle.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
         } catch (e) {
           console.error("Background Instagram posting task error:", e);
         }
@@ -221,7 +260,68 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vehicle not found' });
     }
-    res.json(result.rows[0]);
+    const updatedVehicle = result.rows[0];
+    res.json(updatedVehicle);
+
+    // Background Instagram Posting on Update
+    if (updatedVehicle.auto_post_instagram && updatedVehicle.images?.length > 0) {
+      (async () => {
+        try {
+          const storeId = updatedVehicle.store_id || req.user.store_id;
+          const { InstagramService } = await import('../src/services/instagramService');
+          const storeRes = await pool.query("SELECT name, phone, whatsapp_number FROM stores WHERE id = $1", [storeId]);
+          const storeName = storeRes.rows[0]?.name || "Seçkin Galeri";
+          const storePhone = storeRes.rows[0]?.phone || storeRes.rows[0]?.whatsapp_number || "+90 548 890 23 09";
+
+          const formatPrice = (p: any, curr: string) => {
+            if (!p) return 'Görüşülecek';
+            const num = Number(p);
+            if (isNaN(num)) return `${p} ${curr}`;
+            const formattedNum = new Intl.NumberFormat('tr-TR').format(num);
+            let symbol = curr || 'TRY';
+            if (symbol === 'TRY') symbol = 'TL';
+            if (symbol === 'GBP') symbol = '£';
+            if (symbol === 'EUR') symbol = '€';
+            if (symbol === 'USD') symbol = '$';
+            return `${symbol}${formattedNum}`;
+          };
+
+          const priceStr = formatPrice(updatedVehicle.selling_price, updatedVehicle.currency);
+          const vehicleTitle = `${updatedVehicle.brand || ''} ${updatedVehicle.model || ''} (${updatedVehicle.year || ''})`.trim() || 'Seçkin Otomobil';
+          
+          const sub1 = updatedVehicle.body_type || 'Vasıta';
+          const sub2 = updatedVehicle.transmission || 'Otomatik';
+          const sub3 = updatedVehicle.fuel_type || 'Benzin';
+          const sub4 = updatedVehicle.current_mileage ? `${new Intl.NumberFormat('tr-TR').format(Number(updatedVehicle.current_mileage))} km` : '0 km';
+
+          const caption = InstagramService.generateCaption(updatedVehicle, 'vehicle', storeName);
+          
+          const meta = {
+            type: 'vehicle' as const,
+            title: vehicleTitle,
+            price: priceStr,
+            location: 'KIBRIS',
+            storeName: storeName,
+            referenceNo: updatedVehicle.plate || 'OTO-PORTFÖY',
+            status: updatedVehicle.status,
+            sub1,
+            sub2,
+            sub3,
+            sub4,
+            agentName: storeName,
+            agentPhone: storePhone
+          };
+
+          // Scenario 2: Post to Store's own account
+          await InstagramService.postToInstagram(storeId, updatedVehicle.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
+          
+          // Scenario 1: Post to enrakipsiz global account
+          await InstagramService.postToInstagram('global', updatedVehicle.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
+        } catch (e) {
+          console.error("Background Instagram posting task error on update:", e);
+        }
+      })();
+    }
   } catch (error) {
     console.error('Error updating vehicle:', error);
     res.status(500).json({ error: 'Internal server error' });

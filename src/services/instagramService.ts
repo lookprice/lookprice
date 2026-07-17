@@ -6,12 +6,32 @@ export class InstagramService {
   private static GLOBAL_BUSINESS_ACCOUNT_ID = process.env.GLOBAL_INSTAGRAM_BUSINESS_ACCOUNT_ID;
 
   /**
-   * Posts an image to Instagram Business Account
+   * Posts an image or carousel of images to Instagram Business Account
    * @param storeId Store ID or 'global' for enrakipsiz main account
-   * @param imageUrl Publicly accessible image URL
+   * @param imageUrlOrUrls Publicly accessible image URL or array of URLs
    * @param caption Post caption
+   * @param metaData Optional metadata to generate a beautiful branded cover image overlay
    */
-  static async postToInstagram(storeId: number | 'global', imageUrl: string, caption: string) {
+  static async postToInstagram(
+    storeId: number | 'global',
+    imageUrlOrUrls: string | string[],
+    caption: string,
+    metaData?: {
+      type: 'vehicle' | 'property';
+      title: string;
+      price: string;
+      location?: string;
+      storeName?: string;
+      referenceNo?: string | null;
+      status?: string | null;
+      sub1?: string | null;
+      sub2?: string | null;
+      sub3?: string | null;
+      sub4?: string | null;
+      agentName?: string | null;
+      agentPhone?: string | null;
+    }
+  ) {
     let accessToken: string | undefined;
     let businessAccountId: string | undefined;
 
@@ -44,66 +64,134 @@ export class InstagramService {
     }
 
     try {
-      // Ensure the image URL is parsed correctly if it's a JSON array string
-      let finalImageUrl = imageUrl;
-      if (typeof finalImageUrl === 'string' && (finalImageUrl.startsWith('[') || finalImageUrl.startsWith('"'))) {
-        try {
-          const parsed = JSON.parse(finalImageUrl);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            finalImageUrl = parsed[0];
-          } else if (typeof parsed === 'string') {
-            finalImageUrl = parsed;
+      // Parse image URLs
+      let rawUrls: string[] = [];
+      if (Array.isArray(imageUrlOrUrls)) {
+        rawUrls = imageUrlOrUrls;
+      } else if (typeof imageUrlOrUrls === 'string') {
+        if (imageUrlOrUrls.startsWith('[') || imageUrlOrUrls.startsWith('"')) {
+          try {
+            const parsed = JSON.parse(imageUrlOrUrls);
+            rawUrls = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {
+            rawUrls = [imageUrlOrUrls];
           }
-        } catch (e) {
-          // Fallback to original string
+        } else {
+          rawUrls = [imageUrlOrUrls];
         }
       }
 
-      // Ensure the image URL is a fully qualified absolute URL
-      if (finalImageUrl) {
-        if (!finalImageUrl.startsWith("http://") && !finalImageUrl.startsWith("https://")) {
-          const domain = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "https://www.enrakipsiz.com";
-          finalImageUrl = `${domain.replace(/\/$/, "")}/${finalImageUrl.replace(/^\//, "")}`;
-        }
-
-        // WebP format check and rewrite to use proxy-image converter (Instagram Graph API only supports JPEG/PNG)
-        if (
-          finalImageUrl.toLowerCase().endsWith(".webp") ||
-          finalImageUrl.includes(".webp") ||
-          finalImageUrl.includes("supabase.co/storage")
-        ) {
-          const domain = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "https://www.enrakipsiz.com";
-          finalImageUrl = `${domain.replace(/\/$/, "")}/api/instagram/proxy-image?url=${encodeURIComponent(finalImageUrl)}`;
-        }
+      // Filter and limit to max 10 images (Instagram Carousel limit)
+      const sanitizedUrls = rawUrls.filter(u => typeof u === 'string' && u.trim().length > 0).slice(0, 10);
+      if (sanitizedUrls.length === 0) {
+        console.warn(`No valid images found for Instagram post (Store: ${storeId})`);
+        return null;
       }
 
-      console.log(`[Instagram] Preparing to post to ${storeId} with URL: ${finalImageUrl}`);
+      const domain = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "https://www.enrakipsiz.com";
+      const baseDomain = domain.replace(/\/$/, "");
 
-      // 1. Create Media Container
-      // Reference: https://developers.facebook.com/docs/instagram-api/reference/ig-user/media#creating
-      const containerRes = await axios.post(
-        `https://graph.facebook.com/v19.0/${businessAccountId}/media`,
-        {
-          image_url: finalImageUrl,
-          caption: caption,
-          access_token: accessToken,
+      // Map URLs to absolute URLs with optional proxy and overlays
+      const mappedUrls = sanitizedUrls.map((imgUrl, index) => {
+        let urlStr = imgUrl;
+        
+        // Ensure fully qualified absolute URL
+        if (!urlStr.startsWith("http://") && !urlStr.startsWith("https://")) {
+          urlStr = `${baseDomain}/${urlStr.replace(/^\//, "")}`;
         }
-      );
 
-      const containerId = containerRes.data.id;
-
-      // 2. Publish Media
-      // Reference: https://developers.facebook.com/docs/instagram-api/reference/ig-user/media_publish#creating
-      const publishRes = await axios.post(
-        `https://graph.facebook.com/v19.0/${businessAccountId}/media_publish`,
-        {
-          creation_id: containerId,
-          access_token: accessToken,
+        // Apply overlay only to the first (cover) image if metadata is present
+        if (index === 0 && metaData) {
+          const params = new URLSearchParams({
+            url: urlStr,
+            overlay: 'true',
+            type: metaData.type,
+            title: metaData.title,
+            price: metaData.price,
+            location: metaData.location || '',
+            storeName: metaData.storeName || '',
+            ref: metaData.referenceNo || '',
+            status: metaData.status || '',
+            sub1: metaData.sub1 || '',
+            sub2: metaData.sub2 || '',
+            sub3: metaData.sub3 || '',
+            sub4: metaData.sub4 || '',
+            agentName: metaData.agentName || '',
+            agentPhone: metaData.agentPhone || ''
+          });
+          return `${baseDomain}/api/instagram/proxy-image?${params.toString()}`;
         }
-      );
 
-      console.log(`Successfully posted to Instagram for store ${storeId}:`, publishRes.data.id);
-      return publishRes.data.id;
+        // Subsequent images or if no metadata: just convert from WebP to JPEG
+        return `${baseDomain}/api/instagram/proxy-image?url=${encodeURIComponent(urlStr)}`;
+      });
+
+      console.log(`[Instagram] Preparing to post to ${storeId} (Carousel size: ${mappedUrls.length}). First URL: ${mappedUrls[0]}`);
+
+      if (mappedUrls.length === 1) {
+        // Single Image Post
+        const containerRes = await axios.post(
+          `https://graph.facebook.com/v19.0/${businessAccountId}/media`,
+          {
+            image_url: mappedUrls[0],
+            caption: caption,
+            access_token: accessToken,
+          }
+        );
+        const containerId = containerRes.data.id;
+
+        const publishRes = await axios.post(
+          `https://graph.facebook.com/v19.0/${businessAccountId}/media_publish`,
+          {
+            creation_id: containerId,
+            access_token: accessToken,
+          }
+        );
+        console.log(`Successfully posted single image to Instagram for store ${storeId}:`, publishRes.data.id);
+        return publishRes.data.id;
+      } else {
+        // Carousel Post (Multiple Images)
+        // 1. Create container for each image item (max 10) with is_carousel_item = true
+        const childContainerIds = await Promise.all(mappedUrls.map(async (url, idx) => {
+          try {
+            const res = await axios.post(
+              `https://graph.facebook.com/v19.0/${businessAccountId}/media`,
+              {
+                image_url: url,
+                is_carousel_item: true,
+                access_token: accessToken,
+              }
+            );
+            return res.data.id;
+          } catch (itemErr: any) {
+            console.error(`Error creating carousel item #${idx} container:`, itemErr.response?.data?.error || itemErr.message);
+            throw itemErr;
+          }
+        }));
+
+        // 2. Create the Carousel (MEDIA_BUNDLE) Container containing all children
+        const carouselContainerRes = await axios.post(
+          `https://graph.facebook.com/v19.0/${businessAccountId}/media`,
+          {
+            media_type: 'CAROUSEL',
+            children: childContainerIds.join(','),
+            caption: caption,
+            access_token: accessToken,
+          }
+        );
+        const carouselContainerId = carouselContainerRes.data.id;
+
+        // 3. Publish the Carousel container
+        const publishRes = await axios.post(
+          `https://graph.facebook.com/v19.0/${businessAccountId}/media_publish`,
+          {
+            creation_id: carouselContainerId,
+            access_token: accessToken,
+          }
+        );
+        console.log(`Successfully posted Carousel to Instagram for store ${storeId}:`, publishRes.data.id);
+        return publishRes.data.id;
+      }
     } catch (error: any) {
       const errorData = error.response?.data?.error || {};
       console.error("Instagram Post Error detail:", JSON.stringify(errorData));

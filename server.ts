@@ -161,13 +161,190 @@ async function startServer() {
   });
 
   app.get("/api/instagram/proxy-image", async (req, res) => {
-    const { url } = req.query;
+    const { 
+      url, overlay, type, title, price, location, storeName,
+      ref, status, sub1, sub2, sub3, sub4, agentName, agentPhone
+    } = req.query;
     if (!url) return res.status(400).send("Missing url parameter");
 
     try {
       const response = await axios.get(url as string, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(response.data);
-      const converted = await sharp(imageBuffer)
+      
+      let processedImage = sharp(imageBuffer);
+
+      if (overlay === 'true') {
+        // XML Escape helper
+        const escapeXml = (str: string) => {
+          if (!str) return "";
+          return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&apos;");
+        };
+
+        // Truncate helper
+        const truncate = (str: string, maxLen: number) => {
+          if (!str) return "";
+          return str.length > maxLen ? str.substring(0, maxLen) + "..." : str;
+        };
+
+        const typeVal = type as string || 'property';
+        const rawTitle = title as string || '';
+        const rawPrice = price as string || '';
+        const rawLocation = location as string || '';
+        const rawStoreName = storeName as string || '';
+        
+        const rawRef = ref as string || '';
+        const rawStatus = status as string || '';
+        const rawSub1 = sub1 as string || '';
+        const rawSub2 = sub2 as string || '';
+        const rawSub3 = sub3 as string || '';
+        const rawSub4 = sub4 as string || '';
+        const rawAgentName = agentName as string || '';
+        const rawAgentPhone = agentPhone as string || '';
+
+        const titleText = escapeXml(truncate(rawTitle, 40));
+        const priceText = escapeXml(truncate(rawPrice, 20));
+        const locationText = escapeXml(truncate(rawLocation, 45));
+        const storeText = escapeXml(truncate(rawStoreName, 25));
+
+        const refText = rawRef ? rawRef.toUpperCase() : 'EN-PORTFÖY';
+        const agentText = rawAgentName ? rawAgentName.toUpperCase() : (rawStoreName ? rawStoreName.toUpperCase() : 'SEÇKİN AGENT');
+        const phoneText = rawAgentPhone || '+90 548 890 23 09';
+
+        const sub1Text = truncate(rawSub1 || (typeVal === 'vehicle' ? 'Otomobil' : 'Gayrimenkul'), 15);
+        const sub2Text = truncate(rawSub2 || (typeVal === 'vehicle' ? 'Otomatik' : 'Belirtilmedi'), 15);
+        const sub3Text = truncate(rawSub3 || (typeVal === 'vehicle' ? 'Dizel' : 'Belirtilmedi'), 15);
+        const sub4Text = truncate(rawSub4 || (typeVal === 'vehicle' ? '0 KM' : 'İletişime Geçin'), 20);
+
+        const isRental = rawPrice.toLowerCase().includes('ay') || rawPrice.toLowerCase().includes('kira') || rawStatus.toLowerCase().includes('kiral');
+        const priceLabel = typeVal === 'vehicle' ? 'SATIŞ BEDELİ' : (isRental ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ');
+
+        let bannerText = '';
+        const sLower = rawStatus.toLowerCase();
+        if (sLower === 'kiralandi' || sLower === 'rented' || sLower === 'kiralandı') {
+          bannerText = 'KİRALANDI';
+        } else if (sLower === 'satildi' || sLower === 'sold' || sLower === 'satıldı') {
+          bannerText = 'SATILDI';
+        }
+        
+        // Define SVG overlay
+        const svgOverlay = `
+          <svg width="1080" height="1080" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <!-- Amber/Yellow-Gold Gradient for bottom bar -->
+              <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#d97706" />
+              </linearGradient>
+            </defs>
+
+            <!-- Outer Double Borders (Warm amber/gold) -->
+            <rect x="18" y="18" width="1044" height="1044" fill="none" stroke="#d97706" stroke-width="4" rx="8" />
+            <rect x="25" y="25" width="1030" height="1030" fill="none" stroke="#d97706" stroke-width="1.5" />
+
+            <!-- Photo Frame Thin Border -->
+            <rect x="48" y="138" width="984" height="644" fill="none" stroke="#4b5563" stroke-width="2" />
+            <!-- Inside golden accent on the photo frame -->
+            <rect x="45" y="135" width="990" height="650" fill="none" stroke="#d97706" stroke-width="1" />
+
+            <!-- TOP HEADER (Consultant, Reference, Phone) -->
+            <!-- Consultant Info (Left) -->
+            <g transform="translate(50, 48)">
+              <!-- Beautiful user icon -->
+              <circle cx="25" cy="25" r="20" fill="#1e293b" stroke="#d97706" stroke-width="2" />
+              <!-- User silhouette path -->
+              <path d="M15,36 C15,29 19,27 25,27 C31,27 35,29 35,36" stroke="#d97706" stroke-width="2.5" fill="none" />
+              <circle cx="25" cy="18" r="6" fill="#d97706" />
+              <text x="60" y="32" font-family="'Inter', -apple-system, sans-serif" font-size="22" font-weight="900" fill="#ffffff" letter-spacing="0.5">${escapeXml(agentText)}</text>
+            </g>
+
+            <!-- Reference Badge (Center) -->
+            <g transform="translate(540, 48)">
+              <rect x="-140" y="5" width="280" height="40" fill="#0f172a" stroke="#d97706" stroke-width="2" rx="4" />
+              <text x="0" y="31" font-family="'JetBrains Mono', SFMono-Regular, monospace" font-size="16" font-weight="bold" fill="#f59e0b" text-anchor="middle" letter-spacing="1.5">${escapeXml(refText)}</text>
+            </g>
+
+            <!-- Phone (Right) -->
+            <g transform="translate(1030, 48)">
+              <!-- Crisp white phone receiver icon -->
+              <g transform="translate(-250, 8) scale(1.4)">
+                <path d="M2 3a1 1 0 0 1 .945.681l1.199 3.598a1 1 0 0 1-.242 1.05l-1.393 1.393a11.582 11.582 0 0 0 5.316 5.316l1.393-1.393a1 1 0 0 1 1.05-.242l3.598 1.199a1 1 0 0 1 .681.945V15a2 2 0 0 1-2 2A15 15 0 0 1 2 3z" fill="#d97706" />
+              </g>
+              <text x="-10" y="32" font-family="'Inter', -apple-system, sans-serif" font-size="22" font-weight="900" fill="#ffffff" text-anchor="end" letter-spacing="0.5">${escapeXml(phoneText)}</text>
+            </g>
+
+            <!-- DETAILS ROW (Under Photo Frame) -->
+            <!-- Location (Centered) -->
+            <g transform="translate(540, 805)">
+              <rect x="-320" y="0" width="640" height="42" fill="#0f172a" fill-opacity="0.95" stroke="#374151" stroke-width="1.5" rx="8" />
+              <!-- Map pin icon -->
+              <g transform="translate(-280, 10) scale(1.2)">
+                <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" fill="#ef4444" />
+                <circle cx="12" cy="10" r="3" fill="#ffffff" />
+              </g>
+              <text x="0" y="27" font-family="'Inter', -apple-system, sans-serif" font-size="16" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">${escapeXml(locationText)}</text>
+            </g>
+
+            <!-- Badges Row (Centered at y=885) -->
+            <g transform="translate(540, 885)" font-family="'Inter', -apple-system, sans-serif" font-size="20" font-weight="900" fill="#cbd5e1" text-anchor="middle" letter-spacing="0.5">
+              <text y="0">
+                <tspan fill="#f59e0b">${typeVal === 'vehicle' ? '🚗' : '🏠'}</tspan> ${escapeXml(sub1Text)}   •   <tspan fill="#f59e0b">${typeVal === 'vehicle' ? '⚙️' : '📐'}</tspan> ${escapeXml(sub2Text)}   •   <tspan fill="#f59e0b">${typeVal === 'vehicle' ? '⛽' : '📦'}</tspan> ${escapeXml(sub3Text)}   •   <tspan fill="#f59e0b">${typeVal === 'vehicle' ? '⏱' : '💰'}</tspan> ${escapeXml(sub4Text)}
+              </text>
+            </g>
+
+            <!-- BOTTOM SOLID BAR (Gold background with high-contrast dark text) -->
+            <g transform="translate(48, 935)">
+              <rect x="0" y="0" width="984" height="95" fill="url(#goldGrad)" rx="6" />
+
+              <!-- Price Label & Value (Left) -->
+              <text x="35" y="32" font-family="'Inter', -apple-system, sans-serif" font-size="11" font-weight="900" fill="#0f172a" letter-spacing="1.5">${escapeXml(priceLabel.toUpperCase())}</text>
+              <text x="35" y="74" font-family="'Inter', -apple-system, sans-serif" font-size="36" font-weight="950" fill="#0f172a" letter-spacing="-1">${escapeXml(priceText)}</text>
+
+              <!-- Store Name (Center) - offset to avoid overlapping -->
+              <text x="492" y="56" font-family="'Inter', -apple-system, sans-serif" font-size="20" font-weight="950" fill="#0f172a" text-anchor="middle" letter-spacing="1">MAĞAZA: ${escapeXml(storeText.toUpperCase())}</text>
+
+              <!-- Portal Name (Right) -->
+              <text x="949" y="56" font-family="'Inter', -apple-system, sans-serif" font-size="24" font-weight="950" fill="#0f172a" text-anchor="end" letter-spacing="0.5">ENRAKİPSİZ<tspan fill="#ffffff">.COM</tspan></text>
+            </g>
+
+            <!-- Optional Tilted Red Banner (Sold/Rented) -->
+            ${bannerText ? `
+            <g transform="rotate(-20, 540, 460)">
+              <!-- Red ribbon background with double borders -->
+              <rect x="-200" y="405" width="1480" height="110" fill="#dc2626" stroke="#fef08a" stroke-width="4" />
+              <!-- Red ribbon text -->
+              <text x="540" y="478" font-family="'Inter', -apple-system, sans-serif" font-size="54" font-weight="950" fill="#ffffff" text-anchor="middle" letter-spacing="12">${escapeXml(bannerText)}</text>
+            </g>
+            ` : ''}
+          </svg>
+        `;
+
+        // Resize the listing image to fit inside the photo frame
+        const listingPhotoBuffer = await processedImage
+          .resize(980, 640, { fit: 'cover', position: 'center' })
+          .toBuffer();
+
+        // Create deep slate background (color: #0b111e)
+        const baseBackground = sharp({
+          create: {
+            width: 1080,
+            height: 1080,
+            channels: 4,
+            background: { r: 11, g: 17, b: 30, alpha: 1 }
+          }
+        });
+
+        processedImage = baseBackground.composite([
+          { input: listingPhotoBuffer, top: 140, left: 50 },
+          { input: Buffer.from(svgOverlay), top: 0, left: 0 }
+        ]);
+      }
+
+      const converted = await processedImage
         .jpeg({ quality: 90 })
         .toBuffer();
       

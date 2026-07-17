@@ -404,15 +404,67 @@ router.post('/properties', authenticate, async (req: any, res) => {
       (async () => {
         try {
           const { InstagramService } = await import('../src/services/instagramService');
-          const storeRes = await pool.query("SELECT name FROM stores WHERE id = $1", [storeId]);
+          const storeRes = await pool.query("SELECT name, phone, whatsapp_number FROM stores WHERE id = $1", [storeId]);
           const storeName = storeRes.rows[0]?.name || "Seçkin Emlak";
+          const storePhone = storeRes.rows[0]?.phone || storeRes.rows[0]?.whatsapp_number || "+90 548 890 23 09";
+
+          let consultantName = '';
+          let consultantPhone = '';
+          if (newProperty.responsible_consultant_id) {
+            const consRes = await pool.query("SELECT name, phone FROM consultants WHERE id = $1", [newProperty.responsible_consultant_id]);
+            if (consRes.rows.length > 0) {
+              consultantName = consRes.rows[0].name;
+              consultantPhone = consRes.rows[0].phone;
+            }
+          }
+
+          const agentName = consultantName || storeName;
+          const agentPhone = consultantPhone || storePhone;
+
+          const formatPrice = (p: any, curr: string) => {
+            if (!p) return 'Görüşülecek';
+            const num = Number(p);
+            if (isNaN(num)) return `${p} ${curr}`;
+            const formattedNum = new Intl.NumberFormat('tr-TR').format(num);
+            let symbol = curr || 'TRY';
+            if (symbol === 'TRY') symbol = 'TL';
+            if (symbol === 'GBP') symbol = '£';
+            if (symbol === 'EUR') symbol = '€';
+            if (symbol === 'USD') symbol = '$';
+            return `${symbol}${formattedNum}`;
+          };
+
+          const priceStr = formatPrice(newProperty.price, newProperty.currency);
+          const locStr = (newProperty.location || newProperty.kktc_region || 'Kıbrıs').toUpperCase();
+
+          const sub1 = newProperty.property_type || 'Gayrimenkul';
+          const sub2 = newProperty.area ? `${newProperty.area} m² Net` : 'Belirtilmedi';
+          const sub3 = newProperty.furnished === 'esyali' ? 'Eşyalı' : (newProperty.furnished === 'esyasiz' ? 'Eşyasız' : 'Belirtilmedi');
+          const sub4 = newProperty.deposit ? `Depozito: ${formatPrice(newProperty.deposit, newProperty.currency)}` : 'Depozitosuz';
+
           const caption = InstagramService.generateCaption(newProperty, 'property', storeName);
           
+          const meta = {
+            type: 'property' as const,
+            title: newProperty.title || 'Lüks Gayrimenkul',
+            price: priceStr,
+            location: locStr,
+            storeName: storeName,
+            referenceNo: newProperty.reference_no,
+            status: newProperty.status,
+            sub1,
+            sub2,
+            sub3,
+            sub4,
+            agentName,
+            agentPhone
+          };
+
           // Scenario 2: Post to Store's own account
-          await InstagramService.postToInstagram(storeId, newProperty.images[0], caption).catch(err => console.warn("Store IG post failed:", err.message));
+          await InstagramService.postToInstagram(storeId, newProperty.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
           
           // Scenario 1: Post to enrakipsiz global account
-          await InstagramService.postToInstagram('global', newProperty.images[0], caption).catch(err => console.warn("Global IG post failed:", err.message));
+          await InstagramService.postToInstagram('global', newProperty.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
         } catch (e) {
           console.error("Background Instagram posting task error:", e);
         }
@@ -468,7 +520,80 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Property not found' });
     }
-    res.json(result.rows[0]);
+    const updatedProperty = result.rows[0];
+    res.json(updatedProperty);
+
+    // Background Instagram Posting on Update
+    if (updatedProperty.auto_post_instagram && updatedProperty.images?.length > 0) {
+      (async () => {
+        try {
+          const { InstagramService } = await import('../src/services/instagramService');
+          const storeRes = await pool.query("SELECT name, phone, whatsapp_number FROM stores WHERE id = $1", [storeId]);
+          const storeName = storeRes.rows[0]?.name || "Seçkin Emlak";
+          const storePhone = storeRes.rows[0]?.phone || storeRes.rows[0]?.whatsapp_number || "+90 548 890 23 09";
+
+          let consultantName = '';
+          let consultantPhone = '';
+          if (updatedProperty.responsible_consultant_id) {
+            const consRes = await pool.query("SELECT name, phone FROM consultants WHERE id = $1", [updatedProperty.responsible_consultant_id]);
+            if (consRes.rows.length > 0) {
+              consultantName = consRes.rows[0].name;
+              consultantPhone = consRes.rows[0].phone;
+            }
+          }
+
+          const agentName = consultantName || storeName;
+          const agentPhone = consultantPhone || storePhone;
+
+          const formatPrice = (p: any, curr: string) => {
+            if (!p) return 'Görüşülecek';
+            const num = Number(p);
+            if (isNaN(num)) return `${p} ${curr}`;
+            const formattedNum = new Intl.NumberFormat('tr-TR').format(num);
+            let symbol = curr || 'TRY';
+            if (symbol === 'TRY') symbol = 'TL';
+            if (symbol === 'GBP') symbol = '£';
+            if (symbol === 'EUR') symbol = '€';
+            if (symbol === 'USD') symbol = '$';
+            return `${symbol}${formattedNum}`;
+          };
+
+          const priceStr = formatPrice(updatedProperty.price, updatedProperty.currency);
+          const locStr = (updatedProperty.location || updatedProperty.kktc_region || 'Kıbrıs').toUpperCase();
+
+          const sub1 = updatedProperty.property_type || 'Gayrimenkul';
+          const sub2 = updatedProperty.area ? `${updatedProperty.area} m² Net` : 'Belirtilmedi';
+          const sub3 = updatedProperty.furnished === 'esyali' ? 'Eşyalı' : (updatedProperty.furnished === 'esyasiz' ? 'Eşyasız' : 'Belirtilmedi');
+          const sub4 = updatedProperty.deposit ? `Depozito: ${formatPrice(updatedProperty.deposit, updatedProperty.currency)}` : 'Depozitosuz';
+
+          const caption = InstagramService.generateCaption(updatedProperty, 'property', storeName);
+          
+          const meta = {
+            type: 'property' as const,
+            title: updatedProperty.title || 'Lüks Gayrimenkul',
+            price: priceStr,
+            location: locStr,
+            storeName: storeName,
+            referenceNo: updatedProperty.reference_no,
+            status: updatedProperty.status,
+            sub1,
+            sub2,
+            sub3,
+            sub4,
+            agentName,
+            agentPhone
+          };
+
+          // Scenario 2: Post to Store's own account
+          await InstagramService.postToInstagram(storeId, updatedProperty.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
+          
+          // Scenario 1: Post to enrakipsiz global account
+          await InstagramService.postToInstagram('global', updatedProperty.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
+        } catch (e) {
+          console.error("Background Instagram posting task error on update:", e);
+        }
+      })();
+    }
   } catch (error: any) {
     console.error('Error updating property:', error);
     res.status(500).json({ error: 'Internal server error: ' + error.message });
