@@ -298,17 +298,15 @@ async function startServer() {
 
             <!-- BOTTOM SOLID BAR (Gold background with high-contrast dark text) -->
             <g transform="translate(48, 935)">
-              <rect x="0" y="0" width="984" height="95" fill="url(#goldGrad)" rx="6" />
+              <rect x="0" y="0" width="984" height="110" fill="url(#goldGrad)" rx="6" />
 
-              <!-- Price Label & Value (Left) -->
-              <text x="35" y="32" font-family="'Inter', -apple-system, sans-serif" font-size="11" font-weight="900" fill="#0f172a" letter-spacing="1.5">${escapeXml(priceLabel.toUpperCase())}</text>
-              <text x="35" y="74" font-family="'Inter', -apple-system, sans-serif" font-size="36" font-weight="950" fill="#0f172a" letter-spacing="-1">${escapeXml(priceText)}</text>
-
-              <!-- Store Name (Center) - offset to avoid overlapping -->
-              <text x="492" y="56" font-family="'Inter', -apple-system, sans-serif" font-size="20" font-weight="950" fill="#0f172a" text-anchor="middle" letter-spacing="1">MAĞAZA: ${escapeXml(storeText.toUpperCase())}</text>
+              <!-- Price Label & Value & Store Name (Vertically stacked on the Left) -->
+              <text x="35" y="26" font-family="'Inter', -apple-system, sans-serif" font-size="11" font-weight="900" fill="#0f172a" letter-spacing="1.5">${escapeXml(priceLabel.toUpperCase())}</text>
+              <text x="35" y="68" font-family="'Inter', -apple-system, sans-serif" font-size="38" font-weight="950" fill="#0f172a" letter-spacing="-1">${escapeXml(priceText)}</text>
+              <text x="35" y="98" font-family="'Inter', -apple-system, sans-serif" font-size="16" font-weight="900" fill="#ffffff" letter-spacing="0.5">${escapeXml(storeText.toUpperCase())}</text>
 
               <!-- Portal Name (Right) -->
-              <text x="949" y="56" font-family="'Inter', -apple-system, sans-serif" font-size="24" font-weight="950" fill="#0f172a" text-anchor="end" letter-spacing="0.5">ENRAKİPSİZ<tspan fill="#ffffff">.COM</tspan></text>
+              <text x="949" y="64" font-family="'Inter', -apple-system, sans-serif" font-size="26" font-weight="950" fill="#0f172a" text-anchor="end" letter-spacing="0.5">ENRAKİPSİZ<tspan fill="#ffffff">.COM</tspan></text>
             </g>
 
             <!-- Optional Tilted Red Banner (Sold/Rented) -->

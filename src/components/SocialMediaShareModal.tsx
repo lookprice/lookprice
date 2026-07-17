@@ -290,9 +290,39 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     canvas.width = width;
     canvas.height = height;
 
+    const themeColors = {
+      luxury_dark: { bg: '#0b111e', accent: '#d97706', textAccent: '#f59e0b', textLight: '#ffffff', textMuted: '#cbd5e1' },
+      cyprus_warm: { bg: '#1c0c05', accent: '#ea580c', textAccent: '#f97316', textLight: '#ffffff', textMuted: '#fed7aa' },
+      modern_indigo: { bg: '#060c1d', accent: '#0284c7', textAccent: '#38bdf8', textLight: '#ffffff', textMuted: '#bae6fd' },
+      minimal_carbon: { bg: '#18181b', accent: '#a1a1aa', textAccent: '#e4e4e7', textLight: '#ffffff', textMuted: '#d4d4d8' },
+      premium_gold: { bg: '#0f172a', accent: '#ca8a04', textAccent: '#facc15', textLight: '#ffffff', textMuted: '#fef08a' }
+    };
+    
+    const colors = themeColors[selectedTheme] || themeColors.luxury_dark;
+
+    const isStory = selectedRatio === 'story';
+    const photoTop = 140;
+    const photoHeight = isStory ? 1200 : 640;
+    const photoWidth = 980;
+    const photoLeft = 50;
+
     // Background base fill
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = colors.bg;
     ctx.fillRect(0, 0, width, height);
+
+    // Double Outer Borders
+    ctx.strokeStyle = colors.accent;
+    ctx.lineWidth = 14;
+    ctx.strokeRect(18, 18, width - 36, height - 36);
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(25, 25, width - 50, height - 50);
+
+    // Bounded photo frame outline/border
+    ctx.strokeStyle = colors.accent;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(48, photoTop - 2, 984, photoHeight + 4);
 
     // Image URL loading list
     const imageUrls: string[] = [];
@@ -333,117 +363,132 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
             sHeight = imgPtr.width / targetAspect;
             sy = (imgPtr.height - sHeight) / 2;
           }
+          ctx.save();
+          // Polish & Shine filter: Increase brightness, contrast and saturation dynamically
+          ctx.filter = "brightness(1.12) contrast(1.05) saturate(1.12)";
           ctx.drawImage(imgPtr, sx, sy, sWidth, sHeight, x, y, w, h);
+          ctx.restore();
         } catch (err) {
-          ctx.fillStyle = '#f3f4f6';
+          ctx.fillStyle = '#1e293b';
           ctx.fillRect(x, y, w, h);
         }
       } else {
-        ctx.fillStyle = '#f3f4f6';
+        ctx.fillStyle = '#1e293b';
         ctx.fillRect(x, y, w, h);
       }
     };
 
-    // Draw images (Main layout)
+    // Draw images inside the bounded frame
     if (isCollage && (sideImg1 || sideImg2)) {
-      const mainW = Math.round(width * 0.67);
+      const mainW = Math.round(photoWidth * 0.67);
       const gapSize = 10;
-      const sideXWidth = width - mainW - gapSize;
-      const sideH = Math.round((height - gapSize) / 2);
-      drawSingleImageCover(imgElement, 0, 0, mainW, height);
-      drawSingleImageCover(sideImg1, mainW + gapSize, 0, sideXWidth, sideH);
-      drawSingleImageCover(sideImg2, mainW + gapSize, sideH + gapSize, sideXWidth, sideH);
+      const sideXWidth = photoWidth - mainW - gapSize;
+      const sideH = Math.round((photoHeight - gapSize) / 2);
+      
+      drawSingleImageCover(imgElement, photoLeft, photoTop, mainW, photoHeight);
+      drawSingleImageCover(sideImg1, photoLeft + mainW + gapSize, photoTop, sideXWidth, sideH);
+      drawSingleImageCover(sideImg2, photoLeft + mainW + gapSize, photoTop + sideH + gapSize, sideXWidth, sideH);
     } else {
-      drawSingleImageCover(imgElement, 0, 0, width, height);
+      drawSingleImageCover(imgElement, photoLeft, photoTop, photoWidth, photoHeight);
     }
 
-    // Draw stylish outer border
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 20;
-    ctx.strokeRect(0, 0, width, height);
-
-    // Draw all texts, pricing and specs directly on the canvas with professional text shadow
     ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 3;
+    // 1. TOP CONSULTANT LINE
+    const brokerName = (agent?.name || storeNameDisplay || "Seçkin Danışman").toUpperCase();
+    const brokerPhone = agent?.phone || branding?.phone || branding?.whatsapp_number || "+90 548 890 23 09";
+    const refNoText = (property.reference_no || 'EMLAK-PORTFOY').toUpperCase();
 
-    // 1. TOP-LEFT: STATUS (SATILIK / KİRALIK)
-    ctx.fillStyle = themeConfig.accentHex;
-    ctx.font = 'italic 900 68px system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(isRent ? 'KİRALIK' : 'SATILIK', 70, 130);
+    if (agentImg) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(70 + 28, 80, 28, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(agentImg, 70, 52, 56, 56);
+      ctx.restore();
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 22px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(brokerName, 140, 88);
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 22px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText("👤 " + brokerName, 70, 88);
+    }
 
-    // 2. TOP-RIGHT: CATEGORY BADGE & PRICE
+    // Phone (Right)
     ctx.textAlign = 'right';
-    const badgeText = `${roomsText ? roomsText + ' ' : ''}${categoryLabelForPreview(property.type)}`.toUpperCase();
+    ctx.fillStyle = colors.textAccent;
+    ctx.font = '900 22px system-ui, sans-serif';
+    ctx.fillText("📞 " + brokerPhone, 1010, 88);
+
+    // Reference Pill (Center)
+    ctx.textAlign = 'center';
+    ctx.fillStyle = colors.accent;
+    ctx.font = '900 18px system-ui, sans-serif';
+    ctx.fillText("REF: " + refNoText, width / 2, 88);
+    ctx.restore();
+
+    // 2. LOCATION BADGE & SPECS ROW Below Frame
+    const locationY = photoTop + photoHeight + (isStory ? 45 : 35);
+    const specsY = photoTop + photoHeight + (isStory ? 115 : 105);
+
+    ctx.save();
+    ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
     ctx.font = '900 24px system-ui, sans-serif';
-    ctx.fillText(badgeText, 1010, 100);
+    ctx.fillText("📍 " + propertyLocation.toUpperCase() + "  •  " + regionText.toUpperCase(), width / 2, locationY);
 
-    ctx.fillStyle = themeConfig.accentHex;
-    ctx.font = '950 52px system-ui, sans-serif';
-    ctx.fillText(priceText, 1010, 165);
+    const spec1 = roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul');
+    const spec2 = sqmText ? `${sqmText}` : 'Belirtilmedi';
+    const spec3 = property.furnished === 'esyali' ? 'Eşyalı' : (property.furnished === 'esyasiz' ? 'Eşyasız' : 'Belirtilmedi');
+    const spec4 = isRent 
+      ? (property.deposit ? `Depozito: ${priceText}` : 'Depozitosuz')
+      : `Koçan: ${titleType}`;
 
-    // 3. MIDDLE: PROMOTION STORY LINE (Story ratio only)
-    if (selectedRatio === 'story') {
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 26px system-ui, sans-serif';
-      ctx.fillText("KIBRIS'IN EN SEÇKİN LOKASYONU", width / 2, 940);
-      
-      ctx.fillStyle = '#cbd5e1';
-      ctx.font = '800 20px system-ui, sans-serif';
-      ctx.fillText("Değer kazanan eşsiz bölgesinde lüks emlak standartları!", width / 2, 985);
-    }
+    ctx.font = '900 20px system-ui, sans-serif';
+    ctx.fillStyle = colors.textMuted;
+    ctx.fillText(`🏠 ${spec1}   •   📐 ${spec2}   •   📦 ${spec3}   •   🔑 ${spec4}`, width / 2, specsY);
+    ctx.restore();
 
-    // 4. BOTTOM-LEFT: AGENT & STORE NAME
-    // Agent photo (Bottom-left)
-    if (agentImg) {
-      const agentSize = 200;
-      ctx.save();
-      // Remove text shadows for the image clip
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.beginPath();
-      ctx.arc(100 + agentSize / 2, height - 100 - agentSize / 2, agentSize / 2, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(agentImg, 100, height - 100 - agentSize, agentSize, agentSize);
-      ctx.restore();
-    }
+    // 3. BOTTOM SOLID BAR
+    const barY = height - 145;
+    const barHeight = 110;
+
+    ctx.save();
+    const barGradient = ctx.createLinearGradient(50, barY, 1030, barY);
+    barGradient.addColorStop(0, colors.accent);
+    barGradient.addColorStop(1, colors.accent + 'cc');
+    ctx.fillStyle = barGradient;
+    
+    ctx.beginPath();
+    // Use manual rectangle fallback if roundRect is not supported
+    ctx.rect(48, barY, 984, barHeight);
+    ctx.fill();
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = themeConfig.accentHex;
-    ctx.font = '900 36px system-ui, sans-serif';
-    const storeX = agentImg ? 330 : 70;
-    ctx.fillText(storeNameDisplay.toUpperCase(), storeX, height - 90);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '900 13px system-ui, sans-serif';
+    ctx.fillText((isRent ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'), 83, barY + 28);
 
-    // 5. BOTTOM-RIGHT: SPECS LIST DIRECTLY ON THE CANVAS
+    ctx.font = '950 40px system-ui, sans-serif';
+    ctx.fillText(priceText, 83, barY + 70);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 18px system-ui, sans-serif';
+    ctx.fillText(storeNameDisplay.toUpperCase(), 83, barY + 100);
+
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 30px system-ui, sans-serif';
-    ctx.fillText(`📍 ${propertyLocation.toUpperCase()}`, 1010, height - 200);
-    
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '800 22px system-ui, sans-serif';
-    ctx.fillText(regionText.toUpperCase(), 1010, height - 160);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '950 28px system-ui, sans-serif';
+    ctx.fillText("ENRAKİPSİZ", 1010 - 64, barY + 66);
     
     ctx.fillStyle = '#ffffff';
-    ctx.font = '700 22px system-ui, sans-serif';
-    ctx.fillText(`📐 Alan: ${sqmText || 'Belirtilmedi'}`, 1010, height - 115);
-    
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 22px system-ui, sans-serif';
-    if (isRent) {
-      ctx.fillText(`💵 Kapora: ${property.deposit ? currencySymbol + formatNumberVal(property.deposit) : 'Görüşülecek'}`, 1010, height - 75);
-    } else {
-      ctx.fillText(`📜 Koçan: ${titleType}`, 1010, height - 75);
-    }
+    ctx.fillText(".COM", 1010, barY + 66);
+    ctx.restore();
 
-    // 6. CENTER DIAGONAL BANNER FOR SOLD/RENTED (STAMP EFFECT)
+    // 4. CENTER DIAGONAL BANNER FOR SOLD/RENTED (STAMP EFFECT)
     if (forcedStatus) {
       ctx.save();
       ctx.globalAlpha = 0.9;
@@ -455,7 +500,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       const bannerHeight = 180; 
       
       ctx.translate(width / 2, height / 2);
-      ctx.rotate(-Math.PI / 6); // Subtle diagonal across the center
+      ctx.rotate(-Math.PI / 6);
       
       ctx.fillRect(-bannerWidth / 2, -bannerHeight / 2, bannerWidth, bannerHeight);
       
@@ -468,21 +513,19 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.restore();
     }
 
-    ctx.restore();
-
     // Save and download
     try {
-        const link = document.createElement('a');
-        let sanitizedTitle = (property.title || 'ilan').toLowerCase().replace(/\s+/g, '-').substring(0, 20);
-        link.download = 'afis-' + sanitizedTitle + '-' + selectedTheme + '-' + selectedRatio + '.png';
-        link.href = canvas.toDataURL("image/png");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch (err) {
-        setRenderError("Kaydetme işlemi sırasında tarayıcı güvenlik kısıtlaması nedeniyle hata oluştu.");
-      }
-      setIsRendering(false);
+      const link = document.createElement('a');
+      let sanitizedTitle = (property.title || 'ilan').toLowerCase().replace(/\s+/g, '-').substring(0, 20);
+      link.download = 'afis-' + sanitizedTitle + '-' + selectedTheme + '-' + selectedRatio + '.png';
+      link.href = canvas.toDataURL("image/png");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      setRenderError("Kaydetme işlemi sırasında tarayıcı güvenlik kısıtlaması nedeniyle hata oluştu.");
+    }
+    setIsRendering(false);
   };
 
   return (
@@ -528,166 +571,152 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
             {/* Poster Canvas container */}
             <div className="flex justify-center items-center py-4">
-              <div 
-                ref={previewContainerRef}
-                className="relative w-full max-w-[340px] rounded-3xl overflow-hidden shadow-2xl border-4 border-black/80 transition-all duration-300 flex flex-col bg-slate-950 font-sans"
-                style={{ 
-                  aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16',
-                  borderColor: themeConfig.accentHex 
-                }}
-              >
+              {(() => {
+                const htmlThemeColors = {
+                  luxury_dark: { bg: 'bg-[#0b111e]', border: 'border-[#d97706]', textAccent: 'text-[#f59e0b]', barBg: 'bg-[#d97706]', textMuted: 'text-slate-300' },
+                  cyprus_warm: { bg: 'bg-[#1c0c05]', border: 'border-[#ea580c]', textAccent: 'text-[#f97316]', barBg: 'bg-[#ea580c]', textMuted: 'text-orange-200' },
+                  modern_indigo: { bg: 'bg-[#060c1d]', border: 'border-[#0284c7]', textAccent: 'text-[#38bdf8]', barBg: 'bg-[#0284c7]', textMuted: 'text-cyan-200' },
+                  minimal_carbon: { bg: 'bg-[#18181b]', border: 'border-[#a1a1aa]', textAccent: 'text-[#e4e4e7]', barBg: 'bg-[#a1a1aa]', textMuted: 'text-zinc-350' },
+                  premium_gold: { bg: 'bg-[#0f172a]', border: 'border-[#ca8a04]', textAccent: 'text-[#facc15]', barBg: 'bg-[#ca8a04]', textMuted: 'text-yellow-100' }
+                };
+                const previewColors = htmlThemeColors[selectedTheme] || htmlThemeColors.luxury_dark;
+                const activeAgent = agents.find(a => a.id === selectedAgentId);
+                const activeBrokerName = (activeAgent?.name || storeNameDisplay || "Seçkin Danışman").toUpperCase();
+                const activeBrokerPhone = activeAgent?.phone || branding?.phone || branding?.whatsapp_number || "+90 548 890 23 09";
+                const activeRefNoText = (property.reference_no || 'EMLAK-PORTFOY').toUpperCase();
                 
-                {/* Full Bleed Image / Collage Grid */}
-                <div className="absolute inset-0 w-full h-full z-0 select-none pointer-events-none">
-                  {isCollage && property.images && (property.images[1] || property.images[2]) ? (
-                    <div className="w-full h-full flex flex-row">
-                      {/* Left Main (67%) */}
-                      <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
-                        {property.images[0] ? (
-                          <div className="relative w-full h-full overflow-hidden">
-                            <img 
-                              src={property.images[0]} 
-                              alt={propertyTitle} 
-                              className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                              referrerPolicy="no-referrer"
-                            />
-                            {/* Polish Diagonal Glare Overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
-                          </div>
+                return (
+                  <div 
+                    ref={previewContainerRef}
+                    className={`relative w-full max-w-[340px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans p-3 ${previewColors.bg}`}
+                    style={{ 
+                      aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16'
+                    }}
+                  >
+                    {/* Double Borders */}
+                    <div className={`absolute inset-1.5 border-[3px] rounded-2xl pointer-events-none z-10 ${previewColors.border}`} />
+                    <div className="absolute inset-2 border border-white/20 rounded-2xl pointer-events-none z-10" />
+
+                    {/* TOP CONSULTANT BAR */}
+                    <div className="relative z-20 flex justify-between items-center px-2 py-1.5 mb-1 text-[8px] font-black tracking-wider text-white">
+                      <div className="flex items-center gap-1">
+                        {activeAgent?.image_url ? (
+                          <img src={activeAgent.image_url} alt={activeBrokerName} className="w-4 h-4 rounded-full object-cover border border-white/40" />
                         ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-450 bg-slate-900">🏠</div>
+                          <span>👤</span>
                         )}
+                        <span className="truncate max-w-[80px]">{activeBrokerName}</span>
                       </div>
-                      {/* Right stacked (33%) */}
-                      <div className="w-[33%] h-full flex flex-col">
-                        <div className="flex-1 relative border-b border-black/30 overflow-hidden">
-                          {property.images[1] ? (
-                            <div className="relative w-full h-full overflow-hidden">
+                      <div className={previewColors.textAccent}>REF: {activeRefNoText}</div>
+                      <div className={previewColors.textAccent}>📞 {activeBrokerPhone}</div>
+                    </div>
+
+                    {/* FRAMED IMAGE AREA */}
+                    <div className={`relative flex-1 rounded-xl overflow-hidden border-2 z-20 ${previewColors.border}`}>
+                      {isCollage && property.images && (property.images[1] || property.images[2]) ? (
+                        <div className="w-full h-full flex flex-row bg-slate-900">
+                          {/* Left Main (67%) */}
+                          <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
+                            {property.images[0] ? (
                               <img 
-                                src={property.images[1]} 
-                                alt="Görsel 2" 
+                                src={property.images[0]} 
+                                alt={propertyTitle} 
                                 className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
                                 referrerPolicy="no-referrer"
                               />
-                              {/* Polish Diagonal Glare Overlay */}
-                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">🏠</div>
+                            )}
+                          </div>
+                          {/* Right stacked (33%) */}
+                          <div className="w-[33%] h-full flex flex-col">
+                            <div className="flex-1 relative border-b border-black/30 overflow-hidden">
+                              {property.images[1] ? (
+                                <img 
+                                  src={property.images[1]} 
+                                  alt="Görsel 2" 
+                                  className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
-                          )}
-                        </div>
-                        <div className="flex-1 relative overflow-hidden">
-                          {property.images[2] ? (
-                            <div className="relative w-full h-full overflow-hidden">
-                              <img 
-                                src={property.images[2]} 
-                                alt="Görsel 3" 
-                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                                referrerPolicy="no-referrer"
-                              />
-                              {/* Polish Diagonal Glare Overlay */}
-                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                            <div className="flex-1 relative overflow-hidden">
+                              {property.images[2] ? (
+                                <img 
+                                  src={property.images[2]} 
+                                  alt="Görsel 3" 
+                                  className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ) : (
-                    // Full bleed single cover image
-                    property.images && property.images[0] ? (
-                      <div className="relative w-full h-full overflow-hidden">
-                        <img 
-                          src={property.images[0]} 
-                          alt={propertyTitle} 
-                          className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                          referrerPolicy="no-referrer"
-                        />
-                        {/* Polish Diagonal Glare Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
-                        <span className="text-4xl">🏠</span>
-                      </div>
-                    )
-                  )}
-
-                  {/* Diagonal Banner for SOLD/RENTED (HTML Preview) */}
-                  {forcedStatus && (
-                    <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none">
-                      <div className={`w-[200%] py-4 text-center text-4xl font-black tracking-[0.1em] text-white shadow-2xl transform -rotate-12 uppercase ${
-                        forcedStatus === 'sold' ? 'bg-rose-600/90' : 'bg-sky-700/90'
-                      }`}>
-                        {forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI'}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Subtle dark vignette gradient overlays for high text readability, keeping the image fully visible */}
-                  <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/50 via-black/20 to-transparent pointer-events-none" />
-                </div>
-
-                {/* --- CONTENT LAYER --- */}
-                <div className="relative z-10 w-full h-full flex flex-col justify-between p-4 flex-1">
-                  {/* TOP ROW elements */}
-                  <div className="flex justify-between items-start gap-3">
-                    {/* Top Left: Oblique bold status banner (Rent vs Sale) */}
-                    <div className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                      <span className={"text-[22px] italic font-black tracking-tighter uppercase " + themeConfig.accentText}>
-                        {isRent ? 'KİRALIK' : 'SATILIK'}
-                      </span>
-                    </div>
-
-                    {/* Top Right: Accent Tag + Price block with drop shadow, no backing box */}
-                    <div className="flex flex-col items-end gap-1.5 select-none shrink-0 max-w-[140px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                      {/* Accent Block Tag */}
-                      <div className={"px-2 py-0.5 rounded-sm text-black font-black text-[9px] tracking-widest leading-none " + themeConfig.accentBg}>
-                        { (roomsText ? roomsText + ' ' : '') + categoryLabelForPreview(property.type).toUpperCase() }
-                      </div>
-
-                      {/* Outlined Price Tag with NO background card */}
-                      <div className="text-center px-1 py-1 leading-none">
-                        <span className="text-[14px] font-black tracking-tight" style={{ color: themeConfig.accentHex }}>
-                          {priceText}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SPECIAL STORY ONLY PROMOTION LINE (ONLY in Story ratio) with drop shadow */}
-                  {selectedRatio === 'story' && (
-                    <div className="my-auto px-4 py-3 text-center flex flex-col justify-center items-center drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
-                      <span className="text-[10px] font-black block mb-0.5 uppercase tracking-wider text-white">KIBRIS'IN EN SEÇKİN LOKASYONU</span>
-                      <p className="text-[9px] max-w-[180px] leading-tight text-slate-300 font-medium">Değer kazanan eşsiz bölgesinde lüks emlak standartları!</p>
-                    </div>
-                  )}
-
-                  {/* BOTTOM ROW elements */}
-                  <div className="flex justify-between items-end gap-3 mt-auto w-full z-10">
-                    {/* Bottom Left: Store name directly on image with accent color and drop shadow */}
-                    <div className={"text-[11px] font-black tracking-wider uppercase leading-none select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] truncate max-w-[140px] " + themeConfig.accentText}>
-                      {storeNameDisplay}
-                    </div>
-
-                    {/* Bottom Right: Clean Specs overlay with drop shadow, NO dark background cards */}
-                    <div className="flex flex-col text-right items-end leading-tight select-none drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
-                      <span className="text-[10px] font-black text-white block truncate">📍 {propertyLocation.toUpperCase()}</span>
-                      <span className="text-[8px] font-extrabold text-slate-300 block truncate uppercase mb-1">{regionText}</span>
-                      <div className="h-[1px] bg-white/20 w-16 my-1 self-end" />
-                      <span className="text-[8px] font-bold text-slate-200 block truncate">📐 Alan: {sqmText || 'Belirtilmedi'}</span>
-                      {isRent ? (
-                        <span className="text-[8px] font-bold text-slate-200 block truncate">💵 Kapora: {property.deposit ? currencySymbol + formatNumberVal(property.deposit) : 'Görüşülecek'}</span>
                       ) : (
-                        <span className="text-[8px] font-bold text-slate-200 block truncate">📜 Koçan: {titleType}</span>
+                        // Full bleed single cover image
+                        property.images && property.images[0] ? (
+                          <img 
+                            src={property.images[0]} 
+                            alt={propertyTitle} 
+                            className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
+                            <span className="text-2xl">🏠</span>
+                          </div>
+                        )
+                      )}
+
+                      {/* Diagonal Banner for SOLD/RENTED (HTML Preview) */}
+                      {forcedStatus && (
+                        <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none">
+                          <div className={`w-[200%] py-1.5 text-center text-lg font-black tracking-[0.1em] text-white shadow-2xl transform -rotate-12 uppercase ${
+                            forcedStatus === 'sold' ? 'bg-rose-600/95' : 'bg-sky-700/95'
+                          }`}>
+                            {forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI'}
+                          </div>
+                        </div>
                       )}
                     </div>
+
+                    {/* LOCATION AND SPECS AREA BELOW FRAME */}
+                    <div className="relative z-20 flex flex-col items-center justify-center py-2 text-center text-white">
+                      <div className="text-[9px] font-black truncate max-w-full">
+                        📍 {propertyLocation.toUpperCase()}  •  {regionText.toUpperCase()}
+                      </div>
+                      
+                      <div className={`text-[7px] font-extrabold mt-0.5 truncate max-w-full ${previewColors.textMuted}`}>
+                        🏠 {roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul')}  •  📐 {sqmText || 'Belirtilmedi'}  •  📦 {property.furnished === 'esyali' ? 'Eşyalı' : 'Eşyasız'}  •  🔑 {isRent ? 'Depozitolu' : titleType}
+                      </div>
+                    </div>
+
+                    {/* SOLID BOTTOM BAR */}
+                    <div className={`relative z-20 rounded-lg p-2 flex justify-between items-center text-slate-900 ${previewColors.barBg}`}>
+                      <div className="flex flex-col text-left leading-tight">
+                        <span className="text-[6px] font-black tracking-wider text-[#0f172a] uppercase">
+                          {isRent ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'}
+                        </span>
+                        <span className="text-[13px] font-black text-[#0f172a] tracking-tight">
+                          {priceText}
+                        </span>
+                        <span className="text-[7px] font-black text-white uppercase tracking-wider truncate max-w-[120px]">
+                          {storeNameDisplay}
+                        </span>
+                      </div>
+                      
+                      <div className="text-right flex items-center text-[9px] font-black text-[#0f172a]">
+                        ENRAKİPSİZ<span className="text-white">.COM</span>
+                      </div>
+                    </div>
+
                   </div>
-
-                </div>
-
-              </div>
+                );
+              })()}
             </div>
           </div>
 

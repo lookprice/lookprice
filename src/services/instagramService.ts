@@ -30,6 +30,7 @@ export class InstagramService {
       sub4?: string | null;
       agentName?: string | null;
       agentPhone?: string | null;
+      baseDomain?: string;
     }
   ) {
     let accessToken: string | undefined;
@@ -88,7 +89,7 @@ export class InstagramService {
         return null;
       }
 
-      const domain = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "https://www.enrakipsiz.com";
+      const domain = metaData?.baseDomain || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "https://www.enrakipsiz.com";
       const baseDomain = domain.replace(/\/$/, "");
 
       // Map URLs to absolute URLs with optional proxy and overlays
@@ -297,7 +298,7 @@ export class InstagramService {
   /**
    * Generates a caption based on vehicle/property data
    */
-  static generateCaption(item: any, type: 'vehicle' | 'property', storeName: string) {
+  static generateCaption(item: any, type: 'vehicle' | 'property', storeName: string, agentName?: string, agentPhone?: string) {
     const cleanDesc = this.stripHtml(item.description || "");
     const descExcerpt = cleanDesc.length > 250 
       ? cleanDesc.substring(0, 250) + "..." 
@@ -305,6 +306,12 @@ export class InstagramService {
 
     const brandTag = type === 'vehicle' ? this.toHashtag(item.brand || "arac") : "";
     const storeTag = this.toHashtag(storeName || "seckin");
+
+    const contactBlock = (agentName || agentPhone)
+      ? `📞 Detaylı Bilgi ve İletişim için:\n` +
+        (agentName ? `👤 Yetkili: ${agentName}\n` : '') +
+        (agentPhone ? `📱 Telefon: ${agentPhone}\n` : '') + `\n`
+      : '';
 
     if (type === 'vehicle') {
       const fuelText = item.fuel_type || "Belirtilmedi";
@@ -318,6 +325,7 @@ export class InstagramService {
              `⚙️ Şanzıman: ${transText}\n` +
              `⛽ Yakıt: ${fuelText}\n\n` +
              `${descExcerpt ? descExcerpt + '\n\n' : ''}` +
+             contactBlock +
              `#enrakipsiz #otogaleri #satilikarac${brandTag ? ' #' + brandTag : ''}${storeTag ? ' #' + storeTag : ''}`;
     } else {
       const priceText = item.price ? `${item.price} ${item.currency || 'TRY'}` : "Görüşülecek";
@@ -331,6 +339,7 @@ export class InstagramService {
              `📐 Alan: ${areaText}\n` +
              `🛏️ Oda: ${roomText}\n\n` +
              `${descExcerpt ? descExcerpt + '\n\n' : ''}` +
+             contactBlock +
              `#enrakipsiz #emlak #satilikdaire #gayrimenkul${storeTag ? ' #' + storeTag : ''}`;
     }
   }

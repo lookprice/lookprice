@@ -319,50 +319,41 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
     canvas.width = width;
     canvas.height = height;
 
-    // Draw high quality background gradient
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    if (selectedTheme === 'luxury_dark') {
-      gradient.addColorStop(0, '#020617'); // slate-950
-      gradient.addColorStop(0.5, '#0f172a'); // slate-900
-      gradient.addColorStop(1, '#090d16');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
-    } else if (selectedTheme === 'sporty_red') {
-      gradient.addColorStop(0, '#09090b'); // zinc-950
-      gradient.addColorStop(0.5, '#1c1917'); // stone-900
-      gradient.addColorStop(1, '#450a0a'); // red-950 (warm sporty undertone)
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
-    } else if (selectedTheme === 'neon_cyber') {
-      gradient.addColorStop(0, '#030712'); // gray-950
-      gradient.addColorStop(0.5, '#1e1b4b'); // indigo-950
-      gradient.addColorStop(1, '#3b0764'); // purple-950
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
-    } else if (selectedTheme === 'hertz_style') {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-    } else if (selectedTheme === 'rangerover_style') {
-      gradient.addColorStop(0, '#18181b'); // zinc-900
-      gradient.addColorStop(0.5, '#09090b'); // zinc-950
-      gradient.addColorStop(1, '#1c1c1f');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
-    } else {
-      gradient.addColorStop(0, '#18181b'); // zinc-900
-      gradient.addColorStop(0.5, '#09090b'); // zinc-950
-      gradient.addColorStop(1, '#1c1c1f');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
-    }
+    const themeColors = {
+      luxury_dark: { bg: '#0b111e', accent: '#d97706', textAccent: '#f59e0b', textLight: '#ffffff', textMuted: '#cbd5e1' },
+      sporty_red: { bg: '#110505', accent: '#dc2626', textAccent: '#f87171', textLight: '#ffffff', textMuted: '#fca5a5' },
+      neon_cyber: { bg: '#030712', accent: '#06b6d4', textAccent: '#22d3ee', textLight: '#ffffff', textMuted: '#99f6e4' },
+      hertz_style: { bg: '#0f172a', accent: '#eab308', textAccent: '#facc15', textLight: '#ffffff', textMuted: '#fef08a' },
+      rangerover_style: { bg: '#18181b', accent: '#ffffff', textAccent: '#e4e4e7', textLight: '#ffffff', textMuted: '#d4d4d8' }
+    };
+    
+    const colors = themeColors[selectedTheme] || themeColors.luxury_dark;
 
-    // Dynamic framing closer to edge = 16px to maximize image layout
-    const borderPadding = 16;
-    ctx.strokeStyle = canvasColors.border;
-    ctx.lineWidth = 12;
-    ctx.strokeRect(borderPadding, borderPadding, width - (borderPadding * 2), height - (borderPadding * 2));
+    const isStory = selectedRatio === 'story';
+    const photoTop = 140;
+    const photoHeight = isStory ? 1200 : 640;
+    const photoWidth = 980;
+    const photoLeft = 50;
 
-    // Parallel asynchronous loading of images
+    // Background base fill
+    ctx.fillStyle = colors.bg;
+    ctx.fillRect(0, 0, width, height);
+
+    // Double Outer Borders
+    ctx.strokeStyle = colors.accent;
+    ctx.lineWidth = 14;
+    ctx.strokeRect(18, 18, width - 36, height - 36);
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(25, 25, width - 50, height - 50);
+
+    // Bounded photo frame outline/border
+    ctx.strokeStyle = colors.accent;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(48, photoTop - 2, 984, photoHeight + 4);
+
+    // Image URL loading list
     const imageUrls: string[] = [];
     if (vehicle.images && vehicle.images[0]) imageUrls.push(vehicle.images[0]);
     if (isCollage && vehicle.images && vehicle.images[1]) imageUrls.push(vehicle.images[1]);
@@ -379,60 +370,12 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       });
     };
 
-    const drawFallbackBlock = (x: number, y: number, w: number, h: number, emoji: string) => {
-      ctx.save();
-      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-      grad.addColorStop(0, '#101726');
-      grad.addColorStop(1, '#1b2536');
-      ctx.fillStyle = grad;
-      ctx.fillRect(x, y, w, h);
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-      ctx.lineWidth = 2;
-      for (let offset = 0; offset < w + h; offset += 40) {
-        ctx.beginPath();
-        ctx.moveTo(x + offset, y);
-        ctx.lineTo(x, y + offset);
-        ctx.stroke();
-      }
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.font = 'bold 45px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(emoji, x + w/2, y + h/2 + 15);
-      ctx.restore();
-    };
-
-    const wrapText = (text: string, maxWidth: number) => {
-      const words = text.split(" ");
-      const lines = [];
-      let currentLine = words[0];
-
-      for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const widthCheck = ctx.measureText(currentLine + " " + word).width;
-        if (widthCheck < maxWidth) {
-          currentLine += " " + word;
-        } else {
-          lines.push(currentLine);
-          currentLine = word;
-        }
-      }
-      lines.push(currentLine);
-      return lines;
-    };
-
     Promise.all(imageUrls.map(loadImg)).then((loadedImages) => {
       const imgElement = loadedImages[0];
       const sideImg1 = loadedImages[1];
       const sideImg2 = loadedImages[2];
 
-      const imgX = borderPadding;
-      const imgY = borderPadding;
-      const imgWidth = width - (borderPadding * 2);
-      const imgHeight = height - (borderPadding * 2);
-
-      const drawSingleImageCover = (imgPtr: HTMLImageElement | null, x: number, y: number, w: number, h: number, emoji: string) => {
+      const drawSingleImageCover = (imgPtr: HTMLImageElement | null, x: number, y: number, w: number, h: number) => {
         if (imgPtr) {
           try {
             const imgAspect = imgPtr.width / imgPtr.height;
@@ -446,176 +389,108 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
               sy = (imgPtr.height - sHeight) / 2;
             }
             ctx.save();
-            // Polish & Shine filter: Increase brightness, contrast and saturation dynamically
             ctx.filter = "brightness(1.12) contrast(1.05) saturate(1.12)";
             ctx.drawImage(imgPtr, sx, sy, sWidth, sHeight, x, y, w, h);
-            
-            // Draw a subtle diagonal glare sheen on the canvas image to give that "glass/metal polish" premium glossiness
-            const sheenGrad = ctx.createLinearGradient(x, y, x + w, y + h);
-            sheenGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
-            sheenGrad.addColorStop(0.42, "rgba(255, 255, 255, 0)");
-            sheenGrad.addColorStop(0.5, "rgba(255, 255, 255, 0.15)"); // smooth glossy shine
-            sheenGrad.addColorStop(0.58, "rgba(255, 255, 255, 0)");
-            sheenGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
-            ctx.fillStyle = sheenGrad;
-            ctx.globalCompositeOperation = "overlay";
-            ctx.fillRect(x, y, w, h);
-            
             ctx.restore();
           } catch (err) {
-            drawFallbackBlock(x, y, w, h, emoji);
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(x, y, w, h);
           }
         } else {
-          drawFallbackBlock(x, y, w, h, emoji);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(x, y, w, h);
         }
       };
 
-      ctx.save();
-      // Clip image to outer border limits
-      ctx.rect(imgX, imgY, imgWidth, imgHeight);
-      ctx.clip();
-
+      // Draw images inside the bounded frame
       if (isCollage && (sideImg1 || sideImg2)) {
-        // Collage layout! Left main image 67% width, Right side stacked vertically 33% width
-        const mainW = Math.round(imgWidth * 0.67);
-        const gapSize = 8;
-        const sideXWidth = imgWidth - mainW - gapSize;
-        const sideH = Math.round((imgHeight - gapSize) / 2);
-
-        // Main Left image
-        drawSingleImageCover(imgElement, imgX, imgY, mainW, imgHeight, "🚗");
-
-        // Side stacked images
-        drawSingleImageCover(sideImg1, imgX + mainW + gapSize, imgY, sideXWidth, sideH, "📸");
-        drawSingleImageCover(sideImg2, imgX + mainW + gapSize, imgY + sideH + gapSize, sideXWidth, sideH, "📸");
+        const mainW = Math.round(photoWidth * 0.67);
+        const gapSize = 10;
+        const sideXWidth = photoWidth - mainW - gapSize;
+        const sideH = Math.round((photoHeight - gapSize) / 2);
+        
+        drawSingleImageCover(imgElement, photoLeft, photoTop, mainW, photoHeight);
+        drawSingleImageCover(sideImg1, photoLeft + mainW + gapSize, photoTop, sideXWidth, sideH);
+        drawSingleImageCover(sideImg2, photoLeft + mainW + gapSize, photoTop + sideH + gapSize, sideXWidth, sideH);
       } else {
-        // Regular single cover image
-        drawSingleImageCover(imgElement, imgX, imgY, imgWidth, imgHeight, "🚗");
+        drawSingleImageCover(imgElement, photoLeft, photoTop, photoWidth, photoHeight);
       }
 
-      ctx.restore();
-
-      // Vignette overlays - made extremely subtle to keep the vehicle completely visible
-      // Top vignette
-      const topGrad = ctx.createLinearGradient(imgX, imgY, imgX, imgY + 150);
-      topGrad.addColorStop(0, 'rgba(0,0,0,0.4)');
-      topGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = topGrad;
-      ctx.fillRect(imgX, imgY, imgWidth, 150);
-
-      // Bottom vignette
-      const bottomGrad = ctx.createLinearGradient(imgX, imgY + imgHeight - 300, imgX, imgY + imgHeight);
-      bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      bottomGrad.addColorStop(1, 'rgba(0,0,0,0.5)');
-      ctx.fillStyle = bottomGrad;
-      ctx.fillRect(imgX, imgY + imgHeight - 300, imgWidth, 300);
-
-      // TOP-LEFT: Oblique bold status banner
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.95)';
-      ctx.shadowBlur = 15;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 3;
-      ctx.fillStyle = canvasColors.border; // accent color
-      ctx.font = 'italic 900 62px system-ui, sans-serif';
-      ctx.fillText(vehicle.is_trade_in_available ? 'TAKASLI' : 'SATILIK', imgX + 50, imgY + 110);
+      // 1. TOP CONSULTANT / STORE BANNERS
+      const brokerName = (vehicle.responsible_agent || storeName || branding?.owner_name || "Seçkin Danışman").toUpperCase();
+      const brokerPhone = branding?.whatsapp_number || branding?.phone || "+90 548 890 23 09";
+      const plateText = (vehicle.plate || 'OTO-PORTFÖY').toUpperCase();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 22px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText("👤 " + brokerName, 70, 88);
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = colors.textAccent;
+      ctx.font = '900 22px system-ui, sans-serif';
+      ctx.fillText("📞 " + brokerPhone, 1010, 88);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = colors.accent;
+      ctx.font = '900 18px system-ui, sans-serif';
+      ctx.fillText("PLAKA: " + plateText, width / 2, 88);
       ctx.restore();
 
-      // TOP-RIGHT: Accent Tag + Price block
-      const badgeText = `${vehicle.year || '2026'} ${transmissionText}`.toUpperCase();
-      ctx.font = '900 24px system-ui, sans-serif';
-      const badgeW = ctx.measureText(badgeText).width + 45;
-      const badgeH = 55;
-      const badgeX = width - borderPadding - 50 - badgeW;
-      const badgeY = imgY + 50;
+      // 2. VEHICLE SPECS ROW Below Frame
+      const locationY = photoTop + photoHeight + (isStory ? 45 : 35);
+      const specsY = photoTop + photoHeight + (isStory ? 115 : 105);
 
-      // Draw solid accent background for badge
-      ctx.fillStyle = canvasColors.border;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 24px system-ui, sans-serif';
+      ctx.fillText(`🏎️ ${vehicle.brand.toUpperCase()} ${vehicle.model.toUpperCase()} (${vehicle.year})`, width / 2, locationY);
+
+      const spec1 = vehicle.body_type || 'Vasıta';
+      const spec2 = vehicle.transmission || 'Otomatik';
+      const spec3 = vehicle.fuel_type || 'Benzin';
+      const spec4 = mileageText || '0 km';
+
+      ctx.font = '900 20px system-ui, sans-serif';
+      ctx.fillStyle = colors.textMuted;
+      ctx.fillText(`🚗 ${spec1}   •   ⚙️ ${spec2}   •   ⛽ ${spec3}   •   📐 ${spec4}`, width / 2, specsY);
+      ctx.restore();
+
+      // 3. BOTTOM SOLID BAR
+      const barY = height - 145;
+      const barHeight = 110;
+
+      ctx.save();
+      const barGradient = ctx.createLinearGradient(50, barY, 1030, barY);
+      barGradient.addColorStop(0, colors.accent);
+      barGradient.addColorStop(1, colors.accent + 'cc');
+      ctx.fillStyle = barGradient;
+      
       ctx.beginPath();
-      if ((ctx as any).roundRect) {
-        (ctx as any).roundRect(badgeX, badgeY, badgeW, badgeH, 6);
-      } else {
-        ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
-      }
+      ctx.rect(48, barY, 984, barHeight);
       ctx.fill();
 
-      // Text inside badge (black)
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'center';
-      ctx.fillText(badgeText, badgeX + (badgeW / 2), badgeY + 37);
-
-      // Price text directly with shadow (no solid background card)
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.95)';
-      ctx.shadowBlur = 12;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 3;
-      
-      ctx.textAlign = 'right';
-      ctx.fillStyle = canvasColors.border;
-      ctx.font = '950 48px system-ui, sans-serif';
-      ctx.fillText(priceText, width - borderPadding - 50, badgeY + badgeH + 60);
-      ctx.restore();
-
-      // SPECIAL STORY PROMOTION LINE (Story ratio only)
-      if (selectedRatio === 'story') {
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.95)';
-        ctx.shadowBlur = 12;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 3;
-
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 28px system-ui, sans-serif';
-        ctx.fillText("SEÇKİN GALERİ GÜVENCESİ", width / 2, 850);
-
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = 'semibold 20px system-ui, sans-serif';
-        ctx.fillText("Kondisyon ve temizlik testleri yapılmış bu araca güvenle sahip olabilirsiniz!", width / 2, 895);
-        ctx.restore();
-      }
-
-      // BOTTOM-LEFT: Store Name directly with drop shadow
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.95)';
-      ctx.shadowBlur = 12;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 3;
-
-      ctx.fillStyle = canvasColors.border;
-      ctx.font = '900 36px system-ui, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(storeName.toUpperCase(), imgX + 50, imgY + imgHeight - 90);
-      ctx.restore();
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '900 13px system-ui, sans-serif';
+      ctx.fillText("ARAÇ SATIŞ BEDELİ", 83, barY + 28);
 
-      // BOTTOM-RIGHT: Specs Overlay directly with shadow
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.95)';
-      ctx.shadowBlur = 12;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 3;
+      ctx.font = '950 40px system-ui, sans-serif';
+      ctx.fillText(priceText, 83, barY + 70);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 18px system-ui, sans-serif';
+      ctx.fillText(storeName.toUpperCase(), 83, barY + 100);
 
       ctx.textAlign = 'right';
-      const specRightX = width - borderPadding - 50;
-      const specBottomY = imgY + imgHeight - 90;
-
-      // Brand Title
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '950 28px system-ui, sans-serif';
+      ctx.fillText("ENRAKİPSİZ", 1010 - 64, barY + 66);
+      
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 32px system-ui, sans-serif';
-      ctx.fillText(vehicle.brand.toUpperCase(), specRightX, specBottomY - 145);
-
-      // Model Title
-      ctx.fillStyle = '#cbd5e1';
-      ctx.font = '800 22px system-ui, sans-serif';
-      ctx.fillText(vehicle.model.toUpperCase(), specRightX, specBottomY - 110);
-
-      // Details list
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 20px system-ui, sans-serif';
-      ctx.fillText(`📐 KM: ${mileageText || 'Düşük Km'}`, specRightX, specBottomY - 70);
-      ctx.fillText(`⚙️ Şanzıman: ${transmissionText}`, specRightX, specBottomY - 35);
-      ctx.fillText(`⛽ Yakıt: ${fuelText}`, specRightX, specBottomY);
+      ctx.fillText(".COM", 1010, barY + 66);
       ctx.restore();
 
       // Trigger actual download of canvas
@@ -679,152 +554,136 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
             {/* Poster Canvas container */}
             <div className="flex justify-center items-center py-4">
-              <div 
-                ref={previewContainerRef}
-                className="relative w-full max-w-[340px] rounded-3xl overflow-hidden shadow-2xl border-4 border-black/80 transition-all duration-300 flex flex-col bg-slate-950 font-sans"
-                style={{ 
-                  aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16',
-                  borderColor: themeConfig.accentHex 
-                }}
-              >
+              {(() => {
+                const htmlThemeColors = {
+                  luxury_dark: { bg: 'bg-[#0b111e]', border: 'border-[#d97706]', textAccent: 'text-[#f59e0b]', barBg: 'bg-[#d97706]', textMuted: 'text-slate-300' },
+                  sporty_red: { bg: 'bg-[#110505]', border: 'border-[#dc2626]', textAccent: 'text-[#f87171]', barBg: 'bg-[#dc2626]', textMuted: 'text-rose-200' },
+                  neon_cyber: { bg: 'bg-[#030712]', border: 'border-[#06b6d4]', textAccent: 'text-[#22d3ee]', barBg: 'bg-[#06b6d4]', textMuted: 'text-cyan-200' },
+                  hertz_style: { bg: 'bg-[#0f172a]', border: 'border-[#eab308]', textAccent: 'text-[#facc15]', barBg: 'bg-[#eab308]', textMuted: 'text-yellow-100' },
+                  rangerover_style: { bg: 'bg-[#18181b]', border: 'border-white', textAccent: 'text-[#e4e4e7]', barBg: 'bg-white', textMuted: 'text-zinc-350' }
+                };
+                const previewColors = htmlThemeColors[selectedTheme] || htmlThemeColors.luxury_dark;
+                const brokerName = (vehicle.responsible_agent || storeName || branding?.owner_name || "Seçkin Danışman").toUpperCase();
+                const brokerPhone = branding?.whatsapp_number || branding?.phone || "+90 548 890 23 09";
+                const plateText = (vehicle.plate || 'OTO-PORTFÖY').toUpperCase();
                 
-                 {/* Full Bleed Image / Collage Grid */}
-                <div className="absolute inset-0 w-full h-full z-0 select-none pointer-events-none">
-                  {isCollage && vehicle.images && (vehicle.images[1] || vehicle.images[2]) ? (
-                    <div className="w-full h-full flex flex-row">
-                      {/* Left Main (67%) */}
-                      <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
-                        {vehicle.images[0] ? (
-                          <div className="relative w-full h-full overflow-hidden">
-                            <img 
-                              src={vehicle.images[0]} 
-                              alt={vehicleTitle} 
-                              className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                              referrerPolicy="no-referrer"
-                            />
-                            {/* Polish Diagonal Glare Overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
+                return (
+                  <div 
+                    ref={previewContainerRef}
+                    className={`relative w-full max-w-[340px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans p-3 ${previewColors.bg}`}
+                    style={{ 
+                      aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16'
+                    }}
+                  >
+                    {/* Double Borders */}
+                    <div className={`absolute inset-1.5 border-[3px] rounded-2xl pointer-events-none z-10 ${previewColors.border}`} />
+                    <div className="absolute inset-2 border border-white/20 rounded-2xl pointer-events-none z-10" />
+
+                    {/* TOP CONSULTANT BAR */}
+                    <div className="relative z-20 flex justify-between items-center px-2 py-1.5 mb-1 text-[8px] font-black tracking-wider text-white">
+                      <div className="flex items-center gap-1">
+                        <span>👤</span>
+                        <span className="truncate max-w-[80px]">{brokerName}</span>
+                      </div>
+                      <div className={previewColors.textAccent}>PLAKA: {plateText}</div>
+                      <div className={previewColors.textAccent}>📞 {brokerPhone}</div>
+                    </div>
+
+                    {/* FRAMED IMAGE AREA */}
+                    <div className={`relative flex-1 rounded-xl overflow-hidden border-2 z-20 ${previewColors.border}`}>
+                      {isCollage && vehicle.images && (vehicle.images[1] || vehicle.images[2]) ? (
+                        <div className="w-full h-full flex flex-row bg-slate-900">
+                          {/* Left Main (67%) */}
+                          <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
+                            {vehicle.images[0] ? (
+                              <img 
+                                src={vehicle.images[0]} 
+                                alt={vehicleTitle} 
+                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">🚗</div>
+                            )}
                           </div>
+                          {/* Right stacked (33%) */}
+                          <div className="w-[33%] h-full flex flex-col">
+                            <div className="flex-1 relative border-b border-black/30 overflow-hidden">
+                              {vehicle.images[1] ? (
+                                <img 
+                                  src={vehicle.images[1]} 
+                                  alt="Görsel 2" 
+                                  className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
+                              )}
+                            </div>
+                            <div className="flex-1 relative overflow-hidden">
+                              {vehicle.images[2] ? (
+                                <img 
+                                  src={vehicle.images[2]} 
+                                  alt="Görsel 3" 
+                                  className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        // Full bleed single cover image
+                        vehicle.images && vehicle.images[0] ? (
+                          <img 
+                            src={vehicle.images[0]} 
+                            alt={vehicleTitle} 
+                            className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                            referrerPolicy="no-referrer"
+                          />
                         ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-450 bg-slate-900">🚗</div>
-                        )}
-                      </div>
-                      {/* Right stacked (33%) */}
-                      <div className="w-[33%] h-full flex flex-col">
-                        <div className="flex-1 relative border-b border-black/30 overflow-hidden">
-                          {vehicle.images[1] ? (
-                            <div className="relative w-full h-full overflow-hidden">
-                              <img 
-                                src={vehicle.images[1]} 
-                                alt="Görsel 2" 
-                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                                referrerPolicy="no-referrer"
-                              />
-                              {/* Polish Diagonal Glare Overlay */}
-                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
-                            </div>
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
-                          )}
-                        </div>
-                        <div className="flex-1 relative overflow-hidden">
-                          {vehicle.images[2] ? (
-                            <div className="relative w-full h-full overflow-hidden">
-                              <img 
-                                src={vehicle.images[2]} 
-                                alt="Görsel 3" 
-                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                                referrerPolicy="no-referrer"
-                              />
-                              {/* Polish Diagonal Glare Overlay */}
-                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
-                            </div>
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500 bg-slate-900">📸</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    // Full bleed single cover image
-                    vehicle.images && vehicle.images[0] ? (
-                      <div className="relative w-full h-full overflow-hidden">
-                        <img 
-                          src={vehicle.images[0]} 
-                          alt={vehicleTitle} 
-                          className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                          referrerPolicy="no-referrer"
-                        />
-                        {/* Polish Diagonal Glare Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none mix-blend-overlay" />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
-                        <span className="text-4xl">🚗</span>
-                      </div>
-                    )
-                  )}
-
-                  {/* Subtle dark vignette gradient overlays for high text readability, keeping the image fully visible */}
-                  <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/50 via-black/20 to-transparent pointer-events-none" />
-                </div>
-
-                {/* --- CONTENT LAYER --- */}
-                <div className="relative z-10 w-full h-full flex flex-col justify-between p-4 flex-1">
-                  {/* TOP ROW elements */}
-                  <div className="flex justify-between items-start gap-3">
-                    {/* Top Left: Oblique bold status banner */}
-                    <div className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                      <span className={`text-[22px] italic font-black tracking-tighter uppercase ${themeConfig.accentText}`}>
-                        {vehicle.is_trade_in_available ? 'TAKASLI' : 'SATILIK'}
-                      </span>
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
+                            <span className="text-2xl">🚗</span>
+                          </div>
+                        )
+                      )}
                     </div>
 
-                    {/* Top Right: Accent Tag + Price block with drop shadow, no backing box */}
-                    <div className="flex flex-col items-end gap-1.5 select-none shrink-0 max-w-[140px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                      {/* Accent Block Tag */}
-                      <div className={`px-2 py-0.5 rounded-sm text-black font-black text-[9px] tracking-widest leading-none ${themeConfig.accentBg}`}>
-                        {`${vehicle.year ? vehicle.year + ' ' : ''}${transmissionText}`.toUpperCase()}
+                    {/* DETAILS AREA BELOW FRAME */}
+                    <div className="relative z-20 flex flex-col items-center justify-center py-2 text-center text-white">
+                      <div className="text-[9px] font-black truncate max-w-full">
+                        🏎️ {vehicle.brand.toUpperCase()} {vehicle.model.toUpperCase()} ({vehicle.year})
                       </div>
+                      
+                      <div className={`text-[7px] font-extrabold mt-0.5 truncate max-w-full ${previewColors.textMuted}`}>
+                        🚗 {vehicle.body_type || 'Vasıta'}  •  ⚙️ {transmissionText}  •  ⛽ {fuelText}  •  📐 {mileageText || '0 km'}
+                      </div>
+                    </div>
 
-                      {/* Outlined Price Tag with NO background card */}
-                      <div className="text-center px-1 py-1 leading-none">
-                        <span className="text-[14px] font-black tracking-tight" style={{ color: themeConfig.accentHex }}>
+                    {/* SOLID BOTTOM BAR */}
+                    <div className={`relative z-20 rounded-lg p-2 flex justify-between items-center text-slate-900 ${previewColors.barBg}`}>
+                      <div className="flex flex-col text-left leading-tight">
+                        <span className="text-[6px] font-black tracking-wider text-[#0f172a] uppercase">
+                          ARAÇ SATIŞ BEDELİ
+                        </span>
+                        <span className="text-[13px] font-black text-[#0f172a] tracking-tight">
                           {priceText}
                         </span>
+                        <span className="text-[7px] font-black text-white uppercase tracking-wider truncate max-w-[120px]">
+                          {storeName}
+                        </span>
+                      </div>
+                      
+                      <div className="text-right flex items-center text-[9px] font-black text-[#0f172a]">
+                        ENRAKİPSİZ<span className="text-white">.COM</span>
                       </div>
                     </div>
+
                   </div>
-
-                  {/* SPECIAL STORY ONLY PROMOTION LINE (ONLY in Story ratio) with drop shadow */}
-                  {selectedRatio === 'story' && (
-                    <div className="my-auto px-4 py-3 text-center flex flex-col justify-center items-center drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
-                      <span className="text-[10px] font-black block mb-0.5 uppercase tracking-wider text-white">SEÇKİN GALERİ GÜVENCESİ</span>
-                      <p className="text-[9px] max-w-[180px] leading-tight text-slate-300 font-medium">Kondisyon ve temizlik testleri yapılmış bu araca güvenle sahip olabilirsiniz!</p>
-                    </div>
-                  )}
-
-                  {/* BOTTOM ROW elements */}
-                  <div className="flex justify-between items-end gap-3 mt-auto w-full z-10">
-                    {/* Bottom Left: Bold Store name directly on image with accent color and drop shadow */}
-                    <div className={`text-[11px] font-black tracking-wider uppercase leading-none select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] truncate max-w-[140px] ${themeConfig.accentText}`}>
-                      {storeName}
-                    </div>
-
-                    {/* Bottom Right: Clean Specs overlay with drop shadow, NO dark background cards */}
-                    <div className="flex flex-col text-right items-end leading-tight select-none drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
-                      <span className="text-[10px] font-black text-white block truncate">{vehicle.brand.toUpperCase()}</span>
-                      <span className="text-[8px] font-extrabold text-slate-300 block truncate uppercase mb-1">{vehicle.model.toUpperCase()}</span>
-                      <div className="h-[1px] bg-white/20 w-16 my-1 self-end" />
-                      <span className="text-[8px] font-bold text-slate-200 block truncate">📐 KM: {mileageText || 'Düşük Km'}</span>
-                      <span className="text-[8px] font-bold text-slate-200 block truncate">⚙️ Şanzıman: {transmissionText}</span>
-                      <span className="text-[8px] font-bold text-slate-200 block truncate">⛽ Yakıt: {fuelText}</span>
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
+                );
+              })()}
             </div>
           </div>
 

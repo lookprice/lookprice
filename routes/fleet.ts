@@ -177,8 +177,9 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
           const sub3 = newVehicle.fuel_type || 'Benzin';
           const sub4 = newVehicle.current_mileage ? `${new Intl.NumberFormat('tr-TR').format(Number(newVehicle.current_mileage))} km` : '0 km';
 
-          const caption = InstagramService.generateCaption(newVehicle, 'vehicle', storeName);
+          const caption = InstagramService.generateCaption(newVehicle, 'vehicle', storeName, storeName, storePhone);
           
+          const reqDomain = `${req.protocol}://${req.get('host')}`;
           const meta = {
             type: 'vehicle' as const,
             title: vehicleTitle,
@@ -192,7 +193,8 @@ router.post('/vehicles', authenticate, async (req: any, res) => {
             sub3,
             sub4,
             agentName: storeName,
-            agentPhone: storePhone
+            agentPhone: storePhone,
+            baseDomain: reqDomain
           };
 
           // Scenario 2: Post to Store's own account
@@ -294,8 +296,9 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
           const sub3 = updatedVehicle.fuel_type || 'Benzin';
           const sub4 = updatedVehicle.current_mileage ? `${new Intl.NumberFormat('tr-TR').format(Number(updatedVehicle.current_mileage))} km` : '0 km';
 
-          const caption = InstagramService.generateCaption(updatedVehicle, 'vehicle', storeName);
+          const caption = InstagramService.generateCaption(updatedVehicle, 'vehicle', storeName, storeName, storePhone);
           
+          const reqDomain = `${req.protocol}://${req.get('host')}`;
           const meta = {
             type: 'vehicle' as const,
             title: vehicleTitle,
@@ -309,7 +312,8 @@ router.put('/vehicles/:id', authenticate, async (req: any, res) => {
             sub3,
             sub4,
             agentName: storeName,
-            agentPhone: storePhone
+            agentPhone: storePhone,
+            baseDomain: reqDomain
           };
 
           // Scenario 2: Post to Store's own account

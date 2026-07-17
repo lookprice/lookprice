@@ -442,8 +442,9 @@ router.post('/properties', authenticate, async (req: any, res) => {
           const sub3 = newProperty.furnished === 'esyali' ? 'Eşyalı' : (newProperty.furnished === 'esyasiz' ? 'Eşyasız' : 'Belirtilmedi');
           const sub4 = newProperty.deposit ? `Depozito: ${formatPrice(newProperty.deposit, newProperty.currency)}` : 'Depozitosuz';
 
-          const caption = InstagramService.generateCaption(newProperty, 'property', storeName);
+          const caption = InstagramService.generateCaption(newProperty, 'property', storeName, agentName, agentPhone);
           
+          const reqDomain = `${req.protocol}://${req.get('host')}`;
           const meta = {
             type: 'property' as const,
             title: newProperty.title || 'Lüks Gayrimenkul',
@@ -457,7 +458,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
             sub3,
             sub4,
             agentName,
-            agentPhone
+            agentPhone,
+            baseDomain: reqDomain
           };
 
           // Scenario 2: Post to Store's own account
@@ -566,8 +568,9 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
           const sub3 = updatedProperty.furnished === 'esyali' ? 'Eşyalı' : (updatedProperty.furnished === 'esyasiz' ? 'Eşyasız' : 'Belirtilmedi');
           const sub4 = updatedProperty.deposit ? `Depozito: ${formatPrice(updatedProperty.deposit, updatedProperty.currency)}` : 'Depozitosuz';
 
-          const caption = InstagramService.generateCaption(updatedProperty, 'property', storeName);
+          const caption = InstagramService.generateCaption(updatedProperty, 'property', storeName, agentName, agentPhone);
           
+          const reqDomain = `${req.protocol}://${req.get('host')}`;
           const meta = {
             type: 'property' as const,
             title: updatedProperty.title || 'Lüks Gayrimenkul',
@@ -581,7 +584,8 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
             sub3,
             sub4,
             agentName,
-            agentPhone
+            agentPhone,
+            baseDomain: reqDomain
           };
 
           // Scenario 2: Post to Store's own account
