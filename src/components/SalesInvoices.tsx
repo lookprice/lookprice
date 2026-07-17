@@ -96,7 +96,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [exchangeRate, setExchangeRate] = useState("1");
   const [status, setStatus] = useState<'draft' | 'approved' | 'cancelled'>('draft');
   const [eDocumentType, setEDocumentType] = useState<string | null>(null);
-  const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA' | 'EARSIVFATURA'>('TEMELFATURA');
+  const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA' | 'EARSIVFATURA'>('TICARIFATURA');
   const [giInvoiceType, setGiInvoiceType] = useState<string>('SATIS');
   const [isReturn, setIsReturn] = useState(false);
   const [customerEmail, setCustomerEmail] = useState("");
@@ -240,7 +240,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         try {
           const res = await api.checkTaxpayer(vkn, role === 'superadmin' ? storeId : undefined);
           if (res.documentType === 'E-FATURA') {
-            if (invoiceProfile === 'EARSIVFATURA') setInvoiceProfile('TEMELFATURA');
+            if (invoiceProfile === 'EARSIVFATURA') setInvoiceProfile('TICARIFATURA');
             setEDocumentType('E-FATURA');
           } else {
             setInvoiceProfile('EARSIVFATURA');
@@ -304,7 +304,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       
       if (res.documentType === 'E-FATURA') {
         toast.info(isTr ? "E-Fatura Mükellefi" : "E-Invoice Taxpayer");
-        setInvoiceProfile('TEMELFATURA');
+        setInvoiceProfile('TICARIFATURA');
         setEDocumentType('E-FATURA');
       } else {
         toast.info(isTr ? "E-Arşiv Mükellefi" : "E-Archive Taxpayer");
@@ -404,7 +404,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setExchangeRate("1");
     setStatus('draft');
     setEDocumentType(null);
-    setInvoiceProfile('TEMELFATURA');
+    setInvoiceProfile('TICARIFATURA');
     setGiInvoiceType('SATIS');
     setIsReturn(false);
     setCustomerEmail("");
@@ -426,6 +426,14 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     if (items.length === 0) {
       toast.error(isTr ? "Lütfen en az bir ürün ekleyin" : "Please add at least one product");
       return;
+    }
+
+    if (currency !== (branding?.default_currency || 'TRY')) {
+      const rateNum = Number(exchangeRate);
+      if (!rateNum || rateNum <= 1) {
+        toast.error(isTr ? "Lütfen geçerli bir döviz kuru girin. Kur 1.0000 olamaz." : "Please enter a valid exchange rate. Rate cannot be 1.0000.");
+        return;
+      }
     }
 
     const payload = {

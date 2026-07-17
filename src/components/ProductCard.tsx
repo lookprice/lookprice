@@ -209,7 +209,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
         {/* Product Labels */}
-        {getLabels(product.labels).length > 0 && (
+        {(getLabels(product.labels).length > 0 || product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
           <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
             {getLabels(product.labels).map((label, idx) => (
               <span
@@ -220,6 +220,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 {label}
               </span>
             ))}
+            {(product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
+              <span className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black tracking-widest uppercase rounded shadow-lg border border-emerald-400/20">
+                Takaslı
+              </span>
+            )}
           </div>
         )}
       </div>

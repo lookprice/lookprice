@@ -169,6 +169,8 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                     className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium"
                   >
                     <option value="otomobil">{isTr ? 'Otomobil' : 'Car'}</option>
+                    <option value="suv">{isTr ? 'SUV / Arazi Aracı' : 'SUV / Off-Road'}</option>
+                    <option value="pickup">{isTr ? 'Pick-up' : 'Pick-up'}</option>
                     <option value="hafif_ticari">{isTr ? 'Hafif Ticari' : 'Light Commercial'}</option>
                   </select>
                 </div>
@@ -260,6 +262,18 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                   </select>
                 </div>
                 <div className="space-y-1 flex flex-col justify-end pb-1 gap-2">
+                  <div className="flex items-center gap-3 px-3.5 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                    <input
+                      type="checkbox"
+                      id="is_trade_in_available"
+                      checked={!!formData.is_trade_in_available}
+                      onChange={(e) => setFormData({ ...formData, is_trade_in_available: e.target.checked })}
+                      className="w-4 h-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <label htmlFor="is_trade_in_available" className="text-xs font-bold text-indigo-950 cursor-pointer select-none">
+                      Takas Kabul Ediliyor
+                    </label>
+                  </div>
                   <div className="flex items-center gap-3 px-3.5 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl">
                     <input
                       type="checkbox"
@@ -473,11 +487,52 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
               </div>
             </div>
 
+            {/* Description Section */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-blue-700 tracking-wider uppercase border-l-4 border-blue-600 pl-2.5">
+                4. Araç İlan Açıklamaları
+              </h4>
+              <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-600">Araç Detay Açıklaması (Genel)</label>
+                  <textarea
+                    rows={4}
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                    placeholder="Araç hakkında genel bilgileri, aksesuarları, kullanım durumunu ve öne çıkan özellikleri yazın..."
+                  />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-600">Teknik Donanım Açıklaması</label>
+                    <textarea
+                      rows={3}
+                      value={formData.technical_description || ''}
+                      onChange={(e) => setFormData({ ...formData, technical_description: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                      placeholder="Özel donanımlar, paket içerikleri, motor-şanzıman bilgileri..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-600">Pazar / İlan Hikayesi</label>
+                    <textarea
+                      rows={3}
+                      value={formData.market_story || ''}
+                      onChange={(e) => setFormData({ ...formData, market_story: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                      placeholder="Müşterinin ilgisini çekecek satış cümleleri, kampanyalar..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Media Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-bold text-blue-700 tracking-wider uppercase border-l-4 border-blue-600 pl-2.5">
-                  4. Araç Görselleri ve Sunum
+                  5. Araç Görselleri ve Sunum
                 </h4>
               </div>
 

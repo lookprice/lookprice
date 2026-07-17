@@ -414,10 +414,10 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
     if (section === undefined) return true; // Default to true if not found in custom configuration layout list
     return section.enabled !== false && section.enabled !== "false";
   };
-  const [visibleCount, setVisibleCount] = useState(layoutConfig.count || 6);
+  const [visibleCount, setVisibleCount] = useState(layoutConfig.count || 21);
 
   useEffect(() => {
-    setVisibleCount(layoutConfig.count || 6);
+    setVisibleCount(layoutConfig.count || 21);
   }, [layoutConfig.count]);
 
   const displayedProducts = React.useMemo(() => {

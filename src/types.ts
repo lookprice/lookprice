@@ -295,6 +295,7 @@ export interface RealEstateProperty {
   trafo_bedeli?: boolean; 
   kdv_status?: 'paid' | 'to_be_paid';
   cati_terasi?: boolean;
+  is_trade_in_available?: boolean;
   images?: string[];
   is_on_enrakipsiz?: boolean;
   is_on_website?: boolean;

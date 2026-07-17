@@ -622,9 +622,13 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                           className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all font-bold text-slate-700"
                           value={currency}
                           onChange={(e) => {
-                            setCurrency(e.target.value);
-                            if (e.target.value === (branding?.default_currency || 'TRY')) {
+                            const newCurrency = e.target.value;
+                            setCurrency(newCurrency);
+                            if (newCurrency === (branding?.default_currency || 'TRY')) {
                               setExchangeRate("1");
+                            } else {
+                              const rate = branding?.currency_rates?.[newCurrency];
+                              setExchangeRate(rate ? String(rate) : "");
                             }
                           }}
                         >

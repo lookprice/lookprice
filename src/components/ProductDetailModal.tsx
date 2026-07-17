@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
 import {
@@ -121,7 +121,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   );
 
   // Premium dynamic image gallery integration
-  const productImages = useMemo(() => {
+  const productImages = React.useMemo(() => {
     const list: string[] = [];
     if (product?.image_url) {
       list.push(product.image_url);
@@ -251,7 +251,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     return originalUrl;
   };
 
-  const productUrl = useMemo(() => {
+  const productUrl = React.useMemo(() => {
     if (!product) return window.location.href;
     const baseUrl = window.location.origin;
     const isCustomDomain = !window.location.pathname.startsWith("/s/");
@@ -596,7 +596,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   {lang === "tr" ? "TAKAS İMKANI" : "TRADE-IN AVAILABLE"}
                 </span>
                 <span className="text-[10px] opacity-70 font-medium">
-                  {lang === "tr" ? "Bu araç için takas teklifleri değerlendirilir." : "Trade-in offers are considered for this vehicle."}
+                  {lang === "tr" 
+                    ? (product.type === 'real_estate' ? "Bu portföy için takas teklifleri değerlendirilir." : "Bu araç için takas teklifleri değerlendirilir.") 
+                    : (product.type === 'real_estate' ? "Trade-in offers are considered for this property." : "Trade-in offers are considered for this vehicle.")}
                 </span>
               </div>
             </div>
@@ -789,8 +791,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       }).catch(e => console.error(e));
 
                       const tradeMessage = lang === "tr"
-                        ? `Merhaba, #${product.id} portföy numaralı ${product.name} aracınız için Takas Teklifi göndermek istiyorum. \n\nLütfen aracımın bilgilerini ve görsellerini buradan size iletiyorum: `
-                        : `Hello, I would like to send a Trade-in Offer for listing #${product.id} - ${product.name}. \n\nI am sending my vehicle information and photos here: `;
+                        ? (product.type === 'real_estate' 
+                            ? `Merhaba, #${product.id} portföy numaralı ${product.name} gayrimenkulünüz için Takas Teklifi göndermek istiyorum. \n\nLütfen detayları buradan size iletiyorum: `
+                            : `Merhaba, #${product.id} portföy numaralı ${product.name} aracınız için Takas Teklifi göndermek istiyorum. \n\nLütfen aracımın bilgilerini ve görsellerini buradan size iletiyorum: `)
+                        : (product.type === 'real_estate'
+                            ? `Hello, I would like to send a Trade-in Offer for listing #${product.id} - ${product.name}. \n\nI am sending the details here: `
+                            : `Hello, I would like to send a Trade-in Offer for listing #${product.id} - ${product.name}. \n\nI am sending my vehicle information and photos here: `);
                       
                       window.open(
                         `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(tradeMessage)}`,

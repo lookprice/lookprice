@@ -67,11 +67,24 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   }, [products]);
 
   const models = React.useMemo(() => {
-    const list = products.map(p => {
+    let filtered = products;
+    if (pendingBrand !== "all") {
+      filtered = products.filter(p => {
+        const pBrand = p.brand || p.sector_data?.brand || (p as any).brand || "";
+        return pBrand.toLowerCase() === pendingBrand.toLowerCase();
+      });
+    }
+    const list = filtered.map(p => {
       return p.sector_data?.model || (p as any).model;
     }).filter(Boolean);
     return Array.from(new Set(list));
-  }, [products]);
+  }, [products, pendingBrand]);
+
+  React.useEffect(() => {
+    if (pendingModel !== "all" && !models.includes(pendingModel as any)) {
+      setPendingModel("all");
+    }
+  }, [models, pendingModel]);
 
   const yearsOptions = React.useMemo(() => {
     const list = products.map(p => {
@@ -284,10 +297,10 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
     return section.enabled !== false && section.enabled !== "false";
   };
 
-  const [visibleCount, setVisibleCount] = useState(layoutConfig.count || 6);
+  const [visibleCount, setVisibleCount] = useState(layoutConfig.count || 21);
 
   useEffect(() => {
-    setVisibleCount(layoutConfig.count || 6);
+    setVisibleCount(layoutConfig.count || 21);
   }, [layoutConfig.count]);
 
   const handleLinkClick = (e: React.MouseEvent, link: any) => {

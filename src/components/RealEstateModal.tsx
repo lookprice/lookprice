@@ -325,6 +325,17 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             <div className="flex items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 mt-2">
                 <input 
                   type="checkbox" 
+                  id="trade-in-toggle"
+                  checked={!!formData.is_trade_in_available}
+                  onChange={(e) => setFormData({...formData, is_trade_in_available: e.target.checked})}
+                  className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                />
+                <label htmlFor="trade-in-toggle" className="text-xs font-bold text-indigo-950">Takas Kabul Ediliyor</label>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 mt-2">
+                <input 
+                  type="checkbox" 
                   id="enrakipsiz-toggle"
                   checked={!!formData.is_on_enrakipsiz}
                   onChange={(e) => setFormData({...formData, is_on_enrakipsiz: e.target.checked})}

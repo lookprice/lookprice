@@ -493,6 +493,30 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       ctx.fillText(".COM", 1010, barY + 66);
       ctx.restore();
 
+      // Diagonal Banner for SOLD/RENTED/OPTIONED
+      const forcedStatus = vehicle.status === 'sold' ? 'SATILDI' : vehicle.status === 'rented' ? 'KİRALANDI' : vehicle.status === 'optioned' ? 'OPSİYONLU' : null;
+      if (forcedStatus) {
+        ctx.save();
+        ctx.translate(width - 150, 150);
+        ctx.rotate(Math.PI / 4);
+        
+        // Shadow/Glow effect
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 30;
+        
+        ctx.fillStyle = vehicle.status === 'sold' ? '#dc2626' : vehicle.status === 'rented' ? '#0369a1' : '#d97706';
+        ctx.fillRect(-600, -80, 1200, 1600); // Massive height to cover corners
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        // Massive font size for clear visibility on 1080px canvas
+        ctx.font = '900 140px system-ui, sans-serif';
+        ctx.letterSpacing = "12px";
+        ctx.fillText(forcedStatus, 0, 0);
+        ctx.restore();
+      }
+
       // Trigger actual download of canvas
       try {
         const link = document.createElement("a");

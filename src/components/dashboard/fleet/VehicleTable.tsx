@@ -149,6 +149,13 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                         {vehicle.is_on_enrakipsiz ? 'EnRakipsiz: Aktif' : 'EnRakipsiz: Pasif'}
                       </span>
                     </div>
+                    {vehicle.is_trade_in_available && (
+                      <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">
+                          Takas İmkanı
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500 font-medium">{generateVehicleTitle(vehicle)}</p>
                 </div>
@@ -379,6 +386,14 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                           EnR: {vehicle.is_on_enrakipsiz ? 'Aktif' : 'Pasif'}
                         </span>
                       </div>
+                      {vehicle.is_trade_in_available && (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600">
+                            Takas: Aktif
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="p-4">

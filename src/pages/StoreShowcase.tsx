@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
@@ -97,7 +97,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const categoriesLabel = store?.category_label ? store.category_label.toUpperCase() : (lang === "tr" ? "KATEGORİLER" : "CATEGORIES");
 
   const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const basketByBranch = useMemo(() => {
+  const basketByBranch = React.useMemo(() => {
     const groups: Record<string, BasketItem[]> = {};
     basket.forEach((item) => {
       const branch = item.branch_name || store?.name || "Ana Şube";
@@ -147,14 +147,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [showLegal, setShowLegal] = useState<"sales" | "kvkk" | "pre_info" | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const ITEMS_PER_PAGE = 20;
+  const ITEMS_PER_PAGE = 21;
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showStoreLocatorModal, setShowStoreLocatorModal] = useState(false);
 
-  const layoutSettings = useMemo(() => store?.page_layout_settings || {
+  const layoutSettings = React.useMemo(() => store?.page_layout_settings || {
     show_announcement: true,
     show_stories: true,
     show_campaigns: true,
@@ -444,7 +444,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     }
   };
 
-  const categories = useMemo(() => {
+  const categories = React.useMemo(() => {
     const cats = new Map<string, Set<string>>();
     products.forEach((p) => {
       const cat = p.category || t.dashboard.uncategorized;
@@ -454,13 +454,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     return cats;
   }, [products, t]);
 
-  const brands = useMemo(() => {
+  const brands = React.useMemo(() => {
     const b = new Set<string>();
     products.forEach((p) => { if (p.brand) b.add(p.brand); });
     return Array.from(b).sort();
   }, [products]);
 
-  const sortedAndFilteredProducts = useMemo(() => {
+  const sortedAndFilteredProducts = React.useMemo(() => {
     let result = products.filter((p) => {
       const isPortfolio = p.type === "real_estate" || p.type === "vehicle";
       if (isPortfolio && p.status && p.status !== 'active') return false;
@@ -503,7 +503,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   }, [products, searchQuery, selectedCategory, selectedSubCategory, selectedBrand, sortBy, portfolioType, portfolioMinPrice, portfolioMaxPrice, portfolioRooms, portfolioMinM2, t]);
 
   const totalPages = Math.ceil(sortedAndFilteredProducts.length / ITEMS_PER_PAGE);
-  const paginatedProducts = useMemo(() => {
+  const paginatedProducts = React.useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return sortedAndFilteredProducts.slice(start, start + ITEMS_PER_PAGE);
   }, [sortedAndFilteredProducts, currentPage]);

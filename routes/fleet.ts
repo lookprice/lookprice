@@ -21,9 +21,9 @@ const upload = multer({ storage: multer.memoryStorage() });
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'none';`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_on_enrakipsiz BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_on_website BOOLEAN DEFAULT TRUE;`);
-    // One-time migration: default existing active vehicles to published on both platforms
-    await pool.query(`UPDATE vehicles SET is_on_website = TRUE WHERE is_on_website IS NULL OR (status <> 'sold' AND is_on_website = FALSE);`);
-    await pool.query(`UPDATE vehicles SET is_on_enrakipsiz = TRUE WHERE is_on_enrakipsiz IS NULL OR (status <> 'sold' AND is_on_enrakipsiz = FALSE);`);
+    // One-time migration: default existing active vehicles to published on both platforms if NULL
+    await pool.query(`UPDATE vehicles SET is_on_website = TRUE WHERE is_on_website IS NULL;`);
+    await pool.query(`UPDATE vehicles SET is_on_enrakipsiz = TRUE WHERE is_on_enrakipsiz IS NULL;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'otomobil';`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS buying_currency TEXT DEFAULT 'TRY';`);
     await pool.query(`ALTER TABLE drivers ADD COLUMN IF NOT EXISTS national_id TEXT;`);

@@ -505,10 +505,12 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       ctx.fillRect(-bannerWidth / 2, -bannerHeight / 2, bannerWidth, bannerHeight);
       
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'black 900 100px system-ui, sans-serif';
+      ctx.font = '900 140px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.letterSpacing = '8px';
+      if ('letterSpacing' in ctx) {
+        (ctx as any).letterSpacing = '12px';
+      }
       ctx.fillText(forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI', 0, 0);
       ctx.restore();
     }

@@ -55,6 +55,8 @@ export const Marketplace = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("all");
   const [activeSubSector, setActiveSubSector] = useState<string>("all");
+  const [activeVehicleBrand, setActiveVehicleBrand] = useState<string>("all");
+  const [activeVehicleModel, setActiveVehicleModel] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">("newest");
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
 
@@ -347,6 +349,20 @@ export const Marketplace = () => {
         }
       }
 
+      // Add vehicle specific filters
+      if (item.listing_type === "vehicle" && (activeCategory === "all" || activeCategory === "vehicle")) {
+        // Vehicle Brand
+        if (activeVehicleBrand !== "all") {
+          const itemBrand = item.brand || item.sector_data?.brand || "";
+          if (itemBrand.toLowerCase() !== activeVehicleBrand.toLowerCase()) return false;
+        }
+        // Vehicle Model
+        if (activeVehicleModel !== "all") {
+          const itemModel = item.sector_data?.model || item.model || "";
+          if (itemModel.toLowerCase() !== activeVehicleModel.toLowerCase()) return false;
+        }
+      }
+
       const matchesSearch = 
         (item.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.brand || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -373,6 +389,44 @@ export const Marketplace = () => {
     vehicles: listings.filter(l => l.listing_type === "vehicle").length,
     properties: listings.filter(l => l.listing_type === "real_estate").length,
   };
+
+  // Dynamic filter options for Vehicles
+  const vehicleBrands = React.useMemo(() => {
+    let source = listings.filter(l => l.listing_type === "vehicle");
+    if (activeSubSector !== "all") {
+      source = source.filter(l => l.category === activeSubSector);
+    }
+    const brands = source.map(l => l.brand || l.sector_data?.brand).filter(Boolean);
+    return Array.from(new Set(brands)).sort((a: any, b: any) => a.localeCompare(b));
+  }, [listings, activeSubSector]);
+
+  const vehicleModels = React.useMemo(() => {
+    let source = listings.filter(l => l.listing_type === "vehicle");
+    if (activeSubSector !== "all") {
+      source = source.filter(l => l.category === activeSubSector);
+    }
+    if (activeVehicleBrand !== "all") {
+      source = source.filter(l => {
+        const itemBrand = l.brand || l.sector_data?.brand || "";
+        return itemBrand.toLowerCase() === activeVehicleBrand.toLowerCase();
+      });
+    }
+    const models = source.map(l => l.sector_data?.model || l.model).filter(Boolean);
+    return Array.from(new Set(models)).sort((a: any, b: any) => a.localeCompare(b));
+  }, [listings, activeSubSector, activeVehicleBrand]);
+
+  // Reset model when brand changes
+  useEffect(() => {
+    if (activeVehicleModel !== "all" && !vehicleModels.includes(activeVehicleModel)) {
+      setActiveVehicleModel("all");
+    }
+  }, [vehicleModels, activeVehicleModel]);
+
+  // Reset brand and model when category changes
+  useEffect(() => {
+    setActiveVehicleBrand("all");
+    setActiveVehicleModel("all");
+  }, [activeSubSector]);
 
   const themeClasses = {
     theme: "dark_gold",
@@ -582,6 +636,8 @@ export const Marketplace = () => {
                   {[
                     { value: "all", label: "Tümü" },
                     { value: "otomobil", label: "Otomobil" },
+                    { value: "suv", label: "SUV / Arazi Aracı" },
+                    { value: "pickup", label: "Pick-up" },
                     { value: "hafif_ticari", label: "Hafif Ticari" },
                     { value: "motorcycle", label: "Motosiklet" },
                     { value: "marine", label: "Deniz Taşıtları" },
@@ -604,6 +660,41 @@ export const Marketplace = () => {
                       </button>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Vehicle Brand and Model Filters */}
+              {(activeCategory === "all" || activeCategory === "vehicle") && vehicleBrands.length > 0 && (
+                <div className="flex flex-wrap items-center gap-4 border-t border-slate-800/50 pt-4 mt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Marka:</span>
+                    <select
+                      value={activeVehicleBrand}
+                      onChange={(e) => setActiveVehicleBrand(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-rose-500 font-medium"
+                    >
+                      <option value="all">Tüm Markalar</option>
+                      {vehicleBrands.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {activeVehicleBrand !== "all" && vehicleModels.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Model:</span>
+                      <select
+                        value={activeVehicleModel}
+                        onChange={(e) => setActiveVehicleModel(e.target.value)}
+                        className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-rose-500 font-medium"
+                      >
+                        <option value="all">Tüm Modeller</option>
+                        {vehicleModels.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1046,6 +1137,8 @@ export const Marketplace = () => {
                   {[
                     { value: "all", label: "Tümü" },
                     { value: "otomobil", label: "Otomobil" },
+                    { value: "suv", label: "SUV / Arazi Aracı" },
+                    { value: "pickup", label: "Pick-up" },
                     { value: "hafif_ticari", label: "Hafif Ticari" },
                     { value: "motorcycle", label: "Motosiklet" },
                     { value: "marine", label: "Deniz Taşıtları" },
@@ -1068,6 +1161,41 @@ export const Marketplace = () => {
                       </button>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Vehicle Brand and Model Filters */}
+              {(activeCategory === "all" || activeCategory === "vehicle") && vehicleBrands.length > 0 && (
+                <div className="flex flex-wrap items-center gap-4 border-t border-slate-800/50 pt-4 mt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Marka:</span>
+                    <select
+                      value={activeVehicleBrand}
+                      onChange={(e) => setActiveVehicleBrand(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-rose-500 font-medium"
+                    >
+                      <option value="all">Tüm Markalar</option>
+                      {vehicleBrands.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {activeVehicleBrand !== "all" && vehicleModels.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Model:</span>
+                      <select
+                        value={activeVehicleModel}
+                        onChange={(e) => setActiveVehicleModel(e.target.value)}
+                        className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-rose-500 font-medium"
+                      >
+                        <option value="all">Tüm Modeller</option>
+                        {vehicleModels.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
 

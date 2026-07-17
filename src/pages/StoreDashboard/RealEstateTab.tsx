@@ -558,6 +558,11 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                          property.sharing_scope === 'branch_private' ? '🔒 Ofise Özel' :
                          '🌐 Ortak Havuz'}
                       </span>
+                      {property.is_trade_in_available && (
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg uppercase tracking-wider">
+                          🔄 Takaslı
+                        </span>
+                      )}
                     </div>
 
                     <div>

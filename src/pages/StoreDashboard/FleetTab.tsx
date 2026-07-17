@@ -845,6 +845,41 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
 
       {renderMainTabContent()}
 
+      {/* Pagination Controls */}
+      {activeMainTab === 'vehicles' && Math.ceil(filteredVehicles.length / itemsPerPage) > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.ceil(filteredVehicles.length / itemsPerPage) }, (_, i) => (
+              <button
+                key={i + 1}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`w-8 h-8 rounded-xl text-sm font-bold transition-all ${
+                  currentPage === i + 1
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                    : 'text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredVehicles.length / itemsPerPage), p + 1))}
+            disabled={currentPage === Math.ceil(filteredVehicles.length / itemsPerPage)}
+            className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       <VehicleFormModal
         isOpen={showAddModal}
         onClose={() => {

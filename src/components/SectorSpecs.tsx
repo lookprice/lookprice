@@ -312,6 +312,18 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
         </div>
       )}
 
+      {data.is_trade_in_available !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "TAKAS DURUMU" : "TRADE-IN STATUS"}
+          </p>
+          <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
+            <span className={`w-1.5 h-1.5 rounded-full ${data.is_trade_in_available ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span>{data.is_trade_in_available ? (lang === 'tr' ? 'Takasa Uygun' : 'Available') : (lang === 'tr' ? 'Takasa Kapalı' : 'None')}</span>
+          </div>
+        </div>
+      )}
+
       {data.kktc_sub_region && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">

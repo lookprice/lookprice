@@ -435,6 +435,7 @@ router.get("/marketplace/listings", async (req, res) => {
           deposit: r.deposit,
           billing_period: r.billing_period,
           kktc_title_type: r.kktc_title_type,
+          is_trade_in_available: r.is_trade_in_available,
           location: r.location,
           reference_no: r.reference_no
         }
@@ -946,6 +947,7 @@ router.get("/store/:slug/products", async (req, res) => {
         deposit: r.deposit,
         billing_period: r.billing_period,
         kktc_title_type: r.kktc_title_type,
+        is_trade_in_available: r.is_trade_in_available,
         location: r.location,
         reference_no: r.reference_no
       }

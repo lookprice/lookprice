@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface CampaignCarouselProps {
@@ -27,7 +27,7 @@ export const CampaignCarousel: React.FC<CampaignCarouselProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const campaignProducts = useMemo(() => {
+  const campaignProducts = React.useMemo(() => {
     const isCampaign = (p: any) => p.labels?.includes("Kampanya") || p.labels?.includes("Fırsat");
     const camps = products.filter(isCampaign);
     return camps.length > 0 ? camps : products;
