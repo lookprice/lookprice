@@ -1325,6 +1325,16 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='author') THEN
           ALTER TABLE products ADD COLUMN author TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='is_sellable') THEN
+          ALTER TABLE products ADD COLUMN is_sellable BOOLEAN DEFAULT TRUE;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoice_items' AND column_name='system_quantity') THEN
+          ALTER TABLE purchase_invoice_items ADD COLUMN system_quantity REAL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoice_items' AND column_name='system_unit_code') THEN
+          ALTER TABLE purchase_invoice_items ADD COLUMN system_unit_code TEXT;
+        END IF;
 
         -- Marketplace Columns
         ALTER TABLE products ADD COLUMN IF NOT EXISTS pazarama_id TEXT;

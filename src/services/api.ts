@@ -106,11 +106,12 @@ export const api = {
   getSEOPages: (storeId?: number) => api.get(`/api/store/seo${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   
   // Store Methods
-  getProducts: (search = "", storeId?: number, includeBranches = false) => {
+  getProducts: (search = "", storeId?: number, includeBranches = false, sellableOnly = false) => {
     const params = new URLSearchParams();
     if (search) params.append("search", search);
     if (storeId !== undefined && storeId !== null) params.append("storeId", storeId.toString());
     if (includeBranches) params.append("includeBranches", "true");
+    if (sellableOnly) params.append("sellableOnly", "true");
     const queryString = params.toString();
     const url = `/api/store/products${queryString ? `?${queryString}` : ""}`;
     return api.get(url);

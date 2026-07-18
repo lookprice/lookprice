@@ -1,6 +1,7 @@
 import express from "express";
 import { pool, logAction } from "../../models/db";
 import { getAuthorizedStoreId, getTurkishSearchSnippet, normalizeTurkishParam, checkProductLimit } from "./utils";
+import XLSX from "xlsx";
 
 const router = express.Router();
 
@@ -9,6 +10,7 @@ router.get("/", async (req: any, res) => {
   const currentStoreId = req.user.store_id;
   const requestedStoreId = req.query.storeId || currentStoreId;
   const includeBranches = req.query.includeBranches === 'true';
+  const sellableOnly = req.query.sellableOnly === 'true';
   
   if (!requestedStoreId) return res.status(400).json({ error: "Store ID required" });
 
@@ -55,6 +57,10 @@ router.get("/", async (req: any, res) => {
       WHERE p.store_id = ANY($1)
     `;
     const params: any[] = [storeIds];
+    
+    if (sellableOnly) {
+      query += ` AND p.is_sellable = true`;
+    }
 
     if (search) {
       const searchTerms = search.split(/\s+/).filter(Boolean);
@@ -99,8 +105,8 @@ router.post("/", async (req: any, res) => {
     const defaultTaxRate = storeRes.rows[0]?.default_tax_rate ?? 20;
 
     const result = await pool.query(`
-      INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, updated_at) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, CURRENT_TIMESTAMP)
+      INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, is_sellable, updated_at) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
       storeId, String(barcode), name, parseFloat(price), currency || 'TRY', 
@@ -114,7 +120,8 @@ router.post("/", async (req: any, res) => {
       price_2_currency || 'TRY',
       (tax_rate !== undefined && tax_rate !== null && tax_rate !== "") ? parseFloat(tax_rate) : defaultTaxRate,
       req.body.shipping_profile_id || null,
-      parseFloat(volume_ml) || 0
+      parseFloat(volume_ml) || 0,
+      req.body.is_sellable !== undefined ? req.body.is_sellable : true
     ]);
 
     if (req.body.sync_group && barcode) {
@@ -131,14 +138,15 @@ router.post("/", async (req: any, res) => {
         
         if (existsRes.rows.length === 0) {
           await pool.query(`
-            INSERT INTO products (store_id, barcode, name, price, currency, description, unit, category, sub_category, brand, author, image_url, labels, product_type, tax_rate, stock_quantity, is_web_sale, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, false, CURRENT_TIMESTAMP)
+            INSERT INTO products (store_id, barcode, name, price, currency, description, unit, category, sub_category, brand, author, image_url, labels, product_type, tax_rate, stock_quantity, is_web_sale, is_sellable, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, false, $16, CURRENT_TIMESTAMP)
           `, [
             bId, String(barcode), name, parseFloat(price), currency || 'TRY', 
             description || '', unit || 'Adet', category || '', 
             sub_category || '', brand || '', author || '', 
             image_url || '', JSON.stringify(labels || []), product_type || 'product', 
-            (tax_rate !== undefined && tax_rate !== null && tax_rate !== "") ? parseFloat(tax_rate) : defaultTaxRate
+            (tax_rate !== undefined && tax_rate !== null && tax_rate !== "") ? parseFloat(tax_rate) : defaultTaxRate,
+            req.body.is_sellable !== undefined ? req.body.is_sellable : true
           ]);
         }
       }
@@ -299,17 +307,22 @@ router.put("/:id", async (req: any, res) => {
   if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
 
   const { id } = req.params;
-  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group, volume_ml } = req.body;
+  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group, volume_ml, is_sellable } = req.body;
   try {
-    const existingProductRes = await pool.query("SELECT labels, barcode FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const existingProductRes = await pool.query("SELECT labels, barcode, is_sellable FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (existingProductRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
     let existingLabels = existingProductRes.rows[0]?.labels || [];
+    let existingIsSellable = existingProductRes.rows[0]?.is_sellable;
+    if (existingIsSellable === undefined || existingIsSellable === null) existingIsSellable = true;
+
     if (!Array.isArray(existingLabels)) existingLabels = [];
     
     let updatedLabels = labels !== undefined ? labels : existingLabels;
     if (Array.isArray(updatedLabels)) {
        updatedLabels = updatedLabels.filter((l: string) => l !== "yeni_fatura_urunu");
     }
+
+    const finalIsSellable = is_sellable !== undefined ? is_sellable : existingIsSellable;
 
     await pool.query(`
       UPDATE products SET 
@@ -318,8 +331,8 @@ router.put("/:id", async (req: any, res) => {
         stock_quantity = $8, min_stock_level = $9, unit = $10, 
         category = $11, sub_category = $12, brand = $13, author = $14, 
         labels = $15, image_url = $16, is_web_sale = $17, product_type = $18,
-        price_2 = $19, price_2_currency = $20, tax_rate = $21, shipping_profile_id = $22, volume_ml = $23, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $24 AND store_id = $25
+        price_2 = $19, price_2_currency = $20, tax_rate = $21, shipping_profile_id = $22, volume_ml = $23, is_sellable = $24, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $25 AND store_id = $26
     `, [
       String(barcode), name, parseFloat(price), currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
@@ -333,6 +346,7 @@ router.put("/:id", async (req: any, res) => {
       parseFloat(tax_rate) || 0,
       shipping_profile_id || null,
       parseFloat(volume_ml) || 0,
+      finalIsSellable,
       id, storeId
     ]);
 
@@ -550,11 +564,103 @@ router.delete("/:id", async (req: any, res) => {
     }
 
     if (result.rowCount === 0) return res.status(404).json({ error: "Product not found or unauthorized" });
-    await logAction(storeId, req.user.id, "product_delete", "product", parseInt(id), `Ürün silindi (ID: \${id})`, null, null);
+    await logAction(storeId, req.user.id, "product_delete", "product", parseInt(id), `Ürün silindi (ID: ${id})`, null, null);
     res.json({ success: true });
   } catch (e: any) {
     console.error("Delete product error:", e);
     res.status(500).json({ error: e.message });
+  }
+});
+
+router.get("/:id/movements", async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const requestedStoreId = req.query.storeId || req.user.store_id;
+    const storeId = req.user.role === "superadmin" ? requestedStoreId : req.user.store_id;
+
+    if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+    // Verify product belongs to the store or its parent/branches group
+    const prodRes = await pool.query("SELECT store_id FROM products WHERE id = $1", [id]);
+    if (prodRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
+    const productStoreId = prodRes.rows[0].store_id;
+
+    const storeRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
+    const parentId = storeRes.rows[0]?.parent_id || storeId;
+
+    const groupRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
+    const allowedStoreIds = groupRes.rows.map(r => r.id);
+
+    if (!allowedStoreIds.includes(productStoreId) && req.user.role !== "superadmin") {
+      return res.status(403).json({ error: "Unauthorized to view this product's movements" });
+    }
+
+    const movementsRes = await pool.query(
+      "SELECT * FROM stock_movements WHERE product_id = $1 ORDER BY created_at DESC",
+      [id]
+    );
+
+    res.json(movementsRes.rows);
+  } catch (error: any) {
+    console.error("Fetch product movements error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/:id/movements/export", async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const requestedStoreId = req.query.storeId || req.user.store_id;
+    const storeId = req.user.role === "superadmin" ? requestedStoreId : req.user.store_id;
+    const lang = req.query.lang || "tr";
+
+    if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+    // Verify product
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1", [id]);
+    if (prodRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
+    const product = prodRes.rows[0];
+
+    const storeRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
+    const parentId = storeRes.rows[0]?.parent_id || storeId;
+    const groupRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
+    const allowedStoreIds = groupRes.rows.map(r => r.id);
+
+    if (!allowedStoreIds.includes(product.store_id) && req.user.role !== "superadmin") {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const movementsRes = await pool.query(
+      "SELECT * FROM stock_movements WHERE product_id = $1 ORDER BY created_at DESC",
+      [id]
+    );
+
+    const data = movementsRes.rows.map((m: any) => ({
+      [lang === "tr" ? "Tarih" : "Date"]: new Date(m.created_at).toLocaleString(lang === "tr" ? "tr-TR" : "en-US"),
+      [lang === "tr" ? "Tür" : "Type"]: m.type === "in" ? (lang === "tr" ? "Giriş" : "In") : (lang === "tr" ? "Çıkış" : "Out"),
+      [lang === "tr" ? "Miktar" : "Quantity"]: m.quantity,
+      [lang === "tr" ? "Kaynak" : "Source"]: m.source,
+      [lang === "tr" ? "Açıklama" : "Description"]: m.description || "",
+      [lang === "tr" ? "Birim Fiyat" : "Unit Price"]: m.unit_price ? Number(m.unit_price) : "",
+      [lang === "tr" ? "Müşteri/Tedarikçi" : "Customer/Supplier"]: m.customer_info || "",
+      [lang === "tr" ? "Para Birimi" : "Currency"]: m.currency || "TRY"
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, lang === "tr" ? "Hareketler" : "Movements");
+
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${encodeURIComponent(product.name)}_movements.xlsx`
+    );
+    res.send(buffer);
+  } catch (error: any) {
+    console.error("Export movements error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 

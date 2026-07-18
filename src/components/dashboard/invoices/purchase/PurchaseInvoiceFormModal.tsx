@@ -113,6 +113,8 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
   branding,
   onQuickCariAdd
 }) => {
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+
   if (!isOpen) return null;
 
   return (
@@ -367,7 +369,14 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                 <thead>
                   <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <th className="pb-2 pl-4 text-left">{isTr ? "ÜRÜN / HİZMET" : "PRODUCT / SERVICE"}</th>
-                    <th className="pb-2 text-center w-24">{isTr ? "MİKTAR" : "QTY"}</th>
+                    {isCafeRestaurant ? (
+                      <>
+                        <th className="pb-2 text-center w-28">{isTr ? "FATURA MİKTARI / BİRİMİ" : "INVOICE QTY / UNIT"}</th>
+                        <th className="pb-2 text-center w-28">{isTr ? "SİSTEM MİKTARI / BİRİMİ" : "SYSTEM QTY / UNIT"}</th>
+                      </>
+                    ) : (
+                      <th className="pb-2 text-center w-24">{isTr ? "MİKTAR" : "QTY"}</th>
+                    )}
                     <th className="pb-2 text-right w-32">{isTr ? "BİRİM FİYAT" : "UNIT PRICE"}</th>
                     <th className="pb-2 text-center w-20">{isTr ? "KDV %" : "VAT %"}</th>
                     <th className="pb-2 text-right w-32">{isTr ? "TOPLAM" : "TOTAL"}</th>
@@ -387,15 +396,58 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                            <p className="text-sm font-black text-slate-900 tracking-tight">{item.product_name}</p>
                            <p className="text-[10px] font-bold text-slate-400 uppercase">{item.barcode || '-'}</p>
                          </td>
-                         <td className="py-4">
-                           <input
-                             type="text"
-                             inputMode="numeric"
-                             value={item.quantity}
-                             onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                             className="w-20 mx-auto block px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                           />
-                         </td>
+                         {isCafeRestaurant ? (
+                           <>
+                             <td className="py-4">
+                               <div className="flex flex-col gap-1 items-center">
+                                 <input
+                                   type="text"
+                                   inputMode="numeric"
+                                   value={item.quantity || ''}
+                                   onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                                   placeholder={isTr ? "Miktar" : "Qty"}
+                                   className="w-24 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                 />
+                                 <input
+                                   type="text"
+                                   value={item.unit_code || ''}
+                                   onChange={(e) => updateItem(index, 'unit_code', e.target.value)}
+                                   placeholder={isTr ? "Birim (Kasa...)" : "Unit"}
+                                   className="w-24 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                 />
+                               </div>
+                             </td>
+                             <td className="py-4">
+                               <div className="flex flex-col gap-1 items-center">
+                                 <input
+                                   type="text"
+                                   inputMode="numeric"
+                                   value={item.system_quantity || ''}
+                                   onChange={(e) => updateItem(index, 'system_quantity', e.target.value)}
+                                   placeholder={isTr ? "Sis. Miktar" : "Sys Qty"}
+                                   className="w-24 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                 />
+                                 <input
+                                   type="text"
+                                   value={item.system_unit_code || ''}
+                                   onChange={(e) => updateItem(index, 'system_unit_code', e.target.value)}
+                                   placeholder={isTr ? "Sis. Birim" : "Sys Unit"}
+                                   className="w-24 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                 />
+                               </div>
+                             </td>
+                           </>
+                         ) : (
+                           <td className="py-4">
+                             <input
+                               type="text"
+                               inputMode="numeric"
+                               value={item.quantity}
+                               onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                               className="w-20 mx-auto block px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                             />
+                           </td>
+                         )}
                          <td className="py-4">
                            <input
                              type="text"

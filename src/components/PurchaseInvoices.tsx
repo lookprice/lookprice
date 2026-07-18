@@ -28,6 +28,7 @@ import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave }: any) {
   const storeId = initialStoreId || currentStoreId;
   const isTr = lang === 'tr';
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
   const [invoices, setInvoices] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -170,8 +171,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       const newItems = [...prevItems];
       if (field === 'tax_rate') {
         newItems[index][field] = value.replace(/[^0-9]/g, '').substring(0, 2);
-      } else if (field === 'quantity') {
-        newItems[index][field] = value.replace(/[^0-9]/g, '');
+      } else if (field === 'quantity' || field === 'system_quantity') {
+        newItems[index][field] = value.replace(/[^0-9.,]/g, '');
       } else {
         newItems[index][field] = value;
       }
@@ -227,6 +228,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           items: items.map(item => ({
             ...item,
             quantity: Number(String(item.quantity).replace(',', '.')) || 0,
+            system_quantity: item.system_quantity ? Number(String(item.system_quantity).replace(',', '.')) : null,
             unit_price: Number(String(item.unit_price).replace(',', '.')) || 0,
             tax_rate: Number(String(item.tax_rate).replace(',', '.')) || 0
           })),
@@ -305,6 +307,9 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           product_name: item.product_name,
           barcode: item.barcode,
           quantity: String(item.quantity || 0),
+          unit_code: item.unit_code || 'Adet',
+          system_quantity: item.system_quantity != null ? String(item.system_quantity) : '',
+          system_unit_code: item.system_unit_code || '',
           unit_price: String(displayPrice.toFixed(2)),
           tax_rate: String(item.tax_rate || 0)
         };
@@ -756,7 +761,20 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
                   {(invoice.items || []).map((item: any, i: number) => (
                     <tr key={i} className="border-b border-slate-100">
                       <td className="p-2 border border-slate-200 font-medium">{item.product_name}</td>
-                      <td className="p-2 border border-slate-200 text-center">{item.quantity}</td>
+                      <td className="p-2 border border-slate-200 text-center">
+                        {isCafeRestaurant ? (
+                          <>
+                            {item.quantity} {item.unit_code || 'Adet'}
+                            {item.system_quantity != null && (
+                              <div className="text-[10px] text-indigo-600 mt-1">
+                                {isTr ? 'Sis: ' : 'Sys: '} {item.system_quantity} {item.system_unit_code}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          item.quantity
+                        )}
+                      </td>
                       <td className="p-2 border border-slate-200 text-right">{Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>
                       <td className="p-2 border border-slate-200 text-center">%{item.tax_rate}</td>
                       <td className="p-2 border border-slate-200 text-right font-bold">{(Number(item.quantity) * Number(item.unit_price) * (1 + Number(item.tax_rate) / 100)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}</td>

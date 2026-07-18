@@ -5,6 +5,59 @@ const router = express.Router();
 
 // --- POS Daily Report ---
 
+router.get("/daily-sales", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const { startDate, endDate } = req.query;
+  
+  try {
+    const start = startDate ? new Date(startDate as string) : new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = endDate ? new Date(endDate as string) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    const summaryQuery = `
+      SELECT 
+        sp.payment_method, 
+        SUM(sp.amount)::FLOAT as total_amount, 
+        COUNT(DISTINCT sp.sale_id)::INT as transaction_count
+      FROM sale_payments sp
+      JOIN sales s ON sp.sale_id = s.id
+      WHERE s.store_id = $1 
+        AND s.status = 'completed'
+        AND s.created_at >= $2 
+        AND s.created_at <= $3
+      GROUP BY sp.payment_method
+    `;
+    const summaryRes = await pool.query(summaryQuery, [storeId, start, end]);
+
+    const detailsQuery = `
+      SELECT 
+        s.created_at,
+        s.customer_name,
+        sp.amount,
+        sp.payment_method,
+        s.source,
+        s.id as sale_id
+      FROM sale_payments sp
+      JOIN sales s ON sp.sale_id = s.id
+      WHERE s.store_id = $1 
+        AND s.status = 'completed'
+        AND s.created_at >= $2 
+        AND s.created_at <= $3
+      ORDER BY s.created_at DESC
+    `;
+    const detailsRes = await pool.query(detailsQuery, [storeId, start, end]);
+
+    res.json({
+      success: true,
+      summary: summaryRes.rows,
+      details: detailsRes.rows
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/pos-daily", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   const { date } = req.query;

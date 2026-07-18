@@ -712,17 +712,35 @@ export const ProductModal = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 col-span-2">
-            <input
-              type="checkbox"
-              name="is_web_sale"
-              id="prod_is_web_sale"
-              className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-              defaultChecked={editingProduct?.is_web_sale !== false}
-            />
-            <label htmlFor="prod_is_web_sale" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
-              {isTr ? "Bu Ürün Mağaza Web Sitesinde Vitrinde Yayınlansın" : "Publish product in public store showcase page"}
-            </label>
+          <div className="flex flex-col gap-3 col-span-2">
+            <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <input
+                type="checkbox"
+                name="is_web_sale"
+                id="prod_is_web_sale"
+                className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                defaultChecked={editingProduct?.is_web_sale !== false}
+              />
+              <label htmlFor="prod_is_web_sale" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                {isTr ? "Bu Ürün Mağaza Web Sitesinde Vitrinde Yayınlansın" : "Publish product in public store showcase page"}
+              </label>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-amber-50/50 p-4 rounded-2xl border border-amber-100/50">
+              <input
+                type="checkbox"
+                name="is_sellable"
+                id="prod_is_sellable"
+                className="h-5 w-5 text-amber-500 border-gray-300 rounded focus:ring-amber-500 cursor-pointer"
+                defaultChecked={editingProduct?.is_sellable !== false}
+              />
+              <label htmlFor="prod_is_sellable" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                {isTr ? "Bu ürün satışa açıktır (Mamül)" : "This product is available for sale (Finished Good)"}
+                <span className="block text-[10px] font-medium text-slate-500 mt-1">
+                  {isTr ? "Eğer bu sadece bir malzeme/yarı mamül ise (örn. Sandviç Ekmeği, 1L Votka) bu işareti kaldırın. Böylece sadece reçetelerde ve stoklarda görünür, satış ekranlarında (POS) görünmez." : "Uncheck this if it's only a raw material (e.g. Sandwich Bread). It will only be visible in inventory and recipes, not on the POS screen."}
+                </span>
+              </label>
+            </div>
           </div>
 
           <div className="flex gap-4 pt-4">

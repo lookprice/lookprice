@@ -37,6 +37,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       sector_data,
       labels: typeof rawData.labels === 'string' ? rawData.labels.split(',').map(s => s.trim()).filter(Boolean) : (rawData.labels || []),
       is_web_sale: rawData.is_web_sale === 'on' || rawData.is_web_sale === 'true',
+      is_sellable: rawData.is_sellable === 'on' || rawData.is_sellable === 'true',
       product_type: rawData.product_type || 'product',
       sync_group: rawData.sync_group === 'on'
     };

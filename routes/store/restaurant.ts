@@ -4,8 +4,8 @@ import { getAuthorizedStoreId } from "./utils";
 
 const router = express.Router();
 
-// Restaurant Tables
-router.get("/tables", async (req: any, res) => {
+// Restaurant Tables handlers
+const getTables = async (req: any, res: any) => {
     const storeId = await getAuthorizedStoreId(req, req.query.storeId);
     if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
     try {
@@ -27,7 +27,7 @@ router.get("/tables", async (req: any, res) => {
         if (result.rows.length !== targetTableCount) {
             if (result.rows.length < targetTableCount) {
                 for (let i = result.rows.length + 1; i <= targetTableCount; i++) {
-                    const tableNumber = `\${i}`;
+                    const tableNumber = String(i);
                     const existing = result.rows.find((t: any) => t.table_number === tableNumber);
                     if (!existing) {
                        await pool.query("INSERT INTO restaurant_tables (store_id, table_number, status) VALUES ($1, $2, 'empty')", [storeId, tableNumber]);
@@ -50,7 +50,7 @@ router.get("/tables", async (req: any, res) => {
             const isOccupied = pendingTableIds.has(row.id) || pendingTableNames.some(name => {
                 if (!name) return false;
                 const normNum = normalize(num);
-                return name === normNum || name === `masa\${normNum}` || name.includes(`masa\${normNum}`) || name === `table\${normNum}`;
+                return name === normNum || name === `masa${normNum}` || name.includes(`masa${normNum}`) || name === `table${normNum}`;
             });
             row.status = isOccupied ? 'occupied' : 'empty';
         }
@@ -71,9 +71,9 @@ router.get("/tables", async (req: any, res) => {
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
-});
+};
 
-router.post("/tables", async (req: any, res) => {
+const postTable = async (req: any, res: any) => {
     const storeId = await getAuthorizedStoreId(req, req.body.storeId);
     if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
     const { tableNumber } = req.body;
@@ -83,9 +83,9 @@ router.post("/tables", async (req: any, res) => {
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
-});
+};
 
-router.put("/tables/:id", async (req: any, res) => {
+const putTable = async (req: any, res: any) => {
     const { id } = req.params;
     const { status } = req.body;
     const storeId = req.user.store_id; 
@@ -96,6 +96,16 @@ router.put("/tables/:id", async (req: any, res) => {
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
-});
+};
+
+// Mount handlers on both base paths and /tables paths
+router.get("/", getTables);
+router.get("/tables", getTables);
+
+router.post("/", postTable);
+router.post("/tables", postTable);
+
+router.put("/:id", putTable);
+router.put("/tables/:id", putTable);
 
 export default router;

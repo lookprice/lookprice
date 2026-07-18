@@ -651,7 +651,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     const fetchAllProducts = async () => {
       setLoading(true);
       try {
-        const res = await api.getProducts("", storeId);
+        const res = await api.getProducts("", storeId, false, true);
         const products = Array.isArray(res) ? res : [];
         setSearchResults(products);
         setAllProducts(products);
@@ -677,7 +677,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         }
 
         try {
-          const res = await api.getProducts(searchTerm, storeId);
+          const res = await api.getProducts(searchTerm, storeId, false, true);
           const products = Array.isArray(res) ? res : [];
           setSearchResults(products);
           
@@ -693,7 +693,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         }
       } else if (searchTerm.length === 0) {
         // Reset to all products if search term is cleared
-        const res = await api.getProducts("", storeId);
+        const res = await api.getProducts("", storeId, false, true);
         setSearchResults(Array.isArray(res) ? res : []);
       }
     };

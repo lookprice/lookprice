@@ -1027,22 +1027,23 @@ router.post("/purchase", async (req: any, res) => {
       for (const item of items) {
         await pool.query(
           `INSERT INTO purchase_invoice_items 
-           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
           [
             invoice.id, item.product_id || null, item.product_name || 'Bilinmeyen Ürün', item.barcode || null,
-            item.quantity || 1, item.unit_price || 0, item.tax_rate || 20, item.tax_amount || 0, item.total_price || 0
+            item.quantity || 1, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, item.unit_price || 0, item.tax_rate || 20, item.tax_amount || 0, item.total_price || 0
           ]
         );
 
         if (item.product_id) {
+          const qtyToStock = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
           await pool.query(
             "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
-            [item.quantity || 1, item.unit_price || 0, currency || 'TRY', item.product_id]
+            [qtyToStock, item.unit_price || 0, currency || 'TRY', item.product_id]
           );
           
           await addStockMovement(
-            pool, storeId, item.product_id, 'in', item.quantity || 1, 'purchase_invoice',
+            pool, storeId, item.product_id, 'in', qtyToStock, 'purchase_invoice',
             `Fatura Girişi: ${invoice.invoice_number}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
           );
         }
@@ -1070,10 +1071,11 @@ router.put("/purchase/:id", async (req: any, res) => {
     if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
 
     // Deduct old items stock before replacing them
-    const oldItems = await pool.query("SELECT product_id, quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    const oldItems = await pool.query("SELECT product_id, quantity, system_quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     for (const oldItem of oldItems.rows) {
       if (oldItem.product_id) {
-        await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [oldItem.quantity, oldItem.product_id]);
+        const qtyToRevert = oldItem.system_quantity != null ? oldItem.system_quantity : oldItem.quantity;
+        await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [qtyToRevert, oldItem.product_id]);
       }
     }
 
@@ -1099,22 +1101,23 @@ router.put("/purchase/:id", async (req: any, res) => {
       for (const item of items) {
         await pool.query(
           `INSERT INTO purchase_invoice_items 
-           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             id, item.product_id || null, item.product_name || 'Bilinmeyen Ürün', item.barcode || null,
-            item.quantity || 1, item.unit_price || 0, item.tax_rate || 20, item.tax_amount || 0, item.total_price || 0
+            item.quantity || 1, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, item.unit_price || 0, item.tax_rate || 20, item.tax_amount || 0, item.total_price || 0
           ]
         );
 
         if (item.product_id) {
+          const qtyToStock = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
           await pool.query(
             "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
-            [item.quantity || 1, item.unit_price || 0, currency || 'TRY', item.product_id]
+            [qtyToStock, item.unit_price || 0, currency || 'TRY', item.product_id]
           );
           
           await addStockMovement(
-            pool, storeId, item.product_id, 'in', item.quantity || 1, 'purchase_invoice',
+            pool, storeId, item.product_id, 'in', qtyToStock, 'purchase_invoice',
             `Fatura Güncelleme: ${invoice.invoice_number}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
           );
         }
@@ -1137,10 +1140,11 @@ router.delete("/purchase/:id", async (req: any, res) => {
     if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
 
     // Adjust stocks back
-    const oldItems = await pool.query("SELECT product_id, quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    const oldItems = await pool.query("SELECT product_id, quantity, system_quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     for (const oldItem of oldItems.rows) {
       if (oldItem.product_id) {
-        await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [oldItem.quantity, oldItem.product_id]);
+        const qtyToRevert = oldItem.system_quantity != null ? oldItem.system_quantity : oldItem.quantity;
+        await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [qtyToRevert, oldItem.product_id]);
       }
     }
 

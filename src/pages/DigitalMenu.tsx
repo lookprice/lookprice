@@ -31,7 +31,7 @@ export default function DigitalMenuPage() {
       try {
         const [storeRes, productsRes, tablesRes] = await Promise.all([
           api.getBranding(Number(storeId)),
-          api.getProducts("", Number(storeId), false),
+          api.getProducts("", Number(storeId), false, true),
           api.getRestaurantTables(Number(storeId)).catch(() => [])
         ]);
         setStore(storeRes);
