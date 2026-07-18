@@ -111,6 +111,7 @@ export async function initDb() {
       ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_currency TEXT DEFAULT 'TRY';
       ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate REAL DEFAULT 20;
       ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_profile_id TEXT;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS volume_ml REAL DEFAULT 0;
 
       CREATE TABLE IF NOT EXISTS consultants (
         id SERIAL PRIMARY KEY,
@@ -1655,6 +1656,14 @@ export async function initDb() {
   }
 }
 
+export function convertRecipeAmountToMl(amount: number, unit: string): number {
+  const u = String(unit).toLowerCase();
+  if (u === 'cl') return amount * 10;
+  if (u === 'l' || u === 'litre' || u === 'liters') return amount * 1000;
+  if (u === 'ml' || u === 'cc' || u === 'gr' || u === 'g') return amount;
+  return amount; // Default to 1:1 if unknown or Adet
+}
+
 export async function logAction(
   storeId: number, 
   userId: number | null, 
@@ -1703,11 +1712,52 @@ export async function processSaleAutomation(client: any, saleId: number, storeId
         const productType = product?.product_type || 'product';
 
         if (productType !== 'service') {
-          await client.query(
-            "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
-            [item.quantity, item.product_id, storeId]
+          // Check if this product has a recipe
+          const recipeRes = await client.query(
+            "SELECT ingredient_id, amount, unit FROM product_recipes WHERE product_id = $1 AND store_id = $2",
+            [item.product_id, storeId]
           );
-          await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'web', `Web Satışı #${saleId}`, item.unit_price, sale.customer_name);
+
+          if (recipeRes.rows.length > 0) {
+            for (const recItem of recipeRes.rows) {
+              const baseAmount = convertRecipeAmountToMl(Number(recItem.amount), recItem.unit);
+              const totalIngredientQtyMl = Number(item.quantity) * baseAmount;
+              
+              const ingRes = await client.query("SELECT volume_ml, unit FROM products WHERE id = $1", [recItem.ingredient_id]);
+              const volMl = Number(ingRes.rows[0]?.volume_ml) || 0;
+              const ingUnit = ingRes.rows[0]?.unit;
+              
+              let finalDeduction = totalIngredientQtyMl;
+              let descriptionExtra = "";
+              
+              if (volMl > 0 && !['ml', 'gr', 'g', 'cc'].includes(ingUnit?.toLowerCase())) {
+                finalDeduction = totalIngredientQtyMl / volMl;
+                descriptionExtra = ` (${totalIngredientQtyMl}ml / ${volMl}ml)`;
+              }
+
+              await client.query(
+                "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+                [finalDeduction, recItem.ingredient_id, storeId]
+              );
+              await addStockMovement(
+                client, 
+                storeId, 
+                recItem.ingredient_id, 
+                'out', 
+                finalDeduction, 
+                'web', 
+                `Reçete Çıkışı (Web Satışı #${saleId}, Ürün: ${item.product_name})${descriptionExtra}`, 
+                0, 
+                sale.customer_name
+              );
+            }
+          } else {
+            await client.query(
+              "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+              [item.quantity, item.product_id, storeId]
+            );
+            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'web', `Web Satışı #${saleId}`, item.unit_price, sale.customer_name);
+          }
         }
       }
     }

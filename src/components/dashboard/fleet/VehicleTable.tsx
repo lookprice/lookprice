@@ -135,7 +135,10 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                     <p className="font-black text-gray-900 text-lg">{vehicle.plate}</p>
                     <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold">#{vehicle.id}</span>
                     <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase tracking-wider">
-                      {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : (lang === 'tr' ? 'Otomobil' : 'Car')}
+                      {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : 
+                       vehicle.category === 'suv' ? (lang === 'tr' ? 'SUV / Arazi' : 'SUV / Off-Road') :
+                       vehicle.category === 'pickup' ? (lang === 'tr' ? 'Pick-up' : 'Pick-up') :
+                       (lang === 'tr' ? 'Otomobil' : 'Car')}
                     </span>
                     <div className="flex items-center gap-1 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded">
                       <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_website !== false ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]' : 'bg-gray-300'}`} />
@@ -256,6 +259,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                       model: vehicle.model,
                       year: vehicle.year,
                       type: vehicle.type,
+                      category: vehicle.category || 'otomobil',
                       chassis_number: vehicle.chassis_number,
                       engine_number: vehicle.engine_number,
                       current_mileage: vehicle.current_mileage,
@@ -352,9 +356,12 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-gray-900">{vehicle.plate}</p>
-                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black uppercase tracking-wider">
-                            {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : (lang === 'tr' ? 'Otomobil' : 'Car')}
-                          </span>
+                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black uppercase tracking-wider">
+                      {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : 
+                       vehicle.category === 'suv' ? (lang === 'tr' ? 'SUV / Arazi' : 'SUV / Off-Road') :
+                       vehicle.category === 'pickup' ? (lang === 'tr' ? 'Pick-up' : 'Pick-up') :
+                       (lang === 'tr' ? 'Otomobil' : 'Car')}
+                    </span>
                         </div>
                         <p className="text-xs text-gray-500">{generateVehicleTitle(vehicle)}</p>
                       </div>
@@ -486,6 +493,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                             model: vehicle.model,
                             year: vehicle.year,
                             type: vehicle.type,
+                            category: vehicle.category || 'otomobil',
                             chassis_number: vehicle.chassis_number,
                             engine_number: vehicle.engine_number,
                             current_mileage: vehicle.current_mileage,

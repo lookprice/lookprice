@@ -15,6 +15,8 @@ import {
   Youtube,
   Linkedin,
   Share2,
+  Search,
+  ChevronRight,
 } from "lucide-react";
 import { Store, Product } from "../types";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -47,38 +49,70 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   const [activeContentMap, setActiveContentMap] = useState<{ title: string; content: string } | null>(null);
 
   // Active filters states
+  const [activeCategory, setActiveCategory] = useState<string>("all");
   const [activeBrand, setActiveBrand] = useState<string>("all");
   const [activeModel, setActiveModel] = useState<string>("all");
   const [activeBudget, setActiveBudget] = useState<string>("all");
   const [activeYear, setActiveYear] = useState<string>("all");
+  const [activeFuel, setActiveFuel] = useState<string>("all");
+  const [activeTransmission, setActiveTransmission] = useState<string>("all");
 
   // Pending filter states
+  const [pendingCategory, setPendingCategory] = useState<string>("all");
   const [pendingBrand, setPendingBrand] = useState<string>("all");
   const [pendingModel, setPendingModel] = useState<string>("all");
   const [pendingBudget, setPendingBudget] = useState<string>("all");
   const [pendingYear, setPendingYear] = useState<string>("all");
+  const [pendingFuel, setPendingFuel] = useState<string>("all");
+  const [pendingTransmission, setPendingTransmission] = useState<string>("all");
 
-  // Filter options derived from vehicle product list
-  const brands = React.useMemo(() => {
+  const categories = React.useMemo(() => {
     const list = products.map(p => {
-      return p.brand || p.sector_data?.brand || (p as any).brand;
+      return (p.sector_data?.category || (p as any).sub_sector || p.category || "").toLowerCase();
     }).filter(Boolean);
     return Array.from(new Set(list));
   }, [products]);
 
-  const models = React.useMemo(() => {
+  // Filter options derived from vehicle product list
+  const brands = React.useMemo(() => {
     let filtered = products;
-    if (pendingBrand !== "all") {
+    if (pendingCategory !== "all") {
       filtered = products.filter(p => {
-        const pBrand = p.brand || p.sector_data?.brand || (p as any).brand || "";
-        return pBrand.toLowerCase() === pendingBrand.toLowerCase();
+        const pCat = String(p.sector_data?.category || (p as any).sub_sector || p.category || "").toLowerCase();
+        return pCat === pendingCategory.toLowerCase();
       });
     }
     const list = filtered.map(p => {
-      return p.sector_data?.model || (p as any).model;
+      return p.brand || p.sector_data?.brand || p.sector_data?.brand_name || (p as any).brand;
     }).filter(Boolean);
-    return Array.from(new Set(list));
-  }, [products, pendingBrand]);
+    return Array.from(new Set(list)).sort((a: any, b: any) => a.localeCompare(b));
+  }, [products, pendingCategory]);
+
+  const models = React.useMemo(() => {
+    let filtered = products;
+    if (pendingCategory !== "all") {
+      filtered = filtered.filter(p => {
+        const pCat = String(p.sector_data?.category || (p as any).sub_sector || p.category || "").toLowerCase();
+        return pCat === pendingCategory.toLowerCase();
+      });
+    }
+    if (pendingBrand !== "all") {
+      filtered = filtered.filter(p => {
+        const pBrand = String(p.brand || p.sector_data?.brand || p.sector_data?.brand_name || (p as any).brand || "").toLowerCase();
+        return pBrand === pendingBrand.toLowerCase();
+      });
+    }
+    const list = filtered.map(p => {
+      return p.sector_data?.model || p.sector_data?.model_name || p.sector_data?.series || (p as any).model;
+    }).filter(Boolean);
+    return Array.from(new Set(list)).sort((a: any, b: any) => a.localeCompare(b));
+  }, [products, pendingCategory, pendingBrand]);
+
+  React.useEffect(() => {
+    if (pendingBrand !== "all" && !brands.includes(pendingBrand)) {
+      setPendingBrand("all");
+    }
+  }, [brands, pendingBrand]);
 
   React.useEffect(() => {
     if (pendingModel !== "all" && !models.includes(pendingModel as any)) {
@@ -127,17 +161,22 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   // Filter implementation
   const filteredProducts = React.useMemo(() => {
     return products.filter(p => {
+      // 0. Category match
+      if (activeCategory !== "all") {
+        const pCat = (p.sector_data?.category || (p as any).sub_sector || p.category || "").toLowerCase();
+        if (pCat !== activeCategory.toLowerCase()) return false;
+      }
       // 1. Brand match
       if (activeBrand !== "all") {
-        const pBrand = p.sector_data?.brand || (p as any).brand || "";
-        if (pBrand.toLowerCase() !== activeBrand.toLowerCase()) {
+        const pBrand = String(p.brand || p.sector_data?.brand || p.sector_data?.brand_name || (p as any).brand || "").toLowerCase();
+        if (pBrand !== activeBrand.toLowerCase()) {
           return false;
         }
       }
       // 2. Model match
       if (activeModel !== "all") {
-        const pModel = p.sector_data?.model || (p as any).model || "";
-        if (pModel.toLowerCase() !== activeModel.toLowerCase()) {
+        const pModel = String(p.sector_data?.model || p.sector_data?.model_name || p.sector_data?.series || (p as any).model || "").toLowerCase();
+        if (pModel !== activeModel.toLowerCase()) {
           return false;
         }
       }
@@ -159,15 +198,29 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
           if (price < min || price > max) return false;
         }
       }
+      // 5. Fuel match
+      if (activeFuel !== "all") {
+        const pFuel = String(p.sector_data?.fuel || p.sector_data?.fuel_type || (p as any).fuel || "").toLowerCase();
+        if (pFuel !== activeFuel.toLowerCase()) return false;
+      }
+      // 6. Transmission match
+      if (activeTransmission !== "all") {
+        const pTrans = String(p.sector_data?.transmission || (p as any).transmission || "").toLowerCase();
+        if (pTrans !== activeTransmission.toLowerCase()) return false;
+      }
       return true;
     });
-  }, [products, activeBrand, activeModel, activeYear, activeBudget]);
+  }, [products, activeCategory, activeBrand, activeModel, activeYear, activeBudget, activeFuel, activeTransmission]);
 
   const handleSearchTrigger = () => {
+    setActiveCategory(pendingCategory);
     setActiveBrand(pendingBrand);
     setActiveModel(pendingModel);
     setActiveBudget(pendingBudget);
     setActiveYear(pendingYear);
+    setActiveFuel(pendingFuel);
+    setActiveTransmission(pendingTransmission);
+    setIsMobileFiltersOpen(false);
     
     setTimeout(() => {
       const el = document.getElementById("listings-section");
@@ -446,14 +499,31 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
             </div>
 
             {/* Desktop Filters */}
-            <div className="hidden md:grid bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-2xl grid-cols-4 gap-6">
-              {["BRAND", "MODEL", "BUDGET", "YEAR"].map((filt, idx) => {
+            <div className="hidden md:grid bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-2xl grid-cols-7 gap-4">
+              {["CATEGORY", "BRAND", "MODEL", "BUDGET", "YEAR", "FUEL", "TRANSMISSION"].map((filt, idx) => {
                 let displayTitle = filt;
                 let value = "all";
                 let onChange = (v: string) => {};
                 let options: { value: string; label: string }[] = [];
 
-                if (filt === "BRAND") {
+                if (filt === "CATEGORY") {
+                  displayTitle = lang === "tr" ? "ARAÇ TİPİ" : "VEHICLE TYPE";
+                  value = pendingCategory;
+                  onChange = setPendingCategory;
+                  options = [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    ...categories.map(v => {
+                      const lowerV = String(v).toLowerCase();
+                      return { 
+                        value: String(v), 
+                        label: lowerV === 'otomobil' ? (lang === 'tr' ? 'Otomobil' : 'Car') :
+                               lowerV === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') :
+                               lowerV === 'suv' ? (lang === 'tr' ? 'SUV / Arazi' : 'SUV / Off-Road') :
+                               lowerV === 'pickup' ? (lang === 'tr' ? 'Pick-up' : 'Pick-up') : String(v)
+                      };
+                    })
+                  ];
+                } else if (filt === "BRAND") {
                   displayTitle = lang === "tr" ? "MARKA" : "BRAND";
                   value = pendingBrand;
                   onChange = setPendingBrand;
@@ -482,12 +552,33 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                     { value: "all", label: lang === "tr" ? "Tümü" : "All" },
                     ...yearsOptions.map(v => ({ value: String(v), label: String(v) }))
                   ];
+                } else if (filt === "FUEL") {
+                  displayTitle = lang === "tr" ? "YAKIT" : "FUEL";
+                  value = pendingFuel;
+                  onChange = setPendingFuel;
+                  options = [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    { value: "gasoline", label: lang === "tr" ? "Benzin" : "Gasoline" },
+                    { value: "diesel", label: lang === "tr" ? "Dizel" : "Diesel" },
+                    { value: "hybrid", label: lang === "tr" ? "Hibrit" : "Hybrid" },
+                    { value: "electric", label: lang === "tr" ? "Elektrikli" : "Electric" },
+                  ];
+                } else if (filt === "TRANSMISSION") {
+                  displayTitle = lang === "tr" ? "VİTES" : "TRANS.";
+                  value = pendingTransmission;
+                  onChange = setPendingTransmission;
+                  options = [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    { value: "manual", label: lang === "tr" ? "Manuel" : "Manual" },
+                    { value: "automatic", label: lang === "tr" ? "Otomatik" : "Automatic" },
+                    { value: "semi_automatic", label: lang === "tr" ? "Yarı Otomatik" : "Semi-Auto" },
+                  ];
                 }
 
                 return (
                   <div
                     key={filt}
-                    className={`group relative ${idx < 3 ? "md:border-r border-slate-200" : ""} px-2 flex flex-col justify-center`}
+                    className={`group relative ${idx < 6 ? "md:border-r border-slate-200" : ""} px-2 flex flex-col justify-center`}
                   >
                     <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
                       {displayTitle}
@@ -511,7 +602,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
               })}
               <button 
                 onClick={handleSearchTrigger}
-                className="col-span-1 md:col-span-4 bg-slate-900 text-white py-4 rounded-3xl text-[12px] font-black uppercase tracking-[0.4em] mt-2 hover:bg-amber-600 transition-all shadow-xl shadow-slate-200 cursor-pointer"
+                className="col-span-1 md:col-span-7 bg-slate-900 text-white py-4 rounded-3xl text-[12px] font-black uppercase tracking-[0.4em] mt-2 hover:bg-amber-600 transition-all shadow-xl shadow-slate-200 cursor-pointer"
               >
                 {lang === "tr" ? "HAYALİNDEKİ ARACI BUL" : "FIND YOUR VEHICLE"}
               </button>
@@ -895,6 +986,111 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
           </div>
         </div>
       </footer>
+
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <div className="fixed inset-0 z-[60] md:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileFiltersOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[3rem] p-8 max-h-[85vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                  {lang === "tr" ? "ARAMA FİLTRELERİ" : "SEARCH FILTERS"}
+                </h3>
+                <button
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="p-2 bg-slate-100 rounded-full text-slate-500"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-8 pb-10">
+                {[
+                  { id: "CATEGORY", title: lang === "tr" ? "ARAÇ TİPİ" : "VEHICLE TYPE", value: pendingCategory, onChange: setPendingCategory, options: [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    ...categories.map(v => {
+                      const lowerV = String(v).toLowerCase();
+                      return { 
+                        value: String(v), 
+                        label: lowerV === 'otomobil' ? (lang === 'tr' ? 'Otomobil' : 'Car') :
+                               lowerV === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') :
+                               lowerV === 'suv' ? (lang === 'tr' ? 'SUV / Arazi' : 'SUV / Off-Road') :
+                               lowerV === 'pickup' ? (lang === 'tr' ? 'Pick-up' : 'Pick-up') : String(v)
+                      };
+                    })
+                  ]},
+                  { id: "BRAND", title: lang === "tr" ? "MARKA" : "BRAND", value: pendingBrand, onChange: setPendingBrand, options: [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    ...brands.map(v => ({ value: String(v), label: String(v) }))
+                  ]},
+                  { id: "MODEL", title: lang === "tr" ? "MODEL" : "MODEL", value: pendingModel, onChange: setPendingModel, options: [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    ...models.map(v => ({ value: String(v), label: String(v) }))
+                  ]},
+                  { id: "YEAR", title: lang === "tr" ? "MODEL YILI" : "YEAR", value: pendingYear, onChange: setPendingYear, options: [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    ...yearsOptions.map(v => ({ value: String(v), label: String(v) }))
+                  ]},
+                  { id: "FUEL", title: lang === "tr" ? "YAKIT" : "FUEL", value: pendingFuel, onChange: setPendingFuel, options: [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    { value: "gasoline", label: lang === "tr" ? "Benzin" : "Gasoline" },
+                    { value: "diesel", label: lang === "tr" ? "Dizel" : "Diesel" },
+                    { value: "hybrid", label: lang === "tr" ? "Hibrit" : "Hybrid" },
+                    { value: "electric", label: lang === "tr" ? "Elektrikli" : "Electric" },
+                  ]},
+                  { id: "TRANSMISSION", title: lang === "tr" ? "VİTES" : "TRANS.", value: pendingTransmission, onChange: setPendingTransmission, options: [
+                    { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+                    { value: "manual", label: lang === "tr" ? "Manuel" : "Manual" },
+                    { value: "automatic", label: lang === "tr" ? "Otomatik" : "Automatic" },
+                    { value: "semi_automatic", label: lang === "tr" ? "Yarı Otomatik" : "Semi-Auto" },
+                  ]},
+                  { id: "BUDGET", title: lang === "tr" ? "BÜTÇE" : "BUDGET", value: pendingBudget, onChange: setPendingBudget, options: budgetSpecs.ranges },
+                ].map((filt) => (
+                  <div key={filt.id} className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 tracking-[0.2em]">
+                      {filt.title}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {filt.options.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => filt.onChange(opt.value)}
+                          className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                            filt.value === opt.value
+                              ? "bg-slate-900 border-slate-900 text-white shadow-lg"
+                              : "bg-white border-slate-200 text-slate-600"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={handleSearchTrigger}
+                  className="w-full py-4 bg-amber-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-amber-500/20 active:scale-95 transition-all mt-4"
+                >
+                  {lang === "tr" ? "HAYALİNDEKİ ARACI BUL" : "FIND YOUR VEHICLE"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {shareProduct && (
         <AutomotiveSocialMediaShareModal

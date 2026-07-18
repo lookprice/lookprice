@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { X } from "lucide-react";
+import { X, Plus, Trash2, Search } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
+import { api } from "../../../services/api";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -33,6 +34,22 @@ export const ProductModal = ({
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [isNewCategoryMode, setIsNewCategoryMode] = useState(false);
   const [isNewSubCategoryMode, setIsNewSubCategoryMode] = useState(false);
+  const [recipeItems, setRecipeItems] = useState<any[]>([]);
+  const [ingredientSearch, setIngredientSearch] = useState("");
+  const [showIngredientSelector, setShowIngredientSelector] = useState(false);
+
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+
+  const fetchRecipe = async (prodId: number) => {
+    try {
+      const res = await api.getProductRecipe(prodId, branding.id);
+      if (res && res.items) {
+        setRecipeItems(res.items);
+      }
+    } catch (error) {
+      console.error("Fetch recipe error:", error);
+    }
+  };
 
   const categoriesList = React.useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
@@ -64,6 +81,11 @@ export const ProductModal = ({
 
   useEffect(() => {
     if (showProductModal) {
+      if (editingProduct?.id && isCafeRestaurant) {
+        fetchRecipe(editingProduct.id);
+      } else {
+        setRecipeItems([]);
+      }
       setProductImageUrl(editingProduct?.image_url || "");
       const cat = editingProduct?.category || "";
       const sub = editingProduct?.sub_category || "";
@@ -83,6 +105,7 @@ export const ProductModal = ({
       setSelectedSubCategory("");
       setIsNewCategoryMode(false);
       setIsNewSubCategoryMode(false);
+      setRecipeItems([]);
     }
   }, [showProductModal, editingProduct]);
 
@@ -320,14 +343,152 @@ export const ProductModal = ({
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
                 {isTr ? "Birim" : "Unit"}
               </label>
-              <input
-                type="text"
+              <select
                 name="unit"
-                placeholder={isTr ? "örn: Adet, Palet, Kg, Mt" : "Unit abbreviation"}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700"
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700 appearance-none text-xs h-[50px]"
                 defaultValue={editingProduct?.unit || "Adet"}
-              />
+              >
+                <option value="Adet">{isTr ? "Adet (pcs)" : "Pieces"}</option>
+                <option value="Şişe">{isTr ? "Şişe (Bottle)" : "Bottle"}</option>
+                <option value="Kasa">{isTr ? "Kasa (Case)" : "Case"}</option>
+                <option value="ml">ml</option>
+                <option value="cl">cl</option>
+                <option value="L">{isTr ? "Litre (L)" : "Liter"}</option>
+                <option value="kg">kg</option>
+                <option value="gr">gr</option>
+                <option value="Paket">{isTr ? "Paket (Pack)" : "Pack"}</option>
+                <option value="Koli">{isTr ? "Koli (Box)" : "Box"}</option>
+                <option value="Mt">{isTr ? "Metre (Mt)" : "Meter"}</option>
+                <option value="Porsiyon">{isTr ? "Porsiyon" : "Portion"}</option>
+              </select>
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                {isTr ? "Birim Hacmi (ml/gr)" : "Volume per Unit (ml/gr)"}
+              </label>
+              <input
+                type="number"
+                name="volume_ml"
+                placeholder={isTr ? "örn: 700" : "e.g. 700"}
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700"
+                defaultValue={editingProduct?.volume_ml || ""}
+              />
+              <p className="text-[9px] text-slate-500 font-bold ml-1">
+                {isTr ? "Şişe/Kasa/Paket alımlarını stokta ML/GR bazlı takip etmek için gereklidir." : "Required for tracking Bottle/Case/Pack purchases in ML/GR."}
+              </p>
+            </div>
+
+            {isCafeRestaurant && (
+              <div className="col-span-2 space-y-4 pt-4 border-t border-slate-100">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">
+                      {isTr ? "Malzeme Yapısı (Reçete / BOM)" : "Bill of Materials (Recipe)"}
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-bold">
+                      {isTr ? "Bu ürün satıldığında stoktan düşecek malzemeleri tanımlayın." : "Define ingredients to be deducted from stock upon sale."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowIngredientSelector(!showIngredientSelector)}
+                    className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all border-0 outline-none flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="text-[10px] font-black uppercase">{isTr ? "Malzeme Ekle" : "Add Ingredient"}</span>
+                  </button>
+                </div>
+
+                {showIngredientSelector && (
+                  <div className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder={isTr ? "Malzeme ara (Ürün listesinden)..." : "Search ingredient..."}
+                        className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                        value={ingredientSearch}
+                        onChange={(e) => setIngredientSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {products
+                        .filter(p => p.id !== editingProduct?.id && (p.name.toLowerCase().includes(ingredientSearch.toLowerCase()) || p.barcode?.toLowerCase().includes(ingredientSearch.toLowerCase())))
+                        .slice(0, 10)
+                        .map(p => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              if (!recipeItems.find(item => item.ingredient_id === p.id)) {
+                                setRecipeItems([...recipeItems, { 
+                                  ingredient_id: p.id, 
+                                  ingredient_name: p.name, 
+                                  amount: 1, 
+                                  ingredient_unit: p.unit || 'ml' 
+                                }]);
+                              }
+                              setShowIngredientSelector(false);
+                              setIngredientSearch("");
+                            }}
+                            className="w-full text-left p-2 hover:bg-indigo-50 rounded-lg text-[11px] font-bold text-slate-700 flex justify-between items-center"
+                          >
+                            <span>{p.name} <span className="text-slate-400 font-medium">({p.barcode})</span></span>
+                            <span className="text-[9px] px-2 py-0.5 bg-slate-200 rounded-md">{p.unit}</span>
+                          </button>
+                        ))}
+                      {products.length === 0 && (
+                        <p className="text-[10px] text-slate-400 text-center py-2">{isTr ? "Malzeme bulunamadı." : "No ingredients found."}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {recipeItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">{item.ingredient_name}</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{item.ingredient_unit}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-slate-900 text-center focus:border-indigo-500 focus:ring-0"
+                          value={item.amount}
+                          onChange={(e) => {
+                            const newItems = [...recipeItems];
+                            newItems[idx].amount = parseFloat(e.target.value) || 0;
+                            setRecipeItems(newItems);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecipeItems(recipeItems.filter((_, i) => i !== idx));
+                          }}
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors border-0 outline-none"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {recipeItems.length === 0 && !showIngredientSelector && (
+                    <div className="py-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                      <p className="text-[11px] font-bold text-slate-400">
+                        {isTr ? "Henüz malzeme eklenmedi." : "No ingredients added yet."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Hidden input for form submission if we don't change handleAddProduct */}
+                <input type="hidden" name="recipe_data" value={JSON.stringify(recipeItems)} />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">

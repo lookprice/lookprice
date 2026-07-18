@@ -57,6 +57,10 @@ export const Marketplace = () => {
   const [activeSubSector, setActiveSubSector] = useState<string>("all");
   const [activeVehicleBrand, setActiveVehicleBrand] = useState<string>("all");
   const [activeVehicleModel, setActiveVehicleModel] = useState<string>("all");
+  const [activeVehicleYear, setActiveVehicleYear] = useState<string>("all");
+  const [activeVehicleFuel, setActiveVehicleFuel] = useState<string>("all");
+  const [activeVehicleTransmission, setActiveVehicleTransmission] = useState<string>("all");
+  const [activeVehiclePriceRange, setActiveVehiclePriceRange] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">("newest");
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
 
@@ -278,7 +282,8 @@ export const Marketplace = () => {
       // Exclude products from enrakipsiz portal
       if (item.listing_type === "product") return false;
       const matchesCategory = activeCategory === "all" || item.listing_type === activeCategory;
-      const matchesSubSector = activeSubSector === "all" || (item.listing_type === "vehicle" && item.sub_sector === activeSubSector);
+      const itemSubSector = String(item.sector_data?.category || (item as any).sub_sector || item.category || "").toLowerCase();
+      const matchesSubSector = activeSubSector === "all" || (item.listing_type === "vehicle" && itemSubSector === activeSubSector.toLowerCase());
       
       // Real Estate sub-filters check
       if (item.listing_type === "real_estate") {
@@ -353,13 +358,39 @@ export const Marketplace = () => {
       if (item.listing_type === "vehicle" && (activeCategory === "all" || activeCategory === "vehicle")) {
         // Vehicle Brand
         if (activeVehicleBrand !== "all") {
-          const itemBrand = item.brand || item.sector_data?.brand || "";
-          if (itemBrand.toLowerCase() !== activeVehicleBrand.toLowerCase()) return false;
+          const itemBrand = String(item.brand || item.sector_data?.brand || item.sector_data?.brand_name || (item as any).brand || "").toLowerCase();
+          if (itemBrand !== activeVehicleBrand.toLowerCase()) return false;
         }
         // Vehicle Model
         if (activeVehicleModel !== "all") {
-          const itemModel = item.sector_data?.model || item.model || "";
-          if (itemModel.toLowerCase() !== activeVehicleModel.toLowerCase()) return false;
+          const itemModel = String(item.sector_data?.model || item.sector_data?.model_name || item.sector_data?.series || item.model || (item as any).model || "").toLowerCase();
+          if (itemModel !== activeVehicleModel.toLowerCase()) return false;
+        }
+        // Vehicle Year
+        if (activeVehicleYear !== "all") {
+          const itemYear = String(item.year || item.sector_data?.year || "");
+          if (itemYear !== activeVehicleYear) return false;
+        }
+        // Vehicle Fuel
+        if (activeVehicleFuel !== "all") {
+          const itemFuel = String(item.fuel_type || item.sector_data?.fuel_type || item.fuel || item.sector_data?.fuel || "").toLowerCase();
+          if (itemFuel !== activeVehicleFuel.toLowerCase()) return false;
+        }
+        // Vehicle Transmission
+        if (activeVehicleTransmission !== "all") {
+          const itemTrans = String(item.transmission || item.sector_data?.transmission || "").toLowerCase();
+          if (itemTrans !== activeVehicleTransmission.toLowerCase()) return false;
+        }
+        // Vehicle Price Range
+        if (activeVehiclePriceRange !== "all") {
+          const price = Number(item.price || 0);
+          if (activeVehiclePriceRange.endsWith("+")) {
+            const limit = Number(activeVehiclePriceRange.replace("+", ""));
+            if (price < limit) return false;
+          } else {
+            const [min, max] = activeVehiclePriceRange.split("-").map(Number);
+            if (price < min || price > max) return false;
+          }
         }
       }
 
@@ -394,26 +425,44 @@ export const Marketplace = () => {
   const vehicleBrands = React.useMemo(() => {
     let source = listings.filter(l => l.listing_type === "vehicle");
     if (activeSubSector !== "all") {
-      source = source.filter(l => l.category === activeSubSector);
+      source = source.filter(l => {
+        const lSub = String(l.sector_data?.category || (l as any).sub_sector || l.category || "").toLowerCase();
+        return lSub === activeSubSector.toLowerCase();
+      });
     }
-    const brands = source.map(l => l.brand || l.sector_data?.brand).filter(Boolean);
+    const brands = source.map(l => l.brand || l.sector_data?.brand || l.sector_data?.brand_name || (l as any).brand).filter(Boolean);
     return Array.from(new Set(brands)).sort((a: any, b: any) => a.localeCompare(b));
   }, [listings, activeSubSector]);
 
   const vehicleModels = React.useMemo(() => {
     let source = listings.filter(l => l.listing_type === "vehicle");
     if (activeSubSector !== "all") {
-      source = source.filter(l => l.category === activeSubSector);
+      source = source.filter(l => {
+        const lSub = String(l.sector_data?.category || (l as any).sub_sector || l.category || "").toLowerCase();
+        return lSub === activeSubSector.toLowerCase();
+      });
     }
     if (activeVehicleBrand !== "all") {
       source = source.filter(l => {
-        const itemBrand = l.brand || l.sector_data?.brand || "";
-        return itemBrand.toLowerCase() === activeVehicleBrand.toLowerCase();
+        const itemBrand = String(l.brand || l.sector_data?.brand || l.sector_data?.brand_name || l.brand_name || (l as any).brand || "").toLowerCase();
+        return itemBrand === activeVehicleBrand.toLowerCase();
       });
     }
-    const models = source.map(l => l.sector_data?.model || l.model).filter(Boolean);
+    const models = source.map(l => l.sector_data?.model || l.sector_data?.model_name || l.sector_data?.series || l.model_name || l.model || (l as any).model).filter(Boolean);
     return Array.from(new Set(models)).sort((a: any, b: any) => a.localeCompare(b));
   }, [listings, activeSubSector, activeVehicleBrand]);
+
+  const vehicleYears = React.useMemo(() => {
+    let source = listings.filter(l => l.listing_type === "vehicle");
+    if (activeSubSector !== "all") {
+      source = source.filter(l => {
+        const lSub = String(l.sector_data?.category || (l as any).sub_sector || l.category || "").toLowerCase();
+        return lSub === activeSubSector.toLowerCase();
+      });
+    }
+    const years = source.map(l => String(l.year || l.sector_data?.year || (l as any).year)).filter(v => v && v !== 'undefined' && v !== 'null' && v !== '0');
+    return Array.from(new Set(years)).sort((a: any, b: any) => Number(b) - Number(a));
+  }, [listings, activeSubSector]);
 
   // Reset model when brand changes
   useEffect(() => {
@@ -422,10 +471,14 @@ export const Marketplace = () => {
     }
   }, [vehicleModels, activeVehicleModel]);
 
-  // Reset brand and model when category changes
+  // Reset filters when category changes
   useEffect(() => {
     setActiveVehicleBrand("all");
     setActiveVehicleModel("all");
+    setActiveVehicleYear("all");
+    setActiveVehicleFuel("all");
+    setActiveVehicleTransmission("all");
+    setActiveVehiclePriceRange("all");
   }, [activeSubSector]);
 
   const themeClasses = {
@@ -463,6 +516,7 @@ export const Marketplace = () => {
     if (!Array.isArray(raw) || raw.length === 0) {
       return [
         { id: 'hero', enabled: true },
+        { id: 'filters', enabled: true },
         { id: 'announcement', enabled: true },
         { id: 'sponsors', enabled: true },
         { id: 'vehicles', enabled: true },
@@ -474,7 +528,7 @@ export const Marketplace = () => {
       raw = raw.map(id => ({ id, enabled: true }));
     }
     
-    const standardKeys = ['hero', 'announcement', 'sponsors', 'vehicles', 'properties'];
+    const standardKeys = ['hero', 'filters', 'announcement', 'sponsors', 'vehicles', 'properties'];
     standardKeys.forEach(v => {
       if (!raw.some((item: any) => item.id === v)) {
         raw.push({ id: v, enabled: true });
@@ -548,367 +602,425 @@ export const Marketplace = () => {
         </div>
       </header>
 
-      {/* Filtering and Search Bento Box */}
-      <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
-        <div className="bg-slate-900/60 backdrop-blur-md rounded-3xl p-6 border border-slate-800 shadow-xl">
-          <div className="flex flex-col gap-6">
-            
-            {/* Search and Sort Row */}
-            <div className="flex flex-col md:flex-row gap-4 justify-between">
-              {/* Modern Search bar */}
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input 
-                  type="text" 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="İlan adı, marka, kategori veya mağaza ara..."
-                  className="w-full bg-slate-950/80 border border-slate-800 text-white rounded-2xl pl-12 pr-4 py-3.5 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/50 outline-none transition-all placeholder:text-slate-500 text-sm"
-                />
-              </div>
-
-              {/* Sorting Options */}
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400 font-semibold whitespace-nowrap flex items-center gap-1">
-                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" /> Sırala:
-                </span>
-                <select 
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="bg-slate-950 border border-slate-800 text-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-rose-500 text-xs font-semibold cursor-pointer"
-                >
-                  <option value="newest">En Son Eklenenler</option>
-                  <option value="price_asc">Fiyat: Artan</option>
-                  <option value="price_desc">Fiyat: Azalan</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Category Pills and Counts */}
-            <div className="flex flex-col gap-4 border-t border-slate-800/80 pt-5">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex flex-wrap gap-2.5">
-                  {[
-                    { value: "all", label: "Tüm İlanlar", icon: Filter, count: stats.total },
-                    { value: "vehicle", label: "Oto Galeri", icon: Car, count: stats.vehicles },
-                    { value: "real_estate", label: "Emlak", icon: Home, count: stats.properties }
-                  ].map((pill) => {
-                    const Icon = pill.icon;
-                    const isActive = activeCategory === pill.value;
-                    return (
-                      <button
-                        key={pill.value}
-                        onClick={() => setActiveCategory(pill.value as CategoryFilter)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all hover:scale-[1.02] ${
-                          isActive 
-                            ? "bg-slate-200 text-slate-950 shadow-md shadow-white/5" 
-                            : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span>{pill.label}</span>
-                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                          isActive ? "bg-slate-950/10 text-slate-950" : "bg-slate-800 text-slate-500"
-                        }`}>
-                          {pill.count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Verified Count Banner */}
-                <div className="text-xs text-slate-400 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl px-4 py-2.5 flex items-center gap-2.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span className="font-medium">
-                    Mağazalarımızdan doğrudan online satın alma veya rezervasyon garantisi verilmektedir.
-                  </span>
-                </div>
-              </div>
-
-              {/* Sub-Sector Filter Row for Vehicles */}
-              {(activeCategory === "all" || activeCategory === "vehicle") && (
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-800/50 pt-4">
-                  <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider mr-1">Vasıta Türü:</span>
-                  {[
-                    { value: "all", label: "Tümü" },
-                    { value: "otomobil", label: "Otomobil" },
-                    { value: "suv", label: "SUV / Arazi Aracı" },
-                    { value: "pickup", label: "Pick-up" },
-                    { value: "hafif_ticari", label: "Hafif Ticari" },
-                    { value: "motorcycle", label: "Motosiklet" },
-                    { value: "marine", label: "Deniz Taşıtları" },
-                    { value: "construction", label: "İş Makineleri" },
-                    { value: "agricultural", label: "Tarım Makineleri" },
-                    { value: "other", label: "Diğer Taşıtlar" }
-                  ].map((sub) => {
-                    const isSubActive = activeSubSector === sub.value;
-                    return (
-                      <button
-                        key={sub.value}
-                        onClick={() => setActiveSubSector(sub.value)}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-tight transition-all hover:scale-[1.02] ${
-                          isSubActive
-                            ? "bg-rose-500 text-white border border-rose-500 shadow-sm shadow-rose-950/15"
-                            : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
-                        }`}
-                      >
-                        {sub.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Vehicle Brand and Model Filters */}
-              {(activeCategory === "all" || activeCategory === "vehicle") && vehicleBrands.length > 0 && (
-                <div className="flex flex-wrap items-center gap-4 border-t border-slate-800/50 pt-4 mt-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Marka:</span>
-                    <select
-                      value={activeVehicleBrand}
-                      onChange={(e) => setActiveVehicleBrand(e.target.value)}
-                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-rose-500 font-medium"
-                    >
-                      <option value="all">Tüm Markalar</option>
-                      {vehicleBrands.map(b => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {activeVehicleBrand !== "all" && vehicleModels.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Model:</span>
-                      <select
-                        value={activeVehicleModel}
-                        onChange={(e) => setActiveVehicleModel(e.target.value)}
-                        className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-rose-500 font-medium"
-                      >
-                        <option value="all">Tüm Modeller</option>
-                        {vehicleModels.map(m => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Real Estate Filter Row / Panel */}
-              {(activeCategory === "real_estate") && (
-                <div className="border-t border-slate-800/50 pt-5 mt-2">
-                  <div className="flex items-center gap-2 mb-4">
-                    <SlidersHorizontal className="w-4 h-4 text-amber-500" />
-                    <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">
-                       Detaylı Emlak Filtreleri
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                    {/* Bölge */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        Bölge / Şehir
-                      </label>
-                      <select
-                        value={reRegion}
-                        onChange={(e) => setReRegion(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="all">Tüm Bölgeler</option>
-                        {Object.keys(REAL_ESTATE_REGIONS).map((reg) => (
-                          <option key={reg} value={reg}>{reg}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Alt Bölge */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        Bölge Seçeneği (İlçe/Köy)
-                      </label>
-                      <select
-                        value={reSubRegion}
-                        onChange={(e) => setReSubRegion(e.target.value)}
-                        disabled={reRegion === "all"}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40"
-                      >
-                        <option value="all">Tüm Alt Bölgeler</option>
-                        {reRegion !== "all" && REAL_ESTATE_REGIONS[reRegion as keyof typeof REAL_ESTATE_REGIONS]?.map((sub: string) => (
-                          <option key={sub} value={sub}>{sub}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Konut Tipi */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        Grup / Emlak Tipi
-                      </label>
-                      <select
-                        value={reType}
-                        onChange={(e) => setReType(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="all">Tümü</option>
-                        {Object.keys(EMLAK_TIPI_SUB_TIPLERI).map((tp) => (
-                          <option key={tp} value={tp}>{tp}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Alt Konut Tipi */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        Alt Emlak Detayı
-                      </label>
-                      <select
-                        value={reSubType}
-                        onChange={(e) => setReSubType(e.target.value)}
-                        disabled={reType === "all"}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40"
-                      >
-                        <option value="all">Tüm Alt Tipler</option>
-                        {reType !== "all" && EMLAK_TIPI_SUB_TIPLERI[reType as keyof typeof EMLAK_TIPI_SUB_TIPLERI]?.map((sub: string) => (
-                          <option key={sub} value={sub}>{sub}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* İlan Amacı / Intent */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        İlan Statüsü / Amacı
-                      </label>
-                      <select
-                        value={reListingIntent}
-                        onChange={(e) => setReListingIntent(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="all">Tümü</option>
-                        <option value="satılık">Satılık</option>
-                        <option value="kiralık">Kiralık</option>
-                        <option value="devren">Devren</option>
-                      </select>
-                    </div>
-
-                    {/* Oda Sayısı */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        Oda Sayısı (Brüt)
-                      </label>
-                      <select
-                        value={reRooms}
-                        onChange={(e) => setReRooms(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="all">Tümü</option>
-                        <option value="Stüdyo">Stüdyo (0+1)</option>
-                        <option value="1+1">1+1</option>
-                        <option value="2+1">2+1</option>
-                        <option value="3+1">3+1</option>
-                        <option value="4+1 veya üzeri">4+1 veya daha geniş</option>
-                      </select>
-                    </div>
-
-                    {/* Eşya Durumu */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        Dahili Mobilya / Eşya
-                      </label>
-                      <select
-                        value={reFurnished}
-                        onChange={(e) => setReFurnished(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="all">Tümü</option>
-                        <option value="yes">Eşyalı</option>
-                        <option value="no">Eşyasız</option>
-                        <option value="partially">Yarı Eşyalı</option>
-                      </select>
-                    </div>
-
-                    {/* Fatura Periyodu (Kiralıklar için) */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        Ödeme Sıklığı / Kira Türü
-                      </label>
-                      <select
-                        value={reBillingPeriod}
-                        onChange={(e) => setReBillingPeriod(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="all">Tümü</option>
-                        <option value="Aylık font-bold">Aylık Kiralama</option>
-                        <option value="Yıllık">Peşin / Yıllık Kiralama</option>
-                        <option value="Haftalık">Günlük / Haftalık Turistik</option>
-                      </select>
-                    </div>
-
-                    {/* Trafo Bedeli */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        Trafo / Altyapı Katkı Payı
-                      </label>
-                      <select
-                        value={reTrafoBedeli}
-                        onChange={(e) => setReTrafoBedeli(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="all">Tümü</option>
-                        <option value="ödenmiş">Ödenmiş</option>
-                        <option value="ödenmemiş">Ödenmemiş (Alıcıya Ait)</option>
-                      </select>
-                    </div>
-
-                    {/* KDV Durumu */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        KDV Durumu
-                      </label>
-                      <select
-                        value={reKdvStatus}
-                        onChange={(e) => setReKdvStatus(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="all">Tümü</option>
-                        <option value="dahil">KDV Dahil</option>
-                        <option value="haric">KDV Hariç</option>
-                      </select>
-                    </div>
-
-                    {/* Çatı Terası */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                        Çatı Terası
-                      </label>
-                      <select
-                        value={reCatiTerasi}
-                        onChange={(e) => setReCatiTerasi(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="all">Tümü</option>
-                        <option value="yes">Var</option>
-                        <option value="no">Yok</option>
-                      </select>
-                    </div>
-
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-      </section>
-
       {/* Dynamic Sequential Customizer Layout Sections */}
       {orderedSections.filter(sec => sec.enabled).map((sec) => {
         switch(sec.id) {
+          case 'filters':
+            return (
+              <section key="filters" id="enrakipsiz-portal-filters" className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
+                <div className="bg-slate-900/60 backdrop-blur-md rounded-3xl p-6 border border-slate-800 shadow-xl">
+                  <div className="flex flex-col gap-6">
+                    
+                    {/* Category Pills and Counts */}
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex flex-wrap gap-2.5">
+                          {[
+                            { value: "all", label: "Tüm İlanlar", icon: Filter, count: stats.total },
+                            { value: "vehicle", label: "Oto Galeri", icon: Car, count: stats.vehicles },
+                            { value: "real_estate", label: "Emlak", icon: Home, count: stats.properties }
+                          ].map((pill) => {
+                            const Icon = pill.icon;
+                            const isActive = activeCategory === pill.value;
+                            return (
+                              <button
+                                key={pill.value}
+                                onClick={() => setActiveCategory(pill.value as CategoryFilter)}
+                                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all hover:scale-[1.02] ${
+                                  isActive 
+                                    ? "bg-slate-200 text-slate-950 shadow-md shadow-white/5" 
+                                    : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                                }`}
+                              >
+                                <Icon className="w-4 h-4" />
+                                <span>{pill.label}</span>
+                                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                                  isActive ? "bg-slate-950/10 text-slate-950" : "bg-slate-800 text-slate-500"
+                                }`}>
+                                  {pill.count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Verified Count Banner */}
+                        <div className="hidden lg:flex text-[10px] text-slate-400 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl px-4 py-2 flex items-center gap-2.5">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                          <span className="font-medium">
+                            Mağazalarımızdan doğrudan online satın alma veya rezervasyon garantisi verilmektedir.
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Sub-Sector Filter Row for Vehicles */}
+                      {(activeCategory === "all" || activeCategory === "vehicle") && (
+                        <div className="flex flex-wrap items-center gap-2 border-t border-slate-800/50 pt-4">
+                          <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider mr-1">Vasıta Türü:</span>
+                          {[
+                            { value: "all", label: "Tümü" },
+                            { value: "otomobil", label: "Otomobil" },
+                            { value: "suv", label: "SUV / Arazi Aracı" },
+                            { value: "pickup", label: "Pick-up" },
+                            { value: "hafif_ticari", label: "Hafif Ticari" },
+                            { value: "motorcycle", label: "Motosiklet" },
+                            { value: "marine", label: "Deniz Taşıtları" },
+                            { value: "construction", label: "İş Makineleri" },
+                            { value: "agricultural", label: "Tarım Makineleri" },
+                            { value: "other", label: "Diğer Taşıtlar" }
+                          ].map((sub) => {
+                            const isSubActive = activeSubSector === sub.value;
+                            return (
+                              <button
+                                key={sub.value}
+                                onClick={() => setActiveSubSector(sub.value)}
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-tight transition-all hover:scale-[1.02] ${
+                                  isSubActive
+                                    ? "bg-rose-500 text-white border border-rose-500 shadow-sm shadow-rose-950/15"
+                                    : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                                }`}
+                              >
+                                {sub.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Search and Sort Row */}
+                    <div className="flex flex-col md:flex-row gap-4 justify-between border-t border-slate-800/80 pt-5">
+                      {/* Modern Search bar */}
+                      <div className="relative flex-1">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                        <input 
+                          type="text" 
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="İlan adı, marka, kategori veya mağaza ara..."
+                          className="w-full bg-slate-950/80 border border-slate-800 text-white rounded-2xl pl-12 pr-4 py-3.5 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/50 outline-none transition-all placeholder:text-slate-500 text-sm"
+                        />
+                      </div>
+
+                      {/* Sorting Options */}
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400 font-semibold whitespace-nowrap flex items-center gap-1">
+                          <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" /> Sırala:
+                        </span>
+                        <select 
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as any)}
+                          className="bg-slate-950 border border-slate-800 text-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-rose-500 text-xs font-semibold cursor-pointer"
+                        >
+                          <option value="newest">En Son Eklenenler</option>
+                          <option value="price_asc">Fiyat: Artan</option>
+                          <option value="price_desc">Fiyat: Azalan</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Vehicle Brand and Model Filters */}
+                    {(activeCategory === "all" || activeCategory === "vehicle") && (
+                      <div className="flex flex-wrap items-center gap-4 border-t border-slate-800/50 pt-4 mt-2">
+                        <div className="flex flex-col gap-1.5 min-w-[140px]">
+                          <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Marka</span>
+                          <select
+                            value={activeVehicleBrand}
+                            onChange={(e) => setActiveVehicleBrand(e.target.value)}
+                            className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                          >
+                            <option value="all">Tümü</option>
+                            {vehicleBrands.map(b => (
+                              <option key={b} value={b}>{b}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {activeVehicleBrand !== "all" && (
+                          <div className="flex flex-col gap-1.5 min-w-[140px]">
+                            <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Model</span>
+                            <select
+                              value={activeVehicleModel}
+                              onChange={(e) => setActiveVehicleModel(e.target.value)}
+                              className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                            >
+                              <option value="all">Tüm Modeller</option>
+                              {vehicleModels.map(m => (
+                                <option key={m} value={m}>{m}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-1.5 min-w-[120px]">
+                          <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Model Yılı</span>
+                          <select
+                            value={activeVehicleYear}
+                            onChange={(e) => setActiveVehicleYear(e.target.value)}
+                            className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                          >
+                            <option value="all">Tümü</option>
+                            {vehicleYears.map(y => (
+                              <option key={y} value={y}>{y}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 min-w-[120px]">
+                          <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Yakıt</span>
+                          <select
+                            value={activeVehicleFuel}
+                            onChange={(e) => setActiveVehicleFuel(e.target.value)}
+                            className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                          >
+                            <option value="all">Tümü</option>
+                            <option value="gasoline">Benzin</option>
+                            <option value="diesel">Dizel</option>
+                            <option value="hybrid">Hibrit</option>
+                            <option value="electric">Elektrikli</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 min-w-[120px]">
+                          <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Vites</span>
+                          <select
+                            value={activeVehicleTransmission}
+                            onChange={(e) => setActiveVehicleTransmission(e.target.value)}
+                            className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                          >
+                            <option value="all">Tümü</option>
+                            <option value="manual">Manuel</option>
+                            <option value="automatic">Otomatik</option>
+                            <option value="semi_automatic">Yarı Otomatik</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 min-w-[140px]">
+                          <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Bütçe Aralığı</span>
+                          <select
+                            value={activeVehiclePriceRange}
+                            onChange={(e) => setActiveVehiclePriceRange(e.target.value)}
+                            className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                          >
+                            <option value="all">Tümü</option>
+                            <option value="0-500000">500.000 TL Altı</option>
+                            <option value="500000-1000000">500k - 1.0M TL</option>
+                            <option value="1000000-2000000">1.0M - 2.0M TL</option>
+                            <option value="2000000-4000000">2.0M - 4.0M TL</option>
+                            <option value="4000000+">4.0M TL Üstü</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Real Estate Filter Row / Panel */}
+                    {(activeCategory === "real_estate") && (
+                      <div className="border-t border-slate-800/50 pt-5 mt-2">
+                        <div className="flex items-center gap-2 mb-4">
+                          <SlidersHorizontal className="w-4 h-4 text-amber-500" />
+                          <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">
+                             Detaylı Emlak Filtreleri
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                          {/* Bölge */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              Bölge / Şehir
+                            </label>
+                            <select
+                              value={reRegion}
+                              onChange={(e) => setReRegion(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                            >
+                              <option value="all">Tüm Bölgeler</option>
+                              {Object.keys(REAL_ESTATE_REGIONS).map((reg) => (
+                                <option key={reg} value={reg}>{reg}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Alt Bölge */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              Bölge Seçeneği (İlçe/Köy)
+                            </label>
+                            <select
+                              value={reSubRegion}
+                              onChange={(e) => setReSubRegion(e.target.value)}
+                              disabled={reRegion === "all"}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40"
+                            >
+                              <option value="all">Tüm Alt Bölgeler</option>
+                              {reRegion !== "all" && REAL_ESTATE_REGIONS[reRegion as keyof typeof REAL_ESTATE_REGIONS]?.map((sub: string) => (
+                                <option key={sub} value={sub}>{sub}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Konut Tipi */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              Grup / Emlak Tipi
+                            </label>
+                            <select
+                              value={reType}
+                              onChange={(e) => setReType(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                            >
+                              <option value="all">Tümü</option>
+                              {Object.keys(EMLAK_TIPI_SUB_TIPLERI).map((tp) => (
+                                <option key={tp} value={tp}>{tp}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Alt Konut Tipi */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              Alt Emlak Detayı
+                            </label>
+                            <select
+                              value={reSubType}
+                              onChange={(e) => setReSubType(e.target.value)}
+                              disabled={reType === "all"}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40"
+                            >
+                              <option value="all">Tüm Alt Tipler</option>
+                              {reType !== "all" && EMLAK_TIPI_SUB_TIPLERI[reType as keyof typeof EMLAK_TIPI_SUB_TIPLERI]?.map((sub: string) => (
+                                <option key={sub} value={sub}>{sub}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* İlan Amacı / Intent */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              İlan Statüsü / Amacı
+                            </label>
+                            <select
+                              value={reListingIntent}
+                              onChange={(e) => setReListingIntent(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                            >
+                              <option value="all">Tümü</option>
+                              <option value="satılık">Satılık</option>
+                              <option value="kiralık">Kiralık</option>
+                              <option value="devren">Devren</option>
+                            </select>
+                          </div>
+
+                          {/* Oda Sayısı */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              Oda Sayısı (Brüt)
+                            </label>
+                            <select
+                              value={reRooms}
+                              onChange={(e) => setReRooms(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                            >
+                              <option value="all">Tümü</option>
+                              <option value="Stüdyo">Stüdyo (0+1)</option>
+                              <option value="1+1">1+1</option>
+                              <option value="2+1">2+1</option>
+                              <option value="3+1">3+1</option>
+                              <option value="4+1 veya üzeri">4+1 veya daha geniş</option>
+                            </select>
+                          </div>
+
+                          {/* Eşya Durumu */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              Dahili Mobilya / Eşya
+                            </label>
+                            <select
+                              value={reFurnished}
+                              onChange={(e) => setReFurnished(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                            >
+                              <option value="all">Tümü</option>
+                              <option value="yes">Eşyalı</option>
+                              <option value="no">Eşyasız</option>
+                              <option value="partially">Yarı Eşyalı</option>
+                            </select>
+                          </div>
+
+                          {/* Fatura Periyodu (Kiralıklar için) */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              Ödeme Sıklığı / Kira Türü
+                            </label>
+                            <select
+                              value={reBillingPeriod}
+                              onChange={(e) => setReBillingPeriod(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                            >
+                              <option value="all">Tümü</option>
+                              <option value="Aylık font-bold">Aylık Kiralama</option>
+                              <option value="Yıllık">Peşin / Yıllık Kiralama</option>
+                              <option value="Haftalık">Günlük / Haftalık Turistik</option>
+                            </select>
+                          </div>
+
+                          {/* Trafo Bedeli */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              Trafo / Altyapı Katkı Payı
+                            </label>
+                            <select
+                              value={reTrafoBedeli}
+                              onChange={(e) => setReTrafoBedeli(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                            >
+                              <option value="all">Tümü</option>
+                              <option value="ödenmiş">Ödenmiş</option>
+                              <option value="ödenmemiş">Ödenmemiş (Alıcıya Ait)</option>
+                            </select>
+                          </div>
+
+                          {/* KDV Durumu */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              KDV Durumu
+                            </label>
+                            <select
+                              value={reKdvStatus}
+                              onChange={(e) => setReKdvStatus(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                            >
+                              <option value="all">Tümü</option>
+                              <option value="dahil">KDV Dahil</option>
+                              <option value="haric">KDV Hariç</option>
+                            </select>
+                          </div>
+
+                          {/* Çatı Terası */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                              Çatı Terası
+                            </label>
+                            <select
+                              value={reCatiTerasi}
+                              onChange={(e) => setReCatiTerasi(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                            >
+                              <option value="all">Tümü</option>
+                              <option value="yes">Var</option>
+                              <option value="no">Yok</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            );
           case 'hero':
             if (luxurySlides.length === 0) return null;
             return (
@@ -1165,29 +1277,29 @@ export const Marketplace = () => {
               )}
 
               {/* Vehicle Brand and Model Filters */}
-              {(activeCategory === "all" || activeCategory === "vehicle") && vehicleBrands.length > 0 && (
+              {(activeCategory === "all" || activeCategory === "vehicle") && (
                 <div className="flex flex-wrap items-center gap-4 border-t border-slate-800/50 pt-4 mt-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Marka:</span>
+                  <div className="flex flex-col gap-1.5 min-w-[140px]">
+                    <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Marka</span>
                     <select
                       value={activeVehicleBrand}
                       onChange={(e) => setActiveVehicleBrand(e.target.value)}
-                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-rose-500 font-medium"
+                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
                     >
-                      <option value="all">Tüm Markalar</option>
+                      <option value="all">Tümü</option>
                       {vehicleBrands.map(b => (
                         <option key={b} value={b}>{b}</option>
                       ))}
                     </select>
                   </div>
 
-                  {activeVehicleBrand !== "all" && vehicleModels.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">Model:</span>
+                  {activeVehicleBrand !== "all" && (
+                    <div className="flex flex-col gap-1.5 min-w-[140px]">
+                      <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Model</span>
                       <select
                         value={activeVehicleModel}
                         onChange={(e) => setActiveVehicleModel(e.target.value)}
-                        className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-rose-500 font-medium"
+                        className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
                       >
                         <option value="all">Tüm Modeller</option>
                         {vehicleModels.map(m => (
@@ -1196,6 +1308,65 @@ export const Marketplace = () => {
                       </select>
                     </div>
                   )}
+
+                  <div className="flex flex-col gap-1.5 min-w-[100px]">
+                    <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Yıl</span>
+                    <select
+                      value={activeVehicleYear}
+                      onChange={(e) => setActiveVehicleYear(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                    >
+                      <option value="all">Tümü</option>
+                      {vehicleYears.map(y => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 min-w-[120px]">
+                    <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Yakıt</span>
+                    <select
+                      value={activeVehicleFuel}
+                      onChange={(e) => setActiveVehicleFuel(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                    >
+                      <option value="all">Tümü</option>
+                      <option value="gasoline">Benzin</option>
+                      <option value="diesel">Dizel</option>
+                      <option value="hybrid">Hibrit</option>
+                      <option value="electric">Elektrikli</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 min-w-[120px]">
+                    <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Vites</span>
+                    <select
+                      value={activeVehicleTransmission}
+                      onChange={(e) => setActiveVehicleTransmission(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                    >
+                      <option value="all">Tümü</option>
+                      <option value="manual">Manuel</option>
+                      <option value="automatic">Otomatik</option>
+                      <option value="semi_automatic">Yarı Otomatik</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 min-w-[140px]">
+                    <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-[0.2em]">Bütçe Aralığı</span>
+                    <select
+                      value={activeVehiclePriceRange}
+                      onChange={(e) => setActiveVehiclePriceRange(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-rose-500 font-bold"
+                    >
+                      <option value="all">Tümü</option>
+                      <option value="0-500000">500.000 TL Altı</option>
+                      <option value="500000-1000000">500k - 1.0M TL</option>
+                      <option value="1000000-2000000">1.0M - 2.0M TL</option>
+                      <option value="2000000-4000000">2.0M - 4.0M TL</option>
+                      <option value="4000000+">4.0M TL Üstü</option>
+                    </select>
+                  </div>
                 </div>
               )}
 

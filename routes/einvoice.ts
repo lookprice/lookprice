@@ -1023,9 +1023,25 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               
               // If product exists, update its stock automatically
               if (productId) {
+                const prodInfo = await pool.query("SELECT volume_ml, unit FROM products WHERE id = $1", [productId]);
+                const volMl = Number(prodInfo.rows[0]?.volume_ml) || 0;
+                const baseUnit = String(prodInfo.rows[0]?.unit || '').toLowerCase();
+                
+                let effectiveQty = qty;
+                let descExtra = "";
+                
+                // If product is tracked in ML/GR but bought in Bottle/Case/Pack
+                const isBulkUnit = ['bo', 'cs', 'pk', 'bg', 'bx', 'cl'].includes(String(unitCode).toLowerCase());
+                const isMlGrBase = ['ml', 'gr', 'g', 'cc'].includes(baseUnit);
+                
+                if (volMl > 0 && isBulkUnit && isMlGrBase) {
+                  effectiveQty = qty * volMl;
+                  descExtra = ` (\${qty} \${unitCode} x \${volMl}ml)`;
+                }
+
                 await pool.query(
                   "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
-                  [qty, up, invoiceDetails.currency || 'TRY', productId]
+                  [effectiveQty, up, invoiceDetails.currency || 'TRY', productId]
                 );
                 
                 // Log stock movement
@@ -1034,9 +1050,9 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                   storeId, 
                   productId, 
                   'in', 
-                  qty, 
+                  effectiveQty, 
                   'purchase_invoice', 
-                  `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}`, 
+                  `E-Fatura İçe Aktarma: \${invoiceDetails.documentNumber}\${descExtra}`, 
                   up, 
                   invoiceDetails.senderTitle, 
                   invoiceDetails.currency

@@ -352,7 +352,7 @@ router.get("/marketplace/listings", async (req, res) => {
         id: `v_${v.db_id}`,
         db_id: v.db_id,
         listing_type: 'vehicle',
-        sub_sector: v.category === 'hafif_ticari' ? 'hafif_ticari' : (v.category === 'otomobil' ? 'otomobil' : (v.store_sub_sector === 'car' ? 'otomobil' : (v.store_sub_sector || 'otomobil'))),
+        sub_sector: ['hafif_ticari', 'suv', 'pickup', 'otomobil'].includes(v.category) ? v.category : (v.store_sub_sector === 'car' ? 'otomobil' : (v.store_sub_sector || 'otomobil')),
         title: generatedTitle,
         price: v.selling_price || 0,
         currency: v.currency,
@@ -870,7 +870,7 @@ router.get("/store/:slug/products", async (req, res) => {
       market_story: v.market_story,
       technical_description: v.technical_description,
       sector_data: { 
-        sub_sector: v.category === 'hafif_ticari' ? 'hafif_ticari' : 'otomobil',
+        sub_sector: ['hafif_ticari', 'suv', 'pickup', 'otomobil'].includes(v.category) ? v.category : 'otomobil',
         brand: v.brand,
         model: v.model,
         year: v.year,

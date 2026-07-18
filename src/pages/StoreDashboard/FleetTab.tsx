@@ -781,7 +781,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
                 setSelectedVehicle(null);
                 setFormData({
                   plate: '', brand: '', model: '', year: new Date().getFullYear(),
-                  type: 'company', chassis_number: '', engine_number: '',
+                  type: 'company', category: 'otomobil', chassis_number: '', engine_number: '',
                   current_mileage: 0, status: 'active', package_name: '',
                   transmission: 'manual', fuel_type: 'gasoline', color: '',
                   body_type: '', paint_report: '{}', tramer_amount: 0,
@@ -790,7 +790,8 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
                   description: '', images: [], virtual_tour_url: '',
                   ai_tour_enabled: false, is_on_enrakipsiz: true,
                   is_on_website: true,
-                  auto_post_instagram: false
+                  auto_post_instagram: false,
+                  market_story: '', technical_description: '', is_trade_in_available: false
                 });
                 setShowAddModal(true);
               }}

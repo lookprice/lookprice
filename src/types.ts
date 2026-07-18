@@ -24,6 +24,8 @@ export interface Product {
   stock_quantity: number;
   min_stock_level: number;
   unit: string;
+  volume_ml?: number;
+  recipe_items?: any[];
   tax_rate: number;
   image_url: string;
   category: string;
@@ -384,7 +386,7 @@ export interface Vehicle {
   images?: string[];
   is_on_enrakipsiz?: boolean;
   is_on_website?: boolean;
-  category?: 'otomobil' | 'hafif_ticari';
+  category?: 'otomobil' | 'hafif_ticari' | 'suv' | 'pickup';
   auto_post_instagram?: boolean;
   virtual_tour_url?: string;
   ai_tour_enabled?: boolean;

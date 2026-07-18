@@ -66,7 +66,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       
       {/* Warm Premium Navigation Bar */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-200/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {store.logo_url ? (
               <img
@@ -181,7 +181,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       </section>
 
       {/* Culinary Highlights / Menu Section */}
-      <section id="menu" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <section id="menu" className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <div className="text-center max-w-2xl mx-auto space-y-3 mb-16">
           <div className="text-xs text-amber-700 font-black uppercase tracking-widest">{isTr ? "SEÇKİN LEZZETLERİMİZ" : "OUR DISHES"}</div>
           <h2 className="text-3xl md:text-4xl font-serif font-black text-stone-900 tracking-tight">
@@ -291,7 +291,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
       {/* Atmospheric Our Story / Story Section */}
       <section id="story" className="bg-stone-900 text-stone-200 py-24 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
           <div className="space-y-6 lg:max-w-xl">
             <span className="text-xs text-amber-500 font-black uppercase tracking-[0.2em]">{isTr ? "HİKAYEMİZ & TUTKUMUZ" : "OUR HERITAGE"}</span>
             <h2 className="text-3xl md:text-4xl font-serif font-black text-stone-100 tracking-tight leading-tight">
@@ -330,7 +330,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       </section>
 
       {/* Opening Hours & Atmosphere Section */}
-      <section id="hours" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <section id="hours" className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-stretch">
           
           {/* opening hours */}
@@ -421,7 +421,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
       {/* Footer & Contact */}
       <footer id="contact" className="bg-stone-950 text-stone-400 pt-20 pb-10 border-t border-stone-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
             
             <div className="space-y-4">

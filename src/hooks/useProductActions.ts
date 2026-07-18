@@ -40,7 +40,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       product_type: rawData.product_type || 'product',
       sync_group: rawData.sync_group === 'on'
     };
-    ['price', 'price_2', 'old_price', 'cost_price', 'tax_rate'].forEach(field => {
+    ['price', 'price_2', 'old_price', 'cost_price', 'tax_rate', 'volume_ml'].forEach(field => {
       if (data[field]) {
         data[field] = Number(String(data[field]).replace(',', '.'));
       }
@@ -82,6 +82,17 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       } else {
         res = await api.addProduct(data, targetStoreId);
       }
+
+      // Save recipe if data is present
+      if (res?.id && rawData.recipe_data) {
+        try {
+          const recipeItems = JSON.parse(rawData.recipe_data as string);
+          await api.saveProductRecipe(res.id, recipeItems, targetStoreId);
+        } catch (e) {
+          console.error("Recipe save error:", e);
+        }
+      }
+
       fetchData(true);
       return res;
     })();

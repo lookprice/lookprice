@@ -134,8 +134,9 @@ export default function DigitalMenuPage() {
   const totalCartPrice = cart.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 pb-28 relative">
-      {/* Brand Header */}
+    <div className="min-h-screen bg-slate-100/50 flex justify-center py-0 md:py-8">
+      <div className="w-full max-w-xl md:max-w-md min-h-screen md:min-h-0 bg-slate-50 p-4 pb-28 relative shadow-2xl md:border md:border-slate-200 md:rounded-[3rem] overflow-hidden">
+        {/* Brand Header */}
       <header className="bg-white p-4 rounded-2xl shadow-sm mb-6 flex items-center gap-4 border border-slate-100">
         {store.logo_url ? (
           <img src={store.logo_url} alt={store.name} className="h-14 w-14 rounded-2xl object-cover border border-slate-100" />
@@ -232,7 +233,7 @@ export default function DigitalMenuPage() {
         <motion.div 
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="fixed bottom-4 left-4 right-4 bg-white p-4 rounded-2xl shadow-xl border border-indigo-100 flex justify-between items-center z-40"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[calc(36rem-2rem)] bg-white p-4 rounded-2xl shadow-xl border border-indigo-100 flex justify-between items-center z-40"
         >
           <button 
             onClick={() => setShowCart(true)}
@@ -278,7 +279,7 @@ export default function DigitalMenuPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] shadow-2xl border-t border-slate-100 z-50 max-h-[85vh] flex flex-col"
+              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xl bg-white rounded-t-[2.5rem] shadow-2xl border-t border-slate-100 z-50 max-h-[85vh] flex flex-col"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -367,7 +368,7 @@ export default function DigitalMenuPage() {
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className="fixed top-6 left-6 right-6 bg-emerald-600 text-white p-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-emerald-500"
+            className="fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[calc(36rem-3rem)] bg-emerald-600 text-white p-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-emerald-500"
           >
             <CheckCircle2 className="w-6 h-6 text-white shrink-0" />
             <div>
@@ -397,7 +398,7 @@ export default function DigitalMenuPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] shadow-2xl border-t border-slate-100 z-50 max-h-[85vh] flex flex-col"
+              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xl bg-white rounded-t-[2.5rem] shadow-2xl border-t border-slate-100 z-50 max-h-[85vh] flex flex-col"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -501,6 +502,7 @@ export default function DigitalMenuPage() {
           </>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
