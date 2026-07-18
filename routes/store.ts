@@ -23,8 +23,12 @@ import procurementRouter from "./store/procurements";
 import serviceRouter from "./store/service";
 import logsRouter from "./store/logs";
 import importRouter from "./store/import";
+import infoRouter from "./store/info";
+import brandingRouter from "./store/branding";
+import supplierApisRouter from "./store/supplier-apis";
 
 const router = express.Router();
+
 
 // Debug middleware
 router.use((req, res, next) => {
@@ -57,10 +61,65 @@ router.use("/procurements", procurementRouter);
 router.use("/service", serviceRouter);
 router.use("/logs", logsRouter);
 router.use("/import", importRouter);
+router.use("/info", infoRouter);
+router.use("/branding", brandingRouter);
+router.use("/supplier-apis", supplierApisRouter);
+
+// Rewrite mappings for direct frontend API endpoints
+router.use("/sales-invoices", (req: any, res, next) => {
+  if (req.url.startsWith("/?")) {
+    req.url = "/sales" + req.url.substring(1);
+  } else if (req.url === "/") {
+    req.url = "/sales";
+  } else {
+    req.url = "/sales" + req.url;
+  }
+  invoicesRouter(req, res, next);
+});
+
+router.use("/purchase-invoices", (req: any, res, next) => {
+  if (req.url.startsWith("/?")) {
+    req.url = "/purchase" + req.url.substring(1);
+  } else if (req.url === "/") {
+    req.url = "/purchase";
+  } else {
+    req.url = "/purchase" + req.url;
+  }
+  invoicesRouter(req, res, next);
+});
+
+router.use("/analytics", (req: any, res, next) => {
+  const queryIndex = req.url.indexOf("?");
+  const query = queryIndex !== -1 ? req.url.substring(queryIndex) : "";
+  req.url = "/analytics" + query;
+  reportsRouter(req, res, next);
+});
+
+router.use("/audit-logs", (req: any, res, next) => {
+  const queryIndex = req.url.indexOf("?");
+  const query = queryIndex !== -1 ? req.url.substring(queryIndex) : "";
+  req.url = "/audit-logs" + query;
+  logsRouter(req, res, next);
+});
+
+router.use("/service-records", (req: any, res, next) => {
+  if (req.url.startsWith("/?")) {
+    req.url = "/records" + req.url.substring(1);
+  } else if (req.url === "/") {
+    req.url = "/records";
+  } else {
+    req.url = "/records" + req.url;
+  }
+  serviceRouter(req, res, next);
+});
+
+router.post("/log-error", (req: any, res) => {
+  console.error("Client Error:", req.body);
+  res.json({ success: true });
+});
 
 // Fallback for direct restaurant tables access if still used by old UI
 router.use("/restaurant-tables", restaurantRouter);
 router.use("/blog-posts", blogRouter);
-router.use("/audit-logs", logsRouter);
 
 export default router;

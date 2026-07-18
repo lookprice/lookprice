@@ -998,4 +998,211 @@ router.get("/purchase/:id", async (req: any, res) => {
   }
 });
 
+router.post("/purchase", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const {
+      invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
+      address, total_amount, tax_amount, grand_total, currency, exchange_rate, notes,
+      supplier_name, is_expense, expense_category, items, status
+    } = req.body;
+
+    const invoiceRes = await pool.query(
+      `INSERT INTO purchase_invoices 
+       (store_id, company_id, invoice_number, waybill_number, tax_number, tax_office, address, 
+        invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, 
+        supplier_name, is_expense, expense_category, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
+      [
+        storeId, company_id || null, invoice_number || `P-${Date.now()}`, waybill_number || null,
+        tax_number || null, tax_office || null, address || null, invoice_date || new Date(),
+        total_amount || 0, tax_amount || 0, grand_total || 0, currency || 'TRY', exchange_rate || 1,
+        notes || null, supplier_name || null, is_expense || false, expense_category || null, status || 'pending'
+      ]
+    );
+
+    const invoice = invoiceRes.rows[0];
+
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        await pool.query(
+          `INSERT INTO purchase_invoice_items 
+           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+          [
+            invoice.id, item.product_id || null, item.product_name || 'Bilinmeyen Ürün', item.barcode || null,
+            item.quantity || 1, item.unit_price || 0, item.tax_rate || 20, item.tax_amount || 0, item.total_price || 0
+          ]
+        );
+
+        if (item.product_id) {
+          await pool.query(
+            "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
+            [item.quantity || 1, item.unit_price || 0, currency || 'TRY', item.product_id]
+          );
+          
+          await addStockMovement(
+            pool, storeId, item.product_id, 'in', item.quantity || 1, 'purchase_invoice',
+            `Fatura Girişi: ${invoice.invoice_number}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
+          );
+        }
+      }
+    }
+
+    res.status(201).json(invoice);
+  } catch (e: any) {
+    console.error("Error in POST /purchase:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.put("/purchase/:id", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const { id } = req.params;
+    const {
+      invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
+      address, total_amount, tax_amount, grand_total, currency, exchange_rate, notes,
+      supplier_name, is_expense, expense_category, items, status
+    } = req.body;
+
+    const checkRes = await pool.query("SELECT id FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+
+    // Deduct old items stock before replacing them
+    const oldItems = await pool.query("SELECT product_id, quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    for (const oldItem of oldItems.rows) {
+      if (oldItem.product_id) {
+        await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [oldItem.quantity, oldItem.product_id]);
+      }
+    }
+
+    await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+
+    const invoiceRes = await pool.query(
+      `UPDATE purchase_invoices 
+       SET company_id = $1, invoice_number = $2, waybill_number = $3, tax_number = $4, tax_office = $5, address = $6, 
+           invoice_date = $7, total_amount = $8, tax_amount = $9, grand_total = $10, currency = $11, exchange_rate = $12, 
+           notes = $13, supplier_name = $14, is_expense = $15, expense_category = $16, status = $17
+       WHERE id = $18 AND store_id = $19 RETURNING *`,
+      [
+        company_id || null, invoice_number, waybill_number || null, tax_number || null, tax_office || null, address || null,
+        invoice_date, total_amount || 0, tax_amount || 0, grand_total || 0, currency || 'TRY', exchange_rate || 1,
+        notes || null, supplier_name || null, is_expense || false, expense_category || null, status || 'pending',
+        id, storeId
+      ]
+    );
+
+    const invoice = invoiceRes.rows[0];
+
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        await pool.query(
+          `INSERT INTO purchase_invoice_items 
+           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            id, item.product_id || null, item.product_name || 'Bilinmeyen Ürün', item.barcode || null,
+            item.quantity || 1, item.unit_price || 0, item.tax_rate || 20, item.tax_amount || 0, item.total_price || 0
+          ]
+        );
+
+        if (item.product_id) {
+          await pool.query(
+            "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
+            [item.quantity || 1, item.unit_price || 0, currency || 'TRY', item.product_id]
+          );
+          
+          await addStockMovement(
+            pool, storeId, item.product_id, 'in', item.quantity || 1, 'purchase_invoice',
+            `Fatura Güncelleme: ${invoice.invoice_number}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
+          );
+        }
+      }
+    }
+
+    res.json(invoice);
+  } catch (e: any) {
+    console.error("Error in PUT /purchase/:id:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete("/purchase/:id", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const { id } = req.params;
+
+    const checkRes = await pool.query("SELECT id FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+
+    // Adjust stocks back
+    const oldItems = await pool.query("SELECT product_id, quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    for (const oldItem of oldItems.rows) {
+      if (oldItem.product_id) {
+        await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [oldItem.quantity, oldItem.product_id]);
+      }
+    }
+
+    await pool.query("DELETE FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    res.json({ success: true, message: "Purchase invoice deleted successfully" });
+  } catch (e: any) {
+    console.error("Error in DELETE /purchase/:id:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/purchase/:id/status", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const result = await pool.query(
+      "UPDATE purchase_invoices SET status = $1 WHERE id = $2 AND store_id = $3 RETURNING *",
+      [status, id, storeId]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.patch("/purchase/:id/read", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const { id } = req.params;
+
+    const result = await pool.query(
+      "UPDATE purchase_invoices SET status = 'read' WHERE id = $1 AND store_id = $2 RETURNING *",
+      [id, storeId]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.patch("/purchase/:id/payment-status", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const result = await pool.query(
+      "UPDATE purchase_invoices SET payment_method = $1 WHERE id = $2 AND store_id = $3 RETURNING *",
+      [status, id, storeId]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 export default router;

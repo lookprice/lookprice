@@ -19,6 +19,18 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
+    if (error && (
+      error.message?.includes('Failed to fetch dynamically imported module') ||
+      error.message?.includes('chunk') ||
+      error.name === 'ChunkLoadError'
+    )) {
+      const lastReload = localStorage.getItem('last_chunk_reload');
+      const now = Date.now();
+      if (!lastReload || now - parseInt(lastReload) > 10000) {
+        localStorage.setItem('last_chunk_reload', now.toString());
+        window.location.reload();
+      }
+    }
     // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
   }

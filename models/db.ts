@@ -1268,11 +1268,32 @@ export async function initDb() {
     await client.query(`
       DO $$ 
       BEGIN 
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='reset_token') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND table_schema='public' AND column_name='reset_token') THEN
           ALTER TABLE users ADD COLUMN reset_token TEXT;
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='reset_token_expiry') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND table_schema='public' AND column_name='reset_token_expiry') THEN
           ALTER TABLE users ADD COLUMN reset_token_expiry TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND table_schema='public' AND column_name='username') THEN
+          ALTER TABLE users ADD COLUMN username TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND table_schema='public' AND column_name='name') THEN
+          ALTER TABLE users ADD COLUMN name TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND table_schema='public' AND column_name='full_name') THEN
+          ALTER TABLE users ADD COLUMN full_name TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND table_schema='public' AND column_name='phone') THEN
+          ALTER TABLE users ADD COLUMN phone TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND table_schema='public' AND column_name='address') THEN
+          ALTER TABLE users ADD COLUMN address TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND table_schema='public' AND column_name='is_active') THEN
+          ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND table_schema='public' AND column_name='created_at') THEN
+          ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='updated_at') THEN
           ALTER TABLE products ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
@@ -1487,7 +1508,7 @@ export async function initDb() {
         ALTER TABLE products ADD CONSTRAINT products_store_id_fkey FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
 
         -- users -> stores
-        IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name='users' AND constraint_type='FOREIGN KEY' AND (constraint_name='users_store_id_fkey' OR constraint_name LIKE '%store_id_fkey%')) THEN
+        IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name='users' AND table_schema='public' AND constraint_type='FOREIGN KEY' AND (constraint_name='users_store_id_fkey' OR constraint_name LIKE '%store_id_fkey%')) THEN
           ALTER TABLE users DROP CONSTRAINT IF EXISTS users_store_id_fkey;
         END IF;
         ALTER TABLE users ADD CONSTRAINT users_store_id_fkey FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
