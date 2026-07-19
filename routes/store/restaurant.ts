@@ -98,6 +98,19 @@ const putTable = async (req: any, res: any) => {
     }
 };
 
+const transferTable = async (req: any, res: any) => {
+    const storeId = req.user.store_id;
+    const { fromTableId, toTableId } = req.body;
+    try {
+        await pool.query("UPDATE sales SET restaurant_table_id = $1 WHERE restaurant_table_id = $2 AND store_id = $3 AND status = 'pending'", [toTableId, fromTableId, storeId]);
+        await pool.query("UPDATE restaurant_tables SET status = 'empty' WHERE id = $1 AND store_id = $2", [fromTableId, storeId]);
+        await pool.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [toTableId, storeId]);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 // Mount handlers on both base paths and /tables paths
 router.get("/", getTables);
 router.get("/tables", getTables);
@@ -107,5 +120,7 @@ router.post("/tables", postTable);
 
 router.put("/:id", putTable);
 router.put("/tables/:id", putTable);
+
+router.post("/tables/transfer", transferTable);
 
 export default router;

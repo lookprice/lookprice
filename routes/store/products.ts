@@ -399,7 +399,7 @@ router.put("/:id", async (req: any, res) => {
       "product_update", 
       "product", 
       parseInt(id), 
-      `Ürün güncellendi: \${name} (\${barcode})`,
+      `Ürün güncellendi: ${name} (${barcode})`,
       null,
       req.body
     );
@@ -407,6 +407,21 @@ router.put("/:id", async (req: any, res) => {
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
+  }
+});
+
+// Toggle Bestseller
+router.put("/:id/toggle-bestseller", async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { id } = req.params;
+  try {
+    await pool.query(
+      "UPDATE products SET is_bestseller = NOT is_bestseller WHERE id = $1 AND store_id = $2",
+      [id, storeId]
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -661,6 +676,21 @@ router.get("/:id/movements/export", async (req: any, res) => {
   } catch (error: any) {
     console.error("Export movements error:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle Bestseller
+router.put("/:id/toggle-bestseller", async (req: any, res) => {
+  const storeId = req.user.store_id;
+  const { id } = req.params;
+  try {
+    await pool.query(
+      "UPDATE products SET is_bestseller = NOT is_bestseller WHERE id = $1 AND store_id = $2",
+      [id, storeId]
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 

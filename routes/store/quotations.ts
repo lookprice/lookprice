@@ -352,7 +352,9 @@ router.post("/:id/approve", async (req: any, res) => {
                   'quotation', 
                   `Reçete Çıkışı (Satış #${saleId})${descriptionExtra}`, 
                   0, 
-                  quotation.customer_name
+                  quotation.customer_name,
+                  'TRY',
+                  saleId
                 );
               }
             } else {
@@ -369,7 +371,7 @@ router.post("/:id/approve", async (req: any, res) => {
                 [item.quantity, item.product_id]
               );
 
-              await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'quotation', `Satış #${saleId} (Teklif #${quotation.id})`, kdvHaricPrice, quotation.customer_name);
+              await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'quotation', `Satış #${saleId} (Teklif #${quotation.id})`, kdvHaricPrice, quotation.customer_name, 'TRY', saleId);
             }
           }
         }

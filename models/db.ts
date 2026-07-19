@@ -112,6 +112,7 @@ export async function initDb() {
       ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate REAL DEFAULT 20;
       ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_profile_id TEXT;
       ALTER TABLE products ADD COLUMN IF NOT EXISTS volume_ml REAL DEFAULT 0;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS is_bestseller BOOLEAN DEFAULT FALSE;
 
       CREATE TABLE IF NOT EXISTS consultants (
         id SERIAL PRIMARY KEY,
@@ -396,6 +397,7 @@ export async function initDb() {
         quantity REAL NOT NULL,
         source TEXT DEFAULT 'manual',
         description TEXT,
+        sale_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
@@ -414,6 +416,9 @@ export async function initDb() {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='currency') THEN
           ALTER TABLE stock_movements ADD COLUMN currency TEXT DEFAULT 'TRY';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='sale_id') THEN
+          ALTER TABLE stock_movements ADD COLUMN sale_id INTEGER;
         END IF;
       END $$;
 
@@ -1715,13 +1720,14 @@ export async function logAction(
   }
 }
 
-export async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null, currency: any = 'TRY') {
+export async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null, currency: any = 'TRY', saleId: any = null) {
   const price = unitPrice !== null && unitPrice !== undefined ? Number(unitPrice) : null;
   const info = customerInfo !== null && customerInfo !== undefined ? String(customerInfo) : null;
   const curr = currency !== null && currency !== undefined ? String(currency) : 'TRY';
+  const sId = saleId !== null && saleId !== undefined ? Number(saleId) : null;
   await client.query(
-    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-    [storeId, productId, type, quantity, source, description, price, info, curr]
+    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, sale_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+    [storeId, productId, type, quantity, source, description, price, info, curr, sId]
   );
 }
 
@@ -1779,7 +1785,9 @@ export async function processSaleAutomation(client: any, saleId: number, storeId
                 'web', 
                 `Reçete Çıkışı (Web Satışı #${saleId}, Ürün: ${item.product_name})${descriptionExtra}`, 
                 0, 
-                sale.customer_name
+                sale.customer_name,
+                'TRY',
+                saleId
               );
             }
           } else {
@@ -1787,7 +1795,7 @@ export async function processSaleAutomation(client: any, saleId: number, storeId
               "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
               [item.quantity, item.product_id, storeId]
             );
-            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'web', `Web Satışı #${saleId}`, item.unit_price, sale.customer_name);
+            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'web', `Web Satışı #${saleId}`, item.unit_price, sale.customer_name, 'TRY', saleId);
           }
         }
       }

@@ -2270,6 +2270,7 @@ router.post("/pos/sale", async (req: any, res) => {
     // Resolve restaurant table ID from tableNumber
     let resolvedTableId = null;
     if (tableNumber) {
+      console.log(`Resolving table ${tableNumber} for store ${storeId}`);
       const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
       const tableRes = await client.query(
         "SELECT id FROM restaurant_tables WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
@@ -2277,6 +2278,9 @@ router.post("/pos/sale", async (req: any, res) => {
       );
       if (tableRes.rows.length > 0) {
         resolvedTableId = tableRes.rows[0].id;
+        console.log(`Resolved table ${tableNumber} to ID ${resolvedTableId}`);
+      } else {
+        console.log(`Could not resolve table ${tableNumber}`);
       }
     }
 
@@ -2310,12 +2314,14 @@ router.post("/pos/sale", async (req: any, res) => {
     if (existingSaleId) {
       // Append to existing pending sale
       const newTotal = existingTotal + Number(total || 0);
+      console.log(`Updating existing sale ${existingSaleId} with new total ${newTotal}`);
       await client.query(
         "UPDATE sales SET total_amount = $1, notes = COALESCE(notes, '') || '\n' || $2 WHERE id = $3",
         [newTotal, `Ek Sipariş: ${finalNotes}`, existingSaleId]
       );
     } else {
       // Create new pending sale
+      console.log(`Creating new sale for table ${tableNumber}`);
       const saleRes = await client.query(
         "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes, restaurant_table_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
         [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, resolvedCustomerName, paymentMethod || 'cash', finalNotes, resolvedTableId]
@@ -2324,14 +2330,18 @@ router.post("/pos/sale", async (req: any, res) => {
 
       // Update table status to occupied in database if pending
       if (saleStatus === 'pending') {
-        if (resolvedTableId) {
-          await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
-        } else if (tableNumber) {
-          const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
-          await client.query(
-            "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
-            [storeId, tableNumber.toString(), cleanNum]
-          );
+        try {
+          if (resolvedTableId) {
+            await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
+          } else if (tableNumber) {
+            const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
+            await client.query(
+              "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+              [storeId, tableNumber.toString(), cleanNum]
+            );
+          }
+        } catch (e) {
+          console.error("Could not update table status:", e);
         }
       }
     }

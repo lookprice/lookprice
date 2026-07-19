@@ -65,6 +65,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [prevPendingCount, setPrevPendingCount] = useState<number | null>(null);
   const [tablesRefreshTrigger, setTablesRefreshTrigger] = useState(0);
   const [loadingPending, setLoadingPending] = useState(false);
+  const lastSoundPlayedRef = useRef<number>(0);
   const [activeSaleId, setActiveSaleId] = useState<number | null>(null);
   const [isChangingTable, setIsChangingTable] = useState(false);
   const [transferLoading, setTransferLoading] = useState(false);
@@ -133,35 +134,38 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         setTablesRefreshTrigger(prev => prev + 1);
 
         if (prevPendingCount !== null && res.length > prevPendingCount) {
-          // Play a beautiful, gentle dual-tone workspace alert sound using Web Audio API
-          try {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            if (AudioContextClass) {
-              const audioCtx = new AudioContextClass();
-              const oscillator = audioCtx.createOscillator();
-              const gainNode = audioCtx.createGain();
-              oscillator.connect(gainNode);
-              gainNode.connect(audioCtx.destination);
-              oscillator.type = 'sine';
-              oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
-              gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
-              oscillator.start();
-              oscillator.stop(audioCtx.currentTime + 0.12);
-              
-              setTimeout(() => {
-                const osc2 = audioCtx.createOscillator();
-                const gain2 = audioCtx.createGain();
-                osc2.connect(gain2);
-                gain2.connect(audioCtx.destination);
-                osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
-                gain2.gain.setValueAtTime(0.08, audioCtx.currentTime);
-                osc2.start();
-                osc2.stop(audioCtx.currentTime + 0.22);
-              }, 120);
+          // Play a "bell" style alert sound
+          const now = Date.now();
+          if (now - lastSoundPlayedRef.current > 2000) {
+            lastSoundPlayedRef.current = now;
+            try {
+              const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+              if (AudioContextClass) {
+                const audioCtx = new AudioContextClass();
+                const gainNode = audioCtx.createGain();
+                gainNode.connect(audioCtx.destination);
+                
+                // Envelope: Instant attack, long decay
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 2.5);
+
+                // Harmonics (Bell synthesis)
+                const baseFreq = 440; // A4
+                const harmonics = [1, 2, 3, 4.1, 5.2]; // Fundamental + overtones
+                
+                harmonics.forEach((ratio) => {
+                  const osc = audioCtx.createOscillator();
+                  osc.connect(gainNode);
+                  osc.type = 'sine'; // Sine waves are best for bell overtones
+                  osc.frequency.setValueAtTime(baseFreq * ratio, audioCtx.currentTime);
+                  osc.start();
+                  osc.stop(audioCtx.currentTime + 2.5);
+                });
+              }
+            } catch (soundErr) {
+              console.log("Audio play blocked by browser policies:", soundErr);
             }
-          } catch (soundErr) {
-            console.log("Audio play blocked by browser policies:", soundErr);
           }
           toast.success(lang === 'tr' ? "Yeni masa siparişi alındı!" : "New table order received!");
         }
@@ -179,13 +183,13 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     
     fetchPendingSales();
     
-    // Poll for updates every 10 seconds to keep order state fresh
+    // Poll for updates every 30 seconds to keep order state fresh
     const interval = setInterval(() => {
       fetchPendingSales(true);
-    }, 10000);
+    }, 30000);
     
     return () => clearInterval(interval);
-  }, [storeId, isCafeRestaurant, prevPendingCount]);
+  }, [storeId, isCafeRestaurant]); // Removed prevPendingCount
 
   const fetchReport = async (dateStr: string) => {
     try {
@@ -414,7 +418,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 <img src="${qrUrl}" alt="Masa ${cleanNum}" />
               </div>
               <p class="instructions">
-                \${lang === 'tr' ? 'Menüyü incelemek ve sipariş vermek için QR kodu cep telefonunuzla taratın.' : 'Scan the QR code with your phone to view menu and order.'}
+                ${lang === 'tr' ? 'Menüyü incelemek ve sipariş vermek için QR kodu cep telefonunuzla taratın.' : 'Scan the QR code with your phone to view menu and order.'}
               </p>
               <div class="footer">POWERED BY LOOKPRICE</div>
             </div>
@@ -457,7 +461,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               <img src="${qrUrl}" alt="Masa ${cleanNum}" />
             </div>
             <div class="instructions">
-              \${lang === 'tr' ? 'Menüyü incelemek ve sipariş vermek için QR kodu cep telefonunuzla taratın.' : 'Scan the QR code with your phone to view menu and order.'}
+              ${lang === 'tr' ? 'Menüyü incelemek ve sipariş vermek için QR kodu cep telefonunuzla taratın.' : 'Scan the QR code with your phone to view menu and order.'}
             </div>
             <div class="footer-powered">POWERED BY LOOKPRICE</div>
           </div>
@@ -959,10 +963,10 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   };
 
   useEffect(() => {
-    if (isChangingTable) {
+    if (isChangingTable || showQrModal) {
       api.getRestaurantTables(storeId!).then(setAllTables).catch(console.error);
     }
-  }, [isChangingTable, storeId]);
+  }, [isChangingTable, showQrModal, storeId]);
 
   const handleSaveToTable = async () => {
     if (cart.length === 0 || !selectedTable) return;
@@ -1210,7 +1214,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   ref={searchInputRef}
                   type="text" 
                   placeholder={lang === 'tr' ? "Barkod okutun veya ürün adı yazın..." : "Scan barcode or type product name..."}
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl text-lg font-medium focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                  className="w-full pl-12 pr-4 py-2 bg-slate-50 border-2 border-slate-100 rounded-xl text-md font-medium focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) => {
@@ -1283,7 +1287,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
             <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-y-auto p-4">
               {filteredProducts.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
                   {filteredProducts.map((product) => (
                     <button
                       key={product.id}
@@ -2060,20 +2064,57 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 {qrModalTab === 'single' && (
                   <div className="flex flex-col items-center">
                     <div className="w-full max-w-sm mb-6">
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">
-                        {lang === 'tr' ? 'Yazdırılacak Masayı Seçin' : 'Select Table to Print'}
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1 flex justify-between items-center">
+                        <span>{lang === 'tr' ? 'Yazdırılacak Masayı Seçin' : 'Select Table to Print'}</span>
+                        {allTables.length > 0 && (
+                          <span className="text-[10px] text-rose-500 font-extrabold normal-case bg-rose-50 px-2 py-0.5 rounded-md">
+                            {lang === 'tr' ? `${allTables.length} Masa` : `${allTables.length} Tables`}
+                          </span>
+                        )}
                       </label>
                       <select
                         value={singleQrTable}
                         onChange={(e) => setSingleQrTable(e.target.value)}
-                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl font-bold text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all cursor-pointer"
+                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl font-bold text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all cursor-pointer mb-3"
                       >
                         {allTables.map((t) => (
                           <option key={t.id} value={t.table_number}>
                             {lang === 'tr' ? `Masa ${t.table_number}` : `Table ${t.table_number}`}
                           </option>
                         ))}
+                        {allTables.length === 0 && (
+                          <option value="">{lang === 'tr' ? 'Yükleniyor...' : 'Loading...'}</option>
+                        )}
                       </select>
+
+                      {/* Visual interactive table selection grid */}
+                      {allTables.length > 0 && (
+                        <div className="bg-slate-100/60 border border-slate-200/50 p-2 rounded-2xl">
+                          <p className="text-[10px] text-slate-400 font-bold mb-1.5 px-1 uppercase tracking-wider">
+                            {lang === 'tr' ? 'Hızlı Masa Seçimi:' : 'Quick Table Selection:'}
+                          </p>
+                          <div className="grid grid-cols-5 gap-1.5 max-h-32 overflow-y-auto p-1.5 bg-white rounded-xl border border-slate-100">
+                            {allTables.map((t) => {
+                              const cleanNum = t.table_number.replace(/Masa/gi, '').trim();
+                              const isSelected = singleQrTable === t.table_number;
+                              return (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => setSingleQrTable(t.table_number)}
+                                  className={`py-2 px-1 rounded-lg text-xs font-black transition-all text-center ${
+                                    isSelected
+                                      ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-600/10'
+                                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-100'
+                                  }`}
+                                >
+                                  {cleanNum}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div id="pos-qr-card-printable-content" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center flex flex-col items-center max-w-xs w-full">

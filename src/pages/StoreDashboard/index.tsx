@@ -501,7 +501,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   useEffect(() => {
     fetchData();
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); 
+    const interval = setInterval(fetchNotifications, 300000); 
     return () => clearInterval(interval);
   }, [fetchData, fetchNotifications]);
 

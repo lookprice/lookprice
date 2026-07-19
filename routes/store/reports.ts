@@ -59,49 +59,63 @@ router.get("/daily-sales", async (req: any, res) => {
 });
 
 router.get("/pos-daily", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = req.user?.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user?.store_id;
   const { date } = req.query;
   
   try {
-    const targetDate = date ? new Date(date as string) : new Date();
-    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+    if (!req.user) {
+        console.log("DEBUG: req.user is undefined!");
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+    const targetDateStr = date as string || new Date().toISOString().split('T')[0];
 
     const paymentQuery = `
       SELECT payment_method, SUM(amount)::FLOAT as total
       FROM sale_payments sp
       JOIN sales s ON sp.sale_id = s.id
       WHERE s.store_id = $1 
-        AND s.status = 'completed'
-        AND s.created_at >= $2 
-        AND s.created_at <= $3
+        AND s.status IN ('completed', 'paid')
+        AND s.created_at >= $2::timestamp 
+        AND s.created_at < ($2::timestamp + INTERVAL '1 day')
       GROUP BY payment_method
     `;
-    const paymentRes = await pool.query(paymentQuery, [storeId, startOfDay, endOfDay]);
+    const paymentRes = await pool.query(paymentQuery, [storeId, targetDateStr]);
+    console.log("DEBUG: paymentRes rows count:", paymentRes.rows.length);
 
     const productQuery = `
-      SELECT si.product_name, SUM(si.quantity)::FLOAT as total_quantity
+      SELECT si.product_name, SUM(si.quantity)::FLOAT as total_quantity, SUM(si.quantity * si.unit_price)::FLOAT as total_revenue
       FROM sale_items si
       JOIN sales s ON si.sale_id = s.id
       WHERE s.store_id = $1 
-        AND s.status = 'completed'
-        AND s.created_at >= $2 
-        AND s.created_at <= $3
+        AND s.status IN ('completed', 'paid')
+        AND s.created_at >= $2::timestamp 
+        AND s.created_at < ($2::timestamp + INTERVAL '1 day')
       GROUP BY si.product_name
       ORDER BY total_quantity DESC
     `;
-    const productRes = await pool.query(productQuery, [storeId, startOfDay, endOfDay]);
+    const productRes = await pool.query(productQuery, [storeId, targetDateStr]);
 
     res.json({
       success: true,
-      date: startOfDay.toISOString().split('T')[0],
+      date: targetDateStr,
       payments: paymentRes.rows,
       products: productRes.rows
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("DEBUG: pos-daily error:", err);
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
+
+router.get("/test-db", async (req: any, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM sale_payments LIMIT 1");
+        res.json({ success: true, count: result.rows.length });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 // --- Analytics Dashboard ---
 

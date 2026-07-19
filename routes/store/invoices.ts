@@ -1004,34 +1004,102 @@ router.post("/purchase", async (req: any, res) => {
     const {
       invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
       address, total_amount, tax_amount, grand_total, currency, exchange_rate, notes,
-      supplier_name, is_expense, expense_category, items, status
+      supplier_name, is_expense, expense_category, items, status, is_tax_inclusive
     } = req.body;
+
+    const finalIsTaxInclusive = is_tax_inclusive === true || is_tax_inclusive === 'true';
+
+    // Calculate total_amount, tax_amount, grand_total if they are 0 or not provided
+    let calculatedTotalAmount = Number(total_amount) || 0;
+    let calculatedTaxAmount = Number(tax_amount) || 0;
+    let calculatedGrandTotal = Number(grand_total) || 0;
+
+    if ((calculatedGrandTotal === 0 || calculatedTotalAmount === 0) && items && Array.isArray(items)) {
+      let subtotal = 0;
+      let taxTotal = 0;
+      for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const taxRate = Number(item.tax_rate) || 0;
+        
+        if (finalIsTaxInclusive) {
+          const itemTotalIncl = qty * price;
+          const itemTotalExcl = itemTotalIncl / (1 + (taxRate / 100));
+          const itemTax = itemTotalIncl - itemTotalExcl;
+          subtotal += itemTotalExcl;
+          taxTotal += itemTax;
+        } else {
+          const itemTotal = qty * price;
+          const itemTax = itemTotal * (taxRate / 100);
+          subtotal += itemTotal;
+          taxTotal += itemTax;
+        }
+      }
+      calculatedTotalAmount = Number(subtotal.toFixed(2));
+      calculatedTaxAmount = Number(taxTotal.toFixed(2));
+      calculatedGrandTotal = Number((subtotal + taxTotal).toFixed(2));
+    }
 
     const invoiceRes = await pool.query(
       `INSERT INTO purchase_invoices 
        (store_id, company_id, invoice_number, waybill_number, tax_number, tax_office, address, 
         invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, 
-        supplier_name, is_expense, expense_category, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
+        supplier_name, is_expense, expense_category, status, is_tax_inclusive)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
       [
         storeId, company_id || null, invoice_number || `P-${Date.now()}`, waybill_number || null,
         tax_number || null, tax_office || null, address || null, invoice_date || new Date(),
-        total_amount || 0, tax_amount || 0, grand_total || 0, currency || 'TRY', exchange_rate || 1,
-        notes || null, supplier_name || null, is_expense || false, expense_category || null, status || 'pending'
+        calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, currency || 'TRY', exchange_rate || 1,
+        notes || null, supplier_name || null, is_expense || false, expense_category || null, status || 'pending',
+        finalIsTaxInclusive
       ]
     );
 
     const invoice = invoiceRes.rows[0];
 
+    // Add transaction to current account if company exists
+    if (company_id) {
+      console.log(`Adding current account transaction for company ${company_id}, invoice ${invoice.id}, amount ${calculatedGrandTotal}`);
+      const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+      const store = storeRes.rows[0];
+      const branding = store?.branding || {};
+      const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+      await pool.query(
+        `INSERT INTO current_account_transactions 
+          (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [storeId, company_id, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
+      );
+    }
+
     if (items && Array.isArray(items)) {
       for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const taxRate = Number(item.tax_rate) || 0;
+        
+        let itemTaxAmount = 0;
+        let itemTotalPrice = 0;
+        
+        if (finalIsTaxInclusive) {
+          const itemTotalIncl = qty * price;
+          const itemTotalExcl = itemTotalIncl / (1 + (taxRate / 100));
+          itemTaxAmount = itemTotalIncl - itemTotalExcl;
+          itemTotalPrice = itemTotalExcl;
+        } else {
+          const itemTotalExcl = qty * price;
+          itemTaxAmount = itemTotalExcl * (taxRate / 100);
+          itemTotalPrice = itemTotalExcl;
+        }
+
         await pool.query(
           `INSERT INTO purchase_invoice_items 
            (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
           [
             invoice.id, item.product_id || null, item.product_name || 'Bilinmeyen Ürün', item.barcode || null,
-            item.quantity || 1, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, item.unit_price || 0, item.tax_rate || 20, item.tax_amount || 0, item.total_price || 0
+            qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice
           ]
         );
 
@@ -1064,11 +1132,44 @@ router.put("/purchase/:id", async (req: any, res) => {
     const {
       invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
       address, total_amount, tax_amount, grand_total, currency, exchange_rate, notes,
-      supplier_name, is_expense, expense_category, items, status
+      supplier_name, is_expense, expense_category, items, status, is_tax_inclusive
     } = req.body;
 
     const checkRes = await pool.query("SELECT id FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+
+    const finalIsTaxInclusive = is_tax_inclusive === true || is_tax_inclusive === 'true';
+
+    // Calculate total_amount, tax_amount, grand_total if they are 0 or not provided
+    let calculatedTotalAmount = Number(total_amount) || 0;
+    let calculatedTaxAmount = Number(tax_amount) || 0;
+    let calculatedGrandTotal = Number(grand_total) || 0;
+
+    if ((calculatedGrandTotal === 0 || calculatedTotalAmount === 0) && items && Array.isArray(items)) {
+      let subtotal = 0;
+      let taxTotal = 0;
+      for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const taxRate = Number(item.tax_rate) || 0;
+        
+        if (finalIsTaxInclusive) {
+          const itemTotalIncl = qty * price;
+          const itemTotalExcl = itemTotalIncl / (1 + (taxRate / 100));
+          const itemTax = itemTotalIncl - itemTotalExcl;
+          subtotal += itemTotalExcl;
+          taxTotal += itemTax;
+        } else {
+          const itemTotal = qty * price;
+          const itemTax = itemTotal * (taxRate / 100);
+          subtotal += itemTotal;
+          taxTotal += itemTax;
+        }
+      }
+      calculatedTotalAmount = Number(subtotal.toFixed(2));
+      calculatedTaxAmount = Number(taxTotal.toFixed(2));
+      calculatedGrandTotal = Number((subtotal + taxTotal).toFixed(2));
+    }
 
     // Deduct old items stock before replacing them
     const oldItems = await pool.query("SELECT product_id, quantity, system_quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
@@ -1085,27 +1186,63 @@ router.put("/purchase/:id", async (req: any, res) => {
       `UPDATE purchase_invoices 
        SET company_id = $1, invoice_number = $2, waybill_number = $3, tax_number = $4, tax_office = $5, address = $6, 
            invoice_date = $7, total_amount = $8, tax_amount = $9, grand_total = $10, currency = $11, exchange_rate = $12, 
-           notes = $13, supplier_name = $14, is_expense = $15, expense_category = $16, status = $17
-       WHERE id = $18 AND store_id = $19 RETURNING *`,
+           notes = $13, supplier_name = $14, is_expense = $15, expense_category = $16, status = $17, is_tax_inclusive = $18
+       WHERE id = $19 AND store_id = $20 RETURNING *`,
       [
         company_id || null, invoice_number, waybill_number || null, tax_number || null, tax_office || null, address || null,
-        invoice_date, total_amount || 0, tax_amount || 0, grand_total || 0, currency || 'TRY', exchange_rate || 1,
+        invoice_date, calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, currency || 'TRY', exchange_rate || 1,
         notes || null, supplier_name || null, is_expense || false, expense_category || null, status || 'pending',
+        finalIsTaxInclusive,
         id, storeId
       ]
     );
 
     const invoice = invoiceRes.rows[0];
 
+    // Delete old transaction and add new one
+    await pool.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [id]);
+    
+    if (company_id) {
+      const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+      const store = storeRes.rows[0];
+      const branding = store?.branding || {};
+      const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+      await pool.query(
+        `INSERT INTO current_account_transactions 
+          (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [storeId, company_id, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
+      );
+    }
+
     if (items && Array.isArray(items)) {
       for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const taxRate = Number(item.tax_rate) || 0;
+        
+        let itemTaxAmount = 0;
+        let itemTotalPrice = 0;
+        
+        if (finalIsTaxInclusive) {
+          const itemTotalIncl = qty * price;
+          const itemTotalExcl = itemTotalIncl / (1 + (taxRate / 100));
+          itemTaxAmount = itemTotalIncl - itemTotalExcl;
+          itemTotalPrice = itemTotalExcl;
+        } else {
+          const itemTotalExcl = qty * price;
+          itemTaxAmount = itemTotalExcl * (taxRate / 100);
+          itemTotalPrice = itemTotalExcl;
+        }
+
         await pool.query(
           `INSERT INTO purchase_invoice_items 
            (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             id, item.product_id || null, item.product_name || 'Bilinmeyen Ürün', item.barcode || null,
-            item.quantity || 1, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, item.unit_price || 0, item.tax_rate || 20, item.tax_amount || 0, item.total_price || 0
+            qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice
           ]
         );
 

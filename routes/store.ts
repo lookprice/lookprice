@@ -43,6 +43,11 @@ router.use(authenticate);
 router.use("/products", productsRouter);
 router.use("/sales", salesRouter);
 router.use("/invoices", invoicesRouter);
+// Fast POS Sale
+router.use("/pos/sale", (req: any, res, next) => {
+  req.url = "/pos";
+  salesRouter(req, res, next);
+});
 router.use("/reports", reportsRouter);
 router.use("/users", usersRouter);
 router.use("/quotations", quotationsRouter);

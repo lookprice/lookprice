@@ -142,33 +142,43 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                    <thead>
                       <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest">
                          <th className="p-4 font-bold">{isTr ? "ÜRÜN / HİZMET" : "PRODUCT"}</th>
-                         <th className="p-4 font-bold text-center">{isTr ? "MİKTAR" : "QTY"}</th>
+                         <th className="p-4 font-bold text-center">{isTr ? "FATURA MİKTARI / BİRİMİ" : "INVOICE QTY / UNIT"}</th>
+                         <th className="p-4 font-bold text-center">{isTr ? "SİSTEM MİKTARI / BİRİMİ" : "SYSTEM QTY / UNIT"}</th>
                          <th className="p-4 font-bold text-right">{isTr ? "BİRİM FİYAT" : "UNIT PRICE"}</th>
                          <th className="p-4 font-bold text-center">{isTr ? "KDV %" : "VAT %"}</th>
                          <th className="p-4 font-bold text-right">{isTr ? "TOPLAM" : "TOTAL"}</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
-                      {invoice.items?.map((item: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                           <td className="p-4">
-                              <p className="text-sm font-black text-slate-900 tracking-tight">{item.product_name}</p>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase">{item.barcode || '-'}</p>
-                           </td>
-                           <td className="p-4 text-center font-medium text-slate-700 text-sm">
-                              {Number(item.quantity).toLocaleString('tr-TR')}
-                           </td>
-                           <td className="p-4 text-right font-medium text-slate-700 text-sm">
-                              {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                           </td>
-                           <td className="p-4 text-center font-medium text-indigo-600 text-sm">
-                              %{Number(item.tax_rate)}
-                           </td>
-                           <td className="p-4 text-right font-semibold text-slate-800 text-sm">
-                              {(Number(item.quantity) * Number(item.unit_price) * (1 + Number(item.tax_rate) / 100)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                           </td>
-                        </tr>
-                      ))}
+                      {invoice.items?.map((item: any, idx: number) => {
+                        const sysQty = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity);
+                        const sysUnit = item.system_unit_code || item.unit_code || (isTr ? 'Adet' : 'Pcs');
+                        const itemTotal = item.total_price ? (Number(item.total_price) + Number(item.tax_amount || 0)) : (Number(item.quantity) * Number(item.unit_price) * (1 + Number(item.tax_rate) / 100));
+
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                             <td className="p-4">
+                                <p className="text-sm font-black text-slate-900 tracking-tight">{item.product_name}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">{item.barcode || '-'}</p>
+                             </td>
+                             <td className="p-4 text-center font-medium text-slate-700 text-sm">
+                                {Number(item.quantity).toLocaleString('tr-TR')} <span className="text-xs text-slate-400 font-bold">({item.unit_code || (isTr ? 'Adet' : 'Pcs')})</span>
+                             </td>
+                             <td className="p-4 text-center font-medium text-slate-700 text-sm">
+                                {sysQty.toLocaleString('tr-TR')} <span className="text-xs text-indigo-500 font-bold">({sysUnit})</span>
+                             </td>
+                             <td className="p-4 text-right font-medium text-slate-700 text-sm">
+                                {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                             </td>
+                             <td className="p-4 text-center font-medium text-indigo-600 text-sm">
+                                %{Number(item.tax_rate)}
+                             </td>
+                             <td className="p-4 text-right font-semibold text-slate-800 text-sm">
+                                {itemTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                              </td>
+                           </tr>
+                        );
+                      })}
                    </tbody>
                 </table>
              </div>

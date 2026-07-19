@@ -411,7 +411,7 @@ const SettingsTab = ({
   React.useEffect(() => {
     if (activeSubTab === 'web' && branding.custom_domain) {
       fetchCfStatus();
-      const interval = setInterval(fetchCfStatus, 30000); // Poll every 30s
+      const interval = setInterval(fetchCfStatus, 60000); // Poll every 60s
       return () => clearInterval(interval);
     }
   }, [activeSubTab, branding.custom_domain]);

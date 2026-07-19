@@ -1,6 +1,7 @@
 import express from "express";
 import { pool, logAction, addStockMovement, convertRecipeAmountToMl } from "../../models/db";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
+import * as XLSX from "xlsx";
 
 const router = express.Router();
 
@@ -45,6 +46,57 @@ router.get("/", async (req: any, res) => {
     }
     
     res.json(salesWithDetails);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Export Sales
+router.get("/export", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  const startDate = req.query.startDate;
+  const endDate = req.query.endDate;
+  const lang = req.query.lang || 'tr';
+
+  let query = `
+    SELECT s.created_at, s.customer_name, s.total_amount, s.currency, s.payment_method, s.status
+    FROM sales s
+    WHERE s.store_id = $1 AND s.status != 'checkout_initiated'
+  `;
+  const params: any[] = [storeId];
+
+  if (startDate) {
+    params.push(startDate);
+    query += ` AND s.created_at >= $${params.length}`;
+  }
+  if (endDate) {
+    params.push(endDate + ' 23:59:59');
+    query += ` AND s.created_at <= $${params.length}`;
+  }
+
+  query += " ORDER BY s.created_at DESC";
+
+  try {
+    const sales = await pool.query(query, params);
+    
+    const isTr = lang === 'tr';
+    const data = sales.rows.map(s => ({
+      [isTr ? 'Tarih' : 'Date']: new Date(s.created_at).toLocaleString(isTr ? 'tr-TR' : 'en-US'),
+      [isTr ? 'Müşteri' : 'Customer']: s.customer_name || '-',
+      [isTr ? 'Tutar' : 'Amount']: s.total_amount,
+      [isTr ? 'Para Birimi' : 'Currency']: s.currency,
+      [isTr ? 'Ödeme Yöntemi' : 'Payment Method']: s.payment_method,
+      [isTr ? 'Durum' : 'Status']: s.status
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, isTr ? "Satışlar" : "Sales");
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=Satis_Raporu_${startDate || 'tum'}_${endDate || 'tum'}.xlsx`);
+    res.send(buffer);
   } catch (e: any) {
     res.status(400).json({ error: e.message });
   }
@@ -136,7 +188,8 @@ router.post("/pos", async (req: any, res) => {
               `Reçete Çıkışı (Hızlı POS Satışı #${saleId}, Ürün: ${item.name})${descriptionExtra}`, 
               0, 
               customerName || 'Hızlı Satış', 
-              currency || 'TRY'
+              currency || 'TRY',
+              saleId
             );
           }
         } else if (productType !== 'service') {
@@ -144,7 +197,7 @@ router.post("/pos", async (req: any, res) => {
             "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
             [item.quantity, item.id]
           );
-          await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`, item.price, customerName || 'Hızlı Satış', currency || 'TRY');
+          await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`, item.price, customerName || 'Hızlı Satış', currency || 'TRY', saleId);
         }
       }
     }
@@ -384,7 +437,8 @@ router.post("/:id/complete", async (req: any, res) => {
                 `Reçete Çıkışı (Satış #${id}, Ürün: ${item.product_name})`, 
                 0, 
                 sale.customer_name, 
-                sale.currency || 'TRY'
+                sale.currency || 'TRY',
+                id
               );
             }
           } else if (productType !== 'service') {
@@ -392,7 +446,7 @@ router.post("/:id/complete", async (req: any, res) => {
               "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
               [item.quantity, item.product_id]
             );
-            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`, item.unit_price, sale.customer_name, sale.currency || 'TRY');
+            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`, item.unit_price, sale.customer_name, sale.currency || 'TRY', id);
           }
         }
       }
@@ -576,7 +630,7 @@ router.post("/:id/cancel", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
           [item.quantity, item.product_id]
         );
-        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade)`, item.unit_price, sale.customer_name);
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade)`, item.unit_price, sale.customer_name, 'TRY', sale.id);
       }
     }
 
@@ -634,10 +688,12 @@ router.delete("/:id", async (req: any, res) => {
             "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
             [item.quantity, item.product_id]
           );
-          await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış Silindi #${sale.id} (İade)`, item.unit_price, sale.customer_name);
         }
       }
     }
+
+    // Completely delete all stock movements associated with this sale ID so they disappear from the product's movement history
+    await client.query("DELETE FROM stock_movements WHERE sale_id = $1", [sale.id]);
 
     await client.query("DELETE FROM procurements WHERE sale_id = $1", [sale.id]);
     await client.query("DELETE FROM current_account_transactions WHERE sale_id = $1", [sale.id]);

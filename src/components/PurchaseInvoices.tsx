@@ -23,6 +23,7 @@ import { PurchaseInvoiceTable } from "./dashboard/invoices/purchase/PurchaseInvo
 import { PurchaseInvoiceFormModal } from "./dashboard/invoices/purchase/PurchaseInvoiceFormModal";
 import { PurchaseInvoiceDetailsModal } from "./dashboard/invoices/purchase/PurchaseInvoiceDetailsModal";
 import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
+import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
 export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave }: any) {
@@ -80,6 +81,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     tax_rate: String(branding?.default_tax_rate ?? 20),
     currency: branding?.default_currency || 'TRY'
   });
+  const [showQuickCariModal, setShowQuickCariModal] = useState(false);
+  const [quickCariSearchInitial, setQuickCariSearchInitial] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTaxInclusive, setIsTaxInclusive] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
@@ -218,6 +221,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     setIsSubmitting(true);
     const savePromise = (async () => {
       try {
+        const currentTotals = calculateInvoiceTotals(items, isTaxInclusive);
         const payload = {
           storeId: role === 'superadmin' ? storeId : undefined,
           company_id: companyId,
@@ -225,6 +229,9 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           waybill_number: waybillNumber,
           invoice_date: invoiceDate,
           notes,
+          total_amount: currentTotals.subtotal,
+          tax_amount: currentTotals.taxTotal,
+          grand_total: currentTotals.grandTotal,
           items: items.map(item => ({
             ...item,
             quantity: Number(String(item.quantity).replace(',', '.')) || 0,
@@ -263,6 +270,30 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
       success: isTr ? "Fatura başarıyla kaydedildi" : "Invoice saved successfully",
       error: (err) => err.message || (isTr ? "Fatura kaydedilirken hata oluştu" : "Error saving invoice")
     });
+  };
+
+  const handleQuickCariSubmit = async (data: any) => {
+    try {
+      const newCompany = await api.addCompany({
+        title: data.title,
+        representative: data.phone ? data.title + " Temsilcisi" : undefined,
+        phone: data.phone,
+        email: data.email,
+        tax_office: data.tax_office,
+        tax_number: data.tax_number,
+        currency: data.currency,
+        address: data.address,
+        delivery_address: data.delivery_address,
+        status: 'active'
+      }, storeId);
+      setCompanies((prev: any) => [...prev, newCompany]);
+      setCompanyId(String(newCompany.id));
+      setCompanySearch(newCompany.title || newCompany.company_title || "");
+      setShowQuickCariModal(false);
+      toast.success(isTr ? "Cari başarıyla kaydedildi" : "Cari successfully registered");
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? "Cari kaydedilemedi" : "Cari register failed"));
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -601,6 +632,10 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         setNotes={setNotes}
         totals={totals}
         branding={branding}
+        onQuickCariAdd={(searchStr) => {
+          setQuickCariSearchInitial(searchStr);
+          setShowQuickCariModal(true);
+        }}
       />
 
       <PurchaseInvoiceDetailsModal 
@@ -676,6 +711,14 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
              setShowQuickProductModal(false);
            } catch(err) { toast.error("Hata"); }
         }}
+      />
+
+      <QuickCariModal
+        isOpen={showQuickCariModal}
+        onClose={() => setShowQuickCariModal(false)}
+        isTr={isTr}
+        onSubmit={handleQuickCariSubmit}
+        initialValue={quickCariSearchInitial}
       />
 
       {/* Floating Bulk Action Bar */}

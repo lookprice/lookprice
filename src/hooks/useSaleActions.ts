@@ -1,6 +1,5 @@
 import { toast } from 'sonner';
 import { useState } from "react";
-import * as XLSX from 'xlsx';
 import { api } from "../services/api";
 
 export const useSaleActions = (
@@ -244,21 +243,14 @@ export const useSaleActions = (
     }
   };
 
-  const handleExportSales = (salesStartDate: string, salesEndDate: string) => {
-    const isTr = lang === 'tr';
-    const data = sales.map(s => ({
-      [isTr ? 'Tarih' : 'Date']: new Date(s.created_at).toLocaleString(isTr ? 'tr-TR' : 'en-US'),
-      [isTr ? 'Müşteri' : 'Customer']: s.customer_name || '-',
-      [isTr ? 'Tutar' : 'Amount']: s.total_amount,
-      [isTr ? 'Para Birimi' : 'Currency']: s.currency,
-      [isTr ? 'Ödeme Yöntemi' : 'Payment Method']: s.payment_method,
-      [isTr ? 'Durum' : 'Status']: s.status
-    }));
+  const handleExportSales = async (salesStartDate: string, salesEndDate: string) => {
+    const exportPromise = api.exportSales(salesStartDate, salesEndDate, currentStoreId, lang);
     
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, isTr ? "Satışlar" : "Sales");
-    XLSX.writeFile(wb, `Satis_Raporu_${salesStartDate}_${salesEndDate}.xlsx`);
+    toast.promise(exportPromise, {
+      loading: lang === 'tr' ? "Rapor hazırlanıyor..." : "Preparing report...",
+      success: lang === 'tr' ? "Rapor indirildi" : "Report downloaded",
+      error: lang === 'tr' ? "Rapor indirilemedi" : "Could not download report"
+    });
   };
 
   return { handleUpdateSaleItem, handleRemoveSaleItem, handleCancelPendingSale, handleShipSale, handleDeliverSale, handleCompletePendingSale, handleConvertToSale, handleConfirmSale, handleDeleteSale, handleExportSales, getConvertedPrice };

@@ -403,6 +403,7 @@ function sanitizeFilename(originalName: string): string {
           error: "Supabase API anahtarları eksik! Lütfen AI Studio Secrets veya .env ayarlarından SUPABASE_URL ve SUPABASE_KEY tanımlayın." 
         });
       }
+
       const { supabase } = await import("./src/services/supabaseService");
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
       const filename = uniqueSuffix + "-" + sanitizeFilename(req.file.originalname);
@@ -416,14 +417,49 @@ function sanitizeFilename(originalName: string): string {
 
       if (error) throw error;
 
-      const { data: publicUrlData } = supabase.storage
-        .from("lookdocu")
-        .getPublicUrl(filename);
-
-      res.json({ url: publicUrlData.publicUrl });
+      // Instead of raw Supabase URL, return our proxy URL to enable CDN caching
+      res.json({ url: `/api/storage/${filename}` });
     } catch (error: any) {
       console.error("Supabase upload error:", error);
       res.status(500).json({ error: "Failed to upload file to Supabase" });
+    }
+  });
+
+  // Supabase Storage Proxy (Cache Optimization)
+  app.get("/api/storage/*", async (req, res) => {
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
+      if (!supabaseUrl) return res.status(404).end();
+      
+      const filePath = req.params[0];
+      const url = `${supabaseUrl}/storage/v1/object/public/lookdocu/${filePath}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        return res.status(response.status).end();
+      }
+
+      // Allow Cloudflare and browser to cache heavily (1 year)
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      
+      const contentType = response.headers.get("content-type");
+      if (contentType) res.setHeader("Content-Type", contentType);
+      
+      const contentLength = response.headers.get("content-length");
+      if (contentLength) res.setHeader("Content-Length", contentLength);
+
+      if (response.body) {
+        // Stream the response directly to client
+        // @ts-ignore
+        const { Readable } = await import('stream');
+        // @ts-ignore
+        Readable.fromWeb(response.body).pipe(res);
+      } else {
+        res.end();
+      }
+    } catch (err) {
+      console.error("Storage proxy error:", err);
+      res.status(500).end();
     }
   });
 

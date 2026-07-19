@@ -181,6 +181,15 @@ export const api = {
   },
 
   getSales: (status = "all", start = "", end = "", storeId?: number) => api.get(`/api/store/sales?status=${status}&startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  exportSales: (start = "", end = "", storeId?: number, lang = 'tr') => {
+    const params = new URLSearchParams();
+    if (start) params.append("startDate", start);
+    if (end) params.append("endDate", end);
+    if (storeId !== undefined && storeId !== null) params.append("storeId", storeId.toString());
+    params.append("lang", lang);
+    const url = `/api/store/sales/export?${params.toString()}`;
+    return api.download(url, `Satis_Raporu_${start || 'tum'}_${end || 'tum'}.xlsx`);
+  },
   createPosSale: (data: any, storeId?: number) => api.post(`/api/store/pos/sale${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   createPublicPosSale: (data: any, storeId?: number) => api.post(`/api/public/pos/sale${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updatePendingSale: (id: number, data: any, storeId?: number) => api.post(`/api/store/sales/${id}/update-pending${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
