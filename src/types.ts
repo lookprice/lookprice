@@ -35,6 +35,7 @@ export interface Product {
   labels?: string[];
   sector_data?: any;
   is_web_sale?: boolean;
+  is_bestseller?: boolean;
   is_sellable?: boolean;
   product_type?: 'product' | 'service';
   type?: 'product' | 'vehicle' | 'real_estate';

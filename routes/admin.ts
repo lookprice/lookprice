@@ -1,5 +1,6 @@
 import express from "express";
 import bcrypt from "bcryptjs";
+import { createClient } from "@supabase/supabase-js";
 import { pool } from "../models/db";
 import { authenticate } from "../middleware/auth";
 
@@ -27,6 +28,89 @@ router.get("/stats", async (req: any, res) => {
     totalScans: parseInt(totalScans),
     scansLast24h: parseInt(scansLast24h)
   });
+});
+
+// SuperAdmin: Supabase & Database Quota & Health Status
+router.get("/supabase-status", async (req: any, res) => {
+  try {
+    // 1. Get DB Size from PostgreSQL
+    let dbSizeBytes = 0;
+    try {
+      const dbSizeRes = await pool.query("SELECT pg_database_size(current_database())::BIGINT as size");
+      dbSizeBytes = parseInt(dbSizeRes.rows[0]?.size || "0");
+    } catch (err: any) {
+      console.error("DB size query error:", err);
+    }
+    const dbSizeMB = parseFloat((dbSizeBytes / (1024 * 1024)).toFixed(2));
+    const dbLimitMB = 500; // Supabase Free Tier DB Limit (500 MB)
+    const dbPercentage = parseFloat(((dbSizeMB / dbLimitMB) * 100).toFixed(1));
+
+    // 2. Query Supabase Storage lookdocu Bucket Status
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url || "";
+    const supabaseKey = process.env.SUPABASE_KEY || process.env.anon_key || process.env.service_role_key || "";
+
+    let storageFileCount = 0;
+    let storageSizeBytes = 0;
+    let storageStatus: "active" | "restricted" | "error" | "not_configured" = "not_configured";
+    let storageErrorMessage: string | null = null;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        const { data, error } = await supabase.storage.from("lookdocu").list("", { limit: 1000 });
+        if (error) {
+          storageStatus = error.message.includes("restricted") || error.message.includes("quota") ? "restricted" : "error";
+          storageErrorMessage = error.message;
+        } else {
+          storageStatus = "active";
+          if (data && Array.isArray(data)) {
+            storageFileCount = data.length;
+            storageSizeBytes = data.reduce((acc, f) => acc + (f.metadata?.size || 0), 0);
+          }
+        }
+      } catch (err: any) {
+        storageStatus = "error";
+        storageErrorMessage = err.message;
+      }
+    }
+
+    const storageSizeMB = parseFloat((storageSizeBytes / (1024 * 1024)).toFixed(2));
+    const storageLimitMB = 1000; // Supabase Free Tier Storage Limit (1 GB)
+    const storagePercentage = parseFloat(((storageSizeMB / storageLimitMB) * 100).toFixed(1));
+
+    // Overall status determination
+    let overallStatus: "healthy" | "warning" | "restricted" = "healthy";
+    if (storageStatus === "restricted" || storageErrorMessage?.includes("restricted")) {
+      overallStatus = "restricted";
+    } else if (dbPercentage > 80 || storagePercentage > 80) {
+      overallStatus = "warning";
+    }
+
+    res.json({
+      success: true,
+      overallStatus,
+      database: {
+        sizeMB: dbSizeMB,
+        limitMB: dbLimitMB,
+        percentage: dbPercentage
+      },
+      storage: {
+        status: storageStatus,
+        fileCount: storageFileCount,
+        sizeMB: storageSizeMB,
+        limitMB: storageLimitMB,
+        percentage: storagePercentage,
+        errorMessage: storageErrorMessage
+      },
+      proxyMode: {
+        active: true,
+        description: "Görsel istekleri /api/storage/* CDN önbelleği üzerinden sunularak Supabase bant genişliği (egress) kotalarından tasarruf sağlar."
+      },
+      checkedAt: new Date().toISOString()
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // SuperAdmin: Manage Stores

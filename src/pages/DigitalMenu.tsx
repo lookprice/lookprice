@@ -164,7 +164,10 @@ export default function DigitalMenuPage() {
 
     // Otherwise, apply category and subcategory filtering
     if (selectedCategory === "bestsellers") {
-      // Return first 6 products as "En Çok Satanlar"
+      const explicitBestsellers = list.filter((p) => p.is_bestseller);
+      if (explicitBestsellers.length > 0) {
+        return explicitBestsellers;
+      }
       return list.slice(0, 6);
     } else if (selectedCategory !== "all") {
       list = list.filter((p) => p.category === selectedCategory);

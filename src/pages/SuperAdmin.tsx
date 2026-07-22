@@ -48,6 +48,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     totalScans: 0,
     scansLast24h: 0
   });
+  const [supabaseStatus, setSupabaseStatus] = useState<any>(null);
+  const [checkingSupabase, setCheckingSupabase] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [editingStore, setEditingStore] = useState<any>(null);
@@ -360,6 +362,20 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     max_customers: 50
   });
 
+  const fetchSupabaseStatus = async () => {
+    try {
+      setCheckingSupabase(true);
+      const res = await api.getSupabaseStatus();
+      if (res && res.success) {
+        setSupabaseStatus(res);
+      }
+    } catch (err) {
+      console.error("Supabase status error:", err);
+    } finally {
+      setCheckingSupabase(false);
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -375,6 +391,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
       if (statsRes && !statsRes.error) {
         setStats(statsRes);
       }
+      fetchSupabaseStatus();
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
@@ -593,7 +610,13 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           />
         ) : (
           <>
-            <SuperAdminStats stats={stats} st={st} />
+            <SuperAdminStats
+              stats={stats}
+              supabaseStatus={supabaseStatus}
+              checkingSupabase={checkingSupabase}
+              onRefreshSupabaseStatus={fetchSupabaseStatus}
+              st={st}
+            />
             <SuperAdminLeads 
               leads={leads}
               leadSearchTerm={leadSearchTerm}

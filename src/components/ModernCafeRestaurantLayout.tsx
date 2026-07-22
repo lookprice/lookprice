@@ -15,7 +15,8 @@ import {
   Twitter,
   Calendar,
   Layers,
-  Award
+  Award,
+  Flame
 } from "lucide-react";
 import { Store, Product } from "../types";
 
@@ -44,6 +45,10 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
   }, [products]);
 
   const filteredProducts = React.useMemo(() => {
+    if (selectedCategory === "bestsellers") {
+      const explicit = products.filter((p) => p.is_bestseller);
+      return explicit.length > 0 ? explicit : products.slice(0, 6);
+    }
     if (selectedCategory === "all") return products;
     return products.filter((p) => p.category === selectedCategory);
   }, [products, selectedCategory]);
@@ -202,6 +207,17 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           >
             {isTr ? "TÜMÜ" : "ALL"}
           </button>
+          <button
+            onClick={() => setSelectedCategory("bestsellers")}
+            className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+              selectedCategory === "bestsellers"
+                ? "bg-orange-600 text-white shadow-md shadow-orange-600/20"
+                : "bg-orange-50 text-orange-800 hover:bg-orange-100 border border-orange-200/60"
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
+            {isTr ? "EN ÇOK SATANLAR" : "BESTSELLERS"}
+          </button>
           {categories.map((cat) => (
             <button
               key={cat}
@@ -245,7 +261,13 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                         <Utensils className="w-8 h-8" />
                       </div>
                     )}
-                    {product.tags && (
+                    {product.is_bestseller && (
+                      <div className="absolute top-1.5 left-1.5 bg-orange-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm z-10">
+                        <Flame className="w-2.5 h-2.5 fill-white" />
+                        {isTr ? "POPÜLER" : "POPULAR"}
+                      </div>
+                    )}
+                    {!product.is_bestseller && product.tags && (
                       <div className="absolute top-1.5 left-1.5 bg-amber-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
                         {product.tags.split(",")[0]}
                       </div>

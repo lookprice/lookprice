@@ -1812,11 +1812,17 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">{lang === 'tr' ? 'Nakit Satış' : 'Cash Sales'}</span>
                           </div>
                           <p className="text-xl font-black text-slate-800">
-                            {(reportData.payments?.find((p: any) => p.payment_method === 'cash')?.total_amount || 0).toFixed(2)} ₺
+                            {(
+                              reportData.payments
+                                ?.filter((p: any) => ['cash', 'nakit'].includes(p.payment_method?.toLowerCase()))
+                                ?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || Number(p.total) || 0), 0) || 0
+                            ).toFixed(2)} ₺
                           </p>
                         </div>
                         <span className="text-[10px] text-slate-400 font-bold mt-2">
-                          {reportData.payments?.find((p: any) => p.payment_method === 'cash')?.transaction_count || 0} {lang === 'tr' ? 'İşlem' : 'Txn'}
+                          {reportData.payments
+                            ?.filter((p: any) => ['cash', 'nakit'].includes(p.payment_method?.toLowerCase()))
+                            ?.reduce((sum: number, p: any) => sum + (Number(p.transaction_count) || 0), 0) || 0} {lang === 'tr' ? 'İşlem' : 'Txn'}
                         </span>
                       </div>
 
@@ -1830,11 +1836,17 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">{lang === 'tr' ? 'Kredi Kartı' : 'Credit Card'}</span>
                           </div>
                           <p className="text-xl font-black text-slate-800">
-                            {(reportData.payments?.find((p: any) => p.payment_method === 'credit_card')?.total_amount || 0).toFixed(2)} ₺
+                            {(
+                              reportData.payments
+                                ?.filter((p: any) => ['credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))
+                                ?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || Number(p.total) || 0), 0) || 0
+                            ).toFixed(2)} ₺
                           </p>
                         </div>
                         <span className="text-[10px] text-slate-400 font-bold mt-2">
-                          {reportData.payments?.find((p: any) => p.payment_method === 'credit_card')?.transaction_count || 0} {lang === 'tr' ? 'İşlem' : 'Txn'}
+                          {reportData.payments
+                            ?.filter((p: any) => ['credit_card', 'card', 'kredi_karti', 'pos'].includes(p.payment_method?.toLowerCase()))
+                            ?.reduce((sum: number, p: any) => sum + (Number(p.transaction_count) || 0), 0) || 0} {lang === 'tr' ? 'İşlem' : 'Txn'}
                         </span>
                       </div>
 
@@ -1848,11 +1860,11 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                             <span className="text-xs font-bold text-indigo-200 uppercase tracking-wide">{lang === 'tr' ? 'Gün Toplamı' : 'Day Total'}</span>
                           </div>
                           <p className="text-xl font-black">
-                            {((reportData.payments?.reduce((sum: number, p: any) => sum + p.total_amount, 0)) || 0).toFixed(2)} ₺
+                            {((reportData.payments?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || Number(p.total) || 0), 0)) || 0).toFixed(2)} ₺
                           </p>
                         </div>
                         <span className="text-[10px] text-indigo-200 font-bold mt-2">
-                          {((reportData.payments?.reduce((sum: number, p: any) => sum + p.transaction_count, 0)) || 0)} {lang === 'tr' ? 'İşlem' : 'Txn'}
+                          {((reportData.payments?.reduce((sum: number, p: any) => sum + (Number(p.transaction_count) || 0), 0)) || 0)} {lang === 'tr' ? 'İşlem' : 'Txn'}
                         </span>
                       </div>
                     </div>

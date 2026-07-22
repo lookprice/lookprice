@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 
@@ -723,6 +723,22 @@ export const ProductModal = ({
               />
               <label htmlFor="prod_is_web_sale" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
                 {isTr ? "Bu Ürün Mağaza Web Sitesinde Vitrinde Yayınlansın" : "Publish product in public store showcase page"}
+              </label>
+            </div>
+
+            <div className="flex items-center gap-3 bg-orange-50/60 p-4 rounded-2xl border border-orange-200/60">
+              <input
+                type="checkbox"
+                name="is_bestseller"
+                id="prod_is_bestseller"
+                className="h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500 cursor-pointer"
+                defaultChecked={!!editingProduct?.is_bestseller}
+              />
+              <label htmlFor="prod_is_bestseller" className="text-xs font-bold text-slate-800 cursor-pointer select-none flex items-center gap-2">
+                <Flame className="w-4 h-4 text-orange-500 fill-orange-500 shrink-0" />
+                <span>
+                  {isTr ? "En Çok Satan Ürün (Dijital Menü 'En Çok Satanlar' Listesinde Öne Çıkarılsın)" : "Bestseller Product (Highlight in Digital Menu 'Best Sellers' list)"}
+                </span>
               </label>
             </div>
             

@@ -28,6 +28,7 @@ import {
   CheckCircle2,
   AlertCircle,
   CircleDot,
+  Flame,
   Zap,
   Sparkles,
   Image as ImageIcon,
@@ -754,6 +755,12 @@ const ProductsTab = ({
                                     SERV
                                   </span>
                                 )}
+                                {p.is_bestseller && (
+                                  <span className="text-[8px] font-black text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm" title={lang === 'tr' ? 'En Çok Satan Ürün' : 'Bestseller'}>
+                                    <Flame className="h-2.5 w-2.5 fill-orange-500 text-orange-500" />
+                                    {lang === 'tr' ? 'EN ÇOK SATAN' : 'BESTSELLER'}
+                                  </span>
+                                )}
                                 {p.is_web_sale === false && (
                                   <span className="text-[8px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
                                     OFF_LINE
@@ -1021,6 +1028,31 @@ const ProductsTab = ({
                               <Share2 className="h-4.5 w-4.5" />
                             </button>
                           )}
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                p.is_bestseller = !p.is_bestseller;
+                                await api.toggleBestsellerProduct(p.id, currentStoreId);
+                                toast.success(p.is_bestseller 
+                                  ? (lang === "tr" ? "Ürün 'En Çok Satanlar' listesine eklendi." : "Product marked as Bestseller.")
+                                  : (lang === "tr" ? "Ürün 'En Çok Satanlar' listesinden çıkarıldı." : "Product unmarked from Bestsellers.")
+                                );
+                              } catch (err: any) {
+                                p.is_bestseller = !p.is_bestseller;
+                                toast.error(err.message || "Hata oluştu.");
+                              }
+                            }}
+                            className={`p-2.5 rounded-xl transition-all border active:scale-90 ${
+                              p.is_bestseller 
+                                ? 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100 shadow-sm' 
+                                : 'text-slate-300 hover:text-orange-500 hover:bg-orange-50 border-transparent hover:border-orange-100'
+                            }`}
+                            title={p.is_bestseller ? (lang === 'tr' ? 'En Çok Satan (Çıkar)' : 'Bestseller (Remove)') : (lang === 'tr' ? 'En Çok Satan Yap' : 'Mark as Bestseller')}
+                          >
+                            <Flame className={`h-4.5 w-4.5 ${p.is_bestseller ? 'fill-orange-500 text-orange-500' : ''}`} />
+                          </button>
+
                           <button 
                             onClick={() => onEdit(p)}
                             className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-300 active:scale-90"

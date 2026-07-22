@@ -67,29 +67,38 @@ router.get("/pos-daily", async (req: any, res) => {
         console.log("DEBUG: req.user is undefined!");
         return res.status(401).json({ error: "Unauthorized" });
     }
-    const targetDateStr = date as string || new Date().toISOString().split('T')[0];
+    const targetDateStr = (date as string) || new Date().toISOString().split('T')[0];
 
     const paymentQuery = `
-      SELECT payment_method, SUM(amount)::FLOAT as total
-      FROM sale_payments sp
-      JOIN sales s ON sp.sale_id = s.id
+      SELECT 
+        COALESCE(sp.payment_method, s.payment_method, 'cash') as payment_method, 
+        SUM(COALESCE(sp.amount, s.total_amount))::FLOAT as total_amount,
+        COUNT(DISTINCT s.id)::INT as transaction_count
+      FROM sales s
+      LEFT JOIN sale_payments sp ON sp.sale_id = s.id
       WHERE s.store_id = $1 
         AND s.status IN ('completed', 'paid')
-        AND s.created_at >= $2::timestamp 
-        AND s.created_at < ($2::timestamp + INTERVAL '1 day')
-      GROUP BY payment_method
+        AND (
+          s.created_at::date = $2::date
+          OR (s.created_at >= $2::timestamp AND s.created_at < ($2::timestamp + INTERVAL '1 day'))
+        )
+      GROUP BY COALESCE(sp.payment_method, s.payment_method, 'cash')
     `;
     const paymentRes = await pool.query(paymentQuery, [storeId, targetDateStr]);
-    console.log("DEBUG: paymentRes rows count:", paymentRes.rows.length);
 
     const productQuery = `
-      SELECT si.product_name, SUM(si.quantity)::FLOAT as total_quantity, SUM(si.quantity * si.unit_price)::FLOAT as total_revenue
+      SELECT 
+        si.product_name, 
+        SUM(si.quantity)::FLOAT as total_quantity, 
+        SUM(si.quantity * si.unit_price)::FLOAT as total_revenue
       FROM sale_items si
       JOIN sales s ON si.sale_id = s.id
       WHERE s.store_id = $1 
         AND s.status IN ('completed', 'paid')
-        AND s.created_at >= $2::timestamp 
-        AND s.created_at < ($2::timestamp + INTERVAL '1 day')
+        AND (
+          s.created_at::date = $2::date
+          OR (s.created_at >= $2::timestamp AND s.created_at < ($2::timestamp + INTERVAL '1 day'))
+        )
       GROUP BY si.product_name
       ORDER BY total_quantity DESC
     `;
