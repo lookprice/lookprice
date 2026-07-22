@@ -80,4 +80,13 @@ This file outlines strict engineering, performance, and naming directives that m
   - Any change, no matter how small, affecting these modules **MUST** be verified by the developer agent by triggering the affected functionality (e.g., attempting to fetch a known invoice HTML) immediately after the change, before completing the turn. 
   - If integration tests fail, the change MUST be rolled back immediately.
 
+---
+
+## 7. Operator UX Continuity & Persistence Rules (Sayfa Yenileme / Tab Koruma)
+
+- **Operator Workflow Preservation (Kaldığı Yerden Devam Etme)**:
+  - Sayfa yenilendiğinde (`F5` veya `Shift+F5`) ya da oturum tazelendiğinde operatörün çalıştığı aktif sekme (örn. `products`, `fast-pos`, `sales_invoices`, `settings`), alt sekmeler ve kategori/filtre durumları sıfırlanmamalıdır.
+  - Aktif sekme `activeTab` ve kritik filtreler hem `localStorage` (`storeDashboardTab_${storeId}`, `productsTabCategory`, vb.) hem de URL arama parametreleri (`?tab=...`) ile senkronize tutulmalıdır.
+  - Operatörlerin ve kasiyerlerin tekrar tekrar tıklayarak vakit kaybetmesi kesinlikle önlenmeli, uygulama açılışta kullanıcının en son kaldığı ekranı otomatik olarak yüklemelidir.
+
 

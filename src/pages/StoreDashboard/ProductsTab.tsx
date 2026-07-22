@@ -106,7 +106,13 @@ const ProductsTab = ({
       setDriveConnected(!!res?.connected);
     }).catch(err => console.error("Error fetching drive connected status in ProductsTab", err));
   }, []);
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    return localStorage.getItem('productsTabCategory') || "all";
+  });
+
+  useEffect(() => {
+    localStorage.setItem('productsTabCategory', selectedCategory);
+  }, [selectedCategory]);
   const [marketplaceFilter, setMarketplaceFilter] = useState("all"); // all, listed, not_listed
   const [includeZeroStock, setIncludeZeroStock] = useState(false);
   const deferredSearch = useDeferredValue(search);
@@ -119,6 +125,11 @@ const ProductsTab = ({
   const [isFindingImages, setIsFindingImages] = useState(false);
   const [sharingProduct, setSharingProduct] = useState<any>(null);
   const [recipeProduct, setRecipeProduct] = useState<any>(null);
+  const [bestsellerStateMap, setBestsellerStateMap] = useState<Record<number, boolean>>({});
+
+  const isCafe = isCafeRestaurant || branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+
+  const getIsBestseller = (p: any) => bestsellerStateMap[p.id] !== undefined ? bestsellerStateMap[p.id] : !!p.is_bestseller;
 
   const handleAutoFindImages = async (params: { productIds?: number[], allMissing?: boolean, id?: number }) => {
     if (isFindingImages) return;
@@ -289,7 +300,9 @@ const ProductsTab = ({
     const matchesSearch = searchTerms.length === 0 ? true : searchTerms.every(term => 
       normalizeSearch(p.name).includes(term) || (p.barcode && p.barcode.toString().includes(term))
     );
-    const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
+    const matchesCategory = selectedCategory === "bestsellers" 
+      ? getIsBestseller(p) 
+      : (selectedCategory === "all" || p.category === selectedCategory);
     const matchesMarketplace = marketplaceFilter === "all" || 
                               (marketplaceFilter === "listed" && p.is_pazarama_active) ||
                               (marketplaceFilter === "not_listed" && !p.is_pazarama_active);
@@ -573,11 +586,35 @@ const ProductsTab = ({
                   }}
                 >
                   <option value="all">{t.allCategories}</option>
+                  {isCafe && <option value="bestsellers">🔥 {lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</option>}
                   {categories.map((cat: any) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
               </div>
+
+              {/* Quick Bestseller Filter Toggle */}
+              {isCafe && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(selectedCategory === 'bestsellers' ? 'all' : 'bestsellers');
+                    setPage(1);
+                  }}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shrink-0 border cursor-pointer select-none active:scale-95 ${
+                    selectedCategory === 'bestsellers'
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
+                      : 'bg-orange-50/80 text-orange-800 hover:bg-orange-100 border-orange-200/80'
+                  }`}
+                  title={lang === 'tr' ? 'En Çok Satan Ürünleri Filtrele' : 'Filter Bestsellers'}
+                >
+                  <Flame className={`w-4 h-4 ${selectedCategory === 'bestsellers' ? 'fill-white text-white animate-bounce' : 'text-orange-500 fill-orange-500'}`} />
+                  <span className="hidden sm:inline">{lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</span>
+                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${selectedCategory === 'bestsellers' ? 'bg-white/20 text-white' : 'bg-orange-200/60 text-orange-900'}`}>
+                    {products.filter(p => getIsBestseller(p)).length}
+                  </span>
+                </button>
+              )}
               {/* Marketplace Status Filter */}
               {!isCafeRestaurant && (
                 <div className="relative w-36 sm:w-44 shrink-0 group">
@@ -755,9 +792,9 @@ const ProductsTab = ({
                                     SERV
                                   </span>
                                 )}
-                                {p.is_bestseller && (
-                                  <span className="text-[8px] font-black text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm" title={lang === 'tr' ? 'En Çok Satan Ürün' : 'Bestseller'}>
-                                    <Flame className="h-2.5 w-2.5 fill-orange-500 text-orange-500" />
+                                {isCafe && getIsBestseller(p) && (
+                                  <span className="text-[9px] font-black text-white bg-gradient-to-r from-orange-500 to-amber-500 border border-orange-400 px-2 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm shadow-orange-500/20 animate-pulse" title={lang === 'tr' ? 'En Çok Satan Ürün (Dijital Menüde Öne Çıkarılır)' : 'Bestseller Product'}>
+                                    <Flame className="h-3 w-3 fill-white text-white" />
                                     {lang === 'tr' ? 'EN ÇOK SATAN' : 'BESTSELLER'}
                                   </span>
                                 )}
@@ -1028,30 +1065,42 @@ const ProductsTab = ({
                               <Share2 className="h-4.5 w-4.5" />
                             </button>
                           )}
-                          <button 
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
-                                p.is_bestseller = !p.is_bestseller;
-                                await api.toggleBestsellerProduct(p.id, currentStoreId);
-                                toast.success(p.is_bestseller 
-                                  ? (lang === "tr" ? "Ürün 'En Çok Satanlar' listesine eklendi." : "Product marked as Bestseller.")
-                                  : (lang === "tr" ? "Ürün 'En Çok Satanlar' listesinden çıkarıldı." : "Product unmarked from Bestsellers.")
-                                );
-                              } catch (err: any) {
-                                p.is_bestseller = !p.is_bestseller;
-                                toast.error(err.message || "Hata oluştu.");
-                              }
-                            }}
-                            className={`p-2.5 rounded-xl transition-all border active:scale-90 ${
-                              p.is_bestseller 
-                                ? 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100 shadow-sm' 
-                                : 'text-slate-300 hover:text-orange-500 hover:bg-orange-50 border-transparent hover:border-orange-100'
-                            }`}
-                            title={p.is_bestseller ? (lang === 'tr' ? 'En Çok Satan (Çıkar)' : 'Bestseller (Remove)') : (lang === 'tr' ? 'En Çok Satan Yap' : 'Mark as Bestseller')}
-                          >
-                            <Flame className={`h-4.5 w-4.5 ${p.is_bestseller ? 'fill-orange-500 text-orange-500' : ''}`} />
-                          </button>
+                          {isCafe && (
+                            <button 
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const currentVal = getIsBestseller(p);
+                                const nextVal = !currentVal;
+                                p.is_bestseller = nextVal;
+                                setBestsellerStateMap(prev => ({ ...prev, [p.id]: nextVal }));
+                                try {
+                                  await api.toggleBestsellerProduct(p.id, currentStoreId);
+                                  toast.success(nextVal 
+                                    ? (lang === "tr" ? `"${p.name}" En Çok Satanlar listesine eklendi 🔥` : `"${p.name}" marked as Bestseller 🔥`)
+                                    : (lang === "tr" ? `"${p.name}" En Çok Satanlar listesinden çıkarıldı` : `"${p.name}" removed from Bestsellers`)
+                                  );
+                                } catch (err: any) {
+                                  p.is_bestseller = currentVal;
+                                  setBestsellerStateMap(prev => ({ ...prev, [p.id]: currentVal }));
+                                  toast.error(err.message || "Hata oluştu.");
+                                }
+                              }}
+                              className={`px-3 py-2 rounded-xl transition-all border active:scale-95 flex items-center gap-1.5 cursor-pointer select-none ${
+                                getIsBestseller(p)
+                                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-md shadow-orange-500/30 ring-2 ring-orange-300 ring-offset-1 font-black text-xs' 
+                                  : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50 border-slate-200 hover:border-orange-300'
+                              }`}
+                              title={getIsBestseller(p) ? (lang === 'tr' ? 'En Çok Satan (Çıkar)' : 'Bestseller (Remove)') : (lang === 'tr' ? 'En Çok Satan Yap' : 'Mark as Bestseller')}
+                            >
+                              <Flame className={`h-4.5 w-4.5 shrink-0 ${getIsBestseller(p) ? 'fill-white text-white animate-bounce' : 'text-slate-400 hover:text-orange-500'}`} />
+                              {getIsBestseller(p) && (
+                                <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">
+                                  {lang === 'tr' ? 'SEÇİLİ' : 'ACTIVE'}
+                                </span>
+                              )}
+                            </button>
+                          )}
 
                           <button 
                             onClick={() => onEdit(p)}
