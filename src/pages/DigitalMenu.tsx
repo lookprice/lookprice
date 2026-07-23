@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { motion, AnimatePresence } from "motion/react";
-import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles } from "lucide-react";
+import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles, UserCheck } from "lucide-react";
 
 export default function DigitalMenuPage() {
   const { storeId, tableId } = useParams();
@@ -17,7 +17,7 @@ export default function DigitalMenuPage() {
   const [cart, setCart] = useState<any[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>("bestsellers");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>("all");
   const [productSearchQuery, setProductSearchQuery] = useState<string>("");
 
@@ -33,9 +33,9 @@ export default function DigitalMenuPage() {
       if (!storeId) return;
       try {
         const [storeRes, productsRes, tablesRes] = await Promise.all([
-          api.getBranding(Number(storeId)),
-          api.getProducts("", Number(storeId), false, true),
-          api.getRestaurantTables(Number(storeId)).catch(() => [])
+          api.getPublicDigitalMenuInfo(storeId),
+          api.getPublicDigitalMenuProducts(storeId),
+          api.getPublicDigitalMenuTables(storeId).catch(() => [])
         ]);
         setStore(storeRes);
         setProducts(Array.isArray(productsRes) ? productsRes : []);
@@ -86,6 +86,7 @@ export default function DigitalMenuPage() {
   const placeOrder = async () => {
     if (cart.length === 0) return;
     if (!activeTableId) {
+      alert("Lütfen siparişiniz için bir masa seçin veya 'Garson Masası' seçeneğini işaretleyin.");
       setShowTableSelector(true);
       setShowCart(false);
       return;
@@ -695,6 +696,34 @@ export default function DigitalMenuPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Garson / Ayakta Sipariş Option */}
+                <div className="bg-amber-50/90 p-4 rounded-2xl border border-amber-200/90 flex items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-amber-100 text-amber-800 rounded-xl">
+                      <UserCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-xs text-amber-950 uppercase tracking-wider">Garson Masası (Masa Seçilmeden)</h3>
+                      <p className="text-[11px] text-amber-800 font-medium">Masa belli değilse veya garson tarafından alınıyorsa seçin</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTableId("Garson Masası");
+                      setManualTableInput("Garson Masası");
+                      setShowTableSelector(false);
+                    }}
+                    className={`px-4 py-2.5 rounded-xl font-black text-xs transition-all shrink-0 cursor-pointer ${
+                      activeTableId === "Garson Masası"
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'bg-white text-amber-800 border border-amber-300 hover:bg-amber-100/50'
+                    }`}
+                  >
+                    {activeTableId === "Garson Masası" ? "SEÇİLİ" : "Garson Seç"}
+                  </button>
+                </div>
+
                 {/* Custom / Crisis manual input */}
                 <div className="bg-rose-50/50 p-4 rounded-2xl border border-rose-100/60 space-y-3">
                   <div className="flex items-center gap-2">

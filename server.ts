@@ -106,7 +106,16 @@ async function startServer() {
       etag: true
     }));
   }
+  app.use(express.static(path.join(process.cwd(), "public")));
   app.use("/uploads", express.static(uploadsDir));
+
+  // Dynamic Robots.txt Handler
+  app.get("/robots.txt", (req, res) => {
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.get('host') || "enrakipsiz.com";
+    res.type("text/plain");
+    res.send(`User-agent: *\nAllow: /\nSitemap: ${protocol}://${host}/sitemap.xml\n`);
+  });
 
   // 2. Request Logger
   app.use((req, res, next) => {
@@ -624,6 +633,17 @@ function sanitizeFilename(originalName: string): string {
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>\n`;
+
+        // Regional Category Hubs for High Search Rankings
+        const regions = ["Lefkoşa", "Girne", "Gazimağusa", "İskele", "Güzelyurt"];
+        regions.forEach((reg) => {
+          xml += `  <url>
+    <loc>${escapeXml(`${storeBaseUrl}/?region=${encodeURIComponent(reg)}`)}</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
+  </url>\n`;
+        });
 
         // Vehicles
         const vehiclesRes = await pool.query(

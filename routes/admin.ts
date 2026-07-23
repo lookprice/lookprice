@@ -550,6 +550,7 @@ async function ensureEnrakipsizTables() {
   await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS seo_title TEXT").catch(() => {});
   await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS seo_description TEXT").catch(() => {});
   await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS seo_keywords TEXT").catch(() => {});
+  await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS favicon_url TEXT").catch(() => {});
   await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS google_analytics_id TEXT").catch(() => {});
   await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS google_tag_manager_id TEXT").catch(() => {});
   await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS google_search_console_id TEXT").catch(() => {});
@@ -647,6 +648,7 @@ router.post("/enrakipsiz/settings", async (req: any, res) => {
     seo_title,
     seo_description,
     seo_keywords,
+    favicon_url,
     google_analytics_id,
     google_tag_manager_id,
     google_search_console_id
@@ -668,9 +670,10 @@ router.post("/enrakipsiz/settings", async (req: any, res) => {
           seo_title = $11,
           seo_description = $12,
           seo_keywords = $13,
-          google_analytics_id = $14,
-          google_tag_manager_id = $15,
-          google_search_console_id = $16
+          favicon_url = $14,
+          google_analytics_id = $15,
+          google_tag_manager_id = $16,
+          google_search_console_id = $17
       WHERE id = 1
     `, [
       portal_title, 
@@ -686,6 +689,7 @@ router.post("/enrakipsiz/settings", async (req: any, res) => {
       seo_title || null,
       seo_description || null,
       seo_keywords || null,
+      favicon_url || null,
       google_analytics_id || null,
       google_tag_manager_id || null,
       google_search_console_id || null

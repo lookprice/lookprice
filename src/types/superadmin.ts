@@ -53,6 +53,7 @@ export interface EnrakipsizSettings {
   seo_title?: string;
   seo_description?: string;
   seo_keywords?: string;
+  favicon_url?: string;
   google_analytics_id?: string;
   google_tag_manager_id?: string;
   google_search_console_id?: string;

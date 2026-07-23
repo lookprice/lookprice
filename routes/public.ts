@@ -742,6 +742,90 @@ router.get("/store/:slug", async (req, res) => {
 // Cache for 5 minutes, serve stale for up to 1 hour
 const PUBLIC_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=3600';
 
+async function findStoreByIdentifier(identifier: string) {
+  let isNumeric = !isNaN(Number(identifier));
+  let query = isNumeric 
+    ? "SELECT * FROM stores WHERE id = $1 OR LOWER(slug) = LOWER($2)" 
+    : "SELECT * FROM stores WHERE LOWER(slug) = LOWER($1)";
+  let params = isNumeric ? [Number(identifier), identifier] : [identifier];
+  
+  const res = await pool.query(query, params);
+  return res.rows[0] || null;
+}
+
+// Public: Get Digital Menu Store Info
+router.get("/digital-menu/:storeIdentifier/info", async (req, res) => {
+  const { storeIdentifier } = req.params;
+  try {
+    const store = await findStoreByIdentifier(storeIdentifier);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    let branding = store.branding;
+    if (typeof branding === 'string') {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+    }
+
+    res.json({
+      id: store.id,
+      name: store.name,
+      slug: store.slug,
+      logo_url: store.logo_url,
+      primary_color: store.primary_color,
+      default_currency: store.default_currency || 'TRY',
+      whatsapp_number: store.whatsapp_number,
+      phone: store.phone,
+      address: store.address,
+      branding: branding || {},
+      store_type: store.store_type
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public: Get Digital Menu Store Products
+router.get("/digital-menu/:storeIdentifier/products", async (req, res) => {
+  const { storeIdentifier } = req.params;
+  try {
+    const store = await findStoreByIdentifier(storeIdentifier);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    const productsRes = await pool.query(`
+      SELECT p.id, p.store_id, p.barcode, p.name, p.price, p.currency, p.cost_price, 
+             p.tax_rate, p.description, p.stock_quantity, p.unit, p.category, 
+             p.sub_category, p.image_url, p.is_bestseller, p.product_type, p.is_web_sale
+      FROM products p
+      LEFT JOIN stores s ON p.store_id = s.id
+      WHERE (p.store_id = $1 OR s.parent_id = $1)
+      ORDER BY COALESCE(p.is_bestseller, false) DESC, p.category ASC, p.name ASC
+    `, [store.id]);
+
+    res.json(productsRes.rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public: Get Digital Menu Store Tables
+router.get("/digital-menu/:storeIdentifier/tables", async (req, res) => {
+  const { storeIdentifier } = req.params;
+  try {
+    const store = await findStoreByIdentifier(storeIdentifier);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    const tablesRes = await pool.query(`
+      SELECT id, table_number, status 
+      FROM restaurant_tables 
+      WHERE store_id = $1 
+      ORDER BY id ASC
+    `, [store.id]);
+
+    res.json(tablesRes.rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Public: Get Store Products by Slug
 router.get("/store/:slug/products", async (req, res) => {
   const { slug } = req.params;

@@ -1,7 +1,42 @@
 import { pool } from "../../models/db";
 
+function renderFaviconTags(customLogo?: string, host = "enrakipsiz.com", protocol = "https"): string {
+  const domain = host || "enrakipsiz.com";
+  const baseUrl = `${protocol}://${domain}`;
+
+  // Static favicon URLs generated in /public
+  const default48 = `${baseUrl}/favicon-48x48.png`;
+  const default192 = `${baseUrl}/favicon-192x192.png`;
+  const default512 = `${baseUrl}/favicon-512x512.png`;
+  const defaultSvg = `${baseUrl}/favicon.svg`;
+  const defaultIco = `${baseUrl}/favicon.ico`;
+  const appleTouch = `${baseUrl}/apple-touch-icon.png`;
+
+  let storeIconTags = "";
+  if (customLogo && customLogo.startsWith("http")) {
+    storeIconTags = `
+      <link rel="icon" type="image/png" sizes="48x48" href="${customLogo}" />
+      <link rel="icon" type="image/png" sizes="192x192" href="${customLogo}" />
+      <link rel="shortcut icon" href="${customLogo}" />
+      <link rel="apple-touch-icon" href="${customLogo}" />
+    `;
+  }
+
+  return `
+    <!-- Google Search & Universal Browser Favicon Tags -->
+    ${storeIconTags}
+    <link rel="icon" type="image/png" sizes="48x48" href="${default48}" />
+    <link rel="icon" type="image/png" sizes="192x192" href="${default192}" />
+    <link rel="icon" type="image/png" sizes="512x512" href="${default512}" />
+    <link rel="icon" type="image/svg+xml" href="${defaultSvg}" />
+    <link rel="shortcut icon" href="${defaultIco}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="${appleTouch}" />
+    <link rel="manifest" href="${baseUrl}/site.webmanifest" />
+  `;
+}
+
 export async function generateMetaTags(url: string, req: any): Promise<string> {
-  const host = req.get('host') || "";
+  const host = req.get('host') || "enrakipsiz.com";
   const normalizedHost = host.startsWith("www.") ? host.substring(4) : host;
   const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
 
@@ -73,24 +108,60 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
           // Enticing click-friendly description
           const compoundDesc = `${prop.title} - ${prop.kktc_region || prop.location || ''} bölgesinde ${priceStr} fiyatıyla satılık/kiralık ${prop.room_count || 'gayrimenkul'}. Oda sayısı: ${prop.room_count || ''}, Net alan: ${sqmStr}. Güncel resimler ve konum bilgisi için hemen tıklayın.`;
 
-          // Professional Schema structure (Satisfies Google Product Rich Snippet for pricing!)
+          // Professional Schema structure (Satisfies Google Product & Breadcrumb Rich Snippet)
+          const regionName = prop.kktc_region || prop.location || 'KKTC';
+          const typeName = prop.property_type || 'Gayrimenkul';
+
           const richSchema = {
             "@context": "https://schema.org",
-            "@type": "Product",
-            "name": prop.title,
-            "description": propDesc,
-            "image": prop.images || [],
-            "brand": {
-              "@type": "Brand",
-              "name": storeName
-            },
-            "offers": {
-              "@type": "Offer",
-              "price": prop.price,
-              "priceCurrency": prop.currency || "GBP",
-              "availability": "https://schema.org/InStock",
-              "url": propUrl
-            }
+            "@graph": [
+              {
+                "@type": "Product",
+                "name": prop.title,
+                "description": propDesc,
+                "image": prop.images || [],
+                "brand": {
+                  "@type": "Brand",
+                  "name": storeName
+                },
+                "offers": {
+                  "@type": "Offer",
+                  "price": prop.price,
+                  "priceCurrency": prop.currency || "GBP",
+                  "availability": "https://schema.org/InStock",
+                  "url": propUrl
+                }
+              },
+              {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                  {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Anasayfa",
+                    "item": `${protocol}://${host}`
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": regionName,
+                    "item": `${protocol}://${host}/?region=${encodeURIComponent(regionName)}`
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 3,
+                    "name": typeName,
+                    "item": `${protocol}://${host}/?type=${encodeURIComponent(typeName)}`
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 4,
+                    "name": prop.title,
+                    "item": propUrl
+                  }
+                ]
+              }
+            ]
           };
 
           const canonicalUrl = `${protocol}://${host}${pathOnly}`;
@@ -110,10 +181,7 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
             <meta name="twitter:title" content="${prop.title} | ${storeName}" />
             <meta name="twitter:description" content="${compoundDesc.substring(0, 160)}" />
             ${propImage ? `<meta name="twitter:image" content="${propImage}" />` : ''}
-            ${storeLogo ? `
-            <link rel="icon" href="${storeLogo}" />
-            <link rel="apple-touch-icon" href="${storeLogo}" />` : `
-            <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%23ea580c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3Cpath d='M9 22V12h6v10'/%3E%3C/svg%3E" />`}
+            ${renderFaviconTags(storeLogo, host, protocol)}
             <script type="application/ld+json">
             ${JSON.stringify(richSchema)}
             </script>
@@ -147,21 +215,48 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
 
           const carSchema = {
             "@context": "https://schema.org",
-            "@type": "Product",
-            "name": `${vehicle.brand} ${vehicle.model}`,
-            "description": vDesc,
-            "image": vImage ? [vImage] : [],
-            "brand": {
-              "@type": "Brand",
-              "name": vehicle.brand
-            },
-            "offers": {
-              "@type": "Offer",
-              "price": vehicle.selling_price || 0,
-              "priceCurrency": vehicle.currency || "EUR",
-              "availability": "https://schema.org/InStock",
-              "url": vUrl
-            }
+            "@graph": [
+              {
+                "@type": "Product",
+                "name": `${vehicle.brand} ${vehicle.model}`,
+                "description": vDesc,
+                "image": vImage ? [vImage] : [],
+                "brand": {
+                  "@type": "Brand",
+                  "name": vehicle.brand
+                },
+                "offers": {
+                  "@type": "Offer",
+                  "price": vehicle.selling_price || 0,
+                  "priceCurrency": vehicle.currency || "EUR",
+                  "availability": "https://schema.org/InStock",
+                  "url": vUrl
+                }
+              },
+              {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                  {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Anasayfa",
+                    "item": `${protocol}://${host}`
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": vehicle.brand,
+                    "item": `${protocol}://${host}/?brand=${encodeURIComponent(vehicle.brand)}`
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 3,
+                    "name": `${vehicle.brand} ${vehicle.model}`,
+                    "item": vUrl
+                  }
+                ]
+              }
+            ]
           };
 
           const canonicalUrl = `${protocol}://${host}${pathOnly}`;
@@ -181,10 +276,7 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
             <meta name="twitter:title" content="${vTitle}" />
             <meta name="twitter:description" content="${vDesc.substring(0, 160)}" />
             ${vImage ? `<meta name="twitter:image" content="${vImage}" />` : ''}
-            ${storeLogo ? `
-            <link rel="icon" href="${storeLogo}" />
-            <link rel="apple-touch-icon" href="${storeLogo}" />` : `
-            <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%23ea580c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3Cpath d='M9 22V12h6v10'/%3E%3C/svg%3E" />`}
+            ${renderFaviconTags(storeLogo, host, protocol)}
             <script type="application/ld+json">
             ${JSON.stringify(carSchema)}
             </script>
@@ -264,10 +356,7 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
             <meta name="twitter:title" content="${product.name} | ${store.name}" />
             <meta name="twitter:description" content="${(product.description || product.name).substring(0, 160)}" />
             <meta name="twitter:image" content="${product.image_url || ''}" />
-            ${storeLogo ? `
-            <link rel="icon" href="${storeLogo}" />
-            <link rel="apple-touch-icon" href="${storeLogo}" />` : `
-            <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7V5a2 2 0 0 1 2-2h2'/%3E%3Cpath d='M17 3h2a2 2 0 0 1 2 2v2'/%3E%3Cpath d='M21 17v2a2 2 0 0 1-2 2h-2'/%3E%3Cpath d='M7 21H5a2 2 0 0 1-2-2v-2'/%3E%3Cpath d='M7 12h10'/%3E%3C/svg%3E" />`}
+            ${renderFaviconTags(storeLogo, host, protocol)}
 
             <script type="application/ld+json">
             {
@@ -298,8 +387,8 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       }
     }
 
-    // --- 2. CASE: PORTAL HOMEPAGE (enrakipsiz.com) ---
-    if (normalizedHost === "enrakipsiz.com") {
+    // --- 2. CASE: PORTAL HOMEPAGE (enrakipsiz.com or portal routes) ---
+    if (normalizedHost === "enrakipsiz.com" || normalizedHost.includes("enrakipsiz")) {
       const portalSettingsRes = await pool.query("SELECT * FROM enrakipsiz_settings WHERE id = 1");
       const portalSettings = portalSettingsRes.rows[0] || {};
       
@@ -309,9 +398,7 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       const gaId = portalSettings.google_analytics_id;
       const gtmId = portalSettings.google_tag_manager_id;
       const gscId = portalSettings.google_search_console_id;
-
-      const primaryColor = portalSettings.primary_color || "#ea580c";
-      const escColor = encodeURIComponent(primaryColor);
+      const customPortalLogo = portalSettings.favicon_url || portalSettings.portal_logo_url || "";
 
       const canonicalUrl = `https://enrakipsiz.com${pathOnly}`;
 
@@ -324,10 +411,13 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
         <meta property="og:title" content="${title}" />
         <meta property="og:description" content="${desc}" />
         <meta property="og:type" content="website" />
+        <meta property="og:url" content="${canonicalUrl}" />
+        <meta property="og:image" content="https://enrakipsiz.com/favicon-512x512.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="${title}" />
         <meta name="twitter:description" content="${desc}" />
-        <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='${escColor}' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3Ccircle cx='12' cy='13' r='4' fill='${escColor}' fill-opacity='0.2'/%3E%3C/svg%3E" />
+        <meta name="twitter:image" content="https://enrakipsiz.com/favicon-512x512.png" />
+        ${renderFaviconTags(customPortalLogo, "enrakipsiz.com", protocol)}
       `;
 
       if (gscId) {
@@ -406,7 +496,7 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="${title}" />
         <meta name="twitter:description" content="${desc}" />
-        <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7V5a2 2 0 0 1 2-2h2'/%3E%3Cpath d='M17 3h2a2 2 0 0 1 2 2v2'/%3E%3Cpath d='M21 17v2a2 2 0 0 1-2 2h-2'/%3E%3Cpath d='M7 21H5a2 2 0 0 1-2-2v-2'/%3E%3Cpath d='M7 12h10'/%3E%3C/svg%3E" />
+        ${renderFaviconTags("", host, protocol)}
       `;
     }
 
@@ -488,10 +578,7 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       <meta name="twitter:title" content="${defaultTitle}" />
       <meta name="twitter:description" content="${defaultDesc.substring(0, 160)}" />
       ${storeLogo ? `<meta name="twitter:image" content="${storeLogo}" />` : ''}
-      ${storeLogo ? `
-      <link rel="icon" href="${storeLogo}" />
-      <link rel="apple-touch-icon" href="${storeLogo}" />` : `
-      <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7V5a2 2 0 0 1 2-2h2'/%3E%3Cpath d='M17 3h2a2 2 0 0 1 2 2v2'/%3E%3Cpath d='M21 17v2a2 2 0 0 1-2 2h-2'/%3E%3Cpath d='M7 21H5a2 2 0 0 1-2-2v-2'/%3E%3Cpath d='M7 12h10'/%3E%3C/svg%3E" />`}
+      ${renderFaviconTags(storeLogo, host, protocol)}
 
       <!-- Local Business Schema -->
       <script type="application/ld+json">

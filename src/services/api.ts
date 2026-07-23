@@ -483,4 +483,9 @@ export const api = {
   getRestaurantTables: (storeId?: number) => api.get(`/api/store/restaurant-tables${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   createRestaurantTable: (data: any, storeId?: number) => api.post(`/api/store/restaurant-tables${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateRestaurantTable: (id: number, data: any, storeId?: number) => api.put(`/api/store/restaurant-tables/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+
+  // Public Digital Menu Methods
+  getPublicDigitalMenuInfo: (storeIdentifier: string | number) => api.get(`/api/public/digital-menu/${storeIdentifier}/info`),
+  getPublicDigitalMenuProducts: (storeIdentifier: string | number) => api.get(`/api/public/digital-menu/${storeIdentifier}/products`),
+  getPublicDigitalMenuTables: (storeIdentifier: string | number) => api.get(`/api/public/digital-menu/${storeIdentifier}/tables`),
 };

@@ -100,11 +100,28 @@ const putTable = async (req: any, res: any) => {
 
 const transferTable = async (req: any, res: any) => {
     const storeId = req.user.store_id;
-    const { fromTableId, toTableId } = req.body;
+    const { fromTableId, toTableId, saleId } = req.body;
     try {
-        await pool.query("UPDATE sales SET restaurant_table_id = $1 WHERE restaurant_table_id = $2 AND store_id = $3 AND status = 'pending'", [toTableId, fromTableId, storeId]);
-        await pool.query("UPDATE restaurant_tables SET status = 'empty' WHERE id = $1 AND store_id = $2", [fromTableId, storeId]);
-        await pool.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [toTableId, storeId]);
+        if (saleId) {
+            await pool.query(
+                "UPDATE sales SET restaurant_table_id = $1, customer_name = COALESCE((SELECT 'Masa ' || table_number FROM restaurant_tables WHERE id = $1 LIMIT 1), customer_name) WHERE id = $2 AND store_id = $3",
+                [toTableId, saleId, storeId]
+            );
+            if (fromTableId) {
+                const rem = await pool.query("SELECT id FROM sales WHERE restaurant_table_id = $1 AND store_id = $2 AND status = 'pending'", [fromTableId, storeId]);
+                if (rem.rows.length === 0) {
+                    await pool.query("UPDATE restaurant_tables SET status = 'empty' WHERE id = $1 AND store_id = $2", [fromTableId, storeId]);
+                }
+            }
+        } else if (fromTableId) {
+            await pool.query("UPDATE sales SET restaurant_table_id = $1 WHERE restaurant_table_id = $2 AND store_id = $3 AND status = 'pending'", [toTableId, fromTableId, storeId]);
+            await pool.query("UPDATE restaurant_tables SET status = 'empty' WHERE id = $1 AND store_id = $2", [fromTableId, storeId]);
+        } else {
+            await pool.query("UPDATE sales SET restaurant_table_id = $1 WHERE store_id = $2 AND status = 'pending' AND (restaurant_table_id IS NULL OR customer_name LIKE '%Garson%')", [toTableId, storeId]);
+        }
+        if (toTableId) {
+            await pool.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [toTableId, storeId]);
+        }
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });

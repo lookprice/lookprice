@@ -343,6 +343,17 @@ export const EnrakipsizPortalManager: React.FC<EnrakipsizPortalManagerProps> = (
                   />
                 </div>
 
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Google Arama Favicon / Özel Logo URL (İsteğe Bağlı)</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                    value={enrakipsizSettings.favicon_url || ""}
+                    onChange={e => setEnrakipsizSettings({...enrakipsizSettings, favicon_url: e.target.value})}
+                    placeholder="Boş bırakılırsa varsayılan EnRakipsiz ikonu kullanılır (https://enrakipsiz.com/favicon-512x512.png)"
+                  />
+                </div>
+
                 <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 space-y-3">
                   <div>
                     <label className="block text-[9px] font-bold text-emerald-700 uppercase mb-1">Google Analytics ID</label>

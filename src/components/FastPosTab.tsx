@@ -929,24 +929,23 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
     try {
       setTransferLoading(true);
-      // We need IDs for transfer, but our POS uses table_numbers as identifiers in many places.
-      // Let's fetch table IDs first or update API to handle numbers.
-      // For now, let's assume the API handles it or we find the IDs.
-      const fromTable = allTables.find(t => t.table_number === selectedTable);
       const toTable = allTables.find(t => t.table_number === targetTableNumber);
 
-      if (!fromTable || !toTable) {
-        toast.error(lang === 'tr' ? "Masa bilgileri bulunamadı." : "Table info not found.");
+      if (!toTable) {
+        toast.error(lang === 'tr' ? "Hedef masa bulunamadı." : "Target table not found.");
         return;
       }
 
+      const fromTable = allTables.find(t => t.table_number === selectedTable);
+
       const res = await api.post("/api/store/restaurant/tables/transfer", {
-        fromTableId: fromTable.id,
-        toTableId: toTable.id
+        fromTableId: fromTable ? fromTable.id : null,
+        toTableId: toTable.id,
+        saleId: activeSaleId
       });
 
       if (res && res.success) {
-        toast.success(lang === 'tr' ? "Masa başarıyla taşındı." : "Table transferred successfully.");
+        toast.success(lang === 'tr' ? `Adisyon ${targetTableNumber} masasına başarıyla taşındı.` : `Order transferred to table ${targetTableNumber} successfully.`);
         setIsChangingTable(false);
         setSelectedTable(null);
         setActiveSaleId(null);
@@ -1166,17 +1165,29 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           <TableGrid 
             storeId={storeId!} 
             refreshTrigger={tablesRefreshTrigger}
+            pendingSales={pendingSales}
             onTableSelect={(table) => {
               setSelectedTable(table.table_number);
               if (table.status === 'occupied') {
-                // Find the sale for this table using normalization
                 const normalizeName = (str: string) => str ? str.toLowerCase().replace(/\s+/g, '') : '';
-                const sale = pendingSales.find(s => {
-                  if (s.restaurant_table_id === table.id) return true;
-                  const sName = normalizeName(s.customer_name);
-                  const tNum = normalizeName(table.table_number);
-                  return sName === tNum || sName === `masa${tNum}` || sName.includes(`masa${tNum}`) || sName === `table${tNum}`;
-                });
+                let sale = null;
+
+                if (table.isGarsonTable || table.id === -999 || table.table_number === 'Garson Masası') {
+                  sale = pendingSales.find(s => 
+                    s.restaurant_table_id === null || 
+                    s.customer_name?.toLowerCase().includes('garson') || 
+                    s.customer_name === 'Masa Siparişi' || 
+                    s.notes?.toLowerCase().includes('garson')
+                  );
+                } else {
+                  sale = pendingSales.find(s => {
+                    if (s.restaurant_table_id === table.id) return true;
+                    const sName = normalizeName(s.customer_name);
+                    const tNum = normalizeName(table.table_number);
+                    return sName === tNum || sName === `masa${tNum}` || sName.includes(`masa${tNum}`) || sName === `table${tNum}`;
+                  });
+                }
+
                 if (sale) {
                   setActiveSaleId(sale.id);
                   const mappedCart = sale.items.map((it: any) => {
@@ -1195,6 +1206,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                     };
                   });
                   setCart(mappedCart);
+                } else {
+                  setActiveSaleId(null);
+                  setCart([]);
                 }
               } else {
                 setActiveSaleId(null);
@@ -1204,9 +1218,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 overflow-y-auto lg:overflow-hidden min-h-0">
           {/* Left Side: Product Search & Selection */}
-          <div className="lg:col-span-7 flex flex-col space-y-4 overflow-hidden">
+          <div className="lg:col-span-7 flex flex-col space-y-4 overflow-visible lg:overflow-hidden">
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
               <div className="relative">
                 <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-500" />
@@ -1285,18 +1299,18 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               </div>
             )}
 
-            <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-y-auto p-4">
+            <div className="flex-1 min-h-[380px] sm:min-h-[440px] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-y-auto p-3 sm:p-4">
               {filteredProducts.length > 0 ? (
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3">
                   {filteredProducts.map((product) => (
                     <button
                       key={product.id}
                       onClick={() => addToCart(product)}
                       title={product.name}
-                      className="relative flex flex-col h-48 w-full bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50/40 hover:z-10 transition-all text-center group active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500 touch-manipulation"
+                      className="relative flex flex-col h-44 sm:h-48 w-full bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50/40 hover:z-10 transition-all text-center group active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500 touch-manipulation cursor-pointer shadow-xs"
                     >
-                      {/* Top Half: Image (50% of card height) */}
-                      <div className="w-full h-24 bg-white flex items-center justify-center p-3 border-b border-slate-100 rounded-t-xl overflow-hidden">
+                      {/* Top Half: Image */}
+                      <div className="w-full h-20 sm:h-24 bg-white flex items-center justify-center p-2 sm:p-3 border-b border-slate-100 rounded-t-xl overflow-hidden">
                         {product.image_url ? (
                           <img 
                             src={product.image_url} 
@@ -1305,28 +1319,28 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                             referrerPolicy="no-referrer" 
                           />
                         ) : (
-                          <Package className="h-10 w-10 text-slate-300 group-hover:scale-105 transition-transform duration-200" />
+                          <Package className="h-8 w-8 sm:h-10 sm:w-10 text-slate-300 group-hover:scale-105 transition-transform duration-200" />
                         )}
                       </div>
 
-                      {/* Bottom Half: Name & Price (50% of card height) */}
-                      <div className="w-full h-24 p-3 flex flex-col justify-between items-center bg-slate-50 group-hover:bg-indigo-50/40 rounded-b-xl relative">
+                      {/* Bottom Half: Name & Price */}
+                      <div className="w-full flex-1 p-2 sm:p-3 flex flex-col justify-between items-center bg-slate-50 group-hover:bg-indigo-50/40 rounded-b-xl relative">
                         <div className="w-full flex-1 flex items-center justify-center overflow-hidden">
-                          <span className="text-sm font-bold text-slate-800 line-clamp-2 px-1 text-center leading-tight">
+                          <span className="text-xs sm:text-sm font-bold text-slate-800 line-clamp-2 px-0.5 text-center leading-tight">
                             {product.name}
                           </span>
                         </div>
-                        <span className="text-sm font-black text-indigo-600 mt-1 whitespace-nowrap">
+                        <span className="text-xs sm:text-sm font-black text-indigo-600 mt-1 whitespace-nowrap">
                           {product.price} {product.currency || 'TRY'}
                         </span>
                       </div>
 
                       {/* Full-card Elegant Overlay on Hover/Focus */}
-                      <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-xs text-white flex flex-col items-center justify-center p-4 rounded-xl opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-all duration-200 pointer-events-none z-10 text-center">
-                        <ShoppingCart className="h-6 w-6 text-indigo-400 mb-2 animate-bounce" />
+                      <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-xs text-white flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-all duration-200 pointer-events-none z-10 text-center">
+                        <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-400 mb-1.5 animate-bounce" />
                         <p className="text-xs font-extrabold line-clamp-3 px-1 leading-snug">{product.name}</p>
-                        <p className="text-sm text-indigo-300 mt-2 font-black">{product.price} {product.currency || 'TRY'}</p>
-                        <span className="text-[10px] bg-indigo-600 text-white font-bold px-3 py-1 rounded-lg mt-3 tracking-wider">
+                        <p className="text-xs sm:text-sm text-indigo-300 mt-1.5 font-black">{product.price} {product.currency || 'TRY'}</p>
+                        <span className="text-[10px] bg-indigo-600 text-white font-bold px-2.5 py-1 rounded-lg mt-2 tracking-wider">
                           {lang === 'tr' ? 'SEPETE EKLE' : 'ADD TO CART'}
                         </span>
                       </div>
@@ -1334,12 +1348,12 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   ))}
                 </div>
               ) : searchTerm.length > 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                <div className="flex flex-col items-center justify-center h-full min-h-[250px] text-slate-400">
                   <Search className="h-12 w-12 mb-2 opacity-20" />
                   <p className="text-sm font-medium">{lang === 'tr' ? 'Ürün bulunamadı' : 'No products found'}</p>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                <div className="flex flex-col items-center justify-center h-full min-h-[250px] text-slate-400">
                   <Barcode className="h-16 w-16 mb-4 opacity-10" />
                   <p className="text-sm font-medium">{lang === 'tr' ? 'Satış yapmak için ürün seçin veya barkod okutun' : 'Select products or scan barcode to start sale'}</p>
                 </div>
@@ -1348,8 +1362,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           </div>
 
           {/* Right Side: Cart & Checkout */}
-          <div className="lg:col-span-5 flex flex-col space-y-4 overflow-hidden">
-            <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+          <div className="lg:col-span-5 flex flex-col space-y-4 overflow-visible lg:overflow-hidden">
+            <div className="flex-1 min-h-[320px] bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="h-5 w-5 text-indigo-600" />
