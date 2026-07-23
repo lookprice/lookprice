@@ -89,7 +89,7 @@ async function startServer() {
     hasGoogleMapsKey: !!process.env.GOOGLE_MAPS_PLATFORM_KEY
   });
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   app.set("trust proxy", true);
 
@@ -639,6 +639,17 @@ function sanitizeFilename(originalName: string): string {
         regions.forEach((reg) => {
           xml += `  <url>
     <loc>${escapeXml(`${storeBaseUrl}/?region=${encodeURIComponent(reg)}`)}</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
+  </url>\n`;
+        });
+
+        // Popular Vehicle Brand Hubs for Auto Search Rankings
+        const popularVehicleBrands = ["Mercedes-Benz", "BMW", "Audi", "Toyota", "Honda", "Nissan", "Land Rover", "Porsche", "Volkswagen", "Ford", "Hyundai", "Kia"];
+        popularVehicleBrands.forEach((b) => {
+          xml += `  <url>
+    <loc>${escapeXml(`${storeBaseUrl}/?brand=${encodeURIComponent(b)}`)}</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.85</priority>

@@ -189,7 +189,7 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
         }
       }
 
-      // B. Vehicle Details
+      // B. Vehicle Details (Automated Smart SEO Engine)
       if (isVehicle && !isNaN(parsedId)) {
         const vRes = await pool.query(
           "SELECT * FROM vehicles WHERE id = $1 LIMIT 1",
@@ -199,7 +199,7 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
           const vehicle = vRes.rows[0];
           // Get parent store details
           const storeRes = await pool.query(
-            "SELECT id, name, slug, logo_url FROM stores WHERE id = $1 LIMIT 1",
+            "SELECT id, name, slug, logo_url, address FROM stores WHERE id = $1 LIMIT 1",
             [vehicle.store_id]
           );
           const store = storeRes.rows[0] || {};
@@ -207,24 +207,90 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
           const storeLogo = store.logo_url || "";
 
           const vUrl = `${protocol}://${host}${url}`;
-          const vImage = vehicle.image_url || store.logo_url || '';
-          const vTitle = `${vehicle.brand} ${vehicle.model} (${vehicle.year}) | ${storeName}`;
-          const priceStr = `${vehicle.selling_price ? vehicle.selling_price.toLocaleString('tr-TR') : ''} ${vehicle.currency || 'EUR'}`;
           
-          const vDesc = `${vehicle.brand} ${vehicle.model} (${vehicle.year}) - ${priceStr} fiyatıyla satılık. Kilometre: ${vehicle.current_mileage ? vehicle.current_mileage.toLocaleString('tr-TR') : '0'} km, Vites: ${vehicle.transmission || ''}, Yakıt: ${vehicle.fuel_type || ''}. Detaylar ve galeri için tıklayın.`;
+          // Image resolution
+          let vImages: string[] = [];
+          if (Array.isArray(vehicle.images) && vehicle.images.length > 0) {
+            vImages = vehicle.images;
+          } else if (vehicle.image_url) {
+            vImages = [vehicle.image_url];
+          } else if (storeLogo) {
+            vImages = [storeLogo];
+          }
+          const primaryImage = vImages[0] || '';
 
+          // Price & Stats Formatting
+          const transMap: Record<string, string> = {
+            'manual': 'Manuel',
+            'automatic': 'Otomatik',
+            'semi_automatic': 'Yarı Otomatik',
+            'dual_clutch': 'Çift Kavrama'
+          };
+          const fuelMap: Record<string, string> = {
+            'gasoline': 'Benzin',
+            'diesel': 'Dizel',
+            'gasoline_hybrid': 'Benzin / Hibrit',
+            'diesel_hybrid': 'Dizel / Hibrit',
+            'electric': 'Elektrik',
+            'lpg': 'LPG'
+          };
+
+          const priceStr = vehicle.selling_price ? `${vehicle.selling_price.toLocaleString('tr-TR')} ${vehicle.currency || 'EUR'}` : 'Uyguna Satılık';
+          const kmStr = vehicle.current_mileage ? `${vehicle.current_mileage.toLocaleString('tr-TR')} km` : 'Düşük KM';
+          const pkgStr = vehicle.package_name ? ` ${vehicle.package_name}` : '';
+          const transStr = transMap[vehicle.transmission?.toLowerCase()] || vehicle.transmission || 'Otomatik';
+          const fuelStr = fuelMap[vehicle.fuel_type?.toLowerCase()] || vehicle.fuel_type || 'Benzin';
+          const yearStr = vehicle.year ? `${vehicle.year} ` : '';
+
+          // 1. DYNAMIC HIGH-CONVERTING TITLE TAG
+          const vTitle = `Satılık ${yearStr}${vehicle.brand} ${vehicle.model}${pkgStr} (${transStr}, ${fuelStr}) | KKTC İkinci El Oto Galeri - ${storeName}`;
+
+          // 2. AUTOMATED SEARCH-INTENT DESCRIPTION PARAGRAPH
+          const tramerText = (vehicle.tramer_amount && Number(vehicle.tramer_amount) > 0)
+            ? `Tramer Kaydı: ${Number(vehicle.tramer_amount).toLocaleString('tr-TR')} ${vehicle.tramer_currency || 'TRY'}.`
+            : 'Hasarsız / Tramer Kayıtsız temiz kondisyonda.';
+
+          const tradeInText = vehicle.is_trade_in_available ? 'Takas seçeneği mevcuttur.' : '';
+
+          const autoDescription = `KKTC satılık ${yearStr}${vehicle.brand} ${vehicle.model}${pkgStr} (${transStr}, ${fuelStr}, ${kmStr}). ${tramerText} ${priceStr} cazip fiyatı ve ${storeName} güvencesiyle Girne / Lefkoşa galeri teslimi. ${tradeInText} Detaylı resimler ve ekspertiz için tıklayın.`;
+
+          // 3. TARGETED LONG-TAIL KEYWORDS
+          const keywordsArr = [
+            `kktc satılık ${vehicle.brand} ${vehicle.model}`,
+            `kıbrıs ${yearStr}${vehicle.brand} ${vehicle.model}`,
+            `ikinci el ${vehicle.brand} ${vehicle.model} lefkoşa`,
+            `girne satılık ${vehicle.brand}`,
+            `kktc oto galeri ${vehicle.brand}`,
+            `sahibinden ${vehicle.brand} ${vehicle.model} kıbrıs`,
+            `satılık ${transStr.toLowerCase()} ${vehicle.brand}`,
+            `${storeName} satılık araçlar`
+          ];
+          const vKeywords = keywordsArr.join(", ");
+
+          // 4. SCHEMA.ORG "Car" STRUCTURED DATA
           const carSchema = {
             "@context": "https://schema.org",
             "@graph": [
               {
-                "@type": "Product",
-                "name": `${vehicle.brand} ${vehicle.model}`,
-                "description": vDesc,
-                "image": vImage ? [vImage] : [],
+                "@type": "Car",
+                "name": `${yearStr}${vehicle.brand} ${vehicle.model}${pkgStr}`,
+                "description": autoDescription,
+                "image": vImages,
                 "brand": {
                   "@type": "Brand",
                   "name": vehicle.brand
                 },
+                "model": vehicle.model,
+                "vehicleModelDate": `${vehicle.year || ''}`,
+                "fuelType": fuelStr,
+                "vehicleTransmission": transStr,
+                "mileageFromOdometer": {
+                  "@type": "QuantitativeValue",
+                  "value": vehicle.current_mileage || 0,
+                  "unitCode": "KMT"
+                },
+                "color": vehicle.color || undefined,
+                "bodyType": vehicle.body_type || undefined,
                 "offers": {
                   "@type": "Offer",
                   "price": vehicle.selling_price || 0,
@@ -245,12 +311,18 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
                   {
                     "@type": "ListItem",
                     "position": 2,
+                    "name": "Oto Galeri & Satılık Araçlar",
+                    "item": `${protocol}://${host}/?category=otomobil`
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 3,
                     "name": vehicle.brand,
                     "item": `${protocol}://${host}/?brand=${encodeURIComponent(vehicle.brand)}`
                   },
                   {
                     "@type": "ListItem",
-                    "position": 3,
+                    "position": 4,
                     "name": `${vehicle.brand} ${vehicle.model}`,
                     "item": vUrl
                   }
@@ -264,18 +336,18 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
           return `
             <title>${vTitle}</title>
             <link rel="canonical" href="${canonicalUrl}" />
-            <meta name="description" content="${vDesc.substring(0, 160)}" />
-            <meta name="keywords" content="${vehicle.brand} ${vehicle.model}, kktc satılık araba, kıbrıs oto galeri, sahibinden ikinci el, ${storeName}" />
+            <meta name="description" content="${autoDescription.substring(0, 160)}" />
+            <meta name="keywords" content="${vKeywords}" />
             <meta name="robots" content="index, follow" />
             <meta property="og:type" content="product" />
             <meta property="og:url" content="${vUrl}" />
             <meta property="og:title" content="${vTitle}" />
-            <meta property="og:description" content="${vDesc.substring(0, 160)}" />
-            ${vImage ? `<meta property="og:image" content="${vImage}" />` : ''}
+            <meta property="og:description" content="${autoDescription.substring(0, 160)}" />
+            ${primaryImage ? `<meta property="og:image" content="${primaryImage}" />` : ''}
             <meta name="twitter:card" content="summary_large_image" />
             <meta name="twitter:title" content="${vTitle}" />
-            <meta name="twitter:description" content="${vDesc.substring(0, 160)}" />
-            ${vImage ? `<meta name="twitter:image" content="${vImage}" />` : ''}
+            <meta name="twitter:description" content="${autoDescription.substring(0, 160)}" />
+            ${primaryImage ? `<meta name="twitter:image" content="${primaryImage}" />` : ''}
             ${renderFaviconTags(storeLogo, host, protocol)}
             <script type="application/ld+json">
             ${JSON.stringify(carSchema)}
