@@ -1,6 +1,7 @@
 import express from "express";
 import { pool } from "../../models/db";
 import { getAuthorizedStoreId } from "./utils";
+import { cleanDeepBase64, replaceAllBase64InString } from "../utils/imageStorage";
 
 const router = express.Router();
 
@@ -34,34 +35,39 @@ router.post("/", async (req: any, res) => {
       try { existingBranding = JSON.parse(existingBranding); } catch (e) { existingBranding = {}; }
     }
 
-    // Merge incoming req.body with existing branding
-    const updatedBranding = { ...existingBranding, ...req.body };
+    // Clean base64 data in incoming body
+    const cleanedBody = cleanDeepBase64(req.body, `store_${targetStoreId}_branding`);
 
-    // Resolve column values (prefer req.body, then existingStore)
-    const name = req.body.name !== undefined ? req.body.name : existingStore.name;
-    const logo_url = req.body.logo_url !== undefined ? req.body.logo_url : existingStore.logo_url;
-    const favicon_url = req.body.favicon_url !== undefined ? req.body.favicon_url : existingStore.favicon_url;
-    const primary_color = req.body.primary_color !== undefined ? req.body.primary_color : existingStore.primary_color;
-    const background_image_url = req.body.background_image_url !== undefined ? req.body.background_image_url : existingStore.background_image_url;
-    const about_text = req.body.about_text !== undefined ? req.body.about_text : existingStore.about_text;
-    const description = req.body.description !== undefined ? req.body.description : existingStore.description;
-    const phone = req.body.phone !== undefined ? req.body.phone : existingStore.phone;
-    const address = req.body.address !== undefined ? req.body.address : existingStore.address;
-    const email = req.body.email !== undefined ? req.body.email : existingStore.email;
+    // Merge incoming cleaned body with existing branding
+    const updatedBranding = cleanDeepBase64({ ...existingBranding, ...cleanedBody }, `store_${targetStoreId}_branding`);
+
+    // Resolve column values (prefer cleanedBody, then existingStore)
+    const name = cleanedBody.name !== undefined ? cleanedBody.name : existingStore.name;
+    const logo_url = replaceAllBase64InString(cleanedBody.logo_url !== undefined ? cleanedBody.logo_url : existingStore.logo_url, `store_${targetStoreId}_logo`);
+    const favicon_url = replaceAllBase64InString(cleanedBody.favicon_url !== undefined ? cleanedBody.favicon_url : existingStore.favicon_url, `store_${targetStoreId}_favicon`);
+    const primary_color = cleanedBody.primary_color !== undefined ? cleanedBody.primary_color : existingStore.primary_color;
+    const background_image_url = replaceAllBase64InString(cleanedBody.background_image_url !== undefined ? cleanedBody.background_image_url : existingStore.background_image_url, `store_${targetStoreId}_bg`);
+    const about_text = cleanedBody.about_text !== undefined ? cleanedBody.about_text : existingStore.about_text;
+    const description = cleanedBody.description !== undefined ? cleanedBody.description : existingStore.description;
+    const phone = cleanedBody.phone !== undefined ? cleanedBody.phone : existingStore.phone;
+    const address = cleanedBody.address !== undefined ? cleanedBody.address : existingStore.address;
+    const email = cleanedBody.email !== undefined ? cleanedBody.email : existingStore.email;
     
-    const page_layout = req.body.page_layout !== undefined ? req.body.page_layout : existingStore.page_layout;
-    const menu_links = req.body.menu_links !== undefined ? req.body.menu_links : existingStore.menu_links;
-    const footer_links = req.body.footer_links !== undefined ? req.body.footer_links : existingStore.footer_links;
-    const store_type = req.body.store_type !== undefined ? req.body.store_type : existingStore.store_type;
-    const sub_sector = req.body.sub_sector !== undefined ? req.body.sub_sector : existingStore.sub_sector;
+    let page_layout = cleanedBody.page_layout !== undefined ? cleanedBody.page_layout : existingStore.page_layout;
+    page_layout = cleanDeepBase64(page_layout, `store_${targetStoreId}_layout`);
+    
+    const menu_links = cleanedBody.menu_links !== undefined ? cleanedBody.menu_links : existingStore.menu_links;
+    const footer_links = cleanedBody.footer_links !== undefined ? cleanedBody.footer_links : existingStore.footer_links;
+    const store_type = cleanedBody.store_type !== undefined ? cleanedBody.store_type : existingStore.store_type;
+    const sub_sector = cleanedBody.sub_sector !== undefined ? cleanedBody.sub_sector : existingStore.sub_sector;
 
-    const hero_title = req.body.hero_title !== undefined ? req.body.hero_title : existingStore.hero_title;
-    const hero_subtitle = req.body.hero_subtitle !== undefined ? req.body.hero_subtitle : existingStore.hero_subtitle;
-    const hero_image_url = req.body.hero_image_url !== undefined ? req.body.hero_image_url : existingStore.hero_image_url;
-    const instagram_url = req.body.instagram_url !== undefined ? req.body.instagram_url : existingStore.instagram_url;
-    const facebook_url = req.body.facebook_url !== undefined ? req.body.facebook_url : existingStore.facebook_url;
-    const twitter_url = req.body.twitter_url !== undefined ? req.body.twitter_url : existingStore.twitter_url;
-    const whatsapp_number = req.body.whatsapp_number !== undefined ? req.body.whatsapp_number : existingStore.whatsapp_number;
+    const hero_title = cleanedBody.hero_title !== undefined ? cleanedBody.hero_title : existingStore.hero_title;
+    const hero_subtitle = cleanedBody.hero_subtitle !== undefined ? cleanedBody.hero_subtitle : existingStore.hero_subtitle;
+    const hero_image_url = replaceAllBase64InString(cleanedBody.hero_image_url !== undefined ? cleanedBody.hero_image_url : existingStore.hero_image_url, `store_${targetStoreId}_hero`);
+    const instagram_url = cleanedBody.instagram_url !== undefined ? cleanedBody.instagram_url : existingStore.instagram_url;
+    const facebook_url = cleanedBody.facebook_url !== undefined ? cleanedBody.facebook_url : existingStore.facebook_url;
+    const twitter_url = cleanedBody.twitter_url !== undefined ? cleanedBody.twitter_url : existingStore.twitter_url;
+    const whatsapp_number = cleanedBody.whatsapp_number !== undefined ? cleanedBody.whatsapp_number : existingStore.whatsapp_number;
 
     await pool.query(`
       UPDATE stores 

@@ -500,7 +500,8 @@ function sanitizeFilename(originalName: string): string {
   });
 
   // Keep-alive logic for Render (pings the app every 5 minutes)
-  const APP_URL = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL;
+  const rawAppUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL;
+  const APP_URL = rawAppUrl ? rawAppUrl.trim().replace(/\/+$/, "") : null;
   if (APP_URL) {
     console.log(`Keep-alive system initialized for: ${APP_URL}`);
     
@@ -509,8 +510,8 @@ function sanitizeFilename(originalName: string): string {
       try {
         const response = await fetch(`${APP_URL}/api/health`);
         console.log(`Initial keep-alive check for ${APP_URL}: ${response.status}`);
-      } catch (e) {
-        console.error("Initial keep-alive check failed. Check your APP_URL variable.");
+      } catch (e: any) {
+        console.warn(`Initial keep-alive check for ${APP_URL} notice: ${e?.message || e}`);
       }
     }, 30000);
 

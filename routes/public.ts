@@ -666,15 +666,6 @@ router.get("/store/:slug", async (req, res) => {
       Object.assign(store, store.branding);
     }
 
-    // Fetch branches if this is a main store
-    if (!store.parent_id) {
-      const branchesRes = await pool.query(
-        "SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1",
-        [store.id]
-      );
-      store.branches = branchesRes.rows;
-    }
-
     // Sanitize payment_settings to only expose enabled flags and sandbox mode
     let ps = store.payment_settings || {};
     if (typeof ps === 'string') {
@@ -721,18 +712,19 @@ router.get("/store/:slug", async (req, res) => {
   
   if (!store) return res.status(404).json({ error: "Store not found" });
 
-  // Fetch blog posts from the new table
-  const blogRes = await pool.query(
-    "SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC", 
-    [store.id]
-  );
-  store.blog_posts = blogRes.rows;
+  // Fetch branches, blog posts, and consultants in parallel
+  const [branchesRes, blogRes, consultantsRes2] = await Promise.all([
+    !store.parent_id
+      ? pool.query("SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1", [store.id])
+      : Promise.resolve({ rows: [] }),
+    pool.query("SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC", [store.id]),
+    pool.query("SELECT id, name, email, phone, role, image_url FROM consultants WHERE store_id = $1 AND (status IS NULL OR status != 'inactive') ORDER BY name ASC", [store.id])
+  ]);
 
-  // Fetch consultants 
-  const consultantsRes2 = await pool.query(
-    "SELECT id, name, email, phone, role, image_url FROM consultants WHERE store_id = $1 AND (status IS NULL OR status != 'inactive') ORDER BY name ASC", 
-    [store.id]
-  );
+  if (!store.parent_id) {
+    store.branches = branchesRes.rows;
+  }
+  store.blog_posts = blogRes.rows;
   store.consultants = consultantsRes2.rows;
 
   res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
