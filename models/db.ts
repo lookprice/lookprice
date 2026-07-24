@@ -1494,6 +1494,10 @@ export async function initDb() {
 
         -- 5. Remove incorrect unique constraint for transactions that was preventing multiple entries per quotation
         ALTER TABLE current_account_transactions DROP CONSTRAINT IF EXISTS current_account_transactions_quotation_id_key;
+
+        -- 6. Clean up orphaned current account transactions from deleted invoices
+        DELETE FROM current_account_transactions WHERE purchase_invoice_id IS NULL AND description LIKE 'Alış Faturası:%';
+        DELETE FROM current_account_transactions WHERE sales_invoice_id IS NULL AND (description LIKE 'Satış Faturası:%' OR description LIKE 'Fatura:%');
       END $$;
     `);
     console.log("Duplicate company cleanup completed.");

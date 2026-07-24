@@ -243,12 +243,23 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
     }
   }, [store.slug]);
 
-  const team = store.consultants && store.consultants.length > 0 
-    ? store.consultants.map(c => ({
-        id: c.id?.toString() || c.name,
-        name: c.name,
-        role: c.role || "Satış Temsilcisi",
-        image: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
+  const teamSource = 
+    (store as any).page_layout_settings?.team && Array.isArray((store as any).page_layout_settings.team) && (store as any).page_layout_settings.team.length > 0
+      ? (store as any).page_layout_settings.team
+      : (store as any).branding?.team && Array.isArray((store as any).branding.team) && (store as any).branding.team.length > 0
+        ? (store as any).branding.team
+        : (store as any).team && Array.isArray((store as any).team) && (store as any).team.length > 0
+          ? (store as any).team
+          : store.consultants && store.consultants.length > 0
+            ? store.consultants
+            : [];
+
+  const team = teamSource.length > 0
+    ? teamSource.map((c: any, idx: number) => ({
+        id: c.id?.toString() || `member_${idx}`,
+        name: c.name || "Satış Temsilcisi",
+        role: c.role || "Danışman",
+        image: c.image || c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
       }))
     : [
     {
@@ -301,30 +312,46 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   }, [store.page_layout_full, store.page_layout]);
 
   const banners = React.useMemo(() => {
-    const customBanners = (store as any).branding?.banners || [];
-    if (customBanners.length > 0) {
-      return customBanners;
-    }
-    const configBanners = layoutConfig.banners || [];
-    if (configBanners.length > 0) {
-      return configBanners.map((url: string, i: number) => ({
-        id: `config_${i}`,
-        image_url: url,
+    const rawBanners = 
+      (store as any).banners || 
+      (store as any).branding?.banners || 
+      layoutConfig.banners || 
+      [];
+
+    if (!Array.isArray(rawBanners) || rawBanners.length === 0) {
+      return [{
+        id: "fallback",
+        image_url: content.hero.bgImage,
         title: content.hero.title,
         subtitle: content.hero.subtitle,
         text_position: 'center',
         show_store_name: true,
-      }));
+      }];
     }
-    return [{
-      id: "fallback",
-      image_url: content.hero.bgImage,
-      title: content.hero.title,
-      subtitle: content.hero.subtitle,
-      text_position: 'center',
-      show_store_name: true,
-    }];
-  }, [(store as any).branding?.banners, layoutConfig.banners, content.hero]);
+
+    return rawBanners.map((b: any, i: number) => {
+      if (typeof b === 'string') {
+        return {
+          id: `banner_${i}`,
+          image_url: b,
+          title: content.hero.title,
+          subtitle: content.hero.subtitle,
+          text_position: 'center',
+          show_store_name: true,
+        };
+      }
+      return {
+        id: b.id || `banner_${i}`,
+        image_url: b.image_url || b.url || (typeof b === 'string' ? b : content.hero.bgImage),
+        title: b.title || content.hero.title,
+        subtitle: b.subtitle || content.hero.subtitle,
+        text_position: b.text_position || 'center',
+        show_store_name: b.show_store_name !== false,
+        button_text: b.button_text,
+        button_link: b.button_link,
+      };
+    });
+  }, [(store as any).banners, (store as any).branding?.banners, layoutConfig.banners, content.hero]);
 
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 

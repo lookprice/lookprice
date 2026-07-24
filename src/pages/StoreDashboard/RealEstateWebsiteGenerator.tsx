@@ -185,9 +185,13 @@ export const RealEstateWebsiteGenerator = ({
       }).catch(console.error);
 
       api.getBlogPosts(storeId).then((res) => { if (Array.isArray(res)) setBlogs(res.filter((b) => b.is_published).slice(0, 3)); }).catch(console.error);
-      api.getConsultants(storeId).then((res) => {
-        if (Array.isArray(res)) {
-          setTeam(res.map((c) => ({ id: c.id.toString(), name: c.name, role: c.role || "Danışman", image: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400" })));
+      api.getConsultants(storeId).then((cRes) => {
+        if (Array.isArray(cRes) && cRes.length > 0) {
+          setTeam(cRes.map((c) => ({ id: c.id.toString(), name: c.name, role: c.role || "Danışman", image: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400" })));
+        } else if (originalBranding.page_layout_settings?.team && Array.isArray(originalBranding.page_layout_settings.team)) {
+          setTeam(originalBranding.page_layout_settings.team);
+        } else if (originalBranding.team && Array.isArray(originalBranding.team)) {
+          setTeam(originalBranding.team);
         }
       }).catch(console.error);
     }
@@ -196,19 +200,48 @@ export const RealEstateWebsiteGenerator = ({
   const handleSave = async () => {
     if (!storeId) return;
     try {
-      const updatedLayout = { sections: sections.map((s) => ({ id: s.id, enabled: s.enabled })), grid: gridLayout, count: featuredCount, banners: banners, quickLinks, corporateLinks };
-      const firstBannerUrl = banners.length > 0 ? (typeof banners[0] === 'string' ? banners[0] : banners[0].image_url) : originalBranding.hero_image_url;
+      const normalizedBanners = (banners || []).map((b: any, idx: number) => {
+        if (typeof b === 'string') {
+          return {
+            id: `slide_${idx}`,
+            image_url: b,
+            title: content.hero.title,
+            subtitle: content.hero.subtitle,
+            text_position: "center",
+            show_store_name: true,
+            button_text: isTr ? "İncele" : "Explore",
+            button_link: "#portfolio"
+          };
+        }
+        return {
+          ...b,
+          image_url: b.image_url || b.url || ""
+        };
+      });
+
+      const updatedLayout = { 
+        sections: sections.map((s) => ({ id: s.id, enabled: s.enabled })), 
+        grid: gridLayout, 
+        count: featuredCount, 
+        banners: normalizedBanners, 
+        team: team,
+        quickLinks, 
+        corporateLinks 
+      };
+
+      const firstBannerUrl = normalizedBanners.length > 0 ? normalizedBanners[0].image_url : originalBranding.hero_image_url;
       const payload = { 
         ...originalBranding, 
         logo_url: logoUrl, 
         favicon_url: faviconUrl, 
         page_layout: updatedLayout, 
-        page_layout_settings: { ...originalBranding.page_layout_settings, web_content: content }, 
+        page_layout_settings: { ...originalBranding.page_layout_settings, web_content: content, team: team }, 
+        team: team,
         slogan: content.trustSlogan, 
         slug: storeSlug, 
         custom_domain: useCustomDomain ? customDomain : null, 
         hero_image_url: firstBannerUrl,
-        banners: banners
+        banners: normalizedBanners
       };
       await api.updateBranding(payload, storeId);
       alert(isTr ? "Ayarlar başarıyla kaydedildi!" : "Settings saved successfully!");

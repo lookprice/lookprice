@@ -1271,13 +1271,48 @@ router.put("/purchase/:id", async (req: any, res) => {
   }
 });
 
+router.delete("/sales/:id", async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const { id } = req.params;
+
+    const checkRes = await pool.query("SELECT id, invoice_number, quotation_id, sale_id FROM sales_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    const invoice = checkRes.rows[0];
+
+    // Revert stock
+    const oldItems = await pool.query("SELECT product_id, quantity FROM sales_invoice_items WHERE sales_invoice_id = $1", [id]);
+    for (const item of oldItems.rows) {
+      if (item.product_id) {
+        await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [item.quantity, item.product_id, storeId]);
+      }
+    }
+
+    if (invoice.invoice_number) {
+      await pool.query("DELETE FROM stock_movements WHERE source = 'sales_invoice' AND description LIKE $1", [`%${invoice.invoice_number}%`]);
+    }
+    await pool.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id = $1", [id]);
+    await pool.query("DELETE FROM current_account_transactions WHERE sales_invoice_id = $1", [id]);
+    if (invoice.quotation_id || invoice.sale_id) {
+      await pool.query("DELETE FROM current_account_transactions WHERE (quotation_id = $1 OR sale_id = $2) AND sales_invoice_id IS NULL", [invoice.quotation_id || null, invoice.sale_id || null]);
+    }
+    await pool.query("DELETE FROM sales_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+
+    res.json({ success: true, message: "Sales invoice deleted successfully" });
+  } catch (e: any) {
+    console.error("Error in DELETE /sales/:id:", e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
 router.delete("/purchase/:id", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
     const { id } = req.params;
 
-    const checkRes = await pool.query("SELECT id FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const checkRes = await pool.query("SELECT id, invoice_number FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    const invoice = checkRes.rows[0];
 
     // Adjust stocks back
     const oldItems = await pool.query("SELECT product_id, quantity, system_quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
@@ -1288,7 +1323,14 @@ router.delete("/purchase/:id", async (req: any, res) => {
       }
     }
 
+    // Clean up related stock movements, current account transactions, and invoice items
+    if (invoice.invoice_number) {
+      await pool.query("DELETE FROM stock_movements WHERE source = 'purchase_invoice' AND description LIKE $1", [`%${invoice.invoice_number}%`]);
+    }
+    await pool.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [id]);
+    await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     await pool.query("DELETE FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+
     res.json({ success: true, message: "Purchase invoice deleted successfully" });
   } catch (e: any) {
     console.error("Error in DELETE /purchase/:id:", e);

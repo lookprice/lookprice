@@ -123,6 +123,43 @@ router.post("/", async (req: any, res) => {
       targetStoreId
     ]);
 
+    // Sync team/consultants to consultants table if provided
+    const teamMembers = cleanedBody.team || (cleanedBody.page_layout_settings && cleanedBody.page_layout_settings.team) || cleanedBody.consultants;
+    if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
+      try {
+        for (const m of teamMembers) {
+          if (!m.name) continue;
+          const cId = m.id && !isNaN(parseInt(m.id)) ? parseInt(m.id) : null;
+          const mRole = m.role || "Danışman";
+          const mImg = m.image || m.image_url || "";
+          if (cId) {
+            await pool.query(
+              `UPDATE consultants SET name = $1, role = $2, image_url = $3 WHERE id = $4 AND store_id = $5`,
+              [m.name, mRole, mImg, cId, targetStoreId]
+            );
+          } else {
+            const existingC = await pool.query(
+              `SELECT id FROM consultants WHERE store_id = $1 AND LOWER(name) = LOWER($2)`,
+              [targetStoreId, m.name]
+            );
+            if (existingC.rows.length > 0) {
+              await pool.query(
+                `UPDATE consultants SET role = $1, image_url = $2 WHERE id = $3`,
+                [mRole, mImg, existingC.rows[0].id]
+              );
+            } else {
+              await pool.query(
+                `INSERT INTO consultants (store_id, name, role, image_url) VALUES ($1, $2, $3, $4)`,
+                [targetStoreId, m.name, mRole, mImg]
+              );
+            }
+          }
+        }
+      } catch (syncErr) {
+        console.warn("Failed to sync team members to consultants table:", syncErr);
+      }
+    }
+
     res.json({ success: true, message: "Branding updated successfully" });
   } catch (error: any) {
     console.error("Error in POST /api/store/branding:", error);

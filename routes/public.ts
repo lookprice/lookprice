@@ -848,42 +848,42 @@ router.get("/store/:slug/products", async (req, res) => {
     ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC
   `, [store.id]);
 
-  let vehiclesRes = { rows: [] };
-  if (store.store_type === 'motor_vehicle') {
+  let vehiclesRes: any = { rows: [] };
+  try {
     vehiclesRes = await pool.query(`
       SELECT v.*, s.name as branch_name, s.slug as branch_slug 
       FROM vehicles v 
       JOIN stores s ON v.store_id = s.id
       WHERE (v.store_id = $1 OR s.parent_id = $1) 
-      AND v.status IN ('active', 'for_sale')
+      AND (v.status IN ('active', 'for_sale') OR v.status IS NULL)
       AND (v.is_on_website = true OR v.is_on_website IS NULL)
     `, [store.id]);
+  } catch (ve) {
+    vehiclesRes = { rows: [] };
   }
 
   let realEstateRes: any = { rows: [] };
-  if (store.store_type === 'real_estate') {
+  try {
+    realEstateRes = await pool.query(`
+      SELECT r.*, s.name as branch_name, s.slug as branch_slug,
+             c.name as consultant_name, c.phone as consultant_phone
+      FROM real_estate_properties r 
+      JOIN stores s ON r.store_id = s.id
+      LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
+      WHERE (r.store_id = $1 OR s.parent_id = $1) 
+      AND (r.status IN ('active', 'rented', 'optioned', 'sold', 'published', 'for_sale', 'for_rent') OR r.status IS NULL)
+    `, [store.id]);
+  } catch (e: any) {
     try {
       realEstateRes = await pool.query(`
-        SELECT r.*, s.name as branch_name, s.slug as branch_slug,
-               c.name as consultant_name, c.phone as consultant_phone
-        FROM real_estate_properties r 
+        SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+        FROM real_estate r 
         JOIN stores s ON r.store_id = s.id
-        LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
         WHERE (r.store_id = $1 OR s.parent_id = $1) 
-        AND r.status IN ('active', 'rented', 'optioned', 'sold')
+        AND (r.status IN ('active', 'rented', 'optioned', 'sold', 'published', 'for_sale', 'for_rent') OR r.status IS NULL)
       `, [store.id]);
-    } catch (e: any) {
-      try {
-        realEstateRes = await pool.query(`
-          SELECT r.*, s.name as branch_name, s.slug as branch_slug 
-          FROM real_estate r 
-          JOIN stores s ON r.store_id = s.id
-          WHERE (r.store_id = $1 OR s.parent_id = $1) 
-          AND r.status IN ('active', 'rented', 'optioned', 'sold')
-        `, [store.id]);
-      } catch (inner) {
-        console.warn("real_estate queried failed");
-      }
+    } catch (inner) {
+      realEstateRes = { rows: [] };
     }
   }
 
