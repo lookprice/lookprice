@@ -976,6 +976,24 @@ router.get("/store/:slug/products", async (req, res) => {
   });
 
   realEstateRes.rows.forEach((r: any) => {
+    let reImages: string[] = [];
+    if (r.images) {
+      if (Array.isArray(r.images)) {
+        reImages = r.images;
+      } else if (typeof r.images === "string") {
+        try {
+          reImages = JSON.parse(r.images);
+        } catch (e) {
+          if (r.images.startsWith("http") || r.images.startsWith("/")) {
+            reImages = [r.images];
+          } else {
+            reImages = [];
+          }
+        }
+      }
+    }
+    const coverImage = reImages.length > 0 ? reImages[0] : null;
+
     allListings.push({
       id: `re_${r.id}`,
       db_id: r.id,
@@ -990,8 +1008,8 @@ router.get("/store/:slug/products", async (req, res) => {
       brand: r.location,
       branch_name: r.branch_name,
       branch_slug: r.branch_slug,
-      image_url: r.images && r.images.length > 0 ? r.images[0] : null,
-      images: r.images,
+      image_url: coverImage,
+      images: reImages,
       location: r.location,
       reference_no: r.reference_no,
       status: r.status,

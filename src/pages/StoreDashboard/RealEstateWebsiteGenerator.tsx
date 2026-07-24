@@ -169,6 +169,20 @@ export const RealEstateWebsiteGenerator = ({
           if (res.custom_domain) { setCustomDomain(res.custom_domain); setUseCustomDomain(true); }
           if (res.hero_image_url && (!banners || banners.length === 0)) setContent((prev) => ({ ...prev, hero: { ...prev.hero, bgImage: res.hero_image_url } }));
           
+          const savedTeam = res.page_layout_settings?.team || res.team || (res.page_layout && typeof res.page_layout === 'object' && !Array.isArray(res.page_layout) ? res.page_layout.team : null);
+          if (savedTeam && Array.isArray(savedTeam) && savedTeam.length > 0) {
+            setTeam(savedTeam.map((m: any, idx: number) => {
+              const img = m.image || m.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400";
+              return {
+                id: m.id?.toString() || `member_${idx}`,
+                name: m.name || "Danışman",
+                role: m.role || "Broker / Danışman",
+                image: img,
+                image_url: img
+              };
+            }));
+          }
+
           const isAuto = res.store_type === 'motor_vehicle' || res.page_layout_settings?.sector === 'automotive';
           if (isAuto) {
             setContent((prev) => ({
@@ -187,11 +201,28 @@ export const RealEstateWebsiteGenerator = ({
       api.getBlogPosts(storeId).then((res) => { if (Array.isArray(res)) setBlogs(res.filter((b) => b.is_published).slice(0, 3)); }).catch(console.error);
       api.getConsultants(storeId).then((cRes) => {
         if (Array.isArray(cRes) && cRes.length > 0) {
-          setTeam(cRes.map((c) => ({ id: c.id.toString(), name: c.name, role: c.role || "Danışman", image: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400" })));
-        } else if (originalBranding.page_layout_settings?.team && Array.isArray(originalBranding.page_layout_settings.team)) {
-          setTeam(originalBranding.page_layout_settings.team);
-        } else if (originalBranding.team && Array.isArray(originalBranding.team)) {
-          setTeam(originalBranding.team);
+          setTeam((prev) => {
+            if (prev && prev.length > 0) {
+              return prev.map((pt, idx) => {
+                const match = cRes.find((c) => c.id?.toString() === pt.id?.toString() || (c.name && pt.name && c.name.toLowerCase() === pt.name.toLowerCase()));
+                const img = pt.image || pt.image_url || match?.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400";
+                return {
+                  id: pt.id || match?.id?.toString() || `member_${idx}`,
+                  name: pt.name || match?.name || "Danışman",
+                  role: pt.role || match?.role || "Danışman",
+                  image: img,
+                  image_url: img
+                };
+              });
+            }
+            return cRes.map((c, idx) => ({
+              id: c.id?.toString() || `c_${idx}`,
+              name: c.name,
+              role: c.role || "Danışman",
+              image: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
+              image_url: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400"
+            }));
+          });
         }
       }).catch(console.error);
     }

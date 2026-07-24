@@ -167,7 +167,7 @@ export const BrandIdentityStep: React.FC<BrandIdentityStepProps> = ({
             <div key={member.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <div className="relative group h-12 w-12 bg-slate-200 rounded-2xl flex items-center justify-center overflow-hidden border-2 border-white shadow-md">
-                  <img src={member.image} className="h-full w-full object-cover" alt={member.name} />
+                  <img src={member.image || member.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400"} className="h-full w-full object-cover" alt={member.name} />
                   <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-all">
                     <Upload className="h-4 w-4 text-white" />
                     <input
@@ -180,7 +180,7 @@ export const BrandIdentityStep: React.FC<BrandIdentityStepProps> = ({
                           const reader = new FileReader();
                           reader.onload = (uploadEvent) => {
                             const base64 = uploadEvent.target?.result as string;
-                            setTeam((prev) => prev.map((m) => m.id === member.id ? { ...m, image: base64 } : m));
+                            setTeam((prev) => prev.map((m) => m.id === member.id ? { ...m, image: base64, image_url: base64 } : m));
                           };
                           reader.readAsDataURL(file);
                         }

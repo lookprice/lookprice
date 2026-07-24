@@ -43,6 +43,7 @@ interface TeamMember {
   name: string;
   role: string;
   image: string;
+  image_url?: string;
 }
 
 interface WebContent {
@@ -221,6 +222,20 @@ export const AutomotiveWebsiteGenerator = ({
                 return link;
               }));
             }
+
+            const savedTeam = res.page_layout_settings?.team || res.team || (res.page_layout && typeof res.page_layout === 'object' && !Array.isArray(res.page_layout) ? res.page_layout.team : null);
+            if (savedTeam && Array.isArray(savedTeam) && savedTeam.length > 0) {
+              setTeam(savedTeam.map((m: any, idx: number) => {
+                const img = m.image || m.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400";
+                return {
+                  id: m.id?.toString() || `member_${idx}`,
+                  name: m.name || "Danışman",
+                  role: m.role || "Satış Danışmanı",
+                  image: img,
+                  image_url: img
+                };
+              }));
+            }
           }
         })
         .catch(console.error);
@@ -236,18 +251,30 @@ export const AutomotiveWebsiteGenerator = ({
 
       api
         .getConsultants(storeId)
-        .then((res) => {
-          if (Array.isArray(res)) {
-            setTeam(
-              res.map((c) => ({
-                id: c.id.toString(),
+        .then((cRes) => {
+          if (Array.isArray(cRes) && cRes.length > 0) {
+            setTeam((prev) => {
+              if (prev && prev.length > 0) {
+                return prev.map((pt, idx) => {
+                  const match = cRes.find((c) => c.id?.toString() === pt.id?.toString() || (c.name && pt.name && c.name.toLowerCase() === pt.name.toLowerCase()));
+                  const img = pt.image || pt.image_url || match?.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400";
+                  return {
+                    id: pt.id || match?.id?.toString() || `member_${idx}`,
+                    name: pt.name || match?.name || "Danışman",
+                    role: pt.role || match?.role || "Danışman",
+                    image: img,
+                    image_url: img
+                  };
+                });
+              }
+              return cRes.map((c, idx) => ({
+                id: c.id?.toString() || `c_${idx}`,
                 name: c.name,
                 role: c.role || "Danışman",
-                image:
-                  c.image_url ||
-                  "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
-              })),
-            );
+                image: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
+                image_url: c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400"
+              }));
+            });
           }
         })
         .catch(console.error);

@@ -12,6 +12,7 @@ export interface TeamMember {
   name: string;
   role: string;
   image: string;
+  image_url?: string;
 }
 
 export interface WebContent {

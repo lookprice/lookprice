@@ -1,5 +1,6 @@
 import express from "express";
 import { pool } from "../../models/db";
+import { cleanDeepBase64 } from "../utils/imageStorage";
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ router.get("/", async (req: any, res) => {
 
 router.post("/", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  req.body = cleanDeepBase64(req.body, `store_${storeId}_consultant`);
   let { name, email, phone, role, branch_id, image_url, performance } = req.body;
   
   const effectiveBranchId = (branch_id === "" || branch_id === null) ? null : branch_id;
@@ -40,6 +42,7 @@ router.post("/", async (req: any, res) => {
 router.put("/:id", async (req: any, res) => {
   const { id } = req.params;
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  req.body = cleanDeepBase64(req.body, `store_${storeId}_consultant_${id}`);
   let { name, email, phone, role, branch_id, image_url, performance } = req.body;
   
   const effectiveBranchId = (branch_id === "" || branch_id === null) ? null : branch_id;

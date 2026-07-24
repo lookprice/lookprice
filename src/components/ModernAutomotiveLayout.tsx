@@ -480,12 +480,12 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                   <p className="text-slate-300 text-sm md:text-base font-medium max-w-lg leading-relaxed italic drop-shadow-sm">
                     "{activeSlide.subtitle || content.hero.subtitle}"
                   </p>
-                  {activeSlide.button_text && (
+                  {(activeSlide as any).button_text && (
                     <a
-                      href={activeSlide.button_link || "#portfolio"}
+                      href={(activeSlide as any).button_link || "#portfolio"}
                       className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg transition-all hover:scale-105"
                     >
-                      {activeSlide.button_text}
+                      {(activeSlide as any).button_text}
                     </a>
                   )}
                 </div>

@@ -294,7 +294,7 @@ export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
               {team.map((member) => (
                 <div key={member.id} className="text-center space-y-4">
                   <div className="h-40 w-40 rounded-full mx-auto overflow-hidden border-4 border-white shadow-xl">
-                    <img src={member.image} className="h-full w-full object-cover" alt={member.name} />
+                    <img src={member.image || member.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400"} className="h-full w-full object-cover" alt={member.name} />
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{member.name}</h4>
