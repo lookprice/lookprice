@@ -35,13 +35,27 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     const data: any = { 
       ...rawData,
       sector_data,
+      category_2: rawData.category_2 || '',
+      sub_category_2: rawData.sub_category_2 || '',
       labels: typeof rawData.labels === 'string' ? rawData.labels.split(',').map(s => s.trim()).filter(Boolean) : (rawData.labels || []),
       is_web_sale: rawData.is_web_sale === 'on' || rawData.is_web_sale === 'true',
       is_bestseller: rawData.is_bestseller === 'on' || rawData.is_bestseller === 'true',
       is_sellable: rawData.is_sellable === 'on' || rawData.is_sellable === 'true',
+      has_variants: rawData.has_variants === 'on' || rawData.has_variants === 'true',
       product_type: rawData.product_type || 'product',
       sync_group: rawData.sync_group === 'on'
     };
+
+    if (rawData.variants_data) {
+      try {
+        data.variants = JSON.parse(rawData.variants_data as string);
+        if (Array.isArray(data.variants) && data.variants.length > 0) {
+          data.has_variants = true;
+        }
+      } catch (e) {
+        console.error("Variants data parse error:", e);
+      }
+    }
     ['price', 'price_2', 'old_price', 'cost_price', 'tax_rate', 'volume_ml'].forEach(field => {
       if (data[field]) {
         data[field] = Number(String(data[field]).replace(',', '.'));

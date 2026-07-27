@@ -10,6 +10,22 @@ export interface User {
   address?: string;
 }
 
+export interface ProductVariantItem {
+  ingredient_id: number;
+  ingredient_name: string;
+  amount: number;
+  ingredient_unit: string;
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  price?: number;
+  cost_price?: number;
+  barcode?: string;
+  recipe_items?: ProductVariantItem[];
+}
+
 export interface Product {
   id: number | string;
   store_id: number;
@@ -30,6 +46,10 @@ export interface Product {
   image_url: string;
   category: string;
   sub_category?: string;
+  category_2?: string;
+  sub_category_2?: string;
+  has_variants?: boolean;
+  variants?: ProductVariant[];
   brand?: string;
   author?: string;
   labels?: string[];

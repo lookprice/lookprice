@@ -32,8 +32,14 @@ export const ProductModal = ({
   const [productImageUrl, setProductImageUrl] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
+  const [selectedCategory2, setSelectedCategory2] = useState("");
+  const [selectedSubCategory2, setSelectedSubCategory2] = useState("");
   const [isNewCategoryMode, setIsNewCategoryMode] = useState(false);
   const [isNewSubCategoryMode, setIsNewSubCategoryMode] = useState(false);
+  const [hasVariants, setHasVariants] = useState(false);
+  const [variants, setVariants] = useState<any[]>([]);
+  const [activeVariantIngredientSelector, setActiveVariantIngredientSelector] = useState<string | null>(null);
+  const [variantIngredientSearch, setVariantIngredientSearch] = useState("");
   const [recipeItems, setRecipeItems] = useState<any[]>([]);
   const [ingredientSearch, setIngredientSearch] = useState("");
   const [showIngredientSelector, setShowIngredientSelector] = useState(false);
@@ -55,9 +61,8 @@ export const ProductModal = ({
     if (!products || !Array.isArray(products)) return [];
     const cats = new Set<string>();
     products.forEach((p: any) => {
-      if (p.category) {
-        cats.add(p.category.trim());
-      }
+      if (p.category) cats.add(p.category.trim());
+      if (p.category_2) cats.add(p.category_2.trim());
     });
     return Array.from(cats).sort((a, b) => a.localeCompare(b, "tr"));
   }, [products]);
@@ -69,10 +74,14 @@ export const ProductModal = ({
         if (p.category && p.sub_category) {
           const cat = p.category.trim();
           const sub = p.sub_category.trim();
-          if (!map.has(cat)) {
-            map.set(cat, new Set());
-          }
+          if (!map.has(cat)) map.set(cat, new Set());
           map.get(cat)!.add(sub);
+        }
+        if (p.category_2 && p.sub_category_2) {
+          const cat2 = p.category_2.trim();
+          const sub2 = p.sub_category_2.trim();
+          if (!map.has(cat2)) map.set(cat2, new Set());
+          map.get(cat2)!.add(sub2);
         }
       });
     }
@@ -91,6 +100,12 @@ export const ProductModal = ({
       const sub = editingProduct?.sub_category || "";
       setSelectedCategory(cat);
       setSelectedSubCategory(sub);
+      setSelectedCategory2(editingProduct?.category_2 || "");
+      setSelectedSubCategory2(editingProduct?.sub_category_2 || "");
+
+      const pHasVariants = !!editingProduct?.has_variants || (Array.isArray(editingProduct?.variants) && editingProduct.variants.length > 0);
+      setHasVariants(pHasVariants);
+      setVariants(Array.isArray(editingProduct?.variants) ? editingProduct.variants : []);
 
       const hasCategories = categoriesList.length > 0;
       const warrantsNewCat = cat ? !categoriesList.includes(cat) : !hasCategories;
@@ -103,6 +118,10 @@ export const ProductModal = ({
       setProductImageUrl("");
       setSelectedCategory("");
       setSelectedSubCategory("");
+      setSelectedCategory2("");
+      setSelectedSubCategory2("");
+      setHasVariants(false);
+      setVariants([]);
       setIsNewCategoryMode(false);
       setIsNewSubCategoryMode(false);
       setRecipeItems([]);
@@ -312,6 +331,34 @@ export const ProductModal = ({
               )}
             </div>
 
+            <div className="space-y-1.5 flex flex-col justify-between">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                {isTr ? "2. Kategori (İsteğe Bağlı)" : "2nd Category (Optional)"}
+              </label>
+              <input
+                type="text"
+                name="category_2"
+                placeholder={isTr ? "örn: Soğuk İçecekler" : "2nd Category"}
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                value={selectedCategory2}
+                onChange={(e) => setSelectedCategory2(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5 flex flex-col justify-between">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                {isTr ? "2. Alt Kategori (İsteğe Bağlı)" : "2nd Sub Category (Optional)"}
+              </label>
+              <input
+                type="text"
+                name="sub_category_2"
+                placeholder={isTr ? "örn: Milkshake & Smoothie" : "2nd Sub Category"}
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                value={selectedSubCategory2}
+                onChange={(e) => setSelectedSubCategory2(e.target.value)}
+              />
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
                 {isTr ? "Marka / Üretici" : "Brand"}
@@ -489,6 +536,242 @@ export const ProductModal = ({
                 <input type="hidden" name="recipe_data" value={JSON.stringify(recipeItems)} />
               </div>
             )}
+
+            {/* Product Variants Management */}
+            <div className="col-span-2 space-y-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-between bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="has_variants_toggle"
+                    checked={hasVariants}
+                    onChange={(e) => {
+                      setHasVariants(e.target.checked);
+                      if (e.target.checked && variants.length === 0) {
+                        setVariants([
+                          { id: 'var_' + Date.now() + '_1', name: 'BANANA', price: '', recipe_items: [] },
+                          { id: 'var_' + Date.now() + '_2', name: 'CHOCOLATE', price: '', recipe_items: [] }
+                        ]);
+                      }
+                    }}
+                    className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <label htmlFor="has_variants_toggle" className="text-xs font-black text-slate-800 cursor-pointer select-none">
+                    {isTr ? "Bu Ürünün Alt Kırılımları (Varyantları) Var" : "Product Has Variants / Options"}
+                    <span className="block text-[10px] font-medium text-slate-500 mt-0.5">
+                      {isTr 
+                        ? "Örn: Milkshake (BANANA, CHOCOLATE, STRAWBERRY, VANILLA) - POS'ta ürün seçildiğinde varyant listesi açılır." 
+                        : "e.g. Milkshake (Banana, Chocolate) - Opens variant selection popup in POS."}
+                    </span>
+                  </label>
+                </div>
+                {hasVariants && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVariants([
+                        ...variants,
+                        { id: 'var_' + Date.now(), name: '', price: '', recipe_items: [] }
+                      ]);
+                    }}
+                    className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-all flex items-center gap-1 shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isTr ? "Varyant Ekle" : "Add Variant"}</span>
+                  </button>
+                )}
+              </div>
+
+              {hasVariants && (
+                <div className="space-y-4">
+                  {variants.map((v, vIdx) => {
+                    let totalVarCost = 0;
+                    (v.recipe_items || []).forEach((ri: any) => {
+                      const ingProd = products.find(p => String(p.id) === String(ri.ingredient_id));
+                      if (ingProd) {
+                        const ingCost = Number(ingProd.cost_price) || 0;
+                        const volMl = Number(ingProd.volume_ml) || 1;
+                        totalVarCost += (ingCost / (volMl > 0 ? volMl : 1)) * (Number(ri.amount) || 0);
+                      }
+                    });
+
+                    return (
+                      <div key={v.id || vIdx} className="p-4 bg-slate-50/80 rounded-2xl border-2 border-indigo-100 space-y-3 relative">
+                        <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-200">
+                          <span className="text-[11px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                            Varyant #{vIdx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setVariants(variants.filter((_, idx) => idx !== vIdx));
+                            }}
+                            className="text-xs text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1 border-0 bg-transparent cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>{isTr ? "Varyantı Sil" : "Remove"}</span>
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                              {isTr ? "Varyant / Çeşit Adı *" : "Variant Name *"}
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder={isTr ? "örn: BANANA" : "Variant name"}
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-900"
+                              value={v.name || ""}
+                              onChange={(e) => {
+                                const newVars = [...variants];
+                                newVars[vIdx].name = e.target.value;
+                                setVariants(newVars);
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                              {isTr ? "Varyant Fiyatı (₺)" : "Variant Price"}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={isTr ? "Boş ise ana ürün fiyatı" : "Default base price"}
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                              value={v.price !== undefined ? v.price : ""}
+                              onChange={(e) => {
+                                const newVars = [...variants];
+                                newVars[vIdx].price = e.target.value;
+                                setVariants(newVars);
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                              {isTr ? "Hesaplanan Reçete Maliyeti" : "Calculated Cost"}
+                            </label>
+                            <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-black text-slate-700">
+                              {totalVarCost > 0 ? `${totalVarCost.toFixed(2)} ₺` : (isTr ? "0.00 ₺ (Reçetesiz)" : "0.00")}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Variant Ingredients / Semi-finished Materials */}
+                        <div className="pt-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                              {isTr ? "Varyant Yarı Mamül & Malzemeleri (Reçete)" : "Variant Ingredients"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveVariantIngredientSelector(activeVariantIngredientSelector === v.id ? null : v.id);
+                                setVariantIngredientSearch("");
+                              }}
+                              className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider border-0 bg-transparent cursor-pointer flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>{isTr ? "+ Reçeteye Malzeme Ekle" : "+ Add Ingredient"}</span>
+                            </button>
+                          </div>
+
+                          {activeVariantIngredientSelector === v.id && (
+                            <div className="p-3 bg-white rounded-xl border border-indigo-200 space-y-2">
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                                <input
+                                  type="text"
+                                  placeholder={isTr ? "Yarı mamül / malzeme ara..." : "Search ingredient..."}
+                                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                                  value={variantIngredientSearch}
+                                  onChange={(e) => setVariantIngredientSearch(e.target.value)}
+                                />
+                              </div>
+                              <div className="max-h-32 overflow-y-auto space-y-1">
+                                {products
+                                  .filter(p => p.id !== editingProduct?.id && (p.name.toLowerCase().includes(variantIngredientSearch.toLowerCase()) || (p.barcode && p.barcode.toLowerCase().includes(variantIngredientSearch.toLowerCase()))))
+                                  .slice(0, 10)
+                                  .map(p => (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const newVars = [...variants];
+                                        const curRecItems = newVars[vIdx].recipe_items || [];
+                                        if (!curRecItems.find((ri: any) => String(ri.ingredient_id) === String(p.id))) {
+                                          newVars[vIdx].recipe_items = [
+                                            ...curRecItems,
+                                            {
+                                              ingredient_id: p.id,
+                                              ingredient_name: p.name,
+                                              amount: 1,
+                                              ingredient_unit: p.unit || 'ml'
+                                            }
+                                          ];
+                                          setVariants(newVars);
+                                        }
+                                        setActiveVariantIngredientSelector(null);
+                                        setVariantIngredientSearch("");
+                                      }}
+                                      className="w-full text-left p-1.5 hover:bg-indigo-50 rounded text-[10px] font-bold text-slate-700 flex justify-between items-center"
+                                    >
+                                      <span>{p.name}</span>
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 rounded font-medium">{p.unit || 'ml'}</span>
+                                    </button>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="space-y-1.5">
+                            {(v.recipe_items || []).map((ri: any, riIdx: number) => (
+                              <div key={riIdx} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-200 text-xs font-bold">
+                                <span className="flex-1 text-slate-800 truncate">{ri.ingredient_name}</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="w-16 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-center font-black text-slate-900"
+                                  value={ri.amount}
+                                  onChange={(e) => {
+                                    const newVars = [...variants];
+                                    newVars[vIdx].recipe_items[riIdx].amount = parseFloat(e.target.value) || 0;
+                                    setVariants(newVars);
+                                  }}
+                                />
+                                <span className="text-[10px] font-bold text-slate-500 w-8">{ri.ingredient_unit}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newVars = [...variants];
+                                    newVars[vIdx].recipe_items = newVars[vIdx].recipe_items.filter((_: any, idx: number) => idx !== riIdx);
+                                    setVariants(newVars);
+                                  }}
+                                  className="p-1 text-rose-500 hover:bg-rose-50 rounded border-0 outline-none"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                            {(!v.recipe_items || v.recipe_items.length === 0) && (
+                              <p className="text-[10px] text-slate-400 italic py-1">
+                                {isTr ? "Bu varyant için henüz yarı mamül / malzeme reçetesi eklenmedi." : "No recipe ingredients added for this variant."}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <input type="hidden" name="has_variants" value={hasVariants ? "true" : "false"} />
+              <input type="hidden" name="variants_data" value={JSON.stringify(variants)} />
+            </div>
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">

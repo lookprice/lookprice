@@ -5,6 +5,19 @@ import XLSX from "xlsx";
 
 const router = express.Router();
 
+// Ensure new schema columns exist
+async function initProductSchema() {
+  try {
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS category_2 VARCHAR(255) DEFAULT '';`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sub_category_2 VARCHAR(255) DEFAULT '';`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS has_variants BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'::jsonb;`);
+  } catch (e) {
+    console.error("Failed to alter products table schema for variants and 2nd categories:", e);
+  }
+}
+initProductSchema();
+
 // GET /products
 router.get("/", async (req: any, res) => {
   const currentStoreId = req.user.store_id;
@@ -59,14 +72,14 @@ router.get("/", async (req: any, res) => {
     const params: any[] = [storeIds];
     
     if (sellableOnly) {
-      query += ` AND p.is_sellable = true`;
+      query += ` AND (p.is_sellable IS TRUE OR p.is_sellable IS NULL)`;
     }
 
     if (search) {
       const searchTerms = search.split(/\s+/).filter(Boolean);
       searchTerms.forEach(term => {
         const pIdx = params.length + 1;
-        query += ` AND (\${getTurkishSearchSnippet('p.name', pIdx)} OR \${getTurkishSearchSnippet('p.barcode', pIdx)})`;
+        query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)})`;
         params.push(normalizeTurkishParam(term));
       });
     }
@@ -87,7 +100,14 @@ router.post("/", async (req: any, res) => {
   const storeId = await getAuthorizedStoreId(req, requestedId);
   if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
 
-  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, price_2, price_2_currency, tax_rate, volume_ml } = req.body;
+  const { 
+    barcode, name, price, currency, cost_price, cost_currency, description, 
+    stock_quantity, min_stock_level, unit, category, sub_category, 
+    category_2, sub_category_2, has_variants, variants,
+    brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
+    price_2, price_2_currency, tax_rate, volume_ml 
+  } = req.body;
+  
   if (!barcode || !name || !price) return res.status(400).json({ error: "Missing fields" });
   
   try {
@@ -106,16 +126,24 @@ router.post("/", async (req: any, res) => {
 
     const isWebSaleVal = is_web_sale === true || is_web_sale === 'true' || is_web_sale === 'on';
     const isBestsellerVal = is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on';
+    const hasVariantsVal = has_variants === true || has_variants === 'true' || has_variants === 'on';
+    const variantsVal = JSON.stringify(Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []));
 
     const result = await pool.query(`
-      INSERT INTO products (store_id, barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, is_sellable, updated_at) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, CURRENT_TIMESTAMP)
+      INSERT INTO products (
+        store_id, barcode, name, price, currency, cost_price, cost_currency, description, 
+        stock_quantity, min_stock_level, unit, category, sub_category, category_2, sub_category_2,
+        has_variants, variants, brand, author, labels, image_url, is_web_sale, is_bestseller, 
+        product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, is_sellable, updated_at
+      ) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
       storeId, String(barcode), name, parseFloat(price), currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
-      category || '', sub_category || '', brand || '', author || '', 
+      category || '', sub_category || '', category_2 || '', sub_category_2 || '',
+      hasVariantsVal, variantsVal, brand || '', author || '', 
       JSON.stringify(labels || []), image_url || '', 
       isWebSaleVal,
       isBestsellerVal,
@@ -311,7 +339,14 @@ router.put("/:id", async (req: any, res) => {
   if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
 
   const { id } = req.params;
-  const { barcode, name, price, currency, cost_price, cost_currency, description, stock_quantity, min_stock_level, unit, category, sub_category, brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group, volume_ml, is_sellable } = req.body;
+  const { 
+    barcode, name, price, currency, cost_price, cost_currency, description, 
+    stock_quantity, min_stock_level, unit, category, sub_category, 
+    category_2, sub_category_2, has_variants, variants,
+    brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
+    price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group, volume_ml, is_sellable 
+  } = req.body;
+
   try {
     const existingProductRes = await pool.query("SELECT labels, barcode, is_sellable, is_bestseller FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (existingProductRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
@@ -330,21 +365,25 @@ router.put("/:id", async (req: any, res) => {
     const finalIsSellable = is_sellable !== undefined ? is_sellable : existingIsSellable;
     const finalIsWebSale = is_web_sale !== undefined ? (is_web_sale === true || is_web_sale === 'true' || is_web_sale === 'on') : true;
     const finalIsBestseller = is_bestseller !== undefined ? (is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on') : existingIsBestseller;
+    const finalHasVariants = has_variants !== undefined ? (has_variants === true || has_variants === 'true' || has_variants === 'on') : false;
+    const finalVariants = JSON.stringify(Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []));
 
     await pool.query(`
       UPDATE products SET 
         barcode = $1, name = $2, price = $3, currency = $4, 
         cost_price = $5, cost_currency = $6, description = $7, 
         stock_quantity = $8, min_stock_level = $9, unit = $10, 
-        category = $11, sub_category = $12, brand = $13, author = $14, 
-        labels = $15, image_url = $16, is_web_sale = $17, is_bestseller = $18, product_type = $19,
-        price_2 = $20, price_2_currency = $21, tax_rate = $22, shipping_profile_id = $23, volume_ml = $24, is_sellable = $25, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $26 AND store_id = $27
+        category = $11, sub_category = $12, category_2 = $13, sub_category_2 = $14,
+        has_variants = $15, variants = $16::jsonb, brand = $17, author = $18, 
+        labels = $19, image_url = $20, is_web_sale = $21, is_bestseller = $22, product_type = $23,
+        price_2 = $24, price_2_currency = $25, tax_rate = $26, shipping_profile_id = $27, volume_ml = $28, is_sellable = $29, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $30 AND store_id = $31
     `, [
       String(barcode), name, parseFloat(price), currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
-      category || '', sub_category || '', brand || '', author || '', 
+      category || '', sub_category || '', category_2 || '', sub_category_2 || '',
+      finalHasVariants, finalVariants, brand || '', author || '', 
       JSON.stringify(updatedLabels), image_url || '',
       finalIsWebSale,
       finalIsBestseller,

@@ -312,17 +312,25 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
         ? (store as any).branding.team
         : (store as any).team && Array.isArray((store as any).team) && (store as any).team.length > 0
           ? (store as any).team
-          : store.consultants && store.consultants.length > 0
-            ? store.consultants
-            : [];
+          : (store as any).agents && Array.isArray((store as any).agents) && (store as any).agents.length > 0
+            ? (store as any).agents
+            : store.consultants && store.consultants.length > 0
+              ? store.consultants
+              : [];
 
   const team = teamSource.length > 0
-    ? teamSource.map((c: any, idx: number) => ({
-        id: c.id?.toString() || `member_${idx}`,
-        name: c.name || "Danışman",
-        role: c.role || "Broker / Danışman",
-        image: c.image || c.image_url || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
-      }))
+    ? teamSource.map((c: any, idx: number) => {
+        const rawImg = c.image || c.image_url || c.photo_url || c.avatar_url || c.photo || c.avatar || c.picture;
+        const validImg = typeof rawImg === 'string' && rawImg.trim().length > 0
+          ? rawImg
+          : "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400";
+        return {
+          id: c.id?.toString() || `member_${idx}`,
+          name: c.name || c.full_name || "Danışman",
+          role: c.role || c.title || "Broker / Danışman",
+          image: validImg,
+        };
+      })
     : [
     {
       id: "1",
@@ -1352,6 +1360,10 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                     <div className="aspect-[3/4] bg-slate-100 rounded-[3rem] overflow-hidden relative shadow-xl hover:-translate-y-4 transition-all duration-700">
                       <img
                         src={tm.image}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400";
+                        }}
                         className="h-full w-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-700 scale-105"
                         alt={tm.name}
                       />

@@ -16,13 +16,21 @@ export const getAuthorizedStoreId = async (req: any, requestedStoreId: any) => {
  * Normalizes a string for Turkish-friendly case-insensitive search in SQL
  */
 export const getTurkishSearchSnippet = (field: string, paramIndex: number) => {
-  const normalizedField = `LOWER(REPLACE(REPLACE(REPLACE(\${field}::text, 'İ', 'i'), 'I', 'ı'), 'ı', 'i'))`;
-  return `\${normalizedField} LIKE $\${paramIndex}`;
+  const normalizedField = `LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(${field}::text, 'İ', 'i'), 'I', 'ı'), 'ı', 'i'), 'Ç', 'c'), 'ç', 'c'), 'Ğ', 'g'), 'ğ', 'g'), 'Ö', 'o'), 'ö', 'o'), 'Ş', 's'), 'ş', 's'), 'Ü', 'u'), 'ü', 'u'))`;
+  return `${normalizedField} LIKE $${paramIndex}`;
 };
 
 export const normalizeTurkishParam = (term: string) => {
   if (!term) return '%%';
-  return `%\${term.toLocaleLowerCase('tr-TR').replace(/ı/g, 'i')}%`;
+  const norm = term
+    .toLocaleLowerCase('tr-TR')
+    .replace(/ı/g, 'i')
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .replace(/ö/g, 'o')
+    .replace(/ş/g, 's')
+    .replace(/ü/g, 'u');
+  return `%${norm}%`;
 };
 
 export const getGeminiApiKey = () => {

@@ -9,10 +9,14 @@ export const normalizeSearch = (text: string): string => {
   // First convert to Turkish lowercase to handle İ -> i and I -> ı
   let normalized = text.toLocaleLowerCase('tr-TR');
   
-  // Further normalization to handle mixed cases and ensure consistent comparisons:
-  // 1. replace 'ı' with 'i' (as users often search 'migros' for 'MİGROS' or 'mıgros')
-  // 2. remove common accents if necessary, but here we focus on the Turkish casing issue
-  normalized = normalized.replace(/ı/g, 'i');
+  // Replace Turkish special characters with normalized equivalents for ultra-tolerant matching
+  normalized = normalized
+    .replace(/ı/g, 'i')
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .replace(/ö/g, 'o')
+    .replace(/ş/g, 's')
+    .replace(/ü/g, 'u');
   
   return normalized;
 };

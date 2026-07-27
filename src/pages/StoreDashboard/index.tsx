@@ -806,21 +806,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         startTransition
       }}
     >
-      <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+      <div className={activeTab === 'fast-pos' ? "space-y-2" : "space-y-8"}>
+        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${activeTab === 'fast-pos' ? 'mb-1' : 'mb-6'}`}>
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center space-x-3"
           >
-            <div className="h-10 w-1 bg-indigo-600 rounded-full" />
+            <div className={`bg-indigo-600 rounded-full ${activeTab === 'fast-pos' ? 'h-6 w-1' : 'h-10 w-1'}`} />
             <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
+              <h2 className={`${activeTab === 'fast-pos' ? 'text-lg font-extrabold' : 'text-2xl font-black'} text-slate-900 tracking-tight uppercase`}>
                 {activeTab.replace(/_/g, ' ')}
               </h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
-                Control_Center / {activeTab}
-              </p>
+              {activeTab !== 'fast-pos' && (
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
+                  Control_Center / {activeTab}
+                </p>
+              )}
             </div>
           </motion.div>
 
@@ -828,10 +830,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="flex items-center gap-3 bg-slate-100 border border-slate-200 p-1.5 rounded-2xl shrink-0 shadow-xs"
+              className={`flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-xl shrink-0 shadow-xs ${activeTab === 'fast-pos' ? 'p-1' : 'p-1.5 rounded-2xl'}`}
             >
-              <div className="px-3 py-1.5 rounded-xl bg-white shadow-xs flex items-center gap-2">
-                <span className="text-base">
+              <div className={`rounded-lg bg-white shadow-xs flex items-center gap-1.5 ${activeTab === 'fast-pos' ? 'px-2.5 py-1' : 'px-3 py-1.5 rounded-xl gap-2'}`}>
+                <span className={activeTab === 'fast-pos' ? 'text-sm' : 'text-base'}>
                   {activeStaffRole === 'manager' ? '👑' : activeStaffRole === 'cashier' ? '💳' : '🍽️'}
                 </span>
                 <span className="text-xs font-black tracking-wider uppercase text-slate-700">
@@ -855,7 +857,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   setIsEditingPins(false);
                   setShowRoleModal(true);
                 }}
-                className="px-4 py-1.5 bg-slate-900 hover:bg-slate-850 text-white rounded-xl text-xs font-bold transition-all uppercase tracking-wider active:scale-95"
+                className={`bg-slate-900 hover:bg-slate-850 text-white rounded-lg text-xs font-bold transition-all uppercase tracking-wider active:scale-95 cursor-pointer ${activeTab === 'fast-pos' ? 'px-3 py-1' : 'px-4 py-1.5 rounded-xl'}`}
               >
                 {isTr ? 'Rol Değiştir' : 'Switch Role'}
               </button>

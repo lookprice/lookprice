@@ -149,17 +149,31 @@ router.post("/pos", async (req: any, res) => {
       );
 
       if (item.id && saleStatus !== 'pending') {
-        const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [item.id]);
+        const productRes = await client.query("SELECT product_type, has_variants, variants FROM products WHERE id = $1", [item.id]);
         const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
+        const hasVariants = productRes.rows[0]?.has_variants || false;
+        let variantsList = productRes.rows[0]?.variants || [];
+        if (typeof variantsList === 'string') {
+          try { variantsList = JSON.parse(variantsList); } catch (e) { variantsList = []; }
+        }
 
-        const recipeRes = await client.query(
-          "SELECT ingredient_id, amount, unit FROM product_recipes WHERE product_id = $1 AND store_id = $2",
-          [item.id, storeId]
-        );
+        // Check if item has variant-specific recipe items
+        let variantRecipeItems: any[] = [];
+        if (item.variant_recipe_items && Array.isArray(item.variant_recipe_items) && item.variant_recipe_items.length > 0) {
+          variantRecipeItems = item.variant_recipe_items;
+        } else if (hasVariants && Array.isArray(variantsList) && (item.variant_id || item.variant_name)) {
+          const matchedVar = variantsList.find((v: any) => 
+            (item.variant_id && String(v.id) === String(item.variant_id)) || 
+            (item.variant_name && String(v.name).toLowerCase() === String(item.variant_name).toLowerCase())
+          );
+          if (matchedVar && Array.isArray(matchedVar.recipe_items)) {
+            variantRecipeItems = matchedVar.recipe_items;
+          }
+        }
 
-        if (recipeRes.rows.length > 0) {
-          for (const recItem of recipeRes.rows) {
-            const baseAmount = convertRecipeAmountToMl(Number(recItem.amount), recItem.unit);
+        if (variantRecipeItems.length > 0) {
+          for (const recItem of variantRecipeItems) {
+            const baseAmount = convertRecipeAmountToMl(Number(recItem.amount), recItem.unit || recItem.ingredient_unit || 'ml');
             const totalIngredientQtyMl = Number(item.quantity) * baseAmount;
             
             const ingRes = await client.query("SELECT volume_ml, unit FROM products WHERE id = $1", [recItem.ingredient_id]);
@@ -185,19 +199,61 @@ router.post("/pos", async (req: any, res) => {
               'out', 
               finalDeduction, 
               'pos', 
-              `Reçete Çıkışı (Hızlı POS Satışı #${saleId}, Ürün: ${item.name})${descriptionExtra}`, 
+              `Varyant Reçete Çıkışı (Hızlı POS Satışı #${saleId}, Ürün: ${item.name})${descriptionExtra}`, 
               0, 
               customerName || 'Hızlı Satış', 
               currency || 'TRY',
               saleId
             );
           }
-        } else if (productType !== 'service') {
-          await client.query(
-            "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
-            [item.quantity, item.id]
+        } else {
+          const recipeRes = await client.query(
+            "SELECT ingredient_id, amount, unit FROM product_recipes WHERE product_id = $1 AND store_id = $2",
+            [item.id, storeId]
           );
-          await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`, item.price, customerName || 'Hızlı Satış', currency || 'TRY', saleId);
+
+          if (recipeRes.rows.length > 0) {
+            for (const recItem of recipeRes.rows) {
+              const baseAmount = convertRecipeAmountToMl(Number(recItem.amount), recItem.unit);
+              const totalIngredientQtyMl = Number(item.quantity) * baseAmount;
+              
+              const ingRes = await client.query("SELECT volume_ml, unit FROM products WHERE id = $1", [recItem.ingredient_id]);
+              const volMl = Number(ingRes.rows[0]?.volume_ml) || 0;
+              const ingUnit = ingRes.rows[0]?.unit;
+              
+              let finalDeduction = totalIngredientQtyMl;
+              let descriptionExtra = "";
+              
+              if (volMl > 0 && !['ml', 'gr', 'g', 'cc'].includes(ingUnit?.toLowerCase())) {
+                finalDeduction = totalIngredientQtyMl / volMl;
+                descriptionExtra = ` (${totalIngredientQtyMl}ml / ${volMl}ml)`;
+              }
+
+              await client.query(
+                "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+                [finalDeduction, recItem.ingredient_id]
+              );
+              await addStockMovement(
+                client, 
+                storeId, 
+                recItem.ingredient_id, 
+                'out', 
+                finalDeduction, 
+                'pos', 
+                `Reçete Çıkışı (Hızlı POS Satışı #${saleId}, Ürün: ${item.name})${descriptionExtra}`, 
+                0, 
+                customerName || 'Hızlı Satış', 
+                currency || 'TRY',
+                saleId
+              );
+            }
+          } else if (productType !== 'service') {
+            await client.query(
+              "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+              [item.quantity, item.id]
+            );
+            await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`, item.price, customerName || 'Hızlı Satış', currency || 'TRY', saleId);
+          }
         }
       }
     }
