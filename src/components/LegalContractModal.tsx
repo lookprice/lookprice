@@ -192,8 +192,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   };
 
   const handleShareWhatsApp = () => {
+    if (!clientName.trim() || !clientIdentity.trim() || !clientPhone.trim()) {
+      alert("Lütfen WhatsApp üzerinden paylaşmadan önce '2. Müşteri & Sözleşme Bilgileri' alanındaki tüm bilgileri (Müşteri Tam Adı, Kimlik/Pasaport No ve Telefon Numarası) eksiksiz doldurunuz. Tarafı olmayan sözleşme paylaşılamaz!");
+      return;
+    }
     const formattedPhone = clientPhone ? clientPhone.replace(/[^\d+]/g, '') : '';
-    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*[LP-${property.id}] ${property.title}* portföyü için hazırlanan resmi *${currentTemplate.titleTr}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 https://lookprice.me/contract/sign/${property.id}?client=${encodeURIComponent(clientName || '')}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*[LP-${property.id}] ${property.title}* portföyü için hazırlanan resmi *${currentTemplate.titleTr}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/${property.id}?client=${encodeURIComponent(clientName || '')}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -421,16 +425,6 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
             </div>
 
             <div className="flex gap-2">
-              {onSaveContract && (
-                <button 
-                  onClick={handleSaveContract}
-                  disabled={saving}
-                  className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 rounded-xl border border-emerald-100 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"
-                  title="Sözleşmeyi CRM'ye Kaydet"
-                >
-                  <Save className="w-3.5 h-3.5" /> {saving ? "Kaydediliyor..." : "Sözleşmeyi Kaydet"}
-                </button>
-              )}
               <button 
                 onClick={handlePrint}
                 className="p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl border border-indigo-100 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"

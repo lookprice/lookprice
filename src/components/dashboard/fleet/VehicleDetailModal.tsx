@@ -389,7 +389,71 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                               <Calendar className="w-4 h-4 text-gray-300" />
                               {isTr ? 'Sona Erme' : 'Expires'}: {new Date(doc.expiry_date).toLocaleDateString()}
                             </span>
-                            {doc.document_url && (
+                            {doc.document_url === "is_virtual_contract" ? (
+                              <button
+                                onClick={() => {
+                                  let details: any = {};
+                                  try {
+                                    details = typeof doc.notes === 'string' ? JSON.parse(doc.notes) : doc.notes || {};
+                                  } catch (e) {
+                                    console.error(e);
+                                  }
+                                  
+                                  const cType = details.contractType || 'consignment';
+                                  const cTitle = cType === 'consignment' ? 'ARAÇ KONSİNYE GİRİŞ VE SATIŞ SÖZLEŞMESİ' : 'ARAÇ REZERVASYON PROTOKOLÜ / KAPORA FORMU';
+                                  const symbol = vehicle.currency === 'GBP' ? '£' : vehicle.currency === 'USD' ? '$' : vehicle.currency === 'EUR' ? '€' : '₺';
+                                  const priceFormatted = `${symbol}${(vehicle.selling_price || vehicle.buying_price || 0).toLocaleString()}`;
+                                  const depositFormatted = details.depositAmount ? `${details.depositAmount} ${symbol}` : '[Kapora Tutarı]';
+                                  const vehicleDetails = `${vehicle.brand} ${vehicle.model} (${vehicle.year || ''}) • Plaka: ${vehicle.plate || ''} • Şasi: ${vehicle.chassis_number || ''}`;
+
+                                  const html = `
+                                    <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
+                                      <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
+                                        <h1 style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">${cTitle}</h1>
+                                        <h2 style="font-size: 12px; font-weight: bold; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase;">VEHICLE SIGNED AGREEMENT</h2>
+                                      </div>
+                                      <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
+                                        <tr style="background-color: #f8fafc;"><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">YETKİLİ GALERİ</td><td style="padding: 10px; border: 1px solid #e2e8f0;">${details.displayName || 'Seçkin Otomotiv'}</td></tr>
+                                        <tr><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜŞTERİ / TARAFI</td><td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${details.clientName || ''}</strong></td></tr>
+                                        <tr style="background-color: #f8fafc;"><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİMLİK / T.C. NO</td><td style="padding: 10px; border: 1px solid #e2e8f0;">${details.clientIdentity || ''}</td></tr>
+                                        <tr><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">TELEFON</td><td style="padding: 10px; border: 1px solid #e2e8f0;">${details.clientPhone || ''}</td></tr>
+                                        <tr style="background-color: #f8fafc;"><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">ARAÇ DETAYLARI</td><td style="padding: 10px; border: 1px solid #e2e8f0;">${vehicleDetails}</td></tr>
+                                        <tr><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">SATIŞ BEDELİ</td><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #1d4ed8;">${priceFormatted}</td></tr>
+                                        ${cType === 'consignment' ? `
+                                          <tr style="background-color: #f8fafc;"><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KOMİSYON ORANI</td><td style="padding: 10px; border: 1px solid #e2e8f0;">%${details.commissionAmount || '2.5'} + KDV</td></tr>
+                                        ` : `
+                                          <tr style="background-color: #f8fafc;"><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">ALINAN KAPORA</td><td style="padding: 10px; border: 1px solid #e2e8f0;">${depositFormatted}</td></tr>
+                                        `}
+                                        <tr><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">SÖZLEŞME TARİHİ</td><td style="padding: 10px; border: 1px solid #e2e8f0;">${details.contractDate || ''}</td></tr>
+                                        <tr style="background-color: #f8fafc;"><td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">IP ADRESİ</td><td style="padding: 10px; border: 1px solid #e2e8f0; font-family: monospace;">${details.ipAddress || ''}</td></tr>
+                                      </table>
+                                      <div style="margin-top: 30px; font-size: 11px; color: #64748b; text-align: justify; border-top: 1px solid #cbd5e1; padding-top: 15px;">
+                                        <p><strong>YASAL UYARI VE BEYAN:</strong> İşbu sözleşme taraflarca dijital ortamda, tablet/mobil dokunmatik ekran üzerinde ıslak imza simülasyonu ile onaylanmış olup, 5070 Sayılı Elektronik İmza Kanunu ve Borçlar Kanunu uyarınca yasal olarak geçerli ve delil sözleşmesi niteliğindedir.</p>
+                                      </div>
+                                      <div style="margin-top: 40px; display: flex; justify-content: space-between;">
+                                        <div style="width: 45%; text-align: center; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px;">
+                                          <p style="font-size: 12px; font-weight: bold; margin: 0 0 10px 0;">YETKİLİ GALERİ İMZASI</p>
+                                          <div style="height: 60px; font-size: 11px; color: #94a3b8; display: flex; align-items: center; justify-content: center;">[DİJİTAL ONAYLANDI]</div>
+                                        </div>
+                                        <div style="width: 45%; text-align: center; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; background: #f0fdf4; border-color: #bbf7d0;">
+                                          <p style="font-size: 12px; font-weight: bold; margin: 0 0 10px 0; color: #166534;">MÜŞTERİ / ALICI İMZASI</p>
+                                          <div style="height: 60px; font-size: 12px; color: #166534; font-weight: black; display: flex; align-items: center; justify-content: center; flex-direction: column;">✍️ ${details.clientName || ''} <span style="font-size:9px; color:#15803d; font-weight: bold; margin-top: 4px;">[DİJİTAL İMZALANDI]</span></div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  `;
+                                  
+                                  const win = window.open('', '_blank');
+                                  if (win) {
+                                    win.document.write(`<html><head><title>${cTitle}</title></head><body onload="window.print()">${html}</body></html>`);
+                                    win.document.close();
+                                  }
+                                }}
+                                className="flex items-center gap-1.5 text-emerald-600 hover:underline cursor-pointer font-extrabold"
+                              >
+                                {isTr ? 'Sözleşmeyi İncele / Yazdır ➔' : 'Review Contract ➔'}
+                              </button>
+                            ) : doc.document_url && (
                               <a href={doc.document_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-blue-600 hover:underline">
                                 {isTr ? 'Görüntüle' : 'View'}
                                 <ExternalLink className="w-3 h-3" />

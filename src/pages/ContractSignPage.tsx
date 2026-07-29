@@ -14,7 +14,8 @@ import {
   AlertTriangle,
   Award,
   Lock,
-  Smartphone
+  Smartphone,
+  CreditCard
 } from "lucide-react";
 
 export default function ContractSignPage() {
@@ -28,6 +29,7 @@ export default function ContractSignPage() {
   const [isVehicle, setIsVehicle] = useState(false);
   const [clientName, setClientName] = useState(clientNameParam);
   const [clientPhone, setClientPhone] = useState("");
+  const [clientIdentity, setClientIdentity] = useState("");
   const [signed, setSigned] = useState(false);
   const [isSigningActive, setIsSigningActive] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -135,17 +137,53 @@ export default function ContractSignPage() {
     }
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!clientName.trim()) {
       alert("Lütfen isminizi giriniz.");
+      return;
+    }
+    if (!clientIdentity.trim()) {
+      alert("Lütfen T.C. Kimlik veya Pasaport numaranızı giriniz.");
+      return;
+    }
+    if (!clientPhone.trim()) {
+      alert("Lütfen iletişim telefon numaranızı giriniz.");
       return;
     }
     if (!isSigningActive) {
       alert("Lütfen parmağınızla imza alanına imzanızı atınız.");
       return;
     }
-    setSigned(true);
-    setSuccess(true);
+
+    try {
+      setLoading(true);
+      const url = isVehicle ? `/api/public/vehicles/${id}/sign` : `/api/public/real-estate/${id}/sign`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName,
+          clientIdentity,
+          clientPhone,
+          commissionRate: "3.0",
+          commissionAmount: "2.5",
+          contractType: "consignment",
+          displayName: storeName
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Sözleşme kaydedilemedi.");
+      }
+
+      setSigned(true);
+      setSuccess(true);
+    } catch (err: any) {
+      alert(err.message || "Sözleşme kaydedilirken hata oluştu. Lütfen tekrar deneyin.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatCurrency = (val: any, currency: string) => {
@@ -310,6 +348,20 @@ export default function ContractSignPage() {
                         placeholder="Adınız Soyadınız" 
                         value={clientName}
                         onChange={(e) => setClientName(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold text-white placeholder-slate-600 focus:ring-0 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1.5">T.C. KİMLİK / PASAPORT NUMARASI</label>
+                    <div className="relative">
+                      <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                      <input 
+                        type="text" 
+                        placeholder="Kimlik veya Pasaport No" 
+                        value={clientIdentity}
+                        onChange={(e) => setClientIdentity(e.target.value)}
                         className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold text-white placeholder-slate-600 focus:ring-0 outline-none transition-all"
                       />
                     </div>

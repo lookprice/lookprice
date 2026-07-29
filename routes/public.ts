@@ -2038,6 +2038,114 @@ router.get("/real-estate/:id", async (req, res) => {
   }
 });
 
+// Public Real Estate Property Signature Save
+router.post("/real-estate/:id/sign", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { clientName, clientIdentity, clientPhone, commissionRate, templateId } = req.body;
+
+    if (!clientName || !clientIdentity || !clientPhone) {
+      return res.status(400).json({ error: "Lütfen tüm imza alanlarını doldurunuz." });
+    }
+
+    let propRes = await pool.query("SELECT * FROM real_estate_properties WHERE id = $1", [id]);
+    let tableName = "real_estate_properties";
+    if (propRes.rows.length === 0) {
+      propRes = await pool.query("SELECT * FROM real_estate WHERE id = $1", [id]);
+      tableName = "real_estate";
+    }
+
+    if (propRes.rows.length === 0) {
+      return res.status(404).json({ error: "Gayrimenkul bulunamadı." });
+    }
+
+    const property = propRes.rows[0];
+    const existingDocs = property.documents ? (typeof property.documents === 'string' ? JSON.parse(property.documents) : property.documents) : [];
+
+    const newDoc = {
+      id: `virtual-contract-${Date.now()}`,
+      name: `Dijital İmzalı Sözleşme - ${clientName} (${new Date().toLocaleDateString("tr-TR")})`,
+      category: "contract",
+      file_url: "is_virtual_contract",
+      upload_date: new Date().toLocaleDateString("tr-TR"),
+      details: {
+        templateId: templateId || "showing_agreement",
+        clientName,
+        clientIdentity,
+        clientPhone,
+        commissionRate: commissionRate || "3",
+        contractDate: new Date().toLocaleDateString("tr-TR"),
+        signed: true,
+        signingName: clientName,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      }
+    };
+
+    const updatedDocs = [...existingDocs, newDoc];
+
+    await pool.query(
+      `UPDATE ${tableName} SET documents = $1 WHERE id = $2`,
+      [JSON.stringify(updatedDocs), id]
+    );
+
+    res.json({ success: true, document: newDoc });
+  } catch (error: any) {
+    console.error("Error signing real estate contract:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public Vehicle Signature Save
+router.post("/vehicles/:id/sign", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const realVehicleId = id.replace("vehicle-", "");
+    const { clientName, clientIdentity, clientPhone, commissionAmount, contractType, displayName } = req.body;
+
+    if (!clientName || !clientIdentity || !clientPhone) {
+      return res.status(400).json({ error: "Lütfen tüm imza alanlarını doldurunuz." });
+    }
+
+    const vehRes = await pool.query("SELECT * FROM vehicles WHERE id = $1", [realVehicleId]);
+    if (vehRes.rows.length === 0) {
+      return res.status(404).json({ error: "Araç bulunamadı." });
+    }
+
+    const details = {
+      clientName,
+      clientIdentity,
+      clientPhone,
+      commissionAmount: commissionAmount || "2.5",
+      contractDate: new Date().toLocaleDateString("tr-TR"),
+      contractType: contractType || "consignment",
+      signed: true,
+      signingName: clientName,
+      displayName: displayName || "Seçkin Otomotiv",
+      ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+    };
+
+    const docType = contractType === 'consignment' ? "Konsinye Satış Sözleşmesi (İmzalı)" : "Rezervasyon Protokolü (İmzalı)";
+
+    await pool.query(
+      `INSERT INTO vehicle_documents (vehicle_id, type, document_url, expiry_date, is_recurring, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        Number(realVehicleId),
+        docType,
+        "is_virtual_contract",
+        new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        false,
+        JSON.stringify(details)
+      ]
+    );
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Error signing vehicle contract:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Public Quotation Action (Approve/Reject)
 router.post("/quotations/:id/action", async (req, res) => {
   const client = await pool.connect();
