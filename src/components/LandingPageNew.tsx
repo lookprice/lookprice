@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowRight, Zap, BarChart3, X, Wrench, Truck, Package, Wallet, Check, Globe, FileText, ShoppingCart, ArrowLeftRight, Layout, Settings, Activity, Users, Shield, Download, CreditCard, RefreshCw, Smartphone, Sparkles, Building2, Car, Compass, Network, Share2, ClipboardSignature, MapPin, UserCheck, History, TrendingUp, Key, Flame } from "lucide-react";
+import { ArrowRight, Zap, BarChart3, X, Wrench, Truck, Package, Wallet, Check, Globe, FileText, ShoppingCart, ArrowLeftRight, Layout, Settings, Activity, Users, Shield, Download, CreditCard, RefreshCw, Smartphone, Sparkles, Building2, Car, Utensils, Coffee, Compass, Network, Share2, ClipboardSignature, MapPin, UserCheck, History, TrendingUp, Key, Flame } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
@@ -14,7 +14,7 @@ export const LandingPage = () => {
   const t = translations[lang];
 
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const [systemType, setSystemType] = useState<'portfolio' | 'product'>('portfolio');
+  const [systemType, setSystemType] = useState<'portfolio' | 'product' | 'restaurant'>('portfolio');
 
   useEffect(() => {
     if (location.state?.openDemo) {
@@ -23,7 +23,7 @@ export const LandingPage = () => {
       window.history.replaceState({}, document.title);
     }
   }, [location]);
-  const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" });
+  const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" | "restaurant" });
   const [demoStatus, setDemoStatus] = useState({ type: "", text: "" });
   const [selectedInsight, setSelectedInsight] = useState<any>(null);
   const [activeScenario, setActiveScenario] = useState<'new' | 'existing'>('new');
@@ -184,11 +184,11 @@ export const LandingPage = () => {
 
       {/* Dual Core Switcher Block */}
       <section className="relative px-6 md:px-12 lg:px-24 py-12 border-t border-white/5 bg-[#060608] z-20">
-        <div className="max-w-6xl mx-auto text-center">
-          <div className="inline-flex p-1.5 bg-slate-950/90 border border-white/10 rounded-3xl mb-4 shadow-2xl">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="inline-flex flex-wrap md:flex-nowrap p-1.5 bg-slate-950/90 border border-white/10 rounded-3xl mb-4 shadow-2xl justify-center gap-1">
             <button
               onClick={() => setSystemType('portfolio')}
-              className={`px-6 py-3.5 md:px-10 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
+              className={`px-5 py-3.5 md:px-8 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
                 systemType === 'portfolio'
                   ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/50'
                   : 'text-white/40 hover:text-white hover:bg-white/5'
@@ -199,14 +199,25 @@ export const LandingPage = () => {
             </button>
             <button
               onClick={() => setSystemType('product')}
-              className={`px-6 py-3.5 md:px-10 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
+              className={`px-5 py-3.5 md:px-8 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
                 systemType === 'product'
                   ? 'bg-indigo-650 text-white shadow-lg shadow-indigo-950/50'
                   : 'text-white/40 hover:text-white hover:bg-white/5'
               }`}
             >
               <Package className="w-4 h-4" />
-              {lang === 'tr' ? 'PERAKENDE, DETAY & MAĞAZA (POS)' : 'RETAIL, SHOP & POS (Shop System)'}
+              {lang === 'tr' ? 'PERAKENDE & MAĞAZA (POS)' : 'RETAIL & SHOP (POS)'}
+            </button>
+            <button
+              onClick={() => setSystemType('restaurant')}
+              className={`px-5 py-3.5 md:px-8 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
+                systemType === 'restaurant'
+                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-950/50'
+                  : 'text-white/40 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Utensils className="w-4 h-4" />
+              {lang === 'tr' ? 'CAFE & RESTORAN (QR MENÜ & POS)' : 'CAFE & RESTAURANT (QR & POS)'}
             </button>
           </div>
           
@@ -412,7 +423,7 @@ export const LandingPage = () => {
 
                 </div>
               </motion.div>
-            ) : (
+            ) : systemType === 'product' ? (
               <motion.div
                 key="product-anatomy"
                 initial={{ opacity: 0, y: 15 }}
@@ -520,6 +531,200 @@ export const LandingPage = () => {
                     </p>
                     <div className="flex flex-wrap gap-1.5 relative z-10">
                       <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg">Dijital Onay Köprüsü</span>
+                    </div>
+                  </div>
+
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="restaurant-anatomy"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="mb-20 text-center max-w-3xl mx-auto">
+                  <div className="inline-flex items-center gap-2 text-amber-400 text-[10px] font-black uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 mb-4">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {lang === 'tr' ? 'EŞSİZ LEZZET VE SİPARİŞ ENTEGRASYONU' : 'UNIFIED RESTAURANT OPERATIONS'}
+                  </div>
+                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">
+                    {lang === 'tr' ? 'Cafe & Restoran Yönetim Sistemi' : 'Cafe & Restaurant Management System'}
+                  </h2>
+                  <p className="text-white/50 text-lg md:text-xl font-light">
+                    {lang === 'tr' 
+                      ? 'Masadan mutfağa, kuryeden kasaya kadar restoranınızın her hücresini kusursuz bir uyumla senkronize eden yeni nesil restoran yönetim omurgası.' 
+                      : 'Next-gen kitchen, table, courier, and automated recipe systems aligned under one beautiful real-time dashboard.'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {/* Card 1 - QR Menu */}
+                  <div className="p-10 rounded-[2.5rem] bg-amber-950/15 border border-amber-500/20 relative group overflow-hidden hover:bg-amber-900/15 transition duration-300">
+                    <div className="w-full h-48 bg-[#0c0a08] rounded-2xl mb-8 border border-amber-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-amber-500/40 transition-colors shadow-lg justify-between">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-amber-400">QR CODE INTERACTION</span>
+                        <Smartphone className="w-3.5 h-3.5 text-amber-400" />
+                      </div>
+                      <div className="p-3 bg-amber-500/5 rounded-xl border border-amber-500/10 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Coffee className="w-4 h-4 text-amber-400 animate-pulse" />
+                          <div>
+                            <p className="text-[10px] font-bold text-white">Latte Macchiato</p>
+                            <p className="text-[8px] text-amber-500">Masa 4 - Sipariş Edildi</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-400">120 TL</span>
+                      </div>
+                    </div>
+                    <Smartphone className="w-10 h-10 text-amber-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'QR MENÜ & SİPARİŞ' : 'QR MENU & ORDERING'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' 
+                        ? 'Müşterileriniz masadaki QR kodu okutarak anında dijital menünüze erişir, siparişlerini garsona ihtiyaç duymadan doğrudan mutfağa iletebilir. Hesap talep etme ve hızlı garson çağırma entegrasyonuyla bekleme sürelerini sıfırlayın.' 
+                        : 'Interactive visual menu inside your customers\' hands. Scan, select, customize traits, and directly dispatch orders to corresponding kitchen/bar screens without delay.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] rounded-lg">Temassız Sipariş & Garson Çağır</span>
+                    </div>
+                  </div>
+
+                  {/* Card 2 - POS & Table Management */}
+                  <div className="p-10 rounded-[2.5rem] bg-emerald-950/15 border border-emerald-500/20 relative group overflow-hidden hover:bg-emerald-900/15 transition duration-300">
+                    <div className="w-full h-48 bg-[#080c0a] rounded-2xl mb-8 border border-emerald-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-emerald-500/40 transition-colors shadow-lg justify-between">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-emerald-400">TABLE LAYOUT SIMULATION</span>
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="p-2 bg-emerald-500/20 border border-emerald-500 text-center rounded-lg text-[9px] font-bold text-white">Masa 1<br/>Dolu</div>
+                        <div className="p-2 bg-white/5 border border-white/10 text-center rounded-lg text-[9px] text-slate-500">Masa 2<br/>Boş</div>
+                        <div className="p-2 bg-amber-500/20 border border-amber-500 text-center rounded-lg text-[9px] font-bold text-white">Masa 3<br/>Rezerve</div>
+                      </div>
+                    </div>
+                    <Layout className="w-10 h-10 text-emerald-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'HIZLI POS & MASA PLANI' : 'FAST POS & TABLE PLAN'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' 
+                        ? 'Sürükle-bırak masa taşıma, masaları tek tıkla birleştirme, Alman usulü parçalı hesap bölme ve her masanın sipariş süresini gösteren canlı kat planı. Sipariş gecikmelerini önlemek için otomatik renk uyarısı.' 
+                        : 'Manage floor blueprints with ease. Drag and drop reservations, merge tables, process split payments, apply itemized discounts, and monitor service time indicators to eliminate cold food complaints.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] rounded-lg">Parçalı Tahsilat & Hesap Bölme</span>
+                    </div>
+                  </div>
+
+                  {/* Card 3 - Kitchen Display System */}
+                  <div className="p-10 rounded-[2.5rem] bg-rose-950/15 border border-rose-500/20 relative group overflow-hidden hover:bg-rose-900/15 transition duration-300">
+                    <div className="w-full h-48 bg-[#0c0809] rounded-2xl mb-8 border border-rose-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-rose-500/40 transition-colors shadow-lg justify-between">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-rose-400">KDS TICKET QUEUE</span>
+                        <Activity className="w-3.5 h-3.5 text-rose-400" />
+                      </div>
+                      <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl space-y-1">
+                        <div className="flex justify-between text-[9px] font-bold text-white">
+                          <span>🍔 Hamburger x2</span>
+                          <span className="text-rose-400 animate-pulse">Hazırlanıyor (4 dk)</span>
+                        </div>
+                        <p className="text-[8px] text-slate-400">Not: Soslar bol olsun, orta pişmiş köfte.</p>
+                      </div>
+                    </div>
+                    <Activity className="w-10 h-10 text-rose-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'MUTFAK & BAR EKRANI (KDS)' : 'KITCHEN DISPLAY SYSTEM'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' 
+                        ? 'Garsonların el terminallerinden veya QR menüden girilen siparişler saniyeler içinde mutfak ve bar ekranlarına düşer. Pişirme ve hazırlanma süreleri takip edilir, hazır olan sipariş için ilgili garsonun saatine veya el terminaline anlık bildirim gider.' 
+                        : 'Instant electronic ticket dispatch. Completely replace printer paper with digital displays. Automatically track cooking times, and notify the server on their mobile device when orders are ready to run.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg">Canlı Hazırlanma Bildirimleri</span>
+                    </div>
+                  </div>
+
+                  {/* Card 4 - Food Costing & Recipes */}
+                  <div className="p-10 rounded-[2.5rem] bg-cyan-950/15 border border-cyan-500/20 relative group overflow-hidden hover:bg-cyan-900/15 transition duration-300">
+                    <div className="w-full h-48 bg-[#080c0c] rounded-2xl mb-8 border border-cyan-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-cyan-500/40 transition-colors shadow-lg justify-between">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-cyan-400">RECIPE PORTION DEVIATION</span>
+                        <Settings className="w-3.5 h-3.5 text-cyan-400" />
+                      </div>
+                      <div className="text-[9px] space-y-1 font-mono text-slate-400">
+                        <p className="text-white">🍔 Double Cheeseburger</p>
+                        <p className="text-cyan-400">🍖 Et Köftesi: -300g (Stoktan düştü)</p>
+                        <p className="text-cyan-400">🧀 Cheddar Peyniri: -2 Dilim (Stoktan düştü)</p>
+                        <p className="text-emerald-400">📈 Marj: %72 Brüt Kâr</p>
+                      </div>
+                    </div>
+                    <Wrench className="w-10 h-10 text-cyan-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'REÇETE & PORTFÖY MALİYETİ' : 'RECIPE & FOOD COSTING'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' 
+                        ? 'Satılan her bir porsiyon, yemek veya içeceğin reçetesine göre kullanılan hammaddeler (et, un, peynir, kahve çekirdeği) depodan otomatik düşer. Gerçek zamanlı porsiyon maliyeti ve kârlılık analizi ile israfı ve kayıpları sıfıra indirin.' 
+                        : 'Real-time stock deduction based on precise menu recipes. Define exact grammage per portion, automate stock decrements on sale, and track gross food cost percentages dynamically.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] rounded-lg">Otomatik Reçeteli Stok Düşümü</span>
+                    </div>
+                  </div>
+
+                  {/* Card 5 - Delivery & Marketplace Integration */}
+                  <div className="p-10 rounded-[2.5rem] bg-purple-950/15 border border-purple-500/20 relative group overflow-hidden hover:bg-purple-900/15 transition duration-300">
+                    <div className="w-full h-48 bg-[#0a080c] rounded-2xl mb-8 border border-purple-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-purple-400/40 transition-all shadow-lg justify-between">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-purple-400">ONLINE ORDER PIPELINE</span>
+                        <Truck className="w-3.5 h-3.5 text-purple-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="p-1.5 bg-purple-500/10 rounded border border-purple-500/20 flex justify-between items-center">
+                          <span className="text-[8px] font-bold text-white">Yemeksepeti #9283</span>
+                          <span className="text-[8px] px-1 bg-purple-500/30 rounded text-purple-300">Yeni Sipariş</span>
+                        </div>
+                        <div className="p-1.5 bg-indigo-500/10 rounded border border-indigo-500/20 flex justify-between items-center">
+                          <span className="text-[8px] font-bold text-white">Trendyol Yemek #4829</span>
+                          <span className="text-[8px] px-1 bg-indigo-500/30 rounded text-indigo-300">Kuryede</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Truck className="w-10 h-10 text-purple-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'ENTEGRE PAKET SERVİS' : 'DELIVERY INTEGRATIONS'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' 
+                        ? 'Yemeksepeti, Getir, Trendyol Yemek gibi popüler sipariş platformlarıyla tam entegrasyon. Gelen siparişler doğrudan POS ekranınıza düşer ve tek tıkla kuryenize zimmetlenerek teslimat süreci canlı olarak harita üzerinden takip edilir.' 
+                        : 'Complete pipeline connection to global delivery networks. Centralize external online orders, coordinate logistics with your internal courier staff, and track courier positions in real time.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] rounded-lg">Yemeksepeti, Getir, Trendyol</span>
+                    </div>
+                  </div>
+
+                  {/* Card 6 - Waiter Performance & Tips */}
+                  <div className="p-10 rounded-[2.5rem] bg-blue-950/15 border border-blue-500/20 relative group overflow-hidden hover:bg-blue-900/15 transition duration-300">
+                    <div className="w-full h-48 bg-[#08090c] rounded-2xl mb-8 border border-blue-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-blue-400/40 transition-all shadow-lg justify-between">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-blue-400">STAFF EFFICIENCY INDEX</span>
+                        <Users className="w-3.5 h-3.5 text-blue-400" />
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="flex-1 bg-blue-500/10 p-2 rounded-xl text-center border border-blue-500/20">
+                          <p className="text-[12px] font-black text-white">45 dk</p>
+                          <p className="text-[7px] text-slate-400">Ort. Servis Hızı</p>
+                        </div>
+                        <div className="flex-1 bg-emerald-500/10 p-2 rounded-xl text-center border border-emerald-500/20">
+                          <p className="text-[12px] font-black text-emerald-400">%96.8</p>
+                          <p className="text-[7px] text-slate-400">Garson Skoru</p>
+                        </div>
+                      </div>
+                    </div>
+                    <Users className="w-10 h-10 text-blue-400 mb-8 relative z-10" />
+                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'PERSONEL & TİP BOX YÖNETİMİ' : 'STAFF & TIP MANAGEMENT'}</h3>
+                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
+                      {lang === 'tr' 
+                        ? 'Personel performanslarını, her garsonun aldığı sipariş adedini, bahşiş dağılımını (tip box), kasa mutabakatlarını ve müşteri geri bildirimlerini anlık takip edin. İşletmenizin verimliliğini ödüllendirme mekanizmaları ile artırın.' 
+                        : 'Gain exact visibility into waitstaff behaviors. Auto-apportion service charges and pooled tips, audit individual checkout reconciliations, and monitor average ticket assembly velocities.'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 relative z-10">
+                      <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] rounded-lg">Garson Performans & Bahşiş Dağılımı</span>
                     </div>
                   </div>
 
@@ -1008,11 +1213,12 @@ export const LandingPage = () => {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">{lang === 'tr' ? 'Sektörünüz' : 'Your Sector'}</label>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {[
                             { id: 'real_estate', label: lang === 'tr' ? 'Emlak' : 'Real Estate', icon: Building2 },
                             { id: 'motor_vehicle', label: lang === 'tr' ? 'Otomotiv' : 'Automotive', icon: Car },
-                            { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: Package }
+                            { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: Package },
+                            { id: 'restaurant', label: lang === 'tr' ? 'Restoran' : 'Restaurant', icon: Utensils }
                           ].map((s) => (
                             <button
                               key={s.id}

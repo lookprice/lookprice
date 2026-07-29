@@ -42,7 +42,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
   const [isCollage, setIsCollage] = useState<boolean>(true);
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('luxury');
-  const [forcedStatus, setForcedStatus] = useState<'sold' | 'rented' | null>(property?.status === 'sold' ? 'sold' : property?.status === 'rented' ? 'rented' : null);
+  const [forcedStatus, setForcedStatus] = useState<'sold' | 'rented' | 'deal' | null>(property?.status === 'sold' ? 'sold' : property?.status === 'rented' ? 'rented' : null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
@@ -86,6 +86,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const roomsText = property.room_count ? `${property.room_count} Oda` : "";
   const typeText = property.type === 'residence' ? 'Konut' : property.type === 'commercial' ? 'Ticari Mülk' : 'Arsa';
   const titleType = property.kktc_title_type || "Eşdeğer Koçan";
+  const isFurnishedVal = property.furnished === 'esyali' || property.furnished === true || String(property.furnished).toLowerCase() === 'true';
 
   const handleCopyCaption = async () => {
     try {
@@ -194,13 +195,13 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     switch (selectedTone) {
       case 'luxury':
         return `🌟 PRESTİJ VE LÜKS BİR ARADA! 🌟\n\n` +
-               `Kuzey Kıbrıs emlak pazarının parlayan yıldızı ${propertyLocation} bölgesinde, elit standartlarda ve eşsiz konfor donanımlarıyla süslenmiş yeni bir portföy ile karşınızdayız.\n\n` +
+               `Kuzey Kıbrıs emlak pazarının parlayan yıldızı ${propertyLocation} bölgesinde, elit standartlarda og eşsiz konfor donanımlarıyla süslenmiş yeni bir portföy ile karşınızdayız.\n\n` +
                `🏡 Mülk Detayları:\n` +
                `• Alt Tip: ${property.subtype || typeText}\n` +
                `• Tip: ${typeText} / ${roomsText || 'Geniş Yerleşim'}\n` +
                `• Metrekare: ${sqmText || 'Belirtilmedi'}\n` +
                (isRent 
-                 ? `• Eşya Durumu: ${property.furnished ? 'A-Z Tam Teşekküllü Eşyalı' : 'Eşyasız (Zevkinize Uygun Tasarım)'}\n` +
+                 ? (property.type !== 'land' ? `• Eşya Durumu: ${isFurnishedVal ? 'A-Z Tam Teşekküllü Eşyalı' : 'Eşyasız (Zevkinize Uygun Tasarım)'}\n` : '') +
                    `• Depozito Tutarı: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)}` : 'Özel Görüşülecek'}\n` +
                    `• Ödeme Periyodu: ${bPeriod}\n`
                  : `• Tapu Durumu: ${titleType}\n`) +
@@ -216,7 +217,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       case 'investment':
         const profitSentence = isRent 
           ? `Kıbrıs'ta yüksek döviz kira getirisi ve prestijli yaşam avantajı arayan seçkin kiracılar için ideal yaşam alanı sunulmuştur.`
-          : `Kıbrıs'ta yüksek döviz kira getirisi (GBP bazlı amortisman) ve kesintisiz bölgesel prim potansiyeli arayan uluslararası yatırımcılar için ideal kârlılık şeması geliştirilmiştir.`;
+          : `Kıbrıs'ta yüksek döviz kira getirisi (GBP bazlı amortisman) og kesintisiz bölgesel prim potansiyeli arayan uluslararası yatırımcılar için ideal kârlılık şeması geliştirilmiştir.`;
         const amortSentence = isRent 
           ? `• Kiralama Potansiyeli: Çok talep gören seçkin lokasyon`
           : `• Bölgesel Amortisman Trendi: Çok hızlı geri dönüş rasyosu`;
@@ -252,7 +253,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                `👉 Tam ${roomsText || 'Geniş Yaşam Alanı'} ferahlığı\n` +
                `👉 Metraj Konforu: ${sqmText || 'Belirtilmedi'} kullanım alanı\n` +
                (isRent
-                 ? `👉 Kullanım Kolaylığı: ${property.furnished ? 'Taşınmaya hazır, tam mobilyalı!' : 'Kendi tarzınızı yansıtabileceğiniz boş mülk.'}\n` +
+                 ? (property.type !== 'land' ? `👉 Kullanım Kolaylığı: ${isFurnishedVal ? 'Taşınmaya hazır, tam mobilyalı!' : 'Kendi tarzınızı yansıtabileceğiniz boş mülk.'}\n` : '') +
                    `👉 Depozito Koşulu: ${property.deposit ? `${currencySymbol}${formatNumberVal(property.deposit)} depozitolu` : 'Görüşülecek'}\n` +
                    `👉 Ödeme Kolaylığı: ${property.billing_period === 'yearly' ? 'Yıllık peşin periyot' : property.billing_period === '3-monthly' ? '3 Aylık periyot' : property.billing_period === '6-monthly' ? '6 Aylık periyot' : 'Aylık ödemeli periyot'}\n`
                  : `👉 Güvenli Tapu: ${titleType} güvencesiyle içiniz rahat\n`) +
@@ -440,16 +441,23 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     ctx.font = '900 24px system-ui, sans-serif';
     ctx.fillText("📍 " + propertyLocation.toUpperCase() + "  •  " + regionText.toUpperCase(), width / 2, locationY);
 
-    const spec1 = roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul');
+    const spec1 = property.type === 'land' ? 'Arsa' : (roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul'));
     const spec2 = sqmText ? `${sqmText}` : 'Belirtilmedi';
-    const spec3 = property.furnished === 'esyali' ? 'Eşyalı' : (property.furnished === 'esyasiz' ? 'Eşyasız' : 'Belirtilmedi');
+    const spec3 = isFurnishedVal ? 'Eşyalı' : 'Eşyasız';
     const spec4 = isRent 
       ? (property.deposit ? `Depozito: ${priceText}` : 'Depozitosuz')
       : `Koçan: ${titleType}`;
 
     ctx.font = '900 20px system-ui, sans-serif';
     ctx.fillStyle = colors.textMuted;
-    ctx.fillText(`🏠 ${spec1}   •   📐 ${spec2}   •   📦 ${spec3}   •   🔑 ${spec4}`, width / 2, specsY);
+    
+    let specsTextLine = "";
+    if (property.type === 'land') {
+      specsTextLine = `🏠 ${spec1}   •   📐 ${spec2}   •   🔑 ${spec4}`;
+    } else {
+      specsTextLine = `🏠 ${spec1}   •   📐 ${spec2}   •   📦 ${spec3}   •   🔑 ${spec4}`;
+    }
+    ctx.fillText(specsTextLine, width / 2, specsY);
     ctx.restore();
 
     // 3. BOTTOM SOLID BAR
@@ -488,31 +496,85 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     ctx.fillText(".COM", 1010, barY + 66);
     ctx.restore();
 
-    // 4. CENTER DIAGONAL BANNER FOR SOLD/RENTED (STAMP EFFECT)
+    // 4. CENTER DIAGONAL BANNER FOR SOLD/RENTED (STAMP EFFECT) OR CORNER RIBBON FOR DEAL
     if (forcedStatus) {
-      ctx.save();
-      ctx.globalAlpha = 0.9;
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-      ctx.shadowBlur = 40;
-      ctx.fillStyle = forcedStatus === 'sold' ? '#e11d48' : '#0369a1'; // rose-600 or sky-700
-      
-      const bannerWidth = width * 1.6;
-      const bannerHeight = 180; 
-      
-      ctx.translate(width / 2, height / 2);
-      ctx.rotate(-Math.PI / 6);
-      
-      ctx.fillRect(-bannerWidth / 2, -bannerHeight / 2, bannerWidth, bannerHeight);
-      
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 140px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      if ('letterSpacing' in ctx) {
-        (ctx as any).letterSpacing = '12px';
+      if (forcedStatus === 'deal') {
+        ctx.save();
+        ctx.globalAlpha = 0.98;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetX = 4;
+        ctx.shadowOffsetY = 4;
+        
+        const gradient = ctx.createLinearGradient(50, 140, 50 + 175, 140 + 175);
+        gradient.addColorStop(0, '#f97316'); // orange-500
+        gradient.addColorStop(0.5, '#ea580c'); // orange-600
+        gradient.addColorStop(1, '#dc2626'); // red-600
+        ctx.fillStyle = gradient;
+        
+        ctx.beginPath();
+        ctx.moveTo(50, 140 + 55);
+        ctx.lineTo(50, 140 + 165);
+        ctx.lineTo(50 + 165, 140);
+        ctx.lineTo(50 + 55, 140);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Reset shadow for text and outline
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        // Elegant border lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(50, 140 + 55);
+        ctx.lineTo(50 + 55, 140);
+        ctx.moveTo(50, 140 + 165);
+        ctx.lineTo(50 + 165, 140);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '950 25px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.save();
+        ctx.translate(50 + 110 / 2, 140 + 110 / 2);
+        ctx.rotate(-Math.PI / 4);
+        if ('letterSpacing' in ctx) {
+          (ctx as any).letterSpacing = '5px';
+        }
+        ctx.fillText('FIRSAT', 0, 0);
+        ctx.restore();
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = 40;
+        ctx.fillStyle = forcedStatus === 'sold' ? '#e11d48' : '#0369a1'; // rose-600 or sky-700
+        
+        const bannerWidth = width * 1.6;
+        const bannerHeight = 180; 
+        
+        ctx.translate(width / 2, height / 2);
+        ctx.rotate(-Math.PI / 6);
+        
+        ctx.fillRect(-bannerWidth / 2, -bannerHeight / 2, bannerWidth, bannerHeight);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 140px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if ('letterSpacing' in ctx) {
+          (ctx as any).letterSpacing = '12px';
+        }
+        ctx.fillText(forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI', 0, 0);
+        ctx.restore();
       }
-      ctx.fillText(forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI', 0, 0);
-      ctx.restore();
     }
 
     // Save and download
@@ -676,13 +738,21 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
                       {/* Diagonal Banner for SOLD/RENTED (HTML Preview) */}
                       {forcedStatus && (
-                        <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none">
-                          <div className={`w-[200%] py-1.5 text-center text-lg font-black tracking-[0.1em] text-white shadow-2xl transform -rotate-12 uppercase ${
-                            forcedStatus === 'sold' ? 'bg-rose-600/95' : 'bg-sky-700/95'
-                          }`}>
-                            {forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI'}
+                        forcedStatus === 'deal' ? (
+                          <div className="absolute top-0 left-0 w-16 h-16 overflow-hidden z-50 pointer-events-none">
+                            <div className="absolute top-[8px] left-[-24px] w-[110px] py-0.5 bg-gradient-to-r from-orange-500 via-orange-600 to-red-600 text-white font-black text-[7px] text-center transform -rotate-45 shadow-lg tracking-wider uppercase border-b border-white/20">
+                              FIRSAT
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none">
+                            <div className={`w-[200%] py-1.5 text-center text-lg font-black tracking-[0.1em] text-white shadow-2xl transform -rotate-12 uppercase ${
+                              forcedStatus === 'sold' ? 'bg-rose-600/95' : 'bg-sky-700/95'
+                            }`}>
+                              {forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI'}
+                            </div>
+                          </div>
+                        )
                       )}
                     </div>
 
@@ -693,7 +763,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       </div>
                       
                       <div className={`text-[7px] font-extrabold mt-0.5 truncate max-w-full ${previewColors.textMuted}`}>
-                        🏠 {roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul')}  •  📐 {sqmText || 'Belirtilmedi'}  •  📦 {property.furnished === 'esyali' ? 'Eşyalı' : 'Eşyasız'}  •  🔑 {isRent ? 'Depozitolu' : titleType}
+                        🏠 {property.type === 'land' ? 'Arsa' : (roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul'))}  •  📐 {sqmText || 'Belirtilmedi'}{property.type !== 'land' && `  •  📦 ${isFurnishedVal ? 'Eşyalı' : 'Eşyasız'}`}  •  🔑 {isRent ? 'Depozitolu' : titleType}
                       </div>
                     </div>
 
@@ -769,27 +839,34 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
             </div>
 
             <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2">📢 DURUM ETİKETİ (OPSİYONEL)</span>
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-4 gap-2 mb-4">
               <button 
                 onClick={() => setForcedStatus(null)}
-                className={"py-2 px-3 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === null ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === null ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
               >
                 <Eye className="w-3.5 h-3.5" />
                 Normal
               </button>
               <button 
                 onClick={() => setForcedStatus('sold')}
-                className={"py-2 px-3 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'sold' ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-2 ring-rose-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-600')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'sold' ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-2 ring-rose-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-600')}
               >
                 <Award className="w-3.5 h-3.5" />
                 Satıldı
               </button>
               <button 
                 onClick={() => setForcedStatus('rented')}
-                className={"py-2 px-3 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'rented' ? 'bg-sky-600 text-white border-sky-600 shadow-md ring-2 ring-sky-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-sky-50 hover:text-sky-600')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'rented' ? 'bg-sky-600 text-white border-sky-600 shadow-md ring-2 ring-sky-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-sky-50 hover:text-sky-600')}
               >
                 <Check className="w-3.5 h-3.5" />
                 Kiralandı
+              </button>
+              <button 
+                onClick={() => setForcedStatus('deal')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'deal' ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white border-orange-500 shadow-md ring-2 ring-orange-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-orange-50 hover:text-orange-600')}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Fırsat
               </button>
             </div>
 

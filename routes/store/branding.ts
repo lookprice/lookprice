@@ -36,17 +36,17 @@ router.post("/", async (req: any, res) => {
     }
 
     // Clean base64 data in incoming body
-    const cleanedBody = cleanDeepBase64(req.body, `store_${targetStoreId}_branding`);
+    const cleanedBody = await cleanDeepBase64(req.body, `store_${targetStoreId}_branding`);
 
     // Merge incoming cleaned body with existing branding
-    const updatedBranding = cleanDeepBase64({ ...existingBranding, ...cleanedBody }, `store_${targetStoreId}_branding`);
+    const updatedBranding = await cleanDeepBase64({ ...existingBranding, ...cleanedBody }, `store_${targetStoreId}_branding`);
 
     // Resolve column values (prefer cleanedBody, then existingStore)
     const name = cleanedBody.name !== undefined ? cleanedBody.name : existingStore.name;
-    const logo_url = replaceAllBase64InString(cleanedBody.logo_url !== undefined ? cleanedBody.logo_url : existingStore.logo_url, `store_${targetStoreId}_logo`);
-    const favicon_url = replaceAllBase64InString(cleanedBody.favicon_url !== undefined ? cleanedBody.favicon_url : existingStore.favicon_url, `store_${targetStoreId}_favicon`);
+    const logo_url = await replaceAllBase64InString(cleanedBody.logo_url !== undefined ? cleanedBody.logo_url : existingStore.logo_url, `store_${targetStoreId}_logo`);
+    const favicon_url = await replaceAllBase64InString(cleanedBody.favicon_url !== undefined ? cleanedBody.favicon_url : existingStore.favicon_url, `store_${targetStoreId}_favicon`);
     const primary_color = cleanedBody.primary_color !== undefined ? cleanedBody.primary_color : existingStore.primary_color;
-    const background_image_url = replaceAllBase64InString(cleanedBody.background_image_url !== undefined ? cleanedBody.background_image_url : existingStore.background_image_url, `store_${targetStoreId}_bg`);
+    const background_image_url = await replaceAllBase64InString(cleanedBody.background_image_url !== undefined ? cleanedBody.background_image_url : existingStore.background_image_url, `store_${targetStoreId}_bg`);
     const about_text = cleanedBody.about_text !== undefined ? cleanedBody.about_text : existingStore.about_text;
     const description = cleanedBody.description !== undefined ? cleanedBody.description : existingStore.description;
     const phone = cleanedBody.phone !== undefined ? cleanedBody.phone : existingStore.phone;
@@ -54,7 +54,7 @@ router.post("/", async (req: any, res) => {
     const email = cleanedBody.email !== undefined ? cleanedBody.email : existingStore.email;
     
     let page_layout = cleanedBody.page_layout !== undefined ? cleanedBody.page_layout : existingStore.page_layout;
-    page_layout = cleanDeepBase64(page_layout, `store_${targetStoreId}_layout`);
+    page_layout = await cleanDeepBase64(page_layout, `store_${targetStoreId}_layout`);
     
     const menu_links = cleanedBody.menu_links !== undefined ? cleanedBody.menu_links : existingStore.menu_links;
     const footer_links = cleanedBody.footer_links !== undefined ? cleanedBody.footer_links : existingStore.footer_links;
@@ -63,7 +63,7 @@ router.post("/", async (req: any, res) => {
 
     const hero_title = cleanedBody.hero_title !== undefined ? cleanedBody.hero_title : existingStore.hero_title;
     const hero_subtitle = cleanedBody.hero_subtitle !== undefined ? cleanedBody.hero_subtitle : existingStore.hero_subtitle;
-    const hero_image_url = replaceAllBase64InString(cleanedBody.hero_image_url !== undefined ? cleanedBody.hero_image_url : existingStore.hero_image_url, `store_${targetStoreId}_hero`);
+    const hero_image_url = await replaceAllBase64InString(cleanedBody.hero_image_url !== undefined ? cleanedBody.hero_image_url : existingStore.hero_image_url, `store_${targetStoreId}_hero`);
     const instagram_url = cleanedBody.instagram_url !== undefined ? cleanedBody.instagram_url : existingStore.instagram_url;
     const facebook_url = cleanedBody.facebook_url !== undefined ? cleanedBody.facebook_url : existingStore.facebook_url;
     const twitter_url = cleanedBody.twitter_url !== undefined ? cleanedBody.twitter_url : existingStore.twitter_url;

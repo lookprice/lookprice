@@ -679,7 +679,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [activeStaffRole, activeTab, isCafeRestaurant, setActiveTab]);
 
   const rawNavItems = isPortfolio ? [
-    { type: 'item', id: "system_cockpit", label: isTr ? "Kokpit" : "Cockpit", icon: LayoutDashboard },
     { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
       ...(isRealEstate ? [{ id: "real_estate", label: isTr ? 'Gayrimenkul Portföyü' : 'Real Estate Portfolio', icon: Home }] : []),
       ...(isAutomotive ? [{ id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet }] : []),
@@ -710,7 +709,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ] : [
-    { type: 'item', id: "system_cockpit", label: isTr ? "Kokpit" : "Cockpit", icon: LayoutDashboard },
     { type: 'category', key: "operations", title: isTr ? "Operasyonlar" : "Operations", items: [
       { id: "products", label: t.products, icon: Package },
       { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices },
@@ -798,6 +796,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         currentStoreId,
         onLogout,
         setShowQrModal,
+        activeStaffRole,
+        onOpenRoleModal: () => {
+          setModalRole(activeStaffRole);
+          setPinValue('');
+          setPinError(false);
+          setIsEditingPins(false);
+          setShowRoleModal(true);
+        },
         sidebarOpen,
         setSidebarOpen,
         desktopSidebarCollapsed,
@@ -806,64 +812,27 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         startTransition
       }}
     >
-      <div className={activeTab === 'fast-pos' ? "space-y-2" : "space-y-8"}>
-        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${activeTab === 'fast-pos' ? 'mb-1' : 'mb-6'}`}>
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center space-x-3"
-          >
-            <div className={`bg-indigo-600 rounded-full ${activeTab === 'fast-pos' ? 'h-6 w-1' : 'h-10 w-1'}`} />
-            <div>
-              <h2 className={`${activeTab === 'fast-pos' ? 'text-lg font-extrabold' : 'text-2xl font-black'} text-slate-900 tracking-tight uppercase`}>
-                {activeTab.replace(/_/g, ' ')}
-              </h2>
-              {activeTab !== 'fast-pos' && (
+      <div className={activeTab === 'fast-pos' ? "space-y-0" : "space-y-8"}>
+        {activeTab !== 'fast-pos' && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center space-x-3"
+            >
+              <div className="bg-indigo-600 rounded-full h-10 w-1" />
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
+                  {activeTab.replace(/_/g, ' ')}
+                </h2>
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
                   Control_Center / {activeTab}
                 </p>
-              )}
-            </div>
-          </motion.div>
-
-          {isCafeRestaurant && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className={`flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-xl shrink-0 shadow-xs ${activeTab === 'fast-pos' ? 'p-1' : 'p-1.5 rounded-2xl'}`}
-            >
-              <div className={`rounded-lg bg-white shadow-xs flex items-center gap-1.5 ${activeTab === 'fast-pos' ? 'px-2.5 py-1' : 'px-3 py-1.5 rounded-xl gap-2'}`}>
-                <span className={activeTab === 'fast-pos' ? 'text-sm' : 'text-base'}>
-                  {activeStaffRole === 'manager' ? '👑' : activeStaffRole === 'cashier' ? '💳' : '🍽️'}
-                </span>
-                <span className="text-xs font-black tracking-wider uppercase text-slate-700">
-                  {activeStaffRole === 'manager' 
-                    ? (isTr ? 'YÖNETİCİ' : 'MANAGER') 
-                    : activeStaffRole === 'cashier' 
-                      ? (isTr ? 'KASİYER' : 'CASHIER') 
-                      : (isTr ? 'GARSON' : 'WAITER')}
-                </span>
-                {activeStaffRole !== 'manager' && (
-                  <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 rounded-md">
-                    {isTr ? 'KİLİTLİ' : 'LOCKED'}
-                  </span>
-                )}
               </div>
-              <button
-                onClick={() => {
-                  setModalRole(activeStaffRole);
-                  setPinValue('');
-                  setPinError(false);
-                  setIsEditingPins(false);
-                  setShowRoleModal(true);
-                }}
-                className={`bg-slate-900 hover:bg-slate-850 text-white rounded-lg text-xs font-bold transition-all uppercase tracking-wider active:scale-95 cursor-pointer ${activeTab === 'fast-pos' ? 'px-3 py-1' : 'px-4 py-1.5 rounded-xl'}`}
-              >
-                {isTr ? 'Rol Değiştir' : 'Switch Role'}
-              </button>
             </motion.div>
-          )}
-        </div>
+
+          </div>
+        )}
 
         {['products', 'quotations', 'companies'].includes(activeTab) && (
           <div className="flex justify-end gap-3 mb-6">
@@ -1058,15 +1027,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   products={products} 
                   role={user.role} 
                   onTabChange={(tab) => setActiveTab(tab)} 
-                />
-              )}
-              {activeTab === "system_cockpit" && (
-                <CockpitTab 
-                  currentStoreId={currentStoreId!}
-                  branding={branding}
-                  user={user}
-                  isPortfolio={isPortfolio}
-                  onSwitchTab={(tab) => setActiveTab(tab)}
                 />
               )}
               {activeTab === "audit-logs" && (

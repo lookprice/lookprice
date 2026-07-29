@@ -14,7 +14,9 @@ import {
   Cloud,
   CloudOff,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Calendar,
+  UserCheck
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
@@ -35,6 +37,8 @@ interface SidebarProps {
   currentStoreId?: number;
   onLogout: () => void;
   setShowQrModal: (show: boolean) => void;
+  activeStaffRole?: string;
+  onOpenRoleModal?: () => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   desktopSidebarCollapsed: boolean;
@@ -57,6 +61,8 @@ export const DashboardSidebar = ({
   currentStoreId,
   onLogout,
   setShowQrModal,
+  activeStaffRole,
+  onOpenRoleModal,
   sidebarOpen,
   setSidebarOpen,
   desktopSidebarCollapsed,
@@ -246,21 +252,33 @@ export const DashboardSidebar = ({
             </div>
           </nav>
           
-          <div className="p-4 md:p-6 border-t border-white/5 bg-slate-900/30">
-            {!isCafeRestaurant && (
+          <div className="p-3 md:p-4 border-t border-white/5 bg-slate-900/30 space-y-2">
+            {isCafeRestaurant && onOpenRoleModal && (
               <button
-                onClick={() => setShowQrModal(true)}
-                className="flex w-full items-center justify-center space-x-2 py-3 mb-3 md:mb-4 rounded-2xl text-[10px] md:text-xs font-black text-indigo-400 hover:bg-indigo-600/10 transition-all border border-indigo-500/20 group uppercase tracking-[0.1em]"
+                onClick={onOpenRoleModal}
+                className="flex w-full items-center justify-between px-3 py-2.5 rounded-xl text-xs font-extrabold text-amber-400 hover:bg-amber-500/10 transition-all border border-amber-500/20 group cursor-pointer"
               >
-                <QrCode className="h-4 w-4 md:h-3 md:w-3" />
-                <span>{t.storeQR || "QR Kodu"}</span>
+                <div className="flex items-center space-x-2">
+                  <UserCheck className="h-4 w-4 text-amber-400" />
+                  <span>
+                    {activeStaffRole === 'manager' 
+                      ? '👑 Yönetici' 
+                      : activeStaffRole === 'cashier' 
+                        ? '💳 Kasiyer' 
+                        : '🍽️ Garson'}
+                  </span>
+                </div>
+                <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  Rol Değiştir
+                </span>
               </button>
             )}
+
             <button
               onClick={onLogout}
-              className="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl text-[10px] md:text-xs font-black text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/20 group uppercase tracking-[0.1em]"
+              className="flex w-full items-center space-x-2.5 px-3 py-2.5 rounded-xl text-xs font-extrabold text-rose-400 hover:bg-rose-500/10 transition-all border border-rose-500/20 group cursor-pointer"
             >
-              <LogOut className="h-4 w-4 md:h-3 md:w-3" />
+              <LogOut className="h-4 w-4 text-rose-500" />
               <span>{t.logout}</span>
             </button>
           </div>

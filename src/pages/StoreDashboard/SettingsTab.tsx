@@ -493,15 +493,6 @@ const SettingsTab = ({
             <History className="h-4 w-4" />
             <span>{lang === 'tr' ? 'Günlük' : 'Logs'}</span>
           </button>
-          {!isPortfolio && (
-            <button 
-              onClick={() => setActiveSubTab('cockpit')}
-              className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'cockpit' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <Activity className="h-4 w-4" />
-              <span>{lang === 'tr' ? 'Sistem Kokpiti' : 'System Cockpit'}</span>
-            </button>
-          )}
         </div>
 
       {activeSubTab === 'integrations' && (
@@ -510,20 +501,6 @@ const SettingsTab = ({
 
       {activeSubTab === 'logs' && (
         <SettingsLogsTab currentStoreId={String(currentStoreId || '')} lang={lang} />
-      )}
-
-      {activeSubTab === 'cockpit' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto space-y-8"
-        >
-          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-            <Suspense fallback={<div>Loading...</div>}>
-              <CockpitTab currentStoreId={currentStoreId!} branding={branding} user={currentUser} isPortfolio={isPortfolio} onSwitchTab={(tab) => {}} />
-            </Suspense>
-          </div>
-        </motion.div>
       )}
 
       {activeSubTab === 'financing' && (

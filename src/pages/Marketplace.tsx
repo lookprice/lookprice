@@ -37,7 +37,7 @@ type CategoryFilter = "all" | "vehicle" | "real_estate";
 
 const cleanHtmlText = (text: string) => {
   if (!text) return "";
-  return text
+  let cleaned = text
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -45,6 +45,16 @@ const cleanHtmlText = (text: string) => {
     .replace(/&#039;/g, "'")
     .replace(/&nbsp;/g, " ")
     .replace(/\n/g, "<br />");
+
+  // Strip inline color styles to prevent dark/black text issues on dark themes
+  cleaned = cleaned.replace(/style="[^"]*color\s*:\s*[^";]+;?[^"]*"/gi, (match) => {
+    return match.replace(/color\s*:\s*[^";]+;?/gi, '');
+  });
+  cleaned = cleaned.replace(/style='[^']*color\s*:\s*[^';]+;?[^']*'/gi, (match) => {
+    return match.replace(/color\s*:\s*[^';]+;?/gi, '');
+  });
+
+  return cleaned;
 };
 
 export const Marketplace = () => {
@@ -90,6 +100,32 @@ export const Marketplace = () => {
     }
   }
 
+  const handleCloseModal = () => {
+    setSelectedListing(null);
+    if (window.history.state?.modalOpen) {
+      window.history.back();
+    }
+  };
+
+  // Synchronize listing detail modal with browser history (for Back Button handling)
+  useEffect(() => {
+    if (selectedListing) {
+      // Push state so back button closes the modal
+      window.history.pushState({ modalOpen: true }, "");
+
+      const handlePopState = (event: PopStateEvent) => {
+        // Close modal when user clicks back button
+        setSelectedListing(null);
+      };
+
+      window.addEventListener("popstate", handlePopState);
+
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+      };
+    }
+  }, [selectedListing]);
+
   useEffect(() => {
     setActiveDetailImageIndex(0);
   }, [selectedListing]);
@@ -107,7 +143,7 @@ export const Marketplace = () => {
         if (zoomedImage) {
           setZoomedImage(null);
         } else {
-          setSelectedListing(null);
+          handleCloseModal();
         }
       }
     };
@@ -1856,8 +1892,14 @@ export const Marketplace = () => {
 
       {/* Listing Detail Modal Block */}
       {selectedListing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-lg">
-          <div className="relative w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[85vh]">
+        <div 
+          onClick={handleCloseModal}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-lg cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[85vh] cursor-default"
+          >
             
             {/* Left Image Screen */}
             <div className="w-full md:w-1/2 min-h-[350px] md:min-h-0 bg-slate-950 relative border-b md:border-b-0 md:border-r border-slate-800 flex flex-col justify-between">
@@ -1974,7 +2016,7 @@ export const Marketplace = () => {
             <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col overflow-y-auto">
               {/* Close Button */}
               <button 
-                onClick={() => setSelectedListing(null)}
+                onClick={handleCloseModal}
                 className="absolute top-4 right-4 text-slate-400 hover:text-white p-2 bg-slate-950/60 hover:bg-rose-600 rounded-full border border-slate-800 hover:border-rose-600 transition z-20"
               >
                 ✕
@@ -2031,7 +2073,7 @@ export const Marketplace = () => {
                     PORTFÖY AÇIKLAMASI
                   </h4>
                   <div 
-                    className="text-slate-300 leading-relaxed text-xs font-normal space-y-2 bg-slate-950/45 p-4 rounded-xl border border-slate-850 max-h-[170px] overflow-y-auto"
+                    className="text-slate-300 leading-relaxed text-xs font-normal space-y-2 bg-slate-950/45 p-4 rounded-xl border border-slate-850 max-h-[170px] overflow-y-auto [&_*]:!text-inherit [&_a]:!text-rose-400"
                     dangerouslySetInnerHTML={{ __html: cleanHtmlText(selectedListing.description) }}
                   />
                 </div>

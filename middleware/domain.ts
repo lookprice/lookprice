@@ -8,7 +8,7 @@ export const domainMiddleware = async (req: Request, res: Response, next: NextFu
   const path = req.path;
   
   // QUICK EXIT: Skip domain logic for internal paths and static assets immediately
-  const isStaticFile = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|otf|json|map)$/.test(path);
+  const isStaticFile = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|otf|json|map|webmanifest)$/.test(path);
   if (
     isStaticFile ||
     path.startsWith("/api/") ||
@@ -87,7 +87,7 @@ export const domainMiddleware = async (req: Request, res: Response, next: NextFu
 
 function rewriteUrl(req: Request, storeSlug: string, next: NextFunction) {
   const path = req.path;
-  const isStaticFile = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|otf|json|map)$/.test(path);
+  const isStaticFile = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|otf|json|map|webmanifest)$/.test(path);
   
   if (
     isStaticFile ||

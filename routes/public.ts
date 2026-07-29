@@ -785,10 +785,12 @@ router.get("/digital-menu/:storeIdentifier/products", async (req, res) => {
     const productsRes = await pool.query(`
       SELECT p.id, p.store_id, p.barcode, p.name, p.price, p.currency, p.cost_price, 
              p.tax_rate, p.description, p.stock_quantity, p.unit, p.category, 
-             p.sub_category, p.image_url, p.is_bestseller, p.product_type, p.is_web_sale
+             p.sub_category, p.image_url, p.is_bestseller, p.product_type, p.is_web_sale,
+             p.has_variants, p.variants, p.category_2, p.sub_category_2, p.is_sellable
       FROM products p
       LEFT JOIN stores s ON p.store_id = s.id
       WHERE (p.store_id = $1 OR s.parent_id = $1)
+        AND (p.is_sellable IS TRUE OR p.is_sellable IS NULL)
       ORDER BY COALESCE(p.is_bestseller, false) DESC, p.category ASC, p.name ASC
     `, [store.id]);
 

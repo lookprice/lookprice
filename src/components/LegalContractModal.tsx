@@ -202,6 +202,10 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   };
 
   const handleSaveContract = async () => {
+    if (!clientName.trim() || !clientIdentity.trim() || !clientPhone.trim()) {
+      alert("Lütfen Sözleşme'yi kaydetmeden önce '2. Müşteri & Sözleşme Bilgileri' alanındaki tüm bilgileri (Müşteri Tam Adı, Kimlik/Pasaport No ve Telefon Numarası) eksiksiz doldurunuz. Tarafı olmayan sözleşme kaydedilemez!");
+      return;
+    }
     if (!onSaveContract) return;
     setSaving(true);
     const docId = `virtual-contract-${Date.now()}`;

@@ -252,6 +252,10 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   const htmlContent = contractType === 'consignment' ? renderConsignmentHtml() : renderBookingHtml();
 
   const handlePrint = () => {
+    if (!clientName.trim() || !clientIdentity.trim() || !clientPhone.trim()) {
+      alert("Lütfen sözleşmeyi hazırlamak/yazdırmak için önce '2. Müşteri & Sözleşme Detayları' alanındaki tüm bilgileri (Ad Soyadı, Kimlik/Pasaport No ve Telefon Numarası) doldurun!");
+      return;
+    }
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
     iframe.style.width = '0px';
@@ -290,6 +294,10 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   };
 
   const handleShareWhatsApp = () => {
+    if (!clientName.trim() || !clientIdentity.trim() || !clientPhone.trim()) {
+      alert("Lütfen sözleşmeyi WhatsApp üzerinden paylaşmadan önce '2. Müşteri & Sözleşme Detayları' alanındaki tüm bilgileri (Ad Soyadı, Kimlik/Pasaport No ve Telefon Numarası) doldurun!");
+      return;
+    }
     const formattedPhone = clientPhone ? clientPhone.replace(/[^\d+]/g, '') : '';
     const contractTitle = contractType === 'consignment' ? 'Araç Emanet Sözleşmesi' : 'Araç Rezervasyon Protokolü';
     const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*${vehicle.brand} ${vehicle.model}* marka aracınız için düzenlenen resmi *${contractTitle}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 https://lookprice.me/contract/sign/vehicle-${vehicle.id}?client=${encodeURIComponent(clientName || '')}\n\nSözleşme Tarihi: ${contractDate}\n\nSaygılarımızla,\n*${displayName}*\nİrtibat: ${displayPhone}`;

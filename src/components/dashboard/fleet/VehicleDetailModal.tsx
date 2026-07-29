@@ -176,6 +176,13 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                   <span className="text-3xl font-black tracking-tight">{vehicle.plate}</span>
                 </div>
 
+                {vehicle.selling_price && (
+                  <div className="flex flex-col items-center justify-center py-4 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-1">{isTr ? 'SATIŞ FİYATI' : 'SELLING PRICE'}</span>
+                    <span className="text-2xl font-black text-emerald-900">{vehicle.selling_price.toLocaleString()} {vehicle.currency || 'TRY'}</span>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isTr ? 'MARKA' : 'BRAND'}</span>

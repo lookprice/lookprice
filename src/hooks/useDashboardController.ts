@@ -11,9 +11,9 @@ export const useDashboardController = (user: any) => {
       if (tabParam) return tabParam;
 
       const savedTab = localStorage.getItem(storeKey) || localStorage.getItem('storeDashboardTab_last');
-      if (savedTab) return savedTab;
+      if (savedTab && savedTab !== 'system_cockpit') return savedTab;
     }
-    return "system_cockpit";
+    return "fast-pos";
   });
 
   useEffect(() => {

@@ -19,13 +19,14 @@ import {
   ArrowLeft,
   Coffee,
   ArrowLeftRight,
-  MessageSquare
+  MessageSquare,
+  QrCode
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
 import { TableGrid } from './TableGrid';
 import { api } from "../services/api";
-import { matchesSearch } from "../lib/searchUtils";
+import { matchesSearch, normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 
@@ -62,6 +63,17 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   // Cafe/Restaurant Table and Adisyon states
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleOpenReport = () => setShowReportModal(true);
+    const handleOpenTableQr = () => setShowQrModal(true);
+    window.addEventListener('open-pos-report', handleOpenReport);
+    window.addEventListener('open-table-qr', handleOpenTableQr);
+    return () => {
+      window.removeEventListener('open-pos-report', handleOpenReport);
+      window.removeEventListener('open-table-qr', handleOpenTableQr);
+    };
+  }, []);
   const [pendingSales, setPendingSales] = useState<any[]>([]);
   const [prevPendingCount, setPrevPendingCount] = useState<number | null>(null);
   const [tablesRefreshTrigger, setTablesRefreshTrigger] = useState(0);
@@ -1138,9 +1150,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   };
 
   return (
-    <div className="flex flex-col space-y-2.5 h-[calc(100vh-100px)] min-h-[620px]">
-      {/* Top Header Bar with Store Name, Connection Status & Report Button */}
-      <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-2 shrink-0">
+    <div className="flex flex-col space-y-2 h-[calc(100vh-80px)] min-h-[600px]">
+      {/* Sleek Ultra-Compact Header Bar */}
+      <div className="bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-2.5">
           {isCafeRestaurant && selectedTable !== null && (
             <button
@@ -1150,28 +1162,28 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 setCart([]);
                 fetchPendingSales();
               }}
-              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-lg transition-all flex items-center justify-center border border-slate-200 shadow-xs cursor-pointer"
+              className="p-1 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg transition-all flex items-center justify-center border border-slate-200 shadow-2xs cursor-pointer"
               title={lang === 'tr' ? "Masalara Geri Dön" : "Back to Tables"}
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
-          <div className="h-8 w-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
+          <div className="h-7 w-7 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
             {isCafeRestaurant && selectedTable !== null ? (
-              <Coffee className="h-4 w-4 text-rose-500" />
+              <Coffee className="h-3.5 w-3.5 text-rose-500" />
             ) : (
-              <ShoppingCart className="h-4 w-4" />
+              <ShoppingCart className="h-3.5 w-3.5" />
             )}
           </div>
           <div>
-            <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-tight leading-tight">
+            <h2 className="text-xs font-black text-slate-800 uppercase tracking-tight leading-tight">
               {isCafeRestaurant && selectedTable !== null ? (
                 <span>{selectedTable} {activeSaleId !== null ? `(${lang === 'tr' ? 'Açık Adisyon' : 'Open Bill'})` : `(${lang === 'tr' ? 'Yeni Sipariş' : 'New Order'})`}</span>
               ) : (
                 branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Mağaza" : "Premium Store")
               )}
             </h2>
-            <p className="text-[11px] text-slate-400 font-medium leading-none mt-0.5">
+            <p className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">
               {isCafeRestaurant && selectedTable !== null ? (
                 <span>{branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Restoran" : "Premium Restaurant")}</span>
               ) : (
@@ -1182,9 +1194,31 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Cafe Restaurant Specific Tools */}
+          {isCafeRestaurant && (
+            <>
+              <button
+                onClick={() => setShowQrModal(true)}
+                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
+                title={lang === 'tr' ? "Masalara Özel QR ve Barkodları Üret / Yazdır" : "Generate / Print Table QR & Barcodes"}
+              >
+                <QrCode className="h-3.5 w-3.5 text-rose-600" />
+                <span>{lang === 'tr' ? 'Masa QR & Barkod' : 'Table QR & Barcodes'}</span>
+              </button>
+
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
+              >
+                <Calendar className="h-3.5 w-3.5 text-indigo-600" />
+                <span>{lang === 'tr' ? 'Gün Sonu Raporu' : 'End of Day Report'}</span>
+              </button>
+            </>
+          )}
+
           {/* Bridge Status Indicator */}
           {branding?.pos_bridge_enabled && (
-            <div className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1.5 ${
+            <div className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 ${
               bridgeDetected 
                 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
                 : 'bg-rose-50 border-rose-100 text-rose-700'
@@ -1193,144 +1227,119 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               {bridgeDetected ? (lang === 'tr' ? 'POS Köprüsü' : 'POS Bridge') : (lang === 'tr' ? 'Köprü Yok' : 'Disconnected')}
             </div>
           )}
-          
-          {isCafeRestaurant && (
-            <button
-              onClick={() => setShowQrModal(true)}
-              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-100 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs active:scale-95 cursor-pointer"
-            >
-              <Coffee className="h-3.5 w-3.5 text-rose-600" />
-              <span>{lang === 'tr' ? 'Dijital Menü QR' : 'Digital Menu QR'}</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => setShowReportModal(true)}
-            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs active:scale-95 cursor-pointer"
-          >
-            <Calendar className="h-3.5 w-3.5 text-indigo-600" />
-            <span>{lang === 'tr' ? 'Gün Sonu Raporu' : 'End of Day Report'}</span>
-          </button>
         </div>
       </div>
 
-      {isCafeRestaurant && selectedTable === null ? (
-        <div className="flex-1 overflow-y-auto p-2">
-          {/* Dashboard Summary Cards for Tables */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
-                <Coffee className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Dolu Masalar' : 'Occupied Tables'}</p>
-                <p className="text-2xl font-black text-slate-800">{pendingSales.length} / {allTables.length > 0 ? allTables.length : (branding?.page_layout_settings?.table_count || 12)}</p>
-              </div>
-            </div>
-            
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Boş Masalar' : 'Empty Tables'}</p>
-                <p className="text-2xl font-black text-slate-800">{(allTables.length > 0 ? allTables.length : (branding?.page_layout_settings?.table_count || 12)) - pendingSales.length} / {allTables.length > 0 ? allTables.length : (branding?.page_layout_settings?.table_count || 12)}</p>
-              </div>
-            </div>
+      {/* Main High-Density Split Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0 overflow-hidden">
+        {/* Left Column: Tables or Product Selection */}
+        <div className="lg:col-span-7 xl:col-span-7 flex flex-col space-y-2 h-full min-h-0 overflow-hidden">
+          {isCafeRestaurant && selectedTable === null ? (
+            /* Cafe / Restaurant Main Table Grid View */
+            <>
+              {/* Ultra-compact single line summary bar */}
+              <div className="bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-100">
+                    <Coffee className="h-3 w-3 text-rose-600" />
+                    <span className="text-slate-500 font-medium">{lang === 'tr' ? 'Dolu:' : 'Occupied:'}</span>
+                    <span className="font-extrabold">{pendingSales.length} / {allTables.length > 0 ? allTables.length : (branding?.page_layout_settings?.table_count || 12)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    <span className="text-slate-500 font-medium">{lang === 'tr' ? 'Boş:' : 'Empty:'}</span>
+                    <span className="font-extrabold">{(allTables.length > 0 ? allTables.length : (branding?.page_layout_settings?.table_count || 12)) - pendingSales.length} / {allTables.length > 0 ? allTables.length : (branding?.page_layout_settings?.table_count || 12)}</span>
+                  </div>
+                </div>
 
-            <div className="bg-indigo-600 text-white p-5 rounded-2xl shadow-md shadow-indigo-600/10 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-white/20 text-white flex items-center justify-center">
-                <TrendingUp className="h-6 w-6" />
+                <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white font-extrabold text-xs shadow-xs">
+                  <TrendingUp className="h-3 w-3 text-indigo-200" />
+                  <span className="text-indigo-100 font-medium">{lang === 'tr' ? 'Aktif Toplam:' : 'Active:'}</span>
+                  <span>{pendingSales.reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0).toFixed(2)} ₺</span>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-indigo-200 uppercase tracking-wider">{lang === 'tr' ? 'Aktif Adisyon Toplamı' : 'Active Bills Total'}</p>
-                <p className="text-2xl font-black">
-                  {pendingSales.reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0).toFixed(2)} ₺
-                </p>
-              </div>
-            </div>
-          </div>
 
-          {/* Tables Grid */}
-          <TableGrid 
-            storeId={storeId!} 
-            refreshTrigger={tablesRefreshTrigger}
-            pendingSales={pendingSales}
-            onTableSelect={(table) => {
-              setSelectedTable(table.table_number);
-              if (table.status === 'occupied') {
-                const normalizeName = (str: string) => str ? str.toLowerCase().replace(/\s+/g, '') : '';
-                let sale = null;
+              {/* Table Grid container taking maximum height */}
+              <div className="flex-1 overflow-y-auto bg-white/60 border border-slate-200 rounded-xl p-2 min-h-0 shadow-2xs">
+                <TableGrid 
+                  storeId={storeId!} 
+                  refreshTrigger={tablesRefreshTrigger}
+                  pendingSales={pendingSales}
+                  onTableSelect={(table) => {
+                    setSelectedTable(table.table_number);
+                    if (table.status === 'occupied') {
+                      const normalizeName = (str: string) => str ? str.toLowerCase().replace(/\s+/g, '') : '';
+                      let sale = null;
 
-                if (table.isGarsonTable || table.id === -999 || table.table_number === 'Garson Masası') {
-                  sale = pendingSales.find(s => 
-                    s.restaurant_table_id === null || 
-                    s.customer_name?.toLowerCase().includes('garson') || 
-                    s.customer_name === 'Masa Siparişi' || 
-                    s.notes?.toLowerCase().includes('garson')
-                  );
-                } else {
-                  sale = pendingSales.find(s => {
-                    if (s.restaurant_table_id === table.id) return true;
-                    const sName = normalizeName(s.customer_name);
-                    const tNum = normalizeName(table.table_number);
-                    return sName === tNum || sName === `masa${tNum}` || sName.includes(`masa${tNum}`) || sName === `table${tNum}`;
-                  });
-                }
+                      if (table.isGarsonTable || table.id === -999 || table.table_number === 'Garson Masası') {
+                        sale = pendingSales.find(s => 
+                          s.restaurant_table_id === null || 
+                          s.customer_name?.toLowerCase().includes('garson') || 
+                          s.customer_name === 'Masa Siparişi' || 
+                          s.notes?.toLowerCase().includes('garson')
+                        );
+                      } else {
+                        sale = pendingSales.find(s => {
+                          if (s.restaurant_table_id === table.id) return true;
+                          const sName = normalizeName(s.customer_name);
+                          const tNum = normalizeName(table.table_number);
+                          return sName === tNum || sName === `masa${tNum}` || sName.includes(`masa${tNum}`) || sName === `table${tNum}`;
+                        });
+                      }
 
-                if (sale) {
-                  setActiveSaleId(sale.id);
-                  const mappedCart = sale.items.map((it: any) => {
-                    const fullName = it.product_name || '';
-                    const match = fullName.match(/(.+?)\s*\((.+?)\)$/);
-                    const cleanName = match ? match[1].trim() : fullName;
-                    const parsedNote = match ? match[2].trim() : '';
-                    return {
-                      id: it.product_id,
-                      name: cleanName,
-                      note: parsedNote,
-                      price: it.unit_price.toString(),
-                      quantity: it.quantity,
-                      barcode: it.barcode || '',
-                      currency: sale.currency || 'TRY'
-                    };
-                  });
-                  setCart(mappedCart);
-                } else {
-                  setActiveSaleId(null);
-                  setCart([]);
-                }
-              } else {
-                setActiveSaleId(null);
-                setCart([]);
-              }
-            }}
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 flex-1 min-h-0 overflow-hidden">
-          {/* Left Side: Product Search & Selection */}
-          <div className="lg:col-span-7 xl:col-span-7 flex flex-col space-y-2 h-full min-h-0 overflow-hidden">
-            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs shrink-0">
-              <div className="relative">
-                <Barcode className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500" />
-                <input 
-                  ref={searchInputRef}
-                  type="text" 
-                  placeholder={lang === 'tr' ? "Barkod okutun veya ürün adı yazın..." : "Scan barcode or type product name..."}
-                  className="w-full pl-10 pr-9 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && filteredProducts.length > 0) {
-                      addToCart(filteredProducts[0]);
-                      setSearchTerm("");
+                      if (sale) {
+                        setActiveSaleId(sale.id);
+                        const mappedCart = sale.items.map((it: any) => {
+                          const fullName = it.product_name || '';
+                          const match = fullName.match(/(.+?)\s*\((.+?)\)$/);
+                          const cleanName = match ? match[1].trim() : fullName;
+                          const parsedNote = match ? match[2].trim() : '';
+                          return {
+                            id: it.product_id,
+                            name: cleanName,
+                            note: parsedNote,
+                            price: it.unit_price.toString(),
+                            quantity: it.quantity,
+                            barcode: it.barcode || '',
+                            currency: sale.currency || 'TRY'
+                          };
+                        });
+                        setCart(mappedCart);
+                      } else {
+                        setActiveSaleId(null);
+                        setCart([]);
+                      }
+                    } else {
+                      setActiveSaleId(null);
+                      setCart([]);
                     }
                   }}
                 />
-                {searchTerm && (
-                  <button
-                    type="button"
+              </div>
+            </>
+          ) : (
+            /* Product Selection View (When a table is selected or in standard POS mode) */
+            <>
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs shrink-0">
+                <div className="relative">
+                  <Barcode className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500" />
+                  <input 
+                    ref={searchInputRef}
+                    type="text" 
+                    placeholder={lang === 'tr' ? "Barkod okutun veya ürün adı yazın..." : "Scan barcode or type product name..."}
+                    className="w-full pl-10 pr-9 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && filteredProducts.length > 0) {
+                        addToCart(filteredProducts[0]);
+                        setSearchTerm("");
+                      }
+                    }}
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
                     onClick={() => {
                       setSearchTerm("");
                       if (searchInputRef.current) searchInputRef.current.focus();
@@ -1348,20 +1357,13 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             {categories.length > 0 && (
               <div className="flex flex-col gap-1.5 shrink-0">
                 <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none px-0.5">
-                  <button
-                    onClick={() => { setSelectedCategory("all"); setSelectedSubCategory("all"); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 cursor-pointer ${
-                      selectedCategory === "all"
-                        ? "bg-slate-900 text-white shadow-xs"
-                        : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {lang === 'tr' ? 'HEPSİ' : 'ALL'}
-                  </button>
                   {categories.map((category) => (
                     <button
                       key={category}
-                      onClick={() => { setSelectedCategory(category); setSelectedSubCategory("all"); }}
+                      onClick={() => {
+                        setSelectedCategory(selectedCategory === category ? "all" : category);
+                        setSelectedSubCategory("all");
+                      }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 cursor-pointer ${
                         selectedCategory === category
                           ? "bg-indigo-600 text-white shadow-xs"
@@ -1375,20 +1377,10 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
                 {subCategories.length > 0 && (
                   <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none px-0.5">
-                    <button
-                      onClick={() => setSelectedSubCategory("all")}
-                      className={`px-3 py-1 rounded-lg text-[11px] font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 cursor-pointer ${
-                        selectedSubCategory === "all"
-                          ? "bg-indigo-400 text-white"
-                          : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
-                      }`}
-                    >
-                      {lang === 'tr' ? 'TÜMÜ' : 'ALL'}
-                    </button>
                     {subCategories.map((subCategory) => (
                       <button
                         key={subCategory}
-                        onClick={() => setSelectedSubCategory(subCategory)}
+                        onClick={() => setSelectedSubCategory(selectedSubCategory === subCategory ? "all" : subCategory)}
                         className={`px-3 py-1 rounded-lg text-[11px] font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 cursor-pointer ${
                           selectedSubCategory === subCategory
                             ? "bg-indigo-600 text-white"
@@ -1463,11 +1455,131 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 </div>
               )}
             </div>
-          </div>
+          </>
+        )}
+      </div>
 
-          {/* Right Side: Cart & Checkout - Maximized Full Vertical Column */}
+          {/* Right Side: Cart or Open Bills Live Panel */}
           <div className="lg:col-span-5 xl:col-span-5 flex flex-col h-full min-h-0 overflow-hidden">
-            <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-full min-h-0 overflow-hidden">
+            {isCafeRestaurant && selectedTable === null ? (
+              /* Live Open Bills Panel when no table is selected */
+              <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-2xs flex flex-col h-full min-h-0 overflow-hidden">
+                {/* Header */}
+                <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Coffee className="h-4 w-4 text-rose-500" />
+                    <h3 className="font-extrabold text-sm text-slate-800">
+                      {lang === 'tr' ? 'Açık Adisyonlar' : 'Open Bills'}
+                    </h3>
+                  </div>
+                  <span className="px-2.5 py-0.5 bg-rose-100 text-rose-700 rounded-md text-xs font-black">
+                    {pendingSales.length} {lang === 'tr' ? 'Masa' : 'Tables'}
+                  </span>
+                </div>
+
+                {/* Scrollable Live List of Open Bills */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+                  {pendingSales.map((sale) => (
+                    <div key={sale.id} className="p-3 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl flex items-center justify-between transition-all shadow-2xs">
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-sm text-slate-900">{sale.customer_name || 'Masa'}</span>
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-rose-100 text-rose-700">
+                            {sale.items.length} Kalem
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate">
+                          {sale.notes || (lang === 'tr' ? 'Sipariş bekliyor' : 'Order pending')}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <span className="font-black text-sm text-indigo-600">
+                          {parseFloat(sale.total_amount).toFixed(2)} ₺
+                        </span>
+                        <button
+                          onClick={() => {
+                            const tableName = sale.customer_name || 'Masa';
+                            setSelectedTable(tableName);
+                            setActiveSaleId(sale.id);
+                            const mappedCart = sale.items.map((it: any) => {
+                              const fullName = it.product_name || '';
+                              const match = fullName.match(/(.+?)\s*\((.+?)\)$/);
+                              const cleanName = match ? match[1].trim() : fullName;
+                              const parsedNote = match ? match[2].trim() : '';
+                              return {
+                                id: it.product_id,
+                                name: cleanName,
+                                note: parsedNote,
+                                price: it.unit_price.toString(),
+                                quantity: it.quantity,
+                                barcode: it.barcode || '',
+                                currency: sale.currency || 'TRY'
+                              };
+                            });
+                            setCart(mappedCart);
+                          }}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
+                        >
+                          {lang === 'tr' ? 'Adisyona Git →' : 'View Bill →'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {pendingSales.length === 0 && (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-300 py-12 text-center px-4">
+                      <Coffee className="h-10 w-10 mb-2 opacity-20 text-rose-500" />
+                      <p className="text-xs font-bold text-slate-500">{lang === 'tr' ? 'Şu an açık adisyon yok' : 'No open bills currently'}</p>
+                      <p className="text-[11px] text-slate-400 mt-1">{lang === 'tr' ? 'Sol taraftan bir masa seçerek sipariş başlatabilirsiniz.' : 'Select a table on left to start order.'}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Garson Masası Quick Order trigger */}
+                <div className="p-3 bg-slate-50 border-t border-slate-200 shrink-0">
+                  <button
+                    onClick={() => {
+                      setSelectedTable('Garson Masası');
+                      const garsonSale = pendingSales.find(s => 
+                        s.restaurant_table_id === null || 
+                        s.customer_name?.toLowerCase().includes('garson') || 
+                        s.customer_name === 'Masa Siparişi' || 
+                        s.notes?.toLowerCase().includes('garson')
+                      );
+                      if (garsonSale) {
+                        setActiveSaleId(garsonSale.id);
+                        const mappedCart = garsonSale.items.map((it: any) => {
+                          const fullName = it.product_name || '';
+                          const match = fullName.match(/(.+?)\s*\((.+?)\)$/);
+                          const cleanName = match ? match[1].trim() : fullName;
+                          const parsedNote = match ? match[2].trim() : '';
+                          return {
+                            id: it.product_id,
+                            name: cleanName,
+                            note: parsedNote,
+                            price: it.unit_price.toString(),
+                            quantity: it.quantity,
+                            barcode: it.barcode || '',
+                            currency: garsonSale.currency || 'TRY'
+                          };
+                        });
+                        setCart(mappedCart);
+                      } else {
+                        setActiveSaleId(null);
+                        setCart([]);
+                      }
+                    }}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-xs active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>{lang === 'tr' ? 'Garson Masası / Hızlı Ayakta Satış' : 'Quick Walk-up Order'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Active Cart / Checkout Panel */
+              <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-full min-h-0 overflow-hidden">
               {/* Header */}
               <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
                 <div className="flex items-center gap-2">
@@ -1674,9 +1786,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 )}
               </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Success Overlay */}
       <AnimatePresence>
@@ -2530,7 +2642,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   <div>
                     <h3 className="font-black text-slate-900 text-base">{variantModalProduct.name}</h3>
                     <p className="text-xs text-indigo-600 font-bold">
-                      {lang === 'tr' ? 'Lütfen Çeşit / Varyant Seçiniz' : 'Please select a variant'}
+                      {lang === 'tr' ? 'Lütfen seçenek seçiniz' : 'Please select an option'}
                     </p>
                   </div>
                 </div>
@@ -2544,7 +2656,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
               <div className="p-6">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                  {lang === 'tr' ? 'Mevcut Varyantlar' : 'Available Variants'}
+                  {lang === 'tr' ? 'Seçenekler' : 'Options'}
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   {(variantModalProduct.variants || []).map((v: any, idx: number) => {

@@ -89,7 +89,7 @@ async function startServer() {
     hasGoogleMapsKey: !!process.env.GOOGLE_MAPS_PLATFORM_KEY
   });
   const app = express();
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  const PORT = process.env.NODE_ENV === "production" && process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   app.set("trust proxy", true);
 
@@ -115,6 +115,27 @@ async function startServer() {
     const host = req.get('host') || "enrakipsiz.com";
     res.type("text/plain");
     res.send(`User-agent: *\nAllow: /\nSitemap: ${protocol}://${host}/sitemap.xml\n`);
+  });
+
+  // Explicit handlers for manifest and favicons to prevent SPA fallback interception
+  app.get("/site.webmanifest", (req, res) => {
+    res.setHeader("Content-Type", "application/manifest+json");
+    res.sendFile(path.join(process.cwd(), "public", "site.webmanifest"));
+  });
+  app.get("/favicon-192x192.png", (req, res) => {
+    res.sendFile(path.join(process.cwd(), "public", "favicon-192x192.png"));
+  });
+  app.get("/favicon-512x512.png", (req, res) => {
+    res.sendFile(path.join(process.cwd(), "public", "favicon-512x512.png"));
+  });
+  app.get("/favicon-32x32.png", (req, res) => {
+    res.sendFile(path.join(process.cwd(), "public", "favicon-32x32.png"));
+  });
+  app.get("/favicon-48x48.png", (req, res) => {
+    res.sendFile(path.join(process.cwd(), "public", "favicon-48x48.png"));
+  });
+  app.get("/apple-touch-icon.png", (req, res) => {
+    res.sendFile(path.join(process.cwd(), "public", "apple-touch-icon.png"));
   });
 
   // 2. Request Logger

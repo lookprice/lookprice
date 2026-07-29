@@ -402,13 +402,22 @@ router.post('/properties', authenticate, async (req: any, res) => {
     res.json(newProperty);
 
     // Background Instagram Posting
-    if (newProperty.auto_post_instagram && newProperty.images?.length > 0) {
+    if (newProperty.images?.length > 0) {
       (async () => {
         try {
           const { InstagramService } = await import('../src/services/instagramService');
-          const storeRes = await pool.query("SELECT name, phone, whatsapp_number FROM stores WHERE id = $1", [storeId]);
+          const storeRes = await pool.query("SELECT name, phone, whatsapp_number, instagram_settings FROM stores WHERE id = $1", [storeId]);
           const storeName = storeRes.rows[0]?.name || "Seçkin Emlak";
           const storePhone = storeRes.rows[0]?.phone || storeRes.rows[0]?.whatsapp_number || "+90 548 890 23 09";
+          const igSettings = storeRes.rows[0]?.instagram_settings;
+
+          let shouldPostStoreIg = !!newProperty.auto_post_instagram;
+          if (!shouldPostStoreIg && igSettings) {
+            const parsed = typeof igSettings === 'string' ? JSON.parse(igSettings) : igSettings;
+            if (parsed.auto_post) {
+              shouldPostStoreIg = true;
+            }
+          }
 
           let consultantName = '';
           let consultantPhone = '';
@@ -464,10 +473,12 @@ router.post('/properties', authenticate, async (req: any, res) => {
             baseDomain: reqDomain
           };
 
-          // Scenario 2: Post to Store's own account
-          await InstagramService.postToInstagram(storeId, newProperty.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
+          // Scenario 2: Post to Store's own account (if configured/enabled)
+          if (shouldPostStoreIg) {
+            await InstagramService.postToInstagram(storeId, newProperty.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
+          }
           
-          // Scenario 1: Post to enrakipsiz global account
+          // Scenario 1: Post to enrakipsiz global account (ALWAYS)
           await InstagramService.postToInstagram('global', newProperty.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
         } catch (e) {
           console.error("Background Instagram posting task error:", e);
@@ -529,13 +540,22 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
     res.json(updatedProperty);
 
     // Background Instagram Posting on Update
-    if (updatedProperty.auto_post_instagram && updatedProperty.images?.length > 0) {
+    if (updatedProperty.images?.length > 0) {
       (async () => {
         try {
           const { InstagramService } = await import('../src/services/instagramService');
-          const storeRes = await pool.query("SELECT name, phone, whatsapp_number FROM stores WHERE id = $1", [storeId]);
+          const storeRes = await pool.query("SELECT name, phone, whatsapp_number, instagram_settings FROM stores WHERE id = $1", [storeId]);
           const storeName = storeRes.rows[0]?.name || "Seçkin Emlak";
           const storePhone = storeRes.rows[0]?.phone || storeRes.rows[0]?.whatsapp_number || "+90 548 890 23 09";
+          const igSettings = storeRes.rows[0]?.instagram_settings;
+
+          let shouldPostStoreIgUpdate = !!updatedProperty.auto_post_instagram;
+          if (!shouldPostStoreIgUpdate && igSettings) {
+            const parsed = typeof igSettings === 'string' ? JSON.parse(igSettings) : igSettings;
+            if (parsed.auto_post) {
+              shouldPostStoreIgUpdate = true;
+            }
+          }
 
           let consultantName = '';
           let consultantPhone = '';
@@ -591,10 +611,12 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
             baseDomain: reqDomain
           };
 
-          // Scenario 2: Post to Store's own account
-          await InstagramService.postToInstagram(storeId, updatedProperty.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
+          // Scenario 2: Post to Store's own account (if configured/enabled)
+          if (shouldPostStoreIgUpdate) {
+            await InstagramService.postToInstagram(storeId, updatedProperty.images, caption, meta).catch(err => console.warn("Store IG post failed:", err.message));
+          }
           
-          // Scenario 1: Post to enrakipsiz global account
+          // Scenario 1: Post to enrakipsiz global account (ALWAYS)
           await InstagramService.postToInstagram('global', updatedProperty.images, caption, meta).catch(err => console.warn("Global IG post failed:", err.message));
         } catch (e) {
           console.error("Background Instagram posting task error on update:", e);

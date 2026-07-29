@@ -167,16 +167,19 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(vehicle.status)}`}>
                   {getStatusText(vehicle.status)}
                 </span>
-                {vehicle.status === 'for_sale' && vehicle.selling_price && (
-                  <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
-                    {vehicle.selling_price.toLocaleString()} {vehicle.currency}
+                {vehicle.selling_price && (
+                  <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                    {vehicle.selling_price.toLocaleString()} {vehicle.currency || 'TRY'}
                   </span>
                 )}
               </div>
             </div>
             
-            <div className="py-2.5 border-y border-gray-50 flex flex-wrap gap-1 items-center justify-between">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.alerts}:</span>
+            <div className="py-2.5 border-y border-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
+                <MapPin className="w-4 h-4 text-gray-400" />
+                {(vehicle.current_mileage || 0).toLocaleString()} <span className="text-[10px] text-gray-400 font-medium">KM</span>
+              </div>
               <div className="flex flex-wrap gap-1 justify-end">
                 {allDocuments
                   .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
@@ -213,11 +216,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center gap-1 text-sm font-bold text-gray-700">
-                <MapPin className="w-4 h-4 text-gray-400" />
-                {(vehicle.current_mileage || 0).toLocaleString()} <span className="text-[10px] text-gray-400 font-medium">KM</span>
-              </div>
+            <div className="flex items-center justify-end pt-1">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -372,9 +371,9 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${getStatusColor(vehicle.status)}`}>
                         {getStatusText(vehicle.status)}
                       </span>
-                      {vehicle.status === 'for_sale' && vehicle.selling_price && (
-                        <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
-                          {vehicle.selling_price.toLocaleString()} {vehicle.currency}
+                      {vehicle.selling_price && (
+                        <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                          {vehicle.selling_price.toLocaleString()} {vehicle.currency || 'TRY'}
                         </span>
                       )}
                     </div>

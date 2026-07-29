@@ -20,6 +20,7 @@ export default function DigitalMenuPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>("all");
   const [productSearchQuery, setProductSearchQuery] = useState<string>("");
+  const [variantModalProduct, setVariantModalProduct] = useState<any | null>(null);
 
   useEffect(() => {
     if (tableId) {
@@ -38,7 +39,22 @@ export default function DigitalMenuPage() {
           api.getPublicDigitalMenuTables(storeId).catch(() => [])
         ]);
         setStore(storeRes);
-        setProducts(Array.isArray(productsRes) ? productsRes : []);
+        const rawProds = Array.isArray(productsRes) ? productsRes : [];
+        const parsedProds = rawProds
+          .filter((p: any) => p.is_sellable !== false)
+          .map((p: any) => {
+            let vars = p.variants;
+            if (typeof vars === 'string') {
+              try { vars = JSON.parse(vars); } catch (e) { vars = []; }
+            }
+            const hasVars = p.has_variants === true || p.has_variants === 'true' || (Array.isArray(vars) && vars.length > 0);
+            return {
+              ...p,
+              has_variants: hasVars,
+              variants: Array.isArray(vars) ? vars : []
+            };
+          });
+        setProducts(parsedProds);
         setAllTables(Array.isArray(tablesRes) ? tablesRes : []);
       } catch (error) {
         console.error("Fetch digital menu error:", error);
@@ -49,9 +65,33 @@ export default function DigitalMenuPage() {
     fetchData();
   }, [storeId]);
 
-  const addToCart = (product: any) => {
+  const handleProductClick = (product: any) => {
+    let vars = product.variants;
+    if (typeof vars === 'string') {
+      try { vars = JSON.parse(vars); } catch (e) { vars = []; }
+    }
+    const pHasVars = product.has_variants === true || product.has_variants === 'true' || (Array.isArray(vars) && vars.length > 0);
+    if (pHasVars && Array.isArray(vars) && vars.length > 0) {
+      setVariantModalProduct({ ...product, variants: vars });
+    } else {
+      addToCart(product);
+    }
+  };
+
+  const addToCart = (product: any, selectedVariant?: any) => {
     setCart(prev => {
-      const existingIndex = prev.findIndex(item => item.id === product.id);
+      const variantName = selectedVariant ? selectedVariant.name : null;
+      const existingIndex = prev.findIndex(item => 
+        item.id === product.id && 
+        ((!item.selectedVariant && !variantName) || (item.selectedVariant && item.selectedVariant.name === variantName))
+      );
+
+      const rawPrice = selectedVariant && selectedVariant.price && parseFloat(selectedVariant.price) > 0 
+        ? selectedVariant.price 
+        : product.price;
+
+      const displayName = selectedVariant ? `${product.name} (${selectedVariant.name})` : product.name;
+
       if (existingIndex > -1) {
         return prev.map((item, idx) => 
           idx === existingIndex 
@@ -59,7 +99,15 @@ export default function DigitalMenuPage() {
             : item
         );
       }
-      return [...prev, { ...product, quantity: 1, note: "" }];
+      return [...prev, { 
+        ...product, 
+        name: displayName, 
+        price: rawPrice, 
+        quantity: 1, 
+        note: "",
+        selectedVariant: selectedVariant || null,
+        selected_variant_name: selectedVariant ? selectedVariant.name : null
+      }];
     });
   };
 
@@ -100,7 +148,9 @@ export default function DigitalMenuPage() {
           productId: p.id,
           name: p.note.trim() ? `${p.name} (${p.note.trim()})` : p.name,
           price: p.price,
-          quantity: p.quantity
+          quantity: p.quantity,
+          selectedVariant: p.selectedVariant || null,
+          selected_variant_name: p.selected_variant_name || (p.selectedVariant ? p.selectedVariant.name : null)
         })),
         total: cart.reduce((sum, p) => sum + (Number(p.price) * p.quantity), 0),
         status: 'pending'
@@ -121,23 +171,32 @@ export default function DigitalMenuPage() {
   const lang = "tr";
   const isTr = lang === "tr";
 
-  // Group products by category dynamically
+  // Group products by category dynamically (including primary category AND secondary category_2)
   const categories = React.useMemo(() => {
-    const list = products.map((p) => p.category).filter(Boolean);
-    return Array.from(new Set(list)) as string[];
+    const cats = new Set<string>();
+    products.forEach((p) => {
+      if (p.category && p.category.trim()) cats.add(p.category.trim());
+      if (p.category_2 && p.category_2.trim()) cats.add(p.category_2.trim());
+    });
+    return Array.from(cats);
   }, [products]);
 
-  // Group subcategories dynamically for each category
+  // Group subcategories dynamically for each category (including sub_category and sub_category_2)
   const subcategoriesMap = React.useMemo(() => {
     const map = new Map<string, string[]>();
     products.forEach((p) => {
-      if (p.category && p.sub_category) {
-        const subs = map.get(p.category) || [];
-        if (!subs.includes(p.sub_category)) {
-          subs.push(p.sub_category);
-          map.set(p.category, subs);
+      const addSub = (cat: string, sub: string) => {
+        if (!cat || !sub) return;
+        const trimmedCat = cat.trim();
+        const trimmedSub = sub.trim();
+        const subs = map.get(trimmedCat) || [];
+        if (!subs.includes(trimmedSub)) {
+          subs.push(trimmedSub);
+          map.set(trimmedCat, subs);
         }
-      }
+      };
+      if (p.category && p.sub_category) addSub(p.category, p.sub_category);
+      if (p.category_2 && p.sub_category_2) addSub(p.category_2, p.sub_category_2);
     });
     return map;
   }, [products]);
@@ -159,7 +218,9 @@ export default function DigitalMenuPage() {
         (p.name && p.name.toLowerCase().includes(q)) ||
         (p.description && p.description.toLowerCase().includes(q)) ||
         (p.category && p.category.toLowerCase().includes(q)) ||
-        (p.sub_category && p.sub_category.toLowerCase().includes(q))
+        (p.sub_category && p.sub_category.toLowerCase().includes(q)) ||
+        (p.category_2 && p.category_2.toLowerCase().includes(q)) ||
+        (p.sub_category_2 && p.sub_category_2.toLowerCase().includes(q))
       );
     }
 
@@ -171,9 +232,12 @@ export default function DigitalMenuPage() {
       }
       return list.slice(0, 6);
     } else if (selectedCategory !== "all") {
-      list = list.filter((p) => p.category === selectedCategory);
+      list = list.filter((p) => p.category === selectedCategory || p.category_2 === selectedCategory);
       if (selectedSubCategory !== "all") {
-        list = list.filter((p) => p.sub_category === selectedSubCategory);
+        list = list.filter((p) => 
+          (p.category === selectedCategory && p.sub_category === selectedSubCategory) ||
+          (p.category_2 === selectedCategory && p.sub_category_2 === selectedSubCategory)
+        );
       }
     }
 
@@ -295,10 +359,10 @@ export default function DigitalMenuPage() {
         <div className="mb-5 space-y-2">
           {/* Main Categories Row */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-none scroll-smooth">
-            {/* 🔥 En Çok Satanlar Button */}
+            {/* 🔥 Trendler Button */}
             <button
               onClick={() => {
-                setSelectedCategory("bestsellers");
+                setSelectedCategory(selectedCategory === "bestsellers" ? "all" : "bestsellers");
                 setSelectedSubCategory("all");
               }}
               className={`px-4 py-2 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
@@ -308,23 +372,7 @@ export default function DigitalMenuPage() {
               }`}
             >
               <Flame className={`w-3.5 h-3.5 ${selectedCategory === "bestsellers" && !productSearchQuery ? "text-orange-300 animate-pulse" : "text-orange-500"}`} />
-              {isTr ? "En Çok Satanlar" : "Best Sellers"}
-            </button>
-
-            {/* 📋 Hepsi Button */}
-            <button
-              onClick={() => {
-                setSelectedCategory("all");
-                setSelectedSubCategory("all");
-              }}
-              className={`px-4 py-2 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
-                selectedCategory === "all" && !productSearchQuery
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 border-indigo-600"
-                  : "bg-white text-slate-600 border border-slate-200/60 hover:bg-slate-50"
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              {isTr ? "Tümü" : "All"}
+              {isTr ? "Trendler" : "Trending"}
             </button>
 
             {/* Dynamic Categories */}
@@ -334,7 +382,7 @@ export default function DigitalMenuPage() {
                 <button
                   key={cat}
                   onClick={() => {
-                    setSelectedCategory(cat);
+                    setSelectedCategory(selectedCategory === cat ? "all" : cat);
                     setSelectedSubCategory("all");
                   }}
                   className={`px-4 py-2 rounded-2xl text-xs font-extrabold shrink-0 transition-all cursor-pointer ${
@@ -358,25 +406,13 @@ export default function DigitalMenuPage() {
                 exit={{ opacity: 0, y: -8 }}
                 className="flex items-center gap-2 overflow-x-auto py-1 -mx-4 px-4 scrollbar-none"
               >
-                {/* All Subcategories Pill */}
-                <button
-                  onClick={() => setSelectedSubCategory("all")}
-                  className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
-                    selectedSubCategory === "all"
-                      ? "bg-slate-800 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {isTr ? "Hepsi" : "All"}
-                </button>
-
                 {/* Subcategory Pills */}
                 {availableSubCategories.map((sub) => {
                   const isSelected = selectedSubCategory === sub;
                   return (
                     <button
                       key={sub}
-                      onClick={() => setSelectedSubCategory(sub)}
+                      onClick={() => setSelectedSubCategory(selectedSubCategory === sub ? "all" : sub)}
                       className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
                         isSelected
                           ? "bg-slate-800 text-white"
@@ -403,7 +439,7 @@ export default function DigitalMenuPage() {
             ) : selectedCategory === "bestsellers" ? (
               <>
                 <Flame className="w-3.5 h-3.5 text-orange-500" />
-                {isTr ? "En Çok Satanlar" : "Best Sellers"}
+                {isTr ? "Trendler" : "Trending"}
               </>
             ) : (
               <>
@@ -422,10 +458,18 @@ export default function DigitalMenuPage() {
         <div className="grid grid-cols-2 gap-4">
           {filteredProducts.map((product, idx) => {
             const isBestsellerProduct = product.is_bestseller; // Mark as bestseller based on database flag
+            const vars = Array.isArray(product.variants) ? product.variants : (typeof product.variants === 'string' ? JSON.parse(product.variants || '[]') : []);
+            const pHasVars = product.has_variants === true || product.has_variants === 'true' || (Array.isArray(vars) && vars.length > 0);
             const cartItem = cart.find((item) => item.id === product.id);
 
             return (
-              <div key={product.id} className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-all relative">
+              <div 
+                key={product.id} 
+                onClick={() => {
+                  if (pHasVars) handleProductClick(product);
+                }}
+                className={`bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-all relative ${pHasVars ? 'cursor-pointer' : ''}`}
+              >
                 {/* Bestseller Badge */}
                 {isBestsellerProduct && (
                   <span className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
@@ -453,8 +497,8 @@ export default function DigitalMenuPage() {
                   <p className="text-indigo-600 font-black text-sm">{product.price} ₺</p>
                   
                   {/* Dynamic Quantity Selector for fast cart updates */}
-                  {cartItem ? (
-                    <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-xl overflow-hidden shadow-sm">
+                  {cartItem && !pHasVars ? (
+                    <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-xl overflow-hidden shadow-sm" onClick={(e) => e.stopPropagation()}>
                       <button 
                         onClick={() => {
                           const cartIdx = cart.findIndex((item) => item.id === product.id);
@@ -485,10 +529,13 @@ export default function DigitalMenuPage() {
                     </div>
                   ) : (
                     <button 
-                      onClick={() => addToCart(product)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleProductClick(product);
+                      }}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
                     >
-                      <Plus className="w-3 h-3" /> {isTr ? "Ekle" : "Add"}
+                      <Plus className="w-3 h-3" /> {pHasVars ? (isTr ? "Seçenek Seç" : "Select Option") : (isTr ? "Ekle" : "Add")}
                     </button>
                   )}
                 </div>
@@ -806,6 +853,92 @@ export default function DigitalMenuPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Variant Selection Modal */}
+      <AnimatePresence>
+        {variantModalProduct && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setVariantModalProduct(null)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xl bg-white rounded-t-[2.5rem] shadow-2xl border-t border-slate-100 z-50 max-h-[85vh] flex flex-col"
+            >
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-indigo-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black shadow-md">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-base leading-tight">{variantModalProduct.name}</h3>
+                    <p className="text-xs text-indigo-600 font-bold mt-0.5">
+                      {isTr ? 'Lütfen seçenek seçiniz' : 'Please select an option'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setVariantModalProduct(null)} 
+                  className="p-2 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto space-y-3">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                  {isTr ? 'Seçenekler' : 'Options'}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(variantModalProduct.variants || []).map((v: any, idx: number) => {
+                    const varPrice = v.price && parseFloat(v.price) > 0 ? v.price : variantModalProduct.price;
+
+                    return (
+                      <div
+                        key={v.id || idx}
+                        className="p-4 rounded-2xl border-2 border-slate-100 hover:border-indigo-500 bg-slate-50/50 hover:bg-indigo-50/30 transition-all flex items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div>
+                          <span className="text-sm font-black text-slate-800 block">{v.name}</span>
+                          <span className="text-xs font-extrabold text-indigo-600 mt-0.5 block">
+                            {varPrice} ₺
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            addToCart(variantModalProduct, v);
+                            setVariantModalProduct(null);
+                          }}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs transition-all shadow-sm active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>{isTr ? 'Ekle' : 'Add'}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                <button 
+                  onClick={() => setVariantModalProduct(null)}
+                  className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all text-xs cursor-pointer"
+                >
+                  {isTr ? 'Kapat' : 'Close'}
+                </button>
               </div>
             </motion.div>
           </>

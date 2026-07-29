@@ -21,11 +21,16 @@ import {
   Cloud,
   Award,
   CalendarDays,
-  Layout
+  Layout,
+  Eye,
+  X,
+  FileText,
+  Download
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { ConsultingInsights } from "../../components/ConsultingInsights";
+import { contractTemplates } from "../../utils/contractTemplates";
 import { RealEstateCalendar } from "../../components/RealEstateCalendar";
 import { RealEstateCRM } from "../../components/RealEstateCRM";
 
@@ -101,6 +106,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   const [socialShareProperty, setSocialShareProperty] = useState<any>(null);
   const [isTapuModalOpen, setIsTapuModalOpen] = useState(false);
   const [tapuProperty, setTapuProperty] = useState<any>(null);
+  const [viewDocsProperty, setViewDocsProperty] = useState<any>(null);
 
   const [showingBufferTime, setShowingBufferTime] = useState<number>(15);
   const [showingWaitlist, setShowingWaitlist] = useState<any[]>([
@@ -634,15 +640,32 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                     </div>
 
                     {/* Safe Document Icon indicators for managers only */}
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <FolderLock className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Resmî Evraklar:</span>
-                      {property.documents && property.documents.length > 0 ? (
-                        <span className="text-emerald-600 font-extrabold flex items-center gap-0.5">
-                          ✔ Yüklü ({property.documents.length} adet)
+                    <div 
+                      onClick={() => {
+                        if (property.documents && property.documents.length > 0) {
+                          setViewDocsProperty(property);
+                        } else {
+                          toast.info("Bu gayrimenkule ait henüz yüklenmiş bir resmî evrak yok. Yeni bir Sözleşme oluşturup kaydederek buraya ekleyebilirsiniz.");
+                        }
+                      }}
+                      className="flex items-center justify-between gap-2 text-[10px] font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-xl border border-slate-200 cursor-pointer transition-all active:scale-[0.99]"
+                      title={property.documents && property.documents.length > 0 ? "Resmî evrakları ve sözleşmeleri hızlıca görüntülemek için tıklayın" : ""}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <FolderLock className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Resmî Evraklar:</span>
+                        {property.documents && property.documents.length > 0 ? (
+                          <span className="text-emerald-600 font-extrabold flex items-center gap-0.5">
+                            ✔ Yüklü ({property.documents.length} adet)
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-medium">Yüklenmemiş</span>
+                        )}
+                      </div>
+                      {property.documents && property.documents.length > 0 && (
+                        <span className="text-indigo-600 font-black text-[9px] uppercase tracking-tight flex items-center gap-0.5">
+                          GÖRÜNTÜLE ➔
                         </span>
-                      ) : (
-                        <span className="text-slate-400 font-medium">Yüklenmemiş</span>
                       )}
                     </div>
                   </div>
@@ -1058,6 +1081,135 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Property Documents Quick Access Modal */}
+      {viewDocsProperty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm cursor-pointer" onClick={() => setViewDocsProperty(null)}>
+          <div className="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] cursor-default" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+              <div>
+                <span className="text-[10px] bg-emerald-600/20 text-emerald-400 font-black tracking-widest px-2 py-0.5 rounded-md uppercase font-mono">GÜVENLİ DEPOLAMA</span>
+                <h3 className="text-lg font-black text-white mt-1">Resmî Evraklar & Sözleşmeler</h3>
+                <p className="text-slate-400 text-xs">#{viewDocsProperty.id} • {viewDocsProperty.title}</p>
+              </div>
+              <button 
+                onClick={() => setViewDocsProperty(null)}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-full transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="p-6 overflow-y-auto space-y-3 bg-slate-900 flex-1">
+              {(!viewDocsProperty.documents || viewDocsProperty.documents.length === 0) ? (
+                <p className="text-center py-8 text-slate-500 text-xs font-semibold">Bu gayrimenkule ait resmî evrak bulunmamaktadır.</p>
+              ) : (
+                viewDocsProperty.documents.map((doc: any) => (
+                  <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-950 border border-slate-800 rounded-2xl shadow-xs relative group">
+                    <div className="p-2 bg-indigo-600/20 text-indigo-400 rounded-xl shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="block text-xs font-bold text-white truncate" title={doc.name}>
+                        {doc.name}
+                      </span>
+                      <div className="flex gap-2 items-center text-[10px] text-slate-400 mt-0.5 font-bold">
+                        <span className="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                          {doc.category === 'title_deed' ? 'Tapu Örneği' :
+                           doc.category === 'dask' ? 'DASK Poliçesi' :
+                           doc.category === 'contract' ? 'Sözleşme' : 'Yetki Belgesi'}
+                        </span>
+                        <span>{doc.upload_date}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 items-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (doc.file_url === "is_virtual_contract") {
+                            const tDef = contractTemplates.find((t: any) => t.id === (doc.details?.templateId || 'showing_agreement')) || contractTemplates[0];
+                            const formattedPriceNum = Number(viewDocsProperty.price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                            const symbol = viewDocsProperty.currency === 'GBP' ? '£' : viewDocsProperty.currency === 'USD' ? '$' : viewDocsProperty.currency === 'EUR' ? '€' : '₺';
+                            
+                            const { html } = tDef.getTemplate({
+                              storeName: branding?.store_name || branding?.name || "Premium Real Estate",
+                              storePhone: branding?.phone || branding?.whatsapp_number || "+90 533 800 00 00",
+                              storeEmail: branding?.email || "realestate@lookprice.me",
+                              clientName: doc.details?.clientName || "[Alıcı / Mülk Sahibi Adı]",
+                              clientIdentity: doc.details?.clientIdentity || "[T.C. No]",
+                              clientPhone: doc.details?.clientPhone || "[Telefon]",
+                              propertyTitle: `[İlan Kodu: LP-${viewDocsProperty.id}] ${viewDocsProperty.title}`,
+                              propertyLocation: viewDocsProperty.location || "Kıbrıs",
+                              propertyPrice: `${formattedPriceNum} ${symbol}`,
+                              propertyBlockPlot: viewDocsProperty.block_plot,
+                              commissionRate: doc.details?.commissionRate || "3",
+                              contractDate: doc.upload_date
+                            });
+                            
+                            const printWin = window.open('', '_blank');
+                            if (printWin) {
+                              printWin.document.write(`
+                                <html>
+                                  <head>
+                                    <title>${doc.name}</title>
+                                    <style>
+                                      body { font-family: sans-serif; background: white; margin: 40px; color: #1e293b; }
+                                    </style>
+                                  </head>
+                                  <body>
+                                    ${html}
+                                    <script>
+                                      window.onload = function() { window.print(); }
+                                    </script>
+                                  </body>
+                                </html>
+                              `);
+                              printWin.document.close();
+                            }
+                          } else {
+                            window.open(doc.file_url, '_blank');
+                          }
+                        }}
+                        className="p-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 hover:text-white rounded-xl transition"
+                        title="Evrak Görüntüle / Yazdır"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!confirm("Bu sözleşmeyi/evrakı silmek istediğinize emin misiniz?")) return;
+                          const updatedDocs = (viewDocsProperty.documents || []).filter((d: any) => d.id !== doc.id);
+                          const updatedProp = { ...viewDocsProperty, documents: updatedDocs };
+                          await onSave(updatedProp);
+                          setViewDocsProperty(updatedProp);
+                          toast.success("Sözleşme başarıyla silindi!");
+                        }}
+                        className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-white rounded-xl transition"
+                        title="Sözleşmeyi Sil"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-end">
+              <button
+                onClick={() => setViewDocsProperty(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition"
+              >
+                Kapat
+              </button>
+            </div>
           </div>
         </div>
       )}

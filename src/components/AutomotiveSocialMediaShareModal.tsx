@@ -15,6 +15,7 @@ import {
   FileImage,
   RefreshCw,
   Info,
+  Eye,
   Car,
   Gauge,
   Flame
@@ -84,6 +85,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
   const [selectedRatio, setSelectedRatio] = useState<AspectRatio>('square');
   const [isCollage, setIsCollage] = useState<boolean>(true);
   const [selectedTone, setSelectedTone] = useState<CaptionTone>('luxury');
+  const [forcedStatus, setForcedStatus] = useState<'sold' | 'optioned' | 'deal' | null>(vehicle?.status === 'sold' ? 'sold' : vehicle?.status === 'optioned' ? 'optioned' : null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
@@ -493,28 +495,83 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
       ctx.fillText(".COM", 1010, barY + 66);
       ctx.restore();
 
-      // Diagonal Banner for SOLD/RENTED/OPTIONED
-      const forcedStatus = vehicle.status === 'sold' ? 'SATILDI' : vehicle.status === 'rented' ? 'KİRALANDI' : vehicle.status === 'optioned' ? 'OPSİYONLU' : null;
+      // Diagonal Banner or Ribbon for forcedStatus
       if (forcedStatus) {
-        ctx.save();
-        ctx.translate(width - 150, 150);
-        ctx.rotate(Math.PI / 4);
-        
-        // Shadow/Glow effect
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 30;
-        
-        ctx.fillStyle = vehicle.status === 'sold' ? '#dc2626' : vehicle.status === 'rented' ? '#0369a1' : '#d97706';
-        ctx.fillRect(-600, -80, 1200, 1600); // Massive height to cover corners
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        // Massive font size for clear visibility on 1080px canvas
-        ctx.font = '900 140px system-ui, sans-serif';
-        ctx.letterSpacing = "12px";
-        ctx.fillText(forcedStatus, 0, 0);
-        ctx.restore();
+        if (forcedStatus === 'deal') {
+          ctx.save();
+          ctx.globalAlpha = 0.98;
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+          ctx.shadowBlur = 18;
+          ctx.shadowOffsetX = 4;
+          ctx.shadowOffsetY = 4;
+          
+          const gradient = ctx.createLinearGradient(50, 140, 50 + 175, 140 + 175);
+          gradient.addColorStop(0, '#f97316'); // orange-500
+          gradient.addColorStop(0.5, '#ea580c'); // orange-600
+          gradient.addColorStop(1, '#dc2626'); // red-600
+          ctx.fillStyle = gradient;
+          
+          ctx.beginPath();
+          ctx.moveTo(50, 140 + 55);
+          ctx.lineTo(50, 140 + 165);
+          ctx.lineTo(50 + 165, 140);
+          ctx.lineTo(50 + 55, 140);
+          ctx.closePath();
+          ctx.fill();
+          
+          // Reset shadow for text and outline
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+
+          // Elegant border lines
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(50, 140 + 55);
+          ctx.lineTo(50 + 55, 140);
+          ctx.moveTo(50, 140 + 165);
+          ctx.lineTo(50 + 165, 140);
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '950 25px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          ctx.save();
+          ctx.translate(50 + 110 / 2, 140 + 110 / 2);
+          ctx.rotate(-Math.PI / 4);
+          if ('letterSpacing' in ctx) {
+            (ctx as any).letterSpacing = '5px';
+          }
+          ctx.fillText('FIRSAT', 0, 0);
+          ctx.restore();
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.translate(width - 150, 150);
+          ctx.rotate(Math.PI / 4);
+          
+          // Shadow/Glow effect
+          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          ctx.shadowBlur = 30;
+          
+          ctx.fillStyle = forcedStatus === 'sold' ? '#dc2626' : '#d97706'; // red-600 or amber-600
+          ctx.fillRect(-600, -80, 1200, 1600); // Massive height to cover corners
+          
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          // Massive font size for clear visibility on 1080px canvas
+          ctx.font = '900 140px system-ui, sans-serif';
+          if ('letterSpacing' in ctx) {
+            (ctx as any).letterSpacing = "12px";
+          }
+          ctx.fillText(forcedStatus === 'sold' ? 'SATILDI' : 'OPSİYONLU', 0, 0);
+          ctx.restore();
+        }
       }
 
       // Trigger actual download of canvas
@@ -673,6 +730,25 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                           </div>
                         )
                       )}
+
+                      {/* Diagonal Banner for SOLD/OPTIONED/DEAL (HTML Preview) */}
+                      {forcedStatus && (
+                        forcedStatus === 'deal' ? (
+                          <div className="absolute top-0 left-0 w-16 h-16 overflow-hidden z-50 pointer-events-none">
+                            <div className="absolute top-[8px] left-[-24px] w-[110px] py-0.5 bg-gradient-to-r from-orange-500 via-orange-600 to-red-600 text-white font-black text-[7px] text-center transform -rotate-45 shadow-lg tracking-wider uppercase border-b border-white/20">
+                              FIRSAT
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none">
+                            <div className={`w-[200%] py-1.5 text-center text-lg font-black tracking-[0.1em] text-white shadow-2xl transform -rotate-12 uppercase ${
+                              forcedStatus === 'sold' ? 'bg-rose-600/95' : 'bg-amber-600/95'
+                            }`}>
+                              {forcedStatus === 'sold' ? 'SATILDI' : 'OPSİYONLU'}
+                            </div>
+                          </div>
+                        )
+                      )}
                     </div>
 
                     {/* DETAILS AREA BELOW FRAME */}
@@ -756,6 +832,38 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
               >
                 <div className="w-5 h-5 rounded-full bg-zinc-900 mb-1" />
                 <span className="text-[9px] font-bold">Lüks Minimal</span>
+              </button>
+            </div>
+
+            <span className="block text-[11px] font-black tracking-wider text-slate-500 uppercase mb-2 mt-4">📢 DURUM ETİKETİ (OPSİYONEL)</span>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              <button 
+                onClick={() => setForcedStatus(null)}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === null ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Normal
+              </button>
+              <button 
+                onClick={() => setForcedStatus('sold')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'sold' ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-2 ring-rose-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-600')}
+              >
+                <Award className="w-3.5 h-3.5" />
+                Satıldı
+              </button>
+              <button 
+                onClick={() => setForcedStatus('optioned')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'optioned' ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-600')}
+              >
+                <Check className="w-3.5 h-3.5" />
+                Opsiyonlu
+              </button>
+              <button 
+                onClick={() => setForcedStatus('deal')}
+                className={"py-2 px-1 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1 " + (forcedStatus === 'deal' ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white border-orange-500 shadow-md ring-2 ring-orange-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-orange-50 hover:text-orange-600')}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Fırsat
               </button>
             </div>
 

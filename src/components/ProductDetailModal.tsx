@@ -617,7 +617,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 {t.dashboard.description}
               </h4>
               <div 
-                className="text-slate-600 leading-relaxed text-base font-medium [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_h1]:text-2xl [&_h2]:text-xl"
+                className="text-slate-600 leading-relaxed text-base font-medium [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_h1]:text-2xl [&_h2]:text-xl [&_*]:!text-inherit [&_a]:!text-indigo-600"
                 dangerouslySetInnerHTML={{ __html: product.description.replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ') }} 
               />
             </div>

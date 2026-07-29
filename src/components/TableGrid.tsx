@@ -64,7 +64,7 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
   const allDisplayTables = [garsonTableObj, ...tables];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 p-2">
       {allDisplayTables.map((table) => {
         if (table.isGarsonTable) {
           return (
@@ -73,26 +73,28 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onTableSelect(table)}
-              className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-2.5 transition-all relative ${
+              className={`p-3.5 rounded-xl border-2 flex flex-col items-center justify-between gap-2 transition-all relative cursor-pointer min-h-[105px] ${
                 table.status === 'occupied'
-                  ? 'border-amber-400 bg-amber-50/90 text-amber-900 shadow-md shadow-amber-500/10 ring-2 ring-amber-300'
-                  : 'border-slate-200 bg-slate-50/90 text-slate-700 hover:border-amber-300'
+                  ? 'border-amber-400 bg-amber-50/90 text-amber-900 shadow-sm ring-2 ring-amber-300'
+                  : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-amber-300'
               }`}
             >
-              <div className="p-2.5 rounded-xl bg-amber-100 text-amber-800">
-                <UserCheck className="h-7 w-7" />
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                  <UserCheck className="h-4 w-4" />
+                </div>
+                <span className="font-extrabold text-sm tracking-tight">{table.table_number}</span>
               </div>
-              <span className="font-extrabold text-base tracking-tight">{table.table_number}</span>
               
               {table.status === 'occupied' ? (
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-xs font-black bg-amber-200/80 text-amber-950 px-2.5 py-1 rounded-lg">
+                <div className="flex flex-col items-center gap-0.5 w-full">
+                  <span className="text-[11px] font-black bg-amber-200/90 text-amber-950 px-2 py-0.5 rounded-md w-full truncate">
                     {table.orderCount} Sipariş ({table.totalAmount?.toFixed(2)} ₺)
                   </span>
-                  <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider">Adisyonu İncele / Kapat</span>
+                  <span className="text-[9px] font-extrabold text-amber-700 uppercase tracking-wider">Adisyonu İncele</span>
                 </div>
               ) : (
-                <span className="text-xs bg-slate-200/80 text-slate-600 px-2.5 py-1 rounded-md font-bold">
+                <span className="text-[10px] bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded-md font-bold">
                   Ayakta / Masa Seçilmemiş
                 </span>
               )}
@@ -106,19 +108,21 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onTableSelect(table)}
-            className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${
+            className={`p-3.5 rounded-xl border-2 flex flex-col items-center justify-between gap-2 transition-all cursor-pointer min-h-[105px] ${
               table.status === 'empty'
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                : 'border-rose-200 bg-rose-50 text-rose-700'
+                ? 'border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100/80 text-emerald-800'
+                : 'border-rose-300 bg-rose-50 text-rose-800 shadow-xs'
             }`}
           >
-            <Coffee className="h-8 w-8" />
-            <span className="font-bold text-lg">{table.table_number}</span>
+            <div className="flex items-center gap-2">
+              <Coffee className={`h-5 w-5 ${table.status === 'empty' ? 'text-emerald-600' : 'text-rose-600'}`} />
+              <span className="font-extrabold text-base tracking-tight">{table.table_number}</span>
+            </div>
             {table.status === 'empty' && (
-              <span className="text-xs bg-emerald-100 px-2 py-1 rounded-md">Adisyon Aç</span>
+              <span className="text-[11px] bg-emerald-100/90 text-emerald-800 font-bold px-2.5 py-0.5 rounded-md border border-emerald-200/60">Adisyon Aç</span>
             )}
             {table.status === 'occupied' && (
-              <span className="text-xs bg-rose-100 px-2 py-1 rounded-md">Dolu</span>
+              <span className="text-[11px] bg-rose-200/80 text-rose-900 font-extrabold px-2.5 py-0.5 rounded-md border border-rose-300">Dolu / İncele</span>
             )}
           </motion.button>
         );
