@@ -951,6 +951,29 @@ export const SettingsWebTab = ({
             />
             <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">Örn: GTM-XXXXXXX. Sadece ID'yi girin.</p>
           </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Google Search Console (GSC) Doğrulama Kodu
+            </label>
+            <input
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold font-mono placeholder:text-slate-300"
+              placeholder="google-site-verification meta etiketinin content değeri"
+              value={
+                branding?.meta_settings &&
+                typeof branding.meta_settings === "object" &&
+                !Array.isArray(branding.meta_settings)
+                  ? branding.meta_settings.gsc_id || ""
+                  : ""
+              }
+              onChange={(e) => {
+                const newSettings = { ...(branding?.meta_settings || {}) };
+                newSettings.gsc_id = e.target.value;
+                onBrandingChange("meta_settings", newSettings);
+              }}
+            />
+            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">Google Search Console'daki meta etiketinin ("google-site-verification") içindeki kod/content değeridir.</p>
+          </div>
         </div>
       </div>
 

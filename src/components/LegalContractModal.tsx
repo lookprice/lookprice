@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { contractTemplates, ContractTemplate, ContractPlaceholderValues } from "../utils/contractTemplates";
 import { RealEstateProperty } from "../types";
+import { formatPhoneForWhatsApp } from "../utils/formatUtils";
+
 
 interface LegalContractModalProps {
   isOpen: boolean;
@@ -147,7 +149,8 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     propertyPrice: propertyPriceFormatted,
     propertyBlockPlot: property.block_plot,
     commissionRate: commissionRate,
-    contractDate: formatTrDate(contractDate)
+    contractDate: formatTrDate(contractDate),
+    propertyAddress: property.address
   };
 
   const { html, markdown } = currentTemplate.getTemplate(placeholderValues);
@@ -196,8 +199,8 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       alert("Lütfen WhatsApp üzerinden paylaşmadan önce '2. Müşteri & Sözleşme Bilgileri' alanındaki tüm bilgileri (Müşteri Tam Adı, Kimlik/Pasaport No ve Telefon Numarası) eksiksiz doldurunuz. Tarafı olmayan sözleşme paylaşılamaz!");
       return;
     }
-    const formattedPhone = clientPhone ? clientPhone.replace(/[^\d+]/g, '') : '';
-    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*[LP-${property.id}] ${property.title}* portföyü için hazırlanan resmi *${currentTemplate.titleTr}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/${property.id}?client=${encodeURIComponent(clientName || '')}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const formattedPhone = formatPhoneForWhatsApp(clientPhone);
+    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*[LP-${property.id}] ${property.title}* portföyü için hazırlanan resmi *${currentTemplate.titleTr}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/${property.id}?client=${encodeURIComponent(clientName || '')}&phone=${encodeURIComponent(clientPhone)}&identity=${encodeURIComponent(clientIdentity)}&templateId=${selectedTemplateId}&commissionRate=${encodeURIComponent(commissionRate)}&contractDate=${encodeURIComponent(placeholderValues.contractDate)}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -330,7 +333,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       <input 
                         type="text"
                         className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
-                        placeholder="Örn: 0533..."
+                        placeholder="Örn: +(90) 533 ... veya 0533..."
                         value={clientPhone}
                         onChange={(e) => setClientPhone(e.target.value)}
                       />

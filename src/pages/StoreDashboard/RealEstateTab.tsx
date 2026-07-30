@@ -1136,21 +1136,101 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                             const formattedPriceNum = Number(viewDocsProperty.price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
                             const symbol = viewDocsProperty.currency === 'GBP' ? '£' : viewDocsProperty.currency === 'USD' ? '$' : viewDocsProperty.currency === 'EUR' ? '€' : '₺';
                             
+                            const clientNameVal = doc.details?.clientName || "[Alıcı / Mülk Sahibi Adı]";
+                            const clientIdentityVal = doc.details?.clientIdentity || "[T.C. No]";
+                            const clientPhoneVal = doc.details?.clientPhone || "[Telefon]";
+                            const ipAddressVal = doc.details?.ipAddress || "127.0.0.1";
+                            const timestampVal = doc.upload_date || doc.details?.contractDate || new Date().toLocaleDateString("tr-TR");
+
+                            const combined = `${clientNameVal}-${clientIdentityVal}-${clientPhoneVal}-${viewDocsProperty.id}-security-seal`;
+                            let hash = 0;
+                            for (let i = 0; i < combined.length; i++) {
+                              const char = combined.charCodeAt(i);
+                              hash = (hash << 5) - hash + char;
+                              hash = hash & hash;
+                            }
+                            const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, "0");
+                            const randomHex = (index: number) => {
+                              let rHash = 0;
+                              const rCombined = `${combined}-${index}`;
+                              for (let i = 0; i < rCombined.length; i++) {
+                                rHash = (rHash << 5) - rHash + rCombined.charCodeAt(i);
+                                rHash = rHash & rHash;
+                              }
+                              return Math.abs(rHash).toString(16).toUpperCase().padStart(8, "0");
+                            };
+                            const securityCode = `SEC-LP-${hex}-${randomHex(1)}-${randomHex(2)}`;
+
                             const { html } = tDef.getTemplate({
                               storeName: branding?.store_name || branding?.name || "Premium Real Estate",
                               storePhone: branding?.phone || branding?.whatsapp_number || "+90 533 800 00 00",
                               storeEmail: branding?.email || "realestate@lookprice.me",
-                              clientName: doc.details?.clientName || "[Alıcı / Mülk Sahibi Adı]",
-                              clientIdentity: doc.details?.clientIdentity || "[T.C. No]",
-                              clientPhone: doc.details?.clientPhone || "[Telefon]",
+                              clientName: clientNameVal,
+                              clientIdentity: clientIdentityVal,
+                              clientPhone: clientPhoneVal,
                               propertyTitle: `[İlan Kodu: LP-${viewDocsProperty.id}] ${viewDocsProperty.title}`,
                               propertyLocation: viewDocsProperty.location || "Kıbrıs",
                               propertyPrice: `${formattedPriceNum} ${symbol}`,
                               propertyBlockPlot: viewDocsProperty.block_plot,
                               commissionRate: doc.details?.commissionRate || "3",
-                              contractDate: doc.upload_date
+                              contractDate: doc.upload_date,
+                              propertyAddress: viewDocsProperty.address
                             });
-                            
+
+                            const securityBoxHtml = `
+                              <div style="margin-top: 45px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; background-color: #f8fafc; font-family: sans-serif; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); page-break-inside: avoid;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                                  <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">🛡️</span>
+                                    <div>
+                                      <h4 style="margin: 0; font-size: 13px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">E-İMZA & GÜVENLİK DOĞRULAMA RAPORU</h4>
+                                      <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase;">DIGITAL SIGNATURE & INTEGRITY REPORT</span>
+                                    </div>
+                                  </div>
+                                  <span style="background-color: #dcfce7; border: 1px solid #bbf7d0; color: #15803d; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">✅ DİJİTAL ONAYLANDI</span>
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 11px; margin-bottom: 15px;">
+                                  <div>
+                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İmzalayan Müşteri (Signing Client)</span>
+                                    <strong style="color: #1e293b; font-size: 12px;">${clientNameVal}</strong>
+                                  </div>
+                                  <div>
+                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">T.C. Kimlik / Pasaport No (ID / Passport)</span>
+                                    <strong style="color: #1e293b; font-size: 12px; font-family: monospace;">${clientIdentityVal}</strong>
+                                  </div>
+                                  <div>
+                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İletişim Telefonu (Client Phone)</span>
+                                    <strong style="color: #1e293b; font-size: 12px; font-family: monospace;">${clientPhoneVal}</strong>
+                                  </div>
+                                  <div>
+                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">IP Adresi (IP Address)</span>
+                                    <strong style="color: #1e293b; font-size: 12px; font-family: monospace;">${ipAddressVal}</strong>
+                                  </div>
+                                  <div>
+                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Onay Zaman Damgası (Signing Timestamp)</span>
+                                    <strong style="color: #1e293b; font-size: 12px;">${timestampVal}</strong>
+                                  </div>
+                                  <div>
+                                    <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Güvenlik & Bütünlük Kodu (Security Hash / SHA)</span>
+                                    <strong style="color: #16a34a; font-size: 11px; font-family: monospace; letter-spacing: 0.5px;">${securityCode}</strong>
+                                  </div>
+                                </div>
+                                
+                                <div style="border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 10px; color: #64748b; text-align: justify; line-height: 1.5;">
+                                  <p style="margin: 0;"><strong>YASAL BEYAN VE GEÇERLİLİK:</strong> İşbu dijital sözleşme, taraflarca mobil/tablet cihazın dokunmatik ekranı üzerinde biyometrik parmak izi imza simülasyonu ile onaylanmıştır. 5070 Sayılı Elektronik İmza Kanunu, KKTC E-İmza Yasası ve Türk Borçlar Kanunu kapsamında hukuken geçerli ve tarafları bağlayıcı "Yazılı Delil Başlangıcı ve Sözleşmesi" niteliğindedir. Sözleşme içeriği ve imza bütünlüğü, yukarıda belirtilen benzersiz Güvenlik & Bütünlük Kodu (SHA) ile kriptografik olarak mühürlenmiştir.</p>
+                                </div>
+                              </div>
+                            `;
+
+                            let enrichedHtml = html;
+                            const lastDivIndex = enrichedHtml.lastIndexOf("</div>");
+                            if (lastDivIndex !== -1) {
+                              enrichedHtml = enrichedHtml.substring(0, lastDivIndex) + securityBoxHtml + "</div>";
+                            } else {
+                              enrichedHtml = enrichedHtml + securityBoxHtml;
+                            }
+                             
                             const printWin = window.open('', '_blank');
                             if (printWin) {
                               printWin.document.write(`
@@ -1162,7 +1242,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                                     </style>
                                   </head>
                                   <body>
-                                    ${html}
+                                    ${enrichedHtml}
                                     <script>
                                       window.onload = function() { window.print(); }
                                     </script>

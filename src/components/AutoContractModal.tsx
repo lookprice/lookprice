@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   FileSignature
 } from "lucide-react";
+import { formatPhoneForWhatsApp } from "../utils/formatUtils";
+
 
 interface AutoContractModalProps {
   isOpen: boolean;
@@ -298,9 +300,9 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
       alert("Lütfen sözleşmeyi WhatsApp üzerinden paylaşmadan önce '2. Müşteri & Sözleşme Detayları' alanındaki tüm bilgileri (Ad Soyadı, Kimlik/Pasaport No ve Telefon Numarası) doldurun!");
       return;
     }
-    const formattedPhone = clientPhone ? clientPhone.replace(/[^\d+]/g, '') : '';
+    const formattedPhone = formatPhoneForWhatsApp(clientPhone);
     const contractTitle = contractType === 'consignment' ? 'Araç Emanet Sözleşmesi' : 'Araç Rezervasyon Protokolü';
-    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*${vehicle.brand} ${vehicle.model}* marka aracınız için düzenlenen resmi *${contractTitle}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/vehicle-${vehicle.id}?client=${encodeURIComponent(clientName || '')}\n\nSözleşme Tarihi: ${contractDate}\n\nSaygılarımızla,\n*${displayName}*\nİrtibat: ${displayPhone}`;
+    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*${vehicle.brand} ${vehicle.model}* marka aracınız için düzenlenen resmi *${contractTitle}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/vehicle-${vehicle.id}?client=${encodeURIComponent(clientName || '')}&phone=${encodeURIComponent(clientPhone)}&identity=${encodeURIComponent(clientIdentity)}&contractType=${contractType}\n\nSözleşme Tarihi: ${contractDate}\n\nSaygılarımızla,\n*${displayName}*\nİrtibat: ${displayPhone}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -395,7 +397,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
                       <input 
                         type="text"
                         className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none"
-                        placeholder="Telefon"
+                        placeholder="Örn: +(90) 533 ... veya 0533..."
                         value={clientPhone}
                         onChange={(e) => setClientPhone(e.target.value)}
                       />

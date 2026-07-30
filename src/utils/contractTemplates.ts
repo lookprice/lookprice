@@ -11,6 +11,7 @@ export interface ContractPlaceholderValues {
   propertyBlockPlot?: string;
   commissionRate: string;
   contractDate: string;
+  propertyAddress?: string;
 }
 
 export interface ContractTemplate {
@@ -56,7 +57,10 @@ export const contractTemplates: ContractTemplate[] = [
     </tr>
     <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK BİLGİSİ / PROPERTY</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.propertyTitle} (${v.propertyLocation}) ${v.propertyBlockPlot ? `• Ada/Parsel: ${v.propertyBlockPlot}` : ''}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">
+        <strong>${v.propertyTitle}</strong> (${v.propertyLocation}) ${v.propertyBlockPlot ? `• Ada/Parsel: ${v.propertyBlockPlot}` : ''}
+        ${v.propertyAddress ? `<div style="margin-top: 4px; font-size: 11px; color: #64748b;"><strong>Mülk Adresi / Property Address:</strong> ${v.propertyAddress}</div>` : ''}
+      </td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK BEDELİ / PRICE</td>
@@ -129,7 +133,7 @@ export const contractTemplates: ContractTemplate[] = [
 ## 1. MÜLK BİLGİLERİ (PROPERTY DETAILS)
 - **Mülk/Property:** ${v.propertyTitle}
 - **Lokasyon / Location:** ${v.propertyLocation} ${v.propertyBlockPlot ? `(Ada / Parsel: ${v.propertyBlockPlot})` : ''}
-- **Bedel / Price:** ${v.propertyPrice}
+${v.propertyAddress ? `- **Adres / Address:** ${v.propertyAddress}\n` : ''}- **Bedel / Price:** ${v.propertyPrice}
 
 ---
 
@@ -174,7 +178,10 @@ export const contractTemplates: ContractTemplate[] = [
     </tr>
     <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">PAZARLANACAK MÜLK / PROPERTY</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.propertyTitle} (${v.propertyLocation}) ${v.propertyBlockPlot ? `• Ada/Parsel: ${v.propertyBlockPlot}` : ''}</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">
+        <strong>${v.propertyTitle}</strong> (${v.propertyLocation}) ${v.propertyBlockPlot ? `• Ada/Parsel: ${v.propertyBlockPlot}` : ''}
+        ${v.propertyAddress ? `<div style="margin-top: 4px; font-size: 11px; color: #64748b;"><strong>Mülk Adresi / Property Address:</strong> ${v.propertyAddress}</div>` : ''}
+      </td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HEDEF SATIŞ BEDELİ / ASKING PRICE</td>
@@ -233,6 +240,7 @@ export const contractTemplates: ContractTemplate[] = [
 **Aracı:** ${v.storeName}
 **Mülk Sahibi:** ${v.clientName}
 **Tarih:** ${v.contractDate}
+${v.propertyAddress ? `**Adres / Address:** ${v.propertyAddress}\n` : ''}
 
 Mülk Sahibi, yukarıdaki mülkün satışı için Aracı firmaya **%${v.commissionRate}** komisyon bedeliyle tek yetki vermiştir.
 Bu sözleşme 6 ay süreyle geçerlidir.
@@ -273,7 +281,10 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </tr>
     <tr style="background-color: #f8fafc;">
       <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">TAŞINMAZ / PROPERTY</td>
-      <td style="padding: 8px; border: 1px solid #e2e8f0;">${v.propertyTitle} (${v.propertyLocation})</td>
+      <td style="padding: 8px; border: 1px solid #e2e8f0;">
+        <strong>${v.propertyTitle}</strong> (${v.propertyLocation})
+        ${v.propertyAddress ? `<div style="margin-top: 4px; font-size: 10px; color: #64748b;"><strong>Mülk Adresi / Property Address:</strong> ${v.propertyAddress}</div>` : ''}
+      </td>
     </tr>
     <tr>
       <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">TOPLAM SATIŞ BEDELİ</td>
@@ -347,7 +358,10 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </tr>
     <tr style="background-color: #f8fafc;">
       <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">ORTAK İŞLEM TAŞINMAZI</td>
-      <td style="padding: 8px; border: 1px solid #e2e8f0;">${v.propertyTitle} (${v.propertyLocation})</td>
+      <td style="padding: 8px; border: 1px solid #e2e8f0;">
+        <strong>${v.propertyTitle}</strong> (${v.propertyLocation})
+        ${v.propertyAddress ? `<div style="margin-top: 4px; font-size: 10px; color: #64748b;"><strong>Mülk Adresi / Property Address:</strong> ${v.propertyAddress}</div>` : ''}
+      </td>
     </tr>
     <tr>
       <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">TOPLAM TAŞINMAZ BEDELİ</td>
@@ -428,7 +442,10 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </tr>
     <tr style="background-color: #f8fafc;">
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİRALANAN MÜLK / PROPERTY</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.propertyTitle} (${v.propertyLocation})</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">
+        <strong>${v.propertyTitle}</strong> (${v.propertyLocation})
+        ${v.propertyAddress ? `<div style="margin-top: 4px; font-size: 11px; color: #64748b;"><strong>Mülk Adresi / Property Address:</strong> ${v.propertyAddress}</div>` : ''}
+      </td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">AYLIK KİRA BEDELİ / MONTHLY RENT</td>
@@ -506,7 +523,10 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">MÜLK BİLGİSİ / PROPERTY</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.propertyTitle} (${v.propertyLocation})</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">
+        <strong>${v.propertyTitle}</strong> (${v.propertyLocation})
+        ${v.propertyAddress ? `<div style="margin-top: 4px; font-size: 11px; color: #64748b;"><strong>Mülk Adresi / Property Address:</strong> ${v.propertyAddress}</div>` : ''}
+      </td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HEDEF KİRA / ASKING RENT</td>
@@ -556,7 +576,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     <strong>KİRACI BİLGİLERİ:</strong><br/>
     Adı Soyadı: <strong>${v.clientName}</strong><br/>
     T.C. Kimlik No: ${v.clientIdentity}<br/>
-    Adres: ${v.propertyTitle} (${v.propertyLocation})
+    Adres: <strong>${v.propertyAddress || `${v.propertyTitle} (${v.propertyLocation})`}</strong>
   </div>
 
   <div style="margin-bottom: 30px; text-align: justify; font-size: 14px; line-height: 1.8;">

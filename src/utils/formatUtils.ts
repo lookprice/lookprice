@@ -62,3 +62,32 @@ export const numberToTurkishWords = (number: number, currency: string = 'TRY') =
 
   return result;
 };
+
+export function formatPhoneForWhatsApp(phone: string): string {
+  if (!phone) return "";
+  // Strip all spaces, parenthesis, dashes, and dots
+  let cleaned = phone.replace(/[\s()\-.]/g, "");
+
+  // If it starts with +, remove +
+  if (cleaned.startsWith("+")) {
+    cleaned = cleaned.substring(1);
+  }
+
+  // If it starts with 00, remove 00
+  if (cleaned.startsWith("00")) {
+    cleaned = cleaned.substring(2);
+  }
+
+  // If it starts with 05 (typical Turkey/Cyprus mobile number), replace leading 0 with 90
+  if (cleaned.startsWith("05") && cleaned.length === 11) {
+    cleaned = "90" + cleaned.substring(1);
+  }
+
+  // Double check if it has no country code and has 10 digits starting with 5 (e.g. 5338600000), add 90
+  if (cleaned.length === 10 && cleaned.startsWith("5")) {
+    cleaned = "90" + cleaned;
+  }
+
+  return cleaned;
+}
+

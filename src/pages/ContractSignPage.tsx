@@ -17,22 +17,32 @@ import {
   Smartphone,
   CreditCard
 } from "lucide-react";
+import { contractTemplates } from "../utils/contractTemplates";
+import { formatPhoneForWhatsApp } from "../utils/formatUtils";
 
 export default function ContractSignPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
+  
   const clientNameParam = searchParams.get("client") || "";
+  const clientPhoneParam = searchParams.get("phone") || "";
+  const clientIdentityParam = searchParams.get("identity") || "";
+  const templateIdParam = searchParams.get("templateId") || "";
+  const contractTypeParam = searchParams.get("contractType") || "";
+  const commissionRateParam = searchParams.get("commissionRate") || "3";
+  const contractDateParam = searchParams.get("contractDate") || new Date().toLocaleDateString("tr-TR");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [itemData, setItemData] = useState<any>(null);
   const [isVehicle, setIsVehicle] = useState(false);
   const [clientName, setClientName] = useState(clientNameParam);
-  const [clientPhone, setClientPhone] = useState("");
-  const [clientIdentity, setClientIdentity] = useState("");
+  const [clientPhone, setClientPhone] = useState(clientPhoneParam);
+  const [clientIdentity, setClientIdentity] = useState(clientIdentityParam);
   const [signed, setSigned] = useState(false);
   const [isSigningActive, setIsSigningActive] = useState(false);
   const [success, setSuccess] = useState(false);
+
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
@@ -165,9 +175,9 @@ export default function ContractSignPage() {
           clientName,
           clientIdentity,
           clientPhone,
-          commissionRate: "3.0",
-          commissionAmount: "2.5",
-          contractType: "consignment",
+          commissionRate: isVehicle ? undefined : commissionRateParam,
+          templateId: isVehicle ? undefined : (templateIdParam || "showing_agreement"),
+          contractType: isVehicle ? (contractTypeParam || "consignment") : undefined,
           displayName: storeName
         })
       });
@@ -192,11 +202,58 @@ export default function ContractSignPage() {
     return `${symbol}${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(Math.round(val))}`;
   };
 
+  const storeName = itemData?.store_name?.replace(/lookprice/gi, "Seçkin") || "Seçkin VIP Portföy";
+
+  // Determine dynamic title based on vehicle vs real estate templates
+  let dynamicContractTitle = "";
+  if (isVehicle) {
+    if (contractTypeParam === "consignment") {
+      dynamicContractTitle = "Araç Emanet & Konsinye Sözleşmesi";
+    } else if (contractTypeParam === "reservation") {
+      dynamicContractTitle = "Araç Rezervasyon Protokolü";
+    } else {
+      dynamicContractTitle = "Araç Emanet & Satış Aracılık Protokolü";
+    }
+  } else {
+    const matchedTemplate = contractTemplates.find(t => t.id === (templateIdParam || "showing_agreement"));
+    dynamicContractTitle = matchedTemplate ? matchedTemplate.titleTr : "Emlak Yer Gösterme & Komisyon Sözleşmesi";
+  }
+
+  // Render the actual real estate contract template dynamically if applicable
+  let renderedContractHtml = "";
+  if (!isVehicle && itemData) {
+    const matchedTemplate = contractTemplates.find(t => t.id === (templateIdParam || "showing_agreement"));
+    if (matchedTemplate) {
+      const formattedPriceNum = itemData.price ? new Intl.NumberFormat("tr-TR").format(Math.round(itemData.price)) : "0";
+      const symbol = itemData.currency === "GBP" ? "£" : itemData.currency === "USD" ? "$" : itemData.currency === "EUR" ? "€" : "₺";
+      
+      const values = {
+        clientName: clientName || "..................................................",
+        clientIdentity: clientIdentity || "..................................................",
+        clientPhone: clientPhone || "..................................................",
+        storeName: storeName,
+        storePhone: itemData.store_phone || "",
+        propertyTitle: `[İlan Kodu: LP-${itemData.id}] ${itemData.title}`,
+        propertyLocation: itemData.location || "Kıbrıs",
+        propertyPrice: `${formattedPriceNum} ${symbol}`,
+        propertyBlockPlot: itemData.block_plot,
+        commissionRate: commissionRateParam,
+        contractDate: contractDateParam,
+        propertyAddress: itemData.address
+      };
+      const { html } = matchedTemplate.getTemplate(values);
+      renderedContractHtml = html;
+    }
+  }
+
   const sendNotificationToAgent = () => {
     if (!itemData) return;
-    const formattedPhone = itemData.store_phone ? itemData.store_phone.replace(/[^\d+]/g, "") : "";
+    const formattedPhone = formatPhoneForWhatsApp(itemData.store_phone || "");
     const targetTitle = isVehicle ? `${itemData.brand} ${itemData.model}` : itemData.title;
-    const message = `Ortağım! *${clientName}* az önce gönderdiğin dijital sözleşmeyi onaylayıp imzaladı! 🎉✍️\n\n*Mülk/Araç:* ${targetTitle}\n*İmzalayan:* ${clientName}\n*Telefon:* ${clientPhone || "Belirtilmedi"}\n*Sözleşme ID:* LP-${id}\n\nDetayları ofis yönetim panelindeki cari ve hareket kütüğünden hemen inceleyebilirsin.`;
+    const sName = itemData.store_name?.replace(/lookprice/gi, "Seçkin") || "Seçkin VIP Portföy";
+    
+    const message = `SAYIN ${sName.toUpperCase()},\n\nTarafıma iletmiş olduğunuz dijital sözleşmeyi inceledim ve mobil cihazım üzerinden onaylayarak imzaladım.\n\n*Sözleşme Bilgileri:*\n• *İşlem:* ${dynamicContractTitle}\n• *İlgili Portföy:* ${targetTitle}\n• *İmzalayan:* ${clientName}\n• *T.C. Kimlik / Pasaport No:* ${clientIdentity || "Belirtilmedi"}\n• *İletişim Tel:* ${clientPhone || "Belirtilmedi"}\n• *Sözleşme ID:* LP-${id}\n• *Tarih:* ${new Date().toLocaleDateString("tr-TR")}\n\nİşbu bildirim ile onaylı sözleşme nüshasının tarafınızca arşivlenmek üzere sisteme kaydedildiğini beyan ederim. Bilgilerinize sunarım.`;
+    
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, "_blank");
   };
 
@@ -227,8 +284,6 @@ export default function ContractSignPage() {
     );
   }
 
-  const storeName = itemData.store_name?.replace(/lookprice/gi, "Seçkin") || "Seçkin VIP Portföy";
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 md:p-8 font-sans">
       <AnimatePresence mode="wait">
@@ -252,7 +307,7 @@ export default function ContractSignPage() {
                 </div>
 
                 <h1 className="text-2xl font-black tracking-tight text-white mb-6">
-                  {isVehicle ? "Araç Emanet & Satış Aracılık Protokolü" : "Emlak Hizmet Ortaklığı & Komisyon Sözleşmesi"}
+                  {dynamicContractTitle}
                 </h1>
 
                 {/* Main details list */}
@@ -288,33 +343,39 @@ export default function ContractSignPage() {
                 </div>
 
                 {/* Legally binding scrolling terms */}
-                <div className="bg-slate-950/80 border border-slate-850 rounded-2xl p-4 h-[220px] lg:h-[280px] overflow-y-auto text-[11px] text-slate-400 leading-relaxed font-sans space-y-4 pr-3 scrollbar-thin scrollbar-thumb-slate-800">
-                  <p className="font-bold text-white">1. SÖZLEŞMENİN TARAFLARI VE KONUSU</p>
-                  <p>
-                    Bu sözleşme, bir tarafta yukarıda belirtilen mülk veya aracın hak sahibi ("Hizmet Alan / Satıcı") ile diğer tarafta yetkili aracı kurum olan <strong>{storeName}</strong> ("Galeri / Ofis") arasında dijital ortamda onaylanmak üzere tanzim edilmiştir. İşbu belgenin konusu, mülkün/aracın satışı, pazarlanması, alıcı adayı bulunması ve taraflar arasındaki komisyon haklarının güvence altına alınmasıdır.
-                  </p>
-
-                  <p className="font-bold text-white">2. PAZARLAMA VE YETKİ KOŞULLARI</p>
-                  {isVehicle ? (
+                {renderedContractHtml ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-4 h-[220px] lg:h-[280px] overflow-y-auto text-slate-800 leading-relaxed font-sans pr-3 scrollbar-thin scrollbar-thumb-slate-200">
+                    <div dangerouslySetInnerHTML={{ __html: renderedContractHtml }} />
+                  </div>
+                ) : (
+                  <div className="bg-slate-950/80 border border-slate-850 rounded-2xl p-4 h-[220px] lg:h-[280px] overflow-y-auto text-[11px] text-slate-400 leading-relaxed font-sans space-y-4 pr-3 scrollbar-thin scrollbar-thumb-slate-800">
+                    <p className="font-bold text-white">1. SÖZLEŞMENİN TARAFLARI VE KONUSU</p>
                     <p>
-                      Hizmet Alan, mülkiyetindeki aracı satılması amacıyla Galeri'ye emanet statüsünde teslim etmeyi veya Galeri kanallarından ilan edilmesini kabul eder. Galeri, aracın internet portalları ve fiziki showroomlarda en iyi şekilde pazarlanmasından sorumludur. Hizmet alan, Galeri'nin bilgisi dışında aracı üçüncü şahıslara veya Galeri'nin yönlendirdiği müşterilere satamaz.
+                      Bu sözleşme, bir tarafta yukarıda belirtilen mülk veya aracın hak sahibi ("Hizmet Alan / Satıcı") ile diğer tarafta yetkili aracı kurum olan <strong>{storeName}</strong> ("Galeri / Ofis") arasında dijital ortamda onaylanmak üzere tanzim edilmiştir. İşbu belgenin konusu, mülkün/aracın satışı, pazarlanması, alıcı adayı bulunması ve taraflar arasındaki komisyon haklarının güvence altına alınmasıdır.
                     </p>
-                  ) : (
+
+                    <p className="font-bold text-white">2. PAZARLAMA VE YETKİ KOŞULLARI</p>
+                    {isVehicle ? (
+                      <p>
+                        Hizmet Alan, mülkiyetindeki aracı satılması amacıyla Galeri'ye emanet statüsünde teslim etmeyi veya Galeri kanallarından ilan edilmesini kabul eder. Galeri, aracın internet portalları ve fiziki showroomlarda en iyi şekilde pazarlanmasından sorumludur. Hizmet alan, Galeri'nin bilgisi dışında aracı üçüncü şahıslara veya Galeri'nin yönlendirdiği müşterilere satamaz.
+                      </p>
+                    ) : (
+                      <p>
+                        Mülk sahibi, söz konusu gayrimenkulün pazarlanması hususunda Acente'ye tam yetki verdiğini beyan eder. Acente, her türlü reklam, afiş ve sosyal medya pazarlamasını üstlenir. Malik, Acente'yi devre dışı bırakarak doğrudan veya dolaylı olarak alıcı ile temas kurup satış gerçekleştiremez.
+                      </p>
+                    )}
+
+                    <p className="font-bold text-white">3. ARACILIK HİZMET BEDELİ (KOMİSYON)</p>
                     <p>
-                      Mülk sahibi, söz konusu gayrimenkulün pazarlanması hususunda Acente'ye tam yetki verdiğini beyan eder. Acente, her türlü reklam, afiş ve sosyal medya pazarlamasını üstlenir. Malik, Acente'yi devre dışı bırakarak doğrudan veya dolaylı olarak alıcı ile temas kurup satış gerçekleştiremez.
+                      Mülk veya aracın tescil ve satışı tamamlandığında, alıcı ve satıcı aracı kuruma yasal komisyon bedeli ödemekle mükelleftir. Bu komisyon bedeli aksi yazılı olarak kararlaştırılmadıkça lüks emlak segmentinde toplam bedel üzerinden <strong>%5</strong>, otomotiv segmentinde ise Galeri liste fiyatı üzerinden <strong>%3</strong> artı KDV olarak hesaplanır. Satıcı, acenteyi aradan çıkartarak satış yaparsa dahi cezai şart olarak bu komisyonun iki katını ödemeyi kabul eder.
                     </p>
-                  )}
 
-                  <p className="font-bold text-white">3. ARACILIK HİZMET BEDELİ (KOMİSYON)</p>
-                  <p>
-                    Mülk veya aracın tescil ve satışı tamamlandığında, alıcı ve satıcı aracı kuruma yasal komisyon bedeli ödemekle mükelleftir. Bu komisyon bedeli aksi yazılı olarak kararlaştırılmadıkça lüks emlak segmentinde toplam bedel üzerinden <strong>%5</strong>, otomotiv segmentinde ise Galeri liste fiyatı üzerinden <strong>%3</strong> artı KDV olarak hesaplanır. Satıcı, acenteyi aradan çıkartarak satış yaparsa dahi cezai şart olarak bu komisyonun iki katını ödemeyi kabul eder.
-                  </p>
-
-                  <p className="font-bold text-white">4. GİZLİLİK VE ANLAŞMAZLIKLARIN ÇÖZÜMÜ</p>
-                  <p>
-                    İşbu sözleşmenin detayları, her iki tarafın ticari sırrı olup üçüncü kişilerle paylaşılamaz. Sözleşmeden doğacak her türlü ihtilafta, Kuzey Kıbrıs Türk Cumhuriyeti (Girne/Lefkoşa) Mahkemeleri ve İcra Daireleri yetkilidir. Dijital olarak parmak veya ıslak imza simülasyonu ile onaylanan bu sözleşme yasal olarak delil niteliği taşımaktadır.
-                  </p>
-                </div>
+                    <p className="font-bold text-white">4. GİZLİLİK VE ANLAŞMAZLIKLARIN ÇÖZÜMÜ</p>
+                    <p>
+                      İşbu sözleşmenin detayları, her iki tarafın ticari sırrı olup üçüncü kişilerle paylaşılamaz. Sözleşmeden doğacak her türlü ihtilafta, Kuzey Kıbrıs Türk Cumhuriyeti (Girne/Lefkoşa) Mahkemeleri ve İcra Daireleri yetkilidir. Dijital olarak parmak veya ıslak imza simülasyonu ile onaylanan bu sözleşme yasal olarak delil niteliği taşımaktadır.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Secure Stamp text */}

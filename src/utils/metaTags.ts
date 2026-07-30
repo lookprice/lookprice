@@ -4,6 +4,19 @@ function renderFaviconTags(customLogo?: string, host = "enrakipsiz.com", protoco
   const domain = host || "enrakipsiz.com";
   const baseUrl = `${protocol}://${domain}`;
 
+  if (customLogo && (customLogo.startsWith("http") || customLogo.startsWith("/"))) {
+    const iconUrl = customLogo.startsWith("http") ? customLogo : `${baseUrl}${customLogo}`;
+    return `
+      <!-- Google Search & Universal Browser Custom Favicon Tags -->
+      <link rel="icon" type="image/png" sizes="48x48" href="${iconUrl}" />
+      <link rel="icon" type="image/png" sizes="192x192" href="${iconUrl}" />
+      <link rel="icon" type="image/png" sizes="512x512" href="${iconUrl}" />
+      <link rel="shortcut icon" href="${iconUrl}" />
+      <link rel="apple-touch-icon" href="${iconUrl}" />
+      <link rel="manifest" href="${baseUrl}/site.webmanifest" />
+    `;
+  }
+
   // Static favicon URLs generated in /public
   const default48 = `${baseUrl}/favicon-48x48.png`;
   const default192 = `${baseUrl}/favicon-192x192.png`;
@@ -12,19 +25,8 @@ function renderFaviconTags(customLogo?: string, host = "enrakipsiz.com", protoco
   const defaultIco = `${baseUrl}/favicon.ico`;
   const appleTouch = `${baseUrl}/apple-touch-icon.png`;
 
-  let storeIconTags = "";
-  if (customLogo && customLogo.startsWith("http")) {
-    storeIconTags = `
-      <link rel="icon" type="image/png" sizes="48x48" href="${customLogo}" />
-      <link rel="icon" type="image/png" sizes="192x192" href="${customLogo}" />
-      <link rel="shortcut icon" href="${customLogo}" />
-      <link rel="apple-touch-icon" href="${customLogo}" />
-    `;
-  }
-
   return `
-    <!-- Google Search & Universal Browser Favicon Tags -->
-    ${storeIconTags}
+    <!-- Google Search & Universal Browser Default Favicon Tags -->
     <link rel="icon" type="image/png" sizes="48x48" href="${default48}" />
     <link rel="icon" type="image/png" sizes="192x192" href="${default192}" />
     <link rel="icon" type="image/png" sizes="512x512" href="${default512}" />
@@ -657,6 +659,10 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       ${JSON.stringify(storeSchema)}
       </script>
     `;
+
+    if (metaSettings.gsc_id) {
+      tags += `\n      <meta name="google-site-verification" content="${metaSettings.gsc_id}" />`;
+    }
 
     // Analytics integrations if configured in settings
     if (gaId) {

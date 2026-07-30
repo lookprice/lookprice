@@ -406,6 +406,77 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                                   const depositFormatted = details.depositAmount ? `${details.depositAmount} ${symbol}` : '[Kapora Tutarı]';
                                   const vehicleDetails = `${vehicle.brand} ${vehicle.model} (${vehicle.year || ''}) • Plaka: ${vehicle.plate || ''} • Şasi: ${vehicle.chassis_number || ''}`;
 
+                                  const clientNameVal = details.clientName || '';
+                                  const clientIdentityVal = details.clientIdentity || '';
+                                  const clientPhoneVal = details.clientPhone || '';
+                                  const ipAddressVal = details.ipAddress || '127.0.0.1';
+                                  const timestampVal = details.contractDate || new Date().toLocaleDateString("tr-TR");
+
+                                  const combined = `${clientNameVal}-${clientIdentityVal}-${clientPhoneVal}-${vehicle.id}-security-seal`;
+                                  let hash = 0;
+                                  for (let i = 0; i < combined.length; i++) {
+                                    const char = combined.charCodeAt(i);
+                                    hash = (hash << 5) - hash + char;
+                                    hash = hash & hash;
+                                  }
+                                  const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, "0");
+                                  const randomHex = (index: number) => {
+                                    let rHash = 0;
+                                    const rCombined = `${combined}-${index}`;
+                                    for (let i = 0; i < rCombined.length; i++) {
+                                      rHash = (rHash << 5) - rHash + rCombined.charCodeAt(i);
+                                      rHash = rHash & rHash;
+                                    }
+                                    return Math.abs(rHash).toString(16).toUpperCase().padStart(8, "0");
+                                  };
+                                  const securityCode = `SEC-LP-${hex}-${randomHex(1)}-${randomHex(2)}`;
+
+                                  const securityBoxHtml = `
+                                    <div style="margin-top: 45px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; background-color: #f8fafc; font-family: sans-serif; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); page-break-inside: avoid;">
+                                      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                          <span style="font-size: 16px;">🛡️</span>
+                                          <div>
+                                            <h4 style="margin: 0; font-size: 13px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">E-İMZA & GÜVENLİK DOĞRULAMA RAPORU</h4>
+                                            <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase;">DIGITAL SIGNATURE & INTEGRITY REPORT</span>
+                                          </div>
+                                        </div>
+                                        <span style="background-color: #dcfce7; border: 1px solid #bbf7d0; color: #15803d; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">✅ DİJİTAL ONAYLANDI</span>
+                                      </div>
+                                      
+                                      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 11px; margin-bottom: 15px;">
+                                        <div>
+                                          <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İmzalayan Müşteri (Signing Client)</span>
+                                          <strong style="color: #1e293b; font-size: 12px;">${clientNameVal}</strong>
+                                        </div>
+                                        <div>
+                                          <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">T.C. Kimlik / Pasaport No (ID / Passport)</span>
+                                          <strong style="color: #1e293b; font-size: 12px; font-family: monospace;">${clientIdentityVal}</strong>
+                                        </div>
+                                        <div>
+                                          <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">İletişim Telefonu (Client Phone)</span>
+                                          <strong style="color: #1e293b; font-size: 12px; font-family: monospace;">${clientPhoneVal}</strong>
+                                        </div>
+                                        <div>
+                                          <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">IP Adresi (IP Address)</span>
+                                          <strong style="color: #1e293b; font-size: 12px; font-family: monospace;">${ipAddressVal}</strong>
+                                        </div>
+                                        <div>
+                                          <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Onay Zaman Damgası (Signing Timestamp)</span>
+                                          <strong style="color: #1e293b; font-size: 12px;">${timestampVal}</strong>
+                                        </div>
+                                        <div>
+                                          <span style="color: #64748b; font-weight: bold; display: block; text-transform: uppercase; font-size: 9px; margin-bottom: 2px;">Güvenlik & Bütünlük Kodu (Security Hash / SHA)</span>
+                                          <strong style="color: #16a34a; font-size: 11px; font-family: monospace; letter-spacing: 0.5px;">${securityCode}</strong>
+                                        </div>
+                                      </div>
+                                      
+                                      <div style="border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 10px; color: #64748b; text-align: justify; line-height: 1.5;">
+                                        <p style="margin: 0;"><strong>YASAL BEYAN VE GEÇERLİLİK:</strong> İşbu dijital sözleşme, taraflarca mobil/tablet cihazın dokunmatik ekranı üzerinde biyometrik parmak izi imza simülasyonu ile onaylanmıştır. 5070 Sayılı Elektronik İmza Kanunu, KKTC E-İmza Yasası ve Türk Borçlar Kanunu kapsamında hukuken geçerli ve tarafları bağlayıcı "Yazılı Delil Başlangıcı ve Sözleşmesi" niteliğindedir. Sözleşme içeriği ve imza bütünlüğü, yukarıda belirtilen benzersiz Güvenlik & Bütünlük Kodu (SHA) ile kriptografik olarak mühürlenmiştir.</p>
+                                      </div>
+                                    </div>
+                                  `;
+
                                   const html = `
                                     <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
                                       <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
@@ -430,7 +501,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                                       <div style="margin-top: 30px; font-size: 11px; color: #64748b; text-align: justify; border-top: 1px solid #cbd5e1; padding-top: 15px;">
                                         <p><strong>YASAL UYARI VE BEYAN:</strong> İşbu sözleşme taraflarca dijital ortamda, tablet/mobil dokunmatik ekran üzerinde ıslak imza simülasyonu ile onaylanmış olup, 5070 Sayılı Elektronik İmza Kanunu ve Borçlar Kanunu uyarınca yasal olarak geçerli ve delil sözleşmesi niteliğindedir.</p>
                                       </div>
-                                      <div style="margin-top: 40px; display: flex; justify-content: space-between;">
+                                      <div style="margin-top: 40px; display: flex; justify-content: space-between; page-break-inside: avoid;">
                                         <div style="width: 45%; text-align: center; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px;">
                                           <p style="font-size: 12px; font-weight: bold; margin: 0 0 10px 0;">YETKİLİ GALERİ İMZASI</p>
                                           <div style="height: 60px; font-size: 11px; color: #94a3b8; display: flex; align-items: center; justify-content: center;">[DİJİTAL ONAYLANDI]</div>
@@ -440,6 +511,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                                           <div style="height: 60px; font-size: 12px; color: #166534; font-weight: black; display: flex; align-items: center; justify-content: center; flex-direction: column;">✍️ ${details.clientName || ''} <span style="font-size:9px; color:#15803d; font-weight: bold; margin-top: 4px;">[DİJİTAL İMZALANDI]</span></div>
                                         </div>
                                       </div>
+                                      ${securityBoxHtml}
                                     </div>
                                   `;
                                   

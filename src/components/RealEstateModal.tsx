@@ -91,6 +91,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     ai_tour_enabled: false,
     documents: [],
     owner_info: { fullName: '', phone: '' },
+    address: '',
     responsible_consultant_id: undefined,
     authorized_branch_id: undefined
   });
@@ -169,6 +170,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         responsible_consultant_id: property.responsible_consultant_id,
         listing_intent: property.listing_intent || (property.reference_no?.toUpperCase().includes('-K-') ? 'rent' : 'sale'),
         owner_info: property.owner_info || { fullName: '', phone: '' },
+        address: property.address || '',
         sharing_scope: property.sharing_scope || 'shared_pool',
         reserved_by_branch: property.reserved_by_branch || '',
         reservation_notes: property.reservation_notes || '',
@@ -214,6 +216,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         responsible_agent: '',
         responsible_consultant_id: undefined,
         owner_info: { fullName: '', phone: '' },
+        address: '',
         sharing_scope: 'shared_pool',
         reserved_by_branch: '',
         reservation_notes: '',
@@ -555,6 +558,17 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     onChange={(e) => setFormData({...formData, owner_info: {...formData.owner_info, phone: e.target.value} as any})}
                    />
                 </div>
+              </div>
+              <div className="pt-2">
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">Portföy Adres Bilgisi (Sözleşmelerde Otomatik Gösterilecektir)</label>
+                <textarea
+                  rows={2}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-300"
+                  placeholder="Örn: Girne Merkez, Atatürk Caddesi No: 42, Daire 3..."
+                  value={formData.address || ''}
+                  onChange={(e) => setFormData({...formData, address: e.target.value})}
+                />
+                <p className="text-[9px] text-slate-400 mt-1 leading-relaxed">Gireceğiniz bu adres bilgisi, dijital olarak oluşturulup imzaya gönderilen tüm resmi sözleşmelere ve yer gösterme belgelerine otomatik olarak yerleştirilecektir.</p>
               </div>
             </div>
 
@@ -1034,7 +1048,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                                     propertyPrice: `${formattedPriceNum} ${symbol}`,
                                     propertyBlockPlot: formData.block_plot,
                                     commissionRate: doc.details?.commissionRate || "3",
-                                    contractDate: doc.upload_date
+                                    contractDate: doc.upload_date,
+                                    propertyAddress: formData.address
                                   });
                                   
                                   const printWin = window.open('', '_blank');

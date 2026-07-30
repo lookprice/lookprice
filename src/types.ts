@@ -292,6 +292,7 @@ export interface RealEstateProperty {
   price: number;
   currency: string;
   location?: string;
+  address?: string;
   type: 'residence' | 'commercial' | 'land';
   subtype?: string; // New: E.g., 'Daire', 'Villa', 'Malikane', 'Dükkan', 'Ofis', 'Tarla', etc.
   listing_intent: 'sale' | 'rent'; // Added for clear separation
