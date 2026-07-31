@@ -233,11 +233,13 @@ export default function ContractSignPage() {
         clientPhone: clientPhone || "..................................................",
         storeName: storeName,
         storePhone: itemData.store_phone || "",
-        propertyTitle: `[İlan Kodu: LP-${itemData.id}] ${itemData.title}`,
+        propertyTitle: itemData.type === 'land' 
+          ? `[İlan Kodu: LP-${itemData.id}] ${(itemData as any).mahalle || ''} Mah. Ada: ${(itemData as any).ada || '...'}, Parsel: ${(itemData as any).parsel || '...'}, Pafta: ${(itemData as any).pafta || '...'}`
+          : `[İlan Kodu: LP-${itemData.id}] ${itemData.address || itemData.title}`,
         propertyLocation: itemData.location || "Kıbrıs",
         propertyPrice: `${formattedPriceNum} ${symbol}`,
         propertyBlockPlot: itemData.block_plot,
-        commissionRate: commissionRateParam,
+        commissionRate: itemData.listing_intent === 'rent' ? commissionRateParam : (commissionRateParam.includes('%') ? commissionRateParam : `%${commissionRateParam}`),
         contractDate: contractDateParam,
         propertyAddress: (itemData as any).type === 'land' 
           ? `${(itemData as any).mahalle || ''} Mah. ${(itemData as any).ada || ''} Ada, ${(itemData as any).parsel || ''} Parsel, ${(itemData as any).pafta || ''} Pafta`

@@ -126,7 +126,23 @@ const upload = multer({ storage: multer.memoryStorage() });
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("Real estate table verification processed with portfolio_transactions.");
+    // Create real_estate_contacts table for CRM
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS real_estate_contacts (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id),
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        email TEXT,
+        id_number TEXT,
+        address TEXT,
+        type TEXT DEFAULT 'owner',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("Real estate table verification processed with portfolio_transactions & real_estate_contacts.");
   } catch (error) {
     console.error("Real estate table error:", error);
   }
@@ -1137,6 +1153,94 @@ const storeId = req.query.store_id || req.query.storeId || req.body.store_id || 
     res.json({ success: true, deleted });
   } catch (error: any) {
     console.error("Delete portfolio transaction error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /contacts - Get contacts list
+router.get('/contacts', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.query.storeId || req.user.store_id;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM real_estate_contacts WHERE store_id = $1 ORDER BY created_at DESC`,
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Error fetching contacts:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /contacts - Create a new contact
+router.post('/contacts', authenticate, async (req: any, res) => {
+  const storeId = req.body.store_id || req.body.storeId || req.user.store_id;
+  const { name, phone, email, id_number, address, type, notes } = req.body;
+  
+  if (!name || !phone) {
+    return res.status(400).json({ error: "İsim ve telefon alanları zorunludur." });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO real_estate_contacts (store_id, name, phone, email, id_number, address, type, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [storeId, name, phone, email || '', id_number || '', address || '', type || 'owner', notes || '']
+    );
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Error creating contact:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /contacts/:id - Update an existing contact
+router.put('/contacts/:id', authenticate, async (req: any, res) => {
+  const storeId = req.body.store_id || req.body.storeId || req.user.store_id;
+  const { id } = req.params;
+  const { name, phone, email, id_number, address, type, notes } = req.body;
+
+  if (!name || !phone) {
+    return res.status(400).json({ error: "İsim ve telefon alanları zorunludur." });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE real_estate_contacts 
+       SET name = $1, phone = $2, email = $3, id_number = $4, address = $5, type = $6, notes = $7, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8 AND store_id = $9 RETURNING *`,
+      [name, phone, email || '', id_number || '', address || '', type || 'owner', notes || '', id, storeId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Contact not found or unauthorized." });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Error updating contact:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /contacts/:id - Delete a contact
+router.delete('/contacts/:id', authenticate, async (req: any, res) => {
+  const storeId = req.query.store_id || req.query.storeId || req.user.store_id;
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM real_estate_contacts WHERE id = $1 AND store_id = $2 RETURNING *`,
+      [id, storeId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Contact not found or unauthorized." });
+    }
+
+    res.json({ success: true, deleted: result.rows[0] });
+  } catch (error: any) {
+    console.error("Error deleting contact:", error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -103,6 +103,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   branding,
   onSaveContract
 }) => {
+  const [activeMobileTab, setActiveMobileTab] = useState<'params' | 'preview'>('params');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
     property.listing_intent === 'rent' ? "rental_agreement" : "showing_agreement"
   );
@@ -119,7 +120,15 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentTemplate = contractTemplates.find(t => t.id === selectedTemplateId) || contractTemplates[0];
+  const filteredTemplates = contractTemplates.filter(template => {
+    if (property.listing_intent === 'rent') {
+      return ["rental_agreement", "rental_authorization", "eviction_undertaking", "showing_agreement"].includes(template.id);
+    } else {
+      return ["showing_agreement", "exclusivity_agreement", "sales_brokerage", "inter_branch_split"].includes(template.id);
+    }
+  });
+
+  const currentTemplate = filteredTemplates.find(t => t.id === selectedTemplateId) || filteredTemplates[0] || contractTemplates[0];
 
   const getDisplayStoreName = () => {
     const rawName = branding?.store_name || branding?.name || "Seçkin Emlak";
@@ -146,12 +155,14 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     clientName: clientName || "[Alıcı / Mülk Sahibi Adı]",
     clientIdentity: clientIdentity || "[T.C. No / Pasapor No]",
     clientPhone: clientPhone || "[Telefon Numarası]",
-    propertyTitle: `[İlan Kodu: LP-${property.id}] ${property.title}`,
+    propertyTitle: property.type === 'land' 
+      ? `[İlan Kodu: LP-${property.id}] ${property.mahalle || ''} Mah. Ada: ${property.ada || '...'}, Parsel: ${property.parsel || '...'}, Pafta: ${property.pafta || '...'}`
+      : `[İlan Kodu: LP-${property.id}] ${property.address || property.title}`,
     propertyLocation: property.location || "Kıbrıs",
     propertyPrice: propertyPriceFormatted,
     propertyBlockPlot: property.block_plot,
-    // Add % sign only if it's not the rent phrase
-    commissionRate: property.listing_intent === 'rent' ? commissionRate : `%${commissionRate}`,
+    // Add % sign only if it's not the rent phrase or already has a % sign
+    commissionRate: property.listing_intent === 'rent' ? commissionRate : (commissionRate.includes('%') ? commissionRate : `%${commissionRate}`),
     contractDate: formatTrDate(contractDate),
     propertyAddress: property.address
   };
@@ -249,8 +260,34 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <div className="bg-slate-900 rounded-[2.5rem] w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-hidden shadow-2xl relative border border-slate-800">
         
+        {/* Mobile Tab Bar */}
+        <div className="md:hidden flex bg-slate-950 border-b border-slate-800 p-2 shrink-0 gap-1.5">
+          <button
+            onClick={() => setActiveMobileTab('params')}
+            className={`flex-1 py-2 text-center text-xs font-black rounded-xl transition-all ${
+              activeMobileTab === 'params' 
+                ? 'bg-indigo-600 text-white shadow-md' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Sözleşme Bilgileri
+          </button>
+          <button
+            onClick={() => setActiveMobileTab('preview')}
+            className={`flex-1 py-2 text-center text-xs font-black rounded-xl transition-all ${
+              activeMobileTab === 'preview' 
+                ? 'bg-indigo-600 text-white shadow-md' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Sözleşme Ön İzleme
+          </button>
+        </div>
+
         {/* Left Side: Parameters Form */}
-        <div className="w-full md:w-[40%] bg-slate-950 p-6 flex flex-col justify-between border-r border-slate-800 overflow-y-auto">
+        <div className={`w-full md:w-[40%] bg-slate-950 p-6 flex-col justify-between border-r border-slate-800 overflow-y-auto ${
+          activeMobileTab === 'params' ? 'flex' : 'hidden md:flex'
+        }`}>
           <div className="space-y-6">
             <div className="flex justify-between items-start">
               <div>
@@ -270,7 +307,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
             <div className="space-y-2">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">1. Sözleşme Tipi Seçin</span>
               <div className="grid grid-cols-1 gap-2">
-                {contractTemplates.map((template) => (
+                {filteredTemplates.map((template) => (
                   <button
                     key={template.id}
                     onClick={() => {
@@ -345,7 +382,18 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {property.listing_intent !== 'rent' && (
+                  {property.listing_intent === 'rent' ? (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 ml-1">Hizmet Komisyon Bedeli</label>
+                      <input 
+                        type="text"
+                        className="w-full bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                        placeholder="Örn: 1 Aylık Kira Bedeli"
+                        value={commissionRate}
+                        onChange={(e) => setCommissionRate(e.target.value)}
+                      />
+                    </div>
+                  ) : (
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 ml-1">Hizmet Komisyonu (%)</label>
                       <div className="relative">
@@ -422,10 +470,12 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         </div>
 
         {/* Right Side: Contract Live Rendering */}
-        <div className="flex-1 bg-white flex flex-col justify-between overflow-hidden">
+        <div className={`flex-1 bg-white flex-col justify-between overflow-hidden ${
+          activeMobileTab === 'preview' ? 'flex' : 'hidden md:flex'
+        }`}>
           
           {/* Top action bar */}
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center gap-2 shrink-0">
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center gap-2 shrink-0 overflow-x-auto whitespace-nowrap scrollbar-none">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-xl border border-indigo-150/60 text-[10px] font-black uppercase tracking-tight">
                 <Eye className="w-3.5 h-3.5" /> Canlı Sözleşme Taslağı

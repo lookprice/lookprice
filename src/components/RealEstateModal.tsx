@@ -7,6 +7,7 @@ import { RealEstateProperty } from '../types';
 import { api } from '../services/api';
 import { contractTemplates } from '../utils/contractTemplates';
 import { LiteRichEditor } from './LiteRichEditor';
+import { AutocompleteSelect } from './AutocompleteSelect';
 
 interface RealEstateModalProps {
   isOpen: boolean;
@@ -109,6 +110,27 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   const [branches, setBranches] = useState<any[]>([]);
   const [consultants, setConsultants] = useState<any[]>([]);
   const [loadingCrm, setLoadingCrm] = useState(false);
+  const [contacts, setContacts] = useState<any[]>([]);
+
+  const standardizeOwnerPhone = (phone: string) => {
+    if (!phone) return phone;
+    let cleaned = phone.trim();
+    if (cleaned.startsWith('05') && cleaned.replace(/\s/g, '').length === 11) {
+      const rawDigits = cleaned.replace(/\s/g, '');
+      cleaned = `+90 ${rawDigits.substring(1, 4)} ${rawDigits.substring(4, 7)} ${rawDigits.substring(7)}`;
+    } else if (cleaned.startsWith('5') && cleaned.replace(/\s/g, '').length === 10) {
+      const rawDigits = cleaned.replace(/\s/g, '');
+      cleaned = `+90 ${rawDigits.substring(0, 3)} ${rawDigits.substring(3, 6)} ${rawDigits.substring(6)}`;
+    } else if (!cleaned.startsWith('+') && !cleaned.startsWith('00')) {
+      const rawDigits = cleaned.replace(/\D/g, '');
+      if (rawDigits.length === 10) {
+        cleaned = `+90 ${rawDigits.substring(0, 3)} ${rawDigits.substring(3, 6)} ${rawDigits.substring(6)}`;
+      } else if (rawDigits.length === 11 && rawDigits.startsWith('0')) {
+        cleaned = `+90 ${rawDigits.substring(1, 4)} ${rawDigits.substring(4, 7)} ${rawDigits.substring(7)}`;
+      }
+    }
+    return cleaned;
+  };
 
   const handleSave = () => {
     if (formData.listing_intent === 'rent') {
@@ -131,6 +153,16 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
     }
     setValidationError(null);
 
+    // Sync owner to CRM contacts directly
+    if (formData.owner_info?.fullName) {
+      api.addRealEstateContact({
+        name: formData.owner_info.fullName,
+        phone: formData.owner_info.phone || '',
+        type: 'owner',
+        notes: `${formData.title || 'Mülk'} sahibi olarak portföy kaydından otomatik senkronize edildi.`
+      }, storeId).catch(err => console.error("Auto CRM sync failed:", err));
+    }
+
     const dataToSave = { ...formData };
 
     onSave(dataToSave as RealEstateProperty);
@@ -146,12 +178,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   const fetchCrmData = async () => {
     setLoadingCrm(true);
     try {
-      const [branchesRes, consultantsRes] = await Promise.all([
+      const [branchesRes, consultantsRes, contactsRes] = await Promise.all([
         api.getBranches(storeId),
-        api.getConsultants(storeId)
+        api.getConsultants(storeId),
+        api.getRealEstateContacts(undefined, storeId)
       ]);
       setBranches(Array.isArray(branchesRes) ? branchesRes : []);
       setConsultants(Array.isArray(consultantsRes) ? consultantsRes : []);
+      setContacts(Array.isArray(contactsRes) ? contactsRes : []);
     } catch (error) {
       console.error('Failed to fetch CRM data:', error);
     } finally {
@@ -556,63 +590,126 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               <h5 className="text-xs font-black uppercase text-slate-800 border-b pb-2 mb-2">Mülk Sahibi ve Yetki Bilgileri</h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Mülk Sahibi (Ad Soyad)</label>
-                   <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs" 
-                    value={formData.owner_info?.fullName || ''}
-                    onChange={(e) => setFormData({...formData, owner_info: {...formData.owner_info, fullName: e.target.value} as any})}
+                   <AutocompleteSelect
+                     items={contacts}
+                     displayField="name"
+                     secondaryField="phone"
+                     type="customer"
+                     lang="tr"
+                     value={formData.owner_info?.fullName || ''}
+                     placeholder="Mülk sahibi arayın..."
+                     label="Mülk Sahibi (Ad Soyad)"
+                     onSelect={(selectedContact) => {
+                       if (selectedContact) {
+                         setFormData({
+                           ...formData,
+                           owner_info: {
+                             fullName: selectedContact.name,
+                             phone: selectedContact.phone || ''
+                           }
+                         });
+                       } else {
+                         setFormData({
+                           ...formData,
+                           owner_info: {
+                             fullName: '',
+                             phone: ''
+                           }
+                         });
+                       }
+                     }}
+                     onQuickAdd={async (searchVal) => {
+                       try {
+                         const newContact = {
+                           name: searchVal,
+                           phone: '',
+                           type: 'owner' as const,
+                           notes: 'Portföy ekranından hızlı eklendi.'
+                         };
+                         await api.addRealEstateContact(newContact, storeId);
+                         // Re-fetch contacts
+                         const res = await api.getRealEstateContacts(undefined, storeId);
+                         setContacts(Array.isArray(res) ? res : []);
+                         
+                         // Find the saved one to populate
+                         const saved = Array.isArray(res) ? res.find(c => c.name.toLowerCase().trim() === searchVal.toLowerCase().trim()) : null;
+                         setFormData({
+                           ...formData,
+                           owner_info: {
+                             fullName: searchVal,
+                             phone: saved?.phone || ''
+                           }
+                         });
+                       } catch (err) {
+                         console.error("Quick add failed", err);
+                       }
+                     }}
                    />
                 </div>
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Mülk Sahibi (Telefon)</label>
-                   <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs" 
-                    value={formData.owner_info?.phone || ''}
-                    onChange={(e) => setFormData({...formData, owner_info: {...formData.owner_info, phone: e.target.value} as any})}
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Mülk Sahibi (Telefon) - Uluslararası standart</label>
+                   <input 
+                     type="tel" 
+                     placeholder="+90 533 123 4567"
+                     className="w-full pl-4 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/5 transition-all text-sm font-bold text-slate-700 outline-none" 
+                     value={formData.owner_info?.phone || ''}
+                     onChange={(e) => setFormData({...formData, owner_info: {...formData.owner_info, phone: e.target.value} as any})}
+                     onBlur={(e) => {
+                       const normalized = standardizeOwnerPhone(e.target.value);
+                       setFormData({...formData, owner_info: {...formData.owner_info, phone: normalized} as any});
+                     }}
                    />
+                   <p className="text-[9px] text-slate-400 mt-1.5 leading-relaxed">Yerel numaralar otomatik olarak uluslararası formata dönüştürülür.</p>
                 </div>
               </div>
-              <div className="pt-2">
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">Portföy Adres Bilgisi (Sözleşmelerde Otomatik Gösterilecektir)</label>
-                <textarea
-                  rows={2}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-300"
-                  placeholder="Örn: Girne Merkez, Atatürk Caddesi No: 42, Daire 3..."
-                  value={formData.address || ''}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
-                />
-                <p className="text-[9px] text-slate-400 mt-1 leading-relaxed">Konut/Ticari mülkler için adres bilgisi zorunludur.</p>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-                {[
-                  { label: 'Mahalle', key: 'mahalle' },
-                  { label: 'Ada', key: 'ada' },
-                  { label: 'Parsel', key: 'parsel' },
-                  { label: 'Pafta', key: 'pafta' },
-                ].map((field) => (
-                  <div key={field.key}>
-                     <label className="block text-[10px] font-bold text-slate-500 mb-1">{field.label}</label>
-                     <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs" 
-                      value={(formData as any)[field.key] || ''}
-                      onChange={(e) => setFormData({...formData, [field.key]: e.target.value})}
-                     />
+              
+              {formData.type !== 'land' ? (
+                <div className="pt-2">
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Portföy Adres Bilgisi (Sözleşmelerde Otomatik Gösterilecektir)</label>
+                  <textarea
+                    rows={2}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-300"
+                    placeholder="Örn: Girne Merkez, Atatürk Caddesi No: 42, Daire 3..."
+                    value={formData.address || ''}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  />
+                  <p className="text-[9px] text-indigo-600 font-bold mt-1 leading-relaxed">Konut/Ticari mülkler için adres bilgisi zorunludur.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                    {[
+                      { label: 'Mahalle', key: 'mahalle' },
+                      { label: 'Ada', key: 'ada' },
+                      { label: 'Parsel', key: 'parsel' },
+                      { label: 'Pafta', key: 'pafta' },
+                    ].map((field) => (
+                      <div key={field.key}>
+                         <label className="block text-[10px] font-bold text-slate-500 mb-1">{field.label}</label>
+                         <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs" 
+                          value={(formData as any)[field.key] || ''}
+                          onChange={(e) => setFormData({...formData, [field.key]: e.target.value})}
+                         />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <p className="text-[9px] text-slate-400 mt-1 leading-relaxed">Arsa/Tarla mülkleri için Mahalle, Ada, Parsel ve Pafta bilgileri zorunludur.</p>
+                  <p className="text-[9px] text-indigo-600 font-bold mt-1 leading-relaxed">Arsa/Tarla mülkleri için Mahalle, Ada, Parsel ve Pafta bilgileri zorunludur.</p>
+                </div>
+              )}
             </div>
 
             {/* ŞUBELER ARASI PAYLAŞIM VE CRM REZERVASYON MODÜLÜ */}
-            <div className="bg-gradient-to-br from-indigo-950/45 to-slate-900 border border-slate-800 p-4 rounded-xl space-y-4">
+            <div className="bg-white border border-slate-200 p-4 rounded-xl space-y-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-indigo-400 tracking-wider">🏢 Çok Şubeli CRM & Havuz Yönetimi</span>
-                <span className="text-[9px] bg-indigo-600/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full">LOOKPRICE HUB</span>
+                <span className="text-xs font-black uppercase text-slate-900 tracking-wider">🏢 Çok Şubeli CRM & Havuz Yönetimi</span>
+                <span className="text-[9px] bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded-full">LOOKPRICE HUB</span>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Yetkili Şube</label>
+                  <label className="block text-[10px] font-bold text-slate-700 mb-1">Yetkili Şube</label>
                   <select 
-                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                    className="w-full p-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     value={formData.authorized_branch_id || ''}
                     onChange={(e) => {
                       const id = Number(e.target.value);
@@ -627,9 +724,9 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Sorumlu Danışman</label>
+                  <label className="block text-[10px] font-bold text-slate-700 mb-1">Sorumlu Danışman</label>
                   <select 
-                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                    className="w-full p-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     value={formData.responsible_consultant_id || ''}
                     onChange={(e) => {
                       const id = Number(e.target.value);
@@ -647,19 +744,19 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Şube Adı (Görünen)</label>
+                  <label className="block text-[10px] font-bold text-slate-700 mb-1">Şube Adı (Görünen)</label>
                   <input 
                     type="text"
                     disabled
-                    className="w-full p-2.5 bg-slate-900/50 text-slate-500 border border-slate-800 rounded-lg text-xs font-bold"
+                    className="w-full p-2.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-lg text-xs font-bold"
                     value={formData.branch_name || 'Merkez Ofis'}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Paylaşım Durumu (Havuz Kapsamı)</label>
+                  <label className="block text-[10px] font-bold text-slate-700 mb-1">Paylaşım Durumu (Havuz Kapsamı)</label>
                   <select
-                    className="w-full p-2.5 bg-slate-950 text-white border border-slate-800 rounded-lg text-xs font-bold"
+                    className="w-full p-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     value={formData.sharing_scope || 'shared_pool'}
                     onChange={(e) => setFormData({...formData, sharing_scope: e.target.value as any})}
                   >
@@ -671,15 +768,15 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               {/* Çift Satış Engelleme / Rezervasyon Kilidi */}
-              <div className="border-t border-slate-800/80 pt-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="border-t border-indigo-200 pt-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="space-y-0.5 max-w-sm">
-                  <span className="text-[11px] font-bold text-slate-300 block">Çapraz Şube Rezervasyon Kilidi</span>
-                  <span className="text-[9px] text-slate-400 block">Eğer başka şubeden bir danışman bu mülke müşteri getirdiyse mülkü kilitleyin.</span>
+                  <span className="text-[11px] font-bold text-slate-800 block">Çapraz Şube Rezervasyon Kilidi</span>
+                  <span className="text-[9px] text-slate-500 block">Eğer başka şubeden bir danışman bu mülke müşteri getirdiyse mülkü kilitleyin.</span>
                 </div>
 
                 <div className="flex gap-2">
                   <select
-                    className="p-1.5 bg-slate-950 text-xs font-bold border border-slate-800 rounded-lg text-slate-300"
+                    className="p-1.5 bg-white text-xs font-bold border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     value={formData.reserved_by_branch || ''}
                     onChange={(e) => setFormData({...formData, reserved_by_branch: e.target.value})}
                   >
@@ -693,7 +790,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     <input
                       type="text"
                       placeholder="Not: Kapora alındı..."
-                      className="p-1.5 bg-slate-950 text-xs font-medium border border-slate-800 rounded-lg text-white"
+                      className="p-1.5 bg-white text-xs font-medium border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                       value={formData.reservation_notes || ''}
                       onChange={(e) => setFormData({...formData, reservation_notes: e.target.value})}
                     />
@@ -702,22 +799,22 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               {/* Dış CRM Entegrasyonu (Sahibinden, Emlakjet vb.) */}
-              <div className="border-t border-slate-800/50 pt-4 space-y-3">
+              <div className="border-t border-indigo-200 pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-black text-slate-300 block uppercase">🔄 Dış Portal Entegrasyon Bağlantısı</span>
+                    <span className="text-[11px] font-black text-slate-800 block uppercase">🔄 Dış Portal Entegrasyon Bağlantısı</span>
                     <span className="text-[9px] text-slate-500 block">Sahibinden.com, Emlakjet veya başka bir CRM'deki ilan numarasını bağlayın.</span>
                   </div>
                   <div className="flex gap-1.5">
-                     <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded uppercase font-bold">API Aktif</span>
+                     <span className="text-[8px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded uppercase font-bold">API Aktif</span>
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Dış Sistem Adı</label>
+                    <label className="block text-[10px] font-bold text-slate-700 mb-1">Dış Sistem Adı</label>
                     <select
-                      className="w-full p-2 bg-slate-950 text-slate-300 border border-slate-800 rounded-lg text-[11px] font-bold"
+                      className="w-full p-2 bg-white text-slate-800 border border-slate-200 rounded-lg text-[11px] font-bold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                       value={formData.external_crm_name || ''}
                       onChange={(e) => setFormData({...formData, external_crm_name: e.target.value})}
                     >
@@ -732,11 +829,11 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">İlan No / External ID</label>
+                    <label className="block text-[10px] font-bold text-slate-700 mb-1">İlan No / External ID</label>
                     <input
                       type="text"
                       placeholder="Örn: 1092837465"
-                      className="w-full p-2 bg-slate-950 text-white border border-slate-800 rounded-lg text-[11px] font-bold placeholder-slate-600"
+                      className="w-full p-2 bg-white text-slate-900 border border-slate-200 rounded-lg text-[11px] font-bold placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                       value={formData.external_crm_id || ''}
                       onChange={(e) => setFormData({...formData, external_crm_id: e.target.value})}
                     />

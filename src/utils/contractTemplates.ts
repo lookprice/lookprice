@@ -139,7 +139,7 @@ ${v.propertyAddress ? `- **Adres / Address:** ${v.propertyAddress}\n` : ''}- **B
 
 ## 2. ŞARTLAR / TERMS
 1. Aracı emlak ofisi, yukarıdaki mülkü müşteriye göstermiştir.
-2. Müşteri, bu mülkü kendisi veya yakını adına satın alırsa, Aracı firmaya **%${v.commissionRate}** + KDV komisyon ödemeyi kabul eder.
+2. Müşteri, bu mülkü kendisi veya yakını adına satın alırsa, Aracı firmaya **${v.commissionRate}** + KDV komisyon ödemeyi kabul eder.
 3. Aracı firmayı devredışı bırakarak mal sahibiyle direkt işlem yapılamaz; aksi halde cezai şart uygulanır.
 `;
       return { html, markdown };
@@ -534,12 +534,12 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HİZMET BEDELİ / COMMISSION</td>
-      <td style="padding: 10px; border: 1px solid #e2e8f0;">Bir aylık kira bedeli (+ KDV)</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.commissionRate}</strong> (+ KDV)</td>
     </tr>
   </table>
 
   <p style="font-size: 12px; text-align: justify;">
-    Mülk Sahibi, yukarıdaki taşınmazın kiralanması için <strong>${v.storeName}</strong> firmasını yetkili kılmıştır. Aracı, mülkün tanıtımını yapacak, kiracı adaylarını bulacak ve sözleşme sürecini yönetecektir. Kiralama gerçekleştiğinde Mülk Sahibi bir aylık kira bedeli tutarında hizmet bedeli ödemeyi kabul eder.
+    Mülk Sahibi, yukarıdaki taşınmazın kiralanması için <strong>${v.storeName}</strong> firmasını yetkili kılmıştır. Aracı, mülkün tanıtımını yapacak, kiracı adaylarını bulacak ve sözleşme sürecini yönetecektir. Kiralama gerçekleştiğinde Mülk Sahibi <strong>${v.commissionRate}</strong> tutarında hizmet bedeli ödemeyi kabul eder.
   </p>
 
   <div style="margin-top: 40px; display: flex; justify-content: space-between;">
