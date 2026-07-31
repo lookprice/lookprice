@@ -75,7 +75,7 @@ export const contractTemplates: ContractTemplate[] = [
   <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">SÖZLEŞME ŞARTLARI (TR)</h3>
   <ol style="font-size: 12px; color: #334155; padding-left: 20px; text-align: justify; margin-bottom: 25px;">
     <li><strong>Hizmetin Konusu:</strong> Aracı, yukarıda belirtilen gayrimenkulü müşteriye/temsilcisine göstermiş ve yerinde incelemesini sağlamıştır.</li>
-    <li><strong>Komisyon Hakkı:</strong> Müşteri, Aracı tarafından kendisine gösterilen bu gayrimenkulü kendisi, eşi, birinci veya ikinci derece akrabaları, doğrudan veya ortağı ya da yöneticisi olduğu şirket adına her ne şekilde olursa olsun satın aldığı veya kiraladığı takdirde, gayrimenkul bedelinin <strong>%${v.commissionRate}</strong> oranında (+ KDV) komisyon ücretini Aracı firmaya ödemeyi kabul ve taahhüt eder.</li>
+    <li><strong>Komisyon Hakkı:</strong> Müşteri, Aracı tarafından kendisine gösterilen bu gayrimenkulü kendisi, eşi, birinci veya ikinci derece akrabaları, doğrudan veya ortağı ya da yöneticisi olduğu şirket adına her ne şekilde olursa olsun satın aldığı veya kiraladığı takdirde, gayrimenkul bedelinin <strong>${v.commissionRate}</strong> oranında (+ KDV) komisyon ücretini Aracı firmaya ödemeyi kabul ve taahhüt eder.</li>
     <li><strong>Doğrudan Alım Engeli:</strong> Müşteri, bu gayrimenkulün mal sahibi ile doğrudan veya üçüncü şahıslar aracılığıyla iletişime geçerek, Aracı'yı devredışı bırakmak suretiyle alım-satım yapamaz. Aksi takdirde, belirlenen komisyon bedelinin iki katı tutarında cezai şart ödemeyi kabul eder.</li>
     <li><strong>Süre:</strong> Bu sözleşme, imzalandığı tarihten itibaren 12 (Oniki) Ay boyunca geçerlidir.</li>
     <li><strong>Uyuşmazlıkların Çözümü:</strong> Bu sözleşmeden doğacak uyuşmazlıklarda yerel mahkemeler ve icra daireleri yetkilidir.</li>
@@ -84,7 +84,7 @@ export const contractTemplates: ContractTemplate[] = [
   <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">TERMS of AGREEMENT (EN)</h3>
   <ol style="font-size: 11px; color: #475569; padding-left: 20px; text-align: justify; margin-bottom: 30px;">
     <li><strong>Subject of Service:</strong> The Agent has shown the customer/representative the property specified above and provided on-site viewings.</li>
-    <li><strong>Commission Fee:</strong> If the Customer, their spouse, first or second-degree relatives, or any company they are directly/indirectly associated with as a partner or manager, purchases or rents this property, the Customer agrees and promises to pay a commission fee of <strong>%${v.commissionRate}</strong> (+ VAT) of the property price to the Agency.</li>
+    <li><strong>Commission Fee:</strong> If the Customer, their spouse, first or second-degree relatives, or any company they are directly/indirectly associated with as a partner or manager, purchases or rents this property, the Customer agrees and promises to pay a commission fee of <strong>${v.commissionRate}</strong> (+ VAT) of the property price to the Agency.</li>
     <li><strong>Bypassing Clause:</strong> The Customer is strictly prohibited from bypassing the Agent to execute a sale directly with the property owner. In case of breach, the Customer agrees to pay twice the normal commission rate as a contractual penalty.</li>
     <li><strong>Validity Period:</strong> This agreement shall remain valid for 12 (Twelve) Months from the date of signing.</li>
     <li><strong>Jurisdiction:</strong> In case of any dispute arising from this agreement, local courts and enforcement offices shall have exclusive jurisdiction.</li>
@@ -199,10 +199,10 @@ ${v.propertyAddress ? `- **Adres / Address:** ${v.propertyAddress}\n` : ''}- **B
       İşbu sözleşme uyarınca, <strong>Mülk Sahibi</strong>, yukarıda detayları verilen taşınmazın satılması, reklam ve tanıtımının yapılması amacıyla tek yetkili kılınmak üzere <strong>${v.storeName}</strong> (Aracı) firmasını atamıştır. 
     </p>
     <p>
-      Mülk Sahibi, bu sözleşme süresince başka bir emlak ofisini yetkilendirmeyeceğini, gayrimenkulü kendisi satsa dahi, Aracı'ya satış bedeli üzerinden <strong>%${v.commissionRate}</strong> oranında (+ KDV) komisyon ödemeyi yükümlenir. 
+      Mülk Sahibi, bu sözleşme süresince başka bir emlak ofisini yetkilendirmeyeceğini, gayrimenkulü kendisi satsa dahi, Aracı'ya satış bedeli üzerinden <strong>${v.commissionRate}</strong> oranında (+ KDV) komisyon ödemeyi yükümlenir. 
     </p>
     <p style="font-style: italic; color: #475569;">
-      Under this exclusive agreement, the <strong>Owner</strong> authorizes <strong>${v.storeName}</strong> (Broker) as the sole agent for marketing and selling the specified property. The Owner agrees that even if the property is sold directly by themselves or through another agent, the Broker is entitled to receive a fee of <strong>%${v.commissionRate}</strong> of the final sale price.
+      Under this exclusive agreement, the <strong>Owner</strong> authorizes <strong>${v.storeName}</strong> (Broker) as the sole agent for marketing and selling the specified property. The Owner agrees that even if the property is sold directly by themselves or through another agent, the Broker is entitled to receive a fee of <strong>${v.commissionRate}</strong> of the final sale price.
     </p>
     <p>
       <strong>Sözleşme Süresi (Duration):</strong> Bu yetkilendirme belgesi, imza tarihinden itibaren 6 (Altı) ay boyunca geçerlidir.
@@ -242,7 +242,7 @@ ${v.propertyAddress ? `- **Adres / Address:** ${v.propertyAddress}\n` : ''}- **B
 **Tarih:** ${v.contractDate}
 ${v.propertyAddress ? `**Adres / Address:** ${v.propertyAddress}\n` : ''}
 
-Mülk Sahibi, yukarıdaki mülkün satışı için Aracı firmaya **%${v.commissionRate}** komisyon bedeliyle tek yetki vermiştir.
+Mülk Sahibi, yukarıdaki mülkün satışı için Aracı firmaya **${v.commissionRate}** komisyon bedeliyle tek yetki vermiştir.
 Bu sözleşme 6 ay süreyle geçerlidir.
 `;
       return { html, markdown };
@@ -296,7 +296,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </tr>
     <tr>
       <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">ARACILIK ÜCRETİ / FEE</td>
-      <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">%${v.commissionRate} (+ KDV)</td>
+      <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${v.commissionRate} (+ KDV)</td>
     </tr>
   </table>
 
@@ -328,7 +328,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
 **Aracı:** ${v.storeName}
 **Mülk:** ${v.propertyTitle}
 **Bedel:** ${v.propertyPrice}
-**Komisyon:** %${v.commissionRate}
+**Komisyon:** ${v.commissionRate}
 `;
       return { html, markdown };
     }

@@ -109,7 +109,9 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
   const [clientName, setClientName] = useState<string>("");
   const [clientIdentity, setClientIdentity] = useState<string>("");
   const [clientPhone, setClientPhone] = useState<string>("");
-  const [commissionRate, setCommissionRate] = useState<string>("3");
+  const [commissionRate, setCommissionRate] = useState<string>(
+    property.listing_intent === 'rent' ? "1 Aylık Kira Bedeli" : "5"
+  );
   const [contractDate, setContractDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [signed, setSigned] = useState<boolean>(false);
   const [signingName, setSigningName] = useState<string>("");
@@ -148,7 +150,8 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     propertyLocation: property.location || "Kıbrıs",
     propertyPrice: propertyPriceFormatted,
     propertyBlockPlot: property.block_plot,
-    commissionRate: commissionRate,
+    // Add % sign only if it's not the rent phrase
+    commissionRate: property.listing_intent === 'rent' ? commissionRate : `%${commissionRate}`,
     contractDate: formatTrDate(contractDate),
     propertyAddress: property.address
   };
@@ -342,21 +345,23 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 ml-1">Hizmet Komisyonu (%)</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-bold">%</span>
-                      <input 
-                        type="number"
-                        className="w-full bg-slate-900 border border-slate-800 pl-7 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
-                        placeholder="3"
-                        min="1"
-                        max="10"
-                        value={commissionRate}
-                        onChange={(e) => setCommissionRate(e.target.value)}
-                      />
+                  {property.listing_intent !== 'rent' && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 ml-1">Hizmet Komisyonu (%)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-bold">%</span>
+                        <input 
+                          type="number"
+                          className="w-full bg-slate-900 border border-slate-800 pl-7 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                          placeholder="5"
+                          min="1"
+                          max="10"
+                          value={commissionRate}
+                          onChange={(e) => setCommissionRate(e.target.value)}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Sözleşme İmza Tarihi</label>

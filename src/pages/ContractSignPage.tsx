@@ -239,7 +239,9 @@ export default function ContractSignPage() {
         propertyBlockPlot: itemData.block_plot,
         commissionRate: commissionRateParam,
         contractDate: contractDateParam,
-        propertyAddress: itemData.address
+        propertyAddress: (itemData as any).type === 'land' 
+          ? `${(itemData as any).mahalle || ''} Mah. ${(itemData as any).ada || ''} Ada, ${(itemData as any).parsel || ''} Parsel, ${(itemData as any).pafta || ''} Pafta`
+          : itemData.address || "Belirtilmemiş adres"
       };
       const { html } = matchedTemplate.getTemplate(values);
       renderedContractHtml = html;
@@ -293,7 +295,7 @@ export default function ContractSignPage() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full max-w-4xl bg-slate-900 border border-slate-800/80 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col lg:flex-row h-full lg:h-[85vh]"
+            className="w-full max-w-4xl bg-slate-900 border border-slate-800/80 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col lg:flex-row h-auto min-h-[85vh] lg:h-[85vh]"
           >
             {/* Left Column: Contract Terms Viewer */}
             <div className="lg:w-7/12 p-6 md:p-8 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/40">
@@ -497,7 +499,7 @@ export default function ContractSignPage() {
             key="success-card"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-[3rem] p-8 text-center shadow-2xl relative overflow-hidden"
+            className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-[3rem] p-8 text-center shadow-2xl relative overflow-y-auto max-h-[90vh]"
           >
             {/* Glowing Success Background */}
             <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />

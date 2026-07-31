@@ -68,6 +68,7 @@ const PortfolioNotificationsTab = React.lazy(() => import("./PortfolioNotificati
 const RealEstateWebsiteGeneratorTab = React.lazy(() => import("./RealEstateWebsiteGenerator").then(m => ({ default: m.RealEstateWebsiteGenerator })));
 const AutomotiveWebsiteGeneratorTab = React.lazy(() => import("./AutomotiveWebsiteGenerator").then(m => ({ default: m.AutomotiveWebsiteGenerator })));
 const TeamCrmTab = React.lazy(() => import("./TeamCrmTab").then(m => ({ default: m.TeamCrmTab })));
+const RealEstateCrmTab = React.lazy(() => import("./RealEstateCrmTab"));
 const QuotationsTab = React.lazy(() => import("./QuotationsTab"));
 const CompaniesTab = React.lazy(() => import("./CompaniesTab"));
 const PosTab = React.lazy(() => import("./PosTab"));
@@ -302,7 +303,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleAddTransaction
   } = useCompanies(user, currentStoreId, lang, branding);
 
-  const { properties, loading: realEstateLoading, saveProperty, deleteProperty } = useRealEstate(currentStoreId);
+  const { properties, contacts, loading: realEstateLoading, saveProperty, saveContact, deleteProperty, deleteContact } = useRealEstate(currentStoreId);
 
   useEffect(() => {
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
@@ -692,6 +693,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "team", title: isTr ? "Personel & Şube" : "Staff & Branches", items: [
       { id: "team-crm", label: isTr ? "Personel & Şube Yönetimi" : "Staff & Branch CRM", icon: Users },
+      { id: "real_estate_crm", label: isTr ? "Mülk Sahibi & Yatırımcı CRM" : "Property Owner & Investor CRM", icon: Users },
       ...(isRealEstate ? [{ id: "authority_transfer", label: isTr ? "Yetki Devri (Tapu)" : "Authority Transfer", icon: Briefcase }] : []),
     ]},
     { type: 'category', key: "integrations", title: isTr ? "Yedekleme & Kanallar" : "Backup & Channels", items: [
@@ -1086,6 +1088,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   storeName={branding?.store_name || branding?.name || ""}
                   isAutomotive={isAutomotive} 
                   isRealEstate={isRealEstate}
+                />
+              )}
+              {activeTab === "real_estate_crm" && (
+                <RealEstateCrmTab 
+                  contacts={contacts}
+                  onSaveContact={saveContact}
+                  onDeleteContact={deleteContact}
                 />
               )}
               {activeTab === "radar_alerts" && (

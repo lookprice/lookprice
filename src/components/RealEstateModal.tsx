@@ -118,6 +118,17 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         return;
       }
     }
+    if (formData.type === 'land') {
+      if (!formData.ada || !formData.parsel || !formData.mahalle) {
+        setValidationError("Arsa/Tarla mülkleri için Mahalle, Ada ve Parsel bilgileri zorunludur!");
+        return;
+      }
+    } else {
+      if (!formData.address) {
+        setValidationError("Konut/Ticari mülkler için adres bilgisi zorunludur!");
+        return;
+      }
+    }
     setValidationError(null);
 
     const dataToSave = { ...formData };
@@ -568,8 +579,26 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   value={formData.address || ''}
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
                 />
-                <p className="text-[9px] text-slate-400 mt-1 leading-relaxed">Gireceğiniz bu adres bilgisi, dijital olarak oluşturulup imzaya gönderilen tüm resmi sözleşmelere ve yer gösterme belgelerine otomatik olarak yerleştirilecektir.</p>
+                <p className="text-[9px] text-slate-400 mt-1 leading-relaxed">Konut/Ticari mülkler için adres bilgisi zorunludur.</p>
               </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                {[
+                  { label: 'Mahalle', key: 'mahalle' },
+                  { label: 'Ada', key: 'ada' },
+                  { label: 'Parsel', key: 'parsel' },
+                  { label: 'Pafta', key: 'pafta' },
+                ].map((field) => (
+                  <div key={field.key}>
+                     <label className="block text-[10px] font-bold text-slate-500 mb-1">{field.label}</label>
+                     <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs" 
+                      value={(formData as any)[field.key] || ''}
+                      onChange={(e) => setFormData({...formData, [field.key]: e.target.value})}
+                     />
+                  </div>
+                ))}
+              </div>
+              <p className="text-[9px] text-slate-400 mt-1 leading-relaxed">Arsa/Tarla mülkleri için Mahalle, Ada, Parsel ve Pafta bilgileri zorunludur.</p>
             </div>
 
             {/* ŞUBELER ARASI PAYLAŞIM VE CRM REZERVASYON MODÜLÜ */}

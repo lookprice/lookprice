@@ -283,6 +283,20 @@ export interface OwnerInfo {
   idNumber?: string;
 }
 
+export interface RealEstateContact {
+  id: string; // UUID
+  store_id: number;
+  name: string;
+  phone: string;
+  email?: string;
+  id_number?: string; // TCKN/VKN
+  address?: string;
+  type: 'owner' | 'investor' | 'other'; // Mülk Sahibi vs Müşteri/Yatırımcı
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RealEstateProperty {
   id: number;
   reference_no?: string;
@@ -302,6 +316,10 @@ export interface RealEstateProperty {
   square_meters?: number;
   sqm_gross?: number;
   block_plot?: string; // Ada/Parsel
+  ada?: string;
+  parsel?: string;
+  pafta?: string;
+  mahalle?: string;
   facade?: string; // Cephe
   building_age?: string;
   floor?: string;
