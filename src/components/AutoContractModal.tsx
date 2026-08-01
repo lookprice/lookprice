@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { 
   X, 
   Printer, 
@@ -12,9 +12,13 @@ import {
   Calendar,
   CheckCircle,
   ShieldCheck,
-  FileSignature
+  FileSignature,
+  RotateCcw,
+  Save,
+  FileCheck
 } from "lucide-react";
 import { formatPhoneForWhatsApp } from "../utils/formatUtils";
+import { renderSignatureOrStamp } from "../utils/contractTemplates";
 
 
 interface AutoContractModalProps {
@@ -23,6 +27,7 @@ interface AutoContractModalProps {
   vehicle: any;
   storeName: string;
   branding?: any;
+  onSaveContract?: (contractDoc: any) => Promise<void>;
 }
 
 export const AutoContractModal: React.FC<AutoContractModalProps> = ({
@@ -30,7 +35,8 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   onClose,
   vehicle,
   storeName,
-  branding
+  branding,
+  onSaveContract
 }) => {
   const [contractType, setContractType] = useState<'consignment' | 'booking'>('consignment');
   const [clientName, setClientName] = useState("");
@@ -42,6 +48,117 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   const [signedName, setSignedName] = useState("");
   const [isSigned, setIsSigned] = useState(false);
   const [previewMode, setPreviewMode] = useState<'editor' | 'code'>('editor');
+  const [signatureImage, setSignatureImage] = useState<string>("");
+  const [isSigningActive, setIsSigningActive] = useState<boolean>(false);
+  const [saving, setSaving] = useState(false);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawing = useRef<boolean>(false);
+
+  const handleSaveContract = async () => {
+    if (!clientName.trim() || !clientIdentity.trim() || !clientPhone.trim()) {
+      alert("Lütfen Sözleşme'yi kaydetmeden önce '2. Müşteri & Sözleşme Detayları' alanındaki tüm bilgileri (Müşteri Tam Adı, Kimlik/Pasaport No ve Telefon Numarası) eksiksiz doldurunuz. Tarafı olmayan sözleşme kaydedilemez!");
+      return;
+    }
+    if (!onSaveContract) {
+      alert("Kaydetme özelliği aktif değil!");
+      return;
+    }
+    setSaving(true);
+    const newDoc = {
+      type: contractType === 'consignment' ? 'Konsinye Satış Sözleşmesi' : 'Rezervasyon Protokolü',
+      document_url: 'is_virtual_contract',
+      expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year from now
+      notes: JSON.stringify({
+        contractType,
+        clientName,
+        clientIdentity,
+        clientPhone,
+        commissionAmount,
+        depositAmount,
+        contractDate,
+        signed: isSigned,
+        signingName: signedName,
+        signatureImage,
+        displayName: storeName
+      })
+    };
+    try {
+      await onSaveContract(newDoc);
+    } catch (err: any) {
+      alert("Sözleşme kaydedilemedi: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Canvas drawing handlers for signature
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    isDrawing.current = true;
+    const pos = getEventPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing.current) return;
+    e.preventDefault();
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const pos = getEventPos(e, canvas);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = "#1e1b4b"; // Indigo-950
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    setIsSigningActive(true);
+  };
+
+  const stopDrawing = () => {
+    isDrawing.current = false;
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setSignatureImage("");
+    setIsSigningActive(false);
+  };
+
+  const getEventPos = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
+    canvas: HTMLCanvasElement
+  ) => {
+    const rect = canvas.getBoundingClientRect();
+    if ("touches" in e) {
+      if (e.touches.length === 0) return { x: 0, y: 0 };
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      };
+    } else {
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+    }
+  };
 
   const getDisplayStoreName = () => {
     const rawName = branding?.store_name || branding?.name || storeName || "";
@@ -181,9 +298,7 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
         <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">ARAÇ SAHİBİ / CONSULTANT</span>
         <span style="display: block; font-size: 10px; color: #94a3b8;">CLIENT / VEHICLE OWNER</span>
       </div>
-      <div style="font-size: 14px; font-weight: bold; color: #0284c7; font-family: monospace; letter-spacing: 1px;">
-        ${clientName ? clientName.toUpperCase() : '[İmza Onayı]'}
-      </div>
+      ${renderSignatureOrStamp(clientName, isSigned, signatureImage)}
       <div style="font-size: 9px; color: #94a3b8;">Onaylandı & Dijital Mühür Basıldı</div>
     </div>
   </div>
@@ -238,14 +353,18 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   </p>
 
   <div style="margin-top: 45px; display: flex; justify-content: space-between; gap: 40px;">
-    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center;">
-      <span style="font-size: 11px; font-weight: bold; color: #64748b;">ARACI / BROADCAST DEPT</span><br/><br/>
-      <span style="font-weight: bold; color: #475569;">${displayName}</span><br/>
-      <span style="font-size: 10px; color: #94a3b8;">${displayPhone}</span>
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <span style="font-size: 11px; font-weight: bold; color: #64748b;">ARACI / BROADCAST DEPT</span>
+      </div>
+      <div style="font-weight: bold; color: #475569;">${displayName}</div>
+      <div style="font-size: 10px; color: #94a3b8;">${displayPhone}</div>
     </div>
-    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center;">
-      <span style="font-size: 11px; font-weight: bold; color: #64748b;">MÜŞTERİ / BUYER</span><br/><br/>
-      <span style="font-family: monospace; font-weight: bold; color: #0284c7;">${clientName ? clientName.toUpperCase() : '[İmza Onayı]'}</span>
+    <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <span style="font-size: 11px; font-weight: bold; color: #64748b;">MÜŞTERİ / BUYER</span>
+      </div>
+      ${renderSignatureOrStamp(clientName, isSigned, signatureImage)}
     </div>
   </div>
 </div>
@@ -442,35 +561,113 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
 
             {/* Quick drawing / signature button */}
             <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-              <div className="flex items-center gap-2">
-                <FileSignature className="w-4 h-4 text-blue-400" />
-                <span className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Hızlı Dijital İmza</span>
-              </div>
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                Müşteri onayını doğrudan mülk koduna bağlayıp geçerli aracı mühür kaydını oluşturabilirsiniz.
-              </p>
-              {isSigned ? (
-                <div className="bg-emerald-950/40 border border-emerald-900/60 p-2.5 rounded-xl text-center text-xs text-emerald-400 font-bold flex items-center justify-center gap-2">
-                  <CheckCircle className="w-4 h-4" /> Müşteri Dijital İmzası Onaylandı
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileSignature className="w-4 h-4 text-blue-400" />
+                  <span className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Hızlı Dijital Onay İmza</span>
                 </div>
-              ) : (
-                <div className="flex gap-1.5">
-                  <input 
-                    type="text" 
-                    placeholder="Onaylayacak isim..." 
-                    className="flex-1 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-bold text-white outline-none"
-                    value={signedName}
-                    onChange={(e) => setSignedName(e.target.value)}
-                  />
+                {isSigned && (
                   <button 
                     onClick={() => {
-                      if (!signedName) return alert("Lütfen imzalayan kişi ismini girin.");
+                      setIsSigned(false);
+                      setSignatureImage("");
+                      setIsSigningActive(false);
+                    }}
+                    className="text-[9px] text-slate-400 hover:text-white uppercase font-black tracking-wider transition-colors"
+                  >
+                    Yeniden Düzenle
+                  </button>
+                )}
+              </div>
+              
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Müşteriyle ofiste veya tablet üzerinden yan yanayken, ismini yazıp ekrana çizdirerek imzayı sözleşmeye anında monte edebilirsiniz.
+              </p>
+
+              {isSigned ? (
+                <div className="space-y-2">
+                  <div className="bg-emerald-950/40 border border-emerald-900/60 p-2.5 rounded-xl text-center text-xs text-emerald-400 font-bold flex flex-col items-center justify-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" /> Dijital Damga & İmza Basıldı
+                    </div>
+                    <span className="text-[10px] text-slate-300">İmzalayan: {signedName}</span>
+                    {signatureImage && (
+                      <div className="mt-2 bg-white p-1.5 rounded-lg border border-slate-800/20 max-w-[120px]">
+                        <img src={signatureImage} alt="Drawn signature" className="max-h-[40px] max-w-full block" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-slate-400">Onaylayan Adı Soyadı / Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="Müşteri onay adı..." 
+                      className="w-full bg-slate-950 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-white outline-none focus:border-blue-500"
+                      value={signedName}
+                      onChange={(e) => setSignedName(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Draw area */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[9px] font-bold text-slate-400">Parmağıyla / Mouse ile İmzalasın</label>
+                      <button 
+                        onClick={clearCanvas}
+                        type="button"
+                        className="text-[9px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-0.5 uppercase"
+                      >
+                        <RotateCcw className="w-2.5 h-2.5" /> Temizle
+                      </button>
+                    </div>
+
+                    <div className="border border-slate-800 rounded-xl overflow-hidden bg-white relative">
+                      <canvas 
+                        ref={canvasRef}
+                        width={300}
+                        height={120}
+                        className="w-full h-[110px] cursor-crosshair block touch-none"
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={stopDrawing}
+                        onMouseLeave={stopDrawing}
+                        onTouchStart={startDrawing}
+                        onTouchMove={draw}
+                        onTouchEnd={stopDrawing}
+                      />
+                      {!isSigningActive && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                          <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase flex items-center gap-1 animate-pulse">
+                            ✍️ BURAYA PARMAKLA ÇİZDİRİN
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      if (!signedName.trim()) return alert("Lütfen onaylayacak kişinin adını yazın.");
+                      if (!clientName.trim()) return alert("Lütfen sözleşme bilgilerini (Müşteri Adı) eksiksiz giriniz.");
+                      if (!clientPhone.trim()) return alert("Lütfen sözleşme bilgilerini (Telefon) eksiksiz giriniz.");
+
+                      const canvas = canvasRef.current;
+                      if (canvas && isSigningActive) {
+                        const dataUrl = canvas.toDataURL("image/png");
+                        setSignatureImage(dataUrl);
+                      } else {
+                        return alert("Lütfen ekrana imzanızı atın.");
+                      }
+                      
                       setIsSigned(true);
                       setClientName(signedName);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase px-4 rounded-xl transition-all"
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase rounded-xl transition-all"
                   >
-                    Mühürle
+                    Sözleşmeye Monte Et & Mühürle
                   </button>
                 </div>
               )}
@@ -491,6 +688,15 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
             </span>
 
             <div className="flex gap-2">
+              {onSaveContract && (
+                <button 
+                  onClick={handleSaveContract}
+                  disabled={saving}
+                  className="p-2 bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 rounded-xl transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"
+                >
+                  <Save className="w-3.5 h-3.5" /> {saving ? "Kaydediliyor..." : "Sözleşmeyi Kaydet"}
+                </button>
+              )}
               <button 
                 onClick={handlePrint}
                 className="p-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl border border-blue-100 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"

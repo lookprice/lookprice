@@ -1031,6 +1031,26 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         vehicle={autoContractVehicle}
         storeName={branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Otomotiv" : "Premium Automotive")}
         branding={branding}
+        onSaveContract={async (contractDoc) => {
+          if (!autoContractVehicle) return;
+          try {
+            const res = await api.createVehicleDocument(autoContractVehicle.id, contractDoc);
+            if (res.error) {
+              alert(res.error);
+              return;
+            }
+            // Update documents list
+            setAllDocuments([...(allDocuments || []), res]);
+            if (selectedVehicle && autoContractVehicle.id === selectedVehicle.id) {
+              setDocuments([...(documents || []), res]);
+            }
+            alert("Sözleşme başarıyla GÜVENLİ DEPOLAMA alanına kaydedildi!");
+            setIsAutoContractOpen(false);
+            setAutoContractVehicle(null);
+          } catch (error: any) {
+            alert("Sözleşme kaydedilirken hata oluştu: " + error.message);
+          }
+        }}
       />
       <AutomotiveSocialMediaShareModal
         isOpen={isShareModalOpen}

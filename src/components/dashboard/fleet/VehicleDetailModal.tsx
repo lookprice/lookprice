@@ -506,9 +506,14 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                                           <p style="font-size: 12px; font-weight: bold; margin: 0 0 10px 0;">YETKİLİ GALERİ İMZASI</p>
                                           <div style="height: 60px; font-size: 11px; color: #94a3b8; display: flex; align-items: center; justify-content: center;">[DİJİTAL ONAYLANDI]</div>
                                         </div>
-                                        <div style="width: 45%; text-align: center; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; background: #f0fdf4; border-color: #bbf7d0;">
+                                        <div style="width: 45%; text-align: center; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; background: #f0fdf4; border-color: #bbf7d0; min-height: 140px; display: flex; flex-direction: column; justify-content: space-between; page-break-inside: avoid;">
                                           <p style="font-size: 12px; font-weight: bold; margin: 0 0 10px 0; color: #166534;">MÜŞTERİ / ALICI İMZASI</p>
-                                          <div style="height: 60px; font-size: 12px; color: #166534; font-weight: black; display: flex; align-items: center; justify-content: center; flex-direction: column;">✍️ ${details.clientName || ''} <span style="font-size:9px; color:#15803d; font-weight: bold; margin-top: 4px;">[DİJİTAL İMZALANDI]</span></div>
+                                          <div style="font-size: 12px; color: #166534; font-weight: black; display: flex; align-items: center; justify-content: center; flex-direction: column; flex-grow: 1;">
+                                            ${details.signatureImage ? `
+                                              <img src="${details.signatureImage}" style="max-height: 55px; max-width: 100%; display: block; margin: 5px auto;" referrerPolicy="no-referrer" />
+                                            ` : `✍️ ${details.clientName || ''}`}
+                                            <span style="font-size:9px; color:#15803d; font-weight: bold; margin-top: 4px;">[DİJİTAL İMZALANDI]</span>
+                                          </div>
                                         </div>
                                       </div>
                                       ${securityBoxHtml}

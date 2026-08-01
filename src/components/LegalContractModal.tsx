@@ -339,6 +339,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         contractDate,
         signed,
         signingName,
+        signatureImage,
         splitRatio,
         contractDuration,
         evictionDate,
@@ -349,6 +350,8 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     };
     try {
       await onSaveContract(newDoc);
+      alert("Sözleşme başarıyla GÜVENLİ DEPOLAMA alanına kaydedildi!");
+      onClose();
     } catch (err: any) {
       alert("Sözleşme kaydedilemedi: " + err.message);
     } finally {

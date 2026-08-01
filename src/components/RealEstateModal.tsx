@@ -1175,7 +1175,15 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                                     propertyBlockPlot: formData.block_plot,
                                     commissionRate: doc.details?.commissionRate || "3",
                                     contractDate: doc.upload_date,
-                                    propertyAddress: formData.address
+                                    propertyAddress: formData.address,
+                                    isSigned: doc.details?.signed,
+                                    signatureImage: doc.details?.signatureImage,
+                                    splitRatio: doc.details?.splitRatio,
+                                    contractDuration: doc.details?.contractDuration,
+                                    evictionDate: doc.details?.evictionDate,
+                                    depositAmount: doc.details?.depositAmount,
+                                    rentDuration: doc.details?.rentDuration,
+                                    paymentDay: doc.details?.paymentDay
                                   });
                                   
                                   const printWin = window.open('', '_blank');
