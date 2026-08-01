@@ -2042,7 +2042,7 @@ router.get("/real-estate/:id", async (req, res) => {
 router.post("/real-estate/:id/sign", async (req, res) => {
   try {
     const { id } = req.params;
-    const { clientName, clientIdentity, clientPhone, commissionRate, templateId } = req.body;
+    const { clientName, clientIdentity, clientPhone, commissionRate, templateId, signatureImage } = req.body;
 
     if (!clientName || !clientIdentity || !clientPhone) {
       return res.status(400).json({ error: "Lütfen tüm imza alanlarını doldurunuz." });
@@ -2077,7 +2077,8 @@ router.post("/real-estate/:id/sign", async (req, res) => {
         contractDate: new Date().toLocaleDateString("tr-TR"),
         signed: true,
         signingName: clientName,
-        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        signatureImage
       }
     };
 
@@ -2100,7 +2101,7 @@ router.post("/vehicles/:id/sign", async (req, res) => {
   try {
     const { id } = req.params;
     const realVehicleId = id.replace("vehicle-", "");
-    const { clientName, clientIdentity, clientPhone, commissionAmount, contractType, displayName } = req.body;
+    const { clientName, clientIdentity, clientPhone, commissionAmount, contractType, displayName, signatureImage } = req.body;
 
     if (!clientName || !clientIdentity || !clientPhone) {
       return res.status(400).json({ error: "Lütfen tüm imza alanlarını doldurunuz." });
@@ -2121,7 +2122,8 @@ router.post("/vehicles/:id/sign", async (req, res) => {
       signed: true,
       signingName: clientName,
       displayName: displayName || "Seçkin Otomotiv",
-      ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+      signatureImage
     };
 
     const docType = contractType === 'consignment' ? "Konsinye Satış Sözleşmesi (İmzalı)" : "Rezervasyon Protokolü (İmzalı)";

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { 
   FileText, 
   Download, 
@@ -15,7 +15,9 @@ import {
   FileCheck,
   Languages,
   Printer,
-  Save
+  Save,
+  Percent,
+  RotateCcw
 } from "lucide-react";
 import { contractTemplates, ContractTemplate, ContractPlaceholderValues } from "../utils/contractTemplates";
 import { RealEstateProperty } from "../types";
@@ -114,9 +116,92 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     property.listing_intent === 'rent' ? "1 Aylık Kira Bedeli" : "5"
   );
   const [contractDate, setContractDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [splitRatio, setSplitRatio] = useState<string>("50 / 50");
+  const [contractDuration, setContractDuration] = useState<string>("12 Ay / 12 Months");
+  const [evictionDate, setEvictionDate] = useState<string>(
+    new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
+  );
+  const [depositAmount, setDepositAmount] = useState<string>(
+    property.listing_intent === 'rent' ? "1 Aylık Kira Bedeli" : "5.000 GBP"
+  );
+  const [rentDuration, setRentDuration] = useState<string>("1 Yıl");
+  const [paymentDay, setPaymentDay] = useState<string>("Her ayın en geç 5. günü");
   const [signed, setSigned] = useState<boolean>(false);
   const [signingName, setSigningName] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
+  const [signatureImage, setSignatureImage] = useState<string>("");
+  const [isSigningActive, setIsSigningActive] = useState<boolean>(false);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawing = useRef<boolean>(false);
+
+  // Canvas drawing handlers for signature
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    isDrawing.current = true;
+    const pos = getEventPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing.current) return;
+    e.preventDefault();
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const pos = getEventPos(e, canvas);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = "#1e1b4b"; // Indigo-950
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    setIsSigningActive(true);
+  };
+
+  const stopDrawing = () => {
+    isDrawing.current = false;
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setSignatureImage("");
+    setIsSigningActive(false);
+  };
+
+  const getEventPos = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
+    canvas: HTMLCanvasElement
+  ) => {
+    const rect = canvas.getBoundingClientRect();
+    if ("touches" in e) {
+      if (e.touches.length === 0) return { x: 0, y: 0 };
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      };
+    } else {
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -157,14 +242,23 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
     clientPhone: clientPhone || "[Telefon Numarası]",
     propertyTitle: property.type === 'land' 
       ? `[İlan Kodu: LP-${property.id}] ${property.mahalle || ''} Mah. Ada: ${property.ada || '...'}, Parsel: ${property.parsel || '...'}, Pafta: ${property.pafta || '...'}`
-      : `[İlan Kodu: LP-${property.id}] ${property.address || property.title}`,
+      : `[İlan Kodu: LP-${property.id}] ${property.title}`,
     propertyLocation: property.location || "Kıbrıs",
     propertyPrice: propertyPriceFormatted,
     propertyBlockPlot: property.block_plot,
     // Add % sign only if it's not the rent phrase or already has a % sign
     commissionRate: property.listing_intent === 'rent' ? commissionRate : (commissionRate.includes('%') ? commissionRate : `%${commissionRate}`),
     contractDate: formatTrDate(contractDate),
-    propertyAddress: property.address
+    propertyAddress: property.address,
+    splitRatio: splitRatio,
+    contractDuration: contractDuration,
+    evictionDate: formatTrDate(evictionDate),
+    depositAmount: depositAmount,
+    rentDuration: rentDuration,
+    paymentDay: paymentDay,
+    isSigned: signed,
+    signingName: signingName,
+    signatureImage: signatureImage
   };
 
   const { html, markdown } = currentTemplate.getTemplate(placeholderValues);
@@ -214,7 +308,7 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
       return;
     }
     const formattedPhone = formatPhoneForWhatsApp(clientPhone);
-    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*[LP-${property.id}] ${property.title}* portföyü için hazırlanan resmi *${currentTemplate.titleTr}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/${property.id}?client=${encodeURIComponent(clientName || '')}&phone=${encodeURIComponent(clientPhone)}&identity=${encodeURIComponent(clientIdentity)}&templateId=${selectedTemplateId}&commissionRate=${encodeURIComponent(commissionRate)}&contractDate=${encodeURIComponent(placeholderValues.contractDate)}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    const message = `Sayın *${clientName || 'Müşterimiz'}*,\n\n*[LP-${property.id}] ${property.title}* portföyü için hazırlanan resmi *${currentTemplate.titleTr}* belgesi onayınıza sunulmuştur.\nBelgeyi mobil cihazınızdan incelemek ve parmağınızla dijital imza/onay vermek için lütfen aşağıdaki bağlantıya tıklayınız:\n\n🔗 ${window.location.origin}/contract/sign/${property.id}?client=${encodeURIComponent(clientName || '')}&phone=${encodeURIComponent(clientPhone)}&identity=${encodeURIComponent(clientIdentity)}&templateId=${selectedTemplateId}&commissionRate=${encodeURIComponent(commissionRate)}&contractDate=${encodeURIComponent(placeholderValues.contractDate)}&splitRatio=${encodeURIComponent(splitRatio)}&contractDuration=${encodeURIComponent(contractDuration)}&evictionDate=${encodeURIComponent(evictionDate)}&depositAmount=${encodeURIComponent(depositAmount)}&rentDuration=${encodeURIComponent(rentDuration)}&paymentDay=${encodeURIComponent(paymentDay)}\n\nSözleşme Tarihi: ${placeholderValues.contractDate}\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -244,7 +338,13 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
         commissionRate,
         contractDate,
         signed,
-        signingName
+        signingName,
+        splitRatio,
+        contractDuration,
+        evictionDate,
+        depositAmount,
+        rentDuration,
+        paymentDay
       }
     };
     try {
@@ -424,40 +524,221 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {selectedTemplateId === "inter_branch_split" && (
+                  <div className="space-y-1 mt-1">
+                    <label className="text-[10px] font-bold text-slate-400 ml-1">Paylaşım (Split) Oranı</label>
+                    <div className="relative">
+                      <Percent className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                      <input 
+                        type="text"
+                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                        placeholder="Örn: 50 / 50"
+                        value={splitRatio}
+                        onChange={(e) => setSplitRatio(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedTemplateId === "rental_authorization" && (
+                  <div className="space-y-1 mt-1">
+                    <label className="text-[10px] font-bold text-slate-400 ml-1">Yetki Belgesi Süresi</label>
+                    <div className="relative">
+                      <Bookmark className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                      <input 
+                        type="text"
+                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                        placeholder="Örn: 12 Ay / 12 Months"
+                        value={contractDuration}
+                        onChange={(e) => setContractDuration(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedTemplateId === "eviction_undertaking" && (
+                  <div className="space-y-1 mt-1">
+                    <label className="text-[10px] font-bold text-slate-400 ml-1">Tahliye Hedef Tarihi</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                      <input 
+                        type="date"
+                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500 [&::-webkit-calendar-picker-indicator]:invert"
+                        value={evictionDate}
+                        onChange={(e) => setEvictionDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedTemplateId === "sales_brokerage" && (
+                  <div className="space-y-1 mt-1">
+                    <label className="text-[10px] font-bold text-slate-400 ml-1">Kapora Tutarı / Deposit</label>
+                    <div className="relative">
+                      <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                      <input 
+                        type="text"
+                        className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                        placeholder="Örn: 5.000 GBP"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedTemplateId === "rental_agreement" && (
+                  <div className="space-y-2 mt-1">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 ml-1">Kira Süresi / Lease Duration</label>
+                      <div className="relative">
+                        <Bookmark className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                        <input 
+                          type="text"
+                          className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                          placeholder="Örn: 1 Yıl"
+                          value={rentDuration}
+                          onChange={(e) => setRentDuration(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 ml-1">Kira Ödeme Günü / Payment Day</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                        <input 
+                          type="text"
+                          className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                          placeholder="Örn: Her ayın en geç 5. günü"
+                          value={paymentDay}
+                          onChange={(e) => setPaymentDay(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 ml-1">Depozito Tutarı / Security Deposit</label>
+                      <div className="relative">
+                        <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                        <input 
+                          type="text"
+                          className="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                          placeholder="Örn: 1 Aylık Kira Bedeli veya 10.000 TL"
+                          value={depositAmount}
+                          onChange={(e) => setDepositAmount(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Digital Stamp Feature */}
             <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-              <div className="flex items-center gap-2">
-                <FileCheck className="w-4 h-4 text-indigo-400" />
-                <span className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Hızlı Dijital Onay İmza</span>
-              </div>
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                Müşteriyle ofiste veya tablet üzerinden yan yanayken, ismini yazarak dijital onay mührünü basabilirsiniz.
-              </p>
-              {signed ? (
-                <div className="bg-emerald-950/40 border border-emerald-900/60 p-2.5 rounded-xl text-center text-xs text-emerald-400 font-bold flex items-center justify-center gap-2">
-                  <CheckCircle className="w-4 h-4" /> Dijital Damga İmzalandı: {signingName}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileCheck className="w-4 h-4 text-indigo-400" />
+                  <span className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Hızlı Dijital Onay İmza</span>
                 </div>
-              ) : (
-                <div className="flex gap-1.5 font-sans">
-                  <input 
-                    type="text" 
-                    placeholder="Müşteri onay adı..." 
-                    className="flex-1 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-bold text-white outline-none focus:border-indigo-500"
-                    value={signingName}
-                    onChange={(e) => setSigningName(e.target.value)}
-                  />
+                {signed && (
                   <button 
                     onClick={() => {
-                      if (!signingName) return alert("Lütfen onaylayacak kişinin adını yazın.");
+                      setSigned(false);
+                      setSignatureImage("");
+                      setIsSigningActive(false);
+                    }}
+                    className="text-[9px] text-slate-400 hover:text-white uppercase font-black tracking-wider transition-colors"
+                  >
+                    Yeniden Düzenle
+                  </button>
+                )}
+              </div>
+              
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Müşteriyle ofiste veya tablet üzerinden yan yanayken, ismini yazıp ekrana çizdirerek imzayı sözleşmeye anında monte edebilirsiniz.
+              </p>
+
+              {signed ? (
+                <div className="space-y-2">
+                  <div className="bg-emerald-950/40 border border-emerald-900/60 p-2.5 rounded-xl text-center text-xs text-emerald-400 font-bold flex flex-col items-center justify-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" /> Dijital Damga & İmza Basıldı
+                    </div>
+                    <span className="text-[10px] text-slate-300">İmzalayan: {signingName}</span>
+                    {signatureImage && (
+                      <div className="mt-2 bg-white p-1.5 rounded-lg border border-slate-800/20 max-w-[120px]">
+                        <img src={signatureImage} alt="Drawn signature" className="max-h-[40px] max-w-full block" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-slate-400">Onaylayan Adı Soyadı / Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="Müşteri onay adı..." 
+                      className="w-full bg-slate-950 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-white outline-none focus:border-indigo-500"
+                      value={signingName}
+                      onChange={(e) => setSigningName(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Draw area */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[9px] font-bold text-slate-400">Parmağıyla / Mouse ile İmzalasın</label>
+                      <button 
+                        onClick={clearCanvas}
+                        type="button"
+                        className="text-[9px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 uppercase"
+                      >
+                        <RotateCcw className="w-2.5 h-2.5" /> Temizle
+                      </button>
+                    </div>
+
+                    <div className="border border-slate-800 rounded-xl overflow-hidden bg-white relative">
+                      <canvas 
+                        ref={canvasRef}
+                        width={300}
+                        height={120}
+                        className="w-full h-[110px] cursor-crosshair block touch-none"
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={stopDrawing}
+                        onMouseLeave={stopDrawing}
+                        onTouchStart={startDrawing}
+                        onTouchMove={draw}
+                        onTouchEnd={stopDrawing}
+                      />
+                      {!isSigningActive && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                          <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase flex items-center gap-1 animate-pulse">
+                            ✍️ BURAYA PARMAKLA ÇİZDİRİN
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      if (!signingName.trim()) return alert("Lütfen onaylayacak kişinin adını yazın.");
+                      const canvas = canvasRef.current;
+                      if (canvas && isSigningActive) {
+                        const dataUrl = canvas.toDataURL("image/png");
+                        setSignatureImage(dataUrl);
+                      }
                       setSigned(true);
                       setClientName(signingName);
                     }}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase px-4 rounded-xl transition-all"
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase rounded-xl transition-all"
                   >
-                    Mühürle
+                    Sözleşmeye Monte Et & Mühürle
                   </button>
                 </div>
               )}

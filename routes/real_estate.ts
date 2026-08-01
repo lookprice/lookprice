@@ -1177,15 +1177,17 @@ router.post('/contacts', authenticate, async (req: any, res) => {
   const storeId = req.body.store_id || req.body.storeId || req.user.store_id;
   const { name, phone, email, id_number, address, type, notes } = req.body;
   
-  if (!name || !phone) {
-    return res.status(400).json({ error: "İsim ve telefon alanları zorunludur." });
+  if (!name) {
+    return res.status(400).json({ error: "İsim alanı zorunludur." });
   }
+
+  const phoneVal = (phone === undefined || phone === null) ? '' : phone;
 
   try {
     const result = await pool.query(
       `INSERT INTO real_estate_contacts (store_id, name, phone, email, id_number, address, type, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [storeId, name, phone, email || '', id_number || '', address || '', type || 'owner', notes || '']
+      [storeId, name, phoneVal, email || '', id_number || '', address || '', type || 'owner', notes || '']
     );
     res.json(result.rows[0]);
   } catch (error: any) {
@@ -1200,16 +1202,18 @@ router.put('/contacts/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
   const { name, phone, email, id_number, address, type, notes } = req.body;
 
-  if (!name || !phone) {
-    return res.status(400).json({ error: "İsim ve telefon alanları zorunludur." });
+  if (!name) {
+    return res.status(400).json({ error: "İsim alanı zorunludur." });
   }
+
+  const phoneVal = (phone === undefined || phone === null) ? '' : phone;
 
   try {
     const result = await pool.query(
       `UPDATE real_estate_contacts 
        SET name = $1, phone = $2, email = $3, id_number = $4, address = $5, type = $6, notes = $7, updated_at = CURRENT_TIMESTAMP
        WHERE id = $8 AND store_id = $9 RETURNING *`,
-      [name, phone, email || '', id_number || '', address || '', type || 'owner', notes || '', id, storeId]
+      [name, phoneVal, email || '', id_number || '', address || '', type || 'owner', notes || '', id, storeId]
     );
 
     if (result.rowCount === 0) {

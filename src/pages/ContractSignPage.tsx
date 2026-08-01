@@ -31,6 +31,12 @@ export default function ContractSignPage() {
   const contractTypeParam = searchParams.get("contractType") || "";
   const commissionRateParam = searchParams.get("commissionRate") || "3";
   const contractDateParam = searchParams.get("contractDate") || new Date().toLocaleDateString("tr-TR");
+  const splitRatioParam = searchParams.get("splitRatio") || "";
+  const contractDurationParam = searchParams.get("contractDuration") || "";
+  const evictionDateParam = searchParams.get("evictionDate") || "";
+  const depositAmountParam = searchParams.get("depositAmount") || "";
+  const rentDurationParam = searchParams.get("rentDuration") || "";
+  const paymentDayParam = searchParams.get("paymentDay") || "";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +48,7 @@ export default function ContractSignPage() {
   const [signed, setSigned] = useState(false);
   const [isSigningActive, setIsSigningActive] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [signatureImage, setSignatureImage] = useState("");
 
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -165,6 +172,13 @@ export default function ContractSignPage() {
       return;
     }
 
+    const canvas = canvasRef.current;
+    let signatureImgData = "";
+    if (canvas) {
+      signatureImgData = canvas.toDataURL("image/png");
+      setSignatureImage(signatureImgData);
+    }
+
     try {
       setLoading(true);
       const url = isVehicle ? `/api/public/vehicles/${id}/sign` : `/api/public/real-estate/${id}/sign`;
@@ -178,7 +192,8 @@ export default function ContractSignPage() {
           commissionRate: isVehicle ? undefined : commissionRateParam,
           templateId: isVehicle ? undefined : (templateIdParam || "showing_agreement"),
           contractType: isVehicle ? (contractTypeParam || "consignment") : undefined,
-          displayName: storeName
+          displayName: storeName,
+          signatureImage: signatureImgData
         })
       });
 
@@ -235,7 +250,7 @@ export default function ContractSignPage() {
         storePhone: itemData.store_phone || "",
         propertyTitle: itemData.type === 'land' 
           ? `[İlan Kodu: LP-${itemData.id}] ${(itemData as any).mahalle || ''} Mah. Ada: ${(itemData as any).ada || '...'}, Parsel: ${(itemData as any).parsel || '...'}, Pafta: ${(itemData as any).pafta || '...'}`
-          : `[İlan Kodu: LP-${itemData.id}] ${itemData.address || itemData.title}`,
+          : `[İlan Kodu: LP-${itemData.id}] ${itemData.title}`,
         propertyLocation: itemData.location || "Kıbrıs",
         propertyPrice: `${formattedPriceNum} ${symbol}`,
         propertyBlockPlot: itemData.block_plot,
@@ -243,7 +258,16 @@ export default function ContractSignPage() {
         contractDate: contractDateParam,
         propertyAddress: (itemData as any).type === 'land' 
           ? `${(itemData as any).mahalle || ''} Mah. ${(itemData as any).ada || ''} Ada, ${(itemData as any).parsel || ''} Parsel, ${(itemData as any).pafta || ''} Pafta`
-          : itemData.address || "Belirtilmemiş adres"
+          : itemData.address || "Belirtilmemiş adres",
+        splitRatio: splitRatioParam,
+        contractDuration: contractDurationParam,
+        evictionDate: evictionDateParam,
+        depositAmount: depositAmountParam,
+        rentDuration: rentDurationParam,
+        paymentDay: paymentDayParam,
+        isSigned: signed,
+        signingName: clientName,
+        signatureImage: signatureImage
       };
       const { html } = matchedTemplate.getTemplate(values);
       renderedContractHtml = html;

@@ -12,6 +12,62 @@ export interface ContractPlaceholderValues {
   commissionRate: string;
   contractDate: string;
   propertyAddress?: string;
+  splitRatio?: string;
+  contractDuration?: string;
+  evictionDate?: string;
+  depositAmount?: string;
+  rentDuration?: string;
+  paymentDay?: string;
+  isSigned?: boolean;
+  signingName?: string;
+  signatureImage?: string;
+}
+
+export function renderSignatureOrStamp(clientName: string, isSigned?: boolean, signatureImage?: string): string {
+  const cleanName = (clientName || "Müşteri / Alıcı").trim();
+  if (isSigned) {
+    if (signatureImage) {
+      return `
+        <div style="text-align: center; margin: 10px auto; max-width: 220px; font-family: sans-serif;">
+          <div style="border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; padding: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: inline-block;">
+            <img src="${signatureImage}" alt="Signature" style="max-width: 100%; max-height: 55px; display: block; margin: 0 auto; min-height: 40px;" />
+          </div>
+          <div style="font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #166534; margin-top: 5px;">
+            ✔ DİJİTAL ONAYLI İMZA
+          </div>
+          <div style="font-size: 10px; font-weight: bold; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;">
+            ${cleanName.toUpperCase()}
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <div style="border: 2px dashed #10b981; padding: 10px; border-radius: 8px; background-color: #f0fdf4; color: #15803d; text-align: center; margin: 10px auto; max-width: 220px; font-family: sans-serif;">
+        <div style="font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #166534; border-bottom: 1px solid #bbf7d0; padding-bottom: 3px; margin-bottom: 5px;">
+          ✔ DİJİTAL ONAY MÜHRÜ
+        </div>
+        <div style="font-size: 12px; font-weight: bold; font-family: monospace; color: #14532d; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          ${cleanName.toUpperCase()}
+        </div>
+        <div style="font-size: 7px; color: #166534; margin-top: 2px; font-weight: bold;">
+          KİMLİK VE IP ONAYLI
+        </div>
+        <div style="font-size: 7px; color: #15803d; font-style: italic; margin-top: 2px;">
+          OFİSTE SEKTÖREL ONAY
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div style="border: 1.5px dashed #cbd5e1; padding: 14px 10px; border-radius: 8px; background-color: #f8fafc; color: #94a3b8; text-align: center; margin: 10px auto; max-width: 220px; font-family: sans-serif;">
+      <div style="font-size: 12px; font-weight: bold; font-family: monospace; color: #64748b; opacity: 0.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        ${cleanName.toUpperCase()}
+      </div>
+      <div style="font-size: 8px; color: #94a3b8; margin-top: 6px; font-style: italic;">
+        İmza veya Mobil Onay Bekleniyor
+      </div>
+    </div>
+  `;
 }
 
 export interface ContractTemplate {
@@ -104,12 +160,10 @@ export const contractTemplates: ContractTemplate[] = [
 
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
       <div>
-        <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">MÜŞTERİ / ALICI</span>
+        <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">MÜŞTERI / ALICI</span>
         <span style="display: block; font-size: 10px; color: #94a3b8;">CUSTOMER / BUYER</span>
       </div>
-      <div style="font-size: 14px; font-weight: bold; color: #0284c7; font-family: monospace; letter-spacing: 2px; margin: 15px 0; border: 1px dashed #cbd5e1; padding: 8px; border-radius: 6px;">
-        ${v.clientName.toUpperCase()}
-      </div>
+      ${renderSignatureOrStamp(v.clientName, v.isSigned, v.signatureImage)}
       <div style="font-size: 9px; color: #94a3b8;">Onaylandı & Dijital İmzalandı / Signed</div>
     </div>
   </div>
@@ -226,9 +280,7 @@ ${v.propertyAddress ? `- **Adres / Address:** ${v.propertyAddress}\n` : ''}- **B
         <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">MÜLK SAHİBİ</span>
         <span style="display: block; font-size: 10px; color: #94a3b8;">PROPERTY OWNER</span>
       </div>
-      <div style="font-size: 14px; font-weight: bold; color: #0284c7; font-family: monospace; letter-spacing: 2px;">
-        ${v.clientName.toUpperCase()}
-      </div>
+      ${renderSignatureOrStamp(v.clientName, v.isSigned, v.signatureImage)}
       <div style="font-size: 9px; color: #94a3b8;">Onaylandı & Dijital İmzalandı / Authorized</div>
     </div>
   </div>
@@ -292,7 +344,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </tr>
     <tr style="background-color: #f8fafc;">
       <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">KAPORA TUTARI / DEPOSIT</td>
-      <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #e11d48;">5.000 GBP (Veya Karşılığı)</td>
+      <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #e11d48;">${formatDepositWithWords(v.depositAmount || "5.000 GBP")}</td>
     </tr>
     <tr>
       <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">ARACILIK ÜCRETİ / FEE</td>
@@ -309,10 +361,10 @@ Bu sözleşme 6 ay süreyle geçerlidir.
   </p>
 
   <div style="margin-top: 30px; display: flex; justify-content: space-between; gap: 20px; font-size: 11px;">
-    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; background-color: #f8fafc;">
-      <strong>ALICI / BUYER</strong><br/><br/>
-      <span style="font-family: monospace; font-size: 12px; color: #0284c7;">${v.clientName}</span><br/><br/>
-      İmza / Signature
+    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 150px;">
+      <strong>ALICI / BUYER</strong>
+      ${renderSignatureOrStamp(v.clientName, v.isSigned, v.signatureImage)}
+      <div>İmza / Signature</div>
     </div>
     <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; background-color: #f8fafc;">
       <strong>ARACI / BROKER</strong><br/><br/>
@@ -328,6 +380,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
 **Aracı:** ${v.storeName}
 **Mülk:** ${v.propertyTitle}
 **Bedel:** ${v.propertyPrice}
+**Kapora:** ${formatDepositWithWords(v.depositAmount || "5.000 GBP")}
 **Komisyon:** ${v.commissionRate}
 `;
       return { html, markdown };
@@ -340,6 +393,22 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     descriptionTr: "Farklı şubelerin veya danışmanların portföy ve müşteriyi birleştirerek haklarını güvenceye alma protokolü.",
     descriptionEn: "Protects commission split rights between collaborating branches or agents.",
     getTemplate: (v) => {
+      const rawRatio = v.splitRatio || "50 / 50";
+      const matches = rawRatio.match(/\d+/g);
+      let displayRatio = rawRatio;
+      let detailedClauseText = `taraflar arasında <strong>${rawRatio}</strong> oranında`;
+
+      if (matches && matches.length >= 2) {
+        const p1 = matches[0];
+        const p2 = matches[1];
+        displayRatio = `%${p1} / %${p2}`;
+        detailedClauseText = `<strong>%${p1} (Yüzde ${p1})</strong> Portföy Sahibi Şubeye ve <strong>%${p2} (Yüzde ${p2})</strong> Müşteri Getiren Şubeye/Danışmana`;
+      } else {
+        if (!displayRatio.includes('%')) {
+          displayRatio = `%${displayRatio}`;
+        }
+      }
+
       const html = `
 <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6;">
   <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 20px;">
@@ -373,14 +442,14 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </tr>
     <tr>
       <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">PAYLAŞIM (SPLIT) ORANI</td>
-      <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #2563eb;">%50 / %50 (Eşit Bölüşüm)</td>
+      <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #2563eb;">${displayRatio}</td>
     </tr>
   </table>
 
   <h4 style="font-size: 13px; font-weight: bold; margin: 15px 0 5px 0; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">ORTAK PAZARLAMA ŞARTLARI / CO-MARKETING CLAUSES</h4>
   <ol style="font-size: 11px; color: #475569; padding-left: 18px; text-align: justify; margin: 0 0 20px 0; space-y: 2px;">
     <li><strong>Sözleşmenin Amacı:</strong> İşbu protokol, mülkiyeti / tek satma yetkisi birinci şubede bulunan yukarıdaki taşınmazın, ikinci şubenin getireceği alıcı adaya ortaklaşa satılması veya kiralanması durumunda tarafların hak ediş oranlarını belirlemek amacıyla tanzim edilmiştir.</li>
-    <li><strong>Komisyon Bölünmesi:</strong> Satışın veya kiralamanın başarıyla tamamlanması ve komisyonun tahsil edilmesi durumunda, elde edilen net hizmet bedeli <strong>%50 (Yüzde Elli)</strong> Portföy Sahibi Şubeye ve <strong>%50 (Yüzde Elli)</strong> Müşteri Getiren Şubeye/Danışmana eşit oranda paylaştırılacaktır.</li>
+    <li><strong>Komisyon Bölünmesi:</strong> Satışın veya kiralamanın başarıyla tamamlanması ve komisyonun tahsil edilmesi durumunda, elde edilen net hizmet bedeli ${detailedClauseText} oranında paylaştırılacaktır.</li>
     <li><strong>Müşteri Gizliliği ve Korunması:</strong> Portföy sahibi taraf, misafir şubenin getirdiği alıcının bilgilerini üçüncü taraflarla paylaşmamayı ve satış sürecinde alıcıyı bypass ederek mal sahibiyle doğrudan işlem yaptırmamayı kabul ve taahhüt eder.</li>
     <li><strong>Geçerlilik Süresi:</strong> Bu protokol imza tarihinden itibaren 6 (Altı) ay süresince belirtilen müşteri adayına yapılan gösterimler için geçerlidir.</li>
   </ol>
@@ -392,8 +461,8 @@ Bu sözleşme 6 ay süreyle geçerlidir.
       <div style="font-size: 9px; color: #94a3b8;">Dijital Kaşe & Onay</div>
     </div>
     <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px;">
-      <strong>MÜŞTERİ YETKİLİ ŞUBE / ACENTE</strong>
-      <span style="font-family: monospace; font-size: 12px; color: #0284c7; font-weight: bold; display: block; margin: 10px 0;">${v.clientName || '[İş Ortağı Şube]'}</span>
+      <strong>MÜŞTERI YETKİLİ ŞUBE / ACENTE</strong>
+      ${renderSignatureOrStamp(v.clientName || '[İş Ortağı Şube]', v.isSigned, v.signatureImage)}
       <div style="font-size: 9px; color: #94a3b8;">Hızlı Dijital İmza Onaylandı</div>
     </div>
   </div>
@@ -404,7 +473,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
 **Portföy Sahibi:** ${v.storeName}
 **Müşteri Sahibi:** ${v.clientName}
 **Mülk:** ${v.propertyTitle}
-**Bölüşüm Oranı:** %50 / %50
+**Bölüşüm Oranı:** ${displayRatio}
 `;
       return { html, markdown };
     }
@@ -455,22 +524,34 @@ Bu sözleşme 6 ay süreyle geçerlidir.
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">SÖZLEŞME TARİHİ / DATE</td>
       <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.contractDate}</td>
     </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">KİRA SÜRESİ / LEASE PERIOD</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.rentDuration || "1 Yıl / 1 Year"}</strong></td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">ÖDEME GÜNÜ / PAYMENT DATE</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.paymentDay || "Her ayın en geç 5. günü / By the 5th day of each month"}</strong></td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">DEPOZİTO / SECURITY DEPOSIT</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #e11d48;">${formatDepositWithWords(v.depositAmount || "1 Aylık Kira Bedeli")}</td>
+    </tr>
   </table>
 
   <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">SÖZLEŞME ŞARTLARI (TR)</h3>
   <ol style="font-size: 12px; color: #334155; padding-left: 20px; text-align: justify; margin-bottom: 25px;">
-    <li><strong>Kira Süresi:</strong> Kira sözleşmesi aksi belirtilmedikçe 1 (Bir) yıl sürelidir. Süre sonunda taraflar fesih bildiriminde bulunmazsa sözleşme aynı şartlarla birer yıl uzar.</li>
-    <li><strong>Ödeme Günü:</strong> Kira bedeli her ayın en geç 5. (Beşinci) günü mülk sahibinin banka hesabına ödenmelidir.</li>
-    <li><strong>Depozito:</strong> Kiracı, mülke gelebilecek zararlara karşılık bir kira bedeli tutarında depozitoyu başlangıçta ödemiştir.</li>
+    <li><strong>Kira Süresi:</strong> Kira sözleşmesi aksi belirtilmedikçe <strong>${v.rentDuration || "1 (Bir) yıl"}</strong> sürelidir. Süre sonunda taraflar fesih bildiriminde bulunmazsa sözleşme aynı şartlarla birer yıl uzar.</li>
+    <li><strong>Ödeme Günü:</strong> Kira bedeli <strong>${v.paymentDay || "her ayın en geç 5. (Beşinci) günü"}</strong> mülk sahibinin banka hesabına ödenmelidir.</li>
+    <li><strong>Depozito:</strong> Kiracı, mülke gelebilecek zararlara karşılık <strong>${formatDepositWithWords(v.depositAmount || "1 Aylık Kira Bedeli")}</strong> tutarında depozitoyu başlangıçta ödemiştir.</li>
     <li><strong>Kullanım Amacı:</strong> Taşınmaz sadece konut/işyeri amacıyla kullanılabilir, alt kiralama yapılamaz.</li>
     <li><strong>Demirbaşlar:</strong> Kiracı, mülkü teslim aldığı andaki demirbaşları korumakla ve sözleşme sonunda eksiksiz teslim etmekle yükümlüdür.</li>
   </ol>
 
   <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">LEASE TERMS (EN)</h3>
   <ol style="font-size: 11px; color: #475569; padding-left: 20px; text-align: justify; margin-bottom: 30px;">
-    <li><strong>Lease Period:</strong> The standard lease period is 1 (One) year unless specified otherwise. It auto-renews annually if not terminated.</li>
-    <li><strong>Payment Date:</strong> Rent must be paid to the landlord's bank account by the 5th day of each month.</li>
-    <li><strong>Security Deposit:</strong> The tenant has paid a security deposit equal to one month's rent for potential property damages.</li>
+    <li><strong>Lease Period:</strong> The standard lease period is <strong>${v.rentDuration || "1 (One) year"}</strong> unless specified otherwise. It auto-renews annually if not terminated.</li>
+    <li><strong>Payment Date:</strong> Rent must be paid to the landlord's bank account by <strong>${v.paymentDay || "the 5th day of each month"}</strong>.</li>
+    <li><strong>Security Deposit:</strong> The tenant has paid a security deposit of <strong>${formatDepositWithWords(v.depositAmount || "one month's rent")}</strong> for potential property damages.</li>
     <li><strong>Usage Purpose:</strong> The property shall only be used as a residence/office and cannot be sub-leased.</li>
     <li><strong>Fixtures:</strong> The tenant is responsible for protecting all fixtures and returning them in full at the end of the term.</li>
   </ol>
@@ -482,7 +563,7 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     </div>
     <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; background-color: #f8fafc; text-align: center; min-height: 150px; display: flex; flex-direction: column; justify-content: space-between;">
       <strong>KİRACI / TENANT</strong>
-      <div style="font-size: 14px; font-weight: bold; color: #0284c7;">${v.clientName}</div>
+      ${renderSignatureOrStamp(v.clientName, v.isSigned, v.signatureImage)}
       <div style="font-size: 12px; color: #475569;">İmza / Signature</div>
     </div>
   </div>
@@ -536,15 +617,31 @@ Bu sözleşme 6 ay süreyle geçerlidir.
       <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">HİZMET BEDELİ / COMMISSION</td>
       <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.commissionRate}</strong> (+ KDV)</td>
     </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">SÖZLEŞME TARİHİ / DATE</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;">${v.contractDate}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">YETKİ SÜRESİ / DURATION</td>
+      <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>${v.contractDuration || "12 Ay / 12 Months"}</strong></td>
+    </tr>
   </table>
 
   <p style="font-size: 12px; text-align: justify;">
-    Mülk Sahibi, yukarıdaki taşınmazın kiralanması için <strong>${v.storeName}</strong> firmasını yetkili kılmıştır. Aracı, mülkün tanıtımını yapacak, kiracı adaylarını bulacak ve sözleşme sürecini yönetecektir. Kiralama gerçekleştiğinde Mülk Sahibi <strong>${v.commissionRate}</strong> tutarında hizmet bedeli ödemeyi kabul eder.
+    Mülk Sahibi, yukarıdaki taşınmazın kiralanması için <strong>${v.contractDate}</strong> tarihli yetki belgesi ile <strong>${v.contractDuration || "12 Ay / 12 Months"}</strong> süre boyunca <strong>${v.storeName}</strong> firmasını yetkili kılmıştır. Aracı, mülkün tanıtımını yapacak, kiracı adaylarını bulacak ve sözleşme sürecini yönetecektir. Kiralama gerçekleştiğinde Mülk Sahibi <strong>${v.commissionRate}</strong> tutarında hizmet bedeli ödemeyi kabul eder.
   </p>
 
-  <div style="margin-top: 40px; display: flex; justify-content: space-between;">
-    <div style="text-align: center;"><strong>MÜLK SAHİBİ</strong></div>
-    <div style="text-align: center;"><strong>ARACI OFİS</strong></div>
+  <div style="margin-top: 40px; display: flex; justify-content: space-between; gap: 40px; font-size: 11px;">
+    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px;">
+      <strong>MÜLK SAHİBİ / OWNER</strong>
+      ${renderSignatureOrStamp(v.clientName, v.isSigned, v.signatureImage)}
+      <div style="font-size: 9px; color: #94a3b8;">İmza / Signature</div>
+    </div>
+    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center; background-color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px;">
+      <strong>ARACI OFİS / AGENT</strong>
+      <span style="color: #475569; font-style: italic; font-weight: bold; display: block; margin: 10px 0;">${v.storeName}</span>
+      <div style="font-size: 9px; color: #94a3b8;">Kaşe & İmza</div>
+    </div>
   </div>
 </div>
 `;
@@ -573,26 +670,29 @@ Bu sözleşme 6 ay süreyle geçerlidir.
   </div>
 
   <div style="margin-bottom: 30px; text-align: justify; font-size: 14px;">
-    <strong>KİRACI BİLGİLERİ:</strong><br/>
-    Adı Soyadı: <strong>${v.clientName}</strong><br/>
-    T.C. Kimlik No: ${v.clientIdentity}<br/>
-    Adres: <strong>${v.propertyAddress || `${v.propertyTitle} (${v.propertyLocation})`}</strong>
+    <strong>KİRACI BİLGİLERİ / TENANT INFORMATION:</strong><br/>
+    Adı Soyadı / Name: <strong>${v.clientName}</strong><br/>
+    T.C. Kimlik / Pasaport No: ${v.clientIdentity}<br/>
+    Telefon / Phone: ${v.clientPhone || 'Belirtilmemiş'}<br/>
+    Adres / Address: <strong>${v.propertyAddress || `${v.propertyTitle} (${v.propertyLocation})`}</strong>
   </div>
 
   <div style="margin-bottom: 30px; text-align: justify; font-size: 14px; line-height: 1.8;">
-    Halen kiracı olarak kullanmakta olduğum yukarıda adresi belirtilen taşınmazı, hiçbir ihtar ve ihbara gerek kalmadan, kayıtsız ve şartsız olarak <strong>[Tahliye Tarihi]</strong> tarihinde boşaltarak, boş ve sağlam olarak mal sahibine teslim edeceğimi, adı geçen tarihte tahliye etmediğim takdirde mülk sahibinin icra yoluna başvurarak yapacağı tüm masrafları ve doğacak zararları ödeyeceğimi şimdiden kabul, beyan ve taahhüt ederim.
+    Halen kiracı olarak kullanmakta olduğum yukarıda adresi belirtilen taşınmazı, hiçbir ihtar ve ihbara gerek kalmadan, kayıtsız ve şartsız olarak <strong>${v.evictionDate || '[Tahliye Tarihi]'}</strong> tarihinde boşaltarak, mülk'ü kiraladığımdan itibaren teslim aldığım eşyaları tam ve eksiksiz, eşyaların teslim alındığı kozmetik durumunda, mal sahibine veya mal sahibinin yetkili kıldığı kişi veya kurumlara teslim edeceğimi, adı geçen tarihte tahliye etmediğim takdirde mülk sahibinin icra yoluna başvurarak yapacağı tüm masrafları ve doğacak zararları ödeyeceğimi şimdiden kabul, beyan ve taahhüt ederim.
   </div>
 
   <div style="margin-bottom: 40px; text-align: justify; font-size: 12px; font-style: italic; color: #475569;">
-    I, the tenant, hereby declare and undertake to vacate the property specified above on <strong>[Eviction Date]</strong> without any further notice, unconditionally and in good condition. If I fail to vacate on the specified date, I agree to be responsible for all legal costs and damages incurred by the landlord.
+    I, the tenant, hereby declare and undertake to vacate the property specified above on <strong>${v.evictionDate || '[Eviction Date]'}</strong> without any further notice, unconditionally, and to return all furnishings and items received upon leasing the property completely, fully, and in the exact cosmetic condition they were received, to the landlord or their authorized representatives/institutions. If I fail to vacate on the specified date, I agree to be responsible for all legal costs and damages incurred by the landlord.
   </div>
 
   <div style="margin-top: 60px; display: flex; justify-content: flex-end;">
-    <div style="text-align: center; border: 1px solid #cbd5e1; padding: 20px; border-radius: 12px; background-color: #f8fafc; min-width: 200px;">
-      <span style="font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase;">TAAHHÜT EDEN (KİRACI)</span><br/>
-      <div style="font-size: 16px; font-weight: bold; color: #0284c7; margin: 15px 0;">${v.clientName}</div>
-      <div style="font-size: 10px; color: #94a3b8;">İmza / Signature</div>
-      <div style="font-size: 10px; color: #94a3b8; margin-top: 10px;">Tarih: ${v.contractDate}</div>
+    <div style="text-align: center; border: 1px solid #cbd5e1; padding: 15px; border-radius: 12px; background-color: #f8fafc; min-width: 240px; display: flex; flex-direction: column; justify-content: space-between; min-height: 160px;">
+      <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">TAAHHÜT EDEN (KİRACI)</span>
+      ${renderSignatureOrStamp(v.clientName, v.isSigned, v.signatureImage)}
+      <div>
+        <div style="font-size: 10px; color: #94a3b8;">İmza / Signature</div>
+        <div style="font-size: 9px; color: #94a3b8; margin-top: 4px;">Tarih: ${v.contractDate}</div>
+      </div>
     </div>
   </div>
 </div>
@@ -607,3 +707,73 @@ Bu sözleşme 6 ay süreyle geçerlidir.
     }
   }
 ];
+
+export function numberToTurkishWords(num: number): string {
+  if (num === 0) return "Sıfır";
+  const birler = ["", "Bir", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz"];
+  const onlar = ["", "On", "Yirmi", "Otuz", "Kırk", "Elli", "Altmış", "Yetmiş", "Seksen", "Doksan"];
+  const binler = ["", "Bin", "Milyon", "Milyar", "Trilyon"];
+
+  let words = "";
+  let temp = Math.floor(num);
+  let step = 0;
+
+  while (temp > 0) {
+    const sub = temp % 1000;
+    if (sub > 0) {
+      let subWords = "";
+      const yuzlerDigit = Math.floor(sub / 100);
+      const onlarDigit = Math.floor((sub % 100) / 10);
+      const birlerDigit = sub % 10;
+
+      if (yuzlerDigit > 0) {
+        if (yuzlerDigit === 1) {
+          subWords += "Yüz ";
+        } else {
+          subWords += birler[yuzlerDigit] + " Yüz ";
+        }
+      }
+      if (onlarDigit > 0) {
+        subWords += onlar[onlarDigit] + " ";
+      }
+      if (birlerDigit > 0) {
+        if (step === 1 && sub === 1) {
+          // just "Bin", not "Bir Bin"
+        } else {
+          subWords += birler[birlerDigit] + " ";
+        }
+      }
+      
+      subWords += binler[step] + " ";
+      words = subWords + words;
+    }
+    temp = Math.floor(temp / 1000);
+    step++;
+  }
+
+  return words.trim().replace(/\s+/g, " ");
+}
+
+export function formatDepositWithWords(depositStr: string): string {
+  if (!depositStr) return "5.000 GBP (Veya Karşılığı)";
+  const cleanStr = depositStr.replace(/\./g, "").replace(/,/g, "");
+  const match = cleanStr.match(/\d+/);
+  if (match) {
+    const num = parseInt(match[0], 10);
+    if (!isNaN(num) && num > 0) {
+      const words = numberToTurkishWords(num);
+      let currency = "Türk Lirası";
+      const upperStr = depositStr.toUpperCase();
+      if (upperStr.includes("GBP") || upperStr.includes("£") || upperStr.includes("STERLİN") || upperStr.includes("STERLIN")) {
+        currency = "Sterlin";
+      } else if (upperStr.includes("EUR") || upperStr.includes("€") || upperStr.includes("AVRO")) {
+        currency = "Euro";
+      } else if (upperStr.includes("USD") || upperStr.includes("$") || upperStr.includes("DOLAR")) {
+        currency = "Dolar";
+      }
+      return `${depositStr} (${words} ${currency})`;
+    }
+  }
+  return depositStr;
+}
+
