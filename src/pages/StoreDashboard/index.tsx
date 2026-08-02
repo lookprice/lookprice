@@ -34,7 +34,8 @@ import {
   FileCheck,
   FileDown,
   Edit2,
-  Trash2
+  Trash2,
+  HelpCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -88,6 +89,7 @@ const RadarAlertsTab = React.lazy(() => import("./RadarAlertsTab").then(m => ({ 
 const PortfolioFinancesTab = React.lazy(() => import("./PortfolioFinancesTab"));
 const SEOTab = React.lazy(() => import("./SEOTab"));
 const EWaybillsTab = React.lazy(() => import("../../components/EWaybillsTab"));
+const FaqTab = React.lazy(() => import("./FaqTab"));
 
 import ShippingSlip from "../../components/ShippingSlip";
 
@@ -362,9 +364,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   }, [isTaxInclusive, showQuotationModal, lang, editingQuotation]);
 
+  const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [showDailyReportModal, setShowDailyReportModal] = useState(false);
+  const [saleToCancel, setSaleToCancel] = useState<number | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+
+  const handleCancelSale = async () => {
+    if (!saleToCancel || !cancelReason) return;
+    await handleCancelPendingSale(saleToCancel, cancelReason);
+    setShowCancelReasonModal(false);
+    setCancelReason("");
+    setSaleToCancel(null);
+  };
   const [dailyReportData, setDailyReportData] = useState<{ summary: any[], details: any[] }>({ summary: [], details: [] });
   const [reportStartDate, setReportStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportEndDate, setReportEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -736,6 +748,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "analytics", label: t.analytics, icon: BarChart3 },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
+      { id: "faq", label: isTr ? "S.S.S" : "FAQ", icon: HelpCircle },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
@@ -866,6 +879,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             className={`transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
           >
             <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
+              {activeTab === "faq" && <FaqTab />}
               {activeTab === "products" && (
                 <ProductsTab 
                   products={products}
@@ -938,10 +952,33 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   endDate={salesEndDate}
                   onEndDateChange={setSalesEndDate}
                   onViewDetails={(s) => { setSelectedSale(s); setShowSaleDetailsModal(true); }}
-                  onDeleteSale={handleDeleteSale}
+                  onDeleteSale={(id) => { setSaleToCancel(id); setShowCancelReasonModal(true); }}
                   onExportReport={handleExportSales}
                   isViewer={isViewer}
                 />
+              )}
+              {showCancelReasonModal && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6"
+                  >
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">{isTr ? 'İptal Sebebi' : 'Cancellation Reason'}</h3>
+                    <textarea 
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4"
+                      rows={3}
+                      placeholder={isTr ? 'İptal nedenini girin...' : 'Enter cancellation reason...'}
+                    />
+                    <div className="flex justify-end gap-3">
+                      <button onClick={() => setShowCancelReasonModal(false)} className="px-4 py-2 text-slate-500 font-bold">{t.cancel}</button>
+                      <button onClick={handleCancelSale} className="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold">{isTr ? 'İptal Et' : 'Cancel'}</button>
+                    </div>
+                  </motion.div>
+                </div>
               )}
               {activeTab === "fast-pos" && (
                 <FastPosTab 

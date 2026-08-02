@@ -197,7 +197,7 @@ export const api = {
   completeSale: (id: number, data: any, storeId?: number) => api.post(`/api/store/sales/${id}/complete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   shipSale: (id: number, data: { carrier: string, trackingNumber: string }, storeId?: number) => api.post(`/api/store/sales/${id}/ship${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deliverSale: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/deliver${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
-  cancelSale: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/cancel${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  cancelSale: (id: number, data: { reason: string }, storeId?: number) => api.post(`/api/store/sales/${id}/cancel${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteSale: (id: number, storeId?: number) => api.delete(`/api/store/sales/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getDailySalesReport: (start = "", end = "", storeId?: number) => api.get(`/api/store/reports/daily-sales?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   getPosDailyReport: (date = "", storeId?: number) => api.get(`/api/store/reports/pos-daily?date=${date}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),

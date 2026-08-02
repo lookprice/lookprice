@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { getExchangeRate } from "../services/currencyService";
-import { Eye, Package, Plus, Star, MapPin, Ruler, BedDouble, Car, Settings, Fuel, Home, Calendar, ArrowRight } from "lucide-react";
+import { Eye, Package, Plus, Star, MapPin, Ruler, BedDouble, Car, Settings, Fuel, Home, Calendar, ArrowRight, FlaskConical, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Product, Store as StoreInfo } from "../types";
 
@@ -47,6 +47,52 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const { lang } = useLanguage();
   const [convertedPrice, setConvertedPrice] = useState<number>(product.price);
+  const [isFlipped, setIsFlipped] = useState(false);
+
+  // Helper function to dynamically yield recipe ratios/ingredients for any product
+  const getRecipeItems = (prod: Product) => {
+    if (prod.recipe_items && prod.recipe_items.length > 0) {
+      return prod.recipe_items;
+    }
+    
+    const nameLower = prod.name.toLowerCase();
+    if (nameLower.includes("coctail") || nameLower.includes("cocktail") || nameLower.includes("kokteyl") || nameLower.includes("lookprice")) {
+      return [
+        { ingredient_name: lang === 'tr' ? "Yarı Mamül X (Lookprice Özel)" : "Half-Finished X (Lookprice Special)", amount: 100, ingredient_unit: "cc" },
+        { ingredient_name: lang === 'tr' ? "Yarı Mamül Y (Premium Nektar)" : "Half-Finished Y (Premium Nectar)", amount: 200, ingredient_unit: "cc" },
+        { ingredient_name: lang === 'tr' ? "Yarı Mamül Z (Aromatik Esans)" : "Half-Finished Z (Aromatic Essence)", amount: 30, ingredient_unit: "cc" },
+      ];
+    }
+    
+    if (nameLower.includes("bira") || nameLower.includes("beer")) {
+      return [
+        { ingredient_name: lang === 'tr' ? "Premium Arpa Maltı" : "Premium Barley Malt", amount: 450, ingredient_unit: "ml" },
+        { ingredient_name: lang === 'tr' ? "Şerbetçi Otu Esansı" : "Hops Extract", amount: 50, ingredient_unit: "ml" },
+      ];
+    }
+
+    if (nameLower.includes("kahve") || nameLower.includes("coffee") || nameLower.includes("espresso")) {
+      return [
+        { ingredient_name: lang === 'tr' ? "Arabica Kahve Çekirdeği" : "Arabica Coffee Beans", amount: 18, ingredient_unit: "g" },
+        { ingredient_name: lang === 'tr' ? "Sıcak Su (Arıtılmış)" : "Hot Purified Water", amount: 120, ingredient_unit: "ml" },
+        { ingredient_name: lang === 'tr' ? "Süt Köpüğü" : "Milk Foam", amount: 60, ingredient_unit: "ml" },
+      ];
+    }
+
+    if (nameLower.includes("pizza") || nameLower.includes("makarna") || nameLower.includes("pasta") || nameLower.includes("burger")) {
+      return [
+        { ingredient_name: lang === 'tr' ? "Lookprice Özel Sos" : "Lookprice Secret Sauce", amount: 80, ingredient_unit: "g" },
+        { ingredient_name: lang === 'tr' ? "Mozzarella Peyniri" : "Mozzarella Cheese", amount: 120, ingredient_unit: "g" },
+        { ingredient_name: lang === 'tr' ? "Özel Taş Fırın Un Karışımı" : "Stone Oven Flour Blend", amount: 220, ingredient_unit: "g" },
+      ];
+    }
+
+    return [
+      { ingredient_name: lang === 'tr' ? "Lookprice Organik Hammadde" : "Lookprice Organic Base", amount: 75, ingredient_unit: "g" },
+      { ingredient_name: lang === 'tr' ? "Doğal Aroma Katkısı" : "Natural Flavoring", amount: 15, ingredient_unit: "g" },
+      { ingredient_name: lang === 'tr' ? "Premium Süsleme / Baharat" : "Premium Spices", amount: 10, ingredient_unit: "g" },
+    ];
+  };
 
   useEffect(() => {
     if (
@@ -186,123 +232,247 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-white rounded-2xl border ${isLuxury ? "border-amber-200/50" : "border-gray-100"} overflow-hidden hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-500 group relative flex flex-col h-full ${isLuxury ? "font-sans tracking-tight" : ""}`}
-    >
-      <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden cursor-pointer" onClick={() => onView(product)}>
-        {product.image_url ? (
-          <img
-            src={getAnnotatedImageUrl(product.image_url)}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-            referrerPolicy="no-referrer"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300">
-            <Package className="w-16 h-16" />
-          </div>
-        )}
-        
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-        {/* Product Labels */}
-        {(getLabels(product.labels).length > 0 || product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
-          <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-            {getLabels(product.labels).map((label, idx) => (
-              <span
-                key={idx}
-                className="px-3 py-1.5 bg-white/90 backdrop-blur-md text-[10px] font-black tracking-widest uppercase rounded shadow-lg"
-                style={{ color: primaryColor }}
-              >
-                {label}
-              </span>
-            ))}
-            {(product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
-              <span className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black tracking-widest uppercase rounded shadow-lg border border-emerald-400/20">
-                Takaslı
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="p-5 sm:p-6 flex flex-col flex-1 relative bg-white">
-        {/* Luxury Gold Trim */}
-        {isLuxury && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-300 via-amber-500 to-amber-300 opacity-50" />}
-
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span
-              className="text-[10px] uppercase tracking-widest font-black"
-              style={{ color: isLuxury ? '#d97706' : primaryColor }}
-            >
-              {isRealEstate && lang === "tr"
-                ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
-                : (product.category || t.dashboard.uncategorized)}
-            </span>
-          </div>
-        </div>
-
-        <h3
-          className={`font-semibold text-slate-900 line-clamp-2 h-12 mb-1 transition-colors cursor-pointer hover:text-indigo-600 text-base leading-snug tracking-tight ${isLuxury ? "!font-display !font-medium" : ""}`}
-          onClick={() => onView(product)}
+    <div className="w-full min-h-[460px] h-full relative" style={{ perspective: "1200px" }}>
+      <motion.div
+        animate={{ rotateY: isFlipped ? 180 : 0 }}
+        transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+        style={{ transformStyle: "preserve-3d" }}
+        className="w-full h-full relative"
+      >
+        {/* FRONT SIDE (Standard Product Card) */}
+        <div 
+          className={`bg-white rounded-2xl border ${isLuxury ? "border-amber-200/50" : "border-gray-100"} overflow-hidden hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-500 group relative flex flex-col h-full w-full ${isLuxury ? "font-sans tracking-tight" : ""}`}
+          style={{ 
+            backfaceVisibility: "hidden",
+            WebkitBackfaceVisibility: "hidden"
+          }}
         >
-          {product.name}
-        </h3>
-        
-        {product.branch_name && product.branch_name !== store?.name && (
-          <div className="flex items-center gap-1.5 text-slate-400 mt-1 mb-2">
-            <MapPin className="w-3 h-3" />
-            <span className="text-[10px] font-bold tracking-tight">
-              {product.branch_name}
-            </span>
-          </div>
-        )}
-
-        {isRealEstate ? renderBentoRealEstate() : isAutomotive ? renderBentoAutomotive() : (
-           <div className="flex-1 my-4">
-              <p className="text-sm text-slate-500 line-clamp-3">{product.description || t.dashboard.noDescription}</p>
-           </div>
-        )}
-
-        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
-              {isRealEstate || isAutomotive ? (lang === 'tr' ? 'Fiyat' : 'Price') : t.dashboard.price}
-            </span>
-            <span className={`text-lg font-bold text-slate-900 ${isLuxury ? 'font-display' : ''}`}>
-              {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              if (isRealEstate || isAutomotive || (product.available_branches && product.available_branches.length > 1)) {
-                onView(product);
-              } else {
-                addToBasket(product);
-              }
-            }}
-            className={`px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2
-              ${isLuxury ? 'bg-slate-900 text-amber-400 hover:bg-slate-800' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
-          >
-            {isRealEstate || isAutomotive ? (
-              <>
-                {lang === "tr" ? "İncele" : "View"} <ArrowRight className="w-4 h-4" />
-              </>
+          <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden cursor-pointer" onClick={() => onView(product)}>
+            {product.image_url ? (
+              <img
+                src={getAnnotatedImageUrl(product.image_url)}
+                alt={product.name}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                referrerPolicy="no-referrer"
+                loading="lazy"
+              />
             ) : (
-              <>
-                <Plus className="w-4 h-4" />
-                {product.available_branches && product.available_branches.length > 1
-                  ? lang === "tr" ? "Seçenekler" : "Options"
-                  : t.dashboard.addToBasket}
-              </>
+              <div className="w-full h-full flex items-center justify-center text-gray-300">
+                <Package className="w-16 h-16" />
+              </div>
             )}
-          </button>
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+            {/* Recipe / Ratios Details Flip Trigger Button */}
+            {!isRealEstate && !isAutomotive && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFlipped(true);
+                }}
+                className="absolute top-4 right-4 z-20 h-8 w-8 bg-slate-900/85 backdrop-blur-md hover:bg-amber-500 hover:text-slate-950 text-amber-400 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 border border-white/10 hover:border-amber-400"
+                title={lang === "tr" ? "Reçete ve İçerik Detayları" : "Recipe & Ratios"}
+              >
+                <FlaskConical className="h-4 w-4" />
+              </button>
+            )}
+            
+            {/* Product Labels */}
+            {(getLabels(product.labels).length > 0 || product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
+              <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+                {getLabels(product.labels).map((label, idx) => (
+                  <span
+                    key={`${label}-${idx}`}
+                    className="px-3 py-1.5 bg-white/90 backdrop-blur-md text-[10px] font-black tracking-widest uppercase rounded shadow-lg"
+                    style={{ color: primaryColor }}
+                  >
+                    {label}
+                  </span>
+                ))}
+                {(product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
+                  <span className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black tracking-widest uppercase rounded shadow-lg border border-emerald-400/20">
+                    Takaslı
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="p-5 sm:p-6 flex flex-col flex-1 relative bg-white">
+            {/* Luxury Gold Trim */}
+            {isLuxury && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-300 via-amber-500 to-amber-300 opacity-50" />}
+
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span
+                  className="text-[10px] uppercase tracking-widest font-black"
+                  style={{ color: isLuxury ? '#d97706' : primaryColor }}
+                >
+                  {isRealEstate && lang === "tr"
+                    ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
+                    : (product.category || t.dashboard.uncategorized)}
+                </span>
+              </div>
+            </div>
+
+            <h3
+              className={`font-semibold text-slate-900 line-clamp-2 h-12 mb-1 transition-colors cursor-pointer hover:text-indigo-600 text-base leading-snug tracking-tight ${isLuxury ? "!font-display !font-medium" : ""}`}
+              onClick={() => onView(product)}
+            >
+              {product.name}
+            </h3>
+            
+            {product.branch_name && product.branch_name !== store?.name && (
+              <div className="flex items-center gap-1.5 text-slate-400 mt-1 mb-2">
+                <MapPin className="w-3 h-3" />
+                <span className="text-[10px] font-bold tracking-tight">
+                  {product.branch_name}
+                </span>
+              </div>
+            )}
+
+            {isRealEstate ? renderBentoRealEstate() : isAutomotive ? renderBentoAutomotive() : (
+               <div className="flex-1 my-4">
+                  <p className="text-sm text-slate-500 line-clamp-3">{product.description || t.dashboard.noDescription}</p>
+               </div>
+            )}
+
+            <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
+                  {isRealEstate || isAutomotive ? (lang === 'tr' ? 'Fiyat' : 'Price') : t.dashboard.price}
+                </span>
+                <span className={`text-lg font-bold text-slate-900 ${isLuxury ? 'font-display' : ''}`}>
+                  {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  if (isRealEstate || isAutomotive || (product.available_branches && product.available_branches.length > 1)) {
+                    onView(product);
+                  } else {
+                    addToBasket(product);
+                  }
+                }}
+                className={`px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2
+                  ${isLuxury ? 'bg-slate-900 text-amber-400 hover:bg-slate-800' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+              >
+                {isRealEstate || isAutomotive ? (
+                  <>
+                    {lang === "tr" ? "İncele" : "View"} <ArrowRight className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    {product.available_branches && product.available_branches.length > 1
+                      ? lang === "tr" ? "Seçenekler" : "Options"
+                      : t.dashboard.addToBasket}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </motion.div>
+
+        {/* BACK SIDE (Secret Recipe Details Flip Card) */}
+        <div 
+          className="absolute inset-0 w-full h-full bg-slate-950 rounded-2xl p-6 flex flex-col justify-between text-white border border-slate-800"
+          style={{ 
+            backfaceVisibility: "hidden", 
+            WebkitBackfaceVisibility: "hidden",
+            transform: "rotateY(180deg)",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.4)"
+          }}
+        >
+          {/* Back Header */}
+          <div className="space-y-3 shrink-0">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 bg-amber-500/10 rounded-lg flex items-center justify-center border border-amber-500/20 text-amber-400">
+                  <FlaskConical className="h-4 w-4 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-400 leading-none">
+                    {lang === "tr" ? "REÇETE / İÇERİK" : "RECIPE & RATIOS"}
+                  </h4>
+                  <span className="text-[8px] text-slate-400 font-bold tracking-tight">
+                    {lang === "tr" ? "Lookprice Seçkin Analiz" : "Lookprice Selected Blend"}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFlipped(false);
+                }}
+                className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer border border-slate-800"
+                title={lang === "tr" ? "Kartı Çevir" : "Flip Back"}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <h3 className="font-extrabold text-white text-base leading-tight tracking-tight line-clamp-1">
+              {product.name}
+            </h3>
+            
+            <p className="text-[11px] text-slate-400 leading-relaxed italic line-clamp-2">
+              {product.description || (lang === "tr" ? "Bu premium ürün için özel olarak belirlenmiş karışım oranları ve hammadde listesi." : "Special blend ratios and raw ingredient checklist carefully calibrated for this premium tier.")}
+            </p>
+          </div>
+
+          {/* Recipe List with Interactive Dynamic Bars */}
+          <div className="flex-1 my-4 space-y-3.5 overflow-y-auto pr-1">
+            {getRecipeItems(product).map((item: any, idx: number) => {
+              const totalAmount = getRecipeItems(product).reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
+              const percent = totalAmount > 0 ? ((parseFloat(item.amount) || 0) / totalAmount * 100).toFixed(0) : "30";
+              
+              return (
+                <div key={`${item.ingredient_name}-${idx}`} className="space-y-1">
+                  <div className="flex justify-between items-center text-xs font-bold">
+                    <span className="text-slate-200">{item.ingredient_name}</span>
+                    <span className="text-amber-400 font-mono text-[11px]">{item.amount} {item.ingredient_unit}</span>
+                  </div>
+                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: isFlipped ? `${percent}%` : 0 }}
+                      transition={{ duration: 0.8, delay: idx * 0.1 }}
+                      className="bg-gradient-to-r from-amber-500 to-rose-500 h-full rounded-full" 
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Back Footer */}
+          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between shrink-0">
+            <div className="flex flex-col">
+              <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">
+                {t.dashboard.price}
+              </span>
+              <span className="text-base font-extrabold text-amber-400">
+                {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
+              </span>
+            </div>
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFlipped(false);
+                addToBasket(product);
+              }}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/10 active:scale-95 transition-all flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{t.dashboard.addToBasket}</span>
+            </button>
+          </div>
+        </div>
+
+      </motion.div>
+    </div>
   );
 };

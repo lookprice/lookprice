@@ -677,6 +677,15 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
                       </div>
                     )}
                   </div>
+                  {onSaveContract && (
+                    <button 
+                      onClick={handleSaveContract}
+                      disabled={saving}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs rounded-xl flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" /> {saving ? "Sözleşme Kaydediliyor..." : "Sözleşmeyi Güvenli Depoya Kaydet"}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -730,14 +739,26 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
 
                   <button 
                     onClick={() => {
-                      if (!signingName.trim()) return alert("Lütfen onaylayacak kişinin adını yazın.");
-                      const canvas = canvasRef.current;
-                      if (canvas && isSigningActive) {
-                        const dataUrl = canvas.toDataURL("image/png");
-                        setSignatureImage(dataUrl);
+                      if (!clientName.trim()) {
+                        return alert("Lütfen önce '2. Müşteri & Sözleşme Bilgileri' alanındaki 'Müşteri Tam Adı / Temsilci' bilgisini giriniz!");
                       }
+                      if (!clientIdentity.trim()) {
+                        return alert("Lütfen önce '2. Müşteri & Sözleşme Bilgileri' alanındaki 'Kimlik / Pasaport No' bilgisini giriniz!");
+                      }
+                      if (!clientPhone.trim()) {
+                        return alert("Lütfen önce '2. Müşteri & Sözleşme Bilgileri' alanındaki 'Telefon Numarası' bilgisini giriniz!");
+                      }
+                      if (!signingName.trim()) {
+                        return alert("Lütfen 'Hızlı Dijital Onay İmza' alanındaki 'Onaylayan Adı Soyadı' bilgisini giriniz!");
+                      }
+                      const canvas = canvasRef.current;
+                      if (!canvas || !isSigningActive) {
+                        return alert("Lütfen imza kutusuna parmağınızla veya mouse ile bir imza çiziniz!");
+                      }
+                      
+                      const dataUrl = canvas.toDataURL("image/png");
+                      setSignatureImage(dataUrl);
                       setSigned(true);
-                      setClientName(signingName);
                     }}
                     className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase rounded-xl transition-all"
                   >
@@ -767,6 +788,16 @@ export const LegalContractModal: React.FC<LegalContractModalProps> = ({
             </div>
 
             <div className="flex gap-2">
+              {onSaveContract && (
+                <button 
+                  onClick={handleSaveContract}
+                  disabled={saving}
+                  className="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"
+                  title="Sözleşmeyi Kaydet"
+                >
+                  <Save className="w-3.5 h-3.5" /> {saving ? "Kaydediliyor..." : "Sözleşmeyi Kaydet"}
+                </button>
+              )}
               <button 
                 onClick={handlePrint}
                 className="p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl border border-indigo-100 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"

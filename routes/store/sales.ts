@@ -663,6 +663,10 @@ router.post("/:id/deliver", async (req: any, res) => {
 // Cancel Sale
 router.post("/:id/cancel", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { reason } = req.body;
+  if (!reason) {
+    return res.status(400).json({ error: "Cancellation reason is required" });
+  }
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -686,14 +690,14 @@ router.post("/:id/cancel", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
           [item.quantity, item.product_id]
         );
-        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade)`, item.unit_price, sale.customer_name, 'TRY', sale.id);
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade): ${reason}`, item.unit_price, sale.customer_name, 'TRY', sale.id);
       }
     }
 
     await client.query("DELETE FROM current_account_transactions WHERE sale_id = $1", [sale.id]);
     await client.query("DELETE FROM sale_payments WHERE sale_id = $1", [sale.id]);
 
-    await client.query("UPDATE sales SET status = 'cancelled' WHERE id = $1", [req.params.id]);
+    await client.query("UPDATE sales SET status = 'cancelled', cancellation_reason = $1 WHERE id = $2", [reason, req.params.id]);
 
     if (sale.quotation_id) {
       await client.query("UPDATE quotations SET status = 'cancelled', is_sale = FALSE WHERE id = $1", [sale.quotation_id]);
@@ -707,9 +711,9 @@ router.post("/:id/cancel", async (req: any, res) => {
       "sale_cancel", 
       "sale", 
       parseInt(req.params.id), 
-      `Satış iptal edildi: #${req.params.id}`,
+      `Satış iptal edildi: #${req.params.id}. Sebep: ${reason}`,
       { oldStatus: sale.status },
-      { newStatus: 'cancelled' }
+      { newStatus: 'cancelled', reason }
     );
 
     res.json({ success: true });
@@ -721,8 +725,11 @@ router.post("/:id/cancel", async (req: any, res) => {
   }
 });
 
-// Delete Sale
+// Delete Sale (Restrict to Superadmin)
 router.delete("/:id", async (req: any, res) => {
+  if (req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: "Forbidden" });
+  }
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   const client = await pool.connect();
   try {
@@ -770,5 +777,6 @@ router.delete("/:id", async (req: any, res) => {
     client.release();
   }
 });
+
 
 export default router;

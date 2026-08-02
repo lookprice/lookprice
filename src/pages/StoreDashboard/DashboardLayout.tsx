@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { DashboardSidebar } from "./DashboardSidebar";
 import ErrorBoundary from "../../components/ErrorBoundary";
-import { Loader2, Menu } from "lucide-react";
+import { Loader2, Menu, WifiOff } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -11,8 +11,35 @@ interface DashboardLayoutProps {
 }
 
 export const DashboardLayout = ({ children, sidebarProps, loading, lang }: DashboardLayoutProps) => {
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans relative">
+      {/* Offline Alert Banner */}
+      {!isOnline && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] flex items-center gap-3 px-5 py-3 bg-rose-600 text-white rounded-full shadow-2xl font-bold text-xs sm:text-sm animate-pulse border border-rose-500/30">
+          <WifiOff className="h-4 w-4 shrink-0 text-rose-100" />
+          <span>
+            {lang === "tr" 
+              ? "Şu an çevrimdışısınız, verileriniz yerel depoda tutuluyor." 
+              : "You are currently offline, data is saved locally."}
+          </span>
+        </div>
+      )}
+
       {/* Background Pattern */}
       <div className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none overflow-hidden select-none flex flex-wrap gap-8 p-8">
         {Array.from({ length: 150 }).map((_, i) => (

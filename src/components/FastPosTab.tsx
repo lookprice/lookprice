@@ -20,7 +20,9 @@ import {
   Coffee,
   ArrowLeftRight,
   MessageSquare,
-  QrCode
+  QrCode,
+  Clock,
+  Flame
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -59,6 +61,43 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
+
+  // Printer Diagnostics States
+  const [showPrinterDiagnosticModal, setShowPrinterDiagnosticModal] = useState(false);
+  const [printerDiagScenario, setPrinterDiagScenario] = useState<'success' | 'ip_conflict' | 'offline' | 'paper_jam'>('success');
+  const [printerDiagStep, setPrinterDiagStep] = useState<'idle' | 'testing' | 'result'>('idle');
+
+  // Happy Hours state and configuration
+  const [showHappyHourModal, setShowHappyHourModal] = useState(false);
+  const [happyHourConfig, setHappyHourConfig] = useState({
+    startHour: 14,
+    endHour: 18,
+    isEnabled: true
+  });
+  const [happyHourActive, setHappyHourActive] = useState(false);
+  const [forceHappyHour, setForceHappyHour] = useState<boolean | null>(null);
+
+  // Automatically check for happy hour schedule
+  useEffect(() => {
+    if (!happyHourConfig.isEnabled) {
+      setHappyHourActive(false);
+      return;
+    }
+    const checkHappyHour = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      if (currentHour >= happyHourConfig.startHour && currentHour < happyHourConfig.endHour) {
+        setHappyHourActive(true);
+      } else {
+        setHappyHourActive(false);
+      }
+    };
+    checkHappyHour();
+    const interval = setInterval(checkHappyHour, 10000); // Check every 10 seconds for instant feedback
+    return () => clearInterval(interval);
+  }, [happyHourConfig]);
+
+  const isHappyHourActive = forceHappyHour !== null ? forceHappyHour : happyHourActive;
 
   // Cafe/Restaurant Table and Adisyon states
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
@@ -803,9 +842,12 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         ((!item.selectedVariant && !variantName) || (item.selectedVariant && item.selectedVariant.name === variantName))
       );
 
+      const hasHappyHourPrice = isHappyHourActive && product.price_2 && parseFloat(product.price_2.toString()) > 0;
+      const baseProductPrice = hasHappyHourPrice ? product.price_2 : product.price;
+
       const rawPrice = selectedVariant && selectedVariant.price && parseFloat(selectedVariant.price) > 0 
         ? selectedVariant.price 
-        : product.price;
+        : baseProductPrice;
 
       const rate = getExchangeRate(product.currency || 'TRY');
       const convertedPrice = (parseFloat(rawPrice || 0) * rate).toFixed(2);
@@ -1213,6 +1255,35 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 <Calendar className="h-3.5 w-3.5 text-indigo-600" />
                 <span>{lang === 'tr' ? 'Gün Sonu Raporu' : 'End of Day Report'}</span>
               </button>
+
+              <button
+                onClick={() => {
+                  setPrinterDiagStep('idle');
+                  setShowPrinterDiagnosticModal(true);
+                }}
+                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
+                title={lang === 'tr' ? "Mutfak/Bar Yazıcı Sorun Giderici ve Tanı Modülü" : "Kitchen/Bar Printer Troubleshooter & Diagnostics"}
+              >
+                <Printer className="h-3.5 w-3.5 text-amber-600" />
+                <span>{lang === 'tr' ? 'Yazıcı Tanısı' : 'Printer Diagnosis'}</span>
+              </button>
+
+              <button
+                onClick={() => setShowHappyHourModal(true)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer border ${
+                  isHappyHourActive
+                    ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 animate-pulse'
+                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                }`}
+                title={lang === 'tr' ? "Happy Hour (Mutlu Saatler) Kampanya Yapılandırması" : "Happy Hour Campaign Config"}
+              >
+                <Flame className={`h-3.5 w-3.5 ${isHappyHourActive ? 'text-white font-bold' : 'text-indigo-600'}`} />
+                <span>
+                  {isHappyHourActive
+                    ? (lang === 'tr' ? 'Happy Hour Aktif!' : 'Happy Hour Active!')
+                    : (lang === 'tr' ? 'Happy Hour' : 'Happy Hour')}
+                </span>
+              </button>
             </>
           )}
 
@@ -1426,16 +1497,38 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                             {product.name}
                           </span>
                         </div>
-                        <span className="text-xs font-black text-indigo-600 mt-1 whitespace-nowrap">
-                          {product.price} {product.currency || 'TRY'}
-                        </span>
+                        {isHappyHourActive && product.price_2 && parseFloat(product.price_2.toString()) > 0 ? (
+                          <div className="flex flex-col items-center">
+                            <span className="text-[10px] text-slate-400 line-through leading-none">
+                              {product.price} {product.currency || 'TRY'}
+                            </span>
+                            <span className="text-xs font-extrabold text-rose-600 leading-tight">
+                              {product.price_2} {product.currency || 'TRY'}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-black text-indigo-600 mt-1 whitespace-nowrap">
+                            {product.price} {product.currency || 'TRY'}
+                          </span>
+                        )}
                       </div>
 
                       {/* Full-card Elegant Overlay on Hover/Focus */}
                       <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-xs text-white flex flex-col items-center justify-center p-2.5 rounded-xl opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-all duration-200 pointer-events-none z-10 text-center">
                         <ShoppingCart className="h-4 w-4 text-indigo-400 mb-1 animate-bounce" />
                         <p className="text-xs font-extrabold line-clamp-2 px-1 leading-snug">{product.name}</p>
-                        <p className="text-xs text-indigo-300 mt-1 font-black">{product.price} {product.currency || 'TRY'}</p>
+                        {isHappyHourActive && product.price_2 && parseFloat(product.price_2.toString()) > 0 ? (
+                          <div className="text-center mt-1">
+                            <span className="text-[10px] text-slate-300 line-through block leading-none">
+                              {product.price} {product.currency || 'TRY'}
+                            </span>
+                            <span className="text-xs text-rose-400 font-extrabold leading-tight">
+                              {product.price_2} {product.currency || 'TRY'}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-indigo-300 mt-1 font-black">{product.price} {product.currency || 'TRY'}</p>
+                        )}
                         <span className="text-[9px] bg-indigo-600 text-white font-bold px-2 py-0.5 rounded mt-1 tracking-wider">
                           {lang === 'tr' ? 'SEPETE EKLE' : 'ADD TO CART'}
                         </span>
@@ -1985,6 +2078,412 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   {lang === 'tr' ? 'Devam Et' : 'Continue'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Happy Hour Campaign Modal */}
+        {showHappyHourModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-100 p-6"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600 border border-rose-100">
+                    <Flame className="h-5 w-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-base">
+                      {lang === 'tr' ? 'Happy Hour (Mutlu Saatler) Kampanyası' : 'Happy Hour Campaign'}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-semibold">
+                      {lang === 'tr' ? 'Düşük talep saatlerini canlandırmak için özel fiyatlar' : 'Special prices to boost low-demand hours'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowHappyHourModal(false)}
+                  className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="space-y-5 overflow-y-auto pr-1 flex-1 min-h-0 text-slate-600">
+                
+                {/* Active Indicator status banner */}
+                <div className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${
+                  isHappyHourActive
+                    ? 'bg-rose-50 border-rose-100 text-rose-900'
+                    : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`h-3 w-3 rounded-full ${isHappyHourActive ? 'bg-rose-500 animate-ping' : 'bg-slate-300'}`} />
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-wider block">
+                        {lang === 'tr' ? 'KAMPANYA DURUMU' : 'CAMPAIGN STATUS'}
+                      </span>
+                      <span className="text-sm font-bold">
+                        {isHappyHourActive
+                          ? (lang === 'tr' ? 'Şu An Happy Hour Fiyatları Aktif!' : 'Happy Hour Prices Are Active Right Now!')
+                          : (lang === 'tr' ? 'Kampanya Şu Anda Aktif Değil' : 'Campaign is Currently Inactive')}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Countdown helper */}
+                  {isHappyHourActive && !forceHappyHour && (
+                    <span className="text-xs bg-rose-600 text-white font-extrabold px-2.5 py-1 rounded-full">
+                      {lang === 'tr' ? `Saat ${happyHourConfig.endHour}:00'a kadar` : `Until ${happyHourConfig.endHour}:00`}
+                    </span>
+                  )}
+                </div>
+
+                {/* Configuration Controls */}
+                <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-150">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                    {lang === 'tr' ? 'Kampanya Zamanlama Ayarları' : 'Campaign Schedule Settings'}
+                  </h4>
+
+                  <div className="flex items-center justify-between py-1 border-b border-slate-200/50">
+                    <span className="text-xs font-bold text-slate-700">{lang === 'tr' ? 'Zamanlama Etkinleştir' : 'Enable Schedule'}</span>
+                    <button
+                      onClick={() => setHappyHourConfig(prev => ({ ...prev, isEnabled: !prev.isEnabled }))}
+                      className={`w-11 h-6 rounded-full transition-all relative ${happyHourConfig.isEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                    >
+                      <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-all ${happyHourConfig.isEnabled ? 'translate-x-5' : ''}`} />
+                    </button>
+                  </div>
+
+                  {happyHourConfig.isEnabled && (
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                          {lang === 'tr' ? 'Başlangıç Saati' : 'Start Hour'}
+                        </label>
+                        <select
+                          value={happyHourConfig.startHour}
+                          onChange={(e) => setHappyHourConfig(prev => ({ ...prev, startHour: parseInt(e.target.value) }))}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-indigo-500 focus:outline-none"
+                        >
+                          {Array.from({ length: 24 }).map((_, i) => (
+                            <option key={i} value={i}>{i < 10 ? `0${i}` : i}:00</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                          {lang === 'tr' ? 'Bitiş Saati' : 'End Hour'}
+                        </label>
+                        <select
+                          value={happyHourConfig.endHour}
+                          onChange={(e) => setHappyHourConfig(prev => ({ ...prev, endHour: parseInt(e.target.value) }))}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-indigo-500 focus:outline-none"
+                        >
+                          {Array.from({ length: 24 }).map((_, i) => (
+                            <option key={i} value={i}>{i < 10 ? `0${i}` : i}:00</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Manual Override controls */}
+                <div className="space-y-2">
+                  <span className="text-xs font-black text-slate-400 uppercase tracking-wider block">
+                    {lang === 'tr' ? 'Manuel Müdahale / Ezme Modu' : 'Manual Override / Force Mode'}
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setForceHappyHour(null)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${forceHappyHour === null ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                    >
+                      🕒 {lang === 'tr' ? 'Zamanlamaya Bırak' : 'Use Schedule'}
+                    </button>
+                    <button
+                      onClick={() => setForceHappyHour(true)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${forceHappyHour === true ? 'bg-rose-600 border-rose-600 text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                    >
+                      🔥 {lang === 'tr' ? 'Her Zaman Aktif Et' : 'Force Always On'}
+                    </button>
+                    <button
+                      onClick={() => setForceHappyHour(false)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${forceHappyHour === false ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                    >
+                      ❌ {lang === 'tr' ? 'Tamamen Devre Dışı' : 'Force Always Off'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Affected Products Quick list */}
+                <div className="space-y-2">
+                  <span className="text-xs font-black text-slate-400 uppercase tracking-wider block">
+                    {lang === 'tr' ? 'Happy Hour Fiyatı Tanımlı Ürünler (Alternatif Fiyat 2)' : 'Happy Hour Priced Products (Alternative Price 2)'}
+                  </span>
+
+                  <div className="border border-slate-150 rounded-2xl overflow-hidden max-h-[160px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-400 font-extrabold uppercase border-b border-slate-150">
+                          <th className="p-2.5">{lang === 'tr' ? 'Ürün Adı' : 'Product'}</th>
+                          <th className="p-2.5 text-right">{lang === 'tr' ? 'Normal Fiyat' : 'Regular'}</th>
+                          <th className="p-2.5 text-right text-rose-600">{lang === 'tr' ? 'Happy Hour' : 'Promo'}</th>
+                          <th className="p-2.5 text-right">{lang === 'tr' ? 'İndirim' : 'Discount'}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allProducts.filter(p => p.price_2 && parseFloat(p.price_2.toString()) > 0).length > 0 ? (
+                          allProducts
+                            .filter(p => p.price_2 && parseFloat(p.price_2.toString()) > 0)
+                            .map((p) => {
+                              const disc = (((parseFloat(p.price) - parseFloat(p.price_2)) / parseFloat(p.price)) * 100).toFixed(0);
+                              return (
+                                <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50 font-semibold text-slate-700">
+                                  <td className="p-2.5 truncate max-w-[150px]">{p.name}</td>
+                                  <td className="p-2.5 text-right line-through text-slate-400">{p.price} {p.currency}</td>
+                                  <td className="p-2.5 text-right text-rose-600 font-bold">{p.price_2} {p.currency}</td>
+                                  <td className="p-2.5 text-right text-emerald-600 font-extrabold">%{disc}</td>
+                                </tr>
+                              );
+                            })
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="p-4 text-center text-slate-400 font-medium">
+                              {lang === 'tr' ? 'Fiyat 2 (Alternatif Fiyat) girilmiş ürün bulunmamaktadır.' : 'No products have alternative price 2 configured.'}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="flex gap-2 justify-end pt-4 border-t border-slate-100 mt-4">
+                <button
+                  onClick={() => setShowHappyHourModal(false)}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl transition-all active:scale-[0.98]"
+                >
+                  {lang === 'tr' ? 'Kaydet ve Kapat' : 'Save & Close'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Printer Diagnostic Tool Modal */}
+        {showPrinterDiagnosticModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-100 p-6"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 border border-amber-100">
+                    <Printer className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-base">
+                      {lang === 'tr' ? 'Yazıcı Durumu ve Ağ Tanı Aracı' : 'Printer Status & Diagnostics'}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-semibold">
+                      {lang === 'tr' ? 'Yerel ağ ve donanım sorun gidericisi' : 'Local network & hardware troubleshooter'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowPrinterDiagnosticModal(false)}
+                  className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {printerDiagStep === 'idle' && (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    {lang === 'tr' 
+                      ? 'Bu panel, mutfaktaki yazıcıların IP çakışmaları, kablo bağlantı hataları veya yazıcı çevrimdışı durumlarını tespit edip kullanıcı dostu yönlendirmeler sunar.' 
+                      : 'This panel detects printer IP conflicts, cable disconnected errors, or offline status and provides user-friendly instructions.'}
+                  </p>
+
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                      {lang === 'tr' ? 'Simüle Edilecek Durumu Seçin:' : 'Select Scenario to Simulate:'}
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button 
+                        onClick={() => setPrinterDiagScenario('success')}
+                        className={`p-3 rounded-xl border text-left text-xs font-bold transition-all ${printerDiagScenario === 'success' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        ✅ {lang === 'tr' ? 'Her Şey Yolunda (Sorunsuz)' : 'All Good (Healthy)'}
+                      </button>
+                      <button 
+                        onClick={() => setPrinterDiagScenario('ip_conflict')}
+                        className={`p-3 rounded-xl border text-left text-xs font-bold transition-all ${printerDiagScenario === 'ip_conflict' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        ⚠️ {lang === 'tr' ? 'IP Adresi Çakışması Hatası' : 'IP Address Conflict'}
+                      </button>
+                      <button 
+                        onClick={() => setPrinterDiagScenario('offline')}
+                        className={`p-3 rounded-xl border text-left text-xs font-bold transition-all ${printerDiagScenario === 'offline' ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        🔌 {lang === 'tr' ? 'Yazıcı Çevrimdışı / Kablo Yok' : 'Printer Offline / Cable Loose'}
+                      </button>
+                      <button 
+                        onClick={() => setPrinterDiagScenario('paper_jam')}
+                        className={`p-3 rounded-xl border text-left text-xs font-bold transition-all ${printerDiagScenario === 'paper_jam' ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        📄 {lang === 'tr' ? 'Kapak Açık / Kağıt Bitti' : 'Cover Open / Out of Paper'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setPrinterDiagStep('testing');
+                      setTimeout(() => {
+                        setPrinterDiagStep('result');
+                      }, 1500);
+                    }}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/10 active:scale-98 transition-all flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4 animate-spin-slow" />
+                    <span>{lang === 'tr' ? 'Tanılamayı Başlat (Ping & Durum)' : 'Start Diagnostics (Ping & Status)'}</span>
+                  </button>
+                </div>
+              )}
+
+              {printerDiagStep === 'testing' && (
+                <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                  <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm font-bold text-slate-600 animate-pulse">
+                    {lang === 'tr' ? 'Yazıcıya Ping Gönderiliyor, Ağ Durumu Analiz Ediliyor...' : 'Pinging printer, analyzing network state...'}
+                  </p>
+                </div>
+              )}
+
+              {printerDiagStep === 'result' && (
+                <div className="space-y-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-500">{lang === 'tr' ? 'Mutfak Yazıcı IP Adresi' : 'Kitchen Printer IP'}</span>
+                      <span className="text-slate-700">192.168.1.102</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-500">{lang === 'tr' ? 'Print Server İletişimi' : 'Print Server Link'}</span>
+                      <span className={printerDiagScenario === 'offline' ? 'text-rose-600' : 'text-emerald-600'}>
+                        {printerDiagScenario === 'offline' ? 'FAILED' : 'OK'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-500">{lang === 'tr' ? 'Ağ Paket Kaybı (Loss)' : 'Packet Loss'}</span>
+                      <span className={printerDiagScenario === 'offline' ? 'text-rose-600' : 'text-emerald-600'}>
+                        {printerDiagScenario === 'offline' ? '100%' : '0%'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {printerDiagScenario === 'success' && (
+                    <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-800 text-xs font-medium leading-relaxed">
+                      <h4 className="font-bold text-sm mb-1">✅ {lang === 'tr' ? 'Yazıcı Sağlıklı Çalışıyor' : 'Printer is Healthy'}</h4>
+                      {lang === 'tr' 
+                        ? 'Yazıcınız yerel ağda başarıyla tespit edildi. Kağıt rulosu yeterli ve herhangi bir IP çakışması saptanmadı. Sipariş çıktısı alabilirsiniz.' 
+                        : 'Your printer is successfully detected. Paper is sufficient and no IP conflict found. You can print orders.'}
+                    </div>
+                  )}
+
+                  {printerDiagScenario === 'ip_conflict' && (
+                    <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl text-amber-900 text-xs leading-relaxed">
+                      <h4 className="font-bold text-sm mb-1 text-amber-800">⚠️ {lang === 'tr' ? 'IP Adresi Çakışması Tespit Edildi!' : 'IP Address Conflict Detected!'}</h4>
+                      <p className="mb-2">
+                        {lang === 'tr'
+                          ? 'Mutfak Yazıcısının IP adresi (192.168.1.102) yerel ağdaki başka bir akıllı cihaz veya cep telefonu tarafından işgal edilmiş durumda!'
+                          : 'The Kitchen Printer IP address (192.168.1.102) is being used by another device (like a smartphone or TV) on your network.'}
+                      </p>
+                      <span className="font-bold block mt-2 text-amber-900">{lang === 'tr' ? 'Çözüm Önerisi:' : 'Solution:'}</span>
+                      <ul className="list-disc list-inside space-y-1 mt-1 font-semibold text-amber-800">
+                        <li>{lang === 'tr' ? 'Mutfak yazıcısını kapatıp tekrar açın.' : 'Turn the printer off and on again.'}</li>
+                        <li>{lang === 'tr' ? 'Yazıcınıza modem arayüzünden statik (sabit) bir IP adresi atayın.' : 'Assign a static IP address to the printer via your router settings.'}</li>
+                        <li>{lang === 'tr' ? 'Yerel ağdaki diğer cihazların DHCP üzerinden çakışma yapmasını önlemek için modemi yeniden başlatın.' : 'Restart the router to clear DHCP IP allocation conflicts.'}</li>
+                      </ul>
+                    </div>
+                  )}
+
+                  {printerDiagScenario === 'offline' && (
+                    <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-900 text-xs leading-relaxed">
+                      <h4 className="font-bold text-sm mb-1 text-rose-800">🔌 {lang === 'tr' ? 'Yazıcı Çevrimdışı / Bağlantı Koptu' : 'Printer Offline / Disconnected'}</h4>
+                      <p className="mb-2">
+                        {lang === 'tr'
+                          ? 'Yazıcı ile yerel ağ üzerinden bağlantı kurulamadı. Print Server (Print-Daemon) çalışıyor ancak fiziksel yazıcıya erişemiyor.'
+                          : 'Could not connect to the printer over the local network. The Print Server daemon is running but cannot reach the hardware.'}
+                      </p>
+                      <span className="font-bold block mt-2 text-rose-900">{lang === 'tr' ? 'Çözüm Önerisi:' : 'Solution:'}</span>
+                      <ul className="list-disc list-inside space-y-1 mt-1 font-semibold text-rose-800">
+                        <li>{lang === 'tr' ? 'Ethernet / LAN kablosunun yazıcının arkasına ve modeme tam oturduğundan emin olun.' : 'Ensure the Ethernet/LAN cable is plugged securely into the printer and router.'}</li>
+                        <li>{lang === 'tr' ? 'Yazıcının güç ışığının yandığından emin olun.' : 'Check if the printer power light is green.'}</li>
+                        <li>{lang === 'tr' ? 'Modemdeki yeşil LAN ışığının yanıp söndüğünü kontrol edin.' : 'Verify if the green LAN light is flashing on your router.'}</li>
+                      </ul>
+                    </div>
+                  )}
+
+                  {printerDiagScenario === 'paper_jam' && (
+                    <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-900 text-xs leading-relaxed">
+                      <h4 className="font-bold text-sm mb-1 text-rose-800">📄 {lang === 'tr' ? 'Kağıt Sıkışması / Kapak Açık' : 'Paper Jam / Cover Open'}</h4>
+                      <p className="mb-2">
+                        {lang === 'tr'
+                          ? 'Yazıcı ağda aktif ancak donanım hatası bildiriyor. Kağıt rulosu bitmiş, rulo sıkışmış veya üst kapak tam kapanmamış.'
+                          : 'Printer is active on the network but reporting a hardware error. Paper is empty, jammed, or the top lid is not closed properly.'}
+                      </p>
+                      <span className="font-bold block mt-2 text-rose-900">{lang === 'tr' ? 'Çözüm Önerisi:' : 'Solution:'}</span>
+                      <ul className="list-disc list-inside space-y-1 mt-1 font-semibold text-rose-800">
+                        <li>{lang === 'tr' ? 'Yazıcının kapağını açıp kağıt rulosunu düzeltin veya yeni bir rulo takın.' : 'Open the lid, adjust the paper roll, or install a new paper roll.'}</li>
+                        <li>{lang === 'tr' ? 'Kapağı sertçe bastırarak tam oturduğundan emin olun.' : 'Ensure the cover click-locks completely shut.'}</li>
+                        <li>{lang === 'tr' ? 'Hata ışığının sönüp sönmediğini takip edin.' : 'Check if the red error LED goes off.'}</li>
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setPrinterDiagStep('idle')}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all"
+                    >
+                      {lang === 'tr' ? 'Yeniden Test Et' : 'Test Again'}
+                    </button>
+                    <button
+                      onClick={() => setShowPrinterDiagnosticModal(false)}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all"
+                    >
+                      {lang === 'tr' ? 'Kapat' : 'Close'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

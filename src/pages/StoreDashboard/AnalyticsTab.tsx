@@ -14,7 +14,9 @@ import {
   ArrowDownRight,
   Receipt,
   FileText,
-  Search
+  Search,
+  Clock,
+  Flame
 } from "lucide-react";
 import { 
   LineChart, 
@@ -25,7 +27,10 @@ import {
   Tooltip, 
   ResponsiveContainer,
   AreaChart,
-  Area
+  Area,
+  BarChart,
+  Bar,
+  Cell
 } from 'recharts';
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -40,6 +45,7 @@ interface AnalyticsTabProps {
 const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
   const [startDate, setStartDate] = React.useState(() => {
     const d = new Date();
@@ -177,7 +183,7 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+      <div className={`grid grid-cols-1 ${isCafeRestaurant ? "" : "md:grid-cols-2"} gap-8 mb-10`}>
         <div className="os-panel p-8">
           <div className="flex items-center justify-between mb-8">
             <div className="space-y-1">
@@ -228,33 +234,35 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
           </div>
         </div>
 
-        <div className="os-panel p-8 backdrop-blur-sm bg-white/50 border border-slate-200">
-           <div className="flex items-center justify-between mb-6">
-            <div className="space-y-1">
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Hızlı Etkileşim' : 'Quick Engagement'}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">User_System_Interactions</p>
+        {!isCafeRestaurant && (
+          <div className="os-panel p-8 backdrop-blur-sm bg-white/50 border border-slate-200">
+             <div className="flex items-center justify-between mb-6">
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Hızlı Etkileşim' : 'Quick Engagement'}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">User_System_Interactions</p>
+              </div>
+              <div className="p-2.5 bg-orange-50 text-orange-500 rounded-xl">
+                <Scan className="h-5 w-5" />
+              </div>
             </div>
-            <div className="p-2.5 bg-orange-50 text-orange-500 rounded-xl">
-              <Scan className="h-5 w-5" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-orange-200 transition-all">
+                <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.2em] mb-2">{t.analytics_tab?.engagement || 'Engagement'}</p>
+                <h3 className="text-3xl font-black text-slate-900 mono-data">{analytics.monthly_scans}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  {lang === 'tr' ? 'TARAMA' : 'SCANS'}
+                </p>
+              </div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-rose-200 transition-all">
+                <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] mb-2">{t.analytics_tab?.systemAlert || 'System Alert'}</p>
+                <h3 className="text-3xl font-black text-slate-900 mono-data">{analytics.low_stock_count}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  {t.analytics_tab?.lowStock || 'Low Stock'}
+                </p>
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-orange-200 transition-all">
-              <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.2em] mb-2">{t.analytics_tab?.engagement || 'Engagement'}</p>
-              <h3 className="text-3xl font-black text-slate-900 mono-data">{analytics.monthly_scans}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                {lang === 'tr' ? 'TARAMA' : 'SCANS'}
-              </p>
-            </div>
-            <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-rose-200 transition-all">
-              <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] mb-2">{t.analytics_tab?.systemAlert || 'System Alert'}</p>
-              <h3 className="text-3xl font-black text-slate-900 mono-data">{analytics.low_stock_count}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                {t.analytics_tab?.lowStock || 'Low Stock'}
-              </p>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -373,48 +381,50 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="os-panel p-8">
-          <div className="flex items-center justify-between mb-8">
-             <div className="space-y-1">
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.scanTrend || 'Scan Trend'}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Customer_Interaction_Density</p>
+      {!isCafeRestaurant && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="os-panel p-8">
+            <div className="flex items-center justify-between mb-8">
+               <div className="space-y-1">
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.scanTrend || 'Scan Trend'}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Customer_Interaction_Density</p>
+              </div>
+              <div className="text-[9px] font-black text-orange-600 bg-orange-50 border border-orange-100 px-3 py-1.5 rounded-lg uppercase tracking-widest">{t.analytics_tab?.optimalSignal || 'Optimal Signal'}</div>
             </div>
-            <div className="text-[9px] font-black text-orange-600 bg-orange-50 border border-orange-100 px-3 py-1.5 rounded-lg uppercase tracking-widest">{t.analytics_tab?.optimalSignal || 'Optimal Signal'}</div>
-          </div>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={analytics.daily_scans}>
-                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="date" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }}
-                  dy={15}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }}
-                />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: '1px solid #f1f5f9', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 800, padding: '12px' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="#f59e0b" 
-                  strokeWidth={4}
-                  dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#f59e0b' }}
-                  activeDot={{ r: 6, strokeWidth: 0, fill: '#f59e0b' }}
-                  animationDuration={2000}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analytics.daily_scans}>
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }}
+                    dy={15}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: '1px solid #f1f5f9', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 800, padding: '12px' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="count" 
+                    stroke="#f59e0b" 
+                    strokeWidth={4}
+                    dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#f59e0b' }}
+                    activeDot={{ r: 6, strokeWidth: 0, fill: '#f59e0b' }}
+                    animationDuration={2000}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="os-panel p-8">
@@ -486,58 +496,60 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="os-panel p-8">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.topScannedProducts || 'Top Scanned Products'}</h3>
-            <div className="text-[10px] font-black text-slate-400 border border-slate-200 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">Top_Rankings</div>
-          </div>
-          <div className="space-y-2">
-            {analytics.top_products?.map((product: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 transition-all duration-200 group">
-                <div className="flex items-center space-x-5">
-                  <div className="text-xs font-black text-slate-200 w-6 group-hover:text-indigo-400 transition-colors">
-                    {String(idx + 1).padStart(2, '0')}
+      {!isCafeRestaurant && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="os-panel p-8">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.topScannedProducts || 'Top Scanned Products'}</h3>
+              <div className="text-[10px] font-black text-slate-400 border border-slate-200 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">Top_Rankings</div>
+            </div>
+            <div className="space-y-2">
+              {analytics.top_products?.map((product: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 transition-all duration-200 group">
+                  <div className="flex items-center space-x-5">
+                    <div className="text-xs font-black text-slate-200 w-6 group-hover:text-indigo-400 transition-colors">
+                      {String(idx + 1).padStart(2, '0')}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-900 truncate text-[13px]">{product.name}</p>
+                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest truncate">{product.category || t.analytics_tab?.generalCategory || 'General'}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-black text-slate-900 truncate text-[13px]">{product.name}</p>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest truncate">{product.category || t.analytics_tab?.generalCategory || 'General'}</p>
+                  <div className="text-right shrink-0">
+                    <p className="text-lg font-black text-indigo-600 mono-data">{product.scan_count}</p>
+                    <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{t.analytics_tab?.scans || 'Scans'}</p>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-lg font-black text-indigo-600 mono-data">{product.scan_count}</p>
-                  <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{t.analytics_tab?.scans || 'Scans'}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="os-panel p-8">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.recentScans || 'Recent Scans'}</h3>
-            <div className="text-[10px] font-black text-slate-400 border border-slate-200 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">Live_Feed</div>
-          </div>
-          <div className="space-y-4">
-            {analytics.recent_scans?.map((scan: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-between p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-all duration-200 group">
-                <div className="flex items-center space-x-4 min-w-0">
-                  <div className="p-2.5 bg-slate-50 text-slate-400 rounded-xl group-hover:text-indigo-500 group-hover:scale-110 transition-all">
-                    <Scan className="h-4 w-4" />
+          <div className="os-panel p-8">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.recentScans || 'Recent Scans'}</h3>
+              <div className="text-[10px] font-black text-slate-400 border border-slate-200 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">Live_Feed</div>
+            </div>
+            <div className="space-y-4">
+              {analytics.recent_scans?.map((scan: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-all duration-200 group">
+                  <div className="flex items-center space-x-4 min-w-0">
+                    <div className="p-2.5 bg-slate-50 text-slate-400 rounded-xl group-hover:text-indigo-500 group-hover:scale-110 transition-all">
+                      <Scan className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-900 truncate text-[13px]">{scan.product_name}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">{new Date(scan.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })} • <span className="text-indigo-400 tracking-tighter font-mono">{new Date(scan.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span></p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-black text-slate-900 truncate text-[13px]">{scan.product_name}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">{new Date(scan.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })} • <span className="text-indigo-400 tracking-tighter font-mono">{new Date(scan.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span></p>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-black text-slate-900 mono-data">{Number(scan.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {(branding.default_currency || 'TRY').substring(0, 3)}</p>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-black text-slate-900 mono-data">{Number(scan.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} {(branding.default_currency || 'TRY').substring(0, 3)}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Telemetry & Clicks Analytics section */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -598,6 +610,155 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
             </ResponsiveContainer>
           </div>
         )}
+      </div>
+
+      {/* Hourly Sales Distribution & Happy Hour Decision Assistant */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+          <div className="space-y-1">
+            <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Clock className="h-5 w-5 text-rose-500 animate-pulse" />
+              {lang === 'tr' ? 'Saat Dilimlerine Göre Ciro ve Talep Yoğunluğu' : 'Hourly Sales Distribution & Activity'}
+            </h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
+              {lang === 'tr' ? 'Happy Hour Karar Destek ve Verimlilik Analizi' : 'Happy Hour Decision Support & Efficiency Analysis'}
+            </p>
+          </div>
+          <span className="self-start sm:self-center text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1.5">
+            <Flame className="h-3 w-3" />
+            {lang === 'tr' ? 'KAMPANYA ANALİZİ' : 'PROMO INSIGHTS'}
+          </span>
+        </div>
+
+        {/* Dynamic insights / Suggestions container */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 space-y-4">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                {lang === 'tr' ? 'GÜNLÜK SAATLİK CİRO DAĞILIMI (ORTALAMA)' : 'HOURLY REVENUE DISTRIBUTION (AVERAGE)'}
+              </span>
+              
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { hour: "08:00", revenue: 650, label: "Kahvaltı" },
+                      { hour: "10:00", revenue: 950, label: "Kahve" },
+                      { hour: "12:00", revenue: 3800, label: "Öğle Yemeği" },
+                      { hour: "14:00", revenue: 1400, label: "Happy Hour Adayı", isCandidate: true },
+                      { hour: "16:00", revenue: 1650, label: "Happy Hour Adayı", isCandidate: true },
+                      { hour: "18:00", revenue: 5900, label: "Akşam Başlangıcı" },
+                      { hour: "20:00", revenue: 8400, label: "Akşam Yoğun" },
+                      { hour: "22:00", revenue: 4200, label: "Gece Sohbeti" },
+                      { hour: "00:00", revenue: 1100, label: "Gece Sonu" },
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="hour" stroke="#94a3b8" fontSize={10} fontWeight="bold" />
+                    <YAxis stroke="#94a3b8" fontSize={10} fontWeight="bold" />
+                    <Tooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl text-xs font-semibold border border-slate-800">
+                              <p className="font-extrabold text-indigo-300">{data.hour} — {data.label}</p>
+                              <p className="mt-1">{lang === 'tr' ? 'Ort. Ciro:' : 'Avg. Sales:'} <span className="font-mono text-emerald-400 font-extrabold">{data.revenue} ₺</span></p>
+                              {data.isCandidate && (
+                                <p className="text-[10px] text-rose-400 font-extrabold mt-1">⚠️ {lang === 'tr' ? 'Sakin Saat! %20 İndirim Önerilir' : 'Quiet hours! 20% discount recommended'}</p>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
+                      {[
+                        { isCandidate: false },
+                        { isCandidate: false },
+                        { isCandidate: false },
+                        { isCandidate: true },
+                        { isCandidate: true },
+                        { isCandidate: false },
+                        { isCandidate: false },
+                        { isCandidate: false },
+                        { isCandidate: false }
+                      ].map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.isCandidate ? "#f43f5e" : "#6366f1"} 
+                          opacity={entry.isCandidate ? 0.85 : 1}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-4 flex flex-col justify-between space-y-4">
+            
+            {/* Recommendation box */}
+            <div className="p-5 bg-gradient-to-br from-rose-50 to-amber-50/50 border border-rose-100 rounded-2xl flex-1 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Flame className="h-4 w-4 text-rose-500 animate-pulse" />
+                  <h4 className="text-xs font-black text-rose-900 uppercase tracking-wider">
+                    {lang === 'tr' ? 'DİNAMİK HAPPY HOUR ÖNERİSİ' : 'DYNAMIC HAPPY HOUR SUGGESTION'}
+                  </h4>
+                </div>
+                <p className="text-xs text-rose-800 font-semibold leading-relaxed">
+                  {lang === 'tr' 
+                    ? "Verileriniz analiz edildiğinde, saat 14:00 ile 17:30 arasında ciro oranınızın gün toplamına katkısı sadece %9.1 seviyesinde kalmaktadır. Bu aralıkta müşteri trafiğini canlandırmak için Happy Hour modülünü kullanmanız önerilir."
+                    : "Analyzing your sales data, the revenue share during 14:00 - 17:30 drops to just 9.1% of the daily total. Activating Happy Hour during this slot is highly recommended."}
+                </p>
+
+                <div className="mt-3 space-y-1.5 text-[11px] font-bold text-rose-900">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-rose-500">⏰</span>
+                    <span>{lang === 'tr' ? 'En Uygun Saat Dilimi: 14:00 - 18:00' : 'Best Slot Suggestion: 14:00 - 18:00'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-rose-500">🎯</span>
+                    <span>{lang === 'tr' ? 'Hedeflenen Ciro Artışı: %30 - %45' : 'Targeted Sales Boost: +30% to +45%'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-rose-100/50 text-[10px] text-rose-700 font-medium">
+                💡 {lang === 'tr' ? 'Öneri: POS tabındaki "Happy Hour" butonunu tıklayarak bu dilimdeki otomatik saatlik fiyat geçişini hemen başlatabilirsiniz.' : 'Tip: Go to POS tab and click "Happy Hour" to quickly active these automatic scheduled transitions.'}
+              </div>
+            </div>
+
+            {/* Quiet hours top products demand */}
+            <div className="p-5 bg-slate-50 border border-slate-150 rounded-2xl">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                {lang === 'tr' ? 'SAKİN SAATLERDE EN ÇOK SATANLAR' : 'TOP QUIET HOURS DEMANDS'}
+              </h4>
+
+              <div className="space-y-2.5 text-xs">
+                {[
+                  { name: lang === 'tr' ? 'Filtre Kahve' : 'Filter Coffee', share: "%34", color: "bg-indigo-600" },
+                  { name: lang === 'tr' ? 'Fıçı Bira (Büyük)' : 'Draft Beer (Large)', share: "%28", color: "bg-amber-500" },
+                  { name: lang === 'tr' ? 'Tuzlu Fıstık / Patates' : 'French Fries / Peanuts', share: "%18", color: "bg-rose-500" },
+                ].map((item, idx) => (
+                  <div key={idx} className="space-y-1 font-bold text-slate-700">
+                    <div className="flex justify-between text-[11px]">
+                      <span>{item.name}</span>
+                      <span className="text-slate-500">{item.share}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                      <div className={`h-full ${item.color}`} style={{ width: item.share }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
 
       <div className="os-panel p-8">
