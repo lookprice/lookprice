@@ -40,6 +40,12 @@ export const LandingPage = () => {
   const { lang, setLang } = useLanguage();
   const t = translations[lang];
 
+  const txt = (trText: string, enText: string, elText: string) => {
+    if (lang === 'tr') return trText;
+    if (lang === 'el') return elText;
+    return enText;
+  };
+
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -70,14 +76,18 @@ export const LandingPage = () => {
 
   const handleDemoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setDemoStatus({ type: "loading", text: lang === 'tr' ? "Gönderiliyor..." : "Sending..." });
+    setDemoStatus({ type: "loading", text: txt("Gönderiliyor...", "Sending...", "Στέλνεται...") });
     
     try {
       const data = await api.requestDemo(demoForm);
       if (data.success) {
         setDemoStatus({ 
           type: "success", 
-          text: lang === 'tr' ? "Talebiniz alındı! En kısa sürede sizinle iletişime geçeceğiz." : "Request received! We will contact you shortly." 
+          text: txt(
+            "Talebiniz alındı! En kısa sürede sizinle iletişime geçeceğiz.",
+            "Request received! We will contact you shortly.",
+            "Το αίτημά σας ελήφθη! Θα επικοινωνήσουμε μαζί σας σύντομα."
+          ) 
         });
         setDemoForm({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" });
         setTimeout(() => {
@@ -87,13 +97,17 @@ export const LandingPage = () => {
       } else {
         setDemoStatus({ 
           type: "error", 
-          text: lang === 'tr' ? "Bir hata oluştu. Lütfen tekrar deneyin." : "An error occurred. Please try again." 
+          text: txt(
+            "Bir hata oluştu. Lütfen tekrar deneyin.",
+            "An error occurred. Please try again.",
+            "Παρουσιάστηκε σφάλμα. Παρακαλώ προσπαθήστε ξανά."
+          ) 
         });
       }
     } catch (err) {
       setDemoStatus({ 
         type: "error", 
-        text: lang === 'tr' ? "Bağlantı hatası." : "Connection error." 
+        text: txt("Bağlantı hatası.", "Connection error.", "Σφάλμα σύνδεσης.") 
       });
     }
   };
@@ -101,207 +115,177 @@ export const LandingPage = () => {
   const products = [
     {
       name: "AutoLP",
-      sector: lang === 'tr' ? "Otomotiv & Galeri" : "Automotive & Gallery",
-      description: lang === 'tr' 
-        ? "Yeni nesil galeri standartlarına özel araç tescil, gümrük takibi, GBP/Sterlin kur senkronizasyonu ve hızlı PDF broşür oluşturma sistemi."
-        : "Automotive inventory management, vehicle registration, GBP currency sync, and instant PDF catalogue builder.",
+      sector: txt("Otomotiv & Galeri", "Automotive & Gallery", "Αυτοκίνητα & Γκαλερί"),
+      description: txt(
+        "Yeni nesil galeri standartlarına özel araç tescil, gümrük takibi, GBP/Sterlin kur senkronizasyonu ve hızlı PDF broşür oluşturma sistemi.",
+        "Automotive inventory management, vehicle registration, GBP currency sync, and instant PDF catalogue builder.",
+        "Διαχείριση αποθέματος αυτοκινήτων, εγγραφή οχημάτων, συγχρονισμός GBP και άμεση δημιουργία καταλόγου PDF."
+      ),
       icon: Car,
       link: "/auto-landing",
       bgImage: "/images/auto_bg_1785752006748.jpg",
       color: "from-blue-600/20 to-cyan-600/10",
       accent: "text-blue-500",
       btnBg: "bg-blue-600 hover:bg-blue-700",
-      features: lang === 'tr' 
-        ? [
-            "Gelişmiş Filo & Bakım Yönetimi",
-            "Dijital İmzalı Satış & Konsinye Sözleşmesi",
-            "Instagram & enrakipsiz.com Otomatik Paylaşım",
-            "Maliyet, Cari & Kâr/Zarar Takip Paneli"
-          ]
-        : [
-            "Advanced Fleet & Maintenance Management",
-            "Digitally Signed Sales & Consignment Contracts",
-            "Automatic Instagram & enrakipsiz.com Sync",
-            "Cost, Ledger & Profit Tracker Dashboard"
-          ]
+      features: [
+        txt("Gelişmiş Filo & Bakım Yönetimi", "Advanced Fleet & Maintenance Management", "Προηγμένη Διαχείριση Στόλου & Συντήρησης"),
+        txt("Dijital İmzalı Satış & Konsinye Sözleşmesi", "Digitally Signed Sales & Consignment Contracts", "Ψηφιακά Υπογεγραμμένα Συμβόλαια Πωλήσεων & Παρακαταθήκης"),
+        txt("Instagram & enrakipsiz.com Otomatik Paylaşım", "Automatic Instagram & enrakipsiz.com Sync", "Αυτόματος Συγχρονισμός Instagram & enrakipsiz.com"),
+        txt("Maliyet, Cari & Kâr/Zarar Takip Paneli", "Cost, Ledger & Profit Tracker Dashboard", "Πίνακας Ελέγχου Κόστους, Καθολικού & Παρακολούθησης Κερδών")
+      ]
     },
     {
       name: "REstateLP",
-      sector: lang === 'tr' ? "Gayrimenkul & Portföy" : "Real Estate & Brokerage",
-      description: lang === 'tr' 
-        ? "Modern emlak piyasası mülkiyet ve koçan türlerine uyumlu akıllı eşleştirme ve lüks konut sunum altyapısı."
-        : "Smart matching real estate CRM with property deed management (Turkish Title, Equivalent) and luxury teasers.",
+      sector: txt("Gayrimenkul & Portföy", "Real Estate & Brokerage", "Ακίνητα & Κτηματομεσιτικά"),
+      description: txt(
+        "Modern emlak piyasası mülkiyet ve koçan türlerine uyumlu akıllı eşleştirme ve lüks konut sunum altyapısı.",
+        "Smart matching real estate CRM with property deed management (Turkish Title, Equivalent) and luxury teasers.",
+        "Έξυπνο CRM ακινήτων με διαχείριση τίτλων ιδιοκτησίας και παρουσιάσεις πολυτελείας."
+      ),
       icon: Building2,
       link: "/restate-landing",
       bgImage: "/images/restate_bg_1785752020453.jpg",
       color: "from-rose-600/20 to-purple-600/10",
       accent: "text-rose-500",
       btnBg: "bg-rose-600 hover:bg-rose-700",
-      features: lang === 'tr' 
-        ? [
-            "Gezi, Randevu & CRM Pipeline",
-            "Biyometrik Dijital İmzalı Sözleşmeler",
-            "Vitrin Posterleri & Sosyal Medya Afişleri",
-            "Instagram & enrakipsiz.com Otomatik Paylaşım"
-          ]
-        : [
-            "Tour, Appointment & CRM Pipeline",
-            "Biometric Digitally Signed Contracts",
-            "Show Window Posters & Social Media Banners",
-            "Automatic Instagram & enrakipsiz.com Sync"
-          ]
+      features: [
+        txt("Gezi, Randevu & CRM Pipeline", "Tour, Appointment & CRM Pipeline", "Διαδρομή Ξενάγησης, Ραντεβού & CRM Pipeline"),
+        txt("Biyometrik Dijital İmzalı Sözleşmeler", "Biometric Digitally Signed Contracts", "Ψηφιακά Υπογεγραμμένα Συμβόλαια με Βιομετρικά Στοιχεία"),
+        txt("Vitrin Posterleri & Sosyal Medya Afişleri", "Show Window Posters & Social Media Banners", "Αφίσες Βιτρίνας & Διαφημιστικά Μέσων Κοινωνικής Δικτύωσης"),
+        txt("Instagram & enrakipsiz.com Otomatik Paylaşım", "Automatic Instagram & enrakipsiz.com Sync", "Αυτόματος Συγχρονισμός Instagram & enrakipsiz.com")
+      ]
     },
     {
       name: "ShopLP",
-      sector: lang === 'tr' ? "Perakende & Akıllı POS" : "Retail & Smart POS",
-      description: lang === 'tr' 
-        ? "Butik, market ve genel mağazalar için hızlı barkodlu POS satış ekranı, varyasyonlu stok takibi, teknik servis, teklif yönetimi, dövizli cari hesaplar ve resmi e-Fatura."
-        : "Cloud-based retail POS with barcode scanning, dynamic product variants, service and quotation management, ledger/debts and official e-Invoice integration.",
+      sector: txt("Perakende & Akıllı POS", "Retail & Smart POS", "Λιανική Πώληση & Έξυπνο POS"),
+      description: txt(
+        "Butik, market ve genel mağazalar için hızlı barkodlu POS satış ekranı, varyasyonlu stok takibi, teknik servis, teklif yönetimi, dövizli cari hesaplar ve resmi e-Fatura.",
+        "Cloud-based retail POS with barcode scanning, dynamic product variants, service and quotation management, ledger/debts and official e-Invoice integration.",
+        "Λιανική POS στο cloud με σάρωση γραμμωτού κώδικα, παραλλαγές προϊόντων, διαχείριση υπηρεσιών/προσφορών και τιμολόγηση."
+      ),
       icon: ShoppingCart,
       link: "/shop-landing",
       bgImage: "/images/shop_bg_1785752034826.jpg",
       color: "from-indigo-600/20 to-blue-600/10",
       accent: "text-indigo-500",
       btnBg: "bg-indigo-600 hover:bg-indigo-700",
-      features: lang === 'tr' 
-        ? [
-            "Teknik Servis & Teklif Yönetimi",
-            "Çok Şubeli Eşgüdümlü Stok Transferi",
-            "Mağaza içi QR Fiyat Gör Sistemi",
-            "Dövizli Cari & Dijital Mutabakat"
-          ]
-        : [
-            "Tech Service & Quotation Management",
-            "Multi-branch Stock Transfer Engine",
-            "In-store QR Price Checker System",
-            "Multi-Currency Ledgers & Reconciliations"
-          ]
+      features: [
+        txt("Teknik Servis & Teklif Yönetimi", "Tech Service & Quotation Management", "Διαχείριση Τεχνικών Υπηρεσιών & Προσφορών"),
+        txt("Çok Şubeli Eşgüdümlü Stok Transferi", "Multi-branch Stock Transfer Engine", "Διαχείριση Μεταφοράς Αποθεμάτων Πολλαπλών Καταστημάτων"),
+        txt("Mağaza içi QR Fiyat Gör Sistemi", "In-store QR Price Checker System", "Σύστημα Ελέγχου Τιμών QR εντός Καταστήματος"),
+        txt("Dövizli Cari & Dijital Mutabakat", "Multi-Currency Ledgers & Reconciliations", "Καθολικά σε Πολλαπλά Νομίσματα & Ψηφιακή Συμφωνία")
+      ]
     },
     {
       name: "HoReCaLP",
-      sector: lang === 'tr' ? "Cafe & Restoran" : "Cafe & Restaurant",
-      description: lang === 'tr' 
-        ? "Masaya QR sipariş, hızlı restoran POS ekranı, akıllı dijital mutfak paneli, kurye/paket servis ve anlık masa adisyon yönetimi."
-        : "Interactive QR order-to-table, rapid restaurant POS, digital kitchen screens, courier dispatcher, and table accounts.",
+      sector: txt("Cafe & Restoran", "Cafe & Restaurant", "Καφετέρια & Εστιατόριο"),
+      description: txt(
+        "Masaya QR sipariş, hızlı restoran POS ekranı, akıllı dijital mutfak paneli, kurye/paket servis ve anlık masa adisyon yönetimi.",
+        "Interactive QR order-to-table, rapid restaurant POS, digital kitchen screens, courier dispatcher, and table accounts.",
+        "Ανέπαφη παραγγελία QR, γρήγορο POS εστιατορίου, ψηφιακές οθόνες κουζίνας, αποστολή κούριερ και λογαριασμοί τραπεζιών."
+      ),
       icon: Utensils,
       link: "/horeca-landing",
       bgImage: "/images/horeca_bg_1785752045736.jpg",
       color: "from-amber-600/20 to-orange-600/10",
       accent: "text-amber-500",
       btnBg: "bg-amber-600 hover:bg-amber-700",
-      features: lang === 'tr' 
-        ? ["Temassız QR Menü & Masadan Sipariş", "Hızlı Garson / Kasa POS Ekranı", "Dijital Mutfak & Hazırlık Paneli", "Adisyon & Masa Hesap Bölme"]
-        : ["Contactless QR Menu & Ordering", "Rapid Waiter / Cashier POS", "Digital Kitchen display", "Bill Splitting & Multi-Table Management"]
+      features: [
+        txt("Temassız QR Menü & Masadan Sipariş", "Contactless QR Menu & Ordering", "Ανέπαφο Μενού QR & Παραγγελία από το Τραπέζι"),
+        txt("Hızlı Garson / Kasa POS Ekranı", "Rapid Waiter / Cashier POS", "Γρήγορο POS Σερβιτόρου / Ταμείου"),
+        txt("Dijital Mutfak & Hazırlık Paneli", "Digital Kitchen display", "Ψηφιακή Οθόνη Κουζίνας & Προετοιμασίας"),
+        txt("Adisyon & Masa Hesap Bölme", "Bill Splitting & Multi-Table Management", "Διαίρεση Λογαριασμού & Διαχείριση Πολλαπλών Τραπεζιών")
+      ]
     }
   ];
 
   const sliderData = [
     {
       name: "AutoLP",
-      sector: lang === 'tr' ? "Otomotiv & Galeri" : "Automotive & Gallery",
-      title: lang === 'tr' ? "Sektörünüze Özel\nOto Galeri & Filo Otomasyonu" : "Industry-Specific\nAutomotive & Fleet Automation",
-      description: lang === 'tr' 
-        ? "Uluslararası standartlarda araç tescil, gümrük takibi, GBP/Sterlin kur senkronizasyonu ve otomatik ilan entegrasyonu."
-        : "Tailored for global vehicle registration, customs, GBP currency sync, and automatic listings.",
+      sector: txt("Otomotiv & Galeri", "Automotive & Gallery", "Αυτοκίνητα & Γκαλερί"),
+      title: txt("Sektörünüze Özel\nOto Galeri & Filo Otomasyonu", "Industry-Specific\nAutomotive & Fleet Automation", "Εξειδικευμένος Αυτοματισμός\nΑυτοκινήτων & Στόλου"),
+      description: txt(
+        "Uluslararası standartlarda araç tescil, gümrük takibi, GBP/Sterlin kur senkronizasyonu ve otomatik ilan entegrasyonu.",
+        "Tailored for global vehicle registration, customs, GBP currency sync, and automatic listings.",
+        "Προσαρμοσμένο για εγγραφή οχημάτων, τελωνείο, συγχρονισμό GBP και αυτόματες καταχωρίσεις."
+      ),
       bgImage: "/images/auto_bg_1785752006748.jpg",
       color: "from-blue-600 to-cyan-500",
       accent: "text-blue-400",
       accentBg: "bg-blue-500/10 border-blue-500/20",
       glowColor: "rgba(59,130,246,0.15)",
-      features: lang === 'tr' 
-        ? [
-            "Gelişmiş Filo & Bakım Yönetimi",
-            "Biyometrik Dijital İmzalı Sözleşmeler",
-            "Instagram & enrakipsiz.com Otomatik Paylaşım",
-            "Maliyet, Cari & Kâr/Zarar Takip Paneli"
-          ]
-        : [
-            "Advanced Fleet & Maintenance Management",
-            "Biometric Digitally Signed Contracts",
-            "Automatic Instagram & enrakipsiz.com Sync",
-            "Cost, Ledger & Profit Tracker Dashboard"
-          ],
+      features: [
+        txt("Gelişmiş Filo & Bakım Yönetimi", "Advanced Fleet & Maintenance Management", "Προηγμένη Διαχείριση Στόλου & Συντήρησης"),
+        txt("Biyometrik Dijital İmzalı Sözleşmeler", "Biometric Digitally Signed Contracts", "Ψηφιακά Υπογεγραμμένα Συμβόλαια με Βιομετρικά Στοιχεία"),
+        txt("Instagram & enrakipsiz.com Otomatik Paylaşım", "Automatic Instagram & enrakipsiz.com Sync", "Αυτόματος Συγχρονισμός Instagram & enrakipsiz.com"),
+        txt("Maliyet, Cari & Kâr/Zarar Takip Paneli", "Cost, Ledger & Profit Tracker Dashboard", "Πίνακας Ελέγχου Κόστους, Καθολικού & Παρακολούθησης Κερδών")
+      ],
       link: "/auto-landing"
     },
     {
       name: "REstateLP",
-      sector: lang === 'tr' ? "Emlak & Gayrimenkul" : "Real Estate & Property",
-      title: lang === 'tr' ? "Sektörünüze Özel\nAkıllı Portföy & Emlak CRM'i" : "Industry-Specific\nSmart Real Estate CRM",
-      description: lang === 'tr' 
-        ? "Çoklu tapu ve mülkiyet türlerine tam uyum, otomatik yer gösterme, randevu planlayıcı ve lüks konut sunum altyapısı."
-        : "Fully compliant with multiple property and deed types, automatic showings, scheduler, and luxury teasers.",
+      sector: txt("Emlak & Gayrimenkul", "Real Estate & Property", "Ακίνητα & Κτηματομεσιτικά"),
+      title: txt("Sektörünüze Özel\nAkıllı Portföy & Emlak CRM'i", "Industry-Specific\nSmart Real Estate CRM", "Εξειδικευμένο Smart\nReal Estate CRM"),
+      description: txt(
+        "Çoklu tapu ve mülkiyet türlerine tam uyum, otomatik yer gösterme, randevu planlayıcı ve lüks konut sunum altyapısı.",
+        "Fully compliant with multiple property and deed types, automatic showings, scheduler, and luxury teasers.",
+        "Πλήρης συμμόρφωση με τύπους ακινήτων, αυτόματες υποδείξεις, προγραμματιστή και παρουσιάσεις πολυτελείας."
+      ),
       bgImage: "/images/restate_bg_1785752020453.jpg",
       color: "from-rose-600 to-purple-500",
       accent: "text-rose-400",
       accentBg: "bg-rose-500/10 border-rose-500/20",
       glowColor: "rgba(244,63,94,0.15)",
-      features: lang === 'tr' 
-        ? [
-            "Gezi, Randevu & CRM Pipeline",
-            "Islak İmzaya Son Biyometrik Sözleşmeler",
-            "Hazır Vitrin Posterleri & Broşürler",
-            "Mülk Sahibi Eşleştirme Motoru"
-          ]
-        : [
-            "Tour, Appointment & CRM Pipeline",
-            "Biometric Online Digital Contracts",
-            "Automatic Window Posters & Teasers",
-            "Smart Property Matching Engine"
-          ],
+      features: [
+        txt("Gezi, Randevu & CRM Pipeline", "Tour, Appointment & CRM Pipeline", "Διαδρομή Ξενάγησης, Ραντεβού & CRM Pipeline"),
+        txt("Islak İmzaya Son Biyometrik Sözleşmeler", "Biometric Online Digital Contracts", "Τέλος στην υγρή υπογραφή με Βιομετρικά Συμβόλαια"),
+        txt("Hazır Vitrin Posterleri & Broşürler", "Automatic Window Posters & Teasers", "Έτοιμες Αφίσες Βιτρίνας & Φυλλάδια"),
+        txt("Mülk Sahibi Eşleştirme Motoru", "Smart Property Matching Engine", "Έξυπνη Μηχανή Αντιστοίχισης Ιδιοκτητών")
+      ],
       link: "/restate-landing"
     },
     {
       name: "ShopLP",
-      sector: lang === 'tr' ? "Perakende & POS" : "Retail & POS Systems",
-      title: lang === 'tr' ? "Sektörünüze Özel\nHızlı Barkodlu Satış & POS" : "Industry-Specific\nFast Barcoded Sales & POS",
-      description: lang === 'tr' 
-        ? "Butik, market ve genel mağazalar için entegre e-Fatura, varyasyonlu stok takibi, teknik servis ve QR fiyat sistemi."
-        : "For boutiques, grocery stores and general shops with e-Invoice integration, variant stock alert, and QR checker.",
+      sector: txt("Perakende & POS", "Retail & POS Systems", "Λιανική Πώληση & Έξυπνο POS"),
+      title: txt("Sektörünüze Özel\nHızlı Barkodlu Satış & POS", "Industry-Specific\nFast Barcoded Sales & POS", "Εξειδικευμένο Γρήγορο\nBarcode Sales & POS"),
+      description: txt(
+        "Butik, market ve genel mağazalar için entegre e-Fatura, varyasyonlu stok takibi, teknik servis ve QR fiyat sistemi.",
+        "For boutiques, grocery stores and general shops with e-Invoice integration, variant stock alert, and QR checker.",
+        "Για μπουτίκ, παντοπωλεία και γενικά καταστήματα με τιμολόγηση, ειδοποίηση αποθέματος και έλεγχο QR."
+      ),
       bgImage: "/images/shop_bg_1785752034826.jpg",
       color: "from-indigo-600 to-blue-500",
       accent: "text-indigo-400",
       accentBg: "bg-indigo-500/10 border-indigo-500/20",
       glowColor: "rgba(99,102,241,0.15)",
-      features: lang === 'tr' 
-        ? [
-            "Hızlı Barkodlu POS Satış Ekranı",
-            "Teknik Servis & Teklif Yönetimi",
-            "Mağaza içi QR Fiyat Gör Altyapısı",
-            "Dövizli Cari & Dijital Mutabakat"
-          ]
-        : [
-            "Fast Barcode Sales & POS Terminal",
-            "Tech Service & Quotation Engine",
-            "In-store QR Price Checker Altyapısı",
-            "Multi-Currency Ledgers & Ledger Statements"
-          ],
+      features: [
+        txt("Hızlı Barkodlu POS Satış Ekranı", "Fast Barcode Sales & POS Terminal", "Τερματικό Πωλήσεων POS με Γρήγορο Barcode"),
+        txt("Teknik Servis & Teklif Yönetimi", "Tech Service & Quotation Engine", "Διαχείριση Τεχνικών Υπηρεσιών & Προσφορών"),
+        txt("Mağaza içi QR Fiyat Gör Altyapısı", "In-store QR Price Checker Altyapısı", "Υποδομή Ελέγχου Τιμών QR εντός Καταστήματος"),
+        txt("Dövizli Cari & Dijital Mutabakat", "Multi-Currency Ledgers & Ledger Statements", "Καθολικά σε Πολλαπλά Νομίσματα & Ψηφianκή Συμφωνία")
+      ],
       link: "/shop-landing"
     },
     {
       name: "HoReCaLP",
-      sector: lang === 'tr' ? "Cafe, Restoran & Otel" : "Cafe, Restaurant & Hotel",
-      title: lang === 'tr' ? "Sektörünüze Özel\nQR Menü & Masa Otomasyonu" : "Industry-Specific\nQR Menu & Table Automation",
-      description: lang === 'tr' 
-        ? "Temassız QR sipariş, hızlı garson el terminali, akıllı mutfak ekranı ve anlık masa adisyon hesap yönetimi."
-        : "Contactless QR ordering, rapid waiter terminal, kitchen display, and table bill splitting management.",
+      sector: txt("Cafe, Restoran & Otel", "Cafe, Restaurant & Hotel", "Καφετέρια, Εστιατόριο & Ξενοδοχείο"),
+      title: txt("Sektörünüze Özel\nQR Menü & Masa Otomasyonu", "Industry-Specific\nQR Menu & Table Automation", "Εξειδικευμένο Μενού QR\n& Αυτοματισμός Τραπεζιού"),
+      description: txt(
+        "Temassız QR sipariş, hızlı garson el terminali, akıllı mutfak ekranı ve anlık masa adisyon hesap yönetimi.",
+        "Contactless QR ordering, rapid waiter terminal, kitchen display, and table bill splitting management.",
+        "Ανέπαφη παραγγελία QR, γρήγορο τερματικό σερβιτόρου, οθόνη κουζίνας και διαχείριση λογαριασμού τραπεζιού."
+      ),
       bgImage: "/images/horeca_bg_1785752045736.jpg",
       color: "from-amber-600 to-orange-500",
       accent: "text-amber-400",
       accentBg: "bg-amber-500/10 border-amber-500/20",
       glowColor: "rgba(245,158,11,0.15)",
-      features: lang === 'tr' 
-        ? [
-            "Masaya QR Menü & Hızlı Sipariş",
-            "Pratik Garson Terminali & POS",
-            "Dijital Mutfak & Hazırlık Paneli",
-            "Adisyon & Masa Hesap Bölme"
-          ]
-        : [
-            "QR Menu & Rapid Table Ordering",
-            "Handheld Waiter Terminal & POS",
-            "Digital Kitchen Monitor Screen",
-            "Bill Splitting & Multi-Table Management"
-          ],
+      features: [
+        txt("Masaya QR Menü & Hızlı Sipariş", "QR Menu & Rapid Table Ordering", "Μενού QR & Γρήγορη Παραγγελία Τραπεζιού"),
+        txt("Pratik Garson Terminali & POS", "Handheld Waiter Terminal & POS", "Φορητό Τερματικό Σερβιτόρου & POS"),
+        txt("Dijital Mutfak & Hazırlık Paneli", "Digital Kitchen Monitor Screen", "Ψηφιακή Οθόνη Κουζίνας & Προετοιμασίας"),
+        txt("Adisyon & Masa Hesap Bölme", "Bill Splitting & Multi-Table Management", "Διαίρεση Λογαριασμού & Διαχείριση Πολλαπλών Τραπεζιών")
+      ],
       link: "/horeca-landing"
     }
   ];
@@ -354,17 +338,17 @@ export const LandingPage = () => {
         <div className="flex items-center space-x-4">
           {/* Language Switcher */}
           <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/10">
-            {['tr', 'en'].map((l) => (
+            {['tr', 'en', 'el'].map((l) => (
               <button 
                 key={l}
-                onClick={() => setLang(l as 'tr' | 'en')}
+                onClick={() => setLang(l as 'tr' | 'en' | 'el')}
                 className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-black transition-all ${
                   lang === l 
                     ? 'bg-white text-black shadow-xl' 
                     : 'text-white/40 hover:text-white hover:bg-white/5'
                 }`}
               >
-                {l.toUpperCase()}
+                {l === 'el' ? 'GR' : l.toUpperCase()}
               </button>
             ))}
           </div>
@@ -373,7 +357,7 @@ export const LandingPage = () => {
             onClick={() => navigate('/login')}
             className="px-6 py-2.5 bg-white text-black hover:bg-indigo-600 hover:text-white rounded-full text-xs font-black uppercase tracking-widest transition-all"
           >
-            {lang === 'tr' ? 'Giriş' : 'Login'}
+            {txt('Giriş', 'Login', 'Σύνδεση')}
           </button>
         </div>
       </header>
@@ -435,13 +419,13 @@ export const LandingPage = () => {
                     ))}
                   </div>
 
-                  {/* Buttons */}
+                   {/* Buttons */}
                   <div className="flex flex-col sm:flex-row gap-4 pt-4">
                     <button
                       onClick={() => navigate(sliderData[activeSlide].link)}
                       className="group relative inline-flex items-center justify-center px-8 py-4 font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-full transition-all text-sm tracking-wide shadow-xl"
                     >
-                      {lang === 'tr' ? `${sliderData[activeSlide].name} Çözümünü İncele` : `Explore ${sliderData[activeSlide].name}`}
+                      {txt(`${sliderData[activeSlide].name} Çözümünü İncele`, `Explore ${sliderData[activeSlide].name}`, `Εξερευνήστε το ${sliderData[activeSlide].name}`)}
                       <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </button>
 
@@ -449,7 +433,7 @@ export const LandingPage = () => {
                       onClick={() => setShowDemoModal(true)}
                       className="group inline-flex items-center justify-center px-8 py-4 font-black text-white/80 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all text-sm tracking-wide"
                     >
-                      {lang === 'tr' ? 'Demo Randevusu Al' : 'Request Demo'}
+                      {txt('Demo Randevusu Al', 'Request Demo', 'Ζητήστε Demo')}
                     </button>
                   </div>
                 </motion.div>
@@ -485,7 +469,7 @@ export const LandingPage = () => {
                         LOOKPRICE AUTO-SYNC
                       </div>
                       <div className="text-xs font-bold text-white mt-0.5">
-                        {lang === 'tr' ? "Aktif Bulut Entegrasyonu" : "Active Cloud Synced"}
+                        {txt("Aktif Bulut Entegrasyonu", "Active Cloud Synced", "Ενεργός Συγχρονισμός Cloud")}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -550,12 +534,14 @@ export const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4 text-white">
-              {lang === 'tr' ? "Profesyonel Ürünlerimiz" : "Our Professional Products"}
+              {txt("Profesyonel Ürünlerimiz", "Our Professional Products", "Τα Επαγγελματικά Προϊόντα μας")}
             </h2>
             <p className="text-white/50 text-sm sm:text-base font-semibold leading-relaxed">
-              {lang === 'tr' 
-                ? "İşletmenizin sektörünü seçin ve tamamen size özel hazırlanan özellikleri, ekranları ve sıkça sorulan soruları anında inceleyin."
-                : "Select your business sector to explore highly customized features, workflows, and FAQs designed specifically for you."}
+              {txt(
+                "İşletmenizin sektörünü seçin ve tamamen size özel hazırlanan özellikleri, ekranları ve sıkça sorulan soruları anında inceleyin.",
+                "Select your business sector to explore highly customized features, workflows, and FAQs designed specifically for you.",
+                "Επιλέξτε τον τομέα της επιχείρησής σας για να εξερευνήσετε εξαιρετικά προσαρμοσμένες δυνατότητες, ροές εργασίας και συχνές ερωτήσεις σχεδιασμένες ειδικά για εσάς."
+              )}
             </p>
           </div>
 
@@ -606,7 +592,7 @@ export const LandingPage = () => {
                     </div>
 
                     <button className={`w-full py-4 text-white font-black rounded-2xl transition-all text-sm flex items-center justify-center gap-2 ${p.btnBg}`}>
-                      {lang === 'tr' ? `${p.name} Çözümünü İncele` : `Explore ${p.name}`}
+                      {txt(`${p.name} Çözümünü İncele`, `Explore ${p.name}`, `Εξερευνήστε το ${p.name}`)}
                       <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </button>
                   </div>
@@ -622,16 +608,16 @@ export const LandingPage = () => {
         <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
           {[
             { 
-              title: lang === 'tr' ? "GİB ve N11.com Entegratöründen" : "Integrated GİB & N11", 
-              desc: lang === 'tr' ? "Maliye Bakanlığı ve N11.com Resmi Entegratörü ISM TEKNOLOJİ'den" : "From ISM TECHNOLOGY, official integrator of Ministry of Finance and N11.com" 
+              title: txt("GİB ve N11.com Entegratöründen", "Integrated GİB & N11", "Από τον Επίσημο Πάροχο GİB & N11"), 
+              desc: txt("Maliye Bakanlığı ve N11.com Resmi Entegratörü ISM TEKNOLOJİ'den", "From ISM TECHNOLOGY, official integrator of Ministry of Finance and N11.com", "Από την ISM TECHNOLOGY, επίσημο πάροχο του Υπουργείου Οικονομικών και N11.com") 
             },
             { 
-              title: lang === 'tr' ? "1996 Yılından Beri Kurumsal Teknoloji" : "Enterprise Tech Since 1996", 
-              desc: lang === 'tr' ? "smartFatura ve Gap Bilişim Hizmetleri Kurucuları ve Sektör Profesyonelleri ile birlikte Geliştirilmiştir." : "Developed together with founders of smartFatura & Gap Bilişim and industry professionals." 
+              title: txt("1996 Yılından Beri Kurumsal Teknoloji", "Enterprise Tech Since 1996", "Εταιρική Τεχνολογία από το 1996"), 
+              desc: txt("smartFatura ve Gap Bilişim Hizmetleri Kurucuları ve Sektör Profesyonelleri ile birlikte Geliştirilmiştir.", "Developed together with founders of smartFatura & Gap Bilişim and industry professionals.", "Αναπτύχθηκε σε συνεργασία με τους ιδρυτές των smartFatura & Gap Bilişim και επαγγελματίες του κλάδου.") 
             },
             { 
-              title: lang === 'tr' ? "Tam Yerel Uyum" : "Local Compliance", 
-              desc: lang === 'tr' ? "Sektörün kur yönetimi, sözleşmeleri ve fatura kurallarıyla %100 uyumludur." : "100% compliant with industry custom documents and currencies." 
+              title: txt("Tam Yerel Uyum", "Local Compliance", "Πλήρης Τοπική Συμμόρφωση"), 
+              desc: txt("Sektörün kur yönetimi, sözleşmeleri ve fatura kurallarıyla %100 uyumludur.", "100% compliant with industry custom documents and currencies.", "100% συμβατό με τα έγγραφα του κλάδου και τα νομίσματα.") 
             }
           ].map((item, idx) => (
             <div key={idx} className="space-y-2">
@@ -671,12 +657,14 @@ export const LandingPage = () => {
                   LOOKPRICE DEMO
                 </span>
                 <h3 className="text-2xl font-black mt-3">
-                  {lang === 'tr' ? 'Demo Talebi Oluşturun' : 'Request a Live Demo'}
+                  {txt('Demo Talebi Oluşturun', 'Request a Live Demo', 'Δημιουργήστε ένα Αίτημα για Demo')}
                 </h3>
                 <p className="text-white/50 text-xs mt-1 font-semibold">
-                  {lang === 'tr' 
-                    ? 'Sektörünüze özel akıllı yönetim yazılımını birlikte inceleyelim.' 
-                    : 'Let us show you how our tailored suite can optimize your business.'}
+                  {txt(
+                    'Sektörünüze özel akıllı yönetim yazılımını birlikte inceleyelim.', 
+                    'Let us show you how our tailored suite can optimize your business.',
+                    'Ας εξερευνήσουμε μαζί το έξυπνο λογισμικό διαχείρισης που είναι ειδικά προσαρμοσμένο για τον τομέα σας.'
+                  )}
                 </p>
               </div>
 
@@ -688,7 +676,7 @@ export const LandingPage = () => {
                 <form onSubmit={handleDemoSubmit} className="space-y-4">
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
-                      {lang === 'tr' ? 'Adınız Soyadınız' : 'Your Name'}
+                      {txt('Adınız Soyadınız', 'Your Name', 'Ονοματεπώνυμο')}
                     </label>
                     <input
                       type="text"
@@ -701,7 +689,7 @@ export const LandingPage = () => {
 
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
-                      {lang === 'tr' ? 'İşletme / Mağaza Adı' : 'Business / Store Name'}
+                      {txt('İşletme / Mağaza Adı', 'Business / Store Name', 'Όνομα Επιχείρησης / Καταστήματος')}
                     </label>
                     <input
                       type="text"
@@ -714,24 +702,24 @@ export const LandingPage = () => {
 
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
-                      {lang === 'tr' ? 'Sektör' : 'Sector'}
+                      {txt('Sektör', 'Sector', 'Τομέας')}
                     </label>
                     <select
                       value={demoForm.storeType}
                       onChange={(e) => setDemoForm({...demoForm, storeType: e.target.value as any})}
                       className="w-full px-4 py-3 bg-[#0A0A0E] border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-indigo-500 transition-all"
                     >
-                      <option value="motor_vehicle">{lang === 'tr' ? 'Otomotiv (AutoLP)' : 'Automotive (AutoLP)'}</option>
-                      <option value="real_estate">{lang === 'tr' ? 'Gayrimenkul (REstateLP)' : 'Real Estate (REstateLP)'}</option>
-                      <option value="product">{lang === 'tr' ? 'Perakende & Mağaza (ShopLP)' : 'Retail (ShopLP)'}</option>
-                      <option value="restaurant">{lang === 'tr' ? 'Cafe & Restoran (HoReCaLP)' : 'Cafe & Restaurant (HoReCaLP)'}</option>
+                      <option value="motor_vehicle">{txt('Otomotiv (AutoLP)', 'Automotive (AutoLP)', 'Αυτοκίνητα (AutoLP)')}</option>
+                      <option value="real_estate">{txt('Gayrimenkul (REstateLP)', 'Real Estate (REstateLP)', 'Ακίνητα (REstateLP)')}</option>
+                      <option value="product">{txt('Perakende & Mağaza (ShopLP)', 'Retail (ShopLP)', 'Λιανική (ShopLP)')}</option>
+                      <option value="restaurant">{txt('Cafe & Restoran (HoReCaLP)', 'Cafe & Restaurant (HoReCaLP)', 'Καφετέρια & Εστιατόριο (HoReCaLP)')}</option>
                     </select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
-                        {lang === 'tr' ? 'Telefon' : 'Phone'}
+                        {txt('Telefon', 'Phone', 'Τηλέφωνο')}
                       </label>
                       <input
                         type="tel"
@@ -743,7 +731,7 @@ export const LandingPage = () => {
                     </div>
                     <div>
                       <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
-                        {lang === 'tr' ? 'E-posta' : 'Email'}
+                        {txt('E-posta', 'Email', 'E-mail')}
                       </label>
                       <input
                         type="email"
@@ -757,7 +745,7 @@ export const LandingPage = () => {
 
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
-                      {lang === 'tr' ? 'Ek Notlar' : 'Additional Notes'}
+                      {txt('Ek Notlar', 'Additional Notes', 'Επιπλέον Σημειώσεις')}
                     </label>
                     <textarea
                       rows={2}
@@ -772,7 +760,7 @@ export const LandingPage = () => {
                     disabled={demoStatus.type === 'loading'}
                     className="w-full py-4 bg-white hover:bg-indigo-600 hover:text-white text-black rounded-xl font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 mt-4"
                   >
-                    {demoStatus.type === 'loading' ? (lang === 'tr' ? 'Gönderiliyor...' : 'Sending...') : (lang === 'tr' ? 'Talebi Gönder' : 'Send Request')}
+                    {demoStatus.type === 'loading' ? txt('Gönderiliyor...', 'Sending...', 'Στέλνεται...') : txt('Talebi Gönder', 'Send Request', 'Υποβολή Αιτήματος')}
                   </button>
                 </form>
               )}
@@ -788,10 +776,12 @@ export const LandingPage = () => {
             <span className="font-black tracking-tight text-white">Look<span className="text-indigo-500">Price</span></span>
           </div>
           <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">
-            {lang === 'tr' ? 'BULUT TABANLI SEKTÖREL YÖNETİM SUITE' : 'CLOUD-BASED SECTORAL SUITE'}
+            {txt('BULUT TABANLI SEKTÖREL YÖNETİM SUITE', 'CLOUD-BASED SECTORAL SUITE', 'ΣΟΥΙΤΑ ΔΙΑΧΕΙΡΙΣΗΣ ΤΟΜΕΩΝ CLOUD')}
           </p>
         </div>
-        <p className="text-xs text-white/40 font-semibold">© 2026 LookPrice. Tüm Hakları Saklıdır.</p>
+        <p className="text-xs text-white/40 font-semibold">
+          {txt('© 2026 LookPrice. Tüm Hakları Saklıdır.', '© 2026 LookPrice. All Rights Reserved.', '© 2026 LookPrice. Με επιφύλαξη παντός δικαιώματος.')}
+        </p>
       </footer>
     </div>
   );

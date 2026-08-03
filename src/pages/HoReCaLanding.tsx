@@ -21,14 +21,119 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { horecaFaq } from '../data/horecaFaq';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function HoReCaLanding() {
+  const { lang, setLang } = useLanguage();
+  const txt = (trText: string, enText: string, elText: string) => {
+    if (lang === 'tr') return trText;
+    if (lang === 'el') return elText;
+    return enText;
+  };
+
   const [openId, setOpenId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const toggleAccordion = (id: string) => {
     setOpenId(prev => prev === id ? null : id);
   };
+
+  const localizedFaq = useMemo(() => {
+    return horecaFaq.map(item => {
+      let q = item.q;
+      let a = item.a;
+      if (lang === 'en') {
+        if (item.id === 'offline_mode') {
+          q = 'Does the system continue to work when the internet is disconnected or in offline mode?';
+          a = 'Yes. LookPrice infrastructure offers an offline-first architecture. Even if your internet connection is lost, your terminals and handheld units continue to take orders, open bills, update table statuses, and communicate over the local network. Once the internet connection is restored, all data is automatically and securely synchronized with our cloud servers in the background.';
+        } else if (item.id === 'realtime_sync') {
+          q = 'How does real-time synchronization work? Can other waiters add orders to a bill opened by one waiter?';
+          a = 'Yes. LookPrice uses real-time state synchronization across all terminals. Any authorized waiter or cashier can instantly access, add orders to, or view the current table bill from their own screen. Conflicts are automatically prevented by the system.';
+        } else if (item.id === 'split_payment') {
+          q = 'Is it possible to request bills, split bills, and split payments at the table?';
+          a = 'Yes. LookPrice rapid POS and restaurant interface features advanced bill splitting and partial collection options. You can split bills evenly by the number of guests or select specific items to receive partial payments (Cash, Credit Card, or mixed). The remaining balance is automatically tracked.';
+        } else if (item.id === 'digital_menu_order') {
+          q = 'Do you have a QR digital menu for customers? Can orders be placed directly through the menu?';
+          a = 'Yes, an advanced contactless QR Digital Menu module is available. Customers scan the QR code at the table with their phone camera to access the menu. You can use it as a "Visual Catalog" or enable "Order from Table" so guests can place interactive orders directly.';
+        } else if (item.id === 'menu_details') {
+          q = 'Can we see product ingredients, portions, allergens, and product options in Digital Menus?';
+          a = 'Absolutely. Our QR Digital Menu supports rich details. You can add ingredients, portions, and allergens. You can also define dynamic variations like cooking temperature, sauce selection, or extra ingredients to let guests fully customize their orders.';
+        } else if (item.id === 'happy_hours') {
+          q = 'Can Happy Hours (Time-limited campaigns/pricing) be defined in the system?';
+          a = 'Yes. You can create special price lists and Happy Hour rules valid on specific days and time intervals. The system updates prices automatically and returns to standard pricing when completed without manual action.';
+        } else if (item.id === 'kitchen_routing') {
+          q = 'Can bar and kitchen orders be separated? Can order tickets be printed to different sections from a single bill?';
+          a = 'Yes. Our advanced routing engine filters all bill items by department. For example, when a single bill is approved, drink orders are automatically routed to the bar printer, and food orders to the kitchen screen or kitchen printer in seconds.';
+        } else if (item.id === 'role_permissions') {
+          q = 'Can waiter and cashier permissions be restricted? Are there IP and administrative restrictions?';
+          a = 'Yes. You can manage roles (Manager, Head Waiter, Waiter, Cashier) with precision. Deletion, discounts, or returns require manager approval. You can also restrict waiter access to the venue Wi-Fi network (IP restriction) to strengthen security.';
+        } else if (item.id === 'recipe_bom_conversion') {
+          q = 'Can recipes (BOM) and weight conversions be set up to track stocks for cocktails or meals?';
+          a = 'Yes. With our recipe (BOM) module, you can define precise recipes by milliliter, gram, or piece. For example, when a cocktail is sold, the alcohol amount is subtracted as milliliters and garnishes as pieces in milliseconds, ensuring perfect cost control.';
+        } else if (item.id === 'product_variants') {
+          q = 'Can we track stocks by defining product varieties and options?';
+          a = 'Yes. You can add as many variations (e.g., size, extra sauce, extra cheese) to a product as you wish. You can define extra prices or costs for each, or manage stock items with dedicated barcodes.';
+        } else if (item.id === 'reports_analytics') {
+          q = 'Are product-based sales, cost, and revenue analysis reports available?';
+          a = 'Yes. With the smart reporting module, you can view top-selling products, high-revenue categories, waiter performance, hourly density maps, and net profitability charts. Export reports as PDF or Excel.';
+        } else if (item.id === 'online_order_system') {
+          q = 'Do you have an online delivery ordering system?';
+          a = 'Yes. With your custom ordering interface, you can receive Delivery and Takeaway orders directly from your customers without paying high commissions to external delivery apps. Orders drop directly onto your Cashier/POS screen with an alert sound.';
+        } else if (item.id === 'pos_cash_registers') {
+          q = 'Can we define new generation cash registers and physical POS devices in the system?';
+          a = 'Yes. With our smart POS Bridge infrastructure, we are fully integrated with leading physical POS devices. When payment is selected, the amount is automatically sent to the POS device, and the fiscal receipt prints automatically upon success.';
+        } else if (item.id === 'supply_chain_planning') {
+          q = 'Do you have a stock supply planning and automatic supply recommendation system?';
+          a = 'In R&D/Planning: We are working on our Smart Supply Planning module to fully digitize your supply chain. This module will analyze your past sales trends and stock consumption rates to automatically prepare supplier purchase orders and purchase suggestions.';
+        }
+      } else if (lang === 'el') {
+        if (item.id === 'offline_mode') {
+          q = 'Συνεχίζει να λειτουργεί το σύστημα όταν αποσυνδεθεί το διαδίκτυο ή σε λειτουργία εκτός σύνδεσης;';
+          a = 'Ναι. Η υποδομή LookPrice προσφέρει αρχιτεκτονική offline-first. Ακόμη και αν χαθεί η σύνδεσή σας στο διαδίκτυο, τα τερματικά και οι φορητές συσκευές σας συνεχίζουν να λαμβάνουν παραγγελίες, να ανοίγουν λογαριασμούς, να ενημερώνουν τις καταστάσεις των τραπεζιών και να επικοινωνούν μέσω του τοπικού δικτύου. Μόλις αποκατασταθεί η σύνδεση, όλα τα δεδομένα συγχρονίζονται αυτόματα και με ασφάλεια στους διακομιστές cloud μας στο υπόβαθρο.';
+        } else if (item.id === 'realtime_sync') {
+          q = 'Πώς λειτουργεί ο συγχρονισμός σε πραγματικό χρόνο; Μπορούν άλλοι σερβιτόροι να προσθέσουν παραγγελίες σε έναν λογαριασμό που άνοιξε ένας σερβιτόρος;';
+          a = 'Ναι. Το LookPrice χρησιμοποιεί αμφίδρομο συγχρονισμό δεδομένων σε πραγματικό χρόνο σε όλα τα τερματικά. Οποιοσδήποτε εξουσιοδοτημένος σερβιτόρος ή ταμίας μπορεί να έχει άμεση πρόσβαση, να προσθέτει παραγγελίες ή να βλέπει τον τρέχοντα λογαριασμό του τραπεζιού από τη δική του οθόνη. Οι διενέξεις αποτρέπονται αυτόματα από το σύστημα.';
+        } else if (item.id === 'split_payment') {
+          q = 'Είναι δυνατόν να ζητηθούν λογαριασμοί, να διαχωριστούν οι λογαριασμοί και να χωριστούν οι πληρωμές στο τραπέζι;';
+          a = 'Ναι. Το γρήγορο POS και η διεπαφή εστιατορίου LookPrice διαθέτει προηγμένες επιλογές διαίρεσης λογαριασμού και μερικής είσπραξης. Μπορείτε να μοιράσετε τους λογαριασμούς εξίσου με τον αριθμό των επισκεπτών ή να επιλέξετε συγκεκριμένα στοιχεία για να λάβετε μερικές πληρωμές (Μετρητά, Πιστωτική Κάρτα ή μικτά). Το υπόλοιπο παρακολουθείται αυτόματα.';
+        } else if (item.id === 'digital_menu_order') {
+          q = 'Έχετε ψηφιακό μενού QR για τους πελάτες; Μπορούν να γίνουν παραγγελίες απευθείας μέσω του μενού;';
+          a = 'Ναι, είναι διαθέσιμη μια προηγμένη ανέπαφη μονάδα ψηφιακού μενού QR. Οι πελάτες σαρώνουν τον κωδικό QR στο τραπέζι με την κάμερα του τηλεφώνου τους για να έχουν πρόσβαση στο μενού. Μπορείτε να το χρησιμοποιήσετε ως "Οπτικό Κατάλογο" ή να ενεργοποιήσετε την "Παραγγελία από το Τραπέζι" ώστε οι επισκέπτες να κάνουν διαδραστικές παραγγελίες απευθείας.';
+        } else if (item.id === 'menu_details') {
+          q = 'Μπορούμε να δούμε συστατικά προϊόντων, μερίδες, αλλεργιογόνα και επιλογές προϊόντων στα Ψηφιακά Μενού;';
+          a = 'Απόλυτα. Το Ψηφιακό Μενού QR υποστηρίζει πλούσιες λεπτομέρειες. Μπορείτε να προσθέσετε συστατικά, μερίδες και αλλεργιογόνα. Μπορείτε επίσης να ορίσετε δυναμικές παραλλαγές όπως θερμοκρασία μαγειρέματος, επιλογή σάλτσας ή επιπλέον συστατικά, επιτρέποντας στους επισκέπτες να προσαρμόσουν πλήρως τις παραγγελίες τους.';
+        } else if (item.id === 'happy_hours') {
+          q = 'Μπορούν να οριστούν Happy Hours (καμπάνιες/τιμές περιορισμένου χρόνου) στο σύστημα;';
+          a = 'Ναι. Μπορείτε να δημιουργήσετε ειδικούς τιμοκαταλόγους και κανόνες Happy Hour που ισχύουν σε συγκεκριμένες ημέρες και χρονικά διαστήματα. Το σύστημα ενημερώνει αυτόματα τις τιμές και επιστρέφει στην τυπική τιμολόγηση όταν ολοκληρωθεί, χωρίς χειροκίνητη ενέργεια.';
+        } else if (item.id === 'kitchen_routing') {
+          q = 'Μπορούν να διαχωριστούν οι παραγγελίες μπαρ και κουζίνας; Μπορούν να εκτυπωθούν δελτία παραγγελίας σε διαφορετικά τμήματα από έναν μόνο λογαριασμό;';
+          a = 'Ναι. Η προηγμένη μηχανή δρομολόγησης φιλτράρει όλα τα στοιχεία του λογαριουμού ανά τμήμα. Για παράδειγμα, όταν εγκρίνεται ένας λογαριασμός, οι παραγγελίες ποτών δρομολογούνται αυτόματα στον εκτυπωτή μπαρ και οι παραγγελίες φαγητού στην οθόνη ή τον εκτυπωτή της κουζίνας σε δευτερόλεπτα.';
+        } else if (item.id === 'role_permissions') {
+          q = 'Μπορούν να περιοριστούν οι άδειες σερβιτόρου και ταμία; Υπάρχουν περιορισμοί IP και διαχειριστικοί περιορισμοί;';
+          a = 'Ναι. Μπορείτε να διαχειριστείτε ρόλους (Διευθυντής, Αρχισερβιτόρος, Σερβιτόρος, Ταμίας) με ακρίβεια. Η διαγραφή, οι εκπτώσεις ή οι επιστροφές απαιτούν έγκριση διευθυντή. Μπορείτε επίσης να περιορίσετε την πρόσβαση των σερβιτόρων στο δίκτυο Wi-Fi του καταστήματος (περιορισμός IP) για ενίσχυση της ασφάλειας.';
+        } else if (item.id === 'recipe_bom_conversion') {
+          q = 'Μπορούν να ρυθμιστούν συνταγές (BOM) και μετατροπές βάρους για την παρακολούθηση αποθεμάτων για κοκτέιλ ή γεύματα;';
+          a = 'Ναι. Με τη μονάδα συνταγών (BOM), μπορείτε να ορίσετε ακριβείς συνταγές ανά χιλιοστόλιτρο, γραμμάριο ή τεμάχιο. Για παράδειγμα, όταν πωλείται ένα κοκτέιλ, η ποσότητα αλκοόλ αφαιρείται ως χιλιοστόλιτρα και οι γαρνιτούρες ως τεμάχια σε χιλιοστά του δευτερολέπτου, εξασφαλίζοντας τέλειο έλεγχο κόστους.';
+        } else if (item.id === 'product_variants') {
+          q = 'Μπορούμε να παρακολουθούμε τα αποθέματα ορίζοντας ποικιλίες και επιλογές προϊόντων;';
+          a = 'Ναι. Μπορείτε να προσθέσετε όσες παραλλαγές (π.χ. μέγεθος, έξτρα σάλτσα, έξτρα τυρί) επιθυμείτε σε ένα προϊόν. Μπορείτε να ορίσετε επιπλέον τιμές ή κόστος για καθεμία, ή να διαχειριστείτε τα αποθέματα με αποκλειστικούς γραμμωτούς κώδικες.';
+        } else if (item.id === 'reports_analytics') {
+          q = 'Είναι διαθέσιμες αναφορές ανάλυσης πωλήσεων, κόστους και εσόδων βάσει προϊόντος;';
+          a = 'Ναι. Με την έξυπνη μονάδα αναφορών, μπορείτε να δείτε τα προϊόντα με τις μεγαλύτερες πωλήσεις, κατηγορίες υψηλών εσόδων, απόδοση σερβιτόρων, ωριαίους χάρτες πυκνότητας και διαγράμματα καθαρής κερδοφορίας. Εξαγωγή αναφορών ως PDF ή Excel.';
+        } else if (item.id === 'online_order_system') {
+          q = 'Έχετε σύστημα online παραγγελιών παράδοσης (delivery);';
+          a = 'Ναι. Με την προσαρμοσμένη διεπαφή παραγγελιών σας, μπορείτε να λαμβάνετε παραγγελίες Delivery και Takeaway απευθείας από τους πελάτες σας χωρίς να πληρώνετε υψηλές προμήθειες σε εξωτερικές εφαρμογές. Οι παραγγελίες εμφανίζονται απευθείας στην οθόνη του Ταμία/POS με έναν ήχο ειδοποίησης.';
+        } else if (item.id === 'pos_cash_registers') {
+          q = 'Μπορούμε να ορίσουμε ταμειακές μηχανές νέας γενιάς και φυσικές συσκευές POS στο σύστημα;';
+          a = 'Ναι. Με την έξυπνη υποδομή μας POS Bridge, είμαστε πλήρως ενσωματωμένοι με κορυφαίες φυσικές συσκευές POS. Όταν επιλέγεται η πληρωμή, το ποσό αποστέλλεται αυτόματα στη συσκευή POS και η απόδειξη εκτυπώνεται αυτόματα μετά την επιτυχή ολοκλήρωση.';
+        } else if (item.id === 'supply_chain_planning') {
+          q = 'Έχετε σύστημα σχεδιασμού εφοδιασμού αποθεμάτων και αυτόματης σύστασης εφοδιασμού;';
+          a = 'Σε φάση Έρευνας & Ανάπτυξης: Εργαζόμαστε για τη μονάδα Έξυπνου Σχεδιασμού Εφοδιασμού για την πλήρη ψηφιοποίηση της εφοδιαστικής αλυσίδας σας. Αυτή η μονάδα θα αναλύει τις παρελθούσες τάσεις πωλήσεων και τα ποσοστά κατανάλωσης αποθεμάτων για την αυτόματη προετοιμασία παραγγελιών αγοράς προμηθευτή και προτάσεων αγοράς.';
+        }
+      }
+      return { ...item, q, a };
+    });
+  }, [lang]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -41,12 +146,32 @@ export default function HoReCaLanding() {
             </div>
             <span className="font-black text-xl tracking-tight text-slate-900">LookPrice</span>
           </div>
-          <button 
-            onClick={() => navigate('/')} 
-            className="text-sm font-extrabold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-xl transition-all"
-          >
-            Ana Sayfaya Dön
-          </button>
+
+          <div className="flex items-center gap-4">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200">
+              {['tr', 'en', 'el'].map((l) => (
+                <button 
+                  key={l}
+                  onClick={() => setLang(l as 'tr' | 'en' | 'el')}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-black transition-all ${
+                    lang === l 
+                      ? 'bg-amber-600 text-white shadow-md' 
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+                  }`}
+                >
+                  {l === 'el' ? 'GR' : l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => navigate('/')} 
+              className="text-sm font-extrabold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-xl transition-all"
+            >
+              {txt('Ana Sayfaya Dön', 'Return to Home Page', 'Επιστροφή στην Αρχική')}
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -59,17 +184,21 @@ export default function HoReCaLanding() {
             HoReCaLP by LookPrice
           </span>
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-slate-950 tracking-tighter mb-6 leading-[1.1]">
-            Cafe ve Restoran Yönetiminde <br className="hidden md:inline"/> Dijital Devrim
+            {txt('Cafe ve Restoran Yönetiminde', 'Digital Revolution in', 'Ψηφιακή Επανάσταση στη')} <br className="hidden md:inline"/> {txt('Dijital Devrim', 'Cafe & Restaurant Management', 'Διαχείριση Καφετεριών & Εστιατορίων')}
           </h1>
           <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto mb-10 font-semibold leading-relaxed">
-            İnternet bağımlılığı olmadan, anlık senkronizasyonla çalışan, mutfak ve bar yönetimini otomatize eden profesyonel restoran yönetim çözümü.
+            {txt(
+              'İnternet bağımlılığı olmadan, anlık senkronizasyonla çalışan, mutfak ve bar yönetimini otomatize eden profesyonel restoran yönetim çözümü.',
+              'A professional restaurant management solution that works with instant synchronization and automates kitchen and bar management without internet dependency.',
+              'Μια επαγγελματική λύση διαχείρισης εστιατορίων που λειτουργεί με άμεσο συγχρονισμό και αυτοματοποιεί τη διαχείριση κουζίνας και μπαρ χωρίς εξάρτηση από το διαδίκτυο.'
+            )}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
               onClick={() => navigate('/register')}
               className="px-8 py-4 bg-amber-600 text-white font-black rounded-2xl hover:bg-amber-700 transition-all text-lg flex items-center justify-center gap-2 shadow-lg shadow-amber-600/15 cursor-pointer"
             >
-              Hemen Başlayın <ArrowRight className="h-5 w-5" />
+              {txt('Hemen Başlayın', 'Get Started Now', 'Ξεκινήστε Τώρα')} <ArrowRight className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -80,19 +209,23 @@ export default function HoReCaLanding() {
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-5 space-y-6">
             <div className="inline-block px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold uppercase tracking-wider">
-              YENİ NESİL AR-GE ALTYAPISI
+              {txt('YENİ NESİL AR-GE ALTYAPISI', 'NEW GENERATION R&D INFRASTRUCTURE', 'ΥΠΟΔΟΜΗ R&D ΝΕΑΣ ΓΕΝΙΑΣ')}
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              Sektörün En Akıllı Restoran Otomasyonu
+              {txt('Sektörün En Akıllı Restoran Otomasyonu', "The Industry's Smartest Restaurant Automation", 'Η Εξυπνότερη Αυτοματοποίηση Εστιατορίων')}
             </h2>
             <p className="text-slate-600 font-semibold text-sm md:text-base leading-relaxed">
-              HoReCaLP, kesintisiz bir hizmet süreci yürütmeniz için tasarlandı. Dijital el terminalleri, mutfak hazırlık panelleri, adisyon kurgusu ve QR entegrasyonu tek bir merkezde, internet kopmalarından etkilenmeksizin çalışır.
+              {txt(
+                'HoReCaLP, kesintisiz bir hizmet süreci yürütmeniz için tasarlandı. Dijital el terminalleri, mutfak hazırlık panelleri, adisyon kurgusu ve QR entegrasyonu tek bir merkezde, internet kopmalarından etkilenmeksizin çalışır.',
+                'HoReCaLP is designed for a seamless service workflow. Digital handheld terminals, kitchen display systems, bill workflows, and QR integration operate from a single hub, unaffected by internet outages.',
+                'Το HoReCaLP έχει σχεδιαστεί για απρόσκοπτη ροή εργασιών σέρβις. Τα ψηφιακά τερματικά, τα συστήματα κουζίνας, οι ροές λογαριασμών και η ενσωμάτωση QR λειτουργούν από έναν κόμβο, ανεπηρέαστα από διακοπές ίντερνετ.'
+              )}
             </p>
             <div className="space-y-3">
               {[
-                "Çevrimdışı (offline-first) kesintisiz çalışma mimarisi",
-                "Masa ve el terminalleri arasında real-time çift yönlü veri transferi",
-                "Farklı departmanlara (Mutfak, Bar, Fırın) anlık sipariş yönlendirme"
+                txt("Çevrimdışı (offline-first) kesintisiz çalışma mimarisi", "Offline-first continuous working architecture", "Αρχιτεκτονική συνεχούς λειτουργίας offline-first"),
+                txt("Masa ve el terminalleri arasında real-time çift yönlü veri transferi", "Real-time two-way data sync between tables and handheld units", "Αμφίδρομος συγχρονισμός δεδομένων πραγματικού χρόνου"),
+                txt("Farklı departmanlara (Mutfak, Bar, Fırın) anlık sipariş yönlendirme", "Instant order routing to different departments (Kitchen, Bar, Oven)", "Άμεση δρομολόγηση παραγγελιών σε διαφορετικά τμήματα (Κουζίνα, Μπαρ)")
               ].map((text, i) => (
                 <div key={i} className="flex items-center gap-3 text-slate-700 text-sm font-bold">
                   <CheckCircle className="h-5 w-5 text-amber-500 shrink-0" />
@@ -112,10 +245,10 @@ export default function HoReCaLanding() {
               />
               <div className="absolute bottom-8 left-8 right-8 z-20 bg-black/50 backdrop-blur-md p-6 rounded-2xl border border-white/10 text-white">
                 <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 mb-2 inline-block">
-                  PREMIUM VİTRİN
+                  {txt('PREMIUM VİTRİN', 'PREMIUM SHOWCASE', 'PREMIUM SHOWCASE')}
                 </span>
-                <p className="font-black text-lg md:text-xl mb-1">Masa Adisyon ve Dijital QR Menü Entegrasyonu</p>
-                <p className="text-white/60 text-xs md:text-sm font-semibold">Gelişmiş restoran POS arayüzü ile adisyonları anlık bölün, masadan siparişleri yönetin.</p>
+                <p className="font-black text-lg md:text-xl mb-1">{txt('Masa Adisyon ve Dijital QR Menü Entegrasyonu', 'Table Bill & Digital QR Menu Integration', 'Ενσωμάτωση Λογαριασμού Τραπεζιού & Ψηφιακού Μενού QR')}</p>
+                <p className="text-white/60 text-xs md:text-sm font-semibold">{txt('Gelişmiş restoran POS arayüzü ile adisyonları anlık bölün, masadan siparişleri yönetin.', 'Split bills instantly with an advanced restaurant POS interface, manage orders from the table.', 'Διαχωρίστε τους λογαριασμούς άμεσα με μια προηγμένη διεπαφή POS, διαχειριστείτε τις παραγγελίες από το τραπέζι.')}</p>
               </div>
             </div>
           </div>
@@ -126,58 +259,62 @@ export default function HoReCaLanding() {
       <section className="py-24">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">Neden HoReCaLP?</h2>
+            <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">{txt('Neden HoReCaLP?', 'Why HoReCaLP?', 'Γιατί HoReCaLP;')}</h2>
             <p className="text-slate-500 font-semibold text-sm sm:text-base leading-relaxed">
-              Restoran, bar ve cafelerin operasyonel zorluklarını çözmek, sipariş hızını artırmak ve kaçakları sıfıra indirmek için tasarlandı.
+              {txt(
+                'Restoran, bar ve cafelerin operasyonel zorluklarını çözmek, sipariş hızını artırmak ve kaçakları sıfıra indirmek için tasarlandı.',
+                'Designed to solve operational challenges for restaurants, bars, and cafes, speed up orders, and eliminate leakages.',
+                'Σχεδιασμένο για την επίλυση επιχειρησιακών προκλήσεων για εστιατόρια, μπαρ και καφετέριες, επιτάχυνση παραγγελιών και εξάλειψη απωλειών.'
+              )}
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               { 
-                title: 'Kesintisiz Çevrimdışı Çalışma', 
-                desc: 'İnternet bağlantınız kopsa dahi el terminalleriniz sipariş almaya, adisyon açmaya ve yerel ağda haberleşmeye devam eder. Bağlantı geldiğinde otomatik eşitlenir.',
+                title: txt('Kesintisiz Çevrimdışı Çalışma', 'Continuous Offline Operation', 'Αδιάλειπτη Λειτουργία Εκτός Σύνδεσης'), 
+                desc: txt('İnternet bağlantınız kopsa dahi el terminalleriniz sipariş almaya, adisyon açmaya ve yerel ağda haberleşmeye devam eder. Bağlantı geldiğinde otomatik eşitlenir.', 'Even if your internet connection drops, your handheld terminals continue to take orders, open bills, and communicate on the local network. Automatically syncs when connection returns.', 'Ακόμα και αν η σύνδεση στο διαδίκτυο διακοπεί, τα φορητά τερματικά σας συνεχίζουν να λαμβάνουν παραγγελίες, να ανοίγουν λογαριασμούς και να επικοινωνούν στο τοπικό δίκτυο. Συγχρονίζονται αυτόματα όταν η σύνδεση αποκατασταθεί.'),
                 icon: WifiOff,
                 color: 'text-amber-600 bg-amber-50 border-amber-100/50'
               },
               { 
-                title: 'Anlık Masa Senkronizasyonu', 
-                desc: 'Tüm terminaller arasında tam zamanlı çift yönlü veri senkronizasyonu. Garsonların girdiği siparişler kasada ve diğer terminallerde anlık güncellenir.',
+                title: txt('Anlık Masa Senkronizasyonu', 'Instant Table Sync', 'Άμεσος Συγχρονισμός Τραπεζιού'), 
+                desc: txt('Tüm terminaller arasında tam zamanlı çift yönlü veri senkronizasyonu. Garsonların girdiği siparişler kasada ve diğer terminallerde anlık güncellenir.', 'Full-time two-way data synchronization across all terminals. Orders entered by waiters are instantly updated at the cash register and other terminals.', 'Αμφίδρομος συγχρονισμός δεδομένων πραγματικού χρόνου σε όλα τα τερματικά. Οι παραγγελίες που εισάγονται από σερβιτόρους ενημερώνονται άμεσα στο ταμείο και σε άλλα τερματικά.'),
                 icon: RefreshCw,
                 color: 'text-indigo-600 bg-indigo-50 border-indigo-100/50'
               },
               { 
-                title: 'Gelişmiş Hesap Bölme', 
-                desc: 'Kişi sayısına göre eşit hesap bölme veya seçilen spesifik ürün kalemlerine göre parça parça ödeme alma imkanı (Nakit, Kredi Kartı ve Karma).',
+                title: txt('Gelişmiş Hesap Bölme', 'Advanced Bill Splitting', 'Προηγμένη Διαίρεση Λογαριασμού'), 
+                desc: txt('Kişi sayısına göre eşit hesap bölme veya seçilen spesifik ürün kalemlerine göre parça parça ödeme alma imkanı (Nakit, Kredi Kartı ve Karma).', 'Possibility of equal bill splitting by number of people or partial payments based on selected specific products (Cash, Credit Card, and Mixed).', 'Δυνατότητα ισότιμης διαίρεσης λογαριασμού ανάλογα με τον αριθμό των ατόμων ή μερικών πληρωμών βάσει επιλεγμένων προϊόντων (Μετρητά, Πιστωτική Κάρτα και Μικτά).'),
                 icon: Receipt,
                 color: 'text-emerald-600 bg-emerald-50 border-emerald-100/50'
               },
               { 
-                title: 'Zengin QR Menü & Sipariş', 
-                desc: 'Müşterilerinizin masadaki kodu okutarak porsiyon, alerjen detaylarını görmesini ve doğrudan masadan interaktif sipariş vermesini sağlayın.',
+                title: txt('Zengin QR Menü & Sipariş', 'Rich QR Menu & Ordering', 'Πλούσιο Μενού QR & Παραγγελίες'), 
+                desc: txt('Müşterilerinizin masadaki kodu okutarak porsiyon, alerjen detaylarını görmesini ve doğrudan masadan interaktif sipariş vermesini sağlayın.', 'Allow your customers to scan the code at the table to see portions and allergen details, and place interactive orders directly from the table.', 'Επιτρέψτε στους πελάτες σας να σαρώσουν τον κωδικό στο τραπέζι για να δουν λεπτομέρειες για μερίδες και αλλεργιογόνα, και να κάνουν διαδραστικές παραγγελίες απευθείας από το τραπέζι.'),
                 icon: QrCode,
                 color: 'text-rose-600 bg-rose-50 border-rose-100/50'
               },
               { 
-                title: 'Akıllı Reçete & Stok Takibi', 
-                desc: 'Her yemek ve kokteyl için milimetrik reçeteler (BOM) oluşturun. Satış yapıldıkça un, yağ, et gibi hammaddeler depodan otomatik düşsün.',
+                title: txt('Akıllı Reçete & Stok Takibi', 'Smart Recipe & Stock Tracking', 'Έξυπνη Συνταγή & Παρακολούθηση Αποθεμάτων'), 
+                desc: txt('Her yemek ve kokteyl için milimetrik reçeteler (BOM) oluşturun. Satış yapıldıkça un, yağ, et gibi hammaddeler depodan otomatik düşsün.', 'Create millimeter-precise recipes (BOM) for each dish and cocktail. As sales are made, raw materials like flour, oil, and meat are automatically deducted from stock.', 'Δημιουργήστε συνταγές ακριβείας (BOM) για κάθε πιάτο και κοκτέιλ. Καθώς πραγματοποιούνται πωλήσεις, πρώτες ύλες όπως αλεύρι, λάδι και κρέας αφαιρούνται αυτόματα από το απόθεμα.'),
                 icon: Layers,
                 color: 'text-blue-600 bg-blue-50 border-blue-100/50'
               },
               { 
-                title: 'Süreli Happy Hour tarifesi', 
-                desc: 'Haftanın belirli günlerinde ve saat aralıklarında otomatik devreye giren özel indirim tarifeleri ve Happy Hour kuralları tanımlayın.',
+                title: txt('Süreli Happy Hour tarifesi', 'Timed Happy Hour Tariff', 'Προγραμματισμένη Χρέωση Happy Hour'), 
+                desc: txt('Haftanın belirli günlerinde ve saat aralıklarında otomatik devreye giren özel indirim tarifeleri ve Happy Hour kuralları tanımlayın.', 'Define special discount tariffs and Happy Hour rules that automatically activate on specific days and time intervals of the week.', 'Ορίστε ειδικά τιμολόγια εκπτώσεων και κανόνες Happy Hour που ενεργοποιούνται αυτόματα σε συγκεκριμένες ημέρες και χρονικά διαστήματα της εβδομάδας.'),
                 icon: Clock,
                 color: 'text-violet-600 bg-violet-50 border-violet-100/50'
               },
               { 
-                title: 'Akıllı Sipariş Yönlendirme', 
-                desc: 'Onaylanan adisyondaki yemek siparişleri anında mutfak ekranına, içecekler ise bar yazıcısına departman bazlı ayrılarak saniyeler içinde iletilir.',
+                title: txt('Akıllı Sipariş Yönlendirme', 'Smart Order Routing', 'Έξυπνη Δρομολόγηση Παραγγελιών'), 
+                desc: txt('Onaylanan adisyondaki yemek siparişleri anında mutfak ekranına, içecekler ise bar yazıcısına departman bazlı ayrılarak saniyeler içinde iletilir.', 'Food orders in the approved bill are instantly routed to the kitchen screen, and drinks to the bar printer, split by department in seconds.', 'Οι παραγγελίες φαγητού στον εγκεκριμένο λογαριασμό δρομολογούνται άμεσα στην οθόνη της κουζίνας και τα ποτά στον εκτυπωτή μπαρ, διαχωρισμένα ανά τμήμα σε δευτερόλεπτα.'),
                 icon: Send,
                 color: 'text-cyan-600 bg-cyan-50 border-cyan-100/50'
               },
               { 
-                title: 'Güvenlik & Rol Kısıtlamaları', 
-                desc: 'İptal, ikram, iskonto ve iade işlemlerini yönetici onayına bağlayın. Personelin sadece iş yeri Wi-Fi ağından sisteme erişebilmesini sağlayın.',
+                title: txt('Güvenlik & Rol Kısıtlamaları', 'Security & Role Restrictions', 'Ασφάλεια & Περιορισμοί Ρόλων'), 
+                desc: txt('İptal, ikram, iskonto ve iade işlemlerini yönetici onayına bağlayın. Personelin sadece iş yeri Wi-Fi ağından sisteme erişebilmesini sağlayın.', 'Bind cancellation, treats, discount, and return processes to manager approval. Ensure staff can only access the system from the workplace Wi-Fi network.', 'Συνδέστε τις διαδικασίες ακύρωσης, κερασμάτων, εκπτώσεων και επιστροφών με την έγκριση του διευθυντή. Διασφαλίστε ότι το προσωπικό μπορεί να έχει πρόσβαση στο σύστημα μόνο από το Wi-Fi του καταστήματος.'),
                 icon: ShieldAlert,
                 color: 'text-red-600 bg-red-50 border-red-100/50'
               }
@@ -199,9 +336,9 @@ export default function HoReCaLanding() {
       {/* FAQ Section */}
       <section className="py-20 bg-white">
         <div className="max-w-3xl mx-auto px-6">
-          <h2 className="text-3xl font-black text-center mb-12">Sıkça Sorulan Sorular</h2>
+          <h2 className="text-3xl font-black text-center mb-12">{txt('Sıkça Sorulan Sorular', 'Frequently Asked Questions', 'Συχνές Ερωτήσεις')}</h2>
           <div className="space-y-3">
-            {horecaFaq.filter(item => item.status === 'active').map((item) => {
+            {localizedFaq.filter(item => item.status === 'active').map((item) => {
               const isOpen = openId === item.id;
               return (
                 <div key={item.id} className="border border-slate-100 rounded-2xl overflow-hidden">

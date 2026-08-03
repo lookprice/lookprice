@@ -32,8 +32,16 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { shopFaq } from '../data/shopFaq';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function ShopLanding() {
+  const { lang, setLang } = useLanguage();
+  const txt = (trText: string, enText: string, elText: string) => {
+    if (lang === 'tr') return trText;
+    if (lang === 'el') return elText;
+    return enText;
+  };
+
   const [openId, setOpenId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -44,14 +52,111 @@ export default function ShopLanding() {
   };
 
   const categories = [
-    { id: 'all', label: 'Tümü' },
-    { id: 'stok_perakende', label: 'Stok & Perakende' },
-    { id: 'satis_kasa', label: 'Satış & Kasa' },
-    { id: 'finans_cari', label: 'Finans & Cari' }
+    { id: 'all', label: txt('Tümü', 'All', 'Όλα') },
+    { id: 'stok_perakende', label: txt('Stok & Perakende', 'Stock & Retail', 'Απόθεμα & Λιανική') },
+    { id: 'satis_kasa', label: txt('Satış & Kasa', 'Sales & Checkout', 'Πωλήσεις & Ταμείο') },
+    { id: 'finans_cari', label: txt('Finans & Cari', 'Finance & Ledgers', 'Χρηματοοικονομικά & Καθολικά') }
   ];
 
+  const localizedFaq = useMemo(() => {
+    return shopFaq.map(item => {
+      let q = item.q;
+      let a = item.a;
+      if (lang === 'en') {
+        if (item.id === 'barcode_scanner') {
+          q = "Is ShopLP fully compatible with physical barcode scanners and printers?";
+          a = "Yes! ShopLP is plug-and-play compatible with standard USB and wireless Bluetooth barcode scanners. Read the barcode and add items instantly. You can also generate barcodes and print labels.";
+        } else if (item.id === 'fast_pos_retail') {
+          q = "Can we sell barcode-less items with touch buttons on the Fast POS screen? Is cash register integration supported?";
+          a = "Yes! Customize the quick sales layout with shortcuts and color codes for barcode-less or weighed items. Our system is also compatible with integrated POS and cash registers.";
+        } else if (item.id === 'stock_alarms_retail') {
+          q = "Is there a critical stock level alarm? Do we receive notifications when products are running low?";
+          a = "Yes! You can set minimum stock limits for each item. When stock falls below this threshold, the system sends a notification and lists them in supply reports.";
+        } else if (item.id === 'multi_currency_pricing') {
+          q = "Can we accept payments in Euro, GBP, or USD? Can it calculate change in custom currencies?";
+          a = "Yes! ShopLP supports multi-currency cash registers. Even if your base prices are in TRY, calculate payments in foreign currency based on central bank rates and compute change.";
+        } else if (item.id === 'customers_debts_tracking') {
+          q = "Can we create open ledger / credit accounts for our customers? How do we track debt?";
+          a = "Yes! Use the Cari Account module to save sales as credit. Track limits, balance history, and send invoices or debt statements via WhatsApp easily.";
+        } else if (item.id === 'e_invoice_integration') {
+          q = "Can we issue e-Invoices and e-Archive bills after a sale? Is there integrator support?";
+          a = "Yes! Convert retail sales into official e-Invoices or e-Archive bills instantly through secure integrator channels (Mysoft, etc.), and email them immediately.";
+        } else if (item.id === 'variants_management') {
+          q = "Is variation tracking (size, color, etc.) supported for clothing or shoe shops?";
+          a = "Yes! Define unlimited variants (e.g., Size M - Red, Size L - Blue) under a single master card. Keep stock, barcodes, and prices independent.";
+        } else if (item.id === 'einvoice_vat_grouping') {
+          q = "How are VAT rates calculated and grouped on multi-item sales invoices?";
+          a = "ShopLP complies with official regulations. Instead of printing separate VAT lines for each row, identical VAT rates are dynamically grouped to ensure clean invoicing.";
+        } else if (item.id === 'incoming_invoice_view') {
+          q = "How do we view supplier Purchase e-invoices? Does it auto-record stock?";
+          a = "Gelen invoices are rendered cleanly as raw HTML. Better yet, the system auto-registers stock records and ledger accounts from purchase invoices to eliminate manual data entry.";
+        } else if (item.id === 'tech_service_mgmt') {
+          q = "How does Technical Service Management work? How do we invoice repairs?";
+          a = "Record faulty product admissions, issue service receipts, notify clients via SMS/email, draft proposals, and automatically generate draft invoices upon approval.";
+        } else if (item.id === 'price_quotation_system') {
+          q = "How does the Price Quotation and online approval flow operate?";
+          a = "Draft quotes, share them as PDFs or interactive digital links. Once the client clicks 'Approve', a draft sales invoice is automatically prepared in the background.";
+        } else if (item.id === 'stock_movement_ledger') {
+          q = "Can we perform historical stock and demand analysis with stock movement reports?";
+          a = "Yes! Log historical movements per branch, trace shipments, and analyze seasonal demand trends to optimize purchasing.";
+        } else if (item.id === 'bulk_price_updates') {
+          q = "Is there a batch price update feature against currency fluctuations?";
+          a = "Yes! Adjust thousands of prices simultaneously by percentage or fixed amount across specific brands, categories, or branches.";
+        } else if (item.id === 'expense_centers_tracking') {
+          q = "Can we track operational expenses and associate them with expense centers?";
+          a = "Yes! Define custom Expense Centers (ads, rent, shipping) to categorize overhead, calculate net profit, and print detailed cost-distribution charts.";
+        }
+      } else if (lang === 'el') {
+        if (item.id === 'barcode_scanner') {
+          q = "Είναι το ShopLP συμβατό με φυσικούς σαρωτές γραμμωτού κώδικα (barcode) και εκτυπωτές;";
+          a = "Ναι! Το ShopLP είναι plug-and-play συμβατό με τυπικούς σαρωτές USB και Bluetooth. Διαβάστε το barcode και προσθέστε προϊόντα στο καλάθι αμέσως.";
+        } else if (item.id === 'fast_pos_retail') {
+          q = "Μπορούμε να πουλήσουμε προϊόντα χωρίς barcode με κουμπιά αφής στην οθόνη Fast POS; Υποστηρίζεται σύνδεση με ταμειακή μηχανή;";
+          a = "Ναι! Προσαρμόστε τη διάταξη γρήγορων πωλήσεων με συντομεύσεις για προϊόντα χωρίς barcode ή ζυμώμενα είδη. Το σύστημά μας είναι συμβατό με ταμειακές POS.";
+        } else if (item.id === 'stock_alarms_retail') {
+          q = "Υπάρχει συναγερμός κρίσιμου επιπέδου αποθέματος; Λαμβάνουμε ειδοποιήσεις όταν τα προϊόντα εξαντλούνται;";
+          a = "Ναι! Μπορείτε να ορίσετε ελάχιστα όρια αποθέματος για κάθε προϊόν. Όταν το απόθεμα πέσει κάτω από το όριο, λαμβάνετε ειδοποίηση.";
+        } else if (item.id === 'multi_currency_pricing') {
+          q = "Μπορούμε να δεχτούμε πληρωμές σε ευρώ, GBP ή USD; Μπορεί να υπολογίσει ρέστα σε ξένα νομίσματα;";
+          a = "Ναι! Το ShopLP υποστηρίζει ταμεία πολλαπλών νομισμάτων. Υπολογίστε πληρωμές σε ξένο νόμισμα με βάση τις τρέχουσες ισοτιμίες και δώστε ρέστα εύκολα.";
+        } else if (item.id === 'customers_debts_tracking') {
+          q = "Μπορούμε να δημιουργήσουμε λογαριασμούς πίστωσης για τους πελάτες μας; Πώς παρακολουθούμε το χρέος;";
+          a = "Ναι! Χρησιμοποιήστε τη μονάδα Cari Account για να αποθηκεύσετε πωλήσεις με πίστωση. Παρακολουθήστε όρια, ιστορικό και στείλτε υπόλοιπα μέσω WhatsApp.";
+        } else if (item.id === 'e_invoice_integration') {
+          q = "Μπορούμε να εκδώσουμε e-Invoices και e-Archive μετά από μια πώληση; Υπάρχει υποστήριξη παρόχου;";
+          a = "Ναι! Μετατρέψτε τις πωλήσεις λιανικής σε επίσημα e-Invoices ή e-Archive μέσω των ασφαλών καναλιών μας (Mysoft κ.λπ.) και στείλτε τα μέσω email.";
+        } else if (item.id === 'variants_management') {
+          q = "Υποστηρίζεται η παρακολούθηση παραλλαγών (μέγεθος, χρώμα κ.λπ.) για καταστήματα ρούχων ή υποδημάτων;";
+          a = "Ναι! Ορίστε απεριόριστες παραλλαγές (π.χ. Μέγεθος M - Κόκκινο, Μέγεθος L - Μπλε) κάτω από ένα προϊόν, κρατώντας ξεχωριστό απόθεμα και τιμές.";
+        } else if (item.id === 'einvoice_vat_grouping') {
+          q = "Πώς υπολογίζονται και ομαδοποιούνται οι συντελεστές ΦΠΑ στα τιμολόγια πωλήσεων;";
+          a = "Το ShopLP συμμορφώνεται με τους επίσημους κανονισμούς. Αντί να εκτυπώνονται ξεχωριστές γραμμές ΦΠΑ, οι ίδιοι συντελεστές ομαδοποιούνται αυτόματα.";
+        } else if (item.id === 'incoming_invoice_view') {
+          q = "Πώς βλέπουμε τα τιμολόγια αγοράς από προμηθευτές; Καταγράφει αυτόματα το απόθεμα;";
+          a = "Τα εισερχόμενα τιμολόγια εμφανίζονται καθαρά ως HTML. Το σύστημα καταγράφει αυτόματα το απόθεμα και τους λογαριασμούς καθολικού από αυτά.";
+        } else if (item.id === 'tech_service_mgmt') {
+          q = "Πώς λειτουργεί η Διαχείριση Τεχνικού Σέρβις; Πώς τιμολογούμε τις επισκευές;";
+          a = "Καταγράψτε ελαττωματικά προϊόντα, εκδώστε αποδείξεις σέρβις, ενημερώστε τους πελάτες, στείλτε προσφορές και εκδώστε τιμολόγια με ένα κλικ.";
+        } else if (item.id === 'price_quotation_system') {
+          q = "Πώς λειτουργεί το Σύστημα Προσφορών Τιμών και η ροή online έγκρισης;";
+          a = "Δημιουργήστε προσφορές, μοιραστείτε τις ως PDF ή ψηφιακούς συνδέσμους. Μόλις ο πελάτης κάνει κλικ στο 'Έγκριση', ετοιμάζεται αυτόματα τιμολόγιο.";
+        } else if (item.id === 'stock_movement_ledger') {
+          q = "Μπορούμε να κάνουμε ιστορική ανάλυση αποθεμάτων με αναφορές κίνησης αποθεμάτων;";
+          a = "Ναι! Καταγράψτε ιστορικές κινήσεις ανά υποκατάστημα, εντοπίστε αποστολές και αναλύστε εποχιακές τάσεις για να βελτιστοποιήσετε τις αγορές.";
+        } else if (item.id === 'bulk_price_updates') {
+          q = "Υπάρχει δυνατότητα μαζικής ενημέρωσης τιμών λόγω διακυμάνσεων συναλλάγματος;";
+          a = "Ναι! Προσαρμόστε χιλιάδες τιμές ταυτόχρονα με ποσοστό ή σταθερό ποσό σε συγκεκριμένες μάρκες, κατηγορίες ή υποκαταστήματα.";
+        } else if (item.id === 'expense_centers_tracking') {
+          q = "Μπορούμε να παρακολουθούμε λειτουργικά έξοδα και να τα συνδέσουμε με κέντρα κόστους;";
+          a = "Ναι! Ορίστε προσαρμοσμένα Κέντρα Κόστους (διαφημίσεις, ενοίκιο, μεταφορικά) για να κατηγοριοποιήσετε τα έξοδα και να δείτε το καθαρό κέρδος.";
+        }
+      }
+      return { ...item, q, a };
+    });
+  }, [lang]);
+
   const filteredFaq = useMemo(() => {
-    return shopFaq.filter(item => {
+    return localizedFaq.filter(item => {
       const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
       const cleanQuery = searchQuery.toLowerCase().trim();
       const matchesSearch = !cleanQuery || 
@@ -59,7 +164,7 @@ export default function ShopLanding() {
         item.a.toLowerCase().includes(cleanQuery);
       return matchesCategory && matchesSearch;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [localizedFaq, searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -72,12 +177,32 @@ export default function ShopLanding() {
             </div>
             <span className="font-black text-xl tracking-tight text-slate-900">LookPrice</span>
           </div>
-          <button 
-            onClick={() => navigate('/')} 
-            className="text-sm font-extrabold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-xl transition-all"
-          >
-            Ana Sayfaya Dön
-          </button>
+
+          <div className="flex items-center gap-4">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200">
+              {['tr', 'en', 'el'].map((l) => (
+                <button 
+                  key={l}
+                  onClick={() => setLang(l as 'tr' | 'en' | 'el')}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-black transition-all ${
+                    lang === l 
+                      ? 'bg-indigo-600 text-white shadow-md' 
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+                  }`}
+                >
+                  {l === 'el' ? 'GR' : l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => navigate('/')} 
+              className="text-sm font-extrabold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-xl transition-all"
+            >
+              {txt('Ana Sayfaya Dön', 'Return to Home Page', 'Επιστροφή στην Αρχική')}
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -275,13 +400,13 @@ export default function ShopLanding() {
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <span className="text-xs font-extrabold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full mb-3 inline-block">
-              MAĞAZA BİLGİ BANKASI
+              {txt('MAĞAZA BİLGİ BANKASI', 'RETAIL KNOWLEDGE BANK', 'ΤΡΑΠΕΖΑ ΓΝΩΣΕΩΝ ΛΙΑΝΙΚΗΣ')}
             </span>
             <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
-              Sıkça Sorulan Sorular
+              {txt('Sıkça Sorulan Sorular', 'Frequently Asked Questions', 'Συχνές Ερωτήσεις')}
             </h2>
             <p className="text-slate-500 font-semibold text-sm mt-2">
-              ShopLP satış, stok ve cari otomasyon sistemimizle ilgili en çok merak edilen detaylar.
+              {txt('ShopLP satış, stok ve cari otomasyon sistemimizle ilgili en çok merak edilen detaylar.', 'The most curious details about our ShopLP sales, stock, and ledger automation system.', 'Οι πιο ενδιαφέρουσες λεπτομέρειες σχετικά με το σύστημα πωλήσεων, αποθεμάτων και αυτοματοποίησης καθολικού ShopLP.')}
             </p>
           </div>
 
@@ -293,7 +418,7 @@ export default function ShopLanding() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Barkod, veresiye borç, dövizli kasa veya e-Fatura hakkında arayın..."
+                placeholder={txt('Barkod, veresiye borç, dövizli kasa veya e-Fatura hakkında arayın...', 'Search about barcode, credit debt, multi-currency cash register or e-Invoice...', 'Αναζήτηση για barcode, πιστωτικό χρέος, ταμειακή μηχανή πολλαπλών νομισμάτων ή e-Invoice...')}
                 className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200 focus:border-indigo-500 rounded-2xl text-sm font-bold text-slate-800 focus:outline-none transition-all"
               />
               {searchQuery && (
@@ -327,7 +452,7 @@ export default function ShopLanding() {
           <div className="space-y-3">
             {filteredFaq.length === 0 ? (
               <div className="bg-slate-50 rounded-3xl p-12 text-center border border-slate-100">
-                <p className="text-slate-800 font-extrabold text-sm">Aramanızla eşleşen soru bulunamadı.</p>
+                <p className="text-slate-800 font-extrabold text-sm">{txt('Aramanızla eşleşen soru bulunamadı.', 'No questions found matching your search.', 'Δεν βρέθηκαν ερωτήσεις που να ταιριάζουν με την αναζήτησή σας.')}</p>
               </div>
             ) : (
               filteredFaq.map((item) => {
@@ -381,7 +506,7 @@ export default function ShopLanding() {
             <div className="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center font-black">LP</div>
             <span className="font-black text-lg">ShopLP</span>
           </div>
-          <p className="text-sm text-white/50 font-medium">© 2026 LookPrice. Tüm Hakları Saklıdır.</p>
+          <p className="text-sm text-white/50 font-medium">{txt('© 2026 LookPrice. Tüm Hakları Saklıdır.', '© 2026 LookPrice. All Rights Reserved.', '© 2026 LookPrice. Με επιφύλαξη παντός δικαιώματος.')}</p>
         </div>
       </footer>
     </div>

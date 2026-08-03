@@ -36,8 +36,16 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { restateFaq } from '../data/restateFaq';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function REstateLanding() {
+  const { lang, setLang } = useLanguage();
+  const txt = (trText: string, enText: string, elText: string) => {
+    if (lang === 'tr') return trText;
+    if (lang === 'el') return elText;
+    return enText;
+  };
+
   const [openId, setOpenId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -48,14 +56,111 @@ export default function REstateLanding() {
   };
 
   const categories = [
-    { id: 'all', label: 'Tümü' },
-    { id: 'emlak_yonetim', label: 'Emlak Yönetimi' },
-    { id: 'finans_pazarlama', label: 'Finans & Raporlar' },
-    { id: 'pazarlama', label: 'Pazarlama & Sunum' }
+    { id: 'all', label: txt('Tümü', 'All', 'Όλα') },
+    { id: 'emlak_yonetim', label: txt('Emlak Yönetimi', 'Real Estate Management', 'Διαχείριση Ακινήτων') },
+    { id: 'finans_pazarlama', label: txt('Finans & Raporlar', 'Finance & Reports', 'Χρηματοοικονομικά & Εκθέσεις') },
+    { id: 'pazarlama', label: txt('Pazarlama & Sunum', 'Marketing & Presentation', 'Μάρκετινγκ & Παρουσίαση') }
   ];
 
+  const localizedFaq = useMemo(() => {
+    return restateFaq.map(item => {
+      let q = item.q;
+      let a = item.a;
+      if (lang === 'en') {
+        if (item.id === 'property_document_mgmt') {
+          q = "Can we save property documents, landlord, and client details based on status?";
+          a = "Yes! With the REstateLP management system, you can save Konut, Ticari, and Tarla/Arsa statuses and Sale/Rent details. You can link Landlords and Clients, and digitally upload deeds, share contracts, and power of attorney.";
+        } else if (item.id === 'tour_appointment_calendar') {
+          q = "How do we track property showings with the Tour & Appointment Calendar?";
+          a = "With the integrated Tour & Appointment Calendar, you can schedule showings, client appointments, and field visits. Share the schedule with other brokers to prevent conflicts.";
+        } else if (item.id === 'crm_pipeline_system') {
+          q = "How do we monitor sales and rentals using the CRM Pipeline?";
+          a = "Our advanced CRM Pipeline lets you drag and drop cards to track steps like first contact, offer, negotiation, deposit, deed transfer, and rental.";
+        } else if (item.id === 'shop_window_posters') {
+          q = "Can we print automatic information posters and banners for our office showcase?";
+          a = "Yes! For every property, the system automatically generates beautifully styled info posters. Print them with one click and showcase them in your office window immediately.";
+        } else if (item.id === 'exclusive_private_properties') {
+          q = "Can we hide certain portfolios or set exclusive listings in the system?";
+          a = "Yes! For privacy or competitive reasons, you can hide custom listings from other brokers or branches, and designate 'Exclusive' agreements.";
+        } else if (item.id === 'digital_signed_contracts_restate') {
+          q = "Can we digitally sign showing agreements or deposit contracts?";
+          a = "Yes! Sign lease, deposit, or showing agreements digitally on your mobile device next to your client or send them via WhatsApp.";
+        } else if (item.id === 'realtime_banner_restate') {
+          q = "Can we generate social media banners with 'Sold' or 'Rented' badges?";
+          a = "Yes! Our Realtime Banner System processes specs onto templates instantly. Generate single-property graphics or collage styles with 'Sold', 'Rented', or 'Opportunity' ribbons.";
+        } else if (item.id === 'auto_instagram_restate') {
+          q = "Are added listings automatically shared on our Instagram accounts?";
+          a = "Yes! Every property is automatically posted to your corporate Instagram and on enrakipsiz.com simultaneously. Updates are automatically updated.";
+        } else if (item.id === 'website_builder_restate') {
+          q = "Is a custom corporate website generated automatically for our agency?";
+          a = "Yes! Upon subscribing, your ultra-fast, modern website is live. Customize themes, colors, and menus easily via drag-and-drop.";
+        } else if (item.id === 'enrakipsiz_auto_restate') {
+          q = "Are our listings published on our website and enrakipsiz.com automatically?";
+          a = "Yes! All listings publish to your website and are auto-listed on the global network enrakipsiz.com simultaneously without manual effort.";
+        } else if (item.id === 'mobile_quick_upload_restate') {
+          q = "Can we take photos from mobile on-site and upload them instantly?";
+          a = "Yes! Forget transferring files to computers. Take photos at the property, enter details and prices, and publish instantly on your website and enrakipsiz.com.";
+        } else if (item.id === 'property_expense_tracking') {
+          q = "Can we track property expenses, ad spend, and profit/loss?";
+          a = "Yes! Input all income/expense transactions like renovations, ads, cleaning, or legal consulting, link them to the portfolio, and analyze profit/loss.";
+        } else if (item.id === 'one_glance_portfolio_list') {
+          q = "Can we view all rent, sale, and option listings on a single screen?";
+          a = "Yes! With the One-Glance Inventory Board, filter listings by Rent, Rented, Sale, Sold, or Option. View size, price, and specs in a single unified list.";
+        } else if (item.id === 'ledger_accounts_restate') {
+          q = "Can we track maturities and ledger accounts for term or installment sales?";
+          a = "Yes! Open ledgers for term sales or lease agreements to track payments, dues, and remaining balances, and export ledger statements easily.";
+        }
+      } else if (lang === 'el') {
+        if (item.id === 'property_document_mgmt') {
+          q = "Μπορούμε να αποθηκεύσουμε έγγραφα ακινήτων, ιδιοκτήτες και λεπτομέρειες πελατών με βάση την κατάσταση;";
+          a = "Ναι! Με το REstateLP, μπορείτε να αποθηκεύσετε Konut, Ticari και Tarla/Arsa καταστάσεις και Sale/Rent λεπτομέρειες, να συνδέσετε Ιδιοκτήτες και Πελάτες, και να ανεβάσετε ψηφιακά έγγραφα.";
+        } else if (item.id === 'tour_appointment_calendar') {
+          q = "Πώς παρακολουθούμε τις υποδείξεις ακινήτων με το Ημερολόγιο Περιηγήσεων & Ραντεβού;";
+          a = "Σχεδιάστε υποδείξεις ακινήτων, ραντεβού πελατών και επισκέψεις πεδίου. Μοιραστείτε το ημερολόγιο με άλλους μεσίτες για να αποφύγετε επικαλύψεις.";
+        } else if (item.id === 'crm_pipeline_system') {
+          q = "Πώς παρακολουθούμε τις πωλήσεις και τις ενοικιάσεις χρησιμοποιώντας το CRM Pipeline;";
+          a = "Το CRM Pipeline σάς επιτρέπει να παρακολουθείτε βήματα όπως πρώτη επαφή, προσφορά, διαπραγμάτευση, κατάθεση, μεταβίβαση τίτλου και ενοικίαση.";
+        } else if (item.id === 'shop_window_posters') {
+          q = "Μπορούμε να εκτυπώσουμε αυτόματες αφίσες πληροφοριών για τη βιτρίνα του γραφείου μας;";
+          a = "Ναι! Για κάθε ακίνητο, το σύστημα δημιουργεί αυτόματα κομψές αφίσες πληροφοριών. Εκτυπώστε τις με ένα κλικ για τη βιτρίνα του γραφείου σας.";
+        } else if (item.id === 'exclusive_private_properties') {
+          q = "Μπορούμε να κρύψουμε ορισμένα χαρτοφυλάκια ή να ορίσουμε αποκλειστικές καταχωρίσεις στο σύστημα;";
+          a = "Ναι! Για λόγους προστασίας προσωπικών δεδομένων ή ανταγωνισμού, μπορείτε να κρύψετε καταχωρίσεις από άλλους μεσίτες ή υποκαταστήματα.";
+        } else if (item.id === 'digital_signed_contracts_restate') {
+          q = "Μπορούμε να υπογράψουμε ψηφιακά συμφωνητικά υπόδειξης ή συμβόλαια προκαταβολής;";
+          a = "Ναι! Υπογράψτε ψηφιακά συμφωνητικά μίσθωσης, προκαταβολής ή υπόδειξης ακινήτου απευθείας από το κινητό σας ή στείλτε τα μέσω WhatsApp.";
+        } else if (item.id === 'realtime_banner_restate') {
+          q = "Μπορούμε να δημιουργήσουμε διαφημιστικά πλαίσια κοινωνικών μέσων με σήμανση 'Πουλήθηκε' ή 'Ενοικιάστηκε';";
+          a = "Ναι! Το Σύστημά μας παράγει αυτόματα γραφικά με σήμανση 'Πουλήθηκε', 'Ενοικιάστηκε' ή 'Ευκαιρία' έτοιμα για κοινή χρήση σε δευτερόλεπτα.";
+        } else if (item.id === 'auto_instagram_restate') {
+          q = "Κοινοποιούνται αυτόματα οι καταχωρίσεις στους λογαριασμούς μας στο Instagram;";
+          a = "Ναι! Κάθε ακίνητο δημοσιεύεται αυτόματα στο Instagram σας και στο enrakipsiz.com ταυτόχρονα. Οι ενημερώσεις συγχρονίζονται.";
+        } else if (item.id === 'website_builder_restate') {
+          q = "Δημιουργείται αυτόματα εταιρικός ιστότοπος για το γραφείο μας;";
+          a = "Ναι! Με την εγγραφή σας, ο ιστότοπός σας είναι online. Προσαρμόστε θέματα, χρώματα και μενού εύκολα με drag-and-drop.";
+        } else if (item.id === 'enrakipsiz_auto_restate') {
+          q = "Δημοσιεύονται αυτόματα οι αγγελίες μας στον ιστότοπό μας και στο enrakipsiz.com;";
+          a = "Ναι! Όλες οι αγγελίες δημοσιεύονται στον ιστότοπό σας και στο παγκόσμιο δίκτυο enrakipsiz.com ταυτόχρονα χωρίς χειροκίνητη προσπάθεια.";
+        } else if (item.id === 'mobile_quick_upload_restate') {
+          q = "Μπορούμε να βγάλουμε φωτογραφίες από το κινητό επιτόπου και να τις ανεβάσουμε αμέσως;";
+          a = "Ναι! Τραβήξτε φωτογραφίες στο ακίνητο, εισαγάγετε λεπτομέρειες και τιμές και δημοσιεύστε αμέσως στον ιστότοπό σας και στο enrakipsiz.com.";
+        } else if (item.id === 'property_expense_tracking') {
+          q = "Μπορούμε να παρακολουθούμε έξοδα ακινήτων, διαφημιστικές δαπάνες και κέρδος/ζημία;";
+          a = "Ναι! Καταχωρίστε συναλλαγές όπως ανακαινίσεις, διαφημίσεις, καθαρισμό ή νομικές συμβουλές, συνδέστε τις και αναλύστε το κέρδος/ζημία.";
+        } else if (item.id === 'one_glance_portfolio_list') {
+          q = "Μπορούμε να δούμε όλες τις ενοικιάσεις, πωλήσεις και επιλογές σε μία οθόνη;";
+          a = "Ναι! Φιλτράρετε τις καταχωρίσεις κατά Ενοικίαση, Ενοικιάστηκε, Πώληση, Πουλήθηκε ή Επιλογή. Δείτε μέγεθος, τιμή και προδιαγραφές με μια ματιά.";
+        } else if (item.id === 'ledger_accounts_restate') {
+          q = "Μπορούμε να παρακολουθούμε λήξεις και καθολικά για πωλήσεις με δόσεις;";
+          a = "Ναι! Ανοίξτε καθολικά για πωλήσεις ή μισθώσεις για να παρακολουθείτε πληρωμές, οφειλές και υπόλοιπα και εξάγετε καταστάσεις εύκολα.";
+        }
+      }
+      return { ...item, q, a };
+    });
+  }, [lang]);
+
   const filteredFaq = useMemo(() => {
-    return restateFaq.filter(item => {
+    return localizedFaq.filter(item => {
       const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
       const cleanQuery = searchQuery.toLowerCase().trim();
       const matchesSearch = !cleanQuery || 
@@ -63,7 +168,7 @@ export default function REstateLanding() {
         item.a.toLowerCase().includes(cleanQuery);
       return matchesCategory && matchesSearch;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [localizedFaq, searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -76,12 +181,32 @@ export default function REstateLanding() {
             </div>
             <span className="font-black text-xl tracking-tight text-slate-900">LookPrice</span>
           </div>
-          <button 
-            onClick={() => navigate('/')} 
-            className="text-sm font-extrabold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-xl transition-all"
-          >
-            Ana Sayfaya Dön
-          </button>
+
+          <div className="flex items-center gap-4">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200">
+              {['tr', 'en', 'el'].map((l) => (
+                <button 
+                  key={l}
+                  onClick={() => setLang(l as 'tr' | 'en' | 'el')}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-black transition-all ${
+                    lang === l 
+                      ? 'bg-rose-600 text-white shadow-md' 
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+                  }`}
+                >
+                  {l === 'el' ? 'GR' : l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => navigate('/')} 
+              className="text-sm font-extrabold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-xl transition-all"
+            >
+              {txt('Ana Sayfaya Dön', 'Return to Home Page', 'Επιστροφή στην Αρχική')}
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -309,13 +434,13 @@ export default function REstateLanding() {
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <span className="text-xs font-extrabold uppercase tracking-widest text-rose-600 bg-rose-50 px-3 py-1 rounded-full mb-3 inline-block">
-              EMLAK BİLGİ BANKASI
+              {txt('EMLAK BİLGİ BANKASI', 'REAL ESTATE KNOWLEDGE BANK', 'ΤΡΑΠΕΖΑ ΓΝΩΣΕΩΝ ΑΚΙΝΗΤΩΝ')}
             </span>
             <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
-              Emlak Sıkça Sorulan Sorular
+              {txt('Emlak Sıkça Sorulan Sorular', 'Real Estate FAQs', 'Συχνές Ερωτήσεις Ακινήτων')}
             </h2>
             <p className="text-slate-500 font-semibold text-sm mt-2">
-              REstateLP emlak otomasyonu, mülk yönetimi ve sunum altyapımızla ilgili sıkça sorulan sorular.
+              {txt('REstateLP emlak otomasyonu, mülk yönetimi ve sunum altyapımızla ilgili sıkça sorulan sorular.', 'Frequently asked questions about our REstateLP real estate automation, property management, and presentation system.', 'Συχνές ερωτήσεις σχετικά με τον αυτοματισμό ακινήτων, τη διαχείριση ακινήτων και το σύστημα παρουσίασης REstateLP.')}
             </p>
           </div>
 
@@ -327,7 +452,7 @@ export default function REstateLanding() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Koçan, arsa, KDV/Stopaj veya PDF sunumları hakkında arayın..."
+                placeholder={txt('Koçan, arsa, KDV/Stopaj veya PDF sunumları hakkında arayın...', 'Search about deeds, land, VAT/Withholding tax or PDF presentations...', 'Αναζήτηση για τίτλους ιδιοκτησίας, γη, ΦΠΑ ή παρουσιάσεις PDF...')}
                 className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200 focus:border-rose-500 rounded-2xl text-sm font-bold text-slate-800 focus:outline-none transition-all"
               />
               {searchQuery && (
@@ -361,7 +486,7 @@ export default function REstateLanding() {
           <div className="space-y-3">
             {filteredFaq.length === 0 ? (
               <div className="bg-slate-50 rounded-3xl p-12 text-center border border-slate-100">
-                <p className="text-slate-800 font-extrabold text-sm">Aramanızla eşleşen soru bulunamadı.</p>
+                <p className="text-slate-800 font-extrabold text-sm">{txt('Aramanızla eşleşen soru bulunamadı.', 'No questions found matching your search.', 'Δεν βρέθηκαν ερωτήσεις που να ταιριάζουν με την αναζήτησή σας.')}</p>
               </div>
             ) : (
               filteredFaq.map((item) => {
@@ -415,7 +540,7 @@ export default function REstateLanding() {
             <div className="h-8 w-8 bg-rose-600 rounded-lg flex items-center justify-center font-black">LP</div>
             <span className="font-black text-lg">REstateLP</span>
           </div>
-          <p className="text-sm text-white/50 font-medium">© 2026 LookPrice. Tüm Hakları Saklıdır.</p>
+          <p className="text-sm text-white/50 font-medium">{txt('© 2026 LookPrice. Tüm Hakları Saklıdır.', '© 2026 LookPrice. All Rights Reserved.', '© 2026 LookPrice. Με επιφύλαξη παντός δικαιώματος.')}</p>
         </div>
       </footer>
     </div>

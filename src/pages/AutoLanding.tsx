@@ -33,8 +33,16 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { autoFaq } from '../data/autoFaq';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function AutoLanding() {
+  const { lang, setLang } = useLanguage();
+  const txt = (trText: string, enText: string, elText: string) => {
+    if (lang === 'tr') return trText;
+    if (lang === 'el') return elText;
+    return enText;
+  };
+
   const [openId, setOpenId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -45,14 +53,111 @@ export default function AutoLanding() {
   };
 
   const categories = [
-    { id: 'all', label: 'Tümü' },
-    { id: 'galeri_yonetim', label: 'Galeri Yönetimi' },
-    { id: 'finans_satis', label: 'Finans & Satış' },
-    { id: 'pazarlama', label: 'Pazarlama & Web' }
+    { id: 'all', label: txt('Tümü', 'All', 'Όλα') },
+    { id: 'galeri_yonetim', label: txt('Galeri Yönetimi', 'Gallery Management', 'Διαχείριση Γκαλερί') },
+    { id: 'finans_satis', label: txt('Finans & Satış', 'Finance & Sales', 'Χρηματοοικονομικά & Πωλήσεις') },
+    { id: 'pazarlama', label: txt('Pazarlama & Web', 'Marketing & Web', 'Μάρκετινγκ & Διαδίκτυο') }
   ];
 
+  const localizedFaq = useMemo(() => {
+    return autoFaq.map(item => {
+      let q = item.q;
+      let a = item.a;
+      if (lang === 'en') {
+        if (item.id === 'fleet_management') {
+          q = "Can we track fleet drivers, mileage, and maintenance history?";
+          a = "Yes! With the Advanced Fleet Management Module, you can digitally store driver assignments, active mileage status, service and periodic maintenance history, tire change periods, assignment records, and accident reports.";
+        } else if (item.id === 'digital_contract_sign') {
+          q = "Can we digitally sign and store vehicle sales and consignment contracts?";
+          a = "Yes! You can instantly sign contracts digitally right next to your customer from your mobile device or directly via WhatsApp. Signed agreements are stored on secure cloud servers and can be downloaded as PDF anytime.";
+        } else if (item.id === 'realtime_banner_system') {
+          q = "Does it generate automatic banners, collages, and 'Sold' banner images for social media?";
+          a = "Yes! With the Realtime Banner System, all technical specs are automatically rendered onto template styles. You can generate single vehicle images or beautiful collages. Professional, share-ready graphics are ready in seconds.";
+        } else if (item.id === 'auto_instagram_share') {
+          q = "Are cars automatically shared on our Instagram accounts?";
+          a = "Yes! Every vehicle you add is automatically and simultaneously shared on your corporate Instagram account and on our shared system enrakipsiz.com. Any price or detail updates are auto-synced and updated.";
+        } else if (item.id === 'website_builder_auto') {
+          q = "Is the corporate website created automatically and is it customizable?";
+          a = "Yes! The moment you subscribe, your ultra-fast, modern corporate website is live automatically. You can customize colors, logo, and info with drag-and-drop ease.";
+        } else if (item.id === 'enrakipsiz_integration') {
+          q = "Are vehicles automatically listed on enrakipsiz.com?";
+          a = "Yes! All vehicles are published on your own corporate website and on our global network enrakipsiz.com simultaneously without any manual action.";
+        } else if (item.id === 'mobile_first_upload') {
+          q = "Can we take photos from mobile and upload directly to the system?";
+          a = "Yes! Forget transferring files to computers. Take photos of the vehicle from your phone, enter details and prices, and publish instantly on your website and enrakipsiz.com.";
+        } else if (item.id === 'cost_profit_tracking') {
+          q = "Can we view car expenses, purchase costs, and net profit/loss reports?";
+          a = "Yes! You can track all expenses (customs, port, maintenance, grooming, accessories, etc.) and original purchase cost. Analyze profitability by vehicle or period.";
+        } else if (item.id === 'one_glance_inventory') {
+          q = "Can we view the entire fleet inventory, mileage, and price on a single screen?";
+          a = "Yes! With the Inventory Dashboard, you can see critical data like brand, model, mileage, and price at a glance, with quick access to damage sheets and history.";
+        } else if (item.id === 'installment_credit_tracking') {
+          q = "Is there ledger and debt tracking for credit and installment sales?";
+          a = "Yes! You can open ledgers for your term customers, track maturities, paid installments, and remaining balances, and export ledger statements as Excel or PDF.";
+        } else if (item.id === 'multi_branch_crm') {
+          q = "Is there support for multi-branch and agent authorization?";
+          a = "Yes! AutoLP features an enterprise-grade multi-branch and agent permission architecture. Add unlimited branches and staff, manage inventory transfers, and track branch metrics.";
+        } else if (item.id === 'google_cloud_backup') {
+          q = "Can we backup all our data securely?";
+          a = "Yes! All system data, images, and contracts can be securely backed up to corporate Google Cloud servers with one click.";
+        } else if (item.id === 'seo_google_meta_pixel') {
+          q = "Can SEO compliance and Google / Meta Ad pixel codes be added?";
+          a = "Yes! Our SEO-compliant codebase ensures you rank high in Google searches. Add your Google Analytics and Meta Pixel codes in seconds for retargeting.";
+        } else if (item.id === 'realtime_analytics_dashboard') {
+          q = "Is there a real-time analytics and charts dashboard?";
+          a = "Yes! Top-selling vehicle segments, average selling times, branch revenues, and financial statements are instantly shown with sleek interactive charts.";
+        }
+      } else if (lang === 'el') {
+        if (item.id === 'fleet_management') {
+          q = "Μπορούμε να παρακολουθούμε οδηγούς στόλου, χιλιόμετρα και ιστορικό συντήρησης;";
+          a = "Ναι! Με την Προηγμένη Μονάδα Διαχείρισης Στόλου, μπορείτε να αποθηκεύετε ψηφιακά αναθέσεις οδηγών, ενεργά χιλιόμετρα, ιστορικό σέρβις και περιοδικής συντήρησης, αλλαγές ελαστικών και αναφορές ατυχημάτων.";
+        } else if (item.id === 'digital_contract_sign') {
+          q = "Μπορούμε να υπογράφουμε ψηφιακά και να αποθηκεύουμε συμβόλαια πωλήσεων και παρακαταθήκης;";
+          a = "Ναι! Μπορείτε να υπογράψετε συμβόλαια ψηφιακά δίπλα στον πελάτη σας από την κινητή συσκευή σας ή απευθείας μέσω WhatsApp. Οι συμφωνίες αποθηκεύονται σε ασφαλείς διακομιστές cloud και λήψη σε PDF ανά πάσα στιγμή.";
+        } else if (item.id === 'realtime_banner_system') {
+          q = "Δημιουργεί αυτόματα διαφημιστικά πλαίσια, κολάζ και εικόνες με σήμανση 'Πουλήθηκε' για τα κοινωνικά μέσα;";
+          a = "Ναι! Με το Σύστημα Banner σε Πραγματικό Χρόνο, όλες οι τεχνικές προδιαγραφές αποδίδονται αυτόματα σε πρότυπα στυλ. Μπορείτε να δημιουργήσετε εικόνες μεμονωμένων οχημάτων ή κολάζ, έτοιμα για κοινή χρήση σε δευτερόλεπτα.";
+        } else if (item.id === 'auto_instagram_share') {
+          q = "Κοινοποιούνται αυτόματα τα αυτοκίνητα στους λογαριασμούς μας στο Instagram;";
+          a = "Ναι! Κάθε όχημα που προσθέτετε κοινοποιείται αυτόματα και ταυτόχρονα στον εταιρικό σας λογαριασμό Instagram και στο enrakipsiz.com. Τυχόν ενημερώσεις τιμών ή λεπτομερειών συγχρονίζονται αυτόματα.";
+        } else if (item.id === 'website_builder_auto') {
+          q = "Δημιουργείται αυτόματα ο εταιρικός ιστότοπος και είναι προσαρμόσιμος;";
+          a = "Ναι! Τη στιγμή που εγγράφεστε, ο εξαιρετικά γρήγορος, σύγχρονος εταιρικός ιστότοπός σας είναι αυτόματα online. Μπορείτε να προσαρμόσετε χρώματα, λογότυπο και πληροφορίες με ευκολία drag-and-drop.";
+        } else if (item.id === 'enrakipsiz_integration') {
+          q = "Καταχωρούνται αυτόματα τα οχήματα στο enrakipsiz.com;";
+          a = "Ναι! Όλα τα οχήματα δημοσιεύονται στον δικό σας εταιρικό ιστότοπο και στο παγκόσμιο δίκτυο enrakipsiz.com ταυτόχρονα χωρίς καμία χειροκίνητη ενέργεια.";
+        } else if (item.id === 'mobile_first_upload') {
+          q = "Μπορούμε να βγάλουμε φωτογραφίες από το κινητό και να τις ανεβάσουμε απευθείας στο σύστημα;";
+          a = "Ναι! Ξεχάστε τη μεταφορά αρχείων σε υπολογιστές. Τραβήξτε φωτογραφίες του οχήματος από το τηλέφωνό σας, εισαγάγετε λεπτομέρειες και τιμές και δημοσιεύστε αμέσως στον ιστότοπό σας και στο enrakipsiz.com.";
+        } else if (item.id === 'cost_profit_tracking') {
+          q = "Μπορούμε να δούμε έξοδα αυτοκινήτου, κόστος αγοράς και αναφορές καθαρού κέρδους/ζημίας;";
+          a = "Ναι! Μπορείτε να παρακολουθείτε όλα τα έξοδα (εκτελωνισμός, λιμάνι, συντήρηση, περιποίηση, αξεσουάρ κ.λπ.) και το αρχικό κόστος αγοράς. Αναλύστε την κερδοφορία ανά όχημα ή περίοδο.";
+        } else if (item.id === 'one_glance_inventory') {
+          q = "Μπορούμε να δούμε ολόκληρο το απόθεμα στόλου, τα χιλιόμετρα και την τιμή σε μία μόνο οθόνη;";
+          a = "Ναι! Με τον Πίνακα Ελέγχου Αποθεμάτων, μπορείτε να δείτε κρίσιμα δεδομένα όπως μάρκα, μοντέλο, χιλιόμετρα και τιμή με μια ματιά, με γρήγορη πρόσβαση σε φύλλα ζημιών και ιστορικό.";
+        } else if (item.id === 'installment_credit_tracking') {
+          q = "Υπάρχει παρακολούθηση καθολικού και χρεών για πωλήσεις με πίστωση και δόσεις;";
+          a = "Ναι! Μπορείτε να ανοίξετε καθολικά για τους πελάτες σας, να παρακολουθείτε λήξεις, πληρωμένες δόσεις και υπόλοιπα, και να εξάγετε καταστάσεις καθολικού σε Excel ή PDF.";
+        } else if (item.id === 'multi_branch_crm') {
+          q = "Υπάρχει υποστήριξη για πολλαπλά υποκαταστήματα και εξουσιοδότηση αντιπροσώπων;";
+          a = "Ναι! Το AutoLP διαθέτει εταιρική αρχιτεκτονική πολλαπλών υποκαταστημάτων και αδειών προσωπικού. Προσθέστε απεριόριστα υποκαταστήματα, διαχειριστείτε μεταφορές αποθεμάτων και παρακολουθήστε μετρήσεις.";
+        } else if (item.id === 'google_cloud_backup') {
+          q = "Μπορούμε να δημιουργήσουμε αντίγραφα ασφαλείας όλων των δεδομένων μας με ασφάλεια;";
+          a = "Ναι! Όλα τα δεδομένα του συστήματος, οι εικόνες και τα συμβόλαια μπορούν να δημιουργηθούν με ασφάλεια αντίγραφα ασφαλείας στους εταιρικούς διακομιστές Google Cloud με ένα κλικ.";
+        } else if (item.id === 'seo_google_meta_pixel') {
+          q = "Μπορεί να προστεθεί συμμόρφωση SEO και κώδικες pixel Google / Meta Ad;";
+          a = "Ναι! Η συμβατή με SEO βάση κώδικά μας διασφαλίζει ότι κατατάσσεστε ψηλά στις αναζητήσεις Google. Προσθέστε τους κωδικούς Google Analytics και Meta Pixel σε δευτερόλεπτα.";
+        } else if (item.id === 'realtime_analytics_dashboard') {
+          q = "Υπάρχει πίνακας ελέγχου αναλύσεων και γραφημάτων σε πραγματικό χρόνο;";
+          a = "Ναι! Τα τμήματα οχημάτων με τις περισσότερες πωλήσεις, οι μέσοι χρόνοι πώλησης, τα έσοδα υποκαταστημάτων και οι οικονομικές καταστάσεις εμφανίζονται αμέσως με κομψά διαδραστικά γραφήματα.";
+        }
+      }
+      return { ...item, q, a };
+    });
+  }, [lang]);
+
   const filteredFaq = useMemo(() => {
-    return autoFaq.filter(item => {
+    return localizedFaq.filter(item => {
       const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
       const cleanQuery = searchQuery.toLowerCase().trim();
       const matchesSearch = !cleanQuery || 
@@ -60,7 +165,7 @@ export default function AutoLanding() {
         item.a.toLowerCase().includes(cleanQuery);
       return matchesCategory && matchesSearch;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [localizedFaq, searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -73,12 +178,32 @@ export default function AutoLanding() {
             </div>
             <span className="font-black text-xl tracking-tight text-slate-900">LookPrice</span>
           </div>
-          <button 
-            onClick={() => navigate('/')} 
-            className="text-sm font-extrabold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-xl transition-all"
-          >
-            Ana Sayfaya Dön
-          </button>
+          
+          <div className="flex items-center gap-4">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200">
+              {['tr', 'en', 'el'].map((l) => (
+                <button 
+                  key={l}
+                  onClick={() => setLang(l as 'tr' | 'en' | 'el')}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-black transition-all ${
+                    lang === l 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+                  }`}
+                >
+                  {l === 'el' ? 'GR' : l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => navigate('/')} 
+              className="text-sm font-extrabold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-xl transition-all"
+            >
+              {txt('Ana Sayfaya Dön', 'Return to Home Page', 'Επιστροφή στην Αρχική')}
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -282,13 +407,13 @@ export default function AutoLanding() {
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <span className="text-xs font-extrabold uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full mb-3 inline-block">
-              MERAK EDİLENLER
+              {txt('MERAK EDİLENLER', 'COMMON QUESTIONS', 'ΣΥΧΝΕΣ ΕΡΩΤΗΣΕΙΣ')}
             </span>
             <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
-              Sıkça Sorulan Sorular
+              {txt('Sıkça Sorulan Sorular', 'Frequently Asked Questions', 'Συχνές Ερωτήσεις')}
             </h2>
             <p className="text-slate-500 font-semibold text-sm mt-2">
-              AutoLP araç portföy yönetim sistemimiz hakkında aradığınız tüm teknik ve operasyonel yanıtlar.
+              {txt('AutoLP araç portföy yönetim sistemimiz hakkında aradığınız tüm teknik ve operasyonel yanıtlar.', 'All technical and operational answers about our AutoLP vehicle portfolio management system.', 'Όλες οι τεχνικές και λειτουργικές απαντήσεις σχετικά με το σύστημα διαχείρισης στόλου AutoLP.')}
             </p>
           </div>
 
@@ -300,7 +425,7 @@ export default function AutoLanding() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Araç yönetimi, döviz, PDF veya tescil hakkında arayın..."
+                placeholder={txt('Araç yönetimi, döviz, PDF veya tescil hakkında arayın...', 'Search about vehicle management, currency, PDF or registration...', 'Αναζήτηση για διαχείριση οχημάτων, νόμισμα, PDF ή εγγραφή...')}
                 className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200 focus:border-blue-500 rounded-2xl text-sm font-bold text-slate-800 focus:outline-none transition-all"
               />
               {searchQuery && (
@@ -334,7 +459,7 @@ export default function AutoLanding() {
           <div className="space-y-3">
             {filteredFaq.length === 0 ? (
               <div className="bg-slate-50 rounded-3xl p-12 text-center border border-slate-100">
-                <p className="text-slate-800 font-extrabold text-sm">Aramanızla eşleşen soru bulunamadı.</p>
+                <p className="text-slate-800 font-extrabold text-sm">{txt('Aramanızla eşleşen soru bulunamadı.', 'No questions found matching your search.', 'Δεν βρέθηκαν ερωτήσεις που να ταιριάζουν με την αναζήτησή σας.')}</p>
               </div>
             ) : (
               filteredFaq.map((item) => {
@@ -388,7 +513,7 @@ export default function AutoLanding() {
             <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center font-black">LP</div>
             <span className="font-black text-lg">AutoLP</span>
           </div>
-          <p className="text-sm text-white/50 font-medium">© 2026 LookPrice. Tüm Hakları Saklıdır.</p>
+          <p className="text-sm text-white/50 font-medium">{txt('© 2026 LookPrice. Tüm Hakları Saklıdır.', '© 2026 LookPrice. All Rights Reserved.', '© 2026 LookPrice. Με επιφύλαξη παντός δικαιώματος.')}</p>
         </div>
       </footer>
     </div>
