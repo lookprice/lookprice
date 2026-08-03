@@ -274,17 +274,17 @@ export const LandingPage = () => {
     <div className="min-h-screen font-sans selection:bg-indigo-100 selection:text-indigo-900 currency-bg">
       {/* Language Switcher Floating */}
       <div className="fixed top-20 right-4 z-[100] flex flex-col space-y-2">
-        {['tr', 'en', 'de'].map((l) => (
+        {['tr', 'en', 'el'].map((l) => (
           <button 
             key={l}
-            onClick={() => setLang(l as 'tr' | 'en' | 'de')}
+            onClick={() => setLang(l as 'tr' | 'en' | 'el')}
             className={`w-10 h-10 flex items-center justify-center rounded-xl text-xs font-bold transition-all shadow-lg ${
               lang === l 
                 ? 'bg-indigo-600 text-white' 
                 : 'bg-white/80 backdrop-blur-md text-gray-600 hover:bg-white'
             }`}
           >
-            {l.toUpperCase()}
+            {l === 'el' ? 'GR' : l.toUpperCase()}
           </button>
         ))}
       </div>
@@ -1700,7 +1700,7 @@ export const LandingPage = () => {
                       >
                         <option value="tr">Türkçe</option>
                         <option value="en">English</option>
-                        <option value="de">Deutsch</option>
+                        <option value="el">Rumca (Greek)</option>
                       </select>
                     </div>
                     <div className="space-y-1.5">

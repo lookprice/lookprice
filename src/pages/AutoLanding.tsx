@@ -137,7 +137,7 @@ export default function AutoLanding() {
             <div className="relative rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 bg-slate-950 p-2 group">
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
               <img 
-                src="/src/assets/images/auto_bg_1785752006748.jpg" 
+                src="/images/auto_bg_1785752006748.jpg" 
                 alt="AutoLP Vehicle Portfolios Showcase" 
                 referrerPolicy="no-referrer"
                 className="w-full h-[320px] md:h-[450px] object-cover rounded-[1.8rem] group-hover:scale-[1.01] transition-transform duration-500"

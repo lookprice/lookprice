@@ -422,7 +422,7 @@ export const EditStoreModal: React.FC<{
           >
             <option value="tr">Turkish</option>
             <option value="en">English</option>
-            <option value="de">German</option>
+            <option value="el">Greek (Rumca)</option>
           </select>
         </div>
         <div>
@@ -807,7 +807,7 @@ export const AddStoreModal: React.FC<{
                     <select className="mt-1 block w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" value={newStore.language} onChange={e => setNewStore({...newStore, language: e.target.value})}>
                       <option value="tr">Turkish</option>
                       <option value="en">English</option>
-                      <option value="de">German</option>
+                      <option value="el">Greek (Rumca)</option>
                     </select>
                   </div>
                 </div>

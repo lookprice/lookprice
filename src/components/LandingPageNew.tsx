@@ -107,7 +107,7 @@ export const LandingPage = () => {
         : "Automotive inventory management, vehicle registration, GBP currency sync, and instant PDF catalogue builder.",
       icon: Car,
       link: "/auto-landing",
-      bgImage: "/src/assets/images/auto_bg_1785752006748.jpg",
+      bgImage: "/images/auto_bg_1785752006748.jpg",
       color: "from-blue-600/20 to-cyan-600/10",
       accent: "text-blue-500",
       btnBg: "bg-blue-600 hover:bg-blue-700",
@@ -133,7 +133,7 @@ export const LandingPage = () => {
         : "Smart matching real estate CRM with property deed management (Turkish Title, Equivalent) and luxury teasers.",
       icon: Building2,
       link: "/restate-landing",
-      bgImage: "/src/assets/images/restate_bg_1785752020453.jpg",
+      bgImage: "/images/restate_bg_1785752020453.jpg",
       color: "from-rose-600/20 to-purple-600/10",
       accent: "text-rose-500",
       btnBg: "bg-rose-600 hover:bg-rose-700",
@@ -159,7 +159,7 @@ export const LandingPage = () => {
         : "Cloud-based retail POS with barcode scanning, dynamic product variants, service and quotation management, ledger/debts and official e-Invoice integration.",
       icon: ShoppingCart,
       link: "/shop-landing",
-      bgImage: "/src/assets/images/shop_bg_1785752034826.jpg",
+      bgImage: "/images/shop_bg_1785752034826.jpg",
       color: "from-indigo-600/20 to-blue-600/10",
       accent: "text-indigo-500",
       btnBg: "bg-indigo-600 hover:bg-indigo-700",
@@ -185,7 +185,7 @@ export const LandingPage = () => {
         : "Interactive QR order-to-table, rapid restaurant POS, digital kitchen screens, courier dispatcher, and table accounts.",
       icon: Utensils,
       link: "/horeca-landing",
-      bgImage: "/src/assets/images/horeca_bg_1785752045736.jpg",
+      bgImage: "/images/horeca_bg_1785752045736.jpg",
       color: "from-amber-600/20 to-orange-600/10",
       accent: "text-amber-500",
       btnBg: "bg-amber-600 hover:bg-amber-700",
@@ -203,7 +203,7 @@ export const LandingPage = () => {
       description: lang === 'tr' 
         ? "Uluslararası standartlarda araç tescil, gümrük takibi, GBP/Sterlin kur senkronizasyonu ve otomatik ilan entegrasyonu."
         : "Tailored for global vehicle registration, customs, GBP currency sync, and automatic listings.",
-      bgImage: "/src/assets/images/auto_bg_1785752006748.jpg",
+      bgImage: "/images/auto_bg_1785752006748.jpg",
       color: "from-blue-600 to-cyan-500",
       accent: "text-blue-400",
       accentBg: "bg-blue-500/10 border-blue-500/20",
@@ -230,7 +230,7 @@ export const LandingPage = () => {
       description: lang === 'tr' 
         ? "Çoklu tapu ve mülkiyet türlerine tam uyum, otomatik yer gösterme, randevu planlayıcı ve lüks konut sunum altyapısı."
         : "Fully compliant with multiple property and deed types, automatic showings, scheduler, and luxury teasers.",
-      bgImage: "/src/assets/images/restate_bg_1785752020453.jpg",
+      bgImage: "/images/restate_bg_1785752020453.jpg",
       color: "from-rose-600 to-purple-500",
       accent: "text-rose-400",
       accentBg: "bg-rose-500/10 border-rose-500/20",
@@ -257,7 +257,7 @@ export const LandingPage = () => {
       description: lang === 'tr' 
         ? "Butik, market ve genel mağazalar için entegre e-Fatura, varyasyonlu stok takibi, teknik servis ve QR fiyat sistemi."
         : "For boutiques, grocery stores and general shops with e-Invoice integration, variant stock alert, and QR checker.",
-      bgImage: "/src/assets/images/shop_bg_1785752034826.jpg",
+      bgImage: "/images/shop_bg_1785752034826.jpg",
       color: "from-indigo-600 to-blue-500",
       accent: "text-indigo-400",
       accentBg: "bg-indigo-500/10 border-indigo-500/20",
@@ -284,7 +284,7 @@ export const LandingPage = () => {
       description: lang === 'tr' 
         ? "Temassız QR sipariş, hızlı garson el terminali, akıllı mutfak ekranı ve anlık masa adisyon hesap yönetimi."
         : "Contactless QR ordering, rapid waiter terminal, kitchen display, and table bill splitting management.",
-      bgImage: "/src/assets/images/horeca_bg_1785752045736.jpg",
+      bgImage: "/images/horeca_bg_1785752045736.jpg",
       color: "from-amber-600 to-orange-500",
       accent: "text-amber-400",
       accentBg: "bg-amber-500/10 border-amber-500/20",
