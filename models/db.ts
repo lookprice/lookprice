@@ -209,9 +209,9 @@ export async function initDb() {
         UNIQUE(store_id, table_number)
       );
 
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
       ALTER TABLE sales ADD COLUMN IF NOT EXISTS restaurant_table_id INTEGER REFERENCES restaurant_tables(id) ON DELETE SET NULL;
 
-      DROP TABLE IF EXISTS product_recipes;
       CREATE TABLE IF NOT EXISTS product_recipes (
         id SERIAL PRIMARY KEY,
         store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
@@ -436,6 +436,7 @@ export async function initDb() {
         due_date DATE,
         quotation_id INTEGER,
         company_id INTEGER,
+        cancellation_reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
       );
@@ -1593,6 +1594,10 @@ export async function initDb() {
 
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='tracking_number') THEN
           ALTER TABLE sales ADD COLUMN tracking_number TEXT;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='cancellation_reason') THEN
+          ALTER TABLE sales ADD COLUMN cancellation_reason TEXT;
         END IF;
       END $$;
     `);

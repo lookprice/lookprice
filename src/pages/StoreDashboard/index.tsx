@@ -748,7 +748,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "analytics", label: t.analytics, icon: BarChart3 },
       { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
       { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
-      { id: "faq", label: isTr ? "S.S.S" : "FAQ", icon: HelpCircle },
+      ...(!isCafeRestaurant ? [{ id: "faq", label: isTr ? "S.S.S" : "FAQ", icon: HelpCircle }] : []),
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
@@ -879,7 +879,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             className={`transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
           >
             <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-              {activeTab === "faq" && <FaqTab />}
+              {activeTab === "faq" && isCafeRestaurant && <FaqTab />}
               {activeTab === "products" && (
                 <ProductsTab 
                   products={products}

@@ -1,6 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowRight, Zap, BarChart3, X, Wrench, Truck, Package, Wallet, Check, Globe, FileText, ShoppingCart, ArrowLeftRight, Layout, Settings, Activity, Users, Shield, Download, CreditCard, RefreshCw, Smartphone, Sparkles, Building2, Car, Utensils, Coffee, Compass, Network, Share2, ClipboardSignature, MapPin, UserCheck, History, TrendingUp, Key, Flame } from "lucide-react";
+import { 
+  ArrowRight, 
+  X, 
+  Package, 
+  Check, 
+  Globe, 
+  Sparkles, 
+  Building2, 
+  Car, 
+  Utensils, 
+  ShoppingCart, 
+  TrendingUp, 
+  FileText, 
+  Layers, 
+  Receipt,
+  UserCheck,
+  Shield,
+  Clock,
+  ArrowLeftRight,
+  PenTool,
+  Share2,
+  Printer,
+  QrCode,
+  Wrench,
+  Smartphone,
+  Calendar,
+  GitBranch
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
@@ -14,19 +41,32 @@ export const LandingPage = () => {
   const t = translations[lang];
 
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const [systemType, setSystemType] = useState<'portfolio' | 'product' | 'restaurant'>('portfolio');
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [demoForm, setDemoForm] = useState({ 
+    name: "", 
+    storeName: "", 
+    phone: "", 
+    email: "", 
+    notes: "", 
+    storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" | "restaurant" 
+  });
+  const [demoStatus, setDemoStatus] = useState({ type: "", text: "" });
 
   useEffect(() => {
     if (location.state?.openDemo) {
       setShowDemoModal(true);
-      // Clear state to prevent reopening on refresh
       window.history.replaceState({}, document.title);
     }
   }, [location]);
-  const [demoForm, setDemoForm] = useState({ name: "", storeName: "", phone: "", email: "", notes: "", storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" | "restaurant" });
-  const [demoStatus, setDemoStatus] = useState({ type: "", text: "" });
-  const [selectedInsight, setSelectedInsight] = useState<any>(null);
-  const [activeScenario, setActiveScenario] = useState<'new' | 'existing'>('new');
+
+  useEffect(() => {
+    if (isHovered) return;
+    const interval = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % 4);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [isHovered]);
 
   const handleDemoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +74,6 @@ export const LandingPage = () => {
     
     try {
       const data = await api.requestDemo(demoForm);
-      
       if (data.success) {
         setDemoStatus({ 
           type: "success", 
@@ -59,16 +98,224 @@ export const LandingPage = () => {
     }
   };
 
+  const products = [
+    {
+      name: "AutoLP",
+      sector: lang === 'tr' ? "Otomotiv & Galeri" : "Automotive & Gallery",
+      description: lang === 'tr' 
+        ? "Yeni nesil galeri standartlarına özel araç tescil, gümrük takibi, GBP/Sterlin kur senkronizasyonu ve hızlı PDF broşür oluşturma sistemi."
+        : "Automotive inventory management, vehicle registration, GBP currency sync, and instant PDF catalogue builder.",
+      icon: Car,
+      link: "/auto-landing",
+      bgImage: "/src/assets/images/auto_bg_1785752006748.jpg",
+      color: "from-blue-600/20 to-cyan-600/10",
+      accent: "text-blue-500",
+      btnBg: "bg-blue-600 hover:bg-blue-700",
+      features: lang === 'tr' 
+        ? [
+            "Gelişmiş Filo & Bakım Yönetimi",
+            "Dijital İmzalı Satış & Konsinye Sözleşmesi",
+            "Instagram & enrakipsiz.com Otomatik Paylaşım",
+            "Maliyet, Cari & Kâr/Zarar Takip Paneli"
+          ]
+        : [
+            "Advanced Fleet & Maintenance Management",
+            "Digitally Signed Sales & Consignment Contracts",
+            "Automatic Instagram & enrakipsiz.com Sync",
+            "Cost, Ledger & Profit Tracker Dashboard"
+          ]
+    },
+    {
+      name: "REstateLP",
+      sector: lang === 'tr' ? "Gayrimenkul & Portföy" : "Real Estate & Brokerage",
+      description: lang === 'tr' 
+        ? "Modern emlak piyasası mülkiyet ve koçan türlerine uyumlu akıllı eşleştirme ve lüks konut sunum altyapısı."
+        : "Smart matching real estate CRM with property deed management (Turkish Title, Equivalent) and luxury teasers.",
+      icon: Building2,
+      link: "/restate-landing",
+      bgImage: "/src/assets/images/restate_bg_1785752020453.jpg",
+      color: "from-rose-600/20 to-purple-600/10",
+      accent: "text-rose-500",
+      btnBg: "bg-rose-600 hover:bg-rose-700",
+      features: lang === 'tr' 
+        ? [
+            "Gezi, Randevu & CRM Pipeline",
+            "Biyometrik Dijital İmzalı Sözleşmeler",
+            "Vitrin Posterleri & Sosyal Medya Afişleri",
+            "Instagram & enrakipsiz.com Otomatik Paylaşım"
+          ]
+        : [
+            "Tour, Appointment & CRM Pipeline",
+            "Biometric Digitally Signed Contracts",
+            "Show Window Posters & Social Media Banners",
+            "Automatic Instagram & enrakipsiz.com Sync"
+          ]
+    },
+    {
+      name: "ShopLP",
+      sector: lang === 'tr' ? "Perakende & Akıllı POS" : "Retail & Smart POS",
+      description: lang === 'tr' 
+        ? "Butik, market ve genel mağazalar için hızlı barkodlu POS satış ekranı, varyasyonlu stok takibi, teknik servis, teklif yönetimi, dövizli cari hesaplar ve resmi e-Fatura."
+        : "Cloud-based retail POS with barcode scanning, dynamic product variants, service and quotation management, ledger/debts and official e-Invoice integration.",
+      icon: ShoppingCart,
+      link: "/shop-landing",
+      bgImage: "/src/assets/images/shop_bg_1785752034826.jpg",
+      color: "from-indigo-600/20 to-blue-600/10",
+      accent: "text-indigo-500",
+      btnBg: "bg-indigo-600 hover:bg-indigo-700",
+      features: lang === 'tr' 
+        ? [
+            "Teknik Servis & Teklif Yönetimi",
+            "Çok Şubeli Eşgüdümlü Stok Transferi",
+            "Mağaza içi QR Fiyat Gör Sistemi",
+            "Dövizli Cari & Dijital Mutabakat"
+          ]
+        : [
+            "Tech Service & Quotation Management",
+            "Multi-branch Stock Transfer Engine",
+            "In-store QR Price Checker System",
+            "Multi-Currency Ledgers & Reconciliations"
+          ]
+    },
+    {
+      name: "HoReCaLP",
+      sector: lang === 'tr' ? "Cafe & Restoran" : "Cafe & Restaurant",
+      description: lang === 'tr' 
+        ? "Masaya QR sipariş, hızlı restoran POS ekranı, akıllı dijital mutfak paneli, kurye/paket servis ve anlık masa adisyon yönetimi."
+        : "Interactive QR order-to-table, rapid restaurant POS, digital kitchen screens, courier dispatcher, and table accounts.",
+      icon: Utensils,
+      link: "/horeca-landing",
+      bgImage: "/src/assets/images/horeca_bg_1785752045736.jpg",
+      color: "from-amber-600/20 to-orange-600/10",
+      accent: "text-amber-500",
+      btnBg: "bg-amber-600 hover:bg-amber-700",
+      features: lang === 'tr' 
+        ? ["Temassız QR Menü & Masadan Sipariş", "Hızlı Garson / Kasa POS Ekranı", "Dijital Mutfak & Hazırlık Paneli", "Adisyon & Masa Hesap Bölme"]
+        : ["Contactless QR Menu & Ordering", "Rapid Waiter / Cashier POS", "Digital Kitchen display", "Bill Splitting & Multi-Table Management"]
+    }
+  ];
+
+  const sliderData = [
+    {
+      name: "AutoLP",
+      sector: lang === 'tr' ? "Otomotiv & Galeri" : "Automotive & Gallery",
+      title: lang === 'tr' ? "Sektörünüze Özel\nOto Galeri & Filo Otomasyonu" : "Industry-Specific\nAutomotive & Fleet Automation",
+      description: lang === 'tr' 
+        ? "Uluslararası standartlarda araç tescil, gümrük takibi, GBP/Sterlin kur senkronizasyonu ve otomatik ilan entegrasyonu."
+        : "Tailored for global vehicle registration, customs, GBP currency sync, and automatic listings.",
+      bgImage: "/src/assets/images/auto_bg_1785752006748.jpg",
+      color: "from-blue-600 to-cyan-500",
+      accent: "text-blue-400",
+      accentBg: "bg-blue-500/10 border-blue-500/20",
+      glowColor: "rgba(59,130,246,0.15)",
+      features: lang === 'tr' 
+        ? [
+            "Gelişmiş Filo & Bakım Yönetimi",
+            "Biyometrik Dijital İmzalı Sözleşmeler",
+            "Instagram & enrakipsiz.com Otomatik Paylaşım",
+            "Maliyet, Cari & Kâr/Zarar Takip Paneli"
+          ]
+        : [
+            "Advanced Fleet & Maintenance Management",
+            "Biometric Digitally Signed Contracts",
+            "Automatic Instagram & enrakipsiz.com Sync",
+            "Cost, Ledger & Profit Tracker Dashboard"
+          ],
+      link: "/auto-landing"
+    },
+    {
+      name: "REstateLP",
+      sector: lang === 'tr' ? "Emlak & Gayrimenkul" : "Real Estate & Property",
+      title: lang === 'tr' ? "Sektörünüze Özel\nAkıllı Portföy & Emlak CRM'i" : "Industry-Specific\nSmart Real Estate CRM",
+      description: lang === 'tr' 
+        ? "Çoklu tapu ve mülkiyet türlerine tam uyum, otomatik yer gösterme, randevu planlayıcı ve lüks konut sunum altyapısı."
+        : "Fully compliant with multiple property and deed types, automatic showings, scheduler, and luxury teasers.",
+      bgImage: "/src/assets/images/restate_bg_1785752020453.jpg",
+      color: "from-rose-600 to-purple-500",
+      accent: "text-rose-400",
+      accentBg: "bg-rose-500/10 border-rose-500/20",
+      glowColor: "rgba(244,63,94,0.15)",
+      features: lang === 'tr' 
+        ? [
+            "Gezi, Randevu & CRM Pipeline",
+            "Islak İmzaya Son Biyometrik Sözleşmeler",
+            "Hazır Vitrin Posterleri & Broşürler",
+            "Mülk Sahibi Eşleştirme Motoru"
+          ]
+        : [
+            "Tour, Appointment & CRM Pipeline",
+            "Biometric Online Digital Contracts",
+            "Automatic Window Posters & Teasers",
+            "Smart Property Matching Engine"
+          ],
+      link: "/restate-landing"
+    },
+    {
+      name: "ShopLP",
+      sector: lang === 'tr' ? "Perakende & POS" : "Retail & POS Systems",
+      title: lang === 'tr' ? "Sektörünüze Özel\nHızlı Barkodlu Satış & POS" : "Industry-Specific\nFast Barcoded Sales & POS",
+      description: lang === 'tr' 
+        ? "Butik, market ve genel mağazalar için entegre e-Fatura, varyasyonlu stok takibi, teknik servis ve QR fiyat sistemi."
+        : "For boutiques, grocery stores and general shops with e-Invoice integration, variant stock alert, and QR checker.",
+      bgImage: "/src/assets/images/shop_bg_1785752034826.jpg",
+      color: "from-indigo-600 to-blue-500",
+      accent: "text-indigo-400",
+      accentBg: "bg-indigo-500/10 border-indigo-500/20",
+      glowColor: "rgba(99,102,241,0.15)",
+      features: lang === 'tr' 
+        ? [
+            "Hızlı Barkodlu POS Satış Ekranı",
+            "Teknik Servis & Teklif Yönetimi",
+            "Mağaza içi QR Fiyat Gör Altyapısı",
+            "Dövizli Cari & Dijital Mutabakat"
+          ]
+        : [
+            "Fast Barcode Sales & POS Terminal",
+            "Tech Service & Quotation Engine",
+            "In-store QR Price Checker Altyapısı",
+            "Multi-Currency Ledgers & Ledger Statements"
+          ],
+      link: "/shop-landing"
+    },
+    {
+      name: "HoReCaLP",
+      sector: lang === 'tr' ? "Cafe, Restoran & Otel" : "Cafe, Restaurant & Hotel",
+      title: lang === 'tr' ? "Sektörünüze Özel\nQR Menü & Masa Otomasyonu" : "Industry-Specific\nQR Menu & Table Automation",
+      description: lang === 'tr' 
+        ? "Temassız QR sipariş, hızlı garson el terminali, akıllı mutfak ekranı ve anlık masa adisyon hesap yönetimi."
+        : "Contactless QR ordering, rapid waiter terminal, kitchen display, and table bill splitting management.",
+      bgImage: "/src/assets/images/horeca_bg_1785752045736.jpg",
+      color: "from-amber-600 to-orange-500",
+      accent: "text-amber-400",
+      accentBg: "bg-amber-500/10 border-amber-500/20",
+      glowColor: "rgba(245,158,11,0.15)",
+      features: lang === 'tr' 
+        ? [
+            "Masaya QR Menü & Hızlı Sipariş",
+            "Pratik Garson Terminali & POS",
+            "Dijital Mutfak & Hazırlık Paneli",
+            "Adisyon & Masa Hesap Bölme"
+          ]
+        : [
+            "QR Menu & Rapid Table Ordering",
+            "Handheld Waiter Terminal & POS",
+            "Digital Kitchen Monitor Screen",
+            "Bill Splitting & Multi-Table Management"
+          ],
+      link: "/horeca-landing"
+    }
+  ];
+
   const schemaData = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "LookPrice Nexus",
+    "name": "LookPrice Suite",
     "operatingSystem": "Web, iOS, Android",
     "applicationCategory": "BusinessApplication",
     "aggregateRating": {
       "@type": "AggregateRating",
       "ratingValue": "4.9",
-      "ratingCount": "124"
+      "ratingCount": "180"
     },
     "offers": {
       "@type": "Offer",
@@ -76,44 +323,42 @@ export const LandingPage = () => {
       "priceCurrency": "USD"
     },
     "description": lang === 'tr' 
-      ? "Şirketinizin tüm süreçlerini tek bir akılla yönetin. Entegre POS, E-Ticaret ve Servis yönetimi."
-      : "Manage all your company processes with a single mind. Integrated POS, E-Commerce, and Service management."
+      ? "İşletmenizin sektörüne özel yönetim sistemleri. AutoLP, REstateLP, ShopLP ve HoReCaLP çözümlerimizi keşfedin."
+      : "Industry-focused business management suites. Explore our tailored solutions: AutoLP, REstateLP, ShopLP, and HoReCaLP."
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-rose-500/30">
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-indigo-500/30">
       <SEO 
-        title={lang === 'tr' ? "LookPrice | Yeni Nesil Gayrimenkul & Otomotiv CRM ve Perakende Hub'ı" : "LookPrice | Next-Gen Real Estate & Automotive CRM & Retail Hub"}
+        title={lang === 'tr' ? "LookPrice | Sektörünüze Özel Akıllı Yönetim Çözümleri" : "LookPrice | Industry-Specific Smart Business Suites"}
         description={lang === 'tr' 
-          ? "LookPrice ile emlak ve otomotiv ticareti ile perakende süreçlerini üst seviyeye taşıyın. Enrakipsiz.com entegrasyonu, dijital sözleşme oluşturucu ve entegre POS bir arada." 
-          : "Elevate your property, automotive trading and retail processes. Enrakipsiz.com integration, digital contract builders and integrated POS all in one place."
+          ? "LookPrice ile işletmenizin sektörüne özel tasarlanmış otomasyon sistemlerini keşfedin. Otomotiv, Emlak, Perakende ve Cafe/Restoran çözümleri." 
+          : "Discover automation suites customized for your industry. Premium solutions for Automotive, Real Estate, Retail, and Cafe/Restaurants."
         }
-        keywords="pos, crm, real estate software, automotive crm, emlak crm, oto galeri yazilimi, enrakipsiz, kktc emlak, lookprice"
+        keywords="pos, crm, emlak crm, oto galeri yazilimi, restorant pos, kktc pos, lookprice"
         schemaData={schemaData}
       />
+
       {/* Top Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-8 lg:px-12 py-2 md:py-6 flex items-center justify-between bg-black/40 backdrop-blur-xl border-b border-white/5">
-        <div className="flex items-center space-x-2 md:space-x-3 cursor-pointer group" onClick={() => navigate("/")}>
+      <header className="fixed top-0 left-0 right-0 z-[100] px-6 md:px-12 py-4 flex items-center justify-between bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => navigate("/")}>
           <div className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-rose-500 to-indigo-500 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-            <div className="relative w-8 h-8 md:w-10 md:h-10 bg-white rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg shadow-white/5">
-              <div className="w-5 h-5 bg-gradient-to-tr from-rose-600 to-indigo-650 rounded" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+            <div className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg">
+              <div className="w-5 h-5 bg-gradient-to-tr from-indigo-650 to-blue-600 rounded" />
             </div>
           </div>
-          <span className="text-lg md:text-xl font-black tracking-tighter hidden sm:block text-white">Look<span className="text-rose-500">Price</span></span>
+          <span className="text-xl font-black tracking-tighter text-white">Look<span className="text-indigo-500">Price</span></span>
         </div>
 
-        <div className="flex items-center space-x-2 md:space-x-4">
-          <a href="#blog" className="hidden md:block text-[10px] font-black text-white/40 hover:text-white uppercase tracking-widest transition-colors px-4">
-            {lang === 'tr' ? 'ÖNGÖRÜLER' : 'INSIGHTS'}
-          </a>
+        <div className="flex items-center space-x-4">
           {/* Language Switcher */}
-          <div className="flex items-center bg-white/5 p-0.5 md:p-1 rounded-full border border-white/10 backdrop-blur-md">
-            {['tr', 'en', 'de'].map((l) => (
+          <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/10">
+            {['tr', 'en'].map((l) => (
               <button 
                 key={l}
-                onClick={() => setLang(l as 'tr' | 'en' | 'de')}
-                className={`w-7 h-7 md:w-9 md:h-9 flex items-center justify-center rounded-full text-[8px] md:text-[10px] font-black transition-all ${
+                onClick={() => setLang(l as 'tr' | 'en')}
+                className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-black transition-all ${
                   lang === l 
                     ? 'bg-white text-black shadow-xl' 
                     : 'text-white/40 hover:text-white hover:bg-white/5'
@@ -124,1049 +369,280 @@ export const LandingPage = () => {
             ))}
           </div>
           
-          {/* Login Button */}
           <button
             onClick={() => navigate('/login')}
-            className="px-4 md:px-8 py-2 md:py-3 bg-white text-black hover:bg-rose-600 hover:text-white rounded-full text-[9px] md:text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-white/5 active:scale-95"
+            className="px-6 py-2.5 bg-white text-black hover:bg-indigo-600 hover:text-white rounded-full text-xs font-black uppercase tracking-widest transition-all"
           >
             {lang === 'tr' ? 'Giriş' : 'Login'}
           </button>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative min-h-[95vh] flex flex-col justify-center px-6 md:px-12 lg:px-24 pt-36 pb-12 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-rose-950/20 via-[#050505] to-[#050505] pointer-events-none" />
+      {/* Hero Power Banner Slider Section */}
+      <section 
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="relative min-h-[85vh] lg:min-h-[80vh] flex flex-col justify-center px-6 md:px-12 lg:px-24 pt-32 pb-16 overflow-hidden border-b border-white/5 bg-[#050505]"
+      >
+        {/* Cinematic Animated Backglow */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-950/20 via-[#050505] to-[#050505] pointer-events-none z-0" />
         
+        {/* Glowing visual atmosphere matching the active slide */}
+        <div 
+          className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full filter blur-[120px] opacity-10 pointer-events-none transition-all duration-1000 z-0"
+          style={{ backgroundColor: sliderData[activeSlide].name === "AutoLP" ? "#3b82f6" : sliderData[activeSlide].name === "REstateLP" ? "#f43f5e" : sliderData[activeSlide].name === "ShopLP" ? "#6366f1" : "#f59e0b" }}
+        />
+
         <div className="relative z-10 max-w-7xl mx-auto w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="text-center md:text-left"
-          >
-            <div className="inline-block px-4 py-1.5 bg-rose-500/10 text-rose-400 rounded-full text-xs md:text-sm font-semibold tracking-wider uppercase mb-8 border border-rose-500/20">
-              {lang === 'tr' ? '✨ GAYRİMENKUL, OTOMOTİV VE PERAKENDE DEVRİMİ' : '✨ REAL ESTATE, AUTOMOTIVE AND RETAIL REVOLUTION'}
-            </div>
-            
-            <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-6 leading-[1.05] text-white">
-              Sınırları Aşan <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-indigo-400 to-cyan-400">
-                Portföy & Yönetim Zekası.
-              </span>
-            </h1>
-            
-            <p className="text-lg md:text-xl text-white/60 max-w-4xl mb-12 font-light leading-relaxed mx-auto md:mx-0">
-              {lang === 'tr' 
-                ? 'LookPrice, artık sadece bir perakende yazılımı değil. Gayrimenkul brokerları, otomotiv galerileri ve zincir mağazalar için geliştirilmiş; "ortak havuz", dijital sözleşme yönetimi, otomatik akıllı poster jeneratörleri ve gelişmiş finans denetimini barındıran canavar gibi bir ekosistem.' 
-                : 'LookPrice is no longer just a retail tool. It is a absolute ecosystem for real estate brokers, auto galleries and multi-branch stores; boasting joint listing pools, digital contract rooms, smart visual flyers, and deep financial tracking.'}
-            </p>
+          {/* Main Display Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center min-h-[480px]">
+            {/* Left Content Side */}
+            <div className="lg:col-span-7 flex flex-col justify-center space-y-6">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeSlide}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  className="space-y-6"
+                >
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 text-white/80 rounded-full text-xs font-black tracking-widest uppercase border border-white/10">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                    {sliderData[activeSlide].sector}
+                  </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start items-center">
-              <button
-                onClick={() => setShowDemoModal(true)}
-                className="w-full sm:w-auto group relative inline-flex items-center justify-center px-8 py-4 font-bold text-black bg-white rounded-full overflow-hidden transition-all hover:bg-rose-600 hover:text-white text-base shadow-xl"
-              >
-                {lang === 'tr' ? 'Hemen Demoya Katıl' : 'Join Live Demo'}
-                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button
-                onClick={() => navigate('/portal')}
-                className="w-full sm:w-auto group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white bg-slate-900/90 border border-white/10 rounded-full overflow-hidden transition-all hover:bg-white/10 text-base"
-              >
-                <Flame className="w-4 h-4 mr-2 text-rose-500 animate-pulse" />
-                {lang === 'tr' ? 'Keşfet: Enrakipsiz.com Havuzu' : 'Explore: Enrakipsiz.com'}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+                  <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tighter leading-[1.05] text-white whitespace-pre-line">
+                    {sliderData[activeSlide].title}
+                  </h1>
 
-      {/* Dual Core Switcher Block */}
-      <section className="relative px-6 md:px-12 lg:px-24 py-12 border-t border-white/5 bg-[#060608] z-20">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="inline-flex flex-wrap md:flex-nowrap p-1.5 bg-slate-950/90 border border-white/10 rounded-3xl mb-4 shadow-2xl justify-center gap-1">
-            <button
-              onClick={() => setSystemType('portfolio')}
-              className={`px-5 py-3.5 md:px-8 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
-                systemType === 'portfolio'
-                  ? 'bg-rose-600 text-white shadow-lg shadow-rose-950/50'
-                  : 'text-white/40 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              {lang === 'tr' ? 'GAYRİMENKUL & GALEBİ (Portföy CRM)' : 'REAL ESTATE & AUTO (Portfolio CRM)'}
-            </button>
-            <button
-              onClick={() => setSystemType('product')}
-              className={`px-5 py-3.5 md:px-8 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
-                systemType === 'product'
-                  ? 'bg-indigo-650 text-white shadow-lg shadow-indigo-950/50'
-                  : 'text-white/40 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Package className="w-4 h-4" />
-              {lang === 'tr' ? 'PERAKENDE & MAĞAZA (POS)' : 'RETAIL & SHOP (POS)'}
-            </button>
-            <button
-              onClick={() => setSystemType('restaurant')}
-              className={`px-5 py-3.5 md:px-8 md:py-4 rounded-2.5xl text-xs md:text-sm font-black uppercase tracking-widest transition-all gap-2.5 flex items-center ${
-                systemType === 'restaurant'
-                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-950/50'
-                  : 'text-white/40 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Utensils className="w-4 h-4" />
-              {lang === 'tr' ? 'CAFE & RESTORAN (QR MENÜ & POS)' : 'CAFE & RESTAURANT (QR & POS)'}
-            </button>
+                  <p className="text-base sm:text-lg text-white/60 font-semibold leading-relaxed max-w-xl">
+                    {sliderData[activeSlide].description}
+                  </p>
+
+                  {/* Top Features bullets inside the Hero */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+                    {sliderData[activeSlide].features.map((feat, idx) => (
+                      <div 
+                        key={idx} 
+                        className="flex items-center gap-3 bg-white/[0.02] border border-white/5 hover:border-white/10 p-3 rounded-xl transition-all"
+                      >
+                        <div className={`p-1.5 rounded-lg ${sliderData[activeSlide].accentBg}`}>
+                          <Check className={`w-4 h-4 ${sliderData[activeSlide].accent}`} />
+                        </div>
+                        <span className="text-xs sm:text-sm text-white/90 font-black tracking-tight">{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                    <button
+                      onClick={() => navigate(sliderData[activeSlide].link)}
+                      className="group relative inline-flex items-center justify-center px-8 py-4 font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-full transition-all text-sm tracking-wide shadow-xl"
+                    >
+                      {lang === 'tr' ? `${sliderData[activeSlide].name} Çözümünü İncele` : `Explore ${sliderData[activeSlide].name}`}
+                      <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </button>
+
+                    <button
+                      onClick={() => setShowDemoModal(true)}
+                      className="group inline-flex items-center justify-center px-8 py-4 font-black text-white/80 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all text-sm tracking-wide"
+                    >
+                      {lang === 'tr' ? 'Demo Randevusu Al' : 'Request Demo'}
+                    </button>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Right Interactive Image Side */}
+            <div className="lg:col-span-5 flex items-center justify-center">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeSlide}
+                  initial={{ opacity: 0, scale: 0.95, rotateY: 10 }}
+                  animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, rotateY: -10 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                  className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden border border-white/10 shadow-2xl group"
+                  style={{
+                    boxShadow: `0 25px 50px -12px ${sliderData[activeSlide].glowColor}`
+                  }}
+                >
+                  <img 
+                    src={sliderData[activeSlide].bgImage} 
+                    alt={sliderData[activeSlide].name}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/95 via-black/30 to-transparent" />
+                  
+                  {/* Floating Telemetry Badge inside Image */}
+                  <div className="absolute bottom-6 left-6 right-6 p-4 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
+                        LOOKPRICE AUTO-SYNC
+                      </div>
+                      <div className="text-xs font-bold text-white mt-0.5">
+                        {lang === 'tr' ? "Aktif Bulut Entegrasyonu" : "Active Cloud Synced"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">LIVE</span>
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
-          
-          <p className="text-white/40 text-xs md:text-sm font-medium tracking-wide">
-            {lang === 'tr' 
-              ? 'Çalışma alanınıza uygun sistemi seçerek özelliklerini ve merkezi sinir yapısını inceleyin.' 
-              : 'Choose the appropriate environment to examine its inner modules & features.'}
-          </p>
+
+          {/* Navigation Control Tabs at Bottom of Hero */}
+          <div className="mt-16 border-t border-white/5 pt-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {sliderData.map((slide, idx) => {
+                const isActive = activeSlide === idx;
+                return (
+                  <button
+                    key={slide.name}
+                    onClick={() => setActiveSlide(idx)}
+                    className={`text-left p-4 rounded-2xl border transition-all relative overflow-hidden group ${
+                      isActive 
+                        ? 'bg-white/[0.03] border-white/10' 
+                        : 'bg-transparent border-transparent hover:bg-white/[0.01]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${isActive ? slide.accent : 'text-white/40 group-hover:text-white/60'}`}>
+                        {slide.name}
+                      </span>
+                      <span className="text-[10px] font-black text-white/20">0{idx + 1}</span>
+                    </div>
+                    <p className={`text-xs sm:text-sm font-black mt-1 truncate ${isActive ? 'text-white' : 'text-white/40 group-hover:text-white/60'}`}>
+                      {slide.sector}
+                    </p>
+
+                    {/* Progress Bar Animation */}
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/5">
+                      {isActive && (
+                        <motion.div 
+                          initial={{ width: "0%" }}
+                          animate={{ width: "100%" }}
+                          transition={{ 
+                            duration: isHovered ? 0 : 8, 
+                            ease: "linear"
+                          }}
+                          className="h-full bg-indigo-500" 
+                        />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Anatomy - Central Nervous System */}
-      <section className="px-6 md:px-12 lg:px-24 py-24 border-t border-white/10 bg-[#0A0A0E] relative">
+      {/* Sector Selection Grid */}
+      <section className="py-24 px-6 md:px-12 lg:px-24 bg-[#050505] relative z-10">
         <div className="max-w-7xl mx-auto">
-          
-          <AnimatePresence mode="wait">
-            {systemType === 'portfolio' ? (
-              <motion.div
-                key="portfolio-anatomy"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="mb-20 text-center max-w-3xl mx-auto">
-                  <div className="inline-flex items-center gap-2 text-rose-400 text-[10px] font-black uppercase tracking-widest bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20 mb-4 animate-pulse">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {lang === 'tr' ? 'YEPYENİ KAPASİTELER' : 'BRAND NEW CAPABILITIES'}
-                  </div>
-                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">
-                    {lang === 'tr' ? 'Gayrimenkul & Otomotiv Yönetimi' : 'Real Estate & Automotive Engine'}
-                  </h2>
-                  <p className="text-white/50 text-lg md:text-xl font-light">
-                    {lang === 'tr' 
-                      ? 'Bayileriniz, danışmanlarınız ve ilan havuzunu saniyeler içinde otonom şekilde birbirine bağlayan 5 ana sinir düğümü.' 
-                      : '5 custom modules that seamlessly synchronize your sub-branches, brokers and joint listing pool.'}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {/* Node 1 - Ortak Havuz */}
-                  <div className="p-10 rounded-[2.5rem] bg-rose-950/10 border border-rose-500/20 relative group overflow-hidden hover:bg-rose-900/15 transition-all duration-300">
-                    <div className="w-full h-48 bg-[#090708] rounded-2xl mb-8 border border-rose-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-rose-400/40 transition-all shadow-lg">
-                      {/* Inter-active Visual simulation of network */}
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-[9px] font-bold text-rose-400 px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">ENRAKİPSİZ.COM POOL</span>
-                        <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                      </div>
-                      <div className="flex-1 flex flex-col justify-center gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                          <div className="w-2/3 h-1.5 bg-slate-850 rounded-full" />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-rose-500" />
-                          <div className="w-1/2 h-1.5 bg-slate-850 rounded-full animate-pulse" />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                          <div className="w-5/6 h-1.5 bg-slate-850 rounded-full" />
-                        </div>
-                      </div>
-                      <div className="mt-auto text-[9px] font-mono text-slate-500 text-center">
-                        Alt Bayiler Arası Kilit Rezervasyon & Komisyon
-                      </div>
-                    </div>
-                    <Network className="w-10 h-10 text-rose-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'ORTAK HAVUZ & ENRAKİPSİZ' : 'SHARED POOL & SYNC'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' ? 'Enrakipsiz.com sessiz sedasız dev bir emlak ve galeri havuzu haline geldi! LookPrice entegrasyonu ile alt bayilerinizle ortak portföy paylaşın, akıllı komisyon dağılımları ve kilitli rezervasyon süreleri tanımlayın.' : 'Enrakipsiz.com has quietly turned into a monstrous property and auto pool! Share mutual listings, set precise commission cuts, and setup locked bookings.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg">Kapalı Devre Paylaşım</span>
-                      <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg">Rezervasyon Kilidi</span>
-                    </div>
-                  </div>
-
-                  {/* Node 2 - Dynamic Contract Manager */}
-                  <div className="p-10 rounded-[2.5rem] bg-indigo-950/10 border border-indigo-500/20 relative group overflow-hidden hover:bg-indigo-900/15 transition-all duration-300">
-                    <div className="w-full h-48 bg-[#070709] rounded-2xl mb-8 border border-indigo-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-indigo-400/40 transition-all shadow-lg">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-[9px] font-bold text-indigo-400 px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">AUTO CONTRACT BUILDER</span>
-                        <ClipboardSignature className="w-3.5 h-3.5 text-indigo-400" />
-                      </div>
-                      <div className="flex-1 bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-2.5 flex flex-col gap-1.5 text-[8px] font-mono text-slate-400">
-                        <p className="border-b border-white/5 pb-1 text-white">Yasal Emlak / Kira Sözleşmesi</p>
-                        <p>Firma: Seçkin VIP Emlak</p>
-                        <p>Danışman: +90 (548) ...</p>
-                        <p className="text-emerald-400 mt-auto flex items-center gap-1">✓ WhatsApp Onayı Aktif</p>
-                      </div>
-                    </div>
-                    <ClipboardSignature className="w-10 h-10 text-indigo-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'DİJİTAL SÖZLEŞME ODASI' : 'DIGITAL CONTRACT ROOM'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' ? 'Artık şablon aramaya son. Sistem her sözleşmeye (Kira, Satış, Kaparo) firmanızın gerçek ünvanı (Seçkin Emlak/Otomotiv), broker isimleri ve WhatsApp numaralarını anlık bind ederek sıfır hata sözleşme üretir.' : 'Erase manual templates. The system dynamically binds store display titles, manager contacts, and WhatsApp parameters into legal real estate / auto templates in seconds.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] rounded-lg">Dinamik Firma Eşleşmesi</span>
-                      <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] rounded-lg">Dönemlik Ödemeler</span>
-                    </div>
-                  </div>
-
-                  {/* Node 3 - Poster & AI Social Caption Creator */}
-                  <div className="p-10 rounded-[2.5rem] bg-cyan-950/10 border border-cyan-500/20 relative group overflow-hidden hover:bg-cyan-900/15 transition-all duration-300">
-                    <div className="w-full h-48 bg-[#070909] rounded-2xl mb-8 border border-cyan-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-cyan-400/40 transition-all shadow-lg">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-[9px] font-bold text-cyan-400">POSTER CREATOR & CAPTION</span>
-                        <Share2 className="w-3.5 h-3.5 text-cyan-400" />
-                      </div>
-                      <div className="flex-1 bg-cyan-500/5 rounded-xl p-2.5 text-[8px] font-mono leading-relaxed text-slate-400 overflow-hidden">
-                        <span className="text-cyan-300 block mb-1">📋 Otomatik Sosyal Metin:</span>
-                        "🔑 Muhteşem Portföyümüz Satışta! Detaylı bilgi için Seçkin Emlak ofisimize ve Danışmanımıza ulaşın... #KıbrısEmlak"
-                      </div>
-                    </div>
-                    <Share2 className="w-10 h-10 text-cyan-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'POSTER & DİGİTAL PAYLAŞIM' : 'POSTER & METADATA SHARING'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' ? 'Sosyal medya ilanlarınızı anında göz alıcı posterlere dönüştürün. Portföy detaylarından otomatik çekilen marka sanitasyon işlemine sahip captionlar ile kopyala-yapıştır yapmaya hazır metinler elinizin altında.' : 'Convert your listings into stunning posters instantly. Visual assets are paired with auto-caption texts sanitizing special characters in your company store name.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] rounded-lg">Sıfır Manuel Giriş</span>
-                      <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] rounded-lg">Sosyal Medya Poster</span>
-                    </div>
-                  </div>
-
-                  {/* Node 4 - Regional Cyprus & Med Specific Optimizations */}
-                  <div className="p-10 rounded-[2.5rem] bg-emerald-950/10 border border-emerald-500/20 relative group overflow-hidden hover:bg-emerald-900/15 transition-all duration-300">
-                    <div className="w-full h-48 bg-[#070908] rounded-2xl mb-8 border border-emerald-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-emerald-400/40 transition-all shadow-lg justify-between">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-emerald-400">REGIONAL CALC FILTER</span>
-                        <MapPin className="w-3.5 h-3.5 text-emerald-400 animate-bounce" />
-                      </div>
-                      <div className="space-y-1 text-[9px] font-mono">
-                        <p className="text-white">📍 Bölge: Kuzey Kıbrıs / KKTC</p>
-                        <p className="text-emerald-400">⚡ Trafo Katkı Payı: Dahil</p>
-                        <p className="text-emerald-400">📊 KDV Muafiyeti: Seçili</p>
-                        <p className="text-emerald-400">🏷️ Tapu Tipi: Eşdeğer / Türk Koçanlı</p>
-                      </div>
-                    </div>
-                    <MapPin className="w-10 h-10 text-emerald-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'KIBRIS & BÖLGESEL OPTİMİZASYON' : 'REGION SPECIFIC DEALS'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' ? 'Akdeniz ve Kıbrıs ticaret modellerine tam dijital entegrasyon! Trafo katkı bedelleri, KDV muafiyet opsiyonları, çatı terası hakları, koçan/tapu durumları (Türk Malı, Eşdeğer, tahsis) ve çok para birimli döviz kurları ile sistemi dilediğiniz gibi süzün.' : 'Zero local adaptation friction. Out of the box calculation fields for Trafo transformer pay, VAT status, terrace access parameters, and Cyprus property titles (equivalent, Turkish block, allocation).'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] rounded-lg">Çok Dövizli Hesaplama</span>
-                      <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] rounded-lg">Trafo & KDV Koruması</span>
-                    </div>
-                  </div>
-
-                  {/* Node 5 - Multi-Branch Manager Permissions */}
-                  <div className="p-10 rounded-[2.5rem] bg-purple-950/10 border border-purple-500/20 relative group overflow-hidden hover:bg-purple-900/15 transition-all duration-300">
-                    <div className="w-full h-48 bg-[#090709] rounded-2xl mb-8 border border-purple-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-purple-400/40 transition-all shadow-lg justify-center gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-xs text-purple-400">U1</div>
-                        <div>
-                          <p className="text-[10px] text-white">Yönetici / Broker</p>
-                          <p className="text-[8px] text-purple-400">Tüm şubeleri ve gizli portföyleri gör</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-xs text-slate-500">U2</div>
-                        <div>
-                          <p className="text-[10px] text-slate-400">Danışman / Alt Bayi</p>
-                          <p className="text-[8px] text-slate-500">Yalnızca onaylı ortak portföyleri gör</p>
-                        </div>
-                      </div>
-                    </div>
-                    <Users className="w-10 h-10 text-purple-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'ŞUBE & DANIŞMAN YALITIMI' : 'SECURE DELEGATION'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' ? 'Hassas gayrimenkullerinizin ve araç portföylerinizin izinlerini rütbeye göre atayın. Brokerların kontrol panelinden tüm danışman aktivitelerini, tur durumlarını, rezerve kilitleri anlık izlemesini ve alt bayilerin yetki sınırlarını koruyun.' : 'Enforce safety on prestigious listings. Broker controls enable secure view authorizations, active sub-agent constraints, locked viewing logs, and fine-grain delegation.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] rounded-lg">Rol Bazlı Yetki</span>
-                      <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] rounded-lg">Tur & Log Geçmişi</span>
-                    </div>
-                  </div>
-
-                  {/* Node 6 - Vehicle Tracking Automations */}
-                  <div className="p-10 rounded-[2.5rem] bg-blue-950/10 border border-blue-500/20 relative group overflow-hidden hover:bg-blue-900/15 transition-all duration-300">
-                    <div className="w-full h-48 bg-[#070809] rounded-2xl mb-8 border border-blue-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-blue-400/40 transition-all shadow-lg justify-between">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-blue-400">VEHICLE LOGISTICS ENGINE</span>
-                        <Car className="w-3.5 h-3.5 text-blue-400" />
-                      </div>
-                      <div className="text-[9px] font-mono space-y-1 text-slate-400">
-                        <p className="text-white">🚗 Galeri Portföy: Range Rover Sport</p>
-                        <p className="text-blue-400">📊 Plaka Durumu: Kayıtlı Değil / Gümrüksüz</p>
-                        <p className="text-blue-400">⚙️ Servis / Muayene Günü: Kalan 4 Gün</p>
-                      </div>
-                    </div>
-                    <Car className="w-10 h-10 text-blue-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'AKILLI OTO GALERİ & TAKİP' : 'INTELLIGENT AUTO CRM'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' ? 'Motorlu taşıt satıcıları için araç stoğu, evrak, gümrükleme, sigorta/kasko takibi ile sürücü zimmet otomasyonları. Mil/KM ayarlı bakım uyarı mekanizması ile araçlarınızın satış öncesi kondisyonunu en üstte saklayın.' : 'A beautiful gallery interface: manage custom auto traits, registration status, logistics tracking, insurance deadlines, and automated tire/maintenance mileage notifications.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] rounded-lg">Gümrük & Plaka Filtresi</span>
-                      <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] rounded-lg">Mekanik Kondisyon Log</span>
-                    </div>
-                  </div>
-
-                </div>
-              </motion.div>
-            ) : systemType === 'product' ? (
-              <motion.div
-                key="product-anatomy"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="mb-20 text-center max-w-3xl mx-auto">
-                  <div className="inline-flex items-center gap-2 text-indigo-400 text-[10px] font-black uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 mb-4">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {lang === 'tr' ? 'İŞLETMENİZİN OMURGASI' : 'THE SYSTEM CORES'}
-                  </div>
-                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">
-                    {lang === 'tr' ? 'Ürün, Perakende & POS Yönetimi' : 'Product, Retail & POS Engine'}
-                  </h2>
-                  <p className="text-white/50 text-lg md:text-xl font-light">
-                    {lang === 'tr' 
-                      ? 'Şirketinizi "canlı bir organizmaya" dönüştüren 5 ana klasik sinir düğümü.' 
-                      : '5 classic modules that transform your retail store into a unified living organism.'}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {/* Brain */}
-                  <div className="p-10 rounded-[2.5rem] bg-indigo-950/15 border border-indigo-500/20 relative group overflow-hidden hover:bg-indigo-900/15 transition duration-300">
-                    <div className="w-full h-48 bg-[#08080c] rounded-2xl mb-8 border border-indigo-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-indigo-500/40 transition-colors shadow-lg">
-                      <div className="flex justify-between items-center mb-6">
-                        <div className="w-24 h-2.5 bg-indigo-500/20 rounded-full" />
-                        <div className="flex gap-2">
-                          <div className="w-6 h-6 bg-indigo-500/10 rounded-md" />
-                          <div className="w-6 h-6 bg-indigo-500/10 rounded-md" />
-                        </div>
-                      </div>
-                      <div className="flex-1 flex items-end gap-3 px-2 mt-auto">
-                        <div className="w-full h-[40%] bg-indigo-500/20 rounded-t-md transition-all group-hover:h-[45%]" />
-                        <div className="w-full h-[70%] bg-indigo-500/40 rounded-t-md transition-all group-hover:h-[75%]" />
-                        <div className="w-full h-[50%] bg-indigo-500/30 rounded-t-md transition-all group-hover:h-[55%]" />
-                        <div className="w-full h-[90%] bg-indigo-500/60 rounded-t-md relative transition-all group-hover:h-[95%]">
-                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_10px_rgba(129,140,248,0.8)]" />
-                        </div>
-                        <div className="w-full h-[60%] bg-indigo-500/30 rounded-t-md transition-all group-hover:h-[65%]" />
-                        <div className="w-full h-[80%] bg-indigo-500/50 rounded-t-md transition-all group-hover:h-[85%]" />
-                      </div>
-                    </div>
-                    <Zap className="w-10 h-10 text-indigo-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'BEYİN (Merkez Kasa & POS)' : 'BRAIN (Central Cashier & POS)'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' ? 'N sayıda perakende mağazanız, Hızlı POS modülü, e-ticaret siteniz, teknik servis servisleriniz ve toptan satışlarınız tek akıllı kasada birleşir.' : 'Integrate your N branches, high-speed POS registry, digital store checkout, and technical logs into a master unified system.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] rounded-lg">Nakit, Kart & Çok Döviz</span>
-                    </div>
-                  </div>
-
-                  {/* Senses */}
-                  <div className="p-10 rounded-[2.5rem] bg-cyan-950/15 border border-cyan-500/20 relative group overflow-hidden hover:bg-cyan-900/15 transition duration-300">
-                    <div className="w-full h-48 bg-[#080c0c] rounded-2xl mb-8 border border-cyan-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-cyan-500/40 transition shadow-lg">
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="w-16 h-2 bg-cyan-500/20 rounded-full" />
-                        <div className="w-8 h-2 bg-cyan-500/20 rounded-full" />
-                      </div>
-                      <div className="flex flex-col gap-3 mt-2">
-                        <div className="w-full p-2 bg-cyan-500/5 rounded-lg border border-cyan-500/10 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-5 h-5 bg-cyan-500/20 rounded flex items-center justify-center"><div className="w-2 h-2 bg-cyan-400 rounded-full" /></div>
-                            <div className="w-20 h-1.5 bg-cyan-500/20 rounded-full" />
-                          </div>
-                          <div className="w-8 h-4 rounded-full bg-cyan-500/20 flex items-center px-0.5"><div className="w-3 h-3 bg-cyan-400 rounded-full ml-auto" /></div>
-                        </div>
-                        <div className="w-full p-2 bg-cyan-500/5 rounded-lg border border-cyan-500/10 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-5 h-5 bg-cyan-500/20 rounded flex items-center justify-center"><div className="w-2 h-2 bg-cyan-400 rounded-full" /></div>
-                            <div className="w-16 h-1.5 bg-cyan-500/20 rounded-full" />
-                          </div>
-                          <div className="w-8 h-4 rounded-full bg-cyan-500/20 flex items-center px-0.5"><div className="w-3 h-3 bg-cyan-400 rounded-full ml-auto" /></div>
-                        </div>
-                      </div>
-                    </div>
-                    <Globe className="w-10 h-10 text-cyan-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'DUYU ORGANLARI (Çoklu Bağlantı)' : 'SENSES (Multi-Connectivity)'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' ? 'Ürünleriniz; anlık toplu fiyat güncelleme, kategori özellikleri ve çoklu döviz kurları ile tek elden pazaryerlerine ve el terminallerine saniyeler içinde dağıtılır.' : 'Seamless bulk updates. Spread customizable pricing models, structural item categories, and multi-currency formats to sales points effortlessly.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] rounded-lg">Dijital Fiyat Gör</span>
-                    </div>
-                  </div>
-
-                  {/* Kalp */}
-                  <div className="p-10 rounded-[2.5rem] bg-rose-950/15 border border-rose-500/20 relative group overflow-hidden hover:bg-rose-900/15 transition duration-300">
-                    <div className="w-full h-48 bg-[#0c0809] rounded-2xl mb-8 border border-rose-500/20 flex flex-row overflow-hidden relative p-5 gap-4 group-hover:border-rose-500/40 transition shadow-lg">
-                      <div className="flex-1 flex flex-col gap-3">
-                        <div className="w-12 h-2 bg-rose-500/20 rounded-full mb-1" />
-                        <div className="w-full h-full bg-rose-500/5 rounded-lg border border-rose-500/10 flex flex-col p-2 gap-2">
-                          <div className="w-full h-10 bg-rose-500/10 rounded flex flex-col p-1 justify-center">
-                            <div className="w-3/4 h-1 bg-rose-400/40 rounded-full" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <Wallet className="w-10 h-10 text-rose-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'KALP (Teklif, Servis & Satış)' : 'HEART (Quotes & Service Logs)'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' ? 'Teknik servis takip süreçleri, ürün yedek parça kesintileri ve kurumsal profesyonel PDF teklifler. Onaylanan her teklif için anında yeni cari oluşturma yetisi.' : 'Corporate quote operations, stock deduction algorithms, and technical service sheets automatically linked with client consent tools.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg">Dijital Onay Köprüsü</span>
-                    </div>
-                  </div>
-
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="restaurant-anatomy"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="mb-20 text-center max-w-3xl mx-auto">
-                  <div className="inline-flex items-center gap-2 text-amber-400 text-[10px] font-black uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 mb-4">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {lang === 'tr' ? 'EŞSİZ LEZZET VE SİPARİŞ ENTEGRASYONU' : 'UNIFIED RESTAURANT OPERATIONS'}
-                  </div>
-                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">
-                    {lang === 'tr' ? 'Cafe & Restoran Yönetim Sistemi' : 'Cafe & Restaurant Management System'}
-                  </h2>
-                  <p className="text-white/50 text-lg md:text-xl font-light">
-                    {lang === 'tr' 
-                      ? 'Masadan mutfağa, kuryeden kasaya kadar restoranınızın her hücresini kusursuz bir uyumla senkronize eden yeni nesil restoran yönetim omurgası.' 
-                      : 'Next-gen kitchen, table, courier, and automated recipe systems aligned under one beautiful real-time dashboard.'}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {/* Card 1 - QR Menu */}
-                  <div className="p-10 rounded-[2.5rem] bg-amber-950/15 border border-amber-500/20 relative group overflow-hidden hover:bg-amber-900/15 transition duration-300">
-                    <div className="w-full h-48 bg-[#0c0a08] rounded-2xl mb-8 border border-amber-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-amber-500/40 transition-colors shadow-lg justify-between">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-amber-400">QR CODE INTERACTION</span>
-                        <Smartphone className="w-3.5 h-3.5 text-amber-400" />
-                      </div>
-                      <div className="p-3 bg-amber-500/5 rounded-xl border border-amber-500/10 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Coffee className="w-4 h-4 text-amber-400 animate-pulse" />
-                          <div>
-                            <p className="text-[10px] font-bold text-white">Latte Macchiato</p>
-                            <p className="text-[8px] text-amber-500">Masa 4 - Sipariş Edildi</p>
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-bold text-emerald-400">120 TL</span>
-                      </div>
-                    </div>
-                    <Smartphone className="w-10 h-10 text-amber-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'QR MENÜ & SİPARİŞ' : 'QR MENU & ORDERING'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' 
-                        ? 'Müşterileriniz masadaki QR kodu okutarak anında dijital menünüze erişir, siparişlerini garsona ihtiyaç duymadan doğrudan mutfağa iletebilir. Hesap talep etme ve hızlı garson çağırma entegrasyonuyla bekleme sürelerini sıfırlayın.' 
-                        : 'Interactive visual menu inside your customers\' hands. Scan, select, customize traits, and directly dispatch orders to corresponding kitchen/bar screens without delay.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] rounded-lg">Temassız Sipariş & Garson Çağır</span>
-                    </div>
-                  </div>
-
-                  {/* Card 2 - POS & Table Management */}
-                  <div className="p-10 rounded-[2.5rem] bg-emerald-950/15 border border-emerald-500/20 relative group overflow-hidden hover:bg-emerald-900/15 transition duration-300">
-                    <div className="w-full h-48 bg-[#080c0a] rounded-2xl mb-8 border border-emerald-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-emerald-500/40 transition-colors shadow-lg justify-between">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-emerald-400">TABLE LAYOUT SIMULATION</span>
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="p-2 bg-emerald-500/20 border border-emerald-500 text-center rounded-lg text-[9px] font-bold text-white">Masa 1<br/>Dolu</div>
-                        <div className="p-2 bg-white/5 border border-white/10 text-center rounded-lg text-[9px] text-slate-500">Masa 2<br/>Boş</div>
-                        <div className="p-2 bg-amber-500/20 border border-amber-500 text-center rounded-lg text-[9px] font-bold text-white">Masa 3<br/>Rezerve</div>
-                      </div>
-                    </div>
-                    <Layout className="w-10 h-10 text-emerald-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'HIZLI POS & MASA PLANI' : 'FAST POS & TABLE PLAN'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' 
-                        ? 'Sürükle-bırak masa taşıma, masaları tek tıkla birleştirme, Alman usulü parçalı hesap bölme ve her masanın sipariş süresini gösteren canlı kat planı. Sipariş gecikmelerini önlemek için otomatik renk uyarısı.' 
-                        : 'Manage floor blueprints with ease. Drag and drop reservations, merge tables, process split payments, apply itemized discounts, and monitor service time indicators to eliminate cold food complaints.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] rounded-lg">Parçalı Tahsilat & Hesap Bölme</span>
-                    </div>
-                  </div>
-
-                  {/* Card 3 - Kitchen Display System */}
-                  <div className="p-10 rounded-[2.5rem] bg-rose-950/15 border border-rose-500/20 relative group overflow-hidden hover:bg-rose-900/15 transition duration-300">
-                    <div className="w-full h-48 bg-[#0c0809] rounded-2xl mb-8 border border-rose-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-rose-500/40 transition-colors shadow-lg justify-between">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-rose-400">KDS TICKET QUEUE</span>
-                        <Activity className="w-3.5 h-3.5 text-rose-400" />
-                      </div>
-                      <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl space-y-1">
-                        <div className="flex justify-between text-[9px] font-bold text-white">
-                          <span>🍔 Hamburger x2</span>
-                          <span className="text-rose-400 animate-pulse">Hazırlanıyor (4 dk)</span>
-                        </div>
-                        <p className="text-[8px] text-slate-400">Not: Soslar bol olsun, orta pişmiş köfte.</p>
-                      </div>
-                    </div>
-                    <Activity className="w-10 h-10 text-rose-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'MUTFAK & BAR EKRANI (KDS)' : 'KITCHEN DISPLAY SYSTEM'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' 
-                        ? 'Garsonların el terminallerinden veya QR menüden girilen siparişler saniyeler içinde mutfak ve bar ekranlarına düşer. Pişirme ve hazırlanma süreleri takip edilir, hazır olan sipariş için ilgili garsonun saatine veya el terminaline anlık bildirim gider.' 
-                        : 'Instant electronic ticket dispatch. Completely replace printer paper with digital displays. Automatically track cooking times, and notify the server on their mobile device when orders are ready to run.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg">Canlı Hazırlanma Bildirimleri</span>
-                    </div>
-                  </div>
-
-                  {/* Card 4 - Food Costing & Recipes */}
-                  <div className="p-10 rounded-[2.5rem] bg-cyan-950/15 border border-cyan-500/20 relative group overflow-hidden hover:bg-cyan-900/15 transition duration-300">
-                    <div className="w-full h-48 bg-[#080c0c] rounded-2xl mb-8 border border-cyan-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-cyan-500/40 transition-colors shadow-lg justify-between">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-cyan-400">RECIPE PORTION DEVIATION</span>
-                        <Settings className="w-3.5 h-3.5 text-cyan-400" />
-                      </div>
-                      <div className="text-[9px] space-y-1 font-mono text-slate-400">
-                        <p className="text-white">🍔 Double Cheeseburger</p>
-                        <p className="text-cyan-400">🍖 Et Köftesi: -300g (Stoktan düştü)</p>
-                        <p className="text-cyan-400">🧀 Cheddar Peyniri: -2 Dilim (Stoktan düştü)</p>
-                        <p className="text-emerald-400">📈 Marj: %72 Brüt Kâr</p>
-                      </div>
-                    </div>
-                    <Wrench className="w-10 h-10 text-cyan-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'REÇETE & PORTFÖY MALİYETİ' : 'RECIPE & FOOD COSTING'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' 
-                        ? 'Satılan her bir porsiyon, yemek veya içeceğin reçetesine göre kullanılan hammaddeler (et, un, peynir, kahve çekirdeği) depodan otomatik düşer. Gerçek zamanlı porsiyon maliyeti ve kârlılık analizi ile israfı ve kayıpları sıfıra indirin.' 
-                        : 'Real-time stock deduction based on precise menu recipes. Define exact grammage per portion, automate stock decrements on sale, and track gross food cost percentages dynamically.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] rounded-lg">Otomatik Reçeteli Stok Düşümü</span>
-                    </div>
-                  </div>
-
-                  {/* Card 5 - Delivery & Marketplace Integration */}
-                  <div className="p-10 rounded-[2.5rem] bg-purple-950/15 border border-purple-500/20 relative group overflow-hidden hover:bg-purple-900/15 transition duration-300">
-                    <div className="w-full h-48 bg-[#0a080c] rounded-2xl mb-8 border border-purple-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-purple-400/40 transition-all shadow-lg justify-between">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-purple-400">ONLINE ORDER PIPELINE</span>
-                        <Truck className="w-3.5 h-3.5 text-purple-400" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="p-1.5 bg-purple-500/10 rounded border border-purple-500/20 flex justify-between items-center">
-                          <span className="text-[8px] font-bold text-white">Yemeksepeti #9283</span>
-                          <span className="text-[8px] px-1 bg-purple-500/30 rounded text-purple-300">Yeni Sipariş</span>
-                        </div>
-                        <div className="p-1.5 bg-indigo-500/10 rounded border border-indigo-500/20 flex justify-between items-center">
-                          <span className="text-[8px] font-bold text-white">Trendyol Yemek #4829</span>
-                          <span className="text-[8px] px-1 bg-indigo-500/30 rounded text-indigo-300">Kuryede</span>
-                        </div>
-                      </div>
-                    </div>
-                    <Truck className="w-10 h-10 text-purple-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'ENTEGRE PAKET SERVİS' : 'DELIVERY INTEGRATIONS'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' 
-                        ? 'Yemeksepeti, Getir, Trendyol Yemek gibi popüler sipariş platformlarıyla tam entegrasyon. Gelen siparişler doğrudan POS ekranınıza düşer ve tek tıkla kuryenize zimmetlenerek teslimat süreci canlı olarak harita üzerinden takip edilir.' 
-                        : 'Complete pipeline connection to global delivery networks. Centralize external online orders, coordinate logistics with your internal courier staff, and track courier positions in real time.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] rounded-lg">Yemeksepeti, Getir, Trendyol</span>
-                    </div>
-                  </div>
-
-                  {/* Card 6 - Waiter Performance & Tips */}
-                  <div className="p-10 rounded-[2.5rem] bg-blue-950/15 border border-blue-500/20 relative group overflow-hidden hover:bg-blue-900/15 transition duration-300">
-                    <div className="w-full h-48 bg-[#08090c] rounded-2xl mb-8 border border-blue-500/20 flex flex-col overflow-hidden relative p-5 group-hover:border-blue-400/40 transition-all shadow-lg justify-between">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-blue-400">STAFF EFFICIENCY INDEX</span>
-                        <Users className="w-3.5 h-3.5 text-blue-400" />
-                      </div>
-                      <div className="flex gap-2">
-                        <div className="flex-1 bg-blue-500/10 p-2 rounded-xl text-center border border-blue-500/20">
-                          <p className="text-[12px] font-black text-white">45 dk</p>
-                          <p className="text-[7px] text-slate-400">Ort. Servis Hızı</p>
-                        </div>
-                        <div className="flex-1 bg-emerald-500/10 p-2 rounded-xl text-center border border-emerald-500/20">
-                          <p className="text-[12px] font-black text-emerald-400">%96.8</p>
-                          <p className="text-[7px] text-slate-400">Garson Skoru</p>
-                        </div>
-                      </div>
-                    </div>
-                    <Users className="w-10 h-10 text-blue-400 mb-8 relative z-10" />
-                    <h3 className="text-2xl font-bold mb-4 relative z-10">{lang === 'tr' ? 'PERSONEL & TİP BOX YÖNETİMİ' : 'STAFF & TIP MANAGEMENT'}</h3>
-                    <p className="text-slate-400 font-light leading-relaxed mb-4 text-sm relative z-10">
-                      {lang === 'tr' 
-                        ? 'Personel performanslarını, her garsonun aldığı sipariş adedini, bahşiş dağılımını (tip box), kasa mutabakatlarını ve müşteri geri bildirimlerini anlık takip edin. İşletmenizin verimliliğini ödüllendirme mekanizmaları ile artırın.' 
-                        : 'Gain exact visibility into waitstaff behaviors. Auto-apportion service charges and pooled tips, audit individual checkout reconciliations, and monitor average ticket assembly velocities.'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 relative z-10">
-                      <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] rounded-lg">Garson Performans & Bahşiş Dağılımı</span>
-                    </div>
-                  </div>
-
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-        </div>
-      </section>
-
-
-      {/* Core Modules Section */}
-      <section className="px-6 md:px-12 lg:px-24 py-32 border-t border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-16">
-            <h2 className="text-3xl md:text-4xl font-medium tracking-tight mb-4">
-              {lang === 'tr' ? 'Sistemin Temel Yapı Taşları.' : 'Core System Modules.'}
+          <div className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4 text-white">
+              {lang === 'tr' ? "Profesyonel Ürünlerimiz" : "Our Professional Products"}
             </h2>
-            <p className="text-white/40 text-lg font-light">
-              {lang === 'tr' ? 'İşletmenizi uçtan uca yönetmeniz için tasarlanmış entegre modüller.' : 'Integrated modules designed to manage your business end-to-end.'}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Module 1 */}
-            <div className="p-10 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-              <Wrench className="w-8 h-8 text-indigo-400 mb-8" />
-              <h3 className="text-2xl font-medium mb-4">
-                {lang === 'tr' ? 'Teknik Servis & Onarım' : 'Technical Service & Repair'}
-              </h3>
-              <p className="text-white/40 font-light leading-relaxed mb-8">
-                {lang === 'tr' 
-                  ? 'Cihaz kabulünden teslimata kadar tüm süreci dijitalleştirin. Müşteriye özel QR kodlar, otomatik durum bildirimleri ve tek tıkla servis kaydını satışa dönüştürme altyapısı.'
-                  : 'Digitize the entire process from device intake to delivery. Customer-specific QR codes, automated status notifications, and one-click conversion to sales.'}
-              </p>
-              <ul className="space-y-3 text-sm text-white/60 font-light">
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-indigo-500/50"/> {lang === 'tr' ? 'PDF Raporlama & Garanti Takibi' : 'PDF Reporting & Warranty Tracking'}</li>
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-indigo-500/50"/> {lang === 'tr' ? 'Otomatik Stok Düşümü' : 'Automated Inventory Deduction'}</li>
-              </ul>
-            </div>
-
-            {/* Module 2 */}
-            <div className="p-10 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-              <Truck className="w-8 h-8 text-cyan-400 mb-8" />
-              <h3 className="text-2xl font-medium mb-4">
-                {lang === 'tr' ? 'Filo ve Araç Yönetimi' : 'Fleet & Vehicle Management'}
-              </h3>
-              <p className="text-white/40 font-light leading-relaxed mb-8">
-                {lang === 'tr'
-                  ? 'Araçlarınızın bakım geçmişini, sigorta/kasko bitiş tarihlerini ve personel zimmetlerini tek ekrandan izleyin. Sürpriz maliyetlerin önüne geçin.'
-                  : 'Monitor vehicle maintenance history, insurance expiry dates, and staff assignments from a single screen. Prevent surprise costs.'}
-              </p>
-              <ul className="space-y-3 text-sm text-white/60 font-light">
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-cyan-500/50"/> {lang === 'tr' ? 'Akıllı Bakım Uyarıları' : 'Smart Maintenance Alerts'}</li>
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-cyan-500/50"/> {lang === 'tr' ? 'Sürücü ve Belge Yönetimi' : 'Driver & Document Management'}</li>
-              </ul>
-            </div>
-
-            {/* Module 3 */}
-            <div className="p-10 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-              <Package className="w-8 h-8 text-emerald-400 mb-8" />
-              <h3 className="text-2xl font-medium mb-4">
-                {lang === 'tr' ? 'Akıllı Stok & Envanter' : 'Smart Inventory & Stock'}
-              </h3>
-              <p className="text-white/40 font-light leading-relaxed mb-8">
-                {lang === 'tr'
-                  ? 'Çoklu şube desteğiyle stoklarınızı anlık takip edin. Kritik stok seviyelerinde uyarı alın, barkod okuyucu entegrasyonu ile saniyeler içinde işlem yapın.'
-                  : 'Track your inventory in real-time with multi-branch support. Get alerts on critical stock levels and process transactions in seconds with barcode integration.'}
-              </p>
-              <ul className="space-y-3 text-sm text-white/60 font-light">
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-emerald-500/50"/> {lang === 'tr' ? 'Şubeler Arası Transfer' : 'Inter-branch Transfers'}</li>
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-emerald-500/50"/> {lang === 'tr' ? 'Excel ile Toplu İçe Aktarım' : 'Bulk Import via Excel'}</li>
-              </ul>
-            </div>
-
-            {/* Module 4 */}
-            <div className="p-10 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-              <Wallet className="w-8 h-8 text-rose-400 mb-8" />
-              <h3 className="text-2xl font-medium mb-4">
-                {lang === 'tr' ? 'Cari Hesap & Finans' : 'Current Accounts & Finance'}
-              </h3>
-              <p className="text-white/40 font-light leading-relaxed mb-8">
-                {lang === 'tr'
-                  ? 'Müşteri ve tedarikçilerinizle olan finansal ilişkilerinizi şeffaflaştırın. Vadeli satışlar, tahsilatlar ve anlık bakiye takibi ile nakit akışınızı kontrol altına alın.'
-                  : 'Make your financial relationships with customers and suppliers transparent. Control your cash flow with term sales, collections, and real-time balance tracking.'}
-              </p>
-              <ul className="space-y-3 text-sm text-white/60 font-light">
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-rose-500/50"/> {lang === 'tr' ? 'Otomatik Borç/Alacak Kaydı' : 'Automated Debt/Credit Recording'}</li>
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-rose-500/50"/> {lang === 'tr' ? 'Kasa ve Banka Entegrasyonu' : 'Cash Register & Bank Integration'}</li>
-              </ul>
-            </div>
-
-            {/* Module 5 */}
-            <div className="p-10 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-              <FileText className="w-8 h-8 text-amber-400 mb-8" />
-              <h3 className="text-2xl font-medium mb-4">
-                {lang === 'tr' ? 'Teklif & Tedarik Zinciri' : 'Quotation & Supply Chain'}
-              </h3>
-              <p className="text-white/40 font-light leading-relaxed mb-8">
-                {lang === 'tr'
-                  ? 'Teklif hazırlama sürecinden, onay sonrası otomatik tedarik zinciri yönetimine kadar her adım kontrolünüzde. Tedarikçi entegrasyonu ile eksik ürünleri anında sipariş edin.'
-                  : 'Control every step from quotation to automated supply chain management after approval. Order missing products instantly with supplier integration.'}
-              </p>
-              <ul className="space-y-3 text-sm text-white/60 font-light">
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-amber-500/50"/> {lang === 'tr' ? 'Otomatik Teklif-Sipariş Dönüşümü' : 'Automated Quote-to-Order Conversion'}</li>
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-amber-500/50"/> {lang === 'tr' ? 'Tedarikçi Stok Entegrasyonu' : 'Supplier Stock Integration'}</li>
-              </ul>
-            </div>
-
-            {/* Module 6 */}
-            <div className="p-10 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-              <ShoppingCart className="w-8 h-8 text-purple-400 mb-8" />
-              <h3 className="text-2xl font-medium mb-4">
-                {lang === 'tr' ? 'Dijital Mağaza Deneyimi' : 'Digital Store Experience'}
-              </h3>
-              <p className="text-white/40 font-light leading-relaxed mb-8">
-                {lang === 'tr'
-                  ? 'Mağaza içi "Dijital Fiyat Gör" terminalleri ve entegre "Dijital Sepet" ile müşterilerinize benzersiz bir deneyim sunun. Personel yükünü azaltın, satış hızını artırın.'
-                  : 'Offer a unique experience with in-store "Digital Price Check" terminals and integrated "Digital Basket". Reduce staff workload and increase sales speed.'}
-              </p>
-              <ul className="space-y-3 text-sm text-white/60 font-light">
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-purple-500/50"/> {lang === 'tr' ? 'Dijital Fiyat Gör & Bilgi Ekranı' : 'Digital Price Check & Info Screen'}</li>
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-purple-500/50"/> {lang === 'tr' ? 'Entegre Dijital Sepet & Hızlı Ödeme' : 'Integrated Digital Basket & Fast Checkout'}</li>
-              </ul>
-            </div>
-
-            {/* Module 7 */}
-            <div className="p-10 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-              <ArrowLeftRight className="w-8 h-8 text-blue-400 mb-8" />
-              <h3 className="text-2xl font-medium mb-4">
-                {lang === 'tr' ? 'Şubeler Arası Otomasyon' : 'Inter-branch Automation'}
-              </h3>
-              <p className="text-white/40 font-light leading-relaxed mb-8">
-                {lang === 'tr'
-                  ? 'Şubeler arası ürün transferlerini manuel süreçlerden kurtarın. Akıllı talep yönetimi ve otomatik onay mekanizması ile stok dengesini saniyeler içinde sağlayın.'
-                  : 'Free inter-branch product transfers from manual processes. Ensure stock balance in seconds with smart demand management and automated approval mechanisms.'}
-              </p>
-              <ul className="space-y-3 text-sm text-white/60 font-light">
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-blue-500/50"/> {lang === 'tr' ? 'Akıllı Stok Transfer Talebi' : 'Smart Stock Transfer Request'}</li>
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-blue-500/50"/> {lang === 'tr' ? 'Otomatik İrsaliye & Takip' : 'Automated Waybill & Tracking'}</li>
-              </ul>
-            </div>
-
-            {/* Module 8 */}
-            <div className="p-10 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-              <Layout className="w-8 h-8 text-orange-400 mb-8" />
-              <h3 className="text-2xl font-medium mb-4">
-                {lang === 'tr' ? 'Entegre E-Ticaret' : 'Integrated E-Commerce'}
-              </h3>
-              <p className="text-white/40 font-light leading-relaxed mb-8">
-                {lang === 'tr'
-                  ? 'Mağazanızla tam entegre, el değmeden hazır e-ticaret sitesi. Stoklarınız, fiyatlarınız ve kampanyalarınız fiziksel mağazanızla anlık senkronize çalışır.'
-                  : 'A fully integrated, ready-to-go e-commerce site. Your stocks, prices, and campaigns work in real-time synchronization with your physical store.'}
-              </p>
-              <ul className="space-y-3 text-sm text-white/60 font-light">
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-orange-500/50"/> {lang === 'tr' ? 'Sıfır Manuel Veri Girişi' : 'Zero Manual Data Entry'}</li>
-                <li className="flex items-center"><Check className="w-4 h-4 mr-3 text-orange-500/50"/> {lang === 'tr' ? 'Anlık Stok & Fiyat Senkronu' : 'Instant Stock & Price Sync'}</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Ecosystem in Action (How it works) */}
-      <section className="px-6 md:px-12 lg:px-24 py-32 border-t border-white/5 bg-[#050505]">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-16">
-            <h2 className="text-4xl md:text-6xl font-medium tracking-tight mb-6 leading-tight">
-              {lang === 'tr' ? 'Peki Bu Okyanusu Nasıl Yönetiyoruz?' : 'So, How Do We Manage This Ocean?'}
-            </h2>
-            <p className="text-white/50 text-xl font-light max-w-3xl">
+            <p className="text-white/50 text-sm sm:text-base font-semibold leading-relaxed">
               {lang === 'tr' 
-                ? 'İşte sistemin çarklarının kusursuz uyumu. Eski, yeni personel sorunu yok; her şey dijital bir köprü ile birbirine bağlı.' 
-                : 'Here is the perfect harmony of the engine\'s gears. No old/new staff issues; everything is connected via a digital bridge.'}
+                ? "İşletmenizin sektörünü seçin ve tamamen size özel hazırlanan özellikleri, ekranları ve sıkça sorulan soruları anında inceleyin."
+                : "Select your business sector to explore highly customized features, workflows, and FAQs designed specifically for you."}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[minmax(180px,auto)]">
-            
-            {/* The Omni-Channel Core */}
-            <div className="p-8 rounded-[2rem] bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/10 transition-colors md:col-span-2 lg:col-span-2">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-                  <CreditCard className="w-6 h-6 text-indigo-400" />
-                </div>
-                <h3 className="text-2xl font-medium text-white">{lang === 'tr' ? 'Merkez Kasa & Omni-Channel Satış' : 'Central Cashier & Omni-Channel'}</h3>
-              </div>
-              <p className="text-white/60 font-light leading-relaxed mb-6">
-                {lang === 'tr' 
-                  ? 'Web sitenizden, 1. ve 2. mağazanızdaki Hızlı POS modülünden, pazaryerlerinden, kurumsal B2B kanaldan, teknik servisten veya sahadaki personelinizden gelen tüm satışlar...'
-                  : 'All sales coming from your website, 1st and 2nd store Fast POS, marketplaces, corporate channels, tech service, or field staff...'}
-                <br /><br />
-                {lang === 'tr' 
-                  ? 'Hepsi tek bir kasada birleşir. İster Nakit, Kart, POS, ister Döviz, Cari ve Banka EFT. Tüm varlıklarınızı anlık özet panosunda canlı izleyin.'
-                  : 'All merge into a single cash register. Cash, Card, Currency, Account, or Wire Transfer. View your live summary instantly.'}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-white/70">{lang === 'tr' ? 'Fiyat Güncelleme (Toplu)' : 'Bulk Price Update'}</span>
-                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-white/70">{lang === 'tr' ? 'Çoklu Döviz' : 'Multi-Currency'}</span>
-                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-white/70">{lang === 'tr' ? 'Kategori Bazlı Özellikler' : 'Category Features'}</span>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {products.map((p, idx) => {
+              const IconComp = p.icon;
+              return (
+                <motion.div
+                  key={p.name}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  onClick={() => navigate(p.link)}
+                  className={`bg-gradient-to-br ${p.color} rounded-[2.5rem] border border-white/5 hover:border-white/10 transition-all flex flex-col justify-between overflow-hidden cursor-pointer group hover:scale-[1.01]`}
+                >
+                  <div className="relative h-48 w-full overflow-hidden">
+                    <img 
+                      src={p.bgImage} 
+                      alt={p.name} 
+                      referrerPolicy="no-referrer" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
+                    <div className="absolute top-4 left-4 p-3 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 text-white">
+                      <IconComp className={`h-6 w-6 ${p.accent}`} />
+                    </div>
+                    <div className="absolute top-4 right-4 text-[10px] font-black uppercase tracking-widest text-white bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                      {p.sector}
+                    </div>
+                    <div className="absolute bottom-4 left-6">
+                      <h3 className="text-3xl font-black text-white group-hover:text-white/95">{p.name}</h3>
+                    </div>
+                  </div>
 
-            {/* In-Store Digital Price */}
-            <div className="p-8 rounded-[2rem] bg-white/5 hover:bg-white/10 border border-white/5 transition-colors md:col-span-1 lg:col-span-2">
-               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                  <Smartphone className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-2xl font-medium text-white">{lang === 'tr' ? 'Mağaza İçi "Dijital Fiyat Gör"' : 'In-Store Digital Price'}</h3>
-              </div>
-              <p className="text-white/60 font-light leading-relaxed">
-                {lang === 'tr' 
-                  ? 'Personeliniz veya mağaza içindeki müşterileriniz, doğrudan mobil cihazlarından okutarak saniyeler içinde güncel fiyata, özelliklere erişir. Donanım maliyetini bitirin.' 
-                  : 'Staff or customers in-store simply scan with their mobile devices to access real-time pricing and specs in seconds. End hardware dependencies.'}
-              </p>
-            </div>
+                  <div className="p-6 md:p-8 flex-1 flex flex-col justify-between">
+                    <div>
+                      <p className="text-white/60 text-sm leading-relaxed mb-6 font-medium">{p.description}</p>
 
-            {/* B2B & Supply (Spans 2 columns) */}
-            <div className="p-8 rounded-[2rem] bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10 transition-colors md:col-span-3 lg:col-span-2">
-               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                  <RefreshCw className="w-6 h-6 text-emerald-400" />
-                </div>
-                <h3 className="text-2xl font-medium text-white">{lang === 'tr' ? 'Hatasız Tedarik & Sevkiyat' : 'Flawless Supply & Dispatch'}</h3>
-              </div>
-              <p className="text-white/60 font-light leading-relaxed mb-6">
-                {lang === 'tr' 
-                  ? 'Çok mağazalı yapılar için depo-mağaza ve mağaza-mağaza arası transferler artık manuel değil, sıfır hatayla çalışır.' 
-                  : 'For multi-store setups, warehouse-to-store and store-to-store transfers are automated with zero errors.'}
-                <br /><br />
-                <span className="font-medium text-emerald-400">
-                  {lang === 'tr' ? 'Distribütör Otonomisi: ' : 'Distributor Autonomy: '}
-                </span>
-                {lang === 'tr' 
-                  ? 'Teklif onaylandı ama ürün stokta yok mu? Sistem distribütör datasını okur ve Otomatik Tedarik emrini hemen oluşturur.'
-                  : 'Quote approved but out of stock? The system reads distributor data and fires an Auto-Supply order immediately.'}
-              </p>
-            </div>
+                      <div className="space-y-3 mb-8">
+                        {p.features.map((feat, fIdx) => (
+                          <div key={fIdx} className="flex items-center gap-2.5 text-xs font-semibold text-white/80">
+                            <Check className={`h-4 w-4 shrink-0 ${p.accent}`} />
+                            <span>{feat}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-            {/* Fleet Management */}
-            <div className="p-8 rounded-[2rem] bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/10 transition-colors md:col-span-2 lg:col-span-2">
-               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                  <Truck className="w-6 h-6 text-cyan-400" />
-                </div>
-                <h3 className="text-2xl font-medium text-white">{lang === 'tr' ? '360° Filo & Personel' : '360° Fleet & Staff'}</h3>
-              </div>
-              <ul className="space-y-4 text-white/60 font-light text-sm">
-                <li className="flex items-start"><Check className="w-4 h-4 mr-3 text-cyan-500 mt-1 flex-shrink-0"/> {lang === 'tr' ? 'Şirket/şahsi tüm araçların evrak, vergi ve sigorta takibi.' : 'Tracking documents, tax, and insurance for all company/personal vehicles.'}</li>
-                <li className="flex items-start"><Check className="w-4 h-4 mr-3 text-cyan-500 mt-1 flex-shrink-0"/> {lang === 'tr' ? 'Sürücü zimmetleri, puantaj ve kaza/durum raporlamaları.' : 'Driver assignments, scoring, and condition/accident reports.'}</li>
-                <li className="flex items-start"><Check className="w-4 h-4 mr-3 text-cyan-500 mt-1 flex-shrink-0"/> {lang === 'tr' ? 'KM/Mil ayarlı periyodik bakım ve lastik uyarı mekanizması.' : 'Mileage-triggered periodic maintenance and tire alerts.'}</li>
-              </ul>
-            </div>
-
-            {/* Tech Service & CRM Bridge */}
-            <div className="p-8 rounded-[2rem] bg-orange-500/5 hover:bg-orange-500/10 border border-orange-500/10 transition-colors lg:col-span-2 md:col-span-2">
-               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                  <Wrench className="w-6 h-6 text-orange-400" />
-                </div>
-                <h3 className="text-xl font-medium text-white">{lang === 'tr' ? 'Servis & Satış Köprüsü' : 'Service & Sales Bridge'}</h3>
-              </div>
-              <p className="text-white/60 font-light mb-4">
-                {lang === 'tr' 
-                  ? 'Anında Kurumsal PDF teklifler oluşturun. Müşteriniz, gönderdiğiniz dijital onay köprüsü üzerinden teklifi tek tıkla onaylasın veya reddetsin.' 
-                  : 'Create instant Corporate PDF quotes. Customers approve or reject with one click via a digital bridge.'}
-              </p>
-              <div className="p-3 bg-orange-500/10 rounded-xl border border-orange-500/20 text-orange-400 text-sm flex items-center">
-                <Zap className="w-4 h-4 mr-2" />
-                {lang === 'tr' ? 'Onay sonrası otomatik Yeni Cari hesap ve Ürün kartı oluşturulur.' : 'Automatic Current Account and Product card creation upon approval.'}
-              </div>
-            </div>
-
-            {/* Finance & Audit */}
-            <div className="p-8 rounded-[2rem] bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/10 transition-colors md:col-span-1 lg:col-span-1">
-               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-rose-500/20 flex items-center justify-center">
-                  <Activity className="w-6 h-6 text-rose-400" />
-                </div>
-                <h3 className="text-xl font-medium text-white">{lang === 'tr' ? 'Canlı Finans' : 'Live Finance'}</h3>
-              </div>
-              <p className="text-white/60 font-light text-sm mb-4">
-                {lang === 'tr' ? 'Dijital/manuel fatura sistemi, anlık mutabakat.' : 'Digital/manual invoicing, instant reconciliation.'}
-              </p>
-              <p className="text-white/60 font-light text-sm">
-                <span className="text-rose-400 font-medium">{lang === 'tr' ? 'Vergi Öngörüsü:' : 'Tax Forecast:'}</span> {lang === 'tr' ? 'Dashboardlar ile ödenecek vergiyi anlık izleyin.' : 'Track upcoming tax payments live via dashboards.'}
-              </p>
-            </div>
-
-             {/* Audit / Reports */}
-             <div className="p-8 rounded-[2rem] bg-white/5 hover:bg-white/10 border border-white/10 transition-colors md:col-span-1 lg:col-span-1">
-               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-xl font-medium text-white">{lang === 'tr' ? 'Tam Denetim' : 'Full Audit'}</h3>
-              </div>
-              <p className="text-white/60 font-light text-sm mb-4">
-                {lang === 'tr' ? 'Kullanıcı rolleri ile kim, ne iş yapmış? Çarkı kim çeviriyor? Tüm işlem geçmişi elinizin altında.' : 'User roles show exactly who did what. The entire transaction history is at your fingertips.'}
-              </p>
-              <div className="flex items-center text-white/80 text-xs font-bold uppercase tracking-wider">
-                <Download className="w-4 h-4 mr-2" /> PDF & EXCEL
-              </div>
-            </div>
-
-            {/* Absolute Customization */}
-            <div className="p-8 rounded-[2rem] bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border border-indigo-500/20 transition-colors md:col-span-3 lg:col-span-4 relative overflow-hidden group">
-               <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-               <div className="flex items-center gap-4 mb-6 relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-                  <Settings className="w-6 h-6 text-indigo-400 group-hover:rotate-90 transition-transform duration-700" />
-                </div>
-                <h3 className="text-3xl font-medium text-white">{lang === 'tr' ? 'Sınırsız Özelleştirme: Sizin Oyun Alanınız' : 'Limitless Customization: Your Playground'}</h3>
-              </div>
-              <p className="text-white/60 font-light text-lg max-w-4xl relative z-10">
-                {lang === 'tr' 
-                  ? 'Sistemi kendinize göre dizayn etmek çocuk oyuncağı. Vergi oranları, çapraz döviz kurları, e-mağaza bağlantıları, yeni yazar kasa/pos entegrasyonu... Kendi web sitenizin tasarımından, PayPal/Iyzico sanal pos bağlantılarına ve kargo fiyatlandırmalarına kadar her şeyi yapabileceğiniz merkezi ayarlar tabanı.' 
-                  : 'Designing the system to fit you is a breeze. Tax rates, cross-currency rates, e-store links, new POS integrations... The central settings hub lets you configure everything from your website design to PayPal/Iyzico virtual POS connections and shipping rates.'}
-              </p>
-            </div>
-
+                    <button className={`w-full py-4 text-white font-black rounded-2xl transition-all text-sm flex items-center justify-center gap-2 ${p.btnBg}`}>
+                      {lang === 'tr' ? `${p.name} Çözümünü İncele` : `Explore ${p.name}`}
+                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Platform Section */}
-      <section className="px-6 md:px-12 lg:px-24 py-32 text-center border-t border-white/5">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="max-w-4xl mx-auto"
-        >
-          <h2 className="text-4xl md:text-5xl font-medium tracking-tight mb-8">
-            {lang === 'tr' ? 'Teknoloji ile Yönetilen İşletmeler.' : 'Technology-Driven Businesses.'}
-          </h2>
-          <p className="text-xl text-white/40 font-light leading-relaxed">
-            {lang === 'tr'
-              ? 'Teknik servis, filo yönetimi, stok ve finansal entegrasyon. İşletmenizin tüm departmanlarını birbirine bağlayan, hatasız ve ölçeklenebilir bir yazılım mimarisi.'
-              : 'Technical service, fleet management, inventory, and financial integration. An error-free and scalable software architecture connecting all departments of your business.'}
-          </p>
-        </motion.div>
-      </section>
-
-      {/* Content Enrichment: Insights / Blog Section */}
-      <section className="px-6 md:px-12 lg:px-24 py-32 border-t border-white/5 bg-[#080808]">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
-            <div className="max-w-2xl">
-              <div className="flex items-center gap-2 text-indigo-400 text-xs font-black uppercase tracking-[0.3em] mb-4">
-                <Sparkles className="w-4 h-4" />
-                <span>{lang === 'tr' ? 'BİLGİ & STRATEJİ' : 'KNOWLEDGE & STRATEGY'}</span>
-              </div>
-              <h2 className="text-4xl md:text-6xl font-medium tracking-tight leading-tight">
-                {lang === 'tr' ? 'Sektörel Öngörüler & Blog' : 'Industry Insights & Blog'}
-              </h2>
+      {/* Trust & Stability Badges */}
+      <section className="py-16 border-t border-white/5 bg-[#030304]">
+        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+          {[
+            { 
+              title: lang === 'tr' ? "GİB ve N11.com Entegratöründen" : "Integrated GİB & N11", 
+              desc: lang === 'tr' ? "Maliye Bakanlığı ve N11.com Resmi Entegratörü ISM TEKNOLOJİ'den" : "From ISM TECHNOLOGY, official integrator of Ministry of Finance and N11.com" 
+            },
+            { 
+              title: lang === 'tr' ? "1996 Yılından Beri Kurumsal Teknoloji" : "Enterprise Tech Since 1996", 
+              desc: lang === 'tr' ? "smartFatura ve Gap Bilişim Hizmetleri Kurucuları ve Sektör Profesyonelleri ile birlikte Geliştirilmiştir." : "Developed together with founders of smartFatura & Gap Bilişim and industry professionals." 
+            },
+            { 
+              title: lang === 'tr' ? "Tam Yerel Uyum" : "Local Compliance", 
+              desc: lang === 'tr' ? "Sektörün kur yönetimi, sözleşmeleri ve fatura kurallarıyla %100 uyumludur." : "100% compliant with industry custom documents and currencies." 
+            }
+          ].map((item, idx) => (
+            <div key={idx} className="space-y-2">
+              <h4 className="text-lg font-black text-white">{item.title}</h4>
+              <p className="text-white/40 text-xs sm:text-sm font-semibold max-w-xs mx-auto">{item.desc}</p>
             </div>
-            <p className="text-white/40 text-lg font-light max-w-sm">
-              {lang === 'tr' 
-                ? 'İşinizi bir adım öteye taşıyacak teknoloji ve perakende stratejileri.' 
-                : 'Technology and retail strategies to take your business one step further.'}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                id: 1,
-                title: lang === 'tr' ? 'Perakende 4.0: Fiziksel Mağaza Nereye Gidiyor?' : 'Retail 4.0: Where are Physical Stores Heading?',
-                excerpt: lang === 'tr' ? 'Hibrit satış modelleri ve dijitalleşen müşteri deneyimi üzerine derinlemesine analiz.' : 'In-depth analysis of hybrid sales models and digitalizing customer experience.',
-                content: lang === 'tr' ? 'Perakende sektörü büyük bir değişimden geçiyor... (Detaylı içerik burada yer alacak)' : 'The retail sector is undergoing a major change... (Detailed content will be here)',
-                image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop&q=60',
-                date: '25.04.2026'
-              },
-              {
-                id: 2,
-                title: lang === 'tr' ? 'SEO Optimizasyonu: Ürünleriniz Aramalarda Üstte Çıksın' : 'SEO Optimization: Rank Higher in Search Results',
-                excerpt: lang === 'tr' ? 'E-Ticaret sitenizi Google aramaları için nasıl optimize edersiniz? 10 Kritik adım.' : 'How to optimize your E-Commerce site for Google searches? 10 Critical steps.',
-                content: lang === 'tr' ? 'İçerik zenginleştirme perakende için vazgeçilmezdir... (Detaylı içerik burada yer alacak)' : 'Content enrichment is indispensable for retail... (Detailed content will be here)',
-                image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=60',
-                date: '20.04.2026'
-              },
-              {
-                id: 3,
-                title: lang === 'tr' ? 'Omni-Channel Satışın Gizli Gücü: Tek Havuz Stok' : 'Hidden Power of Omni-Channel: Single Pool Inventory',
-                excerpt: lang === 'tr' ? 'Stok yönetiminde entegrasyonun finansal verimliliğe olan %40\'lık etkisi.' : 'The 40% impact of integration on financial efficiency in inventory management.',
-                content: lang === 'tr' ? 'Eşzamanlı stok takibi hem maliyetleri düşürür... (Detaylı içerik burada yer alacak)' : 'Simultaneous stock tracking lowers costs... (Detailed content will be here)',
-                image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=60',
-                date: '15.04.2026'
-              }
-            ].map(insight => (
-              <motion.div 
-                key={insight.id}
-                whileHover={{ y: -10 }}
-                onClick={() => setSelectedInsight(insight)}
-                className="group cursor-pointer p-2 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] transition-all duration-500"
-              >
-                <div className="h-60 rounded-[2rem] overflow-hidden mb-6">
-                  <img src={insight.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                </div>
-                <div className="p-6">
-                  <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">{insight.date}</div>
-                  <h3 className="text-xl font-medium mb-3 group-hover:text-indigo-400 transition-colors">{insight.title}</h3>
-                  <p className="text-white/40 font-light text-sm line-clamp-2">{insight.excerpt}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="px-6 md:px-12 lg:px-24 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="flex flex-col items-center md:items-start space-y-2">
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-white rounded-sm flex items-center justify-center">
-              <div className="w-3 h-3 bg-black rounded-sm" />
-            </div>
-            <span className="font-bold tracking-tight text-lg">LookPrice</span>
-          </div>
-          <span className="text-white/40 text-xs font-medium uppercase tracking-widest">{lang === 'tr' ? '26 Yıllık GAP Bilişim Hizmetleri Tecrübesi' : '26 Years of GAP IT Services Experience'}</span>
-        </div>
-        
-        <div className="text-white/40 text-sm font-light text-center">
-          {lang === 'tr' ? 'Sürdürülebilir büyüme için, sağlam altyapı.' : 'Solid infrastructure for sustainable growth.'}
-        </div>
-        
-        <div className="flex flex-col md:flex-row items-center gap-4 text-sm text-white/60">
-          <a href="https://instagram.com/lookpricenet" target="_blank" rel="noopener noreferrer" className="hover:text-pink-500 transition-colors flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-            lookpricenet
-          </a>
-          <div className="hidden md:block w-1 h-1 bg-white/20 rounded-full" />
-          <a href="mailto:lookprice.me@gmail.com" className="hover:text-white transition-colors">lookprice.me@gmail.com</a>
-          <div className="hidden md:block w-1 h-1 bg-white/20 rounded-full" />
-          <a href="tel:+905488902309" className="hover:text-white transition-colors">+90 548 890 23 09</a>
-        </div>
-      </footer>
-
-      {/* Demo Request Modal */}
+      {/* Demo Modal */}
       <AnimatePresence>
         {showDemoModal && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -1175,200 +651,148 @@ export const LandingPage = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowDemoModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-[#111] rounded-3xl shadow-2xl overflow-hidden border border-white/10"
+              className="relative w-full max-w-md bg-[#0A0A0E] rounded-[2rem] border border-white/10 p-8 shadow-2xl z-10"
             >
-              <div className="p-10">
-                <div className="flex justify-between items-center mb-8">
+              <button 
+                onClick={() => setShowDemoModal(false)}
+                className="absolute top-6 right-6 text-white/50 hover:text-white p-1 hover:bg-white/5 rounded-full"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <div className="mb-6">
+                <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                  LOOKPRICE DEMO
+                </span>
+                <h3 className="text-2xl font-black mt-3">
+                  {lang === 'tr' ? 'Demo Talebi Oluşturun' : 'Request a Live Demo'}
+                </h3>
+                <p className="text-white/50 text-xs mt-1 font-semibold">
+                  {lang === 'tr' 
+                    ? 'Sektörünüze özel akıllı yönetim yazılımını birlikte inceleyelim.' 
+                    : 'Let us show you how our tailored suite can optimize your business.'}
+                </p>
+              </div>
+
+              {demoStatus.type === 'success' ? (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-6 rounded-2xl text-center text-sm font-semibold">
+                  {demoStatus.text}
+                </div>
+              ) : (
+                <form onSubmit={handleDemoSubmit} className="space-y-4">
                   <div>
-                    <h3 className="text-2xl font-medium text-white tracking-tight">
-                      {lang === 'tr' ? 'Konsültasyon Talebi' : 'Consultation Request'}
-                    </h3>
-                    <p className="text-white/40 text-sm mt-1">
-                      {lang === 'tr' ? 'Sistem mimarisi ve entegrasyon için ilk adım.' : 'The first step for system architecture and integration.'}
-                    </p>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
+                      {lang === 'tr' ? 'Adınız Soyadınız' : 'Your Name'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={demoForm.name}
+                      onChange={(e) => setDemoForm({...demoForm, name: e.target.value})}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-indigo-500 transition-all"
+                    />
                   </div>
-                  <button 
-                    onClick={() => setShowDemoModal(false)}
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/50 hover:text-white"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
 
-                {demoStatus.type === 'success' ? (
-                  <div className="bg-emerald-500/10 text-emerald-400 p-6 rounded-2xl text-center border border-emerald-500/20">
-                    <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Zap className="h-6 w-6 text-emerald-400" />
-                    </div>
-                    <p className="font-medium">{demoStatus.text}</p>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
+                      {lang === 'tr' ? 'İşletme / Mağaza Adı' : 'Business / Store Name'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={demoForm.storeName}
+                      onChange={(e) => setDemoForm({...demoForm, storeName: e.target.value})}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-indigo-500 transition-all"
+                    />
                   </div>
-                ) : (
-                  <form onSubmit={handleDemoSubmit} className="space-y-5">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">{lang === 'tr' ? 'Sektörünüz' : 'Your Sector'}</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          {[
-                            { id: 'real_estate', label: lang === 'tr' ? 'Emlak' : 'Real Estate', icon: Building2 },
-                            { id: 'motor_vehicle', label: lang === 'tr' ? 'Otomotiv' : 'Automotive', icon: Car },
-                            { id: 'product', label: lang === 'tr' ? 'Perakende' : 'Retail', icon: Package },
-                            { id: 'restaurant', label: lang === 'tr' ? 'Restoran' : 'Restaurant', icon: Utensils }
-                          ].map((s) => (
-                            <button
-                              key={s.id}
-                              type="button"
-                              onClick={() => setDemoForm({ ...demoForm, storeType: s.id as any })}
-                              className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
-                                demoForm.storeType === s.id 
-                                  ? 'bg-rose-600/20 border-rose-500 text-white' 
-                                  : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
-                              }`}
-                            >
-                              <s.icon className="w-4 h-4" />
-                              <span className="text-[9px] font-bold uppercase tracking-tighter">{s.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">
-                          {lang === 'tr' ? 'Ad Soyad' : 'Full Name'}
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full px-4 py-3 bg-black border border-white/10 rounded-xl focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-white placeholder-white/20"
-                          placeholder="John Doe"
-                          value={demoForm.name}
-                          onChange={e => setDemoForm({...demoForm, name: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">
-                          {lang === 'tr' ? 'İşletme Adı' : 'Business Name'}
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full px-4 py-3 bg-black border border-white/10 rounded-xl focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-white placeholder-white/20"
-                          placeholder="Şirketiniz A.Ş."
-                          value={demoForm.storeName}
-                          onChange={e => setDemoForm({...demoForm, storeName: e.target.value})}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">
-                            {lang === 'tr' ? 'Telefon' : 'Phone'}
-                          </label>
-                          <input
-                            type="tel"
-                            required
-                            className="w-full px-4 py-3 bg-black border border-white/10 rounded-xl focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-white placeholder-white/20"
-                            placeholder="+90 555 000 0000"
-                            value={demoForm.phone}
-                            onChange={e => setDemoForm({...demoForm, phone: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">
-                            {lang === 'tr' ? 'E-posta' : 'Email'}
-                          </label>
-                          <input
-                            type="email"
-                            required
-                            className="w-full px-4 py-3 bg-black border border-white/10 rounded-xl focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-white placeholder-white/20"
-                            placeholder="mail@sirket.com"
-                            value={demoForm.email}
-                            onChange={e => setDemoForm({...demoForm, email: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                    </div>
 
-                    {demoStatus.type === 'error' && (
-                      <p className="text-red-400 text-sm font-medium">{demoStatus.text}</p>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={demoStatus.type === 'loading'}
-                      className="w-full py-4 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-all disabled:opacity-50 mt-4"
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
+                      {lang === 'tr' ? 'Sektör' : 'Sector'}
+                    </label>
+                    <select
+                      value={demoForm.storeType}
+                      onChange={(e) => setDemoForm({...demoForm, storeType: e.target.value as any})}
+                      className="w-full px-4 py-3 bg-[#0A0A0E] border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-indigo-500 transition-all"
                     >
-                      {demoStatus.type === 'loading' 
-                        ? (lang === 'tr' ? 'Gönderiliyor...' : 'Sending...') 
-                        : (lang === 'tr' ? 'Talebi Gönder' : 'Send Request')}
-                    </button>
-                  </form>
-                )}
-              </div>
+                      <option value="motor_vehicle">{lang === 'tr' ? 'Otomotiv (AutoLP)' : 'Automotive (AutoLP)'}</option>
+                      <option value="real_estate">{lang === 'tr' ? 'Gayrimenkul (REstateLP)' : 'Real Estate (REstateLP)'}</option>
+                      <option value="product">{lang === 'tr' ? 'Perakende & Mağaza (ShopLP)' : 'Retail (ShopLP)'}</option>
+                      <option value="restaurant">{lang === 'tr' ? 'Cafe & Restoran (HoReCaLP)' : 'Cafe & Restaurant (HoReCaLP)'}</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
+                        {lang === 'tr' ? 'Telefon' : 'Phone'}
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={demoForm.phone}
+                        onChange={(e) => setDemoForm({...demoForm, phone: e.target.value})}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-indigo-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
+                        {lang === 'tr' ? 'E-posta' : 'Email'}
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={demoForm.email}
+                        onChange={(e) => setDemoForm({...demoForm, email: e.target.value})}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-indigo-500 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-white/40 mb-1.5">
+                      {lang === 'tr' ? 'Ek Notlar' : 'Additional Notes'}
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={demoForm.notes}
+                      onChange={(e) => setDemoForm({...demoForm, notes: e.target.value})}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-indigo-500 transition-all resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={demoStatus.type === 'loading'}
+                    className="w-full py-4 bg-white hover:bg-indigo-600 hover:text-white text-black rounded-xl font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 mt-4"
+                  >
+                    {demoStatus.type === 'loading' ? (lang === 'tr' ? 'Gönderiliyor...' : 'Sending...') : (lang === 'tr' ? 'Talebi Gönder' : 'Send Request')}
+                  </button>
+                </form>
+              )}
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Insight Detail Modal */}
-      <AnimatePresence>
-        {selectedInsight && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedInsight(null)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-4xl bg-[#111] rounded-[3rem] shadow-2xl overflow-hidden border border-white/10 max-h-[90vh] flex flex-col"
-            >
-              <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/20">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-indigo-400" />
-                  <span className="text-xs font-black text-white/40 uppercase tracking-[0.3em]">{lang === 'tr' ? 'BİLGİ PAYLAŞIMI' : 'KNOWLEDGE SHARING'}</span>
-                </div>
-                <button 
-                  onClick={() => setSelectedInsight(null)}
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/50 hover:text-white"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-              <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
-                <div className="max-w-2xl mx-auto space-y-10">
-                   <div className="h-80 md:h-96 rounded-[2.5rem] overflow-hidden">
-                      <img src={selectedInsight.image} className="w-full h-full object-cover" />
-                   </div>
-                   <div className="space-y-4">
-                      <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{selectedInsight.date}</div>
-                      <h2 className="text-4xl md:text-5xl font-medium text-white leading-tight tracking-tight">{selectedInsight.title}</h2>
-                   </div>
-                   <div className="text-white/60 text-lg font-light leading-relaxed whitespace-pre-wrap space-y-6">
-                      {selectedInsight.content}
-                   </div>
-
-                   <div className="pt-10 border-t border-white/5">
-                      <button 
-                        onClick={() => setShowDemoModal(true)}
-                        className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20"
-                      >
-                         {lang === 'tr' ? 'BU SİSTEMİ İŞLETMENİZE KURUN' : 'SET UP THIS SYSTEM FOR YOUR BUSINESS'}
-                      </button>
-                   </div>
-                </div>
-              </div>
-            </motion.div>
+      {/* Footer */}
+      <footer className="px-6 md:px-12 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 bg-[#050505]">
+        <div className="flex flex-col items-center md:items-start space-y-2">
+          <div className="flex items-center space-x-2">
+            <span className="font-black tracking-tight text-white">Look<span className="text-indigo-500">Price</span></span>
           </div>
-        )}
-      </AnimatePresence>
+          <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">
+            {lang === 'tr' ? 'BULUT TABANLI SEKTÖREL YÖNETİM SUITE' : 'CLOUD-BASED SECTORAL SUITE'}
+          </p>
+        </div>
+        <p className="text-xs text-white/40 font-semibold">© 2026 LookPrice. Tüm Hakları Saklıdır.</p>
+      </footer>
     </div>
   );
 };

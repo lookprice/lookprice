@@ -1,9 +1,9 @@
 import { tr } from "./tr";
 import { en } from "./en";
-import { de } from "./de";
+import { el } from "./el";
 
 export const translations: Record<string, any> = {
   tr,
   en,
-  de
+  el
 };

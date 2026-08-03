@@ -100,10 +100,11 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       }
 
       // Save recipe if data is present
-      if (res?.id && rawData.recipe_data) {
+      const productId = editingProduct ? Number(editingProduct.id) : res?.id;
+      if (productId && rawData.recipe_data) {
         try {
           const recipeItems = JSON.parse(rawData.recipe_data as string);
-          await api.saveProductRecipe(res.id, recipeItems, targetStoreId);
+          await api.saveProductRecipe(productId, recipeItems, targetStoreId);
         } catch (e) {
           console.error("Recipe save error:", e);
         }

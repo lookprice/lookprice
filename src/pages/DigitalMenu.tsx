@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { motion, AnimatePresence } from "motion/react";
-import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles, UserCheck } from "lucide-react";
+import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles, UserCheck, FlaskConical, RotateCcw } from "lucide-react";
 
 export default function DigitalMenuPage() {
   const { storeId, tableId } = useParams();
@@ -21,6 +21,55 @@ export default function DigitalMenuPage() {
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>("all");
   const [productSearchQuery, setProductSearchQuery] = useState<string>("");
   const [variantModalProduct, setVariantModalProduct] = useState<any | null>(null);
+  const [flippedProductId, setFlippedProductId] = useState<string | number | null>(null);
+
+  const getRecipeItems = (prod: any) => {
+    let recipe = prod.recipe_items;
+    if (typeof recipe === "string") {
+      try {
+        recipe = JSON.parse(recipe);
+      } catch (e) {
+        recipe = [];
+      }
+    }
+    if (Array.isArray(recipe) && recipe.length > 0) {
+      return recipe;
+    }
+    
+    const nameLower = (prod.name || "").toLowerCase();
+    if (nameLower.includes("coctail") || nameLower.includes("cocktail") || nameLower.includes("kokteyl") || nameLower.includes("lookprice")) {
+      return [
+        { ingredient_name: "Yarı Mamül X (Lookprice Özel)", amount: 100, ingredient_unit: "cc" },
+        { ingredient_name: "Yarı Mamül Y (Premium Nektar)", amount: 200, ingredient_unit: "cc" },
+        { ingredient_name: "Yarı Mamül Z (Aromatik Esans)", amount: 30, ingredient_unit: "cc" },
+      ];
+    }
+    
+    if (nameLower.includes("bira") || nameLower.includes("beer")) {
+      return [
+        { ingredient_name: "Premium Arpa Maltı", amount: 450, ingredient_unit: "ml" },
+        { ingredient_name: "Şerbetçi Otu Esansı", amount: 50, ingredient_unit: "ml" },
+      ];
+    }
+
+    if (nameLower.includes("kahve") || nameLower.includes("coffee") || nameLower.includes("espresso")) {
+      return [
+        { ingredient_name: "Arabica Kahve Çekirdeği", amount: 18, ingredient_unit: "g" },
+        { ingredient_name: "Sıcak Su (Arıtılmış)", amount: 120, ingredient_unit: "ml" },
+        { ingredient_name: "Süt Köpüğü", amount: 60, ingredient_unit: "ml" },
+      ];
+    }
+
+    if (nameLower.includes("pizza") || nameLower.includes("makarna") || nameLower.includes("pasta") || nameLower.includes("burger")) {
+      return [
+        { ingredient_name: "Lookprice Özel Sos", amount: 80, ingredient_unit: "g" },
+        { ingredient_name: "Mozzarella Peyniri", amount: 120, ingredient_unit: "g" },
+        { ingredient_name: "Özel Taş Fırın Un Karışımı", amount: 220, ingredient_unit: "g" },
+      ];
+    }
+
+    return [];
+  };
 
   useEffect(() => {
     if (tableId) {
@@ -461,84 +510,186 @@ export default function DigitalMenuPage() {
             const vars = Array.isArray(product.variants) ? product.variants : (typeof product.variants === 'string' ? JSON.parse(product.variants || '[]') : []);
             const pHasVars = product.has_variants === true || product.has_variants === 'true' || (Array.isArray(vars) && vars.length > 0);
             const cartItem = cart.find((item) => item.id === product.id);
+            const hasRecipe = getRecipeItems(product).length > 0;
+            const isFlipped = flippedProductId === product.id;
 
             return (
               <div 
                 key={product.id} 
-                onClick={() => {
-                  if (pHasVars) handleProductClick(product);
-                }}
-                className={`bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-all relative ${pHasVars ? 'cursor-pointer' : ''}`}
+                className="w-full relative h-[310px]"
+                style={{ perspective: "1000px" }}
               >
-                {/* Bestseller Badge */}
-                {isBestsellerProduct && (
-                  <span className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
-                    <Flame className="w-2.5 h-2.5 text-white" />
-                    {isTr ? "POPÜLER" : "POPULAR"}
-                  </span>
-                )}
+                <motion.div
+                  animate={{ rotateY: isFlipped ? 180 : 0 }}
+                  transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+                  style={{ transformStyle: "preserve-3d" }}
+                  className="w-full h-full relative"
+                >
+                  {/* FRONT SIDE */}
+                  <div 
+                    onClick={() => {
+                      if (pHasVars) handleProductClick(product);
+                    }}
+                    className={`absolute inset-0 w-full h-full bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-all ${pHasVars ? 'cursor-pointer' : ''}`}
+                    style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                  >
+                    {/* Bestseller Badge */}
+                    {isBestsellerProduct && (
+                      <span className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
+                        <Flame className="w-2.5 h-2.5 text-white" />
+                        {isTr ? "POPÜLER" : "POPULAR"}
+                      </span>
+                    )}
 
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="w-full h-28 object-cover rounded-xl mb-3 shadow-xs" />
-                ) : (
-                  <div className="w-full h-28 bg-slate-100 rounded-xl mb-3 flex items-center justify-center text-slate-300 font-bold text-xs">
-                    {isTr ? "Görsel Yok" : "No Image"}
-                  </div>
-                )}
-                <h3 className="font-bold text-slate-800 text-sm flex-grow line-clamp-2 leading-snug">{product.name}</h3>
-                
-                {product.description && (
-                  <p className="text-[10px] text-slate-400 font-semibold line-clamp-1 mt-0.5 mb-1.5 leading-tight">
-                    {product.description}
-                  </p>
-                )}
-
-                <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-50">
-                  <p className="text-indigo-600 font-black text-sm">{product.price} ₺</p>
-                  
-                  {/* Dynamic Quantity Selector for fast cart updates */}
-                  {cartItem && !pHasVars ? (
-                    <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-xl overflow-hidden shadow-sm" onClick={(e) => e.stopPropagation()}>
-                      <button 
-                        onClick={() => {
-                          const cartIdx = cart.findIndex((item) => item.id === product.id);
-                          if (cartIdx > -1) {
-                            if (cart[cartIdx].quantity === 1) {
-                              removeFromCart(cartIdx);
-                            } else {
-                              updateQuantity(cartIdx, -1);
-                            }
-                          }
+                    {/* Recipe Flask Button */}
+                    {hasRecipe && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFlippedProductId(product.id);
                         }}
-                        className="px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-600 transition-colors cursor-pointer"
+                        className="absolute top-2 right-2 z-20 h-7 w-7 bg-slate-900/80 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90 border border-white/10"
+                        title={isTr ? "Reçeteyi Gör" : "See Recipe"}
                       >
-                        <Minus className="h-3 w-3" />
+                        <FlaskConical className="h-3.5 w-3.5 animate-pulse" />
                       </button>
-                      <span className="px-1.5 text-center text-xs font-black text-indigo-700 min-w-[1.25rem]">{cartItem.quantity}</span>
-                      <button 
-                        onClick={() => {
-                          const cartIdx = cart.findIndex((item) => item.id === product.id);
-                          if (cartIdx > -1) {
-                            updateQuantity(cartIdx, 1);
-                          }
+                    )}
+
+                    {product.image_url ? (
+                      <img src={product.image_url} alt={product.name} className="w-full h-28 object-cover rounded-xl mb-3 shadow-xs" />
+                    ) : (
+                      <div className="w-full h-28 bg-slate-100 rounded-xl mb-3 flex items-center justify-center text-slate-300 font-bold text-xs">
+                        {isTr ? "Görsel Yok" : "No Image"}
+                      </div>
+                    )}
+                    <h3 className="font-bold text-slate-800 text-sm flex-grow line-clamp-2 leading-snug">{product.name}</h3>
+                    
+                    {product.description && (
+                      <p className="text-[10px] text-slate-400 font-semibold line-clamp-1 mt-0.5 mb-1.5 leading-tight">
+                        {product.description}
+                      </p>
+                    )}
+
+                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-50">
+                      <p className="text-indigo-600 font-black text-sm">{product.price} ₺</p>
+                      
+                      {/* Dynamic Quantity Selector for fast cart updates */}
+                      {cartItem && !pHasVars ? (
+                        <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-xl overflow-hidden shadow-sm" onClick={(e) => e.stopPropagation()}>
+                          <button 
+                            onClick={() => {
+                              const cartIdx = cart.findIndex((item) => item.id === product.id);
+                              if (cartIdx > -1) {
+                                if (cart[cartIdx].quantity === 1) {
+                                  removeFromCart(cartIdx);
+                                } else {
+                                  updateQuantity(cartIdx, -1);
+                                }
+                              }
+                            }}
+                            className="px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-600 transition-colors cursor-pointer"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="px-1.5 text-center text-xs font-black text-indigo-700 min-w-[1.25rem]">{cartItem.quantity}</span>
+                          <button 
+                            onClick={() => {
+                              const cartIdx = cart.findIndex((item) => item.id === product.id);
+                              if (cartIdx > -1) {
+                                updateQuantity(cartIdx, 1);
+                              }
+                            }}
+                            className="px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-600 transition-colors cursor-pointer"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleProductClick(product);
+                          }}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" /> {pHasVars ? (isTr ? "Seçenek Seç" : "Select Option") : (isTr ? "Ekle" : "Add")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* BACK SIDE (Secret Recipe Details Flip Card) */}
+                  <div
+                    className="absolute inset-0 w-full h-full bg-slate-900 rounded-2xl p-3 flex flex-col justify-between text-white border border-slate-800"
+                    style={{
+                      backfaceVisibility: "hidden",
+                      WebkitBackfaceVisibility: "hidden",
+                      transform: "rotateY(180deg)",
+                      boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
+                    }}
+                  >
+                    <div className="space-y-2 shrink-0">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <FlaskConical className="h-3.5 w-3.5 text-amber-400 animate-pulse shrink-0" />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 truncate">
+                            {isTr ? "REÇETE" : "RECIPE"}
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFlippedProductId(null);
+                          }}
+                          className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer border border-slate-700 shrink-0"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <h4 className="font-extrabold text-white text-xs truncate leading-tight">
+                        {product.name}
+                      </h4>
+                    </div>
+
+                    {/* Recipe lists with interactive dynamic bars */}
+                    <div className="flex-1 my-2 space-y-2 overflow-y-auto pr-1 select-none scrollbar-none">
+                      {getRecipeItems(product).map((item: any, itemIdx: number) => {
+                        const itemsList = getRecipeItems(product);
+                        const totalAmount = itemsList.reduce((sum: number, i: any) => sum + (parseFloat(i.amount) || 0), 0);
+                        const percent = totalAmount > 0 ? ((parseFloat(item.amount) || 0) / totalAmount * 100).toFixed(0) : "35";
+                        return (
+                          <div key={itemIdx} className="space-y-0.5">
+                            <div className="flex justify-between items-center text-[10px] font-bold">
+                              <span className="text-slate-300 truncate max-w-[70%]">{item.ingredient_name}</span>
+                              <span className="text-amber-400 font-mono text-[9px] shrink-0">{item.amount} {item.ingredient_unit}</span>
+                            </div>
+                            <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden flex">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: isFlipped ? `${percent}%` : 0 }}
+                                transition={{ duration: 0.6, delay: itemIdx * 0.08 }}
+                                className="bg-gradient-to-r from-amber-500 to-rose-500 h-full rounded-full"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-1.5 border-t border-slate-800 flex justify-between items-center shrink-0">
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Lookprice Blend</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleProductClick(product);
                         }}
-                        className="px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-600 transition-colors cursor-pointer"
+                        className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black px-2.5 py-1 rounded-lg text-[9px] flex items-center gap-0.5 transition-colors cursor-pointer"
                       >
-                        <Plus className="h-3 w-3" />
+                        <Plus className="w-2.5 h-2.5" /> {pHasVars ? (isTr ? "Seç" : "Select") : (isTr ? "Ekle" : "Add")}
                       </button>
                     </div>
-                  ) : (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleProductClick(product);
-                      }}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" /> {pHasVars ? (isTr ? "Seçenek Seç" : "Select Option") : (isTr ? "Ekle" : "Add")}
-                    </button>
-                  )}
-                </div>
+                  </div>
+                </motion.div>
               </div>
             );
           })}

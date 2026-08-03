@@ -475,7 +475,9 @@ router.put("/:id/toggle-bestseller", async (req: any, res) => {
 // Recipe Routes
 router.get("/:id/recipe", async (req: any, res) => {
   const productId = parseInt(req.params.id);
-  const storeId = req.user.store_id;
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
 
   try {
     const recipeRes = await pool.query(
@@ -494,7 +496,9 @@ router.get("/:id/recipe", async (req: any, res) => {
 
 router.post("/:id/recipe", async (req: any, res) => {
   const productId = parseInt(req.params.id);
-  const storeId = req.user.store_id;
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
   const { items } = req.body;
 
   const client = await pool.connect();

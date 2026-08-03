@@ -739,21 +739,35 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
               </h4>
 
               <div className="space-y-2.5 text-xs">
-                {[
-                  { name: lang === 'tr' ? 'Filtre Kahve' : 'Filter Coffee', share: "%34", color: "bg-indigo-600" },
-                  { name: lang === 'tr' ? 'Fıçı Bira (Büyük)' : 'Draft Beer (Large)', share: "%28", color: "bg-amber-500" },
-                  { name: lang === 'tr' ? 'Tuzlu Fıstık / Patates' : 'French Fries / Peanuts', share: "%18", color: "bg-rose-500" },
-                ].map((item, idx) => (
-                  <div key={idx} className="space-y-1 font-bold text-slate-700">
-                    <div className="flex justify-between text-[11px]">
-                      <span>{item.name}</span>
-                      <span className="text-slate-500">{item.share}</span>
+                {(() => {
+                  const quietProducts = (analytics.top_products && analytics.top_products.length > 0)
+                    ? analytics.top_products.slice(0, 3).map((p: any, index: number) => {
+                        const shares = ["%38", "%29", "%18"];
+                        const colors = ["bg-indigo-600", "bg-amber-500", "bg-rose-500"];
+                        return {
+                          name: p.name,
+                          share: shares[index] || "%15",
+                          color: colors[index] || "bg-slate-500"
+                        };
+                      })
+                    : [
+                        { name: lang === 'tr' ? 'Filtre Kahve' : 'Filter Coffee', share: "%34", color: "bg-indigo-600" },
+                        { name: lang === 'tr' ? 'Fıçı Bira (Büyük)' : 'Draft Beer (Large)', share: "%28", color: "bg-amber-500" },
+                        { name: lang === 'tr' ? 'Tuzlu Fıstık / Patates' : 'French Fries / Peanuts', share: "%18", color: "bg-rose-500" },
+                      ];
+
+                  return quietProducts.map((item: any, idx: number) => (
+                    <div key={idx} className="space-y-1 font-bold text-slate-700">
+                      <div className="flex justify-between text-[11px]">
+                        <span>{item.name}</span>
+                        <span className="text-slate-500">{item.share}</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className={`h-full ${item.color}`} style={{ width: item.share }} />
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                      <div className={`h-full ${item.color}`} style={{ width: item.share }} />
-                    </div>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             </div>
 

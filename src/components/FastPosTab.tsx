@@ -22,7 +22,10 @@ import {
   MessageSquare,
   QrCode,
   Clock,
-  Flame
+  Flame,
+  Scale,
+  Split,
+  Divide
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -67,6 +70,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [printerDiagScenario, setPrinterDiagScenario] = useState<'success' | 'ip_conflict' | 'offline' | 'paper_jam'>('success');
   const [printerDiagStep, setPrinterDiagStep] = useState<'idle' | 'testing' | 'result'>('idle');
 
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+
   // Happy Hours state and configuration
   const [showHappyHourModal, setShowHappyHourModal] = useState(false);
   const [happyHourConfig, setHappyHourConfig] = useState({
@@ -79,7 +84,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
   // Automatically check for happy hour schedule
   useEffect(() => {
-    if (!happyHourConfig.isEnabled) {
+    if (!isCafeRestaurant || !happyHourConfig.isEnabled) {
       setHappyHourActive(false);
       return;
     }
@@ -100,7 +105,6 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const isHappyHourActive = forceHappyHour !== null ? forceHappyHour : happyHourActive;
 
   // Cafe/Restaurant Table and Adisyon states
-  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
 
   useEffect(() => {
@@ -119,6 +123,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [loadingPending, setLoadingPending] = useState(false);
   const lastSoundPlayedRef = useRef<number>(0);
   const [activeSaleId, setActiveSaleId] = useState<number | null>(null);
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [splitPayments, setSplitPayments] = useState<Array<{ method: 'cash' | 'credit_card'; amount: string }>>([]);
   const [isChangingTable, setIsChangingTable] = useState(false);
   const [transferLoading, setTransferLoading] = useState(false);
   const [allTables, setAllTables] = useState<any[]>([]);
@@ -1058,6 +1064,122 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }
   };
 
+  const openSplitPaymentModal = () => {
+    if (cart.length === 0) return;
+    const half = (total / 2).toFixed(2);
+    setSplitPayments([
+      { method: 'cash', amount: half },
+      { method: 'credit_card', amount: (total - parseFloat(half)).toFixed(2) }
+    ]);
+    setShowSplitModal(true);
+  };
+
+  const handleEqualSplit = (parts: number) => {
+    if (parts <= 0) return;
+    const partAmount = (total / parts).toFixed(2);
+    const newPayments = [];
+    for (let i = 0; i < parts; i++) {
+      const isLast = i === parts - 1;
+      const amt = isLast ? (total - (parseFloat(partAmount) * (parts - 1))).toFixed(2) : partAmount;
+      newPayments.push({
+        method: i % 2 === 0 ? 'cash' as const : 'credit_card' as const,
+        amount: amt
+      });
+    }
+    setSplitPayments(newPayments);
+  };
+
+  const handleFinalizeSplitSale = async () => {
+    try {
+      setCompleting(true);
+      
+      const payloadPayments = splitPayments.map(p => ({
+        method: p.method,
+        amount: parseFloat(p.amount) || 0
+      }));
+
+      // POS Integration simulation if they have Credit Card payments in the split
+      const hasCc = splitPayments.some(p => p.method === 'credit_card');
+      if (hasCc && branding?.pos_bridge_enabled) {
+        setPosStatus('waiting');
+        setPosMessage(lang === 'tr' ? `Fiziksel POS Cihazına bağlanılıyor...` : `Connecting to Physical POS...`);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setPosStatus('approved');
+        setPosMessage(lang === 'tr' ? "POS Ödemesi Onaylandı!" : "POS Payment Approved!");
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+
+      if (activeSaleId !== null) {
+        // Complete pending adisyon
+        const res = await api.completeSale(activeSaleId, {
+          paymentMethod: 'multiple',
+          payments: payloadPayments,
+          items: cart.map(item => ({
+            product_id: item.id,
+            product_name: item.note ? `${item.name} (${item.note})` : item.name,
+            unit_price: parseFloat(item.price) || 0,
+            quantity: item.quantity
+          }))
+        }, storeId);
+
+        if (res.success) {
+          setLastSaleId(activeSaleId);
+          setLastFiscal(res.fiscal);
+          setLastCart(cart.map(item => ({ ...item, price: parseFloat(item.price) || 0, name: item.note ? `${item.name} (${item.note})` : item.name })));
+          setShowSuccess(true);
+          setCart([]);
+          setActiveSaleId(null);
+          setSelectedTable(null);
+          setShowSplitModal(false);
+          fetchPendingSales();
+          if (onSaleComplete) onSaleComplete();
+        }
+      } else {
+        // Direct cash register sale with multiple payments
+        const currentCart = cart.map(item => ({
+          ...item,
+          name: item.note ? `${item.name} (${item.note})` : item.name,
+          price: parseFloat(item.price) || 0
+        }));
+        
+        const resCreate = await api.createPosSale({
+          items: currentCart,
+          total,
+          paymentMethod: 'multiple',
+          customerName: selectedTable || 'Hızlı Satış',
+          notes: selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu (Parçalı)',
+          currency: branding?.default_currency || 'TRY',
+          exchangeRate: 1,
+          status: 'pending' // Create it as pending!
+        }, storeId);
+
+        if (resCreate.success && resCreate.saleId) {
+          // Then immediately complete it with the payments array!
+          const resComplete = await api.completeSale(resCreate.saleId, {
+            paymentMethod: 'multiple',
+            payments: payloadPayments
+          }, storeId);
+
+          if (resComplete.success) {
+            setLastSaleId(resCreate.saleId);
+            setLastFiscal(resComplete.fiscal);
+            setLastCart(currentCart);
+            setShowSuccess(true);
+            setCart([]);
+            setSelectedTable(null);
+            setShowSplitModal(false);
+            if (onSaleComplete) onSaleComplete();
+          }
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || (lang === 'tr' ? "Parçalı ödeme tamamlanırken hata oluştu." : "Error completing split payment."));
+    } finally {
+      setCompleting(false);
+      setPosStatus('idle');
+    }
+  };
+
   const handleTableTransfer = async (targetTableNumber: string) => {
     if (!selectedTable || !targetTableNumber) return;
     if (selectedTable === targetTableNumber) {
@@ -1860,6 +1982,16 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                     )}
 
                     <button 
+                      type="button"
+                      disabled={cart.length === 0 || completing}
+                      onClick={openSplitPaymentModal}
+                      className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      <Split className="h-4 w-4 text-amber-500 animate-pulse" />
+                      {lang === 'tr' ? 'Alman Usulü / Parçalı Ödeme' : 'Split / Partial Payment'}
+                    </button>
+
+                    <button 
                       disabled={cart.length === 0 || completing}
                       onClick={handleFinalizeSale}
                       className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm sm:text-base hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-slate-900/10 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
@@ -2282,6 +2414,209 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   {lang === 'tr' ? 'Kaydet ve Kapat' : 'Save & Close'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Split / Partial Payment Modal */}
+        {showSplitModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100 p-6"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 border border-amber-100">
+                    <Split className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-base">
+                      {lang === 'tr' ? 'Alman Usulü / Parçalı Ödeme' : 'Split / Partial Payment'}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-semibold">
+                      {lang === 'tr' ? 'Hesabı bölerek veya farklı yöntemlerle ödeyin' : 'Pay by dividing the bill or using different methods'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowSplitModal(false)}
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Total Order Info */}
+              <div className="bg-slate-50 rounded-2xl p-4 mb-4 flex items-center justify-between border border-slate-100">
+                <span className="text-sm font-bold text-slate-500">
+                  {lang === 'tr' ? 'Toplam Ödenecek Tutar' : 'Total Amount Due'}
+                </span>
+                <span className="text-2xl font-black text-indigo-600">
+                  {total.toFixed(2)} ₺
+                </span>
+              </div>
+
+              {/* Equal Split Quick Tools */}
+              <div className="mb-4">
+                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                  {lang === 'tr' ? 'Hızlı Eşit Bölüşme' : 'Quick Equal Split'}
+                </h4>
+                <div className="grid grid-cols-4 gap-2">
+                  {[2, 3, 4, 5].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => handleEqualSplit(num)}
+                      className="py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      <Divide className="h-3 w-3 text-slate-400" />
+                      {num} {lang === 'tr' ? 'Kişi' : 'People'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Payment Rows */}
+              <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1 scrollbar-thin">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                    {lang === 'tr' ? 'Ödeme Kalemleri' : 'Payment Breakdowns'}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setSplitPayments([...splitPayments, { method: 'cash', amount: '0' }])}
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {lang === 'tr' ? 'Ödeme Satırı Ekle' : 'Add Payment Row'}
+                  </button>
+                </div>
+
+                {splitPayments.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 text-xs font-medium">
+                    {lang === 'tr' ? 'Henüz ödeme satırı eklenmedi.' : 'No payment rows added yet.'}
+                  </div>
+                ) : (
+                  splitPayments.map((p, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      {/* Payment Method */}
+                      <select
+                        value={p.method}
+                        onChange={(e) => {
+                          const newPayments = [...splitPayments];
+                          newPayments[idx].method = e.target.value as 'cash' | 'credit_card';
+                          setSplitPayments(newPayments);
+                        }}
+                        className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="cash">{lang === 'tr' ? '💵 Nakit' : '💵 Cash'}</option>
+                        <option value="credit_card">{lang === 'tr' ? '💳 Kredi Kartı' : '💳 Credit Card'}</option>
+                      </select>
+
+                      {/* Amount input */}
+                      <div className="relative w-36">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={p.amount}
+                          onChange={(e) => {
+                            const newPayments = [...splitPayments];
+                            newPayments[idx].amount = e.target.value;
+                            setSplitPayments(newPayments);
+                          }}
+                          className="w-full text-right bg-white border border-slate-200 rounded-xl pl-3 pr-7 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                          placeholder="0.00"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">₺</span>
+                      </div>
+
+                      {/* Delete Button */}
+                      {splitPayments.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newPayments = splitPayments.filter((_, i) => i !== idx);
+                            setSplitPayments(newPayments);
+                          }}
+                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-100"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Status & Validation calculation */}
+              {(() => {
+                const paidAmount = splitPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+                const diff = total - paidAmount;
+                const isMatch = Math.abs(diff) < 0.01;
+                const isOverpaid = diff < -0.01;
+
+                return (
+                  <div className="border-t border-slate-100 pt-4 mb-4">
+                    <div className="flex justify-between items-center text-xs font-bold text-slate-600 mb-1">
+                      <span>{lang === 'tr' ? 'Toplam Ödenen' : 'Total Paid'}:</span>
+                      <span>{paidAmount.toFixed(2)} ₺</span>
+                    </div>
+
+                    {isMatch ? (
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-100">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        <span>{lang === 'tr' ? 'Tutar Tamamlandı! Ödemeyi onaylayabilirsiniz.' : 'Total matches! You can confirm the payment.'}</span>
+                      </div>
+                    ) : isOverpaid ? (
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-rose-600 bg-rose-50 px-3 py-2 rounded-xl border border-rose-100">
+                        <X className="h-4 w-4 shrink-0 animate-bounce" />
+                        <span>{lang === 'tr' ? `Fazla Ödeme: ${Math.abs(diff).toFixed(2)} ₺` : `Overpaid: ${Math.abs(diff).toFixed(2)} ₺`}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-3 py-2 rounded-xl border border-amber-100">
+                        <div className="h-1.5 w-1.5 bg-amber-500 rounded-full animate-ping shrink-0" />
+                        <span>{lang === 'tr' ? `Kalan Tutar: ${diff.toFixed(2)} ₺` : `Remaining: ${diff.toFixed(2)} ₺`}</span>
+                      </div>
+                    )}
+
+                    {/* Footer Actions */}
+                    <div className="grid grid-cols-2 gap-3 mt-4 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowSplitModal(false)}
+                        className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer text-center"
+                      >
+                        {lang === 'tr' ? 'İptal Et' : 'Cancel'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!isMatch || completing}
+                        onClick={handleFinalizeSplitSale}
+                        className="w-full py-2.5 bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded-xl text-xs transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 shadow-md shadow-slate-900/10"
+                      >
+                        {completing ? (
+                          <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                            {lang === 'tr' ? 'Ödemeyi Tamamla' : 'Complete Payment'}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           </motion.div>
         )}

@@ -786,7 +786,19 @@ router.get("/digital-menu/:storeIdentifier/products", async (req, res) => {
       SELECT p.id, p.store_id, p.barcode, p.name, p.price, p.currency, p.cost_price, 
              p.tax_rate, p.description, p.stock_quantity, p.unit, p.category, 
              p.sub_category, p.image_url, p.is_bestseller, p.product_type, p.is_web_sale,
-             p.has_variants, p.variants, p.category_2, p.sub_category_2, p.is_sellable
+             p.has_variants, p.variants, p.category_2, p.sub_category_2, p.is_sellable,
+             (
+               SELECT COALESCE(json_agg(json_build_object(
+                 'id', pr.id,
+                 'ingredient_id', pr.ingredient_id,
+                 'ingredient_name', ing.name,
+                 'amount', pr.amount,
+                 'ingredient_unit', COALESCE(pr.unit, ing.unit)
+               )), '[]'::json)
+               FROM product_recipes pr
+               JOIN products ing ON pr.ingredient_id = ing.id
+               WHERE pr.product_id = p.id
+             ) AS recipe_items
       FROM products p
       LEFT JOIN stores s ON p.store_id = s.id
       WHERE (p.store_id = $1 OR s.parent_id = $1)

@@ -32,6 +32,10 @@ const StoreDashboard = React.lazy(() => import("./pages/StoreDashboard/index"));
 const LegalPage = React.lazy(() => import("./pages/Legal"));
 const ContractSignPage = React.lazy(() => import("./pages/ContractSignPage"));
 const DigitalMenuPage = React.lazy(() => import("./pages/DigitalMenu"));
+const HoReCaLanding = React.lazy(() => import("./pages/HoReCaLanding"));
+const AutoLanding = React.lazy(() => import("./pages/AutoLanding"));
+const REstateLanding = React.lazy(() => import("./pages/REstateLanding"));
+const ShopLanding = React.lazy(() => import("./pages/ShopLanding"));
 
 const SuspenseLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -228,6 +232,10 @@ export default function App() {
       <Toaster position="top-center" richColors />
       <React.Suspense fallback={<SuspenseLoader />}>
         <Routes>
+            <Route path="/horeca-landing" element={<React.Suspense fallback={<SuspenseLoader />}><HoReCaLanding /></React.Suspense>} />
+            <Route path="/auto-landing" element={<React.Suspense fallback={<SuspenseLoader />}><AutoLanding /></React.Suspense>} />
+            <Route path="/restate-landing" element={<React.Suspense fallback={<SuspenseLoader />}><REstateLanding /></React.Suspense>} />
+            <Route path="/shop-landing" element={<React.Suspense fallback={<SuspenseLoader />}><ShopLanding /></React.Suspense>} />
             {/* Public Routes */}
             <Route path="/scan/:slug" element={<CustomerScanPage />} />
             <Route path="/s/:slug" element={<StoreShowcase />} />
