@@ -43,6 +43,13 @@ router.get("/", async (req: any, res) => {
 
     const store = storeRes.rows[0];
 
+    if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {
+      store.whatsapp_number = "905488902309";
+    }
+    if (!store.phone || store.phone === "905428655000" || store.phone === "+905428655000") {
+      store.phone = "+90 548 890 23 09";
+    }
+
     // Parse JSON fields
     const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'page_layout', 'menu_links', 'currency_rates', 'einvoice_settings'];
     jsonFields.forEach(field => {

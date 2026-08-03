@@ -265,7 +265,7 @@ export default function REstateLanding() {
             <div className="relative rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 bg-slate-950 p-2 group">
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
               <img 
-                src="/images/restate_bg_1785752020453.jpg" 
+                src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80" 
                 alt="REstateLP Property Portfolios Showcase" 
                 referrerPolicy="no-referrer"
                 className="w-full h-[320px] md:h-[450px] object-cover rounded-[1.8rem] group-hover:scale-[1.01] transition-transform duration-500"

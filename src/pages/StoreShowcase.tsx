@@ -733,13 +733,17 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           )}
         </AnimatePresence>
 
-        {store?.whatsapp_number && (
-          <a href={`https://wa.me/${store.whatsapp_number.replace(/[^0-9+]/g, "")}`} target="_blank" rel="noopener noreferrer"
-             className="fixed bottom-28 md:bottom-24 right-4 md:right-8 z-[100] bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-3 transition-all active:scale-95">
-            <MessageCircle className="w-7 h-7" />
-            <span className="text-sm font-bold hidden md:block">{lang === "tr" ? "Yardım Al" : "WhatsApp"}</span>
-          </a>
-        )}
+        {(() => {
+          const rawWa = store?.whatsapp_number;
+          const waNumber = (!rawWa || rawWa === "905428655000") ? "905488902309" : rawWa;
+          return waNumber ? (
+            <a href={`https://wa.me/${waNumber.replace(/[^0-9+]/g, "")}`} target="_blank" rel="noopener noreferrer"
+               className="fixed bottom-28 md:bottom-24 right-4 md:right-8 z-[100] bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-3 transition-all active:scale-95">
+              <MessageCircle className="w-7 h-7" />
+              <span className="text-sm font-bold hidden md:block">{lang === "tr" ? "Yardım Al" : "WhatsApp"}</span>
+            </a>
+          ) : null;
+        })()}
 
         {store && (
           <div className="max-w-7xl mx-auto px-4 lg:px-8 mb-24">

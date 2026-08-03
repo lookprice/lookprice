@@ -37,37 +37,20 @@ export default function DigitalMenuPage() {
     }
     
     const nameLower = (prod.name || "").toLowerCase();
-    if (nameLower.includes("coctail") || nameLower.includes("cocktail") || nameLower.includes("kokteyl") || nameLower.includes("lookprice")) {
+    if (nameLower.includes("lookprice")) {
+      if (nameLower.includes("coctail") || nameLower.includes("cocktail") || nameLower.includes("kokteyl")) {
+        return [
+          { ingredient_name: "Yarı Mamül X (Lookprice Özel)", amount: 100, ingredient_unit: "cc" },
+          { ingredient_name: "Yarı Mamül Y (Premium Nektar)", amount: 200, ingredient_unit: "cc" },
+          { ingredient_name: "Yarı Mamül Z (Aromatik Esans)", amount: 30, ingredient_unit: "cc" },
+        ];
+      }
       return [
-        { ingredient_name: "Yarı Mamül X (Lookprice Özel)", amount: 100, ingredient_unit: "cc" },
-        { ingredient_name: "Yarı Mamül Y (Premium Nektar)", amount: 200, ingredient_unit: "cc" },
-        { ingredient_name: "Yarı Mamül Z (Aromatik Esans)", amount: 30, ingredient_unit: "cc" },
+        { ingredient_name: "Yarı Mamül (Lookprice Özel)", amount: 50, ingredient_unit: "g" },
+        { ingredient_name: "Premium Aroma (Lookprice Özel)", amount: 10, ingredient_unit: "ml" }
       ];
     }
     
-    if (nameLower.includes("bira") || nameLower.includes("beer")) {
-      return [
-        { ingredient_name: "Premium Arpa Maltı", amount: 450, ingredient_unit: "ml" },
-        { ingredient_name: "Şerbetçi Otu Esansı", amount: 50, ingredient_unit: "ml" },
-      ];
-    }
-
-    if (nameLower.includes("kahve") || nameLower.includes("coffee") || nameLower.includes("espresso")) {
-      return [
-        { ingredient_name: "Arabica Kahve Çekirdeği", amount: 18, ingredient_unit: "g" },
-        { ingredient_name: "Sıcak Su (Arıtılmış)", amount: 120, ingredient_unit: "ml" },
-        { ingredient_name: "Süt Köpüğü", amount: 60, ingredient_unit: "ml" },
-      ];
-    }
-
-    if (nameLower.includes("pizza") || nameLower.includes("makarna") || nameLower.includes("pasta") || nameLower.includes("burger")) {
-      return [
-        { ingredient_name: "Lookprice Özel Sos", amount: 80, ingredient_unit: "g" },
-        { ingredient_name: "Mozzarella Peyniri", amount: 120, ingredient_unit: "g" },
-        { ingredient_name: "Özel Taş Fırın Un Karışımı", amount: 220, ingredient_unit: "g" },
-      ];
-    }
-
     return [];
   };
 
@@ -217,8 +200,64 @@ export default function DigitalMenuPage() {
 
   const totalCartPrice = cart.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
 
-  const lang = "tr";
+  const [lang, setLang] = useState<'tr' | 'en' | 'el'>('tr');
   const isTr = lang === "tr";
+  
+  const t = (trText: string, enText: string, elText: string) => {
+    if (lang === 'en') return enText;
+    if (lang === 'el') return elText;
+    return trText;
+  };
+
+  const getProductImage = (prod: any) => {
+    if (prod.image_url && typeof prod.image_url === 'string' && prod.image_url.trim() !== '' && !prod.image_url.includes('undefined') && !prod.image_url.includes('null')) {
+      return prod.image_url;
+    }
+    const name = (prod.name || '').toLowerCase();
+    const cat = (prod.category || '').toLowerCase();
+    if (name.includes('kahve') || name.includes('coffee') || name.includes('espresso') || name.includes('latte') || name.includes('cappuccino') || name.includes('americano')) {
+      return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80';
+    }
+    if (name.includes('cocktail') || name.includes('kokteyl') || name.includes('drink') || name.includes('içecek') || name.includes('mojito') || name.includes('bira') || name.includes('beer')) {
+      return 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=600&q=80';
+    }
+    if (name.includes('pizza') || name.includes('pide') || name.includes('lahmacun')) {
+      return 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80';
+    }
+    if (name.includes('burger') || name.includes('hamburger') || name.includes('sandwich') || name.includes('tost')) {
+      return 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80';
+    }
+    if (name.includes('tatlı') || name.includes('dessert') || name.includes('cake') || name.includes('pasta') || name.includes('waffle')) {
+      return 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=600&q=80';
+    }
+    if (cat.includes('kahve') || cat.includes('içecek') || cat.includes('bar')) {
+      return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=600&q=80';
+    }
+    return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80';
+  };
+
+  const translateCategory = (cat: string) => {
+    if (!cat) return "";
+    const lower = cat.toLowerCase();
+    if (lang === 'en') {
+      if (lower.includes('kahve') || lower.includes('coffee')) return 'Coffees';
+      if (lower.includes('kokteyl') || lower.includes('cocktail')) return 'Cocktails';
+      if (lower.includes('tatlı') || lower.includes('dessert')) return 'Desserts';
+      if (lower.includes('sıcak') || lower.includes('hot')) return 'Hot Drinks';
+      if (lower.includes('soğuk') || lower.includes('cold')) return 'Cold Drinks';
+      if (lower.includes('yiyecek') || lower.includes('food') || lower.includes('yemek')) return 'Food & Meals';
+      if (lower.includes('bira') || lower.includes('beer')) return 'Beers';
+    } else if (lang === 'el') {
+      if (lower.includes('kahve') || lower.includes('coffee')) return 'Καφέδες';
+      if (lower.includes('kokteyl') || lower.includes('cocktail')) return 'Κοκτέιλ';
+      if (lower.includes('tatlı') || lower.includes('dessert')) return 'Γλυκά';
+      if (lower.includes('sıcak') || lower.includes('hot')) return 'Ζεστά Ροφήματα';
+      if (lower.includes('soğuk') || lower.includes('cold')) return 'Κρύα Ροφήματα';
+      if (lower.includes('yiyecek') || lower.includes('food') || lower.includes('yemek')) return 'Φαγητά';
+      if (lower.includes('bira') || lower.includes('beer')) return 'Μπύρες';
+    }
+    return cat;
+  };
 
   // Group products by category dynamically (including primary category AND secondary category_2)
   const categories = React.useMemo(() => {
@@ -315,8 +354,30 @@ export default function DigitalMenuPage() {
   return (
     <div className="min-h-screen bg-slate-100/50 flex justify-center py-0 md:py-8">
       <div className="w-full max-w-xl md:max-w-md min-h-screen md:min-h-0 bg-slate-50 p-4 pb-28 relative shadow-2xl md:border md:border-slate-200 md:rounded-[3rem] overflow-hidden">
+        {/* Top Right Language Switcher */}
+        <div className="absolute top-4 right-4 z-30 flex items-center gap-1 bg-white p-1 rounded-2xl shadow-md border border-slate-200">
+          <button
+            onClick={() => setLang('tr')}
+            className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${lang === 'tr' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+          >
+            TR
+          </button>
+          <button
+            onClick={() => setLang('en')}
+            className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${lang === 'en' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+          >
+            EN
+          </button>
+          <button
+            onClick={() => setLang('el')}
+            className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${lang === 'el' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+          >
+            EL
+          </button>
+        </div>
+
         {/* Brand Header */}
-        <header className="bg-white p-4 rounded-3xl shadow-sm mb-4 border border-slate-100 space-y-3.5 animate-fade-in">
+        <header className="bg-white p-4 rounded-3xl shadow-sm mb-4 border border-slate-100 space-y-3.5 animate-fade-in pr-20">
           <div className="flex items-center gap-3">
             {store.logo_url ? (
               <img src={store.logo_url} alt={store.name} className="h-14 w-14 rounded-2xl object-cover border border-slate-100 shrink-0 shadow-sm" />
@@ -555,13 +616,14 @@ export default function DigitalMenuPage() {
                       </button>
                     )}
 
-                    {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} className="w-full h-28 object-cover rounded-xl mb-3 shadow-xs" />
-                    ) : (
-                      <div className="w-full h-28 bg-slate-100 rounded-xl mb-3 flex items-center justify-center text-slate-300 font-bold text-xs">
-                        {isTr ? "Görsel Yok" : "No Image"}
-                      </div>
-                    )}
+                    <img 
+                      src={getProductImage(product)} 
+                      alt={product.name} 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80';
+                      }}
+                      className="w-full h-28 object-cover rounded-xl mb-3 shadow-xs" 
+                    />
                     <h3 className="font-bold text-slate-800 text-sm flex-grow line-clamp-2 leading-snug">{product.name}</h3>
                     
                     {product.description && (

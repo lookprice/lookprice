@@ -50,7 +50,13 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const isRent = property?.listing_intent === 'rent';
+  const isRent = property?.listing_intent === 'rent' || 
+                 property?.sector_data?.listing_intent === 'rent' || 
+                 property?.intent === 'rent' || 
+                 String(property?.status).toLowerCase().includes('rent') || 
+                 property?.price_type === 'rent' || 
+                 String(property?.title || '').toLowerCase().includes('kiralık') || 
+                 String(property?.category || '').toLowerCase().includes('kiralık');
 
   // Capitalize/Format Helper
   const formatNumberVal = (val: any) => {
@@ -82,8 +88,16 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
   const propertyTitle = property.title || "Kıbrıs Yatırımlık Lüks Emlak Fırsatı";
   const propertyLocation = property.location || "Girne";
   const regionText = property.kktc_region ? `Kuzey Kıbrıs / ${property.kktc_region}` : "Kuzey Kıbrıs";
-  const sqmText = property.square_meters ? `${property.square_meters} m² Net` : "";
-  const roomsText = property.room_count ? `${property.room_count} Oda` : "";
+  
+  const rawSqm = property.square_meters || property.net_sqm || property.sqm || property.size || property.sector_data?.square_meters || property.sector_data?.net_sqm;
+  const sqmText = rawSqm ? `${rawSqm} m² Net` : "";
+
+  const rawRooms = property.room_count || property.rooms || property.room || property.sector_data?.room_count || property.sector_data?.rooms;
+  const roomsText = rawRooms ? `${rawRooms}` : "";
+
+  const depositVal = property.deposit !== undefined ? property.deposit : (property.sector_data?.deposit !== undefined ? property.sector_data.deposit : property.depositAmount);
+  const depositFormatted = depositVal !== undefined && depositVal !== null && depositVal !== '' ? `${currencySymbol}${formatNumberVal(depositVal)}` : '';
+
   const typeText = property.type === 'residence' ? 'Konut' : property.type === 'commercial' ? 'Ticari Mülk' : 'Arsa';
   const titleType = property.kktc_title_type || "Eşdeğer Koçan";
   const isFurnishedVal = property.furnished === 'esyali' || property.furnished === true || String(property.furnished).toLowerCase() === 'true';
@@ -445,7 +459,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     const spec2 = sqmText ? `${sqmText}` : 'Belirtilmedi';
     const spec3 = isFurnishedVal ? 'Eşyalı' : 'Eşyasız';
     const spec4 = isRent 
-      ? (property.deposit ? `Depozito: ${priceText}` : 'Depozitosuz')
+      ? (depositVal !== undefined && depositVal !== null && depositVal !== '' ? `Depozito: ${depositFormatted}` : 'Depozitosuz')
       : `Koçan: ${titleType}`;
 
     ctx.font = '900 20px system-ui, sans-serif';
@@ -763,7 +777,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       </div>
                       
                       <div className={`text-[7px] font-extrabold mt-0.5 truncate max-w-full ${previewColors.textMuted}`}>
-                        🏠 {property.type === 'land' ? 'Arsa' : (roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul'))}  •  📐 {sqmText || 'Belirtilmedi'}{property.type !== 'land' && `  •  📦 ${isFurnishedVal ? 'Eşyalı' : 'Eşyasız'}`}  •  🔑 {isRent ? 'Depozitolu' : titleType}
+                        🏠 {property.type === 'land' ? 'Arsa' : (roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul'))}  •  📐 {sqmText || 'Belirtilmedi'}{property.type !== 'land' && `  •  📦 ${isFurnishedVal ? 'Eşyalı' : 'Eşyasız'}`}  •  🔑 {isRent ? (depositVal !== undefined && depositVal !== null && depositVal !== '' ? `Depozito: ${depositFormatted}` : 'Depozitosuz') : titleType}
                       </div>
                     </div>
 

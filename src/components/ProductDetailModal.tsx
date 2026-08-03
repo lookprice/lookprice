@@ -115,6 +115,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     product?.price || 0,
   );
 
+  const consultantPhone = (product as any).consultant_phone;
+  const rawWa = consultantPhone || store?.whatsapp_number || store?.phone;
+  const waPhone = (!rawWa || rawWa === "905428655000" || rawWa === "+905428655000") ? "905488902309" : rawWa;
+
   // States for 360° virtual tour mode
   const [activeViewMode, setActiveViewMode] = useState<"gallery" | "tourMap">(
     "gallery",
@@ -732,8 +736,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => {
-                  const phone = store?.whatsapp_number || store?.phone;
-                  if (phone) {
+                  if (waPhone) {
                     // Send click event to telemetry
                     fetch("/api/public/analytics/event", {
                       method: "POST",
@@ -752,7 +755,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       : `Hello, I would like to inquire about listing #${product.id} - ${product.name}.`;
                     
                     window.open(
-                      `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`,
+                      `https://wa.me/${waPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`,
                       "_blank",
                     );
                   } else {
@@ -775,8 +778,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               {(product as any).is_trade_in_available && (
                 <button
                   onClick={() => {
-                    const phone = store?.whatsapp_number || store?.phone;
-                    if (phone) {
+                    if (waPhone) {
                       // Send click event to telemetry
                       fetch("/api/public/analytics/event", {
                         method: "POST",
@@ -799,7 +801,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                             : `Hello, I would like to send a Trade-in Offer for listing #${product.id} - ${product.name}. \n\nI am sending my vehicle information and photos here: `);
                       
                       window.open(
-                        `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(tradeMessage)}`,
+                        `https://wa.me/${waPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(tradeMessage)}`,
                         "_blank",
                       );
                     }
@@ -878,12 +880,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </button>
             <button
               onClick={() => {
-                const phone = store?.whatsapp_number || store?.phone;
-                if (phone) {
+                if (waPhone) {
                   const message = lang === "tr"
                     ? `Merhaba, #${product.id} portföy numaralı ${product.name} ilanı hakkında bilgi almak istiyorum.`
                     : `Hello, I would like to inquire about listing #${product.id} - ${product.name}.`;
-                  window.open(`https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`, "_blank");
+                  window.open(`https://wa.me/${waPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`, "_blank");
                 }
               }}
               className="flex-[1.5] py-3.5 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 shadow-lg"

@@ -109,7 +109,9 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
 
                 let href = String(url);
                 if (social.id === "whatsapp_number") {
-                  href = `https://wa.me/${href.replace(/[^0-9]/g, "")}`;
+                  const rawWa = store?.[social.id];
+                  const waNumber = (!rawWa || rawWa === "905428655000") ? "905488902309" : rawWa;
+                  href = `https://wa.me/${String(waNumber).replace(/[^0-9]/g, "")}`;
                 } else if (!href.startsWith("http")) {
                   const base = social.id.split("_")[0];
                   href = `https://${base}.com/${href}`;

@@ -427,7 +427,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
           const { InstagramService } = await import('../src/services/instagramService');
           const storeRes = await pool.query("SELECT name, phone, whatsapp_number, instagram_settings FROM stores WHERE id = $1", [storeId]);
           const storeName = storeRes.rows[0]?.name || "Seçkin Emlak";
-          const storePhone = storeRes.rows[0]?.phone || storeRes.rows[0]?.whatsapp_number || "+90 548 890 23 09";
+          const rawSp = storeRes.rows[0]?.whatsapp_number || storeRes.rows[0]?.phone;
+          const storePhone = (!rawSp || rawSp === "905428655000" || rawSp === "+905428655000") ? "+90 548 890 23 09" : rawSp;
           const igSettings = storeRes.rows[0]?.instagram_settings;
 
           let shouldPostStoreIg = !!newProperty.auto_post_instagram;
@@ -567,7 +568,8 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
           const { InstagramService } = await import('../src/services/instagramService');
           const storeRes = await pool.query("SELECT name, phone, whatsapp_number, instagram_settings FROM stores WHERE id = $1", [storeId]);
           const storeName = storeRes.rows[0]?.name || "Seçkin Emlak";
-          const storePhone = storeRes.rows[0]?.phone || storeRes.rows[0]?.whatsapp_number || "+90 548 890 23 09";
+          const rawSp = storeRes.rows[0]?.whatsapp_number || storeRes.rows[0]?.phone;
+          const storePhone = (!rawSp || rawSp === "905428655000" || rawSp === "+905428655000") ? "+90 548 890 23 09" : rawSp;
           const igSettings = storeRes.rows[0]?.instagram_settings;
 
           let shouldPostStoreIgUpdate = !!updatedProperty.auto_post_instagram;

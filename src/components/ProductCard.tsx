@@ -51,47 +51,35 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   // Helper function to dynamically yield recipe ratios/ingredients for any product
   const getRecipeItems = (prod: Product) => {
-    if (prod.recipe_items && prod.recipe_items.length > 0) {
-      return prod.recipe_items;
+    let recipe = prod.recipe_items;
+    if (typeof recipe === "string") {
+      try {
+        recipe = JSON.parse(recipe);
+      } catch (e) {
+        recipe = [];
+      }
+    }
+    if (Array.isArray(recipe) && recipe.length > 0) {
+      return recipe;
     }
     
-    const nameLower = prod.name.toLowerCase();
-    if (nameLower.includes("coctail") || nameLower.includes("cocktail") || nameLower.includes("kokteyl") || nameLower.includes("lookprice")) {
+    // Only return mock items for products containing "lookprice" for demonstration/testing
+    const nameLower = (prod.name || "").toLowerCase();
+    if (nameLower.includes("lookprice")) {
+      if (nameLower.includes("coctail") || nameLower.includes("cocktail") || nameLower.includes("kokteyl")) {
+        return [
+          { ingredient_name: lang === 'tr' ? "Yarı Mamül X (Lookprice Özel)" : "Half-Finished X (Lookprice Special)", amount: 100, ingredient_unit: "cc" },
+          { ingredient_name: lang === 'tr' ? "Yarı Mamül Y (Premium Nektar)" : "Half-Finished Y (Premium Nectar)", amount: 200, ingredient_unit: "cc" },
+          { ingredient_name: lang === 'tr' ? "Yarı Mamül Z (Aromatik Esans)" : "Half-Finished Z (Aromatic Essence)", amount: 30, ingredient_unit: "cc" },
+        ];
+      }
       return [
-        { ingredient_name: lang === 'tr' ? "Yarı Mamül X (Lookprice Özel)" : "Half-Finished X (Lookprice Special)", amount: 100, ingredient_unit: "cc" },
-        { ingredient_name: lang === 'tr' ? "Yarı Mamül Y (Premium Nektar)" : "Half-Finished Y (Premium Nectar)", amount: 200, ingredient_unit: "cc" },
-        { ingredient_name: lang === 'tr' ? "Yarı Mamül Z (Aromatik Esans)" : "Half-Finished Z (Aromatic Essence)", amount: 30, ingredient_unit: "cc" },
+        { ingredient_name: lang === 'tr' ? "Yarı Mamül (Lookprice Özel)" : "Half-Finished (Lookprice Special)", amount: 50, ingredient_unit: "g" },
+        { ingredient_name: lang === 'tr' ? "Premium Aroma (Lookprice Özel)" : "Premium Flavoring", amount: 10, ingredient_unit: "ml" }
       ];
     }
     
-    if (nameLower.includes("bira") || nameLower.includes("beer")) {
-      return [
-        { ingredient_name: lang === 'tr' ? "Premium Arpa Maltı" : "Premium Barley Malt", amount: 450, ingredient_unit: "ml" },
-        { ingredient_name: lang === 'tr' ? "Şerbetçi Otu Esansı" : "Hops Extract", amount: 50, ingredient_unit: "ml" },
-      ];
-    }
-
-    if (nameLower.includes("kahve") || nameLower.includes("coffee") || nameLower.includes("espresso")) {
-      return [
-        { ingredient_name: lang === 'tr' ? "Arabica Kahve Çekirdeği" : "Arabica Coffee Beans", amount: 18, ingredient_unit: "g" },
-        { ingredient_name: lang === 'tr' ? "Sıcak Su (Arıtılmış)" : "Hot Purified Water", amount: 120, ingredient_unit: "ml" },
-        { ingredient_name: lang === 'tr' ? "Süt Köpüğü" : "Milk Foam", amount: 60, ingredient_unit: "ml" },
-      ];
-    }
-
-    if (nameLower.includes("pizza") || nameLower.includes("makarna") || nameLower.includes("pasta") || nameLower.includes("burger")) {
-      return [
-        { ingredient_name: lang === 'tr' ? "Lookprice Özel Sos" : "Lookprice Secret Sauce", amount: 80, ingredient_unit: "g" },
-        { ingredient_name: lang === 'tr' ? "Mozzarella Peyniri" : "Mozzarella Cheese", amount: 120, ingredient_unit: "g" },
-        { ingredient_name: lang === 'tr' ? "Özel Taş Fırın Un Karışımı" : "Stone Oven Flour Blend", amount: 220, ingredient_unit: "g" },
-      ];
-    }
-
-    return [
-      { ingredient_name: lang === 'tr' ? "Lookprice Organik Hammadde" : "Lookprice Organic Base", amount: 75, ingredient_unit: "g" },
-      { ingredient_name: lang === 'tr' ? "Doğal Aroma Katkısı" : "Natural Flavoring", amount: 15, ingredient_unit: "g" },
-      { ingredient_name: lang === 'tr' ? "Premium Süsleme / Baharat" : "Premium Spices", amount: 10, ingredient_unit: "g" },
-    ];
+    return [];
   };
 
   useEffect(() => {
@@ -265,7 +253,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             {/* Recipe / Ratios Details Flip Trigger Button */}
-            {!isRealEstate && !isAutomotive && (
+            {!isRealEstate && !isAutomotive && getRecipeItems(product).length > 0 && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

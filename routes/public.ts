@@ -666,6 +666,13 @@ router.get("/store/:slug", async (req, res) => {
       Object.assign(store, store.branding);
     }
 
+    if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {
+      store.whatsapp_number = "905488902309";
+    }
+    if (!store.phone || store.phone === "905428655000" || store.phone === "+905428655000") {
+      store.phone = "+90 548 890 23 09";
+    }
+
     // Sanitize payment_settings to only expose enabled flags and sandbox mode
     let ps = store.payment_settings || {};
     if (typeof ps === 'string') {
@@ -742,7 +749,16 @@ async function findStoreByIdentifier(identifier: string) {
   let params = isNumeric ? [Number(identifier), identifier] : [identifier];
   
   const res = await pool.query(query, params);
-  return res.rows[0] || null;
+  const store = res.rows[0] || null;
+  if (store) {
+    if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {
+      store.whatsapp_number = "905488902309";
+    }
+    if (!store.phone || store.phone === "905428655000" || store.phone === "+905428655000") {
+      store.phone = "+90 548 890 23 09";
+    }
+  }
+  return store;
 }
 
 // Public: Get Digital Menu Store Info
