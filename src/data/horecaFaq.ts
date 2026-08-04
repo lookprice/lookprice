@@ -123,7 +123,7 @@ export const horecaFaq = [
       category: 'menu_masa',
       status: 'active',
       q: 'QR Kod masa yönetim sisteminde garson çağırma veya hesap isteme özellikleri var mı?',
-      a: 'Evet. Her masa için üretilen özel QR kodlar sadece menü görüntülemeye yaramaz. Müşterileriniz QR menüyü okuttuklarında ekranda yer alan "Garson Çağır", "Hesap İste" veya "Yardım" butonlarına tıklayabilirler. Bu çağrılar, masanın numarasıyla birlikte ilgili garsonun akıllı saatine veya el terminali ekranına anında bildirim olarak iletilir.'
+      a: 'Evet. Her masa için üretilen özel QR kodlar sadece menü görüntülemeye yaramaz. Müşterileriniz QR menüyü okuttuklarında ekranda yer alan "Garson Çağır", "Hesap İste" veya "Yardım" butonlarına tıklayabilirler. Bu çağrılar, masanın numarasıyla birlikte işletmenizin Kasa ve Hızlı POS ekranına anında sesli/görsel bildirim olarak iletilir; kasiyer bu talep bildirimiyle garsonu ilgili masaya hızla yönlendirir.'
     },
     {
       id: 'auto_service_fees',

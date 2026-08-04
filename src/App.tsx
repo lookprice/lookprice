@@ -32,6 +32,7 @@ const StoreDashboard = React.lazy(() => import("./pages/StoreDashboard/index"));
 const LegalPage = React.lazy(() => import("./pages/Legal"));
 const ContractSignPage = React.lazy(() => import("./pages/ContractSignPage"));
 const DigitalMenuPage = React.lazy(() => import("./pages/DigitalMenu"));
+const PublicReconciliationPage = React.lazy(() => import("./pages/PublicReconciliationPage"));
 const HoReCaLanding = React.lazy(() => import("./pages/HoReCaLanding"));
 const AutoLanding = React.lazy(() => import("./pages/AutoLanding"));
 const REstateLanding = React.lazy(() => import("./pages/REstateLanding"));
@@ -258,6 +259,7 @@ export default function App() {
             <Route path="/privacy" element={<LegalPage type="privacy" />} />
             <Route path="/terms" element={<LegalPage type="terms" />} />
             <Route path="/data-deletion" element={<LegalPage type="deletion" />} />
+            <Route path="/reconciliation/:reconId" element={<React.Suspense fallback={<SuspenseLoader />}><PublicReconciliationPage /></React.Suspense>} />
             
             {/* Auth Routes */}
             <Route path="/login" element={

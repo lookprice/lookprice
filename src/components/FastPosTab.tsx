@@ -25,7 +25,8 @@ import {
   Flame,
   Scale,
   Split,
-  Divide
+  Divide,
+  Bell
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -173,6 +174,32 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       setNewTableCount(branding.page_layout_settings.table_count);
     }
   }, [branding]);
+
+  const [storeTableCalls, setStoreTableCalls] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchTableCalls = () => {
+      try {
+        const calls = JSON.parse(localStorage.getItem(`storeTableCalls_${storeId}`) || '[]');
+        setStoreTableCalls(Array.isArray(calls) ? calls.filter((c: any) => c.status === 'pending') : []);
+      } catch (e) {
+        console.error("Error reading storeTableCalls:", e);
+      }
+    };
+    fetchTableCalls();
+    const interval = setInterval(fetchTableCalls, 3000);
+    return () => clearInterval(interval);
+  }, [storeId]);
+
+  const handleResolveTableCall = (callId: number) => {
+    try {
+      const calls = JSON.parse(localStorage.getItem(`storeTableCalls_${storeId}`) || '[]');
+      const updated = calls.map((c: any) => c.id === callId ? { ...c, status: 'resolved' } : c);
+      localStorage.setItem(`storeTableCalls_${storeId}`, JSON.stringify(updated));
+      setStoreTableCalls(updated.filter((c: any) => c.status === 'pending'));
+    } catch (e) {
+      console.error("Error resolving call:", e);
+    }
+  };
 
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -1361,6 +1388,39 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
   return (
     <div className="flex flex-col space-y-2 h-[calc(100vh-80px)] min-h-[600px]">
+      {/* Customer Table Service Calls Notification Banner */}
+      {storeTableCalls.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500 to-rose-600 text-white p-3 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 animate-pulse shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/20 rounded-xl">
+              <Bell className="w-6 h-6 text-white animate-bounce" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-sm tracking-wide">
+                {lang === 'tr' ? `Müşteri Talep Bildirimi (${storeTableCalls.length} Bekleyen)` : `Customer Table Requests (${storeTableCalls.length} Pending)`}
+              </h3>
+              <p className="text-xs text-amber-100 font-medium">
+                {storeTableCalls.map(c => `${c.tableId}: ${c.type}`).join(' | ')}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto max-w-full">
+            {storeTableCalls.map(call => (
+              <div key={call.id} className="bg-white/15 backdrop-blur-xs px-3 py-1.5 rounded-xl flex items-center gap-2 shrink-0 border border-white/20">
+                <span className="text-xs font-black">{call.tableId} - {call.type}</span>
+                <button
+                  type="button"
+                  onClick={() => handleResolveTableCall(call.id)}
+                  className="px-2 py-0.5 bg-white text-rose-700 hover:bg-rose-50 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer shadow-xs"
+                >
+                  {lang === 'tr' ? 'İlgilenildi' : 'Resolve'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Sleek Ultra-Compact Header Bar */}
       <div className="bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-2.5">

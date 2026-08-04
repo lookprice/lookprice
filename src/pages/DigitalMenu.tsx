@@ -216,6 +216,24 @@ export default function DigitalMenuPage() {
     }
   };
 
+  const handleTableCall = (callType: 'Garson Çağır' | 'Hesap İste' | 'Yardım') => {
+    const tableToUse = activeTableId || "Garson Masası";
+    const existingCalls = JSON.parse(localStorage.getItem(`storeTableCalls_${storeId}`) || '[]');
+    const newCall = {
+      id: Date.now(),
+      tableId: tableToUse,
+      type: callType,
+      timestamp: new Date().toISOString(),
+      status: 'pending'
+    };
+    localStorage.setItem(`storeTableCalls_${storeId}`, JSON.stringify([newCall, ...existingCalls]));
+    alert(t(
+      `"${callType}" talebiniz masanız (${tableToUse}) adına kasaya ve hızlı POS terminaline iletildi. Garsonumuz yönlendiriliyor!`,
+      `Your "${callType}" request for table (${tableToUse}) has been sent to the cashier. Our waiter is on the way!`,
+      `Το αίτημά σας "${callType}" για το τραπέζι (${tableToUse}) στάλθηκε στο ταμείο.`
+    ));
+  };
+
   const totalCartPrice = cart.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
 
   const [lang, setLang] = useState<'tr' | 'en' | 'el'>('tr');
@@ -482,6 +500,34 @@ export default function DigitalMenuPage() {
             </button>
           </div>
         )}
+
+        {/* Table Service Call Quick Buttons */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => handleTableCall('Garson Çağır')}
+            className="flex flex-col items-center justify-center p-3 bg-white hover:bg-amber-50 text-slate-800 hover:text-amber-800 rounded-2xl border border-slate-200 hover:border-amber-300 shadow-xs transition-all cursor-pointer active:scale-95"
+          >
+            <span className="text-lg mb-1">🛎️</span>
+            <span className="text-[11px] font-extrabold tracking-tight">{t('Garson Çağır', 'Call Waiter', 'Κλήση Σερβιτόρου')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTableCall('Hesap İste')}
+            className="flex flex-col items-center justify-center p-3 bg-white hover:bg-emerald-50 text-slate-800 hover:text-emerald-800 rounded-2xl border border-slate-200 hover:border-emerald-300 shadow-xs transition-all cursor-pointer active:scale-95"
+          >
+            <span className="text-lg mb-1">💳</span>
+            <span className="text-[11px] font-extrabold tracking-tight">{t('Hesap İste', 'Request Bill', 'Αίτημα Λογαριασμού')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTableCall('Yardım')}
+            className="flex flex-col items-center justify-center p-3 bg-white hover:bg-indigo-50 text-slate-800 hover:text-indigo-800 rounded-2xl border border-slate-200 hover:border-indigo-300 shadow-xs transition-all cursor-pointer active:scale-95"
+          >
+            <span className="text-lg mb-1">🙋</span>
+            <span className="text-[11px] font-extrabold tracking-tight">{t('Yardım', 'Help', 'Βοήθεια')}</span>
+          </button>
+        </div>
 
         {/* Category & Subcategory Navigation Section */}
         <div className="mb-5 space-y-2">

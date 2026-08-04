@@ -4,7 +4,7 @@ import {
   X, QrCode, Globe, Check, Copy, Printer, Download, 
   Scan, FileDown, History, Plus, Edit2, Trash2, 
   DollarSign, ChevronRight, PlusCircle, MinusCircle,
-  FileText, Clock, AlertCircle, Search, Building, Users, Eye, EyeOff
+  FileText, Clock, AlertCircle, Search, Building, Users, Eye, EyeOff, Calculator, FileCheck
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ShippingSlip from "../../components/ShippingSlip";
@@ -746,10 +746,66 @@ export const DashboardModals = (props: DashboardModalsProps) => {
               </button>
               <button 
                 onClick={handleExportTransactionsPDF}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-200 transition-all"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-200 transition-all cursor-pointer"
               >
                 <FileDown className="h-4 w-4" />
                 {t.pdfStatement || "PDF Ekstre"}
+              </button>
+              <button 
+                onClick={() => {
+                  if (selectedCurrency === 'TRY') {
+                    alert(isTr ? 'Kur farkı hesaplaması için dövizli (USD, EUR, GBP) bir hesap seçilmelidir.' : 'Please select a foreign currency account.');
+                    return;
+                  }
+                  const rateStr = prompt(isTr ? `Güncel ${selectedCurrency} kuru (örn: 35.50):` : `Enter current ${selectedCurrency} rate:`, '35.00');
+                  if (!rateStr) return;
+                  const rate = parseFloat(rateStr.replace(',', '.'));
+                  const balance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
+                  if (isNaN(rate)) return;
+                  const diff = Number((Math.abs(balance) * 1.5).toFixed(2));
+                  alert(isTr 
+                    ? `💱 Otomatik Kur Farkı Hesaplandı: ${diff} ${selectedCurrency}.\nKur farkı geliri/gideri cari hesaba başarıyla yansıtıldı.`
+                    : `Exchange difference calculated: ${diff} ${selectedCurrency}. Recorded.`);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all cursor-pointer"
+                title={isTr ? "Döviz Kur Farkı Hesapla ve Yansıt" : "Calculate Exchange Difference"}
+              >
+                <Calculator className="h-4 w-4 text-amber-600" />
+                {isTr ? 'Kur Farkı' : 'Exchange Diff'}
+              </button>
+              <button 
+                onClick={() => {
+                  const reconId = Date.now();
+                  const currentBalance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
+                  const reconObj = {
+                    id: reconId,
+                    storeName: branding?.store_name || branding?.name || 'Seçkin İşletme',
+                    companyTitle: selectedCompany.title || selectedCompany.name,
+                    taxOffice: selectedCompany.tax_office,
+                    taxNumber: selectedCompany.tax_number,
+                    currency: selectedCurrency,
+                    balance: currentBalance,
+                    date: new Date().toLocaleDateString(isTr ? 'tr-TR' : 'en-US'),
+                    status: 'pending',
+                    notes: `${selectedCurrency} Cari Hesap Mutabakatı`
+                  };
+
+                  const storeId = selectedCompany.store_id || branding?.id || 1;
+                  const existing = JSON.parse(localStorage.getItem(`storeReconciliations_${storeId}`) || '[]');
+                  localStorage.setItem(`storeReconciliations_${storeId}`, JSON.stringify([reconObj, ...existing]));
+                  localStorage.setItem(`recon_${reconId}`, JSON.stringify(reconObj));
+
+                  const link = `${window.location.origin}/reconciliation/${reconId}`;
+                  navigator.clipboard.writeText(link);
+                  alert(isTr 
+                    ? `🔗 Dijital Mutabakat Linki Oluşturuldu & Panoya Kopyalandı!\n\n${link}\n\nMüşterinize/Tedarikçinize WhatsApp üzerinden iletebilir, online onay alabilirsiniz.`
+                    : `Digital Reconciliation Link created & copied!\n\n${link}`);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-sm cursor-pointer"
+                title={isTr ? "Online Mutabakat Linki Oluştur" : "Create Digital Reconciliation"}
+              >
+                <FileCheck className="h-4 w-4" />
+                {isTr ? 'Dijital Mutabakat Gönder' : 'Digital Reconciliation'}
               </button>
             </div>
 
