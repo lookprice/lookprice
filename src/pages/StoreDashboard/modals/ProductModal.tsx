@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
+import { compressImageToWebP } from "../../../utils/imageUtils";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -51,6 +52,47 @@ export const ProductModal = ({
   const [matrixSizes, setMatrixSizes] = useState("");
 
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+
+  const handleVariantImageUpload = async (vIdx: number, file: File) => {
+    try {
+      const compressed = await compressImageToWebP(file);
+      const formData = new FormData();
+      formData.append('file', compressed);
+      const res = await api.uploadFile(formData);
+      if (res && res.url) {
+        setVariants((prev) => {
+          const next = [...prev];
+          next[vIdx] = { ...next[vIdx], image_url: res.url };
+          return next;
+        });
+      } else if (res && res.error) {
+        alert(isTr ? `Görsel yükleme hatası: ${res.error}` : `Image upload error: ${res.error}`);
+      }
+    } catch (err) {
+      console.error("Variant image upload error:", err);
+    }
+  };
+
+  const scrollToLatestVariant = (targetId?: string) => {
+    setTimeout(() => {
+      if (targetId) {
+        const el = document.getElementById(`variant_card_${targetId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const firstInput = el.querySelector('input');
+          if (firstInput) (firstInput as HTMLInputElement).focus();
+          return;
+        }
+      }
+      const allCards = document.querySelectorAll('[id^="variant_card_"]');
+      if (allCards.length > 0) {
+        const lastCard = allCards[allCards.length - 1];
+        lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const firstInput = lastCard.querySelector('input');
+        if (firstInput) (firstInput as HTMLInputElement).focus();
+      }
+    }, 120);
+  };
 
   const fetchRecipe = async (prodId: number) => {
     try {
@@ -195,15 +237,27 @@ export const ProductModal = ({
         >
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5 col-span-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
-                {isTr ? "Barkod / Ürün Kodu *" : "Barcode / SKU *"}
-              </label>
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                  {isTr ? (hasVariants ? "Barkod / Ürün Kodu (Varyantlı Ürün)" : "Barkod / Ürün Kodu *") : (hasVariants ? "Barcode / SKU (Has Variants)" : "Barcode / SKU *")}
+                </label>
+                {hasVariants && (
+                  <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100">
+                    {isTr ? "Varyantlar Üzerinden Takip Edilir" : "Tracked via Variants"}
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 name="barcode"
-                required
-                placeholder={isTr ? "Barkod girin veya okutun..." : "SKO code..."}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
+                required={!hasVariants}
+                disabled={hasVariants}
+                placeholder={hasVariants ? (isTr ? "Varyantlar altındaki kendi barkod/SKU'su geçerlidir" : "Tracked via individual variants") : (isTr ? "Barkod girin veya okutun..." : "SKU code...")}
+                className={`w-full px-4 py-3 border-2 rounded-2xl transition-all font-bold ${
+                  hasVariants 
+                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-80" 
+                    : "bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-500 focus:ring-0"
+                }`}
                 defaultValue={editingProduct?.barcode || ""}
               />
             </div>
@@ -394,43 +448,52 @@ export const ProductModal = ({
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
-                {isTr ? "Birim" : "Unit"}
+                {isTr ? "Birim *" : "Unit *"}
               </label>
               <select
                 name="unit"
                 className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700 appearance-none text-xs h-[50px]"
                 defaultValue={editingProduct?.unit || "Adet"}
               >
-                <option value="Adet">{isTr ? "Adet (pcs)" : "Pieces"}</option>
-                <option value="Şişe">{isTr ? "Şişe (Bottle)" : "Bottle"}</option>
-                <option value="Kasa">{isTr ? "Kasa (Case)" : "Case"}</option>
-                <option value="ml">ml</option>
-                <option value="cl">cl</option>
-                <option value="L">{isTr ? "Litre (L)" : "Liter"}</option>
-                <option value="kg">kg</option>
-                <option value="gr">gr</option>
+                <option value="Adet">{isTr ? "Adet (pcs)" : "Pieces (pcs)"}</option>
                 <option value="Paket">{isTr ? "Paket (Pack)" : "Pack"}</option>
-                <option value="Koli">{isTr ? "Koli (Box)" : "Box"}</option>
-                <option value="Mt">{isTr ? "Metre (Mt)" : "Meter"}</option>
-                <option value="Porsiyon">{isTr ? "Porsiyon" : "Portion"}</option>
+                <option value="Kutu">{isTr ? "Kutu (Box)" : "Box"}</option>
+                <option value="Koli">{isTr ? "Koli (Carton)" : "Carton"}</option>
+                <option value="Çift">{isTr ? "Çift (Pair)" : "Pair"}</option>
+                <option value="Takım">{isTr ? "Takım / Set" : "Set"}</option>
+                <option value="Metre">{isTr ? "Metre (m)" : "Meter (m)"}</option>
+                <option value="m²">{isTr ? "Metrekare (m²)" : "Square Meter (m²)"}</option>
+                <option value="kg">{isTr ? "Kilogram (kg)" : "Kilogram (kg)"}</option>
+                <option value="gr">{isTr ? "Gram (gr)" : "Gram (g)"}</option>
+                <option value="L">{isTr ? "Litre (L)" : "Liter (L)"}</option>
+                <option value="ml">{isTr ? "Mililitre (ml)" : "Milliliter (ml)"}</option>
+                <option value="Rulo">{isTr ? "Rulo (Roll)" : "Roll"}</option>
+                <option value="Palet">{isTr ? "Palet (Pallet)" : "Pallet"}</option>
+                <option value="Demet">{isTr ? "Demet (Bundle)" : "Bundle"}</option>
+                <option value="Düzine">{isTr ? "Düzine (Dozen)" : "Dozen"}</option>
+                {isCafeRestaurant && <option value="Porsiyon">{isTr ? "Porsiyon" : "Portion"}</option>}
+                {isCafeRestaurant && <option value="Şişe">{isTr ? "Şişe (Bottle)" : "Bottle"}</option>}
+                {isCafeRestaurant && <option value="Kasa">{isTr ? "Kasa (Case)" : "Case"}</option>}
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
-                {isTr ? "Birim Hacmi (ml/gr)" : "Volume per Unit (ml/gr)"}
-              </label>
-              <input
-                type="number"
-                name="volume_ml"
-                placeholder={isTr ? "örn: 700" : "e.g. 700"}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700"
-                defaultValue={editingProduct?.volume_ml || ""}
-              />
-              <p className="text-[9px] text-slate-500 font-bold ml-1">
-                {isTr ? "Şişe/Kasa/Paket alımlarını stokta ML/GR bazlı takip etmek için gereklidir." : "Required for tracking Bottle/Case/Pack purchases in ML/GR."}
-              </p>
-            </div>
+            {isCafeRestaurant && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                  {isTr ? "Birim Hacmi (ml/gr)" : "Volume per Unit (ml/gr)"}
+                </label>
+                <input
+                  type="number"
+                  name="volume_ml"
+                  placeholder={isTr ? "örn: 700" : "e.g. 700"}
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-700"
+                  defaultValue={editingProduct?.volume_ml || ""}
+                />
+                <p className="text-[9px] text-slate-500 font-bold ml-1">
+                  {isTr ? "Şişe/Kasa/Paket alımlarını stokta ML/GR bazlı takip etmek için gereklidir." : "Required for tracking Bottle/Case/Pack purchases in ML/GR."}
+                </p>
+              </div>
+            )}
 
             {isCafeRestaurant && (
               <div className="col-span-2 space-y-4 pt-4 border-t border-slate-100">
@@ -545,8 +608,8 @@ export const ProductModal = ({
 
             {/* Product Variants Management */}
             <div className="col-span-2 space-y-4 pt-4 border-t border-slate-100">
-              <div className="flex items-center justify-between bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/50 p-3.5 sm:p-4 rounded-2xl border border-indigo-100 overflow-hidden">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <input
                     type="checkbox"
                     id="has_variants_toggle"
@@ -565,48 +628,51 @@ export const ProductModal = ({
                             { id: 'var_' + Date.now() + '_2', name: 'Siyah / M', color_name: 'Siyah', color_code: '#000000', size: 'M', barcode: '', sku: '', stock_quantity: '15', price: '', image_url: '' }
                           ]);
                         }
+                        scrollToLatestVariant();
                       }
                     }}
-                    className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                    className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer shrink-0"
                   />
-                  <label htmlFor="has_variants_toggle" className="text-xs font-black text-slate-800 cursor-pointer select-none">
+                  <label htmlFor="has_variants_toggle" className="text-xs font-black text-slate-800 cursor-pointer select-none min-w-0 leading-tight">
                     {isTr ? "Bu Ürünün Alt Kırılımları (Varyantları) Var" : "Product Has Variants / Options"}
-                    <span className="block text-[10px] font-medium text-slate-500 mt-0.5">
+                    <span className="block text-[10px] font-medium text-slate-500 mt-0.5 truncate">
                       {isCafeRestaurant 
                         ? (isTr 
-                            ? "Örn: Milkshake (BANANA, CHOCOLATE, STRAWBERRY) - Reçete & Yarı mamül takibi." 
-                            : "e.g. Milkshake (Banana, Chocolate) - Recipe & ingredient tracking.")
+                            ? "Örn: Milkshake (BANANA, CHOCOLATE) - Reçete takibi." 
+                            : "e.g. Milkshake (Banana, Chocolate) - Recipe tracking.")
                         : (isTr
-                            ? "Örn: T-Shirt (Kırmızı / S, Siyah / M) - Bağımsız stok, barkod, renk, beden ve görsel yönetimi."
-                            : "e.g. T-Shirt (Red / S, Black / M) - Independent stock, barcode, color, size & image tracking.")}
+                            ? "Örn: T-Shirt (Kırmızı / S, Siyah / M) - Bağımsız stok, renk, beden yönetimi."
+                            : "e.g. T-Shirt (Red / S, Black / M) - Independent stock & variant tracking.")}
                     </span>
                   </label>
                 </div>
                 {hasVariants && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                     {!isCafeRestaurant && (
                       <button
                         type="button"
                         onClick={() => setShowMatrixGenerator(!showMatrixGenerator)}
-                        className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-100 transition-all flex items-center gap-1 shrink-0"
+                        className="px-2.5 py-1.5 sm:px-3 sm:py-2 bg-indigo-100/80 text-indigo-800 border border-indigo-200/80 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-200 transition-all flex items-center gap-1.5 shrink-0 shadow-2xs cursor-pointer"
+                        title={isTr ? "Hızlı Matris Oluşturucu" : "Matrix Generator"}
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>{isTr ? "Hızlı Matris Oluşturucu" : "Matrix Generator"}</span>
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                        <span>{isTr ? "Hızlı Matris" : "Matrix"}</span>
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => {
-                        setVariants([
-                          ...variants,
-                          isCafeRestaurant
-                            ? { id: 'var_' + Date.now(), name: '', price: '', recipe_items: [] }
-                            : { id: 'var_' + Date.now(), name: '', color_name: '', color_code: '#3b82f6', size: '', barcode: '', sku: '', stock_quantity: '10', price: '', image_url: '' }
-                        ]);
+                        const newId = 'var_' + Date.now();
+                        const newVar = isCafeRestaurant
+                          ? { id: newId, name: '', price: '', recipe_items: [] }
+                          : { id: newId, name: '', color_name: '', color_code: '#3b82f6', size: '', barcode: '', sku: '', stock_quantity: '10', price: '', image_url: '' };
+                        setVariants((prev) => [...prev, newVar]);
+                        scrollToLatestVariant(newId);
                       }}
-                      className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-all flex items-center gap-1 shrink-0"
+                      className="px-3 py-1.5 sm:py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer"
+                      title={isTr ? "Varyant Ekle" : "Add Variant"}
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-3.5 h-3.5 shrink-0" />
                       <span>{isTr ? "Varyant Ekle" : "Add Variant"}</span>
                     </button>
                   </div>
@@ -709,13 +775,15 @@ export const ProductModal = ({
                         }
 
                         if (generated.length > 0) {
-                          setVariants([...variants, ...generated]);
+                          const lastGenId = generated[generated.length - 1].id;
+                          setVariants((prev) => [...prev, ...generated]);
                           setShowMatrixGenerator(false);
                           setMatrixColors("");
                           setMatrixSizes("");
+                          scrollToLatestVariant(lastGenId);
                         }
                       }}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-sm"
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-sm cursor-pointer"
                     >
                       {isTr ? "Varyant Kombinasyonlarını Oluştur" : "Generate Combinations"}
                     </button>
@@ -738,7 +806,7 @@ export const ProductModal = ({
                       });
 
                       return (
-                        <div key={v.id || vIdx} className="p-4 bg-slate-50/80 rounded-2xl border-2 border-indigo-100 space-y-3 relative">
+                        <div key={v.id || vIdx} id={`variant_card_${v.id || vIdx}`} className="p-4 bg-slate-50/80 rounded-2xl border-2 border-indigo-100 space-y-3 relative">
                           <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-200">
                             <span className="text-[11px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
@@ -911,7 +979,7 @@ export const ProductModal = ({
 
                     // ShopLP Retail Product Variant Card
                     return (
-                      <div key={v.id || vIdx} className="p-4 bg-white rounded-2xl border-2 border-indigo-100 shadow-xs space-y-3 relative">
+                      <div key={v.id || vIdx} id={`variant_card_${v.id || vIdx}`} className="p-4 bg-white rounded-2xl border-2 border-indigo-100 shadow-xs space-y-3 relative">
                         <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black text-indigo-700 uppercase tracking-wider">
@@ -935,17 +1003,17 @@ export const ProductModal = ({
                           </button>
                         </div>
 
-                        {/* Row 1: Name, Color Name, Color Picker, Size */}
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                        {/* Row 1: Name, Color Name, Prominent Color Picker, Size */}
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                          <div className="space-y-1 sm:col-span-4">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
                               {isTr ? "Varyant Adı *" : "Variant Name *"}
                             </label>
                             <input
                               type="text"
                               required
                               placeholder={isTr ? "örn: Kırmızı / M" : "e.g. Red / M"}
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900"
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:bg-white transition-all"
                               value={v.name || ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -955,14 +1023,14 @@ export const ProductModal = ({
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                          <div className="space-y-1 sm:col-span-3">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
                               {isTr ? "Renk Adı" : "Color Name"}
                             </label>
                             <input
                               type="text"
                               placeholder={isTr ? "örn: Kırmızı" : "e.g. Red"}
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white transition-all"
                               value={v.color_name || ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -972,25 +1040,32 @@ export const ProductModal = ({
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                          <div className="space-y-1 sm:col-span-3">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
                               {isTr ? "Renk Kodu (Palet)" : "Color Code"}
                             </label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                className="w-9 h-9 p-0 border-0 rounded-lg cursor-pointer bg-transparent"
-                                value={v.color_code || "#3b82f6"}
-                                onChange={(e) => {
-                                  const newVars = [...variants];
-                                  newVars[vIdx].color_code = e.target.value;
-                                  setVariants(newVars);
-                                }}
-                              />
+                            <div className="flex items-center gap-1.5 p-1 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-300 transition-all">
+                              <div
+                                className="w-7 h-7 rounded-lg shrink-0 border border-black/15 shadow-2xs flex items-center justify-center relative overflow-hidden cursor-pointer bg-slate-200"
+                                style={{ backgroundColor: v.color_code || "#3b82f6" }}
+                                title={isTr ? "Renk Paletini Aç" : "Open Color Picker"}
+                              >
+                                <Palette className="w-3.5 h-3.5 text-white drop-shadow-md pointer-events-none" />
+                                <input
+                                  type="color"
+                                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                  value={v.color_code || "#3b82f6"}
+                                  onChange={(e) => {
+                                    const newVars = [...variants];
+                                    newVars[vIdx].color_code = e.target.value;
+                                    setVariants(newVars);
+                                  }}
+                                />
+                              </div>
                               <input
                                 type="text"
-                                placeholder="#000000"
-                                className="flex-1 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800"
+                                placeholder="#3b82f6"
+                                className="w-full px-1.5 py-1 bg-transparent border-0 text-[11px] font-mono font-bold text-slate-800 uppercase focus:ring-0"
                                 value={v.color_code || ""}
                                 onChange={(e) => {
                                   const newVars = [...variants];
@@ -1001,14 +1076,14 @@ export const ProductModal = ({
                             </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                          <div className="space-y-1 sm:col-span-2">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
                               {isTr ? "Beden / Ölçü" : "Size / Spec"}
                             </label>
                             <input
                               type="text"
-                              placeholder={isTr ? "örn: M, XL, 42" : "e.g. M, XL, 42"}
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                              placeholder={isTr ? "örn: M, 42" : "e.g. M, 42"}
+                              className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white transition-all"
                               value={v.size || ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -1020,15 +1095,15 @@ export const ProductModal = ({
                         </div>
 
                         {/* Row 2: Barcode, SKU, Stock, Price */}
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                          <div className="space-y-1 sm:col-span-4">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
                               {isTr ? "Varyant Barkodu" : "Variant Barcode"}
                             </label>
                             <input
                               type="text"
                               placeholder={isTr ? "Barkod no" : "Barcode"}
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900"
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white transition-all"
                               value={v.barcode || ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -1038,14 +1113,14 @@ export const ProductModal = ({
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                          <div className="space-y-1 sm:col-span-3">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
                               {isTr ? "Stok Kodu (SKU)" : "SKU"}
                             </label>
                             <input
                               type="text"
                               placeholder={isTr ? "örn: TSH-RED-M" : "e.g. TSH-RED-M"}
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900"
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white transition-all"
                               value={v.sku || ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -1055,14 +1130,14 @@ export const ProductModal = ({
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
-                              {isTr ? "Stok Adedi *" : "Stock Quantity *"}
+                          <div className="space-y-1 sm:col-span-2">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
+                              {isTr ? "Stok Adedi *" : "Stock Qty *"}
                             </label>
                             <input
                               type="number"
                               placeholder="10"
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900"
+                              className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:bg-white transition-all"
                               value={v.stock_quantity !== undefined ? v.stock_quantity : ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -1072,14 +1147,14 @@ export const ProductModal = ({
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                          <div className="space-y-1 sm:col-span-3">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
                               {isTr ? "Satış Fiyatı (₺)" : "Price"}
                             </label>
                             <input
                               type="text"
                               placeholder={isTr ? "Boş ise ana fiyat" : "Default base price"}
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-indigo-600"
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-indigo-600 focus:bg-white transition-all"
                               value={v.price !== undefined ? v.price : ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -1090,16 +1165,34 @@ export const ProductModal = ({
                           </div>
                         </div>
 
-                        {/* Row 3: Image URL & Thumbnail preview */}
-                        <div className="space-y-1 pt-1">
-                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
-                            {isTr ? "Varyanta / Renğe Özel Görsel URL'si" : "Variant Image URL"}
+                        {/* Row 3: Image URL & Upload / Camera minimal buttons */}
+                        <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
+                            {isTr ? "Varyanta / Renge Özel Görsel URL'si" : "Variant Image URL"}
                           </label>
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                            {v.image_url ? (
+                              <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-2xs relative group">
+                                <img src={v.image_url} alt="" className="w-full h-full object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newVars = [...variants];
+                                    newVars[vIdx].image_url = "";
+                                    setVariants(newVars);
+                                  }}
+                                  className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                                  title={isTr ? "Görseli Kaldır" : "Remove Image"}
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : null}
+
                             <input
                               type="text"
                               placeholder={isTr ? "https://... (Varyanta özel fotoğraf linki)" : "https://... (Variant photo link)"}
-                              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800"
+                              className="flex-1 min-w-[140px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white transition-all"
                               value={v.image_url || ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -1107,11 +1200,39 @@ export const ProductModal = ({
                                 setVariants(newVars);
                               }}
                             />
-                            {v.image_url && (
-                              <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100">
-                                <img src={v.image_url} alt="" className="w-full h-full object-cover" />
-                              </div>
-                            )}
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <label className="px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-indigo-200/60 shadow-2xs" title={isTr ? "Dosyadan Yükle" : "Upload File"}>
+                                <Upload className="w-3.5 h-3.5 shrink-0" />
+                                <span className="text-[11px] font-black uppercase tracking-tight">{isTr ? "Dosya" : "File"}</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                      handleVariantImageUpload(vIdx, e.target.files[0]);
+                                    }
+                                  }}
+                                />
+                              </label>
+
+                              <label className="px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-indigo-200/60 shadow-2xs" title={isTr ? "Fotoğraf Çek" : "Take Photo"}>
+                                <Camera className="w-3.5 h-3.5 shrink-0" />
+                                <span className="text-[11px] font-black uppercase tracking-tight">{isTr ? "Kamera" : "Camera"}</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                      handleVariantImageUpload(vIdx, e.target.files[0]);
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1225,16 +1346,37 @@ export const ProductModal = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
-                {isTr ? "Mevcut Stok Miktarı" : "Stock Quantity"}
-              </label>
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                  {isTr ? "Mevcut Stok Miktarı" : "Stock Quantity"}
+                </label>
+                {hasVariants && (
+                  <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                    {isTr ? "Varyant Toplamı" : "Variant Total"}
+                  </span>
+                )}
+              </div>
               <input
                 type="number"
                 name="stock_quantity"
+                readOnly={hasVariants}
+                disabled={hasVariants}
                 placeholder="0"
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-0 transition-all font-bold text-slate-900"
-                defaultValue={editingProduct?.stock_quantity !== undefined ? String(editingProduct.stock_quantity) : "0"}
+                className={`w-full px-4 py-3 border-2 rounded-2xl transition-all font-bold ${
+                  hasVariants 
+                    ? "bg-slate-100 text-slate-600 border-slate-200 cursor-not-allowed opacity-90 font-black" 
+                    : "bg-slate-50 border-slate-100 text-slate-900 focus:border-indigo-500 focus:ring-0"
+                }`}
+                value={hasVariants ? variants.reduce((acc, curr) => acc + (parseInt(curr.stock_quantity) || 0), 0) : undefined}
+                defaultValue={!hasVariants ? (editingProduct?.stock_quantity !== undefined ? String(editingProduct.stock_quantity) : "0") : undefined}
               />
+              {hasVariants && (
+                <p className="text-[9px] text-indigo-600 font-bold ml-1">
+                  {isTr 
+                    ? `Varyant stok adetleri toplamı (${variants.reduce((acc, curr) => acc + (parseInt(curr.stock_quantity) || 0), 0)} adet) otomatik geçerlidir.` 
+                    : `Total variant stock (${variants.reduce((acc, curr) => acc + (parseInt(curr.stock_quantity) || 0), 0)} pcs) applied.`}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">

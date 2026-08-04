@@ -54,6 +54,38 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef<boolean>(false);
+  const [activeMobileTab, setActiveMobileTab] = useState<'params' | 'preview'>('params');
+
+  // Intercept Browser Back Button (popstate) & ESC key for smooth modal exit
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const stateObj = { modalOpen: true, modalType: "autoContractModal" };
+    window.history.pushState(stateObj, "");
+
+    const handlePopState = () => {
+      onClose();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("keydown", handleKeyDown);
+      if (window.history.state?.modalOpen && window.history.state?.modalType === "autoContractModal") {
+        window.history.back();
+      }
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const handleSaveContract = async () => {
     if (!clientName.trim() || !clientIdentity.trim() || !clientPhone.trim()) {
@@ -426,11 +458,54 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-slate-900 rounded-[2.5rem] w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-hidden shadow-2xl relative border border-slate-800">
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
+    >
+      <div className="bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] w-full max-w-6xl h-[92vh] max-h-[92dvh] flex flex-col md:flex-row overflow-hidden shadow-2xl relative border border-slate-800/80">
         
+        {/* Mobile Tab Bar & Header */}
+        <div className="md:hidden flex items-center justify-between bg-slate-950 border-b border-slate-800 p-2.5 shrink-0 gap-2">
+          <div className="flex bg-slate-900 p-1 rounded-xl gap-1 flex-1">
+            <button
+              onClick={() => setActiveMobileTab('params')}
+              className={`flex-1 py-1.5 text-center text-xs font-black rounded-lg transition-all ${
+                activeMobileTab === 'params' 
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Sözleşme Bilgileri
+            </button>
+            <button
+              onClick={() => setActiveMobileTab('preview')}
+              className={`flex-1 py-1.5 text-center text-xs font-black rounded-lg transition-all ${
+                activeMobileTab === 'preview' 
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Sözleşme Ön İzleme
+            </button>
+          </div>
+
+          <button 
+            onClick={onClose}
+            className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl transition-all shrink-0 active:scale-95 cursor-pointer"
+            title="Kapat"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
         {/* Left Side Parameters */}
-        <div className="w-full md:w-[40%] bg-slate-950 p-6 flex flex-col justify-between border-r border-slate-800 overflow-y-auto">
+        <div className={`w-full md:w-[40%] bg-slate-950 p-4 sm:p-6 flex-col justify-between border-r border-slate-800 overflow-y-auto ${
+          activeMobileTab === 'params' ? 'flex' : 'hidden md:flex'
+        }`}>
           <div className="space-y-6">
             <div className="flex justify-between items-start">
               <div>
@@ -440,7 +515,8 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
               </div>
               <button 
                 onClick={onClose}
-                className="md:hidden p-2 bg-slate-800 text-slate-400 rounded-full hover:bg-slate-700"
+                className="hidden md:flex p-2 bg-slate-800/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/80 hover:border-rose-500/30 rounded-xl transition-all shrink-0 cursor-pointer"
+                title="Kapat"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -680,34 +756,51 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
         </div>
 
         {/* Right Side Rendering */}
-        <div className="flex-1 bg-white flex flex-col justify-between overflow-hidden">
+        <div className={`flex-1 bg-white flex-col justify-between overflow-hidden ${
+          activeMobileTab === 'preview' ? 'flex' : 'hidden md:flex'
+        }`}>
           
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center gap-2 shrink-0">
-            <span className="text-[10px] text-slate-500 font-bold">
-              Canlı Sözleşme Taslağı
-            </span>
+          <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 shrink-0 overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1.5 rounded-xl border border-blue-200/60 text-xs font-black shrink-0">
+              <Eye className="w-4 h-4 text-blue-600" />
+              <span className="hidden sm:inline text-[11px] uppercase tracking-tight">Canlı Taslak</span>
+            </div>
 
-            <div className="flex gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {onSaveContract && (
                 <button 
                   onClick={handleSaveContract}
                   disabled={saving}
-                  className="p-2 bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 rounded-xl transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"
+                  className="p-2 sm:px-3 sm:py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer shadow-xs active:scale-95"
+                  title="Sözleşmeyi Kaydet"
                 >
-                  <Save className="w-3.5 h-3.5" /> {saving ? "Kaydediliyor..." : "Sözleşmeyi Kaydet"}
+                  <Save className="w-4 h-4" />
+                  <span className="hidden md:inline text-[11px] font-extrabold">{saving ? "..." : "Kaydet"}</span>
                 </button>
               )}
               <button 
                 onClick={handlePrint}
-                className="p-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl border border-blue-100 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"
+                className="p-2 sm:px-3 sm:py-2 bg-blue-50 text-blue-700 border border-blue-200/80 hover:bg-blue-100 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer active:scale-95"
+                title="Yazdır / PDF"
               >
-                <Printer className="w-3.5 h-3.5" /> Yazdır / PDF
+                <Printer className="w-4 h-4" />
+                <span className="hidden md:inline text-[11px] font-extrabold">Yazdır</span>
               </button>
               <button 
                 onClick={handleShareWhatsApp}
-                className="p-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl border border-green-100 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight"
+                className="p-2 sm:px-3 sm:py-2 bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-100 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer active:scale-95"
+                title="WhatsApp ile Paylaş"
               >
-                <Share2 className="w-3.5 h-3.5" /> WhatsApp Gönder
+                <Share2 className="w-4 h-4" />
+                <span className="hidden md:inline text-[11px] font-extrabold">WhatsApp</span>
+              </button>
+
+              <button 
+                onClick={onClose}
+                className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl transition-all shrink-0 cursor-pointer active:scale-95 ml-1"
+                title="Pencereyi Kapat (ESC)"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -718,10 +811,10 @@ export const AutoContractModal: React.FC<AutoContractModalProps> = ({
             </div>
           </div>
 
-          <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+          <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
             <button 
               onClick={onClose}
-              className="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider px-6 py-2.5 rounded-xl hover:bg-slate-800 transition-colors"
+              className="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider px-6 py-2.5 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer active:scale-95"
             >
               Kapat
             </button>

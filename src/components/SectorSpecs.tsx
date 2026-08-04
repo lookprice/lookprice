@@ -21,6 +21,19 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
   if (!data || typeof data !== "object") return null;
   const { lang } = useLanguage();
 
+  // Sanitize data: remove any entries with undefined, null, "undefined", "null", or empty values
+  const cleanEntries = Object.entries(data).filter(([_, value]) => {
+    if (value === undefined || value === null) return false;
+    const strVal = String(value).trim().toLowerCase();
+    if (strVal === "" || strVal === "undefined" || strVal === "null" || strVal === "{}") return false;
+    if (typeof value === "object" && Object.keys(value).length === 0) return false;
+    return true;
+  });
+
+  const cleanData = Object.fromEntries(cleanEntries);
+
+  if (cleanEntries.length === 0) return null;
+
   const getZoningStatus = (title: string, desc: string) => {
     const text = `${title} ${desc}`.toLowerCase();
     if (text.includes("sanayi imarlı") || text.includes("sanayi imar")) {
@@ -519,7 +532,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
       {sector === "real_estate" && renderRealEstate()}
       {sector === "general" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {Object.entries(data).map(([key, value]: [string, any]) => (
+          {cleanEntries.map(([key, value]: [string, any]) => (
             <div
               key={key}
               className="p-4 bg-slate-50 rounded-2xl border border-slate-100"

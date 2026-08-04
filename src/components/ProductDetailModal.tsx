@@ -210,6 +210,120 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const hasVariants = (product?.has_variants === true || String(product?.has_variants) === "true" || productVariants.length > 0) && productVariants.length > 0;
 
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
+  const [variantViewMode, setVariantViewMode] = useState<"attributes" | "list">("attributes");
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+
+  const variantAttributes = React.useMemo(() => {
+    if (!productVariants.length) return { colors: [], sizes: [], hasStructuredAttrs: false };
+
+    const colorMap = new Map<string, { color_name: string; color_code?: string; image_url?: string }>();
+    const sizeSet = new Set<string>();
+
+    productVariants.forEach((v: any) => {
+      let cName = v.color_name;
+      let sVal = v.size;
+
+      if (!cName && !sVal && v.name && typeof v.name === 'string') {
+        const cleanName = v.name.replace(/^.*\((.*)\)$/, '$1');
+        const parts = cleanName.split(/\s*[\/\-\|]\s*/);
+        if (parts.length >= 2) {
+          cName = parts[0].trim();
+          sVal = parts[1].trim();
+        } else if (parts.length === 1) {
+          cName = parts[0].trim();
+        }
+      }
+
+      if (cName) {
+        if (!colorMap.has(cName)) {
+          colorMap.set(cName, {
+            color_name: cName,
+            color_code: v.color_code,
+            image_url: v.image_url
+          });
+        }
+      }
+      if (sVal) {
+        sizeSet.add(sVal);
+      }
+    });
+
+    const colors = Array.from(colorMap.values());
+    const sizes = Array.from(sizeSet);
+    const hasStructuredAttrs = colors.length > 0 || sizes.length > 0;
+
+    return { colors, sizes, hasStructuredAttrs };
+  }, [productVariants]);
+
+  useEffect(() => {
+    if (selectedVariant) {
+      let cName = selectedVariant.color_name;
+      let sVal = selectedVariant.size;
+      if (!cName && !sVal && selectedVariant.name) {
+        const cleanName = selectedVariant.name.replace(/^.*\((.*)\)$/, '$1');
+        const parts = cleanName.split(/\s*[\/\-\|]\s*/);
+        if (parts.length >= 2) {
+          cName = parts[0].trim();
+          sVal = parts[1].trim();
+        } else if (parts.length === 1) {
+          cName = parts[0].trim();
+        }
+      }
+      if (cName) setSelectedColor(cName);
+      if (sVal) setSelectedSize(sVal);
+    }
+  }, [selectedVariant]);
+
+  const handleSelectColor = (colorName: string) => {
+    setSelectedColor(colorName);
+    const match = productVariants.find((v: any) => {
+      let c = v.color_name;
+      let s = v.size;
+      if (!c && !s && v.name) {
+        const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
+        const parts = clean.split(/\s*[\/\-\|]\s*/);
+        c = parts[0]?.trim();
+        s = parts[1]?.trim();
+      }
+      return c === colorName && (!selectedSize || s === selectedSize);
+    }) || productVariants.find((v: any) => {
+      let c = v.color_name;
+      if (!c && v.name) {
+        const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
+        const parts = clean.split(/\s*[\/\-\|]\s*/);
+        c = parts[0]?.trim();
+      }
+      return c === colorName;
+    });
+
+    if (match) setSelectedVariant(match);
+  };
+
+  const handleSelectSize = (sizeVal: string) => {
+    setSelectedSize(sizeVal);
+    const match = productVariants.find((v: any) => {
+      let c = v.color_name;
+      let s = v.size;
+      if (!c && !s && v.name) {
+        const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
+        const parts = clean.split(/\s*[\/\-\|]\s*/);
+        c = parts[0]?.trim();
+        s = parts[1]?.trim();
+      }
+      return (!selectedColor || c === selectedColor) && s === sizeVal;
+    }) || productVariants.find((v: any) => {
+      let s = v.size;
+      if (!s && v.name) {
+        const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
+        const parts = clean.split(/\s*[\/\-\|]\s*/);
+        s = parts[1]?.trim();
+      }
+      return s === sizeVal;
+    });
+
+    if (match) setSelectedVariant(match);
+  };
 
   useEffect(() => {
     if (hasVariants && productVariants.length > 0) {
@@ -709,17 +823,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           <SectorSpecs
             sector={
-              product?.type === "vehicle"
+              product?.type === "vehicle" || store?.store_type === "motor_vehicle"
                 ? "automotive"
-                : product?.type === "real_estate"
+                : product?.type === "real_estate" || store?.store_type === "real_estate"
                   ? "real_estate"
                   : sector
             }
             data={{
               ...product.sector_data,
-              mileage: (product as any).current_mileage || (product.sector_data as any)?.current_mileage,
-              paint_report: (product as any).paint_report || (product.sector_data as any)?.paint_report,
-              is_trade_in_available: (product as any).is_trade_in_available !== undefined ? (product as any).is_trade_in_available : (product.sector_data as any)?.is_trade_in_available,
+              ...((product?.type === "vehicle" || product?.type === "real_estate" || store?.store_type === "motor_vehicle" || store?.store_type === "real_estate") ? {
+                mileage: (product as any).current_mileage || (product.sector_data as any)?.current_mileage,
+                paint_report: (product as any).paint_report || (product.sector_data as any)?.paint_report,
+                is_trade_in_available: (product as any).is_trade_in_available !== undefined ? (product as any).is_trade_in_available : (product.sector_data as any)?.is_trade_in_available,
+              } : {})
             }}
             category={product.category}
             name={product.name}
@@ -738,108 +854,235 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle'} />
 
           {hasVariants && (
-            <div className="mt-8 mb-6 p-5 bg-slate-50 rounded-2xl border border-slate-200/80 shadow-xs">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+            <div className="mt-8 mb-6 p-5 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-4">
+              {/* Header & View Switcher */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-600" />
-                  {lang === "tr" ? "Ürün Seçenekleri / Varyantlar" : "Product Options / Variants"}
-                </h4>
-                {selectedVariant && (
-                  <div className="flex items-center gap-2">
-                    {selectedVariant.color_code && (
-                      <span
-                        className="w-3.5 h-3.5 rounded-full border border-white shadow-xs"
-                        style={{ backgroundColor: selectedVariant.color_code }}
-                      />
-                    )}
-                    <span className="text-xs font-bold text-indigo-600 bg-indigo-100/60 px-2.5 py-0.5 rounded-md">
-                      {selectedVariant.name}
-                    </span>
+                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                    {lang === "tr" ? "Ürün Seçenekleri / Varyantlar" : "Product Options / Variants"}
+                  </h4>
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-100/60">
+                    {productVariants.length} {lang === "tr" ? "Seçenek" : "Options"}
+                  </span>
+                </div>
+
+                {variantAttributes.hasStructuredAttrs && (
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200/60">
+                    <button
+                      type="button"
+                      onClick={() => setVariantViewMode("attributes")}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        variantViewMode === "attributes"
+                          ? "bg-white text-indigo-600 shadow-xs"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      {lang === "tr" ? "Özellik Seçimi" : "Attribute View"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVariantViewMode("list")}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        variantViewMode === "list"
+                          ? "bg-white text-indigo-600 shadow-xs"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      {lang === "tr" ? "Tüm Liste" : "Full List"}
+                    </button>
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                {productVariants.map((v: any, idx: number) => {
-                  const isSelected = selectedVariant?.name === v.name || (selectedVariant?.id && selectedVariant?.id === v.id);
-                  const vStock = v.stock_quantity !== undefined && v.stock_quantity !== null && v.stock_quantity !== "" ? Number(v.stock_quantity) : undefined;
-                  const isOutOfStock = vStock !== undefined && vStock <= 0;
-                  const vPrice = v.price && Number(v.price) > 0 ? Number(v.price) : convertedPrice;
 
-                  return (
-                    <button
-                      key={v.id || idx}
-                      type="button"
-                      disabled={isOutOfStock}
-                      onClick={() => {
-                        setSelectedVariant(v);
-                        if (v.image_url && productImages.length > 0) {
-                          const imgIdx = productImages.findIndex((img) => img === v.image_url);
-                          if (imgIdx !== -1) setActiveImageIdx(imgIdx);
-                        }
-                      }}
-                      className={`p-3 rounded-xl border text-left transition-all relative cursor-pointer flex flex-col justify-between min-h-[84px] ${
-                        isOutOfStock
-                          ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
-                          : isSelected
-                          ? "bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-300"
-                          : "bg-white text-slate-800 border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-start justify-between gap-1.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            {v.image_url && (
-                              <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-black/10 bg-slate-100">
-                                <img src={v.image_url} alt="" className="w-full h-full object-cover" />
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <span className="font-extrabold text-xs block leading-tight line-clamp-1">
-                                {v.name}
-                              </span>
-                              {(v.color_name || v.size) && (
-                                <span className={`text-[10px] font-medium block truncate ${isSelected ? "text-indigo-100" : "text-slate-500"}`}>
-                                  {[v.color_name, v.size ? `Beden: ${v.size}` : null].filter(Boolean).join(" · ")}
-                                </span>
+              {/* Attribute Selection View (E-Commerce Standard: Color Swatches + Size Pills) */}
+              {variantViewMode === "attributes" && variantAttributes.hasStructuredAttrs ? (
+                <div className="space-y-4">
+                  {/* Color Swatch Row */}
+                  {variantAttributes.colors.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          {lang === "tr" ? "Renk Seçimi:" : "Color:"} <strong className="text-slate-900 font-extrabold">{selectedColor || "-"}</strong>
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {variantAttributes.colors.map((c, idx) => {
+                          const isSelected = selectedColor === c.color_name;
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => handleSelectColor(c.color_name)}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                                isSelected
+                                  ? "bg-indigo-50 border-indigo-600 text-indigo-900 shadow-xs ring-2 ring-indigo-500/20"
+                                  : "bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-100"
+                              }`}
+                            >
+                              {c.color_code ? (
+                                <span
+                                  className="w-4 h-4 rounded-full border border-black/15 shadow-2xs shrink-0"
+                                  style={{ backgroundColor: c.color_code }}
+                                />
+                              ) : c.image_url ? (
+                                <img src={c.image_url} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                              ) : (
+                                <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
                               )}
-                            </div>
-                          </div>
-                          {v.color_code && (
-                            <span
-                              className="w-3.5 h-3.5 rounded-full shrink-0 border border-black/10 shadow-2xs mt-0.5"
-                              style={{ backgroundColor: v.color_code }}
-                            />
+                              <span>{c.color_name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Size Pills Row */}
+                  {variantAttributes.sizes.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          {lang === "tr" ? "Beden / Ölçü Seçimi:" : "Size:"} <strong className="text-slate-900 font-extrabold">{selectedSize || "-"}</strong>
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {variantAttributes.sizes.map((sVal, idx) => {
+                          const isSelected = selectedSize === sVal;
+                          const matchingVar = productVariants.find((v: any) => {
+                            let c = v.color_name;
+                            let s = v.size;
+                            if (!c && !s && v.name) {
+                              const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
+                              const parts = clean.split(/\s*[\/\-\|]\s*/);
+                              c = parts[0]?.trim();
+                              s = parts[1]?.trim();
+                            }
+                            return (!selectedColor || c === selectedColor) && s === sVal;
+                          });
+
+                          const isStockOut = matchingVar && (matchingVar as any).stock_quantity !== undefined && Number((matchingVar as any).stock_quantity) <= 0;
+
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              disabled={isStockOut}
+                              onClick={() => handleSelectSize(sVal)}
+                              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-[44px] text-center ${
+                                isStockOut
+                                  ? "bg-slate-100 text-slate-400 border border-slate-200 line-through opacity-50 cursor-not-allowed"
+                                  : isSelected
+                                  ? "bg-slate-900 text-white border border-slate-900 shadow-md scale-105"
+                                  : "bg-white border border-slate-200 text-slate-800 hover:border-indigo-400 hover:bg-indigo-50/40"
+                              }`}
+                            >
+                              {sVal}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Active Selected Variant Highlight Banner */}
+                  {selectedVariant && (
+                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {selectedVariant.color_code && (
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0"
+                            style={{ backgroundColor: selectedVariant.color_code }}
+                          />
+                        )}
+                        <span className="font-bold text-slate-800 truncate">
+                          {selectedVariant.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {selectedVariant.stock_quantity !== undefined && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                            Number(selectedVariant.stock_quantity) <= 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {Number(selectedVariant.stock_quantity) <= 0 ? (lang === 'tr' ? 'Tükendi' : 'Out of stock') : `${selectedVariant.stock_quantity} ${lang === 'tr' ? 'Adet Stok' : 'In stock'}`}
+                          </span>
+                        )}
+                        <span className="font-black text-indigo-700 text-xs">
+                          {formatPrice(
+                            selectedVariant.price && Number(selectedVariant.price) > 0 ? Number(selectedVariant.price) : convertedPrice,
+                            store?.currency || product?.currency || 'TRY',
+                            sector,
+                            store?.store_type
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Compact Scrollable List View */
+                <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                  {productVariants.map((v: any, idx: number) => {
+                    const isSelected = selectedVariant?.name === v.name || (selectedVariant?.id && selectedVariant?.id === v.id);
+                    const vStock = v.stock_quantity !== undefined && v.stock_quantity !== null && v.stock_quantity !== "" ? Number(v.stock_quantity) : undefined;
+                    const isOutOfStock = vStock !== undefined && vStock <= 0;
+                    const vPrice = v.price && Number(v.price) > 0 ? Number(v.price) : convertedPrice;
+
+                    return (
+                      <button
+                        key={v.id || idx}
+                        type="button"
+                        disabled={isOutOfStock}
+                        onClick={() => {
+                          setSelectedVariant(v);
+                          if (v.image_url && productImages.length > 0) {
+                            const imgIdx = productImages.findIndex((img) => img === v.image_url);
+                            if (imgIdx !== -1) setActiveImageIdx(imgIdx);
+                          }
+                        }}
+                        className={`w-full px-3 py-2 rounded-xl border text-left transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                          isOutOfStock
+                            ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
+                            : isSelected
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                            : "bg-white text-slate-800 border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {v.image_url ? (
+                            <img src={v.image_url} alt="" className="w-6 h-6 rounded-lg object-cover shrink-0 border border-black/10" />
+                          ) : v.color_code ? (
+                            <span className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: v.color_code }} />
+                          ) : null}
+                          <span className="font-bold text-xs truncate">{v.name}</span>
+                          {(v.barcode || v.sku) && (
+                            <span className={`text-[10px] font-mono hidden sm:inline ${isSelected ? "text-indigo-200" : "text-slate-400"}`}>
+                              ({v.barcode || v.sku})
+                            </span>
                           )}
                         </div>
 
-                        {(v.sku || v.barcode) && (
-                          <div className={`text-[9px] font-mono flex items-center gap-1.5 ${isSelected ? "text-indigo-200" : "text-slate-400"}`}>
-                            {v.sku && <span>SKU: {v.sku}</span>}
-                            {v.barcode && <span>Barkod: {v.barcode}</span>}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-current/10">
-                        <span className={`text-xs font-black ${isSelected ? "text-white" : "text-slate-900"}`}>
-                          {formatPrice(vPrice, store?.currency || product?.currency || 'TRY', sector, store?.store_type)}
-                        </span>
-                        {vStock !== undefined && (
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                            isOutOfStock
-                              ? "bg-rose-100 text-rose-700"
-                              : isSelected
-                              ? "bg-white/20 text-white"
-                              : "bg-emerald-100 text-emerald-700"
-                          }`}>
-                            {isOutOfStock ? (lang === "tr" ? "Tükendi" : "Out of stock") : `${vStock} ${lang === "tr" ? "stok" : "in stock"}`}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {vStock !== undefined && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              isOutOfStock
+                                ? "bg-rose-100 text-rose-700"
+                                : isSelected
+                                ? "bg-white/20 text-white"
+                                : "bg-emerald-100 text-emerald-800"
+                            }`}>
+                              {isOutOfStock ? (lang === "tr" ? "Tükendi" : "Out") : `${vStock} ${lang === "tr" ? "stok" : "stk"}`}
+                            </span>
+                          )}
+                          <span className={`text-xs font-extrabold ${isSelected ? "text-white" : "text-slate-900"}`}>
+                            {formatPrice(vPrice, store?.currency || product?.currency || 'TRY', sector, store?.store_type)}
                           </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

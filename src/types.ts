@@ -20,9 +20,15 @@ export interface ProductVariantItem {
 export interface ProductVariant {
   id: string;
   name: string;
-  price?: number;
+  price?: number | string;
   cost_price?: number;
   barcode?: string;
+  sku?: string;
+  stock_quantity?: number | string;
+  color_name?: string;
+  color_code?: string;
+  size?: string;
+  image_url?: string;
   recipe_items?: ProductVariantItem[];
 }
 

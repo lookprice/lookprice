@@ -885,13 +885,13 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }
   };
 
-  const removeFromCart = (productId: number) => {
-    setCart(prev => prev.filter(item => item.id !== productId));
+  const removeFromCart = (index: number) => {
+    setCart(prev => prev.filter((_, idx) => idx !== index));
   };
 
-  const updateQuantity = (productId: number, delta: number) => {
-    setCart(prev => prev.map(item => {
-      if (item.id === productId) {
+  const updateQuantity = (index: number, delta: number) => {
+    setCart(prev => prev.map((item, idx) => {
+      if (idx === index) {
         const newQty = Math.max(1, Math.floor(item.quantity + delta));
         return { ...item, quantity: newQty };
       }
@@ -899,18 +899,18 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }));
   };
 
-  const updatePrice = (productId: number, newPrice: string) => {
-    setCart(prev => prev.map(item => {
-      if (item.id === productId) {
+  const updatePrice = (index: number, newPrice: string) => {
+    setCart(prev => prev.map((item, idx) => {
+      if (idx === index) {
         return { ...item, price: newPrice };
       }
       return item;
     }));
   };
 
-  const updateNote = (productId: number, note: string) => {
-    setCart(prev => prev.map(item => {
-      if (item.id === productId) {
+  const updateNote = (index: number, note: string) => {
+    setCart(prev => prev.map((item, idx) => {
+      if (idx === index) {
         return { ...item, note };
       }
       return item;
@@ -1855,9 +1855,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               {/* Scrollable Cart Items */}
               <div className="flex-1 overflow-y-auto p-2.5 sm:p-3 space-y-2 min-h-0">
                 <AnimatePresence initial={false}>
-                  {cart.map((item) => (
+                  {cart.map((item, index) => (
                     <motion.div 
-                      key={item.id}
+                      key={item.cart_item_id || `${item.id}_${item.selected_variant_name || 'base'}_${index}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -20 }}
@@ -1872,7 +1872,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                               min="0"
                               step="0.01"
                               value={item.price}
-                              onChange={(e) => updatePrice(item.id, e.target.value)}
+                              onChange={(e) => updatePrice(index, e.target.value)}
                               className="w-18 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded px-1.5 py-0.5 outline-none focus:border-indigo-500 transition-colors"
                             />
                             <span className="text-[11px] font-medium text-slate-500">{item.currency || 'TRY'}</span>
@@ -1881,21 +1881,21 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                         <div className="flex items-center gap-2">
                           <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
                             <button 
-                              onClick={() => updateQuantity(item.id, -1)}
+                              onClick={() => updateQuantity(index, -1)}
                               className="p-1 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
                             >
                               <Minus className="h-3 w-3" />
                             </button>
                             <span className="w-8 text-center text-xs font-black text-slate-800">{item.quantity}</span>
                             <button 
-                              onClick={() => updateQuantity(item.id, 1)}
+                              onClick={() => updateQuantity(index, 1)}
                               className="p-1 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
                             >
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
                           <button 
-                            onClick={() => removeFromCart(item.id)}
+                            onClick={() => removeFromCart(index)}
                             className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -1910,7 +1910,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                           type="text"
                           placeholder={lang === 'tr' ? 'Özel istek / Mutfağa not (örn: Demli, Açık)' : 'Special note for kitchen (e.g. strong, light)'}
                           value={item.note || ''}
-                          onChange={(e) => updateNote(item.id, e.target.value)}
+                          onChange={(e) => updateNote(index, e.target.value)}
                           className="w-full bg-transparent border-none text-[11px] font-medium text-slate-600 outline-none placeholder-slate-400"
                         />
                       </div>
