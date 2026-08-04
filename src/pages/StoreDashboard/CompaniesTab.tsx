@@ -34,6 +34,7 @@ interface CompaniesTabProps {
   includeZero: boolean;
   onIncludeZeroChange: (val: boolean) => void;
   defaultCurrency?: string;
+  branding?: any;
 }
 
 const CompaniesTab = ({ 
@@ -45,7 +46,8 @@ const CompaniesTab = ({
   onExportReport,
   includeZero,
   onIncludeZeroChange,
-  defaultCurrency = 'TRY'
+  defaultCurrency = 'TRY',
+  branding
 }: CompaniesTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -235,10 +237,10 @@ const CompaniesTab = ({
 
                             const reconObj = {
                               id: reconId,
-                              storeName: 'Seçkin İşletme',
-                              storeAddress: 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul',
-                              storeTaxOffice: 'Beşiktaş',
-                              storeTaxNumber: '1234567890',
+                              storeName: branding?.legal_name || branding?.store_name || branding?.name || 'Seçkin İşletme',
+                              storeAddress: branding?.legal_address || branding?.address || 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul',
+                              storeTaxOffice: branding?.legal_tax_office || branding?.tax_office || 'Beşiktaş',
+                              storeTaxNumber: branding?.legal_tax_number || branding?.tax_id || '1234567890',
                               companyTitle: c.title,
                               companyAddress: c.address || 'Firma Adresi Belirtilmemiş',
                               taxOffice: c.tax_office,

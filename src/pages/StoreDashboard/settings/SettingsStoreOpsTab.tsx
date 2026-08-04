@@ -167,6 +167,87 @@ export const SettingsStoreOpsTab = ({
         </div>
       </div>
 
+      {/* Resmi Firma Bilgileri / Legal Store Registration */}
+      <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
+        <div className="flex items-center space-x-3 mb-8">
+          <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+            <Building2 className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{lang === 'tr' ? 'Resmi Firma Bilgileri' : 'Official/Legal Store Registration'}</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Teklif, Fatura, Teknik Servis ve Mutabakatlar İçin Resmi Kayıtlar' : 'Official Credentials for Offers, Invoices, Service Forms & Reconciliations'}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Resmi Firma Ünvanı' : 'Official/Legal Company Title'}</label>
+            <input 
+              type="text" 
+              placeholder={lang === 'tr' ? 'Örn: Serdar Erdekli (Şahıs Şirketi) veya GAP Bilişim Ltd. Şti.' : 'e.g. Serdar Erdekli or GAP Bilişim Ltd. Sti.'}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+              value={branding.legal_name || ""}
+              onChange={(e) => onBrandingChange('legal_name', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Vergi Dairesi' : 'Tax Office'}</label>
+            <input 
+              type="text" 
+              placeholder="Örn: Beşiktaş"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+              value={branding.legal_tax_office || ""}
+              onChange={(e) => onBrandingChange('legal_tax_office', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Vergi Numarası / T.C. Kimlik' : 'Tax Number / ID'}</label>
+            <input 
+              type="text" 
+              placeholder="Örn: 1234567890"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+              value={branding.legal_tax_number || ""}
+              onChange={(e) => onBrandingChange('legal_tax_number', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Mersis Numarası (Opsiyonel)' : 'Mersis Number (Optional)'}</label>
+            <input 
+              type="text" 
+              placeholder="Örn: 0123456789000014"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+              value={branding.legal_mersis || ""}
+              onChange={(e) => onBrandingChange('legal_mersis', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Resmi İletişim Telefonu' : 'Official Phone'}</label>
+            <input 
+              type="text" 
+              placeholder="Örn: +90 532 000 00 00"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+              value={branding.legal_phone || ""}
+              onChange={(e) => onBrandingChange('legal_phone', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Resmi Tebligat Adresi' : 'Official Registered Address'}</label>
+            <textarea 
+              rows={2}
+              placeholder={lang === 'tr' ? 'Örn: Merkez Mahallesi, Ticaret Caddesi No: 45, Beşiktaş / İstanbul' : 'e.g. Registered legal address of company'}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+              value={branding.legal_address || ""}
+              onChange={(e) => onBrandingChange('legal_address', e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Tax Rates & Rules */}
       {!isPortfolio && (
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">

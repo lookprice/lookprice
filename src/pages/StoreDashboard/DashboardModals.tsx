@@ -207,6 +207,13 @@ export const DashboardModals = (props: DashboardModalsProps) => {
     }
   }, [showProductModal, editingProduct]);
 
+  // Auto-fetch transactions when modal opens or date filters change
+  React.useEffect(() => {
+    if (showTransactionModal && selectedCompany?.id) {
+      handleFetchTransactions(selectedCompany.id);
+    }
+  }, [showTransactionModal, selectedCompany?.id, transactionStartDate, transactionEndDate]);
+
   return (
     <AnimatePresence>
       {/* QR Modal */}
@@ -779,7 +786,10 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                   const currentBalance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
                   const reconObj = {
                     id: reconId,
-                    storeName: branding?.store_name || branding?.name || 'Seçkin İşletme',
+                    storeName: branding?.legal_name || branding?.store_name || branding?.name || 'Seçkin İşletme',
+                    storeAddress: branding?.legal_address || branding?.address || 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul',
+                    storeTaxOffice: branding?.legal_tax_office || branding?.tax_office || 'Beşiktaş',
+                    storeTaxNumber: branding?.legal_tax_number || branding?.tax_id || '1234567890',
                     companyTitle: selectedCompany.title || selectedCompany.name,
                     taxOffice: selectedCompany.tax_office,
                     taxNumber: selectedCompany.tax_number,
