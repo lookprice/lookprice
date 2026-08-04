@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 
@@ -43,6 +43,12 @@ export const ProductModal = ({
   const [recipeItems, setRecipeItems] = useState<any[]>([]);
   const [ingredientSearch, setIngredientSearch] = useState("");
   const [showIngredientSelector, setShowIngredientSelector] = useState(false);
+
+  // ShopLP Retail Variant Matrix States
+  const [variantBarcodeMode, setVariantBarcodeMode] = useState<'individual' | 'shared'>('individual');
+  const [showMatrixGenerator, setShowMatrixGenerator] = useState(false);
+  const [matrixColors, setMatrixColors] = useState("");
+  const [matrixSizes, setMatrixSizes] = useState("");
 
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
@@ -548,10 +554,17 @@ export const ProductModal = ({
                     onChange={(e) => {
                       setHasVariants(e.target.checked);
                       if (e.target.checked && variants.length === 0) {
-                        setVariants([
-                          { id: 'var_' + Date.now() + '_1', name: 'BANANA', price: '', recipe_items: [] },
-                          { id: 'var_' + Date.now() + '_2', name: 'CHOCOLATE', price: '', recipe_items: [] }
-                        ]);
+                        if (isCafeRestaurant) {
+                          setVariants([
+                            { id: 'var_' + Date.now() + '_1', name: 'BANANA', price: '', recipe_items: [] },
+                            { id: 'var_' + Date.now() + '_2', name: 'CHOCOLATE', price: '', recipe_items: [] }
+                          ]);
+                        } else {
+                          setVariants([
+                            { id: 'var_' + Date.now() + '_1', name: 'Kırmızı / S', color_name: 'Kırmızı', color_code: '#ef4444', size: 'S', barcode: '', sku: '', stock_quantity: '10', price: '', image_url: '' },
+                            { id: 'var_' + Date.now() + '_2', name: 'Siyah / M', color_name: 'Siyah', color_code: '#000000', size: 'M', barcode: '', sku: '', stock_quantity: '15', price: '', image_url: '' }
+                          ]);
+                        }
                       }
                     }}
                     className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
@@ -559,49 +572,357 @@ export const ProductModal = ({
                   <label htmlFor="has_variants_toggle" className="text-xs font-black text-slate-800 cursor-pointer select-none">
                     {isTr ? "Bu Ürünün Alt Kırılımları (Varyantları) Var" : "Product Has Variants / Options"}
                     <span className="block text-[10px] font-medium text-slate-500 mt-0.5">
-                      {isTr 
-                        ? "Örn: Milkshake (BANANA, CHOCOLATE, STRAWBERRY, VANILLA) - POS'ta ürün seçildiğinde varyant listesi açılır." 
-                        : "e.g. Milkshake (Banana, Chocolate) - Opens variant selection popup in POS."}
+                      {isCafeRestaurant 
+                        ? (isTr 
+                            ? "Örn: Milkshake (BANANA, CHOCOLATE, STRAWBERRY) - Reçete & Yarı mamül takibi." 
+                            : "e.g. Milkshake (Banana, Chocolate) - Recipe & ingredient tracking.")
+                        : (isTr
+                            ? "Örn: T-Shirt (Kırmızı / S, Siyah / M) - Bağımsız stok, barkod, renk, beden ve görsel yönetimi."
+                            : "e.g. T-Shirt (Red / S, Black / M) - Independent stock, barcode, color, size & image tracking.")}
                     </span>
                   </label>
                 </div>
                 {hasVariants && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVariants([
-                        ...variants,
-                        { id: 'var_' + Date.now(), name: '', price: '', recipe_items: [] }
-                      ]);
-                    }}
-                    className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-all flex items-center gap-1 shrink-0"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{isTr ? "Varyant Ekle" : "Add Variant"}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {!isCafeRestaurant && (
+                      <button
+                        type="button"
+                        onClick={() => setShowMatrixGenerator(!showMatrixGenerator)}
+                        className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-100 transition-all flex items-center gap-1 shrink-0"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>{isTr ? "Hızlı Matris Oluşturucu" : "Matrix Generator"}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVariants([
+                          ...variants,
+                          isCafeRestaurant
+                            ? { id: 'var_' + Date.now(), name: '', price: '', recipe_items: [] }
+                            : { id: 'var_' + Date.now(), name: '', color_name: '', color_code: '#3b82f6', size: '', barcode: '', sku: '', stock_quantity: '10', price: '', image_url: '' }
+                        ]);
+                      }}
+                      className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-all flex items-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{isTr ? "Varyant Ekle" : "Add Variant"}</span>
+                    </button>
+                  </div>
                 )}
               </div>
+
+              {hasVariants && !isCafeRestaurant && showMatrixGenerator && (
+                <div className="p-4 bg-indigo-50/60 rounded-2xl border-2 border-indigo-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
+                      {isTr ? "Hızlı Renk & Beden Varyant Matrisi Oluşturucu" : "Quick Color & Size Matrix Generator"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowMatrixGenerator(false)}
+                      className="text-xs font-bold text-slate-400 hover:text-slate-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">
+                        {isTr ? "Renkler (Virgülle ayırın)" : "Colors (comma separated)"}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={isTr ? "Örn: Kırmızı, Siyah, Mavi, Beyaz" : "e.g. Red, Black, Blue"}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                        value={matrixColors}
+                        onChange={(e) => setMatrixColors(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">
+                        {isTr ? "Bedenler / Ölçüler (Virgülle ayırın)" : "Sizes (comma separated)"}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={isTr ? "Örn: S, M, L, XL veya 38, 39, 40" : "e.g. S, M, L, XL or 38, 39, 40"}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                        value={matrixSizes}
+                        onChange={(e) => setMatrixSizes(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const colors = matrixColors.split(',').map(s => s.trim()).filter(Boolean);
+                        const sizes = matrixSizes.split(',').map(s => s.trim()).filter(Boolean);
+                        const generated: any[] = [];
+
+                        if (colors.length > 0 && sizes.length > 0) {
+                          colors.forEach((c) => {
+                            sizes.forEach((s) => {
+                              generated.push({
+                                id: 'var_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                                name: `${c} / ${s}`,
+                                color_name: c,
+                                color_code: '#3b82f6',
+                                size: s,
+                                barcode: '',
+                                sku: '',
+                                stock_quantity: '10',
+                                price: '',
+                                image_url: ''
+                              });
+                            });
+                          });
+                        } else if (colors.length > 0) {
+                          colors.forEach((c) => {
+                            generated.push({
+                              id: 'var_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                              name: c,
+                              color_name: c,
+                              color_code: '#3b82f6',
+                              barcode: '',
+                              sku: '',
+                              stock_quantity: '10',
+                              price: '',
+                              image_url: ''
+                            });
+                          });
+                        } else if (sizes.length > 0) {
+                          sizes.forEach((s) => {
+                            generated.push({
+                              id: 'var_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                              name: s,
+                              size: s,
+                              barcode: '',
+                              sku: '',
+                              stock_quantity: '10',
+                              price: '',
+                              image_url: ''
+                            });
+                          });
+                        }
+
+                        if (generated.length > 0) {
+                          setVariants([...variants, ...generated]);
+                          setShowMatrixGenerator(false);
+                          setMatrixColors("");
+                          setMatrixSizes("");
+                        }
+                      }}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-sm"
+                    >
+                      {isTr ? "Varyant Kombinasyonlarını Oluştur" : "Generate Combinations"}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {hasVariants && (
                 <div className="space-y-4">
                   {variants.map((v, vIdx) => {
-                    let totalVarCost = 0;
-                    (v.recipe_items || []).forEach((ri: any) => {
-                      const ingProd = products.find(p => String(p.id) === String(ri.ingredient_id));
-                      if (ingProd) {
-                        const ingCost = Number(ingProd.cost_price) || 0;
-                        const volMl = Number(ingProd.volume_ml) || 1;
-                        totalVarCost += (ingCost / (volMl > 0 ? volMl : 1)) * (Number(ri.amount) || 0);
-                      }
-                    });
+                    if (isCafeRestaurant) {
+                      let totalVarCost = 0;
+                      (v.recipe_items || []).forEach((ri: any) => {
+                        const ingProd = products.find(p => String(p.id) === String(ri.ingredient_id));
+                        if (ingProd) {
+                          const ingCost = Number(ingProd.cost_price) || 0;
+                          const volMl = Number(ingProd.volume_ml) || 1;
+                          totalVarCost += (ingCost / (volMl > 0 ? volMl : 1)) * (Number(ri.amount) || 0);
+                        }
+                      });
 
+                      return (
+                        <div key={v.id || vIdx} className="p-4 bg-slate-50/80 rounded-2xl border-2 border-indigo-100 space-y-3 relative">
+                          <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-200">
+                            <span className="text-[11px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                              Varyant #{vIdx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setVariants(variants.filter((_, idx) => idx !== vIdx));
+                              }}
+                              className="text-xs text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1 border-0 bg-transparent cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>{isTr ? "Varyantı Sil" : "Remove"}</span>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                                {isTr ? "Varyant / Çeşit Adı *" : "Variant Name *"}
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                placeholder={isTr ? "örn: BANANA" : "Variant name"}
+                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-900"
+                                value={v.name || ""}
+                                onChange={(e) => {
+                                  const newVars = [...variants];
+                                  newVars[vIdx].name = e.target.value;
+                                  setVariants(newVars);
+                                }}
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                                {isTr ? "Varyant Fiyatı (₺)" : "Variant Price"}
+                              </label>
+                              <input
+                                type="text"
+                                placeholder={isTr ? "Boş ise ana ürün fiyatı" : "Default base price"}
+                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                                value={v.price !== undefined ? v.price : ""}
+                                onChange={(e) => {
+                                  const newVars = [...variants];
+                                  newVars[vIdx].price = e.target.value;
+                                  setVariants(newVars);
+                                }}
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                                {isTr ? "Hesaplanan Reçete Maliyeti" : "Calculated Cost"}
+                              </label>
+                              <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-black text-slate-700">
+                                {totalVarCost > 0 ? `${totalVarCost.toFixed(2)} ₺` : (isTr ? "0.00 ₺ (Reçetesiz)" : "0.00")}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Variant Ingredients / Semi-finished Materials */}
+                          <div className="pt-2 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                                {isTr ? "Varyant Yarı Mamül & Malzemeleri (Reçete)" : "Variant Ingredients"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveVariantIngredientSelector(activeVariantIngredientSelector === v.id ? null : v.id);
+                                  setVariantIngredientSearch("");
+                                }}
+                                className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider border-0 bg-transparent cursor-pointer flex items-center gap-1"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>{isTr ? "+ Reçeteye Malzeme Ekle" : "+ Add Ingredient"}</span>
+                              </button>
+                            </div>
+
+                            {activeVariantIngredientSelector === v.id && (
+                              <div className="p-3 bg-white rounded-xl border border-indigo-200 space-y-2">
+                                <div className="relative">
+                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                                  <input
+                                    type="text"
+                                    placeholder={isTr ? "Yarı mamül / malzeme ara..." : "Search ingredient..."}
+                                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                                    value={variantIngredientSearch}
+                                    onChange={(e) => setVariantIngredientSearch(e.target.value)}
+                                  />
+                                </div>
+                                <div className="max-h-32 overflow-y-auto space-y-1">
+                                  {products
+                                    .filter(p => p.id !== editingProduct?.id && (p.name.toLowerCase().includes(variantIngredientSearch.toLowerCase()) || (p.barcode && p.barcode.toLowerCase().includes(variantIngredientSearch.toLowerCase()))))
+                                    .slice(0, 10)
+                                    .map(p => (
+                                      <button
+                                        key={p.id}
+                                        type="button"
+                                        onClick={() => {
+                                          const newVars = [...variants];
+                                          const curRecItems = newVars[vIdx].recipe_items || [];
+                                          if (!curRecItems.find((ri: any) => String(ri.ingredient_id) === String(p.id))) {
+                                            newVars[vIdx].recipe_items = [
+                                              ...curRecItems,
+                                              {
+                                                ingredient_id: p.id,
+                                                ingredient_name: p.name,
+                                                amount: 1,
+                                                ingredient_unit: p.unit || 'ml'
+                                              }
+                                            ];
+                                            setVariants(newVars);
+                                          }
+                                          setActiveVariantIngredientSelector(null);
+                                          setVariantIngredientSearch("");
+                                        }}
+                                        className="w-full text-left p-1.5 hover:bg-indigo-50 rounded text-[10px] font-bold text-slate-700 flex justify-between items-center"
+                                      >
+                                        <span>{p.name}</span>
+                                        <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 rounded font-medium">{p.unit || 'ml'}</span>
+                                      </button>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="space-y-1.5">
+                              {(v.recipe_items || []).map((ri: any, riIdx: number) => (
+                                <div key={riIdx} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-200 text-xs font-bold">
+                                  <span className="flex-1 text-slate-800 truncate">{ri.ingredient_name}</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    className="w-16 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-center font-black text-slate-900"
+                                    value={ri.amount}
+                                    onChange={(e) => {
+                                      const newVars = [...variants];
+                                      newVars[vIdx].recipe_items[riIdx].amount = parseFloat(e.target.value) || 0;
+                                      setVariants(newVars);
+                                    }}
+                                  />
+                                  <span className="text-[10px] font-bold text-slate-500 w-8">{ri.ingredient_unit}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newVars = [...variants];
+                                      newVars[vIdx].recipe_items = newVars[vIdx].recipe_items.filter((_: any, idx: number) => idx !== riIdx);
+                                      setVariants(newVars);
+                                    }}
+                                    className="p-1 text-rose-500 hover:bg-rose-50 rounded border-0 outline-none"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                              {(!v.recipe_items || v.recipe_items.length === 0) && (
+                                <p className="text-[10px] text-slate-400 italic py-1">
+                                  {isTr ? "Bu varyant için henüz yarı mamül / malzeme reçetesi eklenmedi." : "No recipe ingredients added for this variant."}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // ShopLP Retail Product Variant Card
                     return (
-                      <div key={v.id || vIdx} className="p-4 bg-slate-50/80 rounded-2xl border-2 border-indigo-100 space-y-3 relative">
-                        <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-200">
-                          <span className="text-[11px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                            Varyant #{vIdx + 1}
-                          </span>
+                      <div key={v.id || vIdx} className="p-4 bg-white rounded-2xl border-2 border-indigo-100 shadow-xs space-y-3 relative">
+                        <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-indigo-700 uppercase tracking-wider">
+                              Varyant #{vIdx + 1}: {v.name || (isTr ? "İsimsiz" : "Unnamed")}
+                            </span>
+                            {v.image_url && (
+                              <div className="w-6 h-6 rounded-md overflow-hidden border border-slate-200 bg-slate-50">
+                                <img src={v.image_url} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                          </div>
                           <button
                             type="button"
                             onClick={() => {
@@ -610,20 +931,21 @@ export const ProductModal = ({
                             className="text-xs text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1 border-0 bg-transparent cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                            <span>{isTr ? "Varyantı Sil" : "Remove"}</span>
+                            <span>{isTr ? "Sil" : "Remove"}</span>
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Row 1: Name, Color Name, Color Picker, Size */}
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                           <div className="space-y-1">
                             <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
-                              {isTr ? "Varyant / Çeşit Adı *" : "Variant Name *"}
+                              {isTr ? "Varyant Adı *" : "Variant Name *"}
                             </label>
                             <input
                               type="text"
                               required
-                              placeholder={isTr ? "örn: BANANA" : "Variant name"}
-                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-900"
+                              placeholder={isTr ? "örn: Kırmızı / M" : "e.g. Red / M"}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900"
                               value={v.name || ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -635,12 +957,129 @@ export const ProductModal = ({
 
                           <div className="space-y-1">
                             <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
-                              {isTr ? "Varyant Fiyatı (₺)" : "Variant Price"}
+                              {isTr ? "Renk Adı" : "Color Name"}
                             </label>
                             <input
                               type="text"
-                              placeholder={isTr ? "Boş ise ana ürün fiyatı" : "Default base price"}
-                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                              placeholder={isTr ? "örn: Kırmızı" : "e.g. Red"}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                              value={v.color_name || ""}
+                              onChange={(e) => {
+                                const newVars = [...variants];
+                                newVars[vIdx].color_name = e.target.value;
+                                setVariants(newVars);
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                              {isTr ? "Renk Kodu (Palet)" : "Color Code"}
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                className="w-9 h-9 p-0 border-0 rounded-lg cursor-pointer bg-transparent"
+                                value={v.color_code || "#3b82f6"}
+                                onChange={(e) => {
+                                  const newVars = [...variants];
+                                  newVars[vIdx].color_code = e.target.value;
+                                  setVariants(newVars);
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="#000000"
+                                className="flex-1 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800"
+                                value={v.color_code || ""}
+                                onChange={(e) => {
+                                  const newVars = [...variants];
+                                  newVars[vIdx].color_code = e.target.value;
+                                  setVariants(newVars);
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                              {isTr ? "Beden / Ölçü" : "Size / Spec"}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={isTr ? "örn: M, XL, 42" : "e.g. M, XL, 42"}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                              value={v.size || ""}
+                              onChange={(e) => {
+                                const newVars = [...variants];
+                                newVars[vIdx].size = e.target.value;
+                                setVariants(newVars);
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Row 2: Barcode, SKU, Stock, Price */}
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                              {isTr ? "Varyant Barkodu" : "Variant Barcode"}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={isTr ? "Barkod no" : "Barcode"}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900"
+                              value={v.barcode || ""}
+                              onChange={(e) => {
+                                const newVars = [...variants];
+                                newVars[vIdx].barcode = e.target.value;
+                                setVariants(newVars);
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                              {isTr ? "Stok Kodu (SKU)" : "SKU"}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={isTr ? "örn: TSH-RED-M" : "e.g. TSH-RED-M"}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900"
+                              value={v.sku || ""}
+                              onChange={(e) => {
+                                const newVars = [...variants];
+                                newVars[vIdx].sku = e.target.value;
+                                setVariants(newVars);
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                              {isTr ? "Stok Adedi *" : "Stock Quantity *"}
+                            </label>
+                            <input
+                              type="number"
+                              placeholder="10"
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900"
+                              value={v.stock_quantity !== undefined ? v.stock_quantity : ""}
+                              onChange={(e) => {
+                                const newVars = [...variants];
+                                newVars[vIdx].stock_quantity = e.target.value;
+                                setVariants(newVars);
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                              {isTr ? "Satış Fiyatı (₺)" : "Price"}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={isTr ? "Boş ise ana fiyat" : "Default base price"}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-indigo-600"
                               value={v.price !== undefined ? v.price : ""}
                               onChange={(e) => {
                                 const newVars = [...variants];
@@ -649,117 +1088,29 @@ export const ProductModal = ({
                               }}
                             />
                           </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
-                              {isTr ? "Hesaplanan Reçete Maliyeti" : "Calculated Cost"}
-                            </label>
-                            <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-black text-slate-700">
-                              {totalVarCost > 0 ? `${totalVarCost.toFixed(2)} ₺` : (isTr ? "0.00 ₺ (Reçetesiz)" : "0.00")}
-                            </div>
-                          </div>
                         </div>
 
-                        {/* Variant Ingredients / Semi-finished Materials */}
-                        <div className="pt-2 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                              {isTr ? "Varyant Yarı Mamül & Malzemeleri (Reçete)" : "Variant Ingredients"}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveVariantIngredientSelector(activeVariantIngredientSelector === v.id ? null : v.id);
-                                setVariantIngredientSearch("");
+                        {/* Row 3: Image URL & Thumbnail preview */}
+                        <div className="space-y-1 pt-1">
+                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                            {isTr ? "Varyanta / Renğe Özel Görsel URL'si" : "Variant Image URL"}
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="text"
+                              placeholder={isTr ? "https://... (Varyanta özel fotoğraf linki)" : "https://... (Variant photo link)"}
+                              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800"
+                              value={v.image_url || ""}
+                              onChange={(e) => {
+                                const newVars = [...variants];
+                                newVars[vIdx].image_url = e.target.value;
+                                setVariants(newVars);
                               }}
-                              className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider border-0 bg-transparent cursor-pointer flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" />
-                              <span>{isTr ? "+ Reçeteye Malzeme Ekle" : "+ Add Ingredient"}</span>
-                            </button>
-                          </div>
-
-                          {activeVariantIngredientSelector === v.id && (
-                            <div className="p-3 bg-white rounded-xl border border-indigo-200 space-y-2">
-                              <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                                <input
-                                  type="text"
-                                  placeholder={isTr ? "Yarı mamül / malzeme ara..." : "Search ingredient..."}
-                                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
-                                  value={variantIngredientSearch}
-                                  onChange={(e) => setVariantIngredientSearch(e.target.value)}
-                                />
+                            />
+                            {v.image_url && (
+                              <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100">
+                                <img src={v.image_url} alt="" className="w-full h-full object-cover" />
                               </div>
-                              <div className="max-h-32 overflow-y-auto space-y-1">
-                                {products
-                                  .filter(p => p.id !== editingProduct?.id && (p.name.toLowerCase().includes(variantIngredientSearch.toLowerCase()) || (p.barcode && p.barcode.toLowerCase().includes(variantIngredientSearch.toLowerCase()))))
-                                  .slice(0, 10)
-                                  .map(p => (
-                                    <button
-                                      key={p.id}
-                                      type="button"
-                                      onClick={() => {
-                                        const newVars = [...variants];
-                                        const curRecItems = newVars[vIdx].recipe_items || [];
-                                        if (!curRecItems.find((ri: any) => String(ri.ingredient_id) === String(p.id))) {
-                                          newVars[vIdx].recipe_items = [
-                                            ...curRecItems,
-                                            {
-                                              ingredient_id: p.id,
-                                              ingredient_name: p.name,
-                                              amount: 1,
-                                              ingredient_unit: p.unit || 'ml'
-                                            }
-                                          ];
-                                          setVariants(newVars);
-                                        }
-                                        setActiveVariantIngredientSelector(null);
-                                        setVariantIngredientSearch("");
-                                      }}
-                                      className="w-full text-left p-1.5 hover:bg-indigo-50 rounded text-[10px] font-bold text-slate-700 flex justify-between items-center"
-                                    >
-                                      <span>{p.name}</span>
-                                      <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 rounded font-medium">{p.unit || 'ml'}</span>
-                                    </button>
-                                  ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="space-y-1.5">
-                            {(v.recipe_items || []).map((ri: any, riIdx: number) => (
-                              <div key={riIdx} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-200 text-xs font-bold">
-                                <span className="flex-1 text-slate-800 truncate">{ri.ingredient_name}</span>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  className="w-16 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-center font-black text-slate-900"
-                                  value={ri.amount}
-                                  onChange={(e) => {
-                                    const newVars = [...variants];
-                                    newVars[vIdx].recipe_items[riIdx].amount = parseFloat(e.target.value) || 0;
-                                    setVariants(newVars);
-                                  }}
-                                />
-                                <span className="text-[10px] font-bold text-slate-500 w-8">{ri.ingredient_unit}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const newVars = [...variants];
-                                    newVars[vIdx].recipe_items = newVars[vIdx].recipe_items.filter((_: any, idx: number) => idx !== riIdx);
-                                    setVariants(newVars);
-                                  }}
-                                  className="p-1 text-rose-500 hover:bg-rose-50 rounded border-0 outline-none"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))}
-                            {(!v.recipe_items || v.recipe_items.length === 0) && (
-                              <p className="text-[10px] text-slate-400 italic py-1">
-                                {isTr ? "Bu varyant için henüz yarı mamül / malzeme reçetesi eklenmedi." : "No recipe ingredients added for this variant."}
-                              </p>
                             )}
                           </div>
                         </div>

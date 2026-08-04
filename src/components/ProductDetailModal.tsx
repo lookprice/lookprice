@@ -745,9 +745,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   {lang === "tr" ? "Ürün Seçenekleri / Varyantlar" : "Product Options / Variants"}
                 </h4>
                 {selectedVariant && (
-                  <span className="text-xs font-bold text-indigo-600 bg-indigo-100/60 px-2.5 py-0.5 rounded-md">
-                    {selectedVariant.name}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectedVariant.color_code && (
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-white shadow-xs"
+                        style={{ backgroundColor: selectedVariant.color_code }}
+                      />
+                    )}
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-100/60 px-2.5 py-0.5 rounded-md">
+                      {selectedVariant.name}
+                    </span>
+                  </div>
                 )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -762,8 +770,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       key={v.id || idx}
                       type="button"
                       disabled={isOutOfStock}
-                      onClick={() => setSelectedVariant(v)}
-                      className={`p-3 rounded-xl border text-left transition-all relative cursor-pointer flex flex-col justify-between min-h-[72px] ${
+                      onClick={() => {
+                        setSelectedVariant(v);
+                        if (v.image_url && productImages.length > 0) {
+                          const imgIdx = productImages.findIndex((img) => img === v.image_url);
+                          if (imgIdx !== -1) setActiveImageIdx(imgIdx);
+                        }
+                      }}
+                      className={`p-3 rounded-xl border text-left transition-all relative cursor-pointer flex flex-col justify-between min-h-[84px] ${
                         isOutOfStock
                           ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
                           : isSelected
@@ -771,17 +785,42 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           : "bg-white text-slate-800 border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
                       }`}
                     >
-                      <div>
-                        <span className="font-extrabold text-xs block leading-tight line-clamp-1">
-                          {v.name}
-                        </span>
-                        {v.sku && (
-                          <span className={`text-[9px] font-mono block mt-0.5 ${isSelected ? "text-indigo-200" : "text-slate-400"}`}>
-                            SKU: {v.sku}
-                          </span>
+                      <div className="space-y-1.5">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {v.image_url && (
+                              <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-black/10 bg-slate-100">
+                                <img src={v.image_url} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <span className="font-extrabold text-xs block leading-tight line-clamp-1">
+                                {v.name}
+                              </span>
+                              {(v.color_name || v.size) && (
+                                <span className={`text-[10px] font-medium block truncate ${isSelected ? "text-indigo-100" : "text-slate-500"}`}>
+                                  {[v.color_name, v.size ? `Beden: ${v.size}` : null].filter(Boolean).join(" · ")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {v.color_code && (
+                            <span
+                              className="w-3.5 h-3.5 rounded-full shrink-0 border border-black/10 shadow-2xs mt-0.5"
+                              style={{ backgroundColor: v.color_code }}
+                            />
+                          )}
+                        </div>
+
+                        {(v.sku || v.barcode) && (
+                          <div className={`text-[9px] font-mono flex items-center gap-1.5 ${isSelected ? "text-indigo-200" : "text-slate-400"}`}>
+                            {v.sku && <span>SKU: {v.sku}</span>}
+                            {v.barcode && <span>Barkod: {v.barcode}</span>}
+                          </div>
                         )}
                       </div>
-                      <div className="flex items-center justify-between mt-2 pt-1 border-t border-current/10">
+
+                      <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-current/10">
                         <span className={`text-xs font-black ${isSelected ? "text-white" : "text-slate-900"}`}>
                           {formatPrice(vPrice, store?.currency || product?.currency || 'TRY', sector, store?.store_type)}
                         </span>
