@@ -166,7 +166,7 @@ export default function DigitalMenuPage() {
   const placeOrder = async () => {
     if (cart.length === 0) return;
     if (!activeTableId) {
-      alert("Lütfen siparişiniz için bir masa seçin veya 'Garson Masası' seçeneğini işaretleyin.");
+      alert(t("Lütfen siparişiniz için bir masa seçin veya 'Garson Masası' seçeneğini işaretleyin.", "Please select a table for your order or check the 'Waiter Table' option.", "Επιλέξτε ένα τραπέζι για την παραγγελία σας ή επιλέξτε την επιλογή 'Τραπέζι Σερβιτόρου'."));
       setShowTableSelector(true);
       setShowCart(false);
       return;
@@ -194,7 +194,7 @@ export default function DigitalMenuPage() {
       setTimeout(() => setOrderSuccess(false), 5000);
     } catch (error) {
       console.error("Order error:", error);
-      alert("Sipariş verilirken bir hata oluştu. Lütfen tekrar deneyin.");
+      alert(t("Sipariş verilirken bir hata oluştu. Lütfen tekrar deneyin.", "An error occurred while placing the order. Please try again.", "Παρουσιάστηκε σφάλμα κατά την παραγγελία. Παρακαλώ δοκιμάστε ξανά."));
     }
   };
 
@@ -336,7 +336,7 @@ export default function DigitalMenuPage() {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-slate-600 font-medium">Menü yükleniyor...</p>
+        <p className="text-slate-600 font-medium">{t('Menü yükleniyor...', 'Loading menu...', 'Φόρτωση μενού...')}</p>
       </div>
     );
   }
@@ -345,8 +345,8 @@ export default function DigitalMenuPage() {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <AlertCircle className="w-12 h-12 text-rose-500 mb-2" />
-        <p className="text-slate-800 font-bold text-lg">Mağaza bulunamadı.</p>
-        <p className="text-slate-500 text-sm mt-1">QR kodu taratarak tekrar giriş yapmayı deneyebilirsiniz.</p>
+        <p className="text-slate-800 font-bold text-lg">{t('Mağaza bulunamadı.', 'Store not found.', 'Το κατάστημα δεν βρέθηκε.')}</p>
+        <p className="text-slate-500 text-sm mt-1">{t('QR kodu taratarak tekrar giriş yapmayı deneyebilirsiniz.', 'You can try to log in again by scanning the QR code.', 'Μπορείτε να δοκιμάσετε να συνδεθείτε ξανά σαρώνοντας τον κωδικό QR.')}</p>
       </div>
     );
   }
@@ -398,7 +398,7 @@ export default function DigitalMenuPage() {
                     }}
                     className="px-2.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-full text-[10px] font-black border border-rose-100/50 transition-all flex items-center gap-1 cursor-pointer"
                   >
-                    Masa: {activeTableId}
+                    {t('Masa', 'Table', 'Τραπέζι')}: {activeTableId}
                     <Edit3 className="w-2.5 h-2.5 text-rose-400" />
                   </button>
                 ) : (
@@ -410,11 +410,11 @@ export default function DigitalMenuPage() {
                     }}
                     className="px-2.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-full text-[10px] font-black border border-amber-100/50 transition-all flex items-center gap-1 cursor-pointer"
                   >
-                    Masa Seçilmedi
+                    {t('Masa Seçilmedi', 'No Table Selected', 'Δεν επιλέχθηκε τραπέζι')}
                     <AlertCircle className="w-2.5 h-2.5 text-amber-500 animate-pulse" />
                   </button>
                 )}
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Dijital Menü</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('Dijital Menü', 'Digital Menu', 'Ψηφιακό Μενού')}</span>
               </div>
             </div>
           </div>
@@ -426,7 +426,7 @@ export default function DigitalMenuPage() {
               type="text"
               value={productSearchQuery}
               onChange={(e) => setProductSearchQuery(e.target.value)}
-              placeholder={isTr ? "Menüde hızlıca ara..." : "Fast search in menu..."}
+              placeholder={t("Menüde hızlıca ara...", "Fast search in menu...", "Γρήγορη αναζήτηση στο μενού...")}
               className="w-full pl-9.5 pr-8 py-2 bg-slate-50 border-2 border-slate-100 rounded-2xl text-xs font-bold text-slate-700 placeholder-slate-400 outline-none focus:border-indigo-600 focus:bg-white transition-all shadow-inner animate-fade-in"
             />
             {productSearchQuery && (
@@ -448,8 +448,8 @@ export default function DigitalMenuPage() {
                 <AlertCircle className="w-5 h-5 shrink-0" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-slate-800 text-sm">Masa Belirtilmedi</p>
-                <p className="text-xs text-slate-500 font-medium mt-0.5 leading-tight">Siparişinizin mutfağa iletilebilmesi için masa seçin.</p>
+                <p className="font-bold text-slate-800 text-sm">{t('Masa Belirtilmedi', 'No Table Specified', 'Δεν έχει καθοριστεί τραπέζι')}</p>
+                <p className="text-xs text-slate-500 font-medium mt-0.5 leading-tight">{t('Siparişinizin mutfağa iletilebilmesi için masa seçin.', 'Select a table so your order can be sent to the kitchen.', 'Επιλέξτε ένα τραπέζι για να σταλεί η παραγγελία σας στην κουζίνα.')}</p>
               </div>
             </div>
             <button
@@ -460,7 +460,7 @@ export default function DigitalMenuPage() {
               }}
               className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-amber-100 cursor-pointer shrink-0 ml-2"
             >
-              Masa Seç
+              {t('Masa Seç', 'Select Table', 'Επιλογή Τραπεζιού')}
             </button>
           </div>
         )}
@@ -482,7 +482,7 @@ export default function DigitalMenuPage() {
               }`}
             >
               <Flame className={`w-3.5 h-3.5 ${selectedCategory === "bestsellers" && !productSearchQuery ? "text-orange-300 animate-pulse" : "text-orange-500"}`} />
-              {isTr ? "Trendler" : "Trending"}
+              {t("Trendler", "Trending", "Τάσεις")}
             </button>
 
             {/* Dynamic Categories */}
@@ -544,23 +544,23 @@ export default function DigitalMenuPage() {
             {productSearchQuery ? (
               <>
                 <Search className="w-3.5 h-3.5 text-indigo-600" />
-                {isTr ? "Arama Sonuçları" : "Search Results"}
+                {t("Arama Sonuçları", "Search Results", "Αποτελέσματα Αναζήτησης")}
               </>
             ) : selectedCategory === "bestsellers" ? (
               <>
                 <Flame className="w-3.5 h-3.5 text-orange-500" />
-                {isTr ? "Trendler" : "Trending"}
+                {t("Trendler", "Trending", "Τάσεις")}
               </>
             ) : (
               <>
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                {selectedCategory === "all" ? (isTr ? "Tüm Menü" : "Full Menu") : selectedCategory}
+                {selectedCategory === "all" ? t("Tüm Menü", "Full Menu", "Πλήρες Μενού") : selectedCategory}
                 {selectedSubCategory !== "all" && ` / ${selectedSubCategory}`}
               </>
             )}
           </h2>
           <span className="text-[10px] font-extrabold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">
-            {filteredProducts.length} {isTr ? "Ürün" : "Products"}
+            {filteredProducts.length} {t("Ürün", "Products", "Προϊόντα")}
           </span>
         </div>
 
@@ -598,7 +598,7 @@ export default function DigitalMenuPage() {
                     {isBestsellerProduct && (
                       <span className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
                         <Flame className="w-2.5 h-2.5 text-white" />
-                        {isTr ? "POPÜLER" : "POPULAR"}
+                        {t("POPÜLER", "POPULAR", "ΔΗΜΟΦΙΛΗ")}
                       </span>
                     )}
 
@@ -610,7 +610,7 @@ export default function DigitalMenuPage() {
                           setFlippedProductId(product.id);
                         }}
                         className="absolute top-2 right-2 z-20 h-7 w-7 bg-slate-900/80 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90 border border-white/10"
-                        title={isTr ? "Reçeteyi Gör" : "See Recipe"}
+                        title={t("Reçeteyi Gör", "See Recipe", "Δείτε τη Συνταγή")}
                       >
                         <FlaskConical className="h-3.5 w-3.5 animate-pulse" />
                       </button>
@@ -674,7 +674,7 @@ export default function DigitalMenuPage() {
                           }}
                           className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
                         >
-                          <Plus className="w-3 h-3" /> {pHasVars ? (isTr ? "Seçenek Seç" : "Select Option") : (isTr ? "Ekle" : "Add")}
+                          <Plus className="w-3 h-3" /> {pHasVars ? t("Seçenek Seç", "Select Option", "Επιλογή") : t("Ekle", "Add", "Προσθήκη")}
                         </button>
                       )}
                     </div>
@@ -695,7 +695,7 @@ export default function DigitalMenuPage() {
                         <div className="flex items-center gap-1.5 min-w-0">
                           <FlaskConical className="h-3.5 w-3.5 text-amber-400 animate-pulse shrink-0" />
                           <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 truncate">
-                            {isTr ? "REÇETE" : "RECIPE"}
+                            {t("REÇETE", "RECIPE", "ΣΥΝΤΑΓΗ")}
                           </span>
                         </div>
                         <button
@@ -747,7 +747,7 @@ export default function DigitalMenuPage() {
                         }}
                         className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black px-2.5 py-1 rounded-lg text-[9px] flex items-center gap-0.5 transition-colors cursor-pointer"
                       >
-                        <Plus className="w-2.5 h-2.5" /> {pHasVars ? (isTr ? "Seç" : "Select") : (isTr ? "Ekle" : "Add")}
+                        <Plus className="w-2.5 h-2.5" /> {pHasVars ? t("Seç", "Select", "Επιλογή") : t("Ekle", "Add", "Προσθήκη")}
                       </button>
                     </div>
                   </div>
@@ -760,10 +760,10 @@ export default function DigitalMenuPage() {
             <div className="col-span-2 text-center py-12 px-4 bg-white rounded-3xl border border-slate-100 shadow-xs">
               <Sparkles className="w-8 h-8 text-slate-300 mx-auto mb-2" />
               <p className="text-sm font-bold text-slate-600">
-                {isTr ? "Eşleşen ürün bulunamadı." : "No matching products found."}
+                {t("Eşleşen ürün bulunamadı.", "No matching products found.", "Δεν βρέθηκαν προϊόντα που να ταιριάζουν.")}
               </p>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                {isTr ? "Farklı bir arama kelimesi yazmayı veya kategorileri incelemeyi deneyebilirsiniz." : "Try typing another search term or exploring other categories."}
+                {t("Farklı bir arama kelimesi yazmayı veya kategorileri incelemeyi deneyebilirsiniz.", "Try typing another search term or exploring other categories.", "Δοκιμάστε να πληκτρολογήσετε έναν άλλο όρο αναζήτησης ή να εξερευνήσετε άλλες κατηγορίες.")}
               </p>
             </div>
           )}
@@ -787,7 +787,7 @@ export default function DigitalMenuPage() {
               </span>
             </div>
             <div>
-              <span className="block text-xs text-slate-400 font-bold leading-none">Toplam Tutar</span>
+              <span className="block text-xs text-slate-400 font-bold leading-none">{t('Toplam Tutar', 'Total Amount', 'Συνολικό Ποσό')}</span>
               <span className="text-base font-black text-slate-800">{totalCartPrice.toFixed(2)} ₺</span>
             </div>
           </button>
@@ -796,7 +796,7 @@ export default function DigitalMenuPage() {
             onClick={() => setShowCart(true)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors shadow-md shadow-indigo-100"
           >
-            Siparişi İncele
+            {t('Siparişi İncele', 'Review Order', 'Επανεξέταση Παραγγελίας')}
           </button>
         </motion.div>
       )}
@@ -824,8 +824,8 @@ export default function DigitalMenuPage() {
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-extrabold text-slate-800">Siparişinizi İnceleyin</h2>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">Özel isteklerinizi ürün bazında belirtebilirsiniz</p>
+                  <h2 className="text-lg font-extrabold text-slate-800">{t('Siparişinizi İnceleyin', 'Review Your Order', 'Ελέγξτε την Παραγγελία σας')}</h2>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">{t('Özel isteklerinizi ürün bazında belirtebilirsiniz', 'You can specify special requests on a per-product basis', 'Μπορείτε να καθορίσετε ειδικά αιτήματα ανά προϊόν')}</p>
                 </div>
                 <button 
                   onClick={() => setShowCart(false)}
@@ -875,7 +875,7 @@ export default function DigitalMenuPage() {
                         type="text"
                         value={item.note}
                         onChange={(e) => updateNote(idx, e.target.value)}
-                        placeholder="Özel istek / Not ekleyin (örn: Açık, demli, bol soslu)"
+                        placeholder={t('Özel istek / Not ekleyin (örn: Açık, demli, bol soslu)', 'Add special request / Note (e.g., Light, strong, extra sauce)', 'Προσθήκη ειδικού αιτήματος / Σημείωση (π.χ. Ελαφρύ, δυνατό, επιπλέον σάλτσα)')}
                         className="w-full bg-transparent border-none text-xs font-medium text-slate-600 outline-none placeholder-slate-400"
                       />
                     </div>
@@ -885,7 +885,7 @@ export default function DigitalMenuPage() {
 
               <div className="p-6 bg-slate-50/50 border-t border-slate-100 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-slate-500">Sipariş Toplamı</span>
+                  <span className="text-sm font-bold text-slate-500">{t('Sipariş Toplamı', 'Order Total', 'Σύνολο Παραγγελίας')}</span>
                   <span className="text-xl font-black text-slate-800">{totalCartPrice.toFixed(2)} ₺</span>
                 </div>
                 
@@ -894,7 +894,7 @@ export default function DigitalMenuPage() {
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-100"
                 >
                   <CheckCircle2 className="h-5 w-5" />
-                  Siparişi Onayla ve Gönder
+                  {t('Siparişi Onayla ve Gönder', 'Confirm and Send Order', 'Επιβεβαίωση και Αποστολή Παραγγελίας')}
                 </button>
               </div>
             </motion.div>
@@ -913,8 +913,8 @@ export default function DigitalMenuPage() {
           >
             <CheckCircle2 className="w-6 h-6 text-white shrink-0" />
             <div>
-              <p className="font-extrabold text-sm">Siparişiniz Alındı!</p>
-              <p className="text-xs text-emerald-100 mt-0.5">Siparişiniz başarıyla mutfağa ve kasaya iletildi.</p>
+              <p className="font-extrabold text-sm">{t('Siparişiniz Alındı!', 'Order Received!', 'Λήφθηκε η Παραγγελία!')}</p>
+              <p className="text-xs text-emerald-100 mt-0.5">{t('Siparişiniz başarıyla mutfağa ve kasaya iletildi.', 'Your order was successfully sent to the kitchen and checkout.', 'Η παραγγελία σας στάλθηκε επιτυχώς στην κουζίνα και στο ταμείο.')}</p>
             </div>
           </motion.div>
         )}
@@ -943,8 +943,8 @@ export default function DigitalMenuPage() {
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-extrabold text-slate-800">Masa Seçimi / Girişi</h2>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">Siparişinizin hangi masaya ait olduğunu belirleyin</p>
+                  <h2 className="text-lg font-extrabold text-slate-800">{t('Masa Seçimi / Girişi', 'Table Selection / Entry', 'Επιλογή / Εισαγωγή Τραπεζιού')}</h2>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">{t('Siparişinizin hangi masaya ait olduğunu belirleyin', 'Determine which table your order belongs to', 'Καθορίστε σε ποιο τραπέζι ανήκει η παραγγελία σας')}</p>
                 </div>
                 <button 
                   type="button"
@@ -963,8 +963,8 @@ export default function DigitalMenuPage() {
                       <UserCheck className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-xs text-amber-950 uppercase tracking-wider">Garson Masası (Masa Seçilmeden)</h3>
-                      <p className="text-[11px] text-amber-800 font-medium">Masa belli değilse veya garson tarafından alınıyorsa seçin</p>
+                      <h3 className="font-extrabold text-xs text-amber-950 uppercase tracking-wider">{t('Garson Masası (Masa Seçilmeden)', 'Waiter Table (No Table Selected)', 'Τραπέζι Σερβιτόρου (Χωρίς Επιλογή Τραπεζιού)')}</h3>
+                      <p className="text-[11px] text-amber-800 font-medium">{t('Masa belli değilse veya garson tarafından alınıyorsa seçin', 'Select if the table is unknown or taken by the waiter', 'Επιλέξτε εάν το τραπέζι είναι άγνωστο ή λαμβάνεται από τον σερβιτόρο')}</p>
                     </div>
                   </div>
                   <button
@@ -980,7 +980,7 @@ export default function DigitalMenuPage() {
                         : 'bg-white text-amber-800 border border-amber-300 hover:bg-amber-100/50'
                     }`}
                   >
-                    {activeTableId === "Garson Masası" ? "SEÇİLİ" : "Garson Seç"}
+                    {activeTableId === "Garson Masası" ? t("SEÇİLİ", "SELECTED", "ΕΠΙΛΕΓΜΕΝΟ") : t("Garson Seç", "Select Waiter", "Επιλογή Σερβιτόρου")}
                   </button>
                 </div>
 
@@ -988,7 +988,7 @@ export default function DigitalMenuPage() {
                 <div className="bg-rose-50/50 p-4 rounded-2xl border border-rose-100/60 space-y-3">
                   <div className="flex items-center gap-2">
                     <Keyboard className="w-4 h-4 text-rose-600" />
-                    <h3 className="font-bold text-xs text-rose-800 uppercase tracking-wider">Manuel Masa Tanımlama</h3>
+                    <h3 className="font-bold text-xs text-rose-800 uppercase tracking-wider">{t('Manuel Masa Tanımlama', 'Manual Table Definition', 'Χειροκίνητος Ορισμός Τραπεζιού')}</h3>
                   </div>
                   <p className="text-xs text-rose-600/80 font-medium leading-relaxed">
                     QR kod okunamadıysa veya listede olmayan özel bir masa ise aşağıya manuel olarak masa numarası veya adını yazıp onaylayabilirsiniz.
@@ -998,7 +998,7 @@ export default function DigitalMenuPage() {
                       type="text"
                       value={manualTableInput}
                       onChange={(e) => setManualTableInput(e.target.value)}
-                      placeholder="Örn: 5, Bahçe 2, VIP"
+                      placeholder={t('Örn: 5, Bahçe 2, VIP', 'e.g. 5, Garden 2, VIP', 'π.χ. 5, Κήπος 2, VIP')}
                       className="flex-1 px-4 py-2.5 bg-white border border-rose-200 rounded-xl text-sm font-bold text-slate-800 placeholder-slate-400 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/5 transition-all"
                     />
                     <button
@@ -1009,12 +1009,12 @@ export default function DigitalMenuPage() {
                           setActiveTableId(trimmed);
                           setShowTableSelector(false);
                         } else {
-                          alert("Lütfen geçerli bir masa adı veya numarası girin.");
+                          alert(t("Lütfen geçerli bir masa adı veya numarası girin.", "Please enter a valid table name or number.", "Εισαγάγετε ένα έγκυρο όνομα ή αριθμό τραπεζιού."));
                         }
                       }}
                       className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
                     >
-                      Onayla
+                      {t('Onayla', 'Confirm', 'Επιβεβαίωση')}
                     </button>
                   </div>
                 </div>
@@ -1023,14 +1023,14 @@ export default function DigitalMenuPage() {
                 {allTables.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider">Tanımlı Masalar</h3>
+                      <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider">{t('Tanımlı Masalar', 'Defined Tables', 'Ορισμένα Τραπέζια')}</h3>
                       <div className="relative max-w-[150px] w-full">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                         <input
                           type="text"
                           value={tableSearchQuery}
                           onChange={(e) => setTableSearchQuery(e.target.value)}
-                          placeholder="Masa Ara..."
+                          placeholder={t("Masa Ara...", "Search Table...", "Αναζήτηση Τραπεζιού...")}
                           className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-slate-350 focus:bg-white transition-all"
                         />
                       </div>
@@ -1098,7 +1098,7 @@ export default function DigitalMenuPage() {
                   <div>
                     <h3 className="font-extrabold text-slate-900 text-base leading-tight">{variantModalProduct.name}</h3>
                     <p className="text-xs text-indigo-600 font-bold mt-0.5">
-                      {isTr ? 'Lütfen seçenek seçiniz' : 'Please select an option'}
+                      {t('Lütfen seçenek seçiniz', 'Please select an option', 'Παρακαλώ επιλέξτε μια επιλογή')}
                     </p>
                   </div>
                 </div>
@@ -1112,7 +1112,7 @@ export default function DigitalMenuPage() {
 
               <div className="p-6 overflow-y-auto space-y-3">
                 <p className="text-xs font-black text-slate-400 uppercase tracking-wider">
-                  {isTr ? 'Seçenekler' : 'Options'}
+                  {t('Seçenekler', 'Options', 'Επιλογές')}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {(variantModalProduct.variants || []).map((v: any, idx: number) => {
@@ -1137,7 +1137,7 @@ export default function DigitalMenuPage() {
                           className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs transition-all shadow-sm active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          <span>{isTr ? 'Ekle' : 'Add'}</span>
+                          <span>{t('Ekle', 'Add', 'Προσθήκη')}</span>
                         </button>
                       </div>
                     );
@@ -1150,7 +1150,7 @@ export default function DigitalMenuPage() {
                   onClick={() => setVariantModalProduct(null)}
                   className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all text-xs cursor-pointer"
                 >
-                  {isTr ? 'Kapat' : 'Close'}
+                  {t('Kapat', 'Close', 'Κλείσιμο')}
                 </button>
               </div>
             </motion.div>

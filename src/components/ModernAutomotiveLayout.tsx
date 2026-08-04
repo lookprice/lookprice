@@ -24,7 +24,6 @@ import { api } from "../services/api";
 import { RadarShowcaseSlider } from "./RadarShowcaseSlider";
 import { BlogShowcaseModal } from "./BlogShowcaseModal";
 import { StoreMapSection } from "./StoreMapSection";
-import { AutomotiveSocialMediaShareModal } from "./AutomotiveSocialMediaShareModal";
 
 interface ModernAutomotiveLayoutProps {
   store: Store;
@@ -40,8 +39,21 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
   onViewProduct,
 }) => {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  // Vehicle-specific share modal state
-  const [shareProduct, setShareProduct] = useState<Product | null>(null);
+  // Helper to handle native share or copy link
+  const handleShare = (e: React.MouseEvent, p: Product) => {
+    e.stopPropagation();
+    const productUrl = `${window.location.origin}/s/${store?.slug}/product/${p.id}`;
+    if (navigator.share) {
+      navigator.share({
+        title: p.name,
+        text: `${p.name} - ${p.price} ${p.currency || 'GBP'}\n\nİncelemek için: ${productUrl}`,
+        url: productUrl,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(productUrl);
+      alert(lang === "tr" ? "Ürün bağlantısı kopyalandı!" : "Product link copied!");
+    }
+  };
 
   const { lang } = useLanguage();
   const [blogs, setBlogs] = useState<any[]>([]);
@@ -710,10 +722,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                           </div>
                           <div className="absolute top-6 right-6 z-10">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShareProduct(p);
-                              }}
+                              onClick={(e) => handleShare(e, p)}
                               className="p-2.5 bg-white/95 backdrop-blur-md hover:bg-amber-100 rounded-xl text-slate-800 hover:text-amber-600 transition-all shadow-md active:scale-95 flex items-center justify-center border border-slate-100/50"
                               title={lang === "tr" ? "Paylaş" : "Share"}
                             >
@@ -1130,15 +1139,6 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
           </div>
         )}
       </AnimatePresence>
-
-      {shareProduct && (
-        <AutomotiveSocialMediaShareModal
-          isOpen={!!shareProduct}
-          onClose={() => setShareProduct(null)}
-          vehicle={shareProduct}
-          branding={store}
-        />
-      )}
 
       {/* Content Modal for Quick/Corporate Links */}
       <AnimatePresence>

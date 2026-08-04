@@ -116,8 +116,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   );
 
   const consultantPhone = (product as any).consultant_phone;
-  const rawWa = consultantPhone || store?.whatsapp_number || store?.phone;
-  const waPhone = (!rawWa || rawWa === "905428655000" || rawWa === "+905428655000") ? "905488902309" : rawWa;
+  const storeRawWa = store?.whatsapp_number || store?.phone;
+  const storeWa = (!storeRawWa || storeRawWa === "905428655000" || storeRawWa === "+905428655000") ? "905488902309" : storeRawWa;
+  const waPhone = consultantPhone || storeWa;
 
   // States for 360° virtual tour mode
   const [activeViewMode, setActiveViewMode] = useState<"gallery" | "tourMap">(
@@ -350,7 +351,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <X className="w-5 h-5" />
         </button>
 
-        <div className="w-full md:w-1/2 h-[325px] sm:h-[450px] md:h-auto md:min-h-[650px] bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100 transition-all duration-500">
+        <div className="w-full md:w-1/2 shrink-0 h-[350px] sm:h-[450px] md:h-auto md:min-h-[650px] bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100 transition-all duration-500 overflow-hidden">
           {/* Share Buttons Overlay */}
           <div className="absolute top-6 left-6 flex flex-col items-start gap-2 z-20">
             <button
@@ -512,7 +513,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
           )}
         </div>
-        <div className="md:w-1/2 p-6 md:p-14 overflow-y-auto no-scrollbar">
+        <div className="w-full md:w-1/2 flex-1 min-h-0 p-6 pb-28 md:p-14 overflow-y-auto no-scrollbar">
           <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 items-center">
             {getLabels(product.labels).map((label, idx) => (
               <span
@@ -763,7 +764,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   }
                 }}
                 type="button"
-                className="w-full py-4 text-white rounded-[2rem] font-semibold text-lg transition-all shadow-lg flex items-center justify-center gap-4 group active:scale-95"
+                className="w-full py-4 text-white rounded-[2rem] font-semibold text-lg transition-all shadow-lg hidden md:flex items-center justify-center gap-4 group active:scale-95"
                 style={{
                   backgroundColor: "#25D366",
                   boxShadow: `0 20px 40px -10px #25D36660`,

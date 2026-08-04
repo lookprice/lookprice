@@ -80,7 +80,7 @@ router.post("/analytics/event", async (req, res) => {
       [
         Number(store_id),
         String(entity_type),
-        entity_id ? Number(entity_id) : null,
+        entity_id ? Number(String(entity_id).replace(/\D/g, "")) : null,
         String(event_type),
         String(ip).substring(0, 45),
         String(userAgent),
@@ -1038,6 +1038,8 @@ router.get("/store/:slug/products", async (req, res) => {
       brand: r.location,
       branch_name: r.branch_name,
       branch_slug: r.branch_slug,
+      consultant_name: r.consultant_name,
+      consultant_phone: r.consultant_phone,
       image_url: coverImage,
       images: reImages,
       location: r.location,

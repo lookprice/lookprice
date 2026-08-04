@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { 
   HelpCircle, 
   Search, 
@@ -137,6 +138,15 @@ export default function HoReCaLanding() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      <Helmet>
+        <title>HorecaLP | {txt('Restoran ve Cafe Yönetim Yazılımı', 'Restaurant and Cafe Management Software', 'Λογισμικό Διαχείρισης Εστιατορίων & Καφετεριών')}</title>
+        <meta name="description" content={txt(
+          "LookPrice HorecaLP ile restoran ve kafe yönetimini dijitalleştirin. Adisyon programı, restoran POS sistemi, QR menü, stok takibi ve daha fazlası ile işlerinizi hızlandırın.",
+          "Digitalize your restaurant and cafe management with LookPrice HorecaLP. Accelerate your business with bill programs, restaurant POS systems, QR menus, stock tracking, and more.",
+          "Ψηφιοποιήστε τη διαχείριση του εστιατορίου και της καφετέριάς σας με το LookPrice HorecaLP. Επιταχύνετε τις δραστηριότητές σας με προγράμματα λογαριασμών, συστήματα POS εστιατορίων, μενού QR, παρακολούθηση αποθεμάτων και πολλά άλλα."
+        )} />
+        <meta name="keywords" content="Adisyon programı, Restoran POS sistemi, Cafe otomasyonu, Garson sipariş uygulaması, Masa yönetimi, Stok ve depo takibi, Hızlı adisyon, Kasa ve cari hesap, Mutfak ekran sistemi, QR menü entegrasyonu, Kafe yönetim yazılımı, Restoran adisyon, Bar ve restoran programı, Pastane otomasyonu, Fast food satış sistemi, Kolay restoran programı, Ekonomik adisyon yazılımı, Bulut tabanlı cafe sistemi, Kurulumsuz POS programı, Mobil adisyon sistemi, Zincir restoran yönetim yazılımı, Merkezi stok ve depo takibi, Çoklu şube restoran programı, Gelişmiş restoran raporlama, Esnek restoran otomasyonu, Ölçeklenebilir cafe programı, Yeni nesil adisyon sistemi, Hepsi bir arada restoran POS, Bulut restoran yazılımı, Kafe yönetimini kolaylaştıran yazılım, Adisyon karmaşasına son, Akıllı restoran yönetimi, İşletmenizi cebinizden yönetin, Siparişleri hızlandıran sistem, Bulut tabanlı adisyon, Kaçakları önleyen stok takibi, Hızlı sipariş sistemi, Temassız QR menü, Dijital mutfak ekranı" />
+      </Helmet>
       {/* Top Navbar */}
       <nav className="bg-white border-b border-slate-100 py-4 px-6 md:px-12 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -223,9 +233,9 @@ export default function HoReCaLanding() {
             </p>
             <div className="space-y-3">
               {[
-                txt("Çevrimdışı (offline-first) kesintisiz çalışma mimarisi", "Offline-first continuous working architecture", "Αρχιτεκτονική συνεχούς λειτουργίας offline-first"),
-                txt("Masa ve el terminalleri arasında real-time çift yönlü veri transferi", "Real-time two-way data sync between tables and handheld units", "Αμφίδρομος συγχρονισμός δεδομένων πραγματικού χρόνου"),
-                txt("Farklı departmanlara (Mutfak, Bar, Fırın) anlık sipariş yönlendirme", "Instant order routing to different departments (Kitchen, Bar, Oven)", "Άμεση δρομολόγηση παραγγελιών σε διαφορετικά τμήματα (Κουζίνα, Μπαρ)")
+                txt(txt("Çevrimdışı (offline-first) kesintisiz çalışma mimarisi", "Offline-first continuous working architecture", "Αρχιτεκτονική συνεχούς λειτουργίας offline-first"), "Offline-first continuous working architecture", "Αρχιτεκτονική συνεχούς λειτουργίας offline-first"),
+                txt(txt("Masa ve el terminalleri arasında real-time çift yönlü veri transferi", "Real-time two-way data sync between tables and handheld units", "Αμφίδρομος συγχρονισμός δεδομένων πραγματικού χρόνου"), "Real-time two-way data sync between tables and handheld units", "Αμφίδρομος συγχρονισμός δεδομένων πραγματικού χρόνου"),
+                txt(txt("Farklı departmanlara (Mutfak, Bar, Fırın) anlık sipariş yönlendirme", "Instant order routing to different departments (Kitchen, Bar, Oven)", "Άμεση δρομολόγηση παραγγελιών σε διαφορετικά τμήματα (Κουζίνα, Μπαρ)"), "Instant order routing to different departments (Kitchen, Bar, Oven)", "Άμεση δρομολόγηση παραγγελιών σε διαφορετικά τμήματα (Κουζίνα, Μπαρ)")
               ].map((text, i) => (
                 <div key={i} className="flex items-center gap-3 text-slate-700 text-sm font-bold">
                   <CheckCircle className="h-5 w-5 text-amber-500 shrink-0" />

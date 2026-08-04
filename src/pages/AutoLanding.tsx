@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { 
   HelpCircle, 
   Search, 
@@ -106,6 +107,12 @@ export default function AutoLanding() {
         } else if (item.id === 'realtime_analytics_dashboard') {
           q = "Is there a real-time analytics and charts dashboard?";
           a = "Yes! Top-selling vehicle segments, average selling times, branch revenues, and financial statements are instantly shown with sleek interactive charts.";
+        } else if (item.id === 'radar_news_tracking') {
+          q = "Is there a radar system to track sector developments and vehicle listings?";
+          a = "Yes. You can instantly catch current market news and opportunity listings with the smart Radar Tracking System that continuously scans the internet for keywords you specify.";
+        } else if (item.id === 'currency_credit_audit') {
+          q = "Are real-time exchange rates, loan calculation, and user transaction audits included?";
+          a = "Yes. You keep your gallery under full control with professional tools like daily automatic exchange rate synchronization, map directions, loan calculation engine, and Audit Logs.";
         }
       } else if (lang === 'el') {
         if (item.id === 'fleet_management') {
@@ -150,6 +157,12 @@ export default function AutoLanding() {
         } else if (item.id === 'realtime_analytics_dashboard') {
           q = "Υπάρχει πίνακας ελέγχου αναλύσεων και γραφημάτων σε πραγματικό χρόνο;";
           a = "Ναι! Τα τμήματα οχημάτων με τις περισσότερες πωλήσεις, οι μέσοι χρόνοι πώλησης, τα έσοδα υποκαταστημάτων και οι οικονομικές καταστάσεις εμφανίζονται αμέσως με κομψά διαδραστικά γραφήματα.";
+        } else if (item.id === 'radar_news_tracking') {
+          q = "Υπάρχει σύστημα ραντάρ για την παρακολούθηση των εξελίξεων του τομέα και των αγγελιών οχημάτων;";
+          a = "Ναι. Μπορείτε να παρακολουθείτε άμεσα τα τρέχοντα νέα της αγοράς και τις ευκαιρίες με το έξυπνο σύστημα παρακολούθησης ραντάρ που σαρώνει συνεχώς το διαδίκτυο.";
+        } else if (item.id === 'currency_credit_audit') {
+          q = "Περιλαμβάνονται συναλλαγματικές ισοτιμίες σε πραγματικό χρόνο, υπολογισμός δανείου και έλεγχοι συναλλαγών χρηστών;";
+          a = "Ναι. Διατηρείτε τη γκαλερί σας υπό πλήρη έλεγχο με επαγγελματικά εργαλεία όπως ο καθημερινός αυτόματος συγχρονισμός συναλλαγματικών ισοτιμιών και τα αρχεία καταγραφής ελέγχου.";
         }
       }
       return { ...item, q, a };
@@ -169,6 +182,15 @@ export default function AutoLanding() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      <Helmet>
+        <title>AutoLP | {txt('Galeri ve Araç Yönetim Yazılımı', 'Gallery and Vehicle Management Software', 'Λογισμικό Διαχείρισης Γκαλερί & Οχημάτων')}</title>
+        <meta name="description" content={txt(
+          "AutoLP ile oto galeri ve araç yönetimini dijitalleştirin. Araç stok takibi, galeri CRM, dijital satış sözleşmeleri ve otomatik sosyal medya paylaşımı ile işlerinizi hızlandırın.",
+          "Digitalize your auto gallery and vehicle management with AutoLP. Accelerate your business with vehicle stock tracking, gallery CRM, digital sales contracts, and automated social media sharing.",
+          "Ψηφιοποιήστε τη διαχείριση της γκαλερί αυτοκινήτων και των οχημάτων σας με το AutoLP. Επιταχύνετε τις δραστηριότητές σας με παρακολούθηση αποθεμάτων οχημάτων, CRM γκαλερί, ψηφιακά συμβόλαια πωλήσεων και αυτοματοποιημένη κοινή χρήση στα κοινωνικά μέσα."
+        )} />
+        <meta name="keywords" content="Araç stok yönetimi, galeri otomasyonu, ikinci el araç takip, galeri crm, oto satış programı, plaka sorgulama, araç ekspertiz raporu, dijital galeri yönetimi, otomotiv satış yazılımı, galeri yönetim sistemi, filo takip yazılımı, araç satış sözleşmesi, dijital galeri vitrini, araç maliyet takip, stok takip programı, ikinci el galeri programı, oto crm yazılımı" />
+      </Helmet>
       {/* Top Navbar */}
       <nav className="bg-white border-b border-slate-100 py-4 px-6 md:px-12 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -216,17 +238,17 @@ export default function AutoLanding() {
             AutoLP by LookPrice
           </span>
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-slate-950 tracking-tighter mb-6 leading-[1.1]">
-            Yeni Nesil Galeri ve Araç <br className="hidden md:inline"/> Portföy Yönetim Sistemi
+            {txt('Yeni Nesil Galeri ve Araç', 'Next-Gen Gallery and Vehicle', 'Νέα Γενιά Γκαλερί και Όχημα')} <br className="hidden md:inline"/> {txt('Portföy Yönetim Sistemi', 'Portfolio Management System', 'Σύστημα Διαχείρισης Χαρτοφυλακίου')}
           </h1>
           <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto mb-10 font-semibold leading-relaxed">
-            Araç stoklarınızı Sterlin (GBP) veya döviz bazlı yönetin, tek tuşla profesyonel PDF broşürleri basın ve galeriniz için harika bir dijital vitrin oluşturun.
+            {txt('Araç stoklarınızı Sterlin (GBP) veya döviz bazlı yönetin, tek tuşla profesyonel PDF broşürleri basın ve galeriniz için harika bir dijital vitrin oluşturun.', 'Manage your vehicle stocks in Sterling (GBP) or foreign currency, print professional PDF brochures with a single click, and create a fantastic digital showcase for your gallery.', 'Διαχειριστείτε τα αποθέματα των οχημάτων σας σε στερλίνα (GBP) ή σε ξένο νόμισμα, εκτυπώστε επαγγελματικά φυλλάδια PDF με ένα μόνο κλικ και δημιουργήστε μια φανταστική ψηφιακή βιτρίνα για τη γκαλερί σας.')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
               onClick={() => navigate('/register')}
               className="px-8 py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all text-lg flex items-center justify-center gap-2 shadow-lg shadow-blue-600/15 cursor-pointer animate-bounce-subtle"
             >
-              Ücretsiz Deneyin <ArrowRight className="h-5 w-5" />
+              {txt('Ücretsiz Deneyin', 'Try for Free', 'Δοκιμάστε Δωρεάν')} <ArrowRight className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -237,19 +259,19 @@ export default function AutoLanding() {
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-5 space-y-6">
             <div className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold uppercase tracking-wider">
-              DİJİTAL OTO GALERİ ÇÖZÜMLERİ
+              {txt('DİJİTAL OTO GALERİ ÇÖZÜMLERİ', 'DIGITAL AUTO GALLERY SOLUTIONS', 'ΨΗΦΙΑΚΕΣ ΛΥΣΕΙΣ ΓΚΑΛΕΡΙ ΑΥΤΟΚΙΝΗΤΩΝ')}
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              Gelişmiş Araç Envanteri ve Satış Yönetimi
+              {txt('Gelişmiş Araç Envanteri ve Satış Yönetimi', 'Advanced Vehicle Inventory and Sales Management', 'Προηγμένο Απόθεμα Οχημάτων και Διαχείριση Πωλήσεων')}
             </h2>
             <p className="text-slate-600 font-semibold text-sm md:text-base leading-relaxed">
-              AutoLP, araç stok takibinden gümrükleme, seyrüsefer ve plaka süreçlerine kadar galerinizin ihtiyaç duyduğu tüm takip adımlarını bir araya getirir. Döviz kurları ile entegre fiyalandırma motoru her zaman güncel kalmanızı sağlar.
+              {txt('AutoLP, araç stok takibinden gümrükleme, seyrüsefer ve plaka süreçlerine kadar galerinizin ihtiyaç duyduğu tüm takip adımlarını bir araya getirir. Döviz kurları ile entegre fiyalandırma motoru her zaman güncel kalmanızı sağlar.', 'AutoLP brings together all the tracking steps your gallery needs, from vehicle stock tracking to customs, navigation, and license plate processes. The integrated pricing engine with exchange rates keeps you always up to date.', 'Το AutoLP συγκεντρώνει όλα τα βήματα παρακολούθησης που χρειάζεται η γκαλερί σας, από την παρακολούθηση αποθέματος οχημάτων έως τις διαδικασίες εκτελωνισμού, πλοήγησης και πινακίδων κυκλοφορίας. Ο ενσωματωμένος μηχανισμός τιμολόγησης με τις συναλλαγματικές ισοτιμίες σας κρατά πάντα ενημερωμένους.')}
             </p>
             <div className="space-y-3">
               {[
-                "Sterlin (GBP), EUR ve USD bazlı çoklu para birimi motoru",
-                "Gümrükleme, seyrüsefer ve koçan devir tarihlerine özel alarmlar",
-                "Tek tıkla araç özelliklerini içeren PDF katalog ve broşür çıktısı"
+                txt("Sterlin (GBP), EUR ve USD bazlı çoklu para birimi motoru", "Multi-currency engine based on Sterling (GBP), EUR, and USD", "Μηχανή πολλαπλών νομισμάτων με βάση Στερλίνα (GBP), EUR και USD"),
+                txt("Gümrükleme, seyrüsefer ve koçan devir tarihlerine özel alarmlar", "Special alarms for customs clearance, navigation, and logbook transfer dates", "Ειδικοί συναγερμοί για εκτελωνισμό, πλοήγηση και ημερομηνίες μεταβίβασης βιβλίου καταγραφής"),
+                txt("Tek tıkla araç özelliklerini içeren PDF katalog ve broşür çıktısı", "One-click PDF catalog and brochure output containing vehicle features", "Παραγωγή καταλόγου και φυλλαδίου PDF με ένα κλικ που περιέχει τα χαρακτηριστικά του οχήματος")
               ].map((text, i) => (
                 <div key={i} className="flex items-center gap-3 text-slate-700 text-sm font-bold">
                   <CheckCircle className="h-5 w-5 text-blue-500 shrink-0" />
@@ -269,10 +291,10 @@ export default function AutoLanding() {
               />
               <div className="absolute bottom-8 left-8 right-8 z-20 bg-black/50 backdrop-blur-md p-6 rounded-2xl border border-white/10 text-white">
                 <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20 mb-2 inline-block">
-                  OTO GALERİ VİTRİN
+                  {txt('OTO GALERİ VİTRİN', 'AUTO GALLERY SHOWCASE', 'ΒΙΤΡΙΝΑ ΓΚΑΛΕΡΙ ΑΥΤΟΚΙΝΗΤΩΝ')}
                 </span>
-                <p className="font-black text-lg md:text-xl mb-1">Dinamik Kur ve Portföy Senkronizasyonu</p>
-                <p className="text-white/60 text-xs md:text-sm font-semibold">Araçlarınızı anlık Merkez Bankası döviz kurları ile eşitleyerek web sitenizde hatasız fiyatlandırın.</p>
+                <p className="font-black text-lg md:text-xl mb-1">{txt('Dinamik Kur ve Portföy Senkronizasyonu', 'Dynamic Exchange Rate and Portfolio Synchronization', 'Δυναμική Συναλλαγματική Ισοτιμία και Συγχρονισμός Χαρτοφυλακίου')}</p>
+                <p className="text-white/60 text-xs md:text-sm font-semibold">{txt('Araçlarınızı anlık Merkez Bankası döviz kurları ile eşitleyerek web sitenizde hatasız fiyatlandırın.', 'Price your vehicles accurately on your website by synchronizing them with real-time Central Bank exchange rates.', 'Τιμολογήστε τα οχήματά σας με ακρίβεια στον ιστότοπό σας συγχρονίζοντάς τα με τις συναλλαγματικές ισοτιμίες της Κεντρικής Τράπεζας σε πραγματικό χρόνο.')}</p>
               </div>
             </div>
           </div>
@@ -283,108 +305,108 @@ export default function AutoLanding() {
       <section className="py-24 max-w-7xl mx-auto px-6">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight mb-4">
-            Galeriniz İçin En Gelişmiş Özellikler
+            {txt('Galeriniz İçin En Gelişmiş Özellikler', 'Most Advanced Features for Your Gallery', 'Τα πιο προηγμένα χαρακτηριστικά για τη γκαλερί σας')}
           </h2>
           <p className="text-slate-500 font-semibold text-sm sm:text-base">
-            AutoLP, geleneksel verimsiz yöntemleri geride bırakarak tamamen küresel galeri standartlarına göre inşa edilmiştir.
+            {txt('AutoLP, geleneksel verimsiz yöntemleri geride bırakarak tamamen küresel galeri standartlarına göre inşa edilmiştir.', 'AutoLP is built entirely according to global gallery standards, leaving behind traditional inefficient methods.', 'Το AutoLP είναι κατασκευασμένο εξ ολοκλήρου σύμφωνα με τα παγκόσμια πρότυπα γκαλερί, αφήνοντας πίσω παραδοσιακές αναποτελεσματικές μεθόδους.')}
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {[
             { 
-              title: 'Gelişmiş Filo Yönetimi', 
-              desc: 'Araçlarınızın Sürücü, Km, Servis/Bakım geçmişi, Lastik değişimleri, Zimmet, Kaza Raporları ve Tüm Resmi Evraklarına dijital ortamda ulaşın.',
+              title: txt("Gelişmiş Filo Yönetimi", "Advanced Fleet Management", "Προηγμένη Διαχείριση Στόλου"), 
+              desc: txt("Araçlarınızın Sürücü, Km, Servis/Bakım geçmişi, Lastik değişimleri, Zimmet, Kaza Raporları ve Tüm Resmi Evraklarına dijital ortamda ulaşın.", "Access your vehicles' Driver, Mileage, Service/Maintenance history, Tire changes, Assignment, Accident Reports, and All Official Documents digitally.", "Αποκτήστε ψηφιακή πρόσβαση στο ιστορικό Οδηγού, Χιλιομετρικής απόστασης, Σέρβις/Συντήρησης, Αλλαγών ελαστικών, Ανάθεσης, Αναφορών ατυχημάτων και Όλων των Επίσημων Εγγράφων των οχημάτων σας."),
               icon: Car,
               color: 'text-blue-600 bg-blue-50 border-blue-100/50'
             },
             { 
-              title: 'Dijital İmzalı Sözleşmeler', 
-              desc: 'Araç Satış ve Konsinye Sözleşmelerini müşterinizin yanında veya WhatsApp üzerinden yasal olarak anında imzalayıp güvenle saklayın.',
+              title: txt("Dijital İmzalı Sözleşmeler", "Digitally Signed Contracts", "Ψηφιακά Υπογεγραμμένα Συμβόλαια"), 
+              desc: txt("Araç Satış ve Konsinye Sözleşmelerini müşterinizin yanında veya WhatsApp üzerinden yasal olarak anında imzalayıp güvenle saklayın.", "Instantly and legally sign Vehicle Sales and Consignment Contracts next to your customer or via WhatsApp and store them safely.", "Υπογράψτε άμεσα και νόμιμα Συμβάσεις Πώλησης και Αποστολής Οχημάτων δίπλα στον πελάτη σας ή μέσω WhatsApp και αποθηκεύστε τις με ασφάλεια."),
               icon: PenTool,
               color: 'text-indigo-600 bg-indigo-50 border-indigo-100/50'
             },
             { 
-              title: 'Realtime Afiş & Görsel Tasarımı', 
-              desc: 'Tek resim veya kolaj sosyal medya görselleri üretir. Satılan araçlar için "Satıldı", "Opsiyonlu", "Fırsat" şeritli afişler hazırlar.',
+              title: txt("Realtime Afiş & Görsel Tasarımı", "Realtime Poster & Visual Design", "Σχεδιασμός Αφίσας & Οπτικών σε Πραγματικό Χρόνο"), 
+              desc: txt("Tek resim veya kolaj sosyal medya görselleri üretir. Satılan araçlar için \"Satıldı\", \"Opsiyonlu\", \"Fırsat\" şeritli afişler hazırlar.", "Produces single image or collage social media visuals. Prepares posters with \"Sold\", \"Optioned\", \"Opportunity\" ribbons for sold vehicles.", "Παράγει γραφικά μέσων κοινωνικής δικτύωσης μεμονωμένης εικόνας ή κολάζ. Προετοιμάζει αφίσες με κορδέλες \"Πουλήθηκε\", \"Επιλογή\", \"Ευκαιρία\" για πουλημένα οχήματα."),
               icon: Image,
               color: 'text-purple-600 bg-purple-50 border-purple-100/50'
             },
             { 
-              title: 'Instagram Otomatik Paylaşımı', 
-              desc: 'Eklenen her araç anında enrakipsiz.com ve kendi hesaplarınızda otomatik paylaşılır; fiyat değişimlerinde otomatik güncellenir.',
+              title: txt("Instagram Otomatik Paylaşımı", "Instagram Automatic Sharing", "Αυτόματη κοινοποίηση στο Instagram"), 
+              desc: txt("Eklenen her araç anında enrakipsiz.com ve kendi hesaplarınızda otomatik paylaşılır; fiyat değişimlerinde otomatik güncellenir.", "Every added vehicle is instantly shared automatically on enrakipsiz.com and your own accounts; updated automatically on price changes.", "Κάθε όχημα που προστίθεται κοινοποιείται αυτόματα στο enrakipsiz.com και στους δικούς σας λογαριασμούς. ενημερώνεται αυτόματα στις αλλαγές τιμών."),
               icon: Share2,
               color: 'text-pink-600 bg-pink-50 border-pink-100/50'
             },
             { 
-              title: 'Sürükle-Bırak Web Site Sihirbazı', 
-              desc: 'Size özel hazır kurumsal web siteniz saniyeler içinde otomatik kurulur, dilediğiniz gibi sürükle-bırak özelleştirebilirsiniz.',
+              title: txt("Sürükle-Bırak Web Site Sihirbazı", "Drag-and-Drop Website Wizard", "Οδηγός ιστότοπου μεταφοράς και απόθεσης"), 
+              desc: txt("Size özel hazır kurumsal web siteniz saniyeler içinde otomatik kurulur, dilediğiniz gibi sürükle-bırak özelleştirebilirsiniz.", "Your custom ready-made corporate website is automatically installed in seconds, you can customize it with drag-and-drop as you wish.", "Ο προσαρμοσμένος έτοιμος εταιρικός ιστότοπός σας εγκαθίσταται αυτόματα σε δευτερόλεπτα, μπορείτε να τον προσαρμόσετε με μεταφορά και απόθεση όπως επιθυμείτε."),
               icon: Globe,
               color: 'text-emerald-600 bg-emerald-50 border-emerald-100/50'
             },
             { 
-              title: 'Otomatik Alıcı Dağıtım Ağı', 
-              desc: 'Portföydeki araçlarınız el değmeden kurumsal web sitenizde ve global ilan platformu enrakipsiz.com\'da yayına alınarak sergilenir.',
+              title: txt("Otomatik Alıcı Dağıtım Ağı", "Automatic Buyer Distribution Network", "Αυτόματο Δίκτυο Διανομής Αγοραστών"), 
+              desc: txt("Portföydeki araçlarınız el değmeden kurumsal web sitenizde ve global ilan platformu enrakipsiz.com'da yayına alınarak sergilenir.", "Your vehicles in the portfolio are automatically published and displayed on your corporate website and the global classifieds platform enrakipsiz.com.", "Τα οχήματά σας στο χαρτοφυλάκιο δημοσιεύονται αυτόματα και προβάλλονται στον εταιρικό σας ιστότοπο και στην παγκόσμια πλατφόρμα αγγελιών enrakipsiz.com."),
               icon: Send,
               color: 'text-cyan-600 bg-cyan-50 border-cyan-100/50'
             },
             { 
-              title: 'Mobil Öncelikli Hızlı Giriş', 
-              desc: 'Telefondan fotoğraf çekip anında portföye yükleyin; kablosuz, anlık ve son derece hızlı envanter yönetim kolaylığı.',
+              title: txt("Mobil Öncelikli Hızlı Giriş", "Mobile-First Quick Entry", "Γρήγορη Είσοδος Mobile-First"), 
+              desc: txt("Telefondan fotoğraf çekip anında portföye yükleyin; kablosuz, anlık ve son derece hızlı envanter yönetim kolaylığı.", "Take a photo from your phone and instantly upload it to your portfolio; wireless, instant, and extremely fast inventory management convenience.", "Τραβήξτε μια φωτογραφία από το τηλέφωνό σας και ανεβάστε την άμεσα στο χαρτοφυλάκιό σας. ασύρματη, άμεση και εξαιρετικά γρήγορη ευκολία διαχείρισης αποθέματος."),
               icon: Smartphone,
               color: 'text-amber-600 bg-amber-50 border-amber-100/50'
             },
             { 
-              title: 'Araç Maliyet & Kârlılık Takibi', 
-              desc: 'Yaptığınız tüm harcamaları takip edip gelir/gider kayıtlarını portföyünüzle ilişkilendirerek kâr-zarar durum analizleri yapın.',
+              title: txt("Araç Maliyet & Kârlılık Takibi", "Vehicle Cost & Profitability Tracking", "Κόστος οχήματος και παρακολούθηση κερδοφορίας"), 
+              desc: txt("Yaptığınız tüm harcamaları takip edip gelir/gider kayıtlarını portföyünüzle ilişkilendirerek kâr-zarar durum analizleri yapın.", "Analyze profit and loss situations by tracking all your expenses and associating income/expense records with your portfolio.", "Αναλύστε καταστάσεις κερδών και ζημιών παρακολουθώντας όλα τα έξοδά σας και συσχετίζοντας αρχεία εσόδων/εξόδων με το χαρτοφυλάκιό σας."),
               icon: TrendingUp,
               color: 'text-rose-600 bg-rose-50 border-rose-100/50'
             },
             { 
-              title: 'Tek Bakışta Kilometre Envanteri', 
-              desc: 'Tüm araçlarınızın detaylı listesini, kilometrelerini ve fiyatlarını tek bakışta izleyin, görsel detayları tek tıkla inceleyin.',
+              title: txt("Tek Bakışta Kilometre Envanteri", "Mileage Inventory at a Glance", "Απόθεμα χιλιομετρικής απόστασης με μια ματιά"), 
+              desc: txt("Tüm araçlarınızın detaylı listesini, kilometrelerini ve fiyatlarını tek bakışta izleyin, görsel detayları tek tıkla inceleyin.", "Monitor the detailed list, mileage, and prices of all your vehicles at a glance, and examine visual details with a single click.", "Παρακολουθήστε τη λεπτομερή λίστα, τα χιλιόμετρα και τις τιμές όλων των οχημάτων σας με μια ματιά και εξετάστε τις οπτικές λεπτομέρειες με ένα μόνο κλικ."),
               icon: CheckCircle,
               color: 'text-teal-600 bg-teal-50 border-teal-100/50'
             },
             { 
-              title: 'Vadeli Satış & Cari Hesap', 
-              desc: 'Vadeli satışlarınızda borç/alacak takibi yapın, dilediğiniz an raporlayın ve Excel veya PDF olarak tek tıkla dışarı aktarın.',
+              title: txt("Vadeli Satış & Cari Hesap", "Term Sales & Current Account", "Προθεσμιακές Πωλήσεις & Τρεχούμενος Λογαριασμός"), 
+              desc: txt("Vadeli satışlarınızda borç/alacak takibi yapın, dilediğiniz an raporlayın ve Excel veya PDF olarak tek tıkla dışarı aktarın.", "Track debt/receivables in your term sales, report them whenever you want, and export them as Excel or PDF with a single click.", "Παρακολουθήστε τις οφειλές/απαιτήσεις στις προθεσμιακές πωλήσεις σας, αναφέρετέ τις όποτε θέλετε και εξάγετέ τις ως Excel ή PDF με ένα μόνο κλικ."),
               icon: BookOpen,
               color: 'text-amber-600 bg-amber-50 border-amber-100/50'
             },
             { 
-              title: 'Çok Şubeli CRM & Personel', 
-              desc: 'Sınırsız şube ve satış temsilcisi ekleyin. Şubeler arası araç transferi ve zimmet işlemlerini tek panelden kolayca yönetin.',
+              title: txt("Çok Şubeli CRM & Personel", "Multi-Branch CRM & Personnel", "Πολυκαταστηματικό CRM & Προσωπικό"), 
+              desc: txt("Sınırsız şube ve satış temsilcisi ekleyin. Şubeler arası araç transferi ve zimmet işlemlerini tek panelden kolayca yönetin.", "Add unlimited branches and sales representatives. Easily manage vehicle transfers and debit transactions between branches from a single panel.", "Προσθέστε απεριόριστα υποκαταστήματα και αντιπροσώπους πωλήσεων. Διαχειριστείτε εύκολα τις μεταφορές οχημάτων και τις χρεωστικές συναλλαγές μεταξύ των υποκαταστημάτων από έναν ενιαίο πίνακα."),
               icon: Users,
               color: 'text-blue-600 bg-blue-50 border-blue-100/50'
             },
             { 
-              title: 'Tek Tuşla Bulut Yedekleme', 
-              desc: 'Tüm verilerinizi tek tuşla kurumsal Google Cloud sistemlerine şifreli olarak yedekleyin, her an güvenle erişin.',
+              title: txt("Tek Tuşla Bulut Yedekleme", "One-Click Cloud Backup", "Cloud Backup με ένα κλικ"), 
+              desc: txt("Tüm verilerinizi tek tuşla kurumsal Google Cloud sistemlerine şifreli olarak yedekleyin, her an güvenle erişin.", "Securely backup all your data to corporate Google Cloud systems with a single click and access it safely at any time.", "Δημιουργήστε αντίγραφα ασφαλείας όλων των δεδομένων σας με ασφάλεια σε εταιρικά συστήματα Google Cloud με ένα μόνο κλικ και αποκτήστε πρόσβαση σε αυτά με ασφάλεια ανά πάσα στιγμή."),
               icon: Cloud,
               color: 'text-sky-600 bg-sky-50 border-sky-100/50'
             },
             { 
-              title: 'SEO Dostu & Hazır Meta', 
-              desc: 'Google hesaplarını ve reklam piksellerini kolayca tanımlayarak PR ve pazarlama kampanyalarınızı anında optimize edin.',
+              title: txt("SEO Dostu & Hazır Meta", "SEO Friendly & Ready Meta", "Φιλικό προς το SEO & Έτοιμο Meta"), 
+              desc: txt("Google hesaplarını ve reklam piksellerini kolayca tanımlayarak PR ve pazarlama kampanyalarınızı anında optimize edin.", "Easily define Google accounts and ad pixels to optimize your PR and marketing campaigns instantly.", "Ορίστε εύκολα λογαριασμούς Google και pixel διαφημίσεων για να βελτιστοποιήσετε τις καμπάνιες PR και μάρκετινγκ άμεσα."),
               icon: Search,
               color: 'text-neutral-600 bg-neutral-50 border-neutral-100/50'
             },
             { 
-              title: 'Gerçek Zamanlı Karar Analitiği', 
-              desc: 'Yöneticiler için anlık raporlama sunan, işletmenizin tüm finansal durumunu özetleyen dinamik dashboard ekranı.',
+              title: txt("Gerçek Zamanlı Karar Analitiği", "Real-Time Decision Analytics", "Αναλυτικά Στοιχεία Απόφασης σε Πραγματικό Χρόνο"), 
+              desc: txt("Yöneticiler için anlık raporlama sunan, işletmenizin tüm finansal durumunu özetleyen dinamik dashboard ekranı.", "Dynamic dashboard screen that provides instant reporting for managers and summarizes the entire financial status of your business.", "Δυναμική οθόνη πίνακα ελέγχου που παρέχει άμεση αναφορά για διευθυντές και συνοψίζει ολόκληρη την οικονομική κατάσταση της επιχείρησής σας."),
               icon: BarChart3,
               color: 'text-violet-600 bg-violet-50 border-violet-100/50'
             },
             { 
               title: 'Sektörel Radar Takip Sistemi', 
-              desc: 'Belirleyeceğiniz anahtar kelimelere göre internetteki en yeni piyasa fırsatlarını ve araç haberlerini yakalayan radar.',
+              desc: txt("Belirleyeceğiniz anahtar kelimelere göre internetteki en yeni piyasa fırsatlarını ve araç haberlerini yakalayan radar.", "Radar that captures the latest market opportunities and vehicle news on the internet according to the keywords you specify.", "Ραντάρ που καταγράφει τις πιο πρόσφατες ευκαιρίες αγοράς και ειδήσεις οχημάτων στο διαδίκτυο σύμφωνα με τις λέξεις-κλειδιά που καθορίζετε."),
               icon: Radio,
               color: 'text-red-600 bg-red-50 border-red-100/50'
             },
             { 
               title: 'Otomatik Döviz & Finansman', 
-              desc: 'Otomatik Merkez Bankası döviz kur eşitlemesi, harita yol tarifleri, kredi hesaplama motoru ve kullanıcı işlem denetim kayıtları.',
+              desc: txt("Otomatik Merkez Bankası döviz kur eşitlemesi, harita yol tarifleri, kredi hesaplama motoru ve kullanıcı işlem denetim kayıtları.", "Automatic Central Bank exchange rate equalization, map directions, loan calculation engine, and user transaction audit logs.", "Αυτόματη εξίσωση συναλλαγματικής ισοτιμίας της Κεντρικής Τράπεζας, οδηγίες χάρτη, μηχανή υπολογισμού δανείου και αρχεία ελέγχου συναλλαγών χρηστών."),
               icon: Calculator,
               color: 'text-emerald-600 bg-emerald-50 border-emerald-100/50'
             }

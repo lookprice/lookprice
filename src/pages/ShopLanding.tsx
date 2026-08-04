@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { 
   HelpCircle, 
   Search, 
@@ -168,6 +169,15 @@ export default function ShopLanding() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      <Helmet>
+        <title>ShopLP | {txt('Perakende Mağaza Yönetim ve POS Yazılımı', 'Retail Store Management and POS Software', 'Λογισμικό Διαχείρισης Λιανικής & POS')}</title>
+        <meta name="description" content={txt(
+          "ShopLP ile perakende mağazanızı dijitalleştirin. Hızlı POS satış ekranı, barkodlu stok takibi, cari hesap yönetimi ve e-Fatura entegrasyonu ile mağaza verimliliğinizi artırın.",
+          "Digitalize your retail store with ShopLP. Increase store efficiency with fast POS sales screen, barcode stock tracking, ledger management, and e-Invoice integration.",
+          "Ψηφιοποιήστε το κατάστημα λιανικής σας με το ShopLP. Αυξήστε την αποδοτικότητα του καταστήματος με γρήγορη οθόνη πωλήσεων POS, παρακολούθηση αποθεμάτων με barcode, διαχείριση καθολικών και ενσωμάτωση e-Invoice."
+        )} />
+        <meta name="keywords" content="perakende satış programı, mağaza yönetim yazılımı, stok takip sistemi, hızlı satış pos, cari hesap takip, mağaza crm, barkodlu satış sistemi, perakende otomasyonu, stok ve depo yönetimi, mağaza analiz raporları, online satış entegrasyonu, kasa takip programı, yeni nesil perakende çözümleri, mağaza yönetim sistemi, bulut tabanlı pos" />
+      </Helmet>
       {/* Top Navbar */}
       <nav className="bg-white border-b border-slate-100 py-4 px-6 md:px-12 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -215,17 +225,17 @@ export default function ShopLanding() {
             ShopLP by LookPrice
           </span>
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-slate-950 tracking-tighter mb-6 leading-[1.1]">
-            Bulut Tabanlı Perakende ve <br className="hidden md:inline"/> Akıllı Kasa Satış Sistemi
+            {txt('Bulut Tabanlı Perakende ve', 'Cloud-Based Retail and', 'Λιανική βασισμένη στο Cloud και')} <br className="hidden md:inline"/> {txt('Akıllı Kasa Satış Sistemi', 'Smart POS Sales System', 'Έξυπνο Σύστημα Πωλήσεων POS')}
           </h1>
           <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto mb-10 font-semibold leading-relaxed">
-            Hızlı POS satış ekranı, tam uyumlu barkod okuyucu ve yazıcı entegrasyonu, gelişmiş stok takibi ve resmi e-Fatura / e-Arşiv bağlantısıyla mağazanızı baştan yaratın.
+            {txt('Hızlı POS satış ekranı, tam uyumlu barkod okuyucu ve yazıcı entegrasyonu, gelişmiş stok takibi ve resmi e-Fatura / e-Arşiv bağlantısıyla mağazanızı baştan yaratın.', 'Reinvent your store with a fast POS sales screen, fully compatible barcode reader and printer integration, advanced stock tracking, and official e-Invoice / e-Archive connection.', 'Επανεφεύρετε το κατάστημά σας με μια γρήγορη οθόνη πωλήσεων POS, πλήρως συμβατή συσκευή ανάγνωσης γραμμωτού κώδικα και ενσωμάτωση εκτυπωτή, προηγμένη παρακολούθηση αποθεμάτων και επίσημη σύνδεση e-Invoice / e-Archive.')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
               onClick={() => navigate('/register')}
               className="px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all text-lg flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/15 cursor-pointer"
             >
-              Ücretsiz Deneyin <ArrowRight className="h-5 w-5" />
+              {txt('Ücretsiz Deneyin', 'Try for Free', 'Δοκιμάστε Δωρεάν')} <ArrowRight className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -236,19 +246,19 @@ export default function ShopLanding() {
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-5 space-y-6">
             <div className="inline-block px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-bold uppercase tracking-wider">
-              BULUT TABANLI PERAKENDE AKILLI POS
+              {txt('BULUT TABANLI PERAKENDE AKILLI POS', 'CLOUD-BASED RETAIL SMART POS', 'ΕΞΥΠΝΟ POS ΛΙΑΝΙΚΗΣ ΒΑΣΙΣΜΕΝΟ ΣΤΟ CLOUD')}
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              Hızlı Barkodlu Kasa Satışı ve Varyasyonlu Stok Takibi
+              {txt('Hızlı Barkodlu Kasa Satışı ve Varyasyonlu Stok Takibi', 'Fast Barcode POS Sales and Variational Stock Tracking', 'Γρήγορες Πωλήσεις POS με Barcode και Παρακολούθηση Αποθέματος με Παραλλαγές')}
             </h2>
             <p className="text-slate-600 font-semibold text-sm md:text-base leading-relaxed">
-              ShopLP, butikler, pastaneler, marketler ve tüm perakende satıcılar için iş süreçlerini kolaylaştırır. Dokunmatik ekranlar ve barkod okuyucularla tam entegre çalışarak satış hızınızı zirveye taşır.
+              {txt('ShopLP, butikler, pastaneler, marketler ve tüm perakende satıcılar için iş süreçlerini kolaylaştırır. Dokunmatik ekranlar ve barkod okuyucularla tam entegre çalışarak satış hızınızı zirveye taşır.', 'ShopLP simplifies business processes for boutiques, bakeries, markets, and all retail sellers. It takes your sales speed to the peak by working fully integrated with touch screens and barcode readers.', 'Το ShopLP απλοποιεί τις επιχειρηματικές διαδικασίες για μπουτίκ, αρτοποιεία, αγορές και όλους τους πωλητές λιανικής. Ανεβάζει την ταχύτητα πωλήσεών σας στην κορυφή λειτουργώντας πλήρως ενσωματωμένο με οθόνες αφής και συσκευές ανάγνωσης barcode.')}
             </p>
             <div className="space-y-3">
               {[
-                "Hızlı barkodlu/barkodsuz dokunmatik POS satış ekranı",
-                "Renk, beden ve dinamik varyasyon bazlı gelişmiş stok takibi",
-                "Entegre resmi e-Fatura / e-Arşiv ve çoklu dövizli kasa yönetimi"
+                txt(txt("Hızlı barkodlu/barkodsuz dokunmatik POS satış ekranı", "Fast barcode/barcode-free touch POS sales screen", "Γρήγορη οθόνη πωλήσεων POS αφής με barcode/χωρίς barcode"), "Fast barcode/barcode-free touch POS sales screen", "Γρήγορη οθόνη πωλήσεων POS αφής με barcode/χωρίς barcode"),
+                txt(txt("Renk, beden ve dinamik varyasyon bazlı gelişmiş stok takibi", "Advanced stock tracking based on color, size, and dynamic variation", "Προηγμένη παρακολούθηση αποθέματος βάσει χρώματος, μεγέθους και δυναμικής παραλλαγής"), "Advanced stock tracking based on color, size, and dynamic variation", "Προηγμένη παρακολούθηση αποθέματος βάσει χρώματος, μεγέθους και δυναμικής παραλλαγής"),
+                txt(txt("Entegre resmi e-Fatura / e-Arşiv ve çoklu dövizli kasa yönetimi", "Integrated official e-Invoice / e-Archive and multi-currency cash register management", "Ενσωματωμένο επίσημο e-Invoice / e-Archive και διαχείριση ταμειακής μηχανής πολλαπλών νομισμάτων"), "Integrated official e-Invoice / e-Archive and multi-currency cash register management", "Ενσωματωμένο επίσημο e-Invoice / e-Archive και διαχείριση ταμειακής μηχανής πολλαπλών νομισμάτων")
               ].map((text, i) => (
                 <div key={i} className="flex items-center gap-3 text-slate-700 text-sm font-bold">
                   <CheckCircle className="h-5 w-5 text-indigo-500 shrink-0" />
@@ -268,10 +278,10 @@ export default function ShopLanding() {
               />
               <div className="absolute bottom-8 left-8 right-8 z-20 bg-black/50 backdrop-blur-md p-6 rounded-2xl border border-white/10 text-white">
                 <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20 mb-2 inline-block">
-                  PERAKENDE KASA VİTRİN
+                  {txt('PERAKENDE KASA VİTRİN', 'RETAIL POS SHOWCASE', 'ΒΙΤΡΙΝΑ POS ΛΙΑΝΙΚΗΣ')}
                 </span>
-                <p className="font-black text-lg md:text-xl mb-1">Veresiye ve Cari Hesap Defteri</p>
-                <p className="text-white/60 text-xs md:text-sm font-semibold">Tüm müşteri cari bakiyelerini, tahsilatları ve veresiye limitlerini anlık izleyin.</p>
+                <p className="font-black text-lg md:text-xl mb-1">{txt('Veresiye ve Cari Hesap Defteri', 'Credit and Current Account Ledger', 'Βιβλίο Πιστώσεων και Τρεχούμενων Λογαριασμών')}</p>
+                <p className="text-white/60 text-xs md:text-sm font-semibold">{txt('Tüm müşteri cari bakiyelerini, tahsilatları ve veresiye limitlerini anlık izleyin.', 'Instantly monitor all customer current balances, collections, and credit limits.', 'Παρακολουθήστε άμεσα όλα τα τρέχοντα υπόλοιπα πελατών, τις εισπράξεις και τα πιστωτικά όρια.')}</p>
               </div>
             </div>
           </div>
@@ -282,101 +292,101 @@ export default function ShopLanding() {
       <section className="py-24 max-w-7xl mx-auto px-6">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-            Perakende Mağazanız İçin Eksiksiz Güç
+            {txt('Perakende Mağazanız İçin Eksiksiz Güç', 'Complete Power for Your Retail Store', 'Πλήρης Δύναμη για το Κατάστημα Λιανικής σας')}
           </h2>
           <p className="text-slate-500 font-semibold text-sm sm:text-base leading-relaxed">
-            ShopLP, butikler, pastaneler, marketler ve tüm perakende mağazaları için uçtan uca otomasyon ve finansal yönetim sunar.
+            {txt('ShopLP, butikler, pastaneler, marketler ve tüm perakende mağazaları için uçtan uca otomasyon ve finansal yönetim sunar.', 'ShopLP offers end-to-end automation and financial management for boutiques, bakeries, markets, and all retail stores.', 'Το ShopLP προσφέρει αυτοματοποίηση και οικονομική διαχείριση από άκρο σε άκρο για μπουτίκ, αρτοποιεία, αγορές και όλα τα καταστήματα λιανικής.')}
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {[
             { 
-              title: 'Hızlı Dokunmatik POS', 
-              desc: 'Barkodlu veya barkodsuz tüm ürünlerinizi ister okutarak ister dokunarak saniyeler içinde satın. Yeni nesil entegre yazar kasa/POS cihazları ile tam uyumlu çalışır.',
+              title: txt("Hızlı Dokunmatik POS", "Fast Touch POS", "Γρήγορο POS Αφής"), 
+              desc: txt("Barkodlu veya barkodsuz tüm ürünlerinizi ister okutarak ister dokunarak saniyeler içinde satın. Yeni nesil entegre yazar kasa/POS cihazları ile tam uyumlu çalışır.", "Sell all your products, with or without barcodes, in seconds, either by scanning or touching. It works fully compatibly with new generation integrated cash register/POS devices.", "Πουλήστε όλα τα προϊόντα σας, με ή χωρίς barcode, σε δευτερόλεπτα, είτε με σάρωση είτε με άγγιγμα. Λειτουργεί πλήρως συμβατά με νέας γενιάς ενσωματωμένες ταμειακές μηχανές/συσκευές POS."),
               icon: ShoppingBag,
               color: 'text-indigo-600 bg-indigo-50 border-indigo-100/50'
             },
             { 
-              title: 'Gelişmiş Varyasyon', 
-              desc: 'Giyim ve ayakkabı gibi renk, beden, numara kırılımlı ürünleri tek kartta toplayıp stoklarını bağımsız takip edin.',
+              title: txt("Gelişmiş Varyasyon", "Advanced Variation", "Προηγμένη Παραλλαγή"), 
+              desc: txt("Giyim ve ayakkabı gibi renk, beden, numara kırılımlı ürünleri tek kartta toplayıp stoklarını bağımsız takip edin.", "Collect products with color, size, and number breakdowns such as clothing and shoes on a single card and track their stocks independently.", "Συλλέξτε προϊόντα με αναλύσεις χρώματος, μεγέθους και αριθμού, όπως ρούχα και παπούτσια σε μία μόνο κάρτα και παρακολουθήστε τα αποθέματά τους ανεξάρτητα."),
               icon: Layers,
               color: 'text-blue-600 bg-blue-50 border-blue-100/50'
             },
             { 
-              title: 'Entegre e-Fatura Altyapısı', 
-              desc: 'Satış anında müşteri bilgileriyle resmi e-Fatura veya e-Arşiv faturası kesin, muhasebe süreçlerinizi hızlandırın.',
+              title: txt("Entegre e-Fatura Altyapısı", "Integrated e-Invoice Infrastructure", "Ενσωματωμένη Υποδομή e-Invoice"), 
+              desc: txt("Satış anında müşteri bilgileriyle resmi e-Fatura veya e-Arşiv faturası kesin, muhasebe süreçlerinizi hızlandırın.", "Issue official e-Invoice or e-Archive invoices with customer information at the time of sale, speed up your accounting processes.", "Εκδώστε επίσημα e-Invoice ή e-Archive τιμολόγια με πληροφορίες πελατών κατά την πώληση, επιταχύνετε τις λογιστικές σας διαδικασίες."),
               icon: Receipt,
               color: 'text-emerald-600 bg-emerald-50 border-emerald-100/50'
             },
             { 
-              title: 'Teknik Servis Yönetimi', 
-              desc: 'Müşteri bilgilendirmesi, servis raporu ve fiyat teklifleri süreçlerini dijital olarak takip edin. Onay durumuna göre otomatik taslak satış faturası oluşturun.',
+              title: txt("Teknik Servis Yönetimi", "Technical Service Management", "Διαχείριση Τεχνικής Υπηρεσίας"), 
+              desc: txt("Müşteri bilgilendirmesi, servis raporu ve fiyat teklifleri süreçlerini dijital olarak takip edin. Onay durumuna göre otomatik taslak satış faturası oluşturun.", "Track customer information, service report, and price quote processes digitally. Automatically create a draft sales invoice based on the approval status.", "Παρακολουθήστε ψηφιακά τις πληροφορίες πελατών, την αναφορά υπηρεσίας και τις διαδικασίες προσφοράς τιμής. Δημιουργήστε αυτόματα ένα πρόχειρο τιμολόγιο πώλησης με βάση την κατάσταση έγκρισης."),
               icon: Wrench,
               color: 'text-orange-600 bg-orange-50 border-orange-100/50'
             },
             { 
-              title: 'Akıllı Fiyat Teklif Sistemi', 
-              desc: 'Fiyat tekliflerinizi saniyeler içinde hazırlayıp PDF veya interaktif dijital onay linkiyle gönderin. Onaylanan teklifleri otomatik taslak faturaya dönüştürün.',
+              title: txt("Akıllı Fiyat Teklif Sistemi", "Smart Price Quote System", "Έξυπνο Σύστημα Προσφοράς Τιμής"), 
+              desc: txt("Fiyat tekliflerinizi saniyeler içinde hazırlayıp PDF veya interaktif dijital onay linkiyle gönderin. Onaylanan teklifleri otomatik taslak faturaya dönüştürün.", "Prepare your price quotes in seconds and send them via PDF or interactive digital approval link. Automatically convert approved quotes into draft invoices.", "Ετοιμάστε τις προσφορές τιμών σας σε δευτερόλεπτα και στείλτε τις μέσω PDF ή διαδραστικού συνδέσμου ψηφιακής έγκρισης. Μετατρέψτε αυτόματα τις εγκεκριμένες προσφορές σε πρόχειρα τιμολόγια."),
               icon: FileText,
               color: 'text-sky-600 bg-sky-50 border-sky-100/50'
             },
             { 
-              title: 'Stok Hareket Ekstresi', 
-              desc: 'Geçmiş dönem ürün hareketlerini, giriş/çıkış sipariş detaylarını, şubeler arası sevkleri ve stokların talep yoğunluk durumlarını anlık analiz edin.',
+              title: txt("Stok Hareket Ekstresi", "Stock Movement Statement", "Κατάσταση Κίνησης Αποθέματος"), 
+              desc: txt("Geçmiş dönem ürün hareketlerini, giriş/çıkış sipariş detaylarını, şubeler arası sevkleri ve stokların talep yoğunluk durumlarını anlık analiz edin.", "Instantly analyze past period product movements, entry/exit order details, inter-branch transfers, and demand intensity status of stocks.", "Αναλύστε άμεσα τις κινήσεις προϊόντων προηγούμενης περιόδου, λεπτομέρειες παραγγελίας εισόδου/εξόδου, μεταφορές μεταξύ υποκαταστημάτων και κατάσταση έντασης ζήτησης αποθεμάτων."),
               icon: Activity,
               color: 'text-violet-600 bg-violet-50 border-violet-100/50'
             },
             { 
-              title: 'Otomatik Muhasebe & Kayıt', 
-              desc: 'Alış ve satış faturalarından (hem resmi e-fatura hem de manuel faturalardan) otomatik cari ve stok kayıtları oluşturarak manuel iş yükünü sıfırlayın.',
+              title: txt("Otomatik Muhasebe & Kayıt", "Automatic Accounting & Registration", "Αυτόματη Λογιστική & Εγγραφή"), 
+              desc: txt("Alış ve satış faturalarından (hem resmi e-fatura hem de manuel faturalardan) otomatik cari ve stok kayıtları oluşturarak manuel iş yükünü sıfırlayın.", "Reset manual workload by automatically creating current and stock records from purchase and sales invoices (both official e-invoices and manual invoices).", "Επαναφέρετε τον χειροκίνητο φόρτο εργασίας δημιουργώντας αυτόματα τρέχοντα αρχεία και αρχεία αποθέματος από τιμολόγια αγοράς και πώλησης (τόσο επίσημα e-invoices όσο και χειροκίνητα τιμολόγια)."),
               icon: CheckCircle,
               color: 'text-teal-600 bg-teal-50 border-teal-100/50'
             },
             { 
-              title: 'Toplu Fiyat Değişikliği', 
-              desc: 'Piyasadaki anlık kur ve maliyet dalgalanmalarına karşı, saniyeler içerisinde binlerce ürünün fiyatına kategori veya marka bazında müdahale edin.',
+              title: txt("Toplu Fiyat Değişikliği", "Bulk Price Change", "Μαζική Αλλαγή Τιμής"), 
+              desc: txt("Piyasadaki anlık kur ve maliyet dalgalanmalarına karşı, saniyeler içerisinde binlerce ürünün fiyatına kategori veya marka bazında müdahale edin.", "Against instant exchange rate and cost fluctuations in the market, intervene in the prices of thousands of products on a category or brand basis in seconds.", "Ενάντια στις άμεσες διακυμάνσεις συναλλαγματικών ισοτιμιών και κόστους στην αγορά, παρέμβετε στις τιμές χιλιάδων προϊόντων σε επίπεδο κατηγορίας ή μάρκας σε δευτερόλεπτα."),
               icon: RefreshCw,
               color: 'text-pink-600 bg-pink-50 border-pink-100/50'
             },
             { 
-              title: 'Gider Merkezleri Analizi', 
+              title: txt("Gider Merkezleri Analizi", "Expense Centers Analysis", "Ανάλυση Κέντρων Κόστους"), 
               desc: 'Gider yerlerinizi (reklam, kira, kargo vb.) tanımlayarak şirket masraflarınızı ürünlerle ilişkilendirin ve net kâr-zarar raporlarını çıkarın.',
               icon: TrendingUp,
               color: 'text-rose-600 bg-rose-50 border-rose-100/50'
             },
             { 
-              title: 'Filo & Araç Yönetim Sistemi', 
+              title: txt("Filo & Araç Yönetim Sistemi", "Fleet & Vehicle Management System", "Σύστημα διαχείρισης στόλου & οχημάτων"), 
               desc: 'Şirket araçlarınızın aktif Sürücü zimmetlerini, Km durumlarını, Servis/Bakım geçmişlerini, lastik değişimlerini ve resmi sigorta/kasko evraklarını takip edin.',
               icon: Car,
               color: 'text-red-600 bg-red-50 border-red-100/50'
             },
             { 
-              title: 'Uçtan Uca Tedarik Yönetimi', 
+              title: txt("Uçtan Uca Tedarik Yönetimi", "End-to-End Supply Management", "End-to-End Supply Management"), 
               desc: 'Satın alma taleplerinden tedarikçi teklif toplamalarına, sipariş onayından mal kabule kadar tüm tedarik zincirinizi tek ekrandan yönetin.',
               icon: Truck,
               color: 'text-amber-600 bg-amber-50 border-amber-100/50'
             },
             { 
-              title: 'Çok Şubeli Eşgüdümlü Yönetim', 
+              title: txt("Çok Şubeli Eşgüdümlü Yönetim", "Multi-Branch Coordinated Management", "Συντονισμένη διαχείριση πολλών καταστημάτων"), 
               desc: 'Sınırsız şube açın. Merkezle tam eşgüdümlü çalışan şubeleriniz arasında hızlı stok transferi yapın ve tüm stoklarınızı tek bir platformdan izleyin.',
               icon: Users,
               color: 'text-slate-600 bg-slate-50 border-slate-100/50'
             },
             { 
-              title: 'Dövizli Cari & Dijital Mutabakat', 
+              title: txt("Dövizli Cari & Dijital Mutabakat", "Foreign Currency Current & Digital Reconciliation", "Τρέχων συνάλλαγμα & ψηφιακή συμφωνία"), 
               desc: 'Cari hesap ekstrelerinizi dövizli takip edin. Entegre Dijital Mutabakat sistemiyle müşterilerinize online onaylı bakiye mutabakatı gönderin.',
               icon: Coins,
               color: 'text-yellow-600 bg-yellow-50 border-yellow-100/50'
             },
             { 
-              title: 'Mağaza içi "Fiyat Gör" QR', 
+              title: txt("Mağaza içi 'Fiyat Gör' QR", "In-Store 'See Price' QR", "Κωδικός QR 'Δείτε Τιμή' στο κατάστημα"), 
               desc: 'Müşterileriniz veya personeliniz mağaza içi QR kodu okutarak tüm ürünlerin güncel fiyatlarını mobil cihazları üzerinden saniyeler içinde sorgular.',
               icon: QrCode,
               color: 'text-cyan-600 bg-cyan-50 border-cyan-100/50'
             },
             { 
-              title: 'E-Ticaret & Otomatik Kur', 
+              title: txt("E-Ticaret & Otomatik Kur", "E-Commerce & Automatic Rate", "Ηλεκτρονικό εμπόριο & Αυτόματη ισοτιμία"), 
               desc: 'Sanal POS (Paypal, Iyzico, Havale, Kapıda/Şubede öde) tanımlı, esnek, kurumsal kimliğinize göre kişiselleştirilebilir hazır web siteniz anında kurulur.',
               icon: Globe,
               color: 'text-indigo-600 bg-indigo-50 border-indigo-100/50'
