@@ -64,13 +64,26 @@ export default function DigitalMenuPage() {
   useEffect(() => {
     const fetchData = async () => {
       if (!storeId) return;
+      
+      const cachedStore = localStorage.getItem(`digitalMenuStore_${storeId}`);
+      const cachedProducts = localStorage.getItem(`digitalMenuProducts_${storeId}`);
+      
+      if (cachedStore && cachedProducts) {
+        setStore(JSON.parse(cachedStore));
+        setProducts(JSON.parse(cachedProducts));
+        setLoading(false);
+      }
+
       try {
         const [storeRes, productsRes, tablesRes] = await Promise.all([
           api.getPublicDigitalMenuInfo(storeId),
           api.getPublicDigitalMenuProducts(storeId),
           api.getPublicDigitalMenuTables(storeId).catch(() => [])
         ]);
+        
         setStore(storeRes);
+        localStorage.setItem(`digitalMenuStore_${storeId}`, JSON.stringify(storeRes));
+
         const rawProds = Array.isArray(productsRes) ? productsRes : [];
         const parsedProds = rawProds
           .filter((p: any) => p.is_sellable !== false)
@@ -87,11 +100,16 @@ export default function DigitalMenuPage() {
             };
           });
         setProducts(parsedProds);
+        localStorage.setItem(`digitalMenuProducts_${storeId}`, JSON.stringify(parsedProds));
+
         setAllTables(Array.isArray(tablesRes) ? tablesRes : []);
+        setLoading(false);
       } catch (error) {
         console.error("Fetch digital menu error:", error);
-      } finally {
-        setLoading(false);
+        // If fetch fails and no cache, let the error UI handle it
+        if (!cachedStore) {
+          setLoading(false);
+        }
       }
     };
     fetchData();

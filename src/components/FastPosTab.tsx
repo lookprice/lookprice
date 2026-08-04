@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useNetwork } from "../contexts/NetworkContext";
 import { TableGrid } from './TableGrid';
 import { api } from "../services/api";
 import { matchesSearch, normalizeSearch } from "../lib/searchUtils";
@@ -44,8 +45,33 @@ interface FastPosTabProps {
 
 const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'manager' }: FastPosTabProps) => {
   const { lang } = useLanguage();
+  const { isOnline } = useNetwork();
   const t = translations[lang].dashboard;
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    if (isOnline) {
+      const pendingSales = JSON.parse(localStorage.getItem(`pendingSales_${storeId}`) || '[]');
+      if (pendingSales.length > 0) {
+        toast.info(lang === 'tr' ? "İnternet bağlantısı geri geldi, bekleyen satışlar senkronize ediliyor..." : "Internet connection restored, syncing pending sales...");
+        pendingSales.forEach(async (sale: any) => {
+          try {
+            await api.createPosSale({
+              items: sale.items,
+              total: sale.total,
+              paymentMethod: sale.paymentMethod,
+              customerName: sale.customerName,
+              notes: sale.notes
+            }, storeId);
+          } catch (e) {
+            console.error("Sync error:", e);
+          }
+        });
+        localStorage.removeItem(`pendingSales_${storeId}`);
+      }
+    }
+  }, [isOnline, storeId]);
+
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -922,6 +948,26 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const handleFinalizeSale = async () => {
     if (cart.length === 0) return;
     
+    if (!isOnline) {
+      const pendingSale = {
+        id: Date.now(),
+        items: cart,
+        total,
+        paymentMethod,
+        customerName: selectedTable || 'Hızlı Satış',
+        notes: selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu',
+        timestamp: new Date().toISOString()
+      };
+      const pendingSales = JSON.parse(localStorage.getItem(`pendingSales_${storeId}`) || '[]');
+      localStorage.setItem(`pendingSales_${storeId}`, JSON.stringify([...pendingSales, pendingSale]));
+      toast.info(lang === 'tr' ? "İnternet bağlantısı yok, satış yerel olarak kaydedildi." : "No internet connection, sale saved locally.");
+      setCart([]);
+      setSelectedTable(null);
+      if (onSaleComplete) onSaleComplete();
+      setCompleting(false);
+      return;
+    }
+
     try {
       setCompleting(true);
 

@@ -51,6 +51,9 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
         data.variants = JSON.parse(rawData.variants_data as string);
         if (Array.isArray(data.variants) && data.variants.length > 0) {
           data.has_variants = true;
+          // Automatically sum variant stocks so stock_quantity is correctly set and recognized by filters and website publishing
+          const totalVariantStock = data.variants.reduce((acc: number, curr: any) => acc + (Number(curr.stock_quantity) || 0), 0);
+          data.stock_quantity = totalVariantStock;
         }
       } catch (e) {
         console.error("Variants data parse error:", e);
@@ -79,13 +82,17 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       }
     }
 
-    const barcode = String(data.barcode || '').trim();
-    if (!barcode) {
+    let barcode = String(data.barcode || '').trim();
+    if (!barcode && !data.has_variants && !editingProduct) {
       toast.error(lang === 'tr' ? "Lütfen geçerli bir barkod giriniz." : "Please enter a valid barcode.");
       return;
     }
+    if (!barcode && data.has_variants) {
+      barcode = 'VAR-' + Date.now().toString().slice(-6);
+      data.barcode = barcode;
+    }
 
-    const isDuplicate = products.some(p => p.barcode === barcode && p.id !== editingProduct?.id);
+    const isDuplicate = barcode && products.some(p => p.barcode === barcode && p.id !== editingProduct?.id);
     if (isDuplicate) {
       toast.error(lang === 'tr' ? "Bu barkod numarasına sahip başka bir ürün zaten var!" : "Another product with this barcode already exists!");
       return;
