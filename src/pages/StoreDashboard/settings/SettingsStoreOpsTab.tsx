@@ -41,6 +41,11 @@ export const SettingsStoreOpsTab = ({
   savingBranding
 }: SettingsStoreOpsTabProps) => {
   const t = translations || {};
+  const txt = (tr: string, en: string, el: string) => {
+    if (lang === 'tr') return tr;
+    if (lang === 'el') return el;
+    return en;
+  };
 
   const allStoreCategories = React.useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
@@ -136,7 +141,7 @@ export const SettingsStoreOpsTab = ({
           </div>
 
           <div className="md:col-span-2">
-            <h4 className="text-sm font-bold text-slate-900 mb-4">{t.crossExchangeRates || 'Çapraz Kurlar'}</h4>
+            <h4 className="text-sm font-bold text-slate-900 mb-4">{txt('Çapraz Kurlar', 'Cross Exchange Rates', 'Συναλλαγματικές Ισοτιμίες')}</h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {['USD', 'EUR', 'GBP'].map(curr => (
                 <div key={curr} className="space-y-2">
@@ -169,11 +174,11 @@ export const SettingsStoreOpsTab = ({
             <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
               <Building2 className="h-6 w-6" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Vergi Ayarları</h3>
+            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{txt('Vergi Ayarları', 'Tax Settings', 'Ρυθμίσεις Φόρων')}</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Varsayılan KDV Oranı (%)</label>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Varsayılan KDV Oranı (%)', 'Default VAT Rate (%)', 'Προεπιλεγμένος Συντελεστής ΦΠΑ (%)')}</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
                 <input 
@@ -186,7 +191,7 @@ export const SettingsStoreOpsTab = ({
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kategori KDV Kuralları</label>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Kategori KDV Kuralları', 'Category VAT Rules', 'Κανόνες ΦΠΑ ανά Κατηγορία')}</label>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
                 <div className="flex gap-2">
                   <input 
@@ -258,7 +263,7 @@ export const SettingsStoreOpsTab = ({
               <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
                 <Truck className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Kargo Ayarları</h3>
+              <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{txt('Kargo Ayarları', 'Shipping Settings', 'Ρυθμίσεις Μεταφορικών')}</h3>
             </div>
             <button 
               type="button"
@@ -460,7 +465,7 @@ export const SettingsStoreOpsTab = ({
                 onChange={(e) => onBrandingChange('reservation_enabled', e.target.checked)}
                 className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
               />
-              <span className="text-sm font-bold text-slate-900 font-sans">Mağazadan Teslimat (Rezervasyon) Aktif Et</span>
+              <span className="text-sm font-bold text-slate-900 font-sans">{txt('Mağazadan Teslimat (Rezervasyon) Aktif Et', 'Enable In-Store Pickup (Reservation)', 'Ενεργοποίηση Παραλαβής από το Κατάστημα (Κράτηση)')}</span>
             </label>
           )}
 
@@ -564,12 +569,12 @@ export const SettingsStoreOpsTab = ({
             <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
               <Globe className="h-6 w-6" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Kafe / Restoran Ayarları</h3>
+            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{txt('Kafe / Restoran Ayarları', 'Cafe / Restaurant Settings', 'Ρυθμίσεις Καφέ / Εστιατορίου')}</h3>
           </div>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
               <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Masa Sayısı</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Masa Sayısı', 'Number of Tables', 'Αριθμός Τραπεζιών')}</label>
                 <div className="relative">
                    <input
                      type="number"
@@ -611,7 +616,7 @@ export const SettingsStoreOpsTab = ({
             <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
               <RefreshCw className="h-6 w-6" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">Toplu Fiyat Güncelleme</h3>
+            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{txt('Toplu Fiyat Güncelleme', 'Bulk Price Update', 'Μαζική Ενημέρωση Τιμών')}</h3>
           </div>
           
           <form onSubmit={handleBulkPriceSubmit} className="space-y-6">
@@ -623,8 +628,8 @@ export const SettingsStoreOpsTab = ({
                   value={bulkPriceForm.target}
                   onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, target: e.target.value })}
                 >
-                  <option value="all">Tüm Ürünler</option>
-                  <option value="category">Kategori Bazlı</option>
+                  <option value="all">{txt('Tüm Ürünler', 'All Products', 'Όλα τα Προϊόντα')}</option>
+                  <option value="category">{txt('Kategori Bazlı', 'Category Based', 'Βάσει Κατηγορίας')}</option>
                 </select>
               </div>
               {bulkPriceForm.target === 'category' && (
@@ -639,29 +644,29 @@ export const SettingsStoreOpsTab = ({
                 </div>
               )}
               <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">İşlem Tipi</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('İşlem Tipi', 'Operation Type', 'Τύπος Λειτουργίας')}</label>
                 <select 
                   className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900 cursor-pointer"
                   value={bulkPriceForm.type}
                   onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, type: e.target.value })}
                 >
-                  <option value="percentage">Yüzde (%)</option>
+                  <option value="percentage">{txt('Yüzde (%)', 'Percentage (%)', 'Ποσοστό (%)')}</option>
                   <option value="fixed">Sabit Tutar</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Yön</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Yön', 'Direction', 'Κατεύθυνση')}</label>
                 <select 
                   className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900 cursor-pointer"
                   value={bulkPriceForm.direction}
                   onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, direction: e.target.value })}
                 >
-                  <option value="increase">Artır</option>
+                  <option value="increase">{txt('Artır', 'Increase', 'Αύξηση')}</option>
                   <option value="decrease">Azalt</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Değer</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Değer', 'Value', 'Αξία')}</label>
                 <input 
                   type="number" 
                   className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900 font-sans"

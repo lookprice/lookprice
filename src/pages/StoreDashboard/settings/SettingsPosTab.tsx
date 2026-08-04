@@ -13,6 +13,7 @@ export const SettingsPosTab = ({
   onBrandingChange,
   lang
 }: SettingsPosTabProps) => {
+  const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -223,7 +224,7 @@ export const SettingsPosTab = ({
                 <Cpu className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-white leading-tight tracking-tight font-sans">POS Köprüsü</h3>
+                <h3 className="text-xl font-black text-white leading-tight tracking-tight font-sans">{txt('POS Köprüsü', 'POS Bridge', 'Γέφυρα POS')}</h3>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Cihaz Entegrasyonu</p>
               </div>
             </div>
@@ -238,7 +239,7 @@ export const SettingsPosTab = ({
 
           <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-500 ${branding.pos_bridge_enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Köprü IP Adresi</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{txt('Köprü IP Adresi', 'Bridge IP Address', 'Διεύθυνση IP Γέφυρας')}</label>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]"></div>
                 <input 

@@ -1464,7 +1464,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                       const normalizeName = (str: string) => str ? str.toLowerCase().replace(/\s+/g, '') : '';
                       let sale = null;
 
-                      if (table.isGarsonTable || table.id === -999 || table.table_number === 'Garson Masası') {
+                      if (table.isGarsonTable || table.id === -999 || (table.table_number === 'Garson Masası' || table.table_number === 'Waiter Table' || table.table_number === 'Τραπέζι Σερβιτόρου')) {
                         sale = pendingSales.find(s => 
                           s.restaurant_table_id === null || 
                           s.customer_name?.toLowerCase().includes('garson') || 
@@ -1755,7 +1755,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 <div className="p-3 bg-slate-50 border-t border-slate-200 shrink-0">
                   <button
                     onClick={() => {
-                      setSelectedTable('Garson Masası');
+                      setSelectedTable(lang === 'tr' ? 'Garson Masası' : (lang === 'el' ? 'Τραπέζι Σερβιτόρου' : 'Waiter Table'));
                       const garsonSale = pendingSales.find(s => 
                         s.restaurant_table_id === null || 
                         s.customer_name?.toLowerCase().includes('garson') || 

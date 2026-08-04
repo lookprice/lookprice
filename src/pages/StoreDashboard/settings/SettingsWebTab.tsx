@@ -50,9 +50,11 @@ interface SettingsWebTabProps {
 }
 
 export const SettingsWebTab = ({
+
   branding,
   onBrandingChange,
   lang,
+
   isPortfolio,
   currentUser,
   emails,
@@ -70,6 +72,7 @@ export const SettingsWebTab = ({
   onAddUser,
   onDeleteUser,
 }: SettingsWebTabProps) => {
+  const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const rawBanners = Array.isArray(branding?.banners) ? branding.banners : [];
 
@@ -165,179 +168,68 @@ export const SettingsWebTab = ({
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
                 <Palette className="w-4 h-4 text-indigo-500" />
-                {lang === "tr" ? "VİTRİN VE TASARIM" : "SHOWCASE & DESIGN"}
+                {txt("VİTRİN VE TASARIM", "SHOWCASE & DESIGN", "ΒΙΤΡΙΝΑ ΚΑΙ ΣΧΕΔΙΑΣΜΟΣ")}
               </h3>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               {[
-                {
-                  key: "show_announcement",
-                  label: lang === "tr" ? "Duyuru Bandı" : "Announcement Bar",
-                  icon: <RefreshCw className="w-3.5 h-3.5" />,
-                },
-                {
-                  key: "show_stories",
-                  label: lang === "tr" ? "Hikayeler" : "Stories",
-                  icon: <ImageIcon className="w-3.5 h-3.5" />,
-                },
-                {
-                  key: "show_campaigns",
-                  label: lang === "tr" ? "Kampanyalar" : "Campaigns",
-                  icon: <ShoppingBag className="w-3.5 h-3.5" />,
-                },
-                {
-                  key: "show_testimonials",
-                  label: lang === "tr" ? "Müşteri Yorumları" : "Testimonials",
-                  icon: <User className="w-3.5 h-3.5" />,
-                },
-                {
-                  key: "show_newsletter",
-                  label: lang === "tr" ? "Haber Bülteni" : "Newsletter",
-                  icon: <Mail className="w-3.5 h-3.5" />,
-                },
-                {
-                  key: "enable_live_activity",
-                  label: lang === "tr" ? "Canlı Aktivite" : "Live Activity",
-                  icon: <Smartphone className="w-3.5 h-3.5" />,
-                },
-                {
-                  key: "show_featured_only",
-                  label: lang === "tr" ? "Fiyatı Düşenler (Fırsat)" : "Featured Deals",
-                  icon: <Star className="w-3.5 h-3.5" />,
-                  color: "text-amber-500",
-                },
-              ].map((section) => (
-                <div
-                  key={section.key}
-                  className="flex items-center justify-between p-3.5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-white transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`p-2 bg-white rounded-lg shadow-sm border border-slate-100 ${
-                        section.color || "text-slate-400"
-                      }`}
-                    >
-                      {section.icon}
-                    </div>
-                    <span className="text-xs font-bold text-slate-600">{section.label}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentLayout = branding?.page_layout_settings || {};
-                      onBrandingChange("page_layout_settings", {
-                        ...currentLayout,
-                        [section.key]: currentLayout[section.key as keyof typeof currentLayout] === false ? true : false,
-                      });
+                { id: "announcement_bar", icon: <Tag className="w-4 h-4" />, label: txt("Duyuru Bandı", "Announcement Bar", "Γραμμή Ανακοινώσεων") },
+                { id: "testimonials", icon: <Star className="w-4 h-4" />, label: txt("Müşteri Yorumları", "Testimonials", "Μαρτυρίες") },
+                { id: "newsletter", icon: <Mail className="w-4 h-4" />, label: txt("Haber Bülteni", "Newsletter", "Newsletter") },
+                { id: "live_activity", icon: <MessageCircle className="w-4 h-4" />, label: txt("Canlı Aktivite", "Live Activity", "Ζωντανή Δραστηριότητα") },
+                { id: "featured_deals", icon: <Tag className="w-4 h-4" />, label: txt("Fiyatı Düşenler (Fırsat)", "Featured Deals", "Προσφορές") },
+              ].map(toggle => (
+                <label key={toggle.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-indigo-50/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={branding?.page_layout_settings?.[toggle.id] !== false}
+                    onChange={(e) => {
+                      const current = branding?.page_layout_settings || {};
+                      onBrandingChange("page_layout_settings", { ...current, [toggle.id]: e.target.checked });
                     }}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                      branding?.page_layout_settings?.[section.key] !== false
-                        ? section.color
-                          ? "bg-amber-500"
-                          : "bg-indigo-600"
-                        : "bg-slate-300"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                        branding?.page_layout_settings?.[section.key] !== false ? "translate-x-5" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </div>
+                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                  />
+                  <div className="flex items-center gap-2 text-slate-700 text-xs font-bold">
+                    {toggle.icon}
+                    <span>{toggle.label}</span>
+                  </div>
+                </label>
               ))}
             </div>
 
-            {branding?.page_layout_settings?.show_announcement !== false && (
-              <div className="mb-6 p-4 bg-white border border-slate-200 rounded-2xl">
-                <label className="text-xs font-bold text-slate-500 mb-2 block">
-                  {lang === "tr" ? "Duyuru Metni" : "Announcement Text"}
-                </label>
+            {branding?.page_layout_settings?.announcement_bar !== false && (
+              <div className="mb-6">
                 <input
                   type="text"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900"
-                  placeholder={lang === "tr" ? "Duyuru metnini buraya yazın..." : "Enter announcement text here..."}
                   value={branding?.page_layout_settings?.announcement_text || ""}
-                  onChange={(e) =>
-                    onBrandingChange("page_layout_settings", {
-                      ...branding?.page_layout_settings,
-                      announcement_text: e.target.value,
-                    })
-                  }
+                  onChange={(e) => {
+                    const current = branding?.page_layout_settings || {};
+                    onBrandingChange("page_layout_settings", { ...current, announcement_text: e.target.value });
+                  }}
+                  placeholder={txt("Duyuru metnini buraya yazın...", "Enter announcement text here...", "Πληκτρολογήστε κείμενο ανακοίνωσης...")}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700"
                 />
               </div>
             )}
-
-            <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                {lang === "tr" ? "TEMA KONSEPTİ" : "THEME CONCEPT"}
-              </p>
-              <div className="flex gap-2">
-                {["modern", "minimal", "bold", "luxury"].map((theme) => (
+            
+            <div className="pt-6 border-t border-slate-100">
+              <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">
+                {txt("TEMA KONSEPTİ", "THEME CONCEPT", "ΚΟΝΣΕΠΤ ΘΕΜΑΤΟΣ")}
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {['default', 'luxury', 'minimal', 'vibrant'].map(theme => (
                   <button
                     key={theme}
-                    onClick={() =>
-                      onBrandingChange("page_layout_settings", {
-                        ...(branding?.page_layout_settings || {}),
-                        theme_variety: theme,
-                      })
-                    }
-                    className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                      branding?.page_layout_settings?.theme_variety === theme
-                        ? "bg-indigo-600 text-white shadow-lg"
-                        : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+                    type="button"
+                    onClick={() => onBrandingChange("theme_concept", theme)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                      (branding?.theme_concept || 'default') === theme 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    {theme}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 mt-4">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                {lang === "tr" ? "SEKTÖR MODU" : "SECTOR MODE"}
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {["general", "fashion", "automotive", "tech", "real_estate", "cafe_restaurant"].map((sect) => (
-                  <button
-                    key={sect}
-                    onClick={() =>
-                      onBrandingChange("page_layout_settings", {
-                        ...(branding?.page_layout_settings || {}),
-                        sector: sect,
-                      })
-                    }
-                    className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                      branding?.page_layout_settings?.sector === sect
-                        ? "bg-amber-500 text-white shadow-lg"
-                        : "bg-slate-800 text-slate-500 hover:bg-slate-700"
-                    }`}
-                  >
-                    {sect === "general"
-                      ? lang === "tr"
-                        ? "Genel"
-                        : "General"
-                      : sect === "fashion"
-                      ? lang === "tr"
-                        ? "Moda / Lüks"
-                        : "Fashion / Luxury"
-                      : sect === "automotive"
-                      ? lang === "tr"
-                        ? "Otomotiv"
-                        : "Automotive"
-                      : sect === "tech"
-                      ? lang === "tr"
-                        ? "Teknoloji"
-                        : "Tech"
-                      : sect === "real_estate"
-                      ? lang === "tr"
-                        ? "Gayrimenkul"
-                        : "Real Estate"
-                      : lang === "tr"
-                      ? "Cafe / Restaurant"
-                      : "Cafe / Restaurant"}
+                    {theme === 'luxury' ? txt('Moda / Lüks', 'Fashion / Luxury', 'Μόδα / Πολυτέλεια') : theme.toUpperCase()}
                   </button>
                 ))}
               </div>
@@ -345,107 +237,19 @@ export const SettingsWebTab = ({
           </div>
         )}
 
-        {/* 2. Logo & Favicon (Compact Side-by-Side) */}
-        {!isPortfolio && (
-          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 flex flex-col">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-amber-500" />
-              {lang === "tr" ? "MARKA KİMLİĞİ" : "BRAND ASSETS"}
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              {/* Logo Upload */}
-              <div className="relative group aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 hover:border-indigo-400 hover:bg-white transition-all cursor-pointer">
-                {branding?.logo_url ? (
-                  <img src={branding.logo_url} alt="Logo" className="max-h-full max-w-full object-contain mb-1" />
-                ) : (
-                  <Plus className="w-6 h-6 text-slate-300" />
-                )}
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">LOGO</span>
-                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onLogoUpload} />
-              </div>
-
-              {/* Favicon Upload */}
-              <div className="relative group aspect-square bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 hover:border-amber-400 hover:bg-white transition-all cursor-pointer">
-                {branding?.favicon_url ? (
-                  <img src={branding.favicon_url} alt="Favicon" className="w-10 h-10 object-contain mb-1" />
-                ) : (
-                  <Plus className="w-6 h-6 text-slate-300" />
-                )}
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">FAVICON</span>
-                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={onFaviconUpload} />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 uppercase tracking-widest">
-                <p className="text-[8px] font-black text-slate-400 mb-1">LOGO URL</p>
-                <input
-                  className="w-full bg-transparent text-[10px] text-slate-600 outline-none font-mono"
-                  value={branding?.logo_url || ""}
-                  onChange={(e) => onBrandingChange("logo_url", e.target.value)}
-                  placeholder="https://..."
-                />
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 uppercase tracking-widest">
-                <p className="text-[8px] font-black text-slate-400 mb-1">FAVICON URL</p>
-                <input
-                  className="w-full bg-transparent text-[10px] text-slate-600 outline-none font-mono"
-                  value={branding?.favicon_url || ""}
-                  onChange={(e) => onBrandingChange("favicon_url", e.target.value)}
-                  placeholder="https://..."
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Banner & Sliders Section (For All Stores) */}
-      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-150">
+        <div className="lg:col-span-1 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-indigo-600" />
-              {lang === "tr" ? "SÜRGÜLÜ AFİŞ VE SLIDER YÖNETİMİ" : "SLIDER & BANNER MANAGEMENT"}
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-indigo-500" />
+              BANNER SLIDER (HERO)
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              {lang === "tr" 
-                ? "Mağazanızın en üstündeki reklam alanına birden fazla görsel ekleyip sıralayabilir, üzerindeki metinlerin konumunu ve görünürlüğünü yönetebilirsiniz."
-                : "Add and arrange multiple banner slides for your shop's main showcase, customize overlay texts, positioning, and action buttons."}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleAddBanner}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition-colors self-start sm:self-center uppercase tracking-wider"
-          >
-            <Plus className="w-4 h-4" />
-            {lang === "tr" ? "Yeni Afiş Ekle" : "Add New Slide"}
-          </button>
-        </div>
-
-        {/* Store display name general setting */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-          <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">
-              {lang === "tr" ? "MAĞAZA ADI" : "STORE DISPLAY NAME"}
-            </label>
-            <input
-              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-400"
-              value={branding?.name || ""}
-              onChange={(e) => onBrandingChange("name", e.target.value)}
-              placeholder={lang === "tr" ? "Örn: Seçkin Emlak" : "e.g. Premium Real Estate"}
-            />
-            <p className="text-[9px] text-slate-400 mt-1">
-              {lang === "tr" ? "Web sitenizin başlığında ve marka alanlarında gösterilecek ad." : "This name will be displayed in the header and branding areas."}
+            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+              {txt("Mağazanızın en üstündeki reklam alanına birden fazla görsel ekleyip sıralayabilir, üzerindeki metinlerin konumunu ve görünürlüğünü yönetebilirsiniz.", "You can add multiple images to the advertising area at the top of your store, order them, and manage the position and visibility of the texts on them.", "Μπορείτε να προσθέσετε πολλές εικόνες στον διαφημιστικό χώρο στο πάνω μέρος του καταστήματός σας, να τις παραγγείλετε και να διαχειριστείτε τη θέση και την ορατότητα των κειμένων σε αυτές.")}
             </p>
           </div>
           <div className="flex items-center justify-center p-4 bg-white rounded-xl border border-dashed border-slate-200">
             <span className="text-[10px] text-slate-400 font-medium">
-              {lang === "tr" 
-                ? "💡 Mağaza ismi 'lookprice' içerirse sistem otomatik olarak seçkin yerel firma fallbacks uygular." 
-                : "💡 If the store name contains 'lookprice', the system automatically applies premium fallbacks."}
+              {"💡 " + txt("Mağaza ismi 'lookprice' içerirse sistem otomatik olarak seçkin yerel firma fallbacks uygular.", "If the store name contains 'lookprice', the system automatically applies premium local business fallbacks.", "Εάν το όνομα του καταστήματος περιέχει 'lookprice', το σύστημα εφαρμόζει αυτόματα εναλλακτικές επιλογές κορυφαίων τοπικών επιχειρήσεων.")}
             </span>
           </div>
         </div>
@@ -499,7 +303,7 @@ export const SettingsWebTab = ({
                         ) : (
                           <div className="text-center">
                             <Upload className="w-6 h-6 text-slate-300 mx-auto mb-1" />
-                            <span className="text-[8px] font-black text-slate-400 uppercase">YÜKLE</span>
+                            <span className="text-[8px] font-black text-slate-400 uppercase">{txt('YÜKLE', 'UPLOAD', 'ΜΕΤΑΦΟΡΤΩΣΗ')}</span>
                           </div>
                         )}
                         <input
@@ -512,7 +316,7 @@ export const SettingsWebTab = ({
                       <input
                         type="text"
                         className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono text-slate-600 shadow-sm outline-none"
-                        placeholder="Görsel URL veya base64..."
+                        placeholder={txt('Görsel URL veya base64...', 'Image URL or base64...', 'Διεύθυνση URL εικόνας ή base64...')}
                         value={banner.image_url || ""}
                         onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "image_url", e.target.value)}
                       />
@@ -627,7 +431,7 @@ export const SettingsWebTab = ({
                         className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono outline-none"
                         value={banner.button_link || ""}
                         onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "button_link", e.target.value)}
-                        placeholder="Örn: #portfolio veya #contact"
+                        placeholder={txt('Örn: #portfolio veya #contact', 'e.g., #portfolio or #contact', 'π.χ. #portfolio ή #contact')}
                       />
                     </div>
                   </div>
@@ -727,9 +531,7 @@ export const SettingsWebTab = ({
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
-                {lang === "tr"
-                  ? "* Bu ayarlar web sitenizdeki filtreleme ve ürün detaylarındaki başlıkları değiştirir."
-                  : "* These settings change the titles in filtering and product details on your website."}
+                {"* " + txt('Bu ayarlar web sitenizdeki filtreleme ve ürün detaylarındaki başlıkları değiştirir.', 'These settings change the filtering and product detail headings on your website.', 'Αυτές οι ρυθμίσεις αλλάζουν το φιλτράρισμα και τις επικεφαλίδες λεπτομερειών προϊόντος στον ιστότοπό σας.')}
               </p>
             </div>
           </div>
@@ -902,7 +704,7 @@ export const SettingsWebTab = ({
         </h3>
         <p className="text-xs text-slate-500 mb-6 font-medium">
           {lang === "tr"
-            ? "Google Analytics veya Google Tag Manager (GTM) aracılığıyla mağazanızı dijital olarak analiz edin."
+            ? txt('Google Analytics veya Google Tag Manager (GTM) aracılığıyla mağazanızı dijital olarak analiz edin.', 'Digitally analyze your store via Google Analytics or Google Tag Manager (GTM).', 'Αναλύστε ψηφιακά το κατάστημά σας μέσω του Google Analytics ή του Google Tag Manager (GTM).')
             : "Analyze your store digitally through Google Analytics or Google Tag Manager (GTM)."}
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -926,7 +728,7 @@ export const SettingsWebTab = ({
                 onBrandingChange("meta_settings", newSettings);
               }}
             />
-            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">Örn: G-XXXXXXXXXX. Sadece ID'yi girin.</p>
+            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">{txt("Örn: G-XXXXXXXXXX. Sadece ID'yi girin.", "e.g., G-XXXXXXXXXX. Just enter the ID.", "π.χ. G-XXXXXXXXXX. Απλώς εισάγετε το ID.")}</p>
           </div>
 
           <div className="space-y-2">
@@ -949,7 +751,7 @@ export const SettingsWebTab = ({
                 onBrandingChange("meta_settings", newSettings);
               }}
             />
-            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">Örn: GTM-XXXXXXX. Sadece ID'yi girin.</p>
+            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">{txt("Örn: GTM-XXXXXXX. Sadece ID'yi girin.", "e.g., GTM-XXXXXXX. Just enter the ID.", "π.χ. GTM-XXXXXXX. Απλώς εισάγετε το ID.")}</p>
           </div>
 
           <div className="space-y-2">
@@ -958,7 +760,7 @@ export const SettingsWebTab = ({
             </label>
             <input
               className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold font-mono placeholder:text-slate-300"
-              placeholder="google-site-verification meta etiketinin content değeri"
+              placeholder={txt('google-site-verification meta etiketinin content değeri', 'Content value of the google-site-verification meta tag', 'Τιμή περιεχομένου της μετα-ετικέτας google-site-verification')}
               value={
                 branding?.meta_settings &&
                 typeof branding.meta_settings === "object" &&
@@ -972,7 +774,7 @@ export const SettingsWebTab = ({
                 onBrandingChange("meta_settings", newSettings);
               }}
             />
-            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">Google Search Console'daki meta etiketinin ("google-site-verification") içindeki kod/content değeridir.</p>
+            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">{txt('Google Search Console\'daki meta etiketinin ("google-site-verification") içindeki kod/content değeridir.', 'It is the code/content value in the meta tag ("google-site-verification") in Google Search Console.', 'Είναι η τιμή κωδικού/περιεχομένου στη μετα-ετικέτα ("google-site-verification") στο Google Search Console.')}</p>
           </div>
         </div>
       </div>

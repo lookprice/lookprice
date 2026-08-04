@@ -9,6 +9,11 @@ interface SettingsIntegrationsTabProps {
 }
 
 export const SettingsIntegrationsTab = ({ lang }: SettingsIntegrationsTabProps) => {
+  const t = (tr: string, en: string, el: string) => {
+    if (lang === 'tr') return tr;
+    if (lang === 'el') return el;
+    return en;
+  };
   const [isGoogleDriveConnected, setIsGoogleDriveConnected] = useState(false);
   const [isGoogleDriveExporting, setIsGoogleDriveExporting] = useState(false);
 
@@ -91,18 +96,18 @@ export const SettingsIntegrationsTab = ({ lang }: SettingsIntegrationsTabProps) 
               <Database className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900 leading-tight">Google Drive Yedekleme Sistemi</h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">Bulut sürücünüzü bağlayıp verilerinizi otomatik/manuel yedekleyin.</p>
+              <h3 className="text-lg font-bold text-slate-900 leading-tight">{t('Google Drive Yedekleme Sistemi', 'Google Drive Backup System', 'Σύστημα Δημιουργίας Αντιγράφων Google Drive')}</h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">{t('Bulut sürücünüzü bağlayıp verilerinizi otomatik/manuel yedekleyin.', 'Connect your cloud drive to backup data automatically/manually.', 'Συνδέστε το cloud drive σας για αυτόματη/χειροκίνητη δημιουργία αντιγράφων.')}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
             {isGoogleDriveConnected ? (
               <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold uppercase tracking-widest rounded-lg border border-emerald-200">
-                Drive Bağlı
+                {t('Drive Bağlı', 'Drive Connected', 'Συνδέθηκε')}
               </span>
             ) : (
               <span className="px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-bold uppercase tracking-widest rounded-lg border border-slate-200">
-                Bağlı Değil
+                {t('Bağlı Değil', 'Not Connected', 'Μη Συνδεδεμένο')}
               </span>
             )}
           </div>
@@ -118,7 +123,7 @@ export const SettingsIntegrationsTab = ({ lang }: SettingsIntegrationsTabProps) 
                 className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-emerald-300 transition-all cursor-pointer disabled:opacity-50 group"
               >
                 <Download className="h-6 w-6 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] text-center font-bold text-slate-700">Ürünler<br/>(Excel)</span>
+                <span className="text-[11px] text-center font-bold text-slate-700">{t('Ürünler', 'Products', 'Προϊόντα')}<br/>(Excel)</span>
               </button>
               <button
                 type="button"
@@ -127,7 +132,7 @@ export const SettingsIntegrationsTab = ({ lang }: SettingsIntegrationsTabProps) 
                 className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-rose-300 transition-all cursor-pointer disabled:opacity-50 group"
               >
                 <Download className="h-6 w-6 text-rose-500 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] text-center font-bold text-slate-700">Ürünler<br/>(PDF)</span>
+                <span className="text-[11px] text-center font-bold text-slate-700">{t('Ürünler', 'Products', 'Προϊόντα')}<br/>(PDF)</span>
               </button>
               <button
                 type="button"
@@ -136,7 +141,7 @@ export const SettingsIntegrationsTab = ({ lang }: SettingsIntegrationsTabProps) 
                 className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-emerald-300 transition-all cursor-pointer disabled:opacity-50 group"
               >
                 <Download className="h-6 w-6 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] text-center font-bold text-slate-700">Emlak Portföy<br/>(Excel)</span>
+                <span className="text-[11px] text-center font-bold text-slate-700">{t('Emlak Portföy', 'Real Estate', 'Ακίνητα')}<br/>(Excel)</span>
               </button>
               <button
                 type="button"
@@ -145,7 +150,7 @@ export const SettingsIntegrationsTab = ({ lang }: SettingsIntegrationsTabProps) 
                 className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-rose-300 transition-all cursor-pointer disabled:opacity-50 group"
               >
                 <Download className="h-6 w-6 text-rose-500 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] text-center font-bold text-slate-700">Emlak Portföy<br/>(PDF)</span>
+                <span className="text-[11px] text-center font-bold text-slate-700">{t('Emlak Portföy', 'Real Estate', 'Ακίνητα')}<br/>(PDF)</span>
               </button>
             </div>
             
@@ -155,7 +160,7 @@ export const SettingsIntegrationsTab = ({ lang }: SettingsIntegrationsTabProps) 
                 onClick={handleDisconnectGoogleDrive}
                 className="px-6 py-2.5 bg-white text-rose-600 border border-slate-200 rounded-xl hover:bg-rose-50 hover:border-rose-200 hover:shadow-sm font-bold text-xs uppercase tracking-wider cursor-pointer"
               >
-                Bağlantıyı Kes
+                {t('Bağlantıyı Kes', 'Disconnect', 'Αποσύνδεση')}
               </button>
             </div>
           </div>
@@ -168,7 +173,7 @@ export const SettingsIntegrationsTab = ({ lang }: SettingsIntegrationsTabProps) 
                 className="px-8 py-3.5 bg-[#4285F4] text-white rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 font-bold text-sm tracking-wide transition-all flex items-center space-x-2 cursor-pointer"
               >
                 <Database className="h-4 w-4" />
-                <span>Google Drive Hesabı Bağla</span>
+                <span>{t('Google Drive Hesabı Bağla', 'Connect Google Drive', 'Σύνδεση Google Drive')}</span>
               </button>
             </div>
 

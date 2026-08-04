@@ -14,6 +14,7 @@ export const SettingsEInvoiceTab = ({
   onBrandingChange,
   lang
 }: SettingsEInvoiceTabProps) => {
+  const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   const [testingEInvoice, setTestingEInvoice] = useState(false);
 
   const handleTestEInvoice = async () => {
@@ -94,7 +95,7 @@ export const SettingsEInvoiceTab = ({
               >
                 <option value="none">-- {lang === 'tr' ? 'Seçiniz' : 'Select'} --</option>
                 <option value="mysoft">MySoft</option>
-                <option value="diyalogo">Diyalogo (Yakında)</option>
+                <option value="diyalogo">{txt('Diyalogo (Yakında)', 'Diyalogo (Coming Soon)', 'Diyalogo (Σύντομα)')}</option>
               </select>
             </div>
             
@@ -126,7 +127,7 @@ export const SettingsEInvoiceTab = ({
                    <input 
                      type="text" 
                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm font-sans font-semibold"
-                     placeholder="Kullanıcı adınızı girin"
+                     placeholder={txt('Kullanıcı adınızı girin', 'Enter your username', 'Εισάγετε το όνομα χρήστη σας')}
                      value={branding.einvoice_settings.username || ''}
                      onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, username: e.target.value })}
                    />
@@ -171,7 +172,7 @@ export const SettingsEInvoiceTab = ({
                       type="text" 
                       maxLength={11}
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm font-sans font-semibold border-indigo-200 ring-2 ring-indigo-500/5"
-                      placeholder="Örn: 1234567890"
+                      placeholder={txt('Örn: 1234567890', 'e.g. 1234567890', 'π.χ. 1234567890')}
                       value={branding.einvoice_settings.vkn || ''}
                       onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, vkn: e.target.value.replace(/[^0-9]/g, '') })}
                     />
@@ -181,18 +182,18 @@ export const SettingsEInvoiceTab = ({
                     <input 
                       type="text" 
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm font-sans font-semibold"
-                      placeholder="Örn: Kadıköy"
+                      placeholder={txt('Örn: Kadıköy', 'e.g. Kadikoy', 'π.χ. Kadikoy')}
                       value={branding.einvoice_settings.tax_office || ''}
                       onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, tax_office: e.target.value })}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Kullanıcı ID (Tenant ID)</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('E-Fatura Kullanıcı ID (Tenant ID)', 'E-Invoice User ID (Tenant ID)', 'E-Invoice User ID (Tenant ID)')}</label>
                     <input 
                       type="text" 
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm font-sans font-semibold"
-                      placeholder="Örn: 210"
+                      placeholder={txt('Örn: 210', 'e.g. 210', 'π.χ. 210')}
                       value={branding.einvoice_settings.tenant_id || ''}
                       onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, tenant_id: e.target.value })}
                     />
@@ -202,13 +203,13 @@ export const SettingsEInvoiceTab = ({
                     <input 
                       type="text" 
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm font-sans font-semibold"
-                      placeholder="Örn: 00000000-0000-0000-0000-000000000000"
+                      placeholder={txt('Örn: 00000000-0000-0000-0000-000000000000', 'e.g. 00000000-0000-0000-0000-000000000000', 'π.χ. 00000000-0000-0000-0000-000000000000')}
                       value={branding.einvoice_settings.connector_guid || ''}
                       onChange={(e) => onBrandingChange('einvoice_settings', { ...branding.einvoice_settings, connector_guid: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Arşiv UUID (GİB)</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('E-Arşiv UUID (GİB)', 'E-Archive UUID (GIB)', 'E-Archive UUID (GIB)')}</label>
                     <input 
                       type="text" 
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm font-sans font-semibold"
@@ -236,7 +237,7 @@ export const SettingsEInvoiceTab = ({
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Gönderici Birim Alias (GB)</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('E-Fatura Gönderici Birim Alias (GB)', 'E-Invoice Sender Unit Alias (GB)', 'E-Invoice Sender Unit Alias (GB)')}</label>
                   <input 
                     type="text" 
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
@@ -256,7 +257,7 @@ export const SettingsEInvoiceTab = ({
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Arşiv Kullanıcı Adı</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('E-Arşiv Kullanıcı Adı', 'E-Archive Username', 'E-Archive Όνομα Χρήστη')}</label>
                   <input 
                     type="text" 
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-sm"
@@ -270,7 +271,7 @@ export const SettingsEInvoiceTab = ({
                   <h4 className="text-sm font-bold text-slate-700 mb-4">{lang === 'tr' ? 'Fatura Ön Ek (Seri) Ayarları' : 'Invoice Prefix Series'}</h4>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Fatura Ön Eki (Örn: GAP)</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('E-Fatura Ön Eki (Örn: GAP)', 'E-Invoice Prefix (e.g. GAP)', 'E-Invoice Πρόθεμα (π.χ. GAP)')}</label>
                   <input 
                     type="text" 
                     maxLength={3}
@@ -281,7 +282,7 @@ export const SettingsEInvoiceTab = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">E-Arşiv Ön Eki (Örn: GEA)</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('E-Arşiv Ön Eki (Örn: GEA)', 'E-Archive Prefix (e.g. GEA)', 'E-Archive Πρόθεμα (π.χ. GEA)')}</label>
                   <input 
                     type="text" 
                     maxLength={3}

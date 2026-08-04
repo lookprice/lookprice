@@ -29,6 +29,11 @@ interface MetaSettings {
 
 const MetaIntegration = () => {
   const { lang } = useLanguage();
+  const txt = (tr: string, en: string, el: string) => {
+    if (lang === 'tr') return tr;
+    if (lang === 'el') return el;
+    return en;
+  };
   const { slug: urlSlug } = useParams();
   const t = translations[lang].dashboard;
   const [settings, setSettings] = useState<MetaSettings>({
@@ -579,27 +584,27 @@ const MetaIntegration = () => {
           <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-6 shadow-sm">
             <h3 className="font-bold text-indigo-900 flex items-center gap-2 mb-4">
               <AlertCircle className="w-5 h-5 text-indigo-600" />
-              Meta (Facebook) Karmaşasına Rehber
+              {txt('Meta (Facebook) Karmaşasına Rehber', 'Meta (Facebook) Setup Guide', 'Οδηγός Εγκατάστασης Meta (Facebook)')}
             </h3>
             <div className="space-y-4">
               <div className="bg-white p-3 rounded shadow-sm text-sm border-l-4 border-yellow-400">
-                <span className="font-bold text-gray-800 block mb-1">1. "Ürün Para Birimi Uyuşmazlığı" Hatası:</span>
-                <p className="text-gray-600 text-xs">Facebook Commerce Manager'da mağaza açarken seçtiğiniz para birimi ile XML içindeki para birimi farklı olduğunda çıkar. <strong>Çözüm:</strong> Sol taraftaki ayarlardan "Katalog Para Birimi"ni Facebook'ta seçtiğiniz para birimi ile aynı yapın (Örn: TRY) ve XML'i Facebook'tan tekrar çektirin.</p>
+                <span className="font-bold text-gray-800 block mb-1">{txt('1. "Ürün Para Birimi Uyuşmazlığı" Hatası:', '1. "Product Currency Mismatch" Error:', '1. Σφάλμα "Αναντιστοιχία νομίσματος προϊόντος":')}</span>
+                <p className="text-gray-600 text-xs">{txt('Facebook Commerce Manager\'da mağaza açarken seçtiğiniz para birimi ile XML içindeki para birimi farklı olduğunda çıkar. Çözüm: Sol taraftaki ayarlardan "Katalog Para Birimi"ni Facebook\'ta seçtiğiniz para birimi ile aynı yapın (Örn: TRY) ve XML\'i Facebook\'tan tekrar çektirin.', 'Occurs when the currency you chose while opening a store in Facebook Commerce Manager is different from the currency in the XML. Solution: Change the "Catalog Currency" from the settings on the left to the same currency you chose on Facebook (e.g., TRY) and fetch the XML from Facebook again.', 'Εμφανίζεται όταν το νόμισμα που επιλέξατε κατά το άνοιγμα ενός καταστήματος στο Facebook Commerce Manager διαφέρει από το νόμισμα στο XML. Λύση: Αλλάξτε το "Νόμισμα καταλόγου" από τις ρυθμίσεις στα αριστερά στο ίδιο νόμισμα που επιλέξατε στο Facebook (π.χ. TRY) και ανακτήστε ξανά το XML από το Facebook.')}</p>
               </div>
 
               <div className="bg-white p-3 rounded shadow-sm text-sm border-l-4 border-blue-400">
-                <span className="font-bold text-gray-800 block mb-1">2. Pixel ID'mi Nerede Bulacağım?</span>
-                <p className="text-gray-600 text-xs">Meta Business Suite &gt; Ayarlar (Sol alt dişli) &gt; İşletme Ayarları &gt; Veri Kaynakları &gt; Pikseller (veya Veri Setleri) bölümüne girin. Oradaki 15 haneli numaradır.</p>
+                <span className="font-bold text-gray-800 block mb-1">{txt('2. Pixel ID\'mi Nerede Bulacağım?', '2. Where can I find my Pixel ID?', '2. Πού μπορώ να βρω το Pixel ID μου;')}</span>
+                <p className="text-gray-600 text-xs">{txt('Meta Business Suite > Ayarlar (Sol alt dişli) > İşletme Ayarları > Veri Kaynakları > Pikseller (veya Veri Setleri) bölümüne girin. Oradaki 15 haneli numaradır.', 'Go to Meta Business Suite > Settings (Bottom left gear) > Business Settings > Data Sources > Pixels (or Data Sets). It\'s the 15-digit number there.', 'Μεταβείτε στο Meta Business Suite > Ρυθμίσεις (Κάτω αριστερό γρανάζι) > Ρυθμίσεις επιχείρησης > Πηγές δεδομένων > Pixels (ή Σύνολα δεδομένων). Είναι ο 15ψήφιος αριθμός εκεί.')}</p>
               </div>
 
               <div className="bg-white p-3 rounded shadow-sm text-sm border-l-4 border-green-400">
-                <span className="font-bold text-gray-800 block mb-1">3. Katalog ID'mi Nerede Bulacağım?</span>
-                <p className="text-gray-600 text-xs">Commerce Manager'a girin. Sol üstte kataloğunuzun adına tıklayın. Veya Ayarlar &gt; Katalog sekmesine gidin. Orada "Katalog Kimliği" (Catalog ID) yazar.</p>
+                <span className="font-bold text-gray-800 block mb-1">{txt('3. Katalog ID\'mi Nerede Bulacağım?', '3. Where can I find my Catalog ID?', '3. Πού μπορώ να βρω το Catalog ID μου;')}</span>
+                <p className="text-gray-600 text-xs">{txt('Commerce Manager\'a girin. Sol üstte kataloğunuzun adına tıklayın. Veya Ayarlar > Katalog sekmesine gidin. Orada "Katalog Kimliği" (Catalog ID) yazar.', 'Log in to Commerce Manager. Click on your catalog name in the top left. Or go to the Settings > Catalog tab. It says "Catalog ID" there.', 'Συνδεθείτε στο Commerce Manager. Κάντε κλικ στο όνομα του καταλόγου σας επάνω αριστερά. Ή μεταβείτε στην καρτέλα Ρυθμίσεις > Κατάλογος. Λέει "Catalog ID" εκεί.')}</p>
               </div>
 
               <div className="bg-white p-3 rounded shadow-sm text-sm border-l-4 border-purple-400">
-                <span className="font-bold text-gray-800 block mb-1">4. XML URL'sini Nereye Ekleyeceğim?</span>
-                <p className="text-gray-600 text-xs">Commerce Manager &gt; Katalog &gt; Veri Kaynakları (Data Sources) &gt; "Data Feed Ekle" seçin. "Planlanmış Akış (Scheduled feed)" diyerek LookPrice XML linkini oraya yapıştırın. Saatlik veya günlük güncellemeyi seçin.</p>
+                <span className="font-bold text-gray-800 block mb-1">{txt('4. XML URL\'sini Nereye Ekleyeceğim?', '4. Where should I add the XML URL?', '4. Πού πρέπει να προσθέσω το XML URL;')}</span>
+                <p className="text-gray-600 text-xs">{txt('Commerce Manager > Katalog > Veri Kaynakları (Data Sources) > "Data Feed Ekle" seçin. "Planlanmış Akış (Scheduled feed)" diyerek LookPrice XML linkini oraya yapıştırın. Saatlik veya günlük güncellemeyi seçin.', 'Go to Commerce Manager > Catalog > Data Sources > Select "Add Data Feed". Choose "Scheduled feed" and paste the LookPrice XML link there. Select hourly or daily updates.', 'Μεταβείτε στο Commerce Manager > Κατάλογος > Πηγές δεδομένων > Επιλέξτε "Προσθήκη Data Feed". Επιλέξτε "Προγραμματισμένη ροή (Scheduled feed)" και επικολλήστε τον σύνδεσμο LookPrice XML εκεί. Επιλέξτε ωριαίες ή ημερήσιες ενημερώσεις.')}</p>
               </div>
             </div>
           </div>

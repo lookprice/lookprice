@@ -102,6 +102,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const { slug } = useParams();
   const { lang } = useLanguage();
   const isTr = lang === 'tr';
+  const txt = (tr: string, en: string, el: string) => {
+    if (lang === 'tr') return tr;
+    if (lang === 'el') return el;
+    return en;
+  };
   const [shipCarrier, setShipCarrier] = useState('');
   const [shipTrackingNumber, setShipTrackingNumber] = useState('');
 
@@ -692,63 +697,63 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [activeStaffRole, activeTab, isCafeRestaurant, setActiveTab]);
 
   const rawNavItems = isPortfolio ? [
-    { type: 'category', key: "real_estate", title: isTr ? "Portföy & İlan" : "Portfolios & Listings", items: [
-      ...(isRealEstate ? [{ id: "real_estate", label: isTr ? 'Gayrimenkul Portföyü' : 'Real Estate Portfolio', icon: Home }] : []),
-      ...(isAutomotive ? [{ id: "fleet", label: isTr ? 'Oto Galeri / Araçlar' : 'Automotive / Vehicles', icon: Car, badge: notifications.fleet }] : []),
+    { type: 'category', key: "real_estate", title: txt('Portföy & İlan', 'Portfolios & Listings', 'Χαρτοφυλάκιο & Αγγελίες'), items: [
+      ...(isRealEstate ? [{ id: "real_estate", label: txt('Gayrimenkul Portföyü', 'Real Estate Portfolio', 'Χαρτοφυλάκιο Ακινήτων'), icon: Home }] : []),
+      ...(isAutomotive ? [{ id: "fleet", label: txt('Oto Galeri / Araçlar', 'Automotive / Vehicles', 'Αντιπροσωπεία / Οχήματα'), icon: Car, badge: notifications.fleet }] : []),
     ]},
-    { type: 'category', key: "finance_operations", title: isTr ? "Finans & Operasyon" : "Finance & Operations", items: [
+    { type: 'category', key: "finance_operations", title: txt('Finans & Operasyon', 'Finance & Operations', 'Οικονομικά & Λειτουργίες'), items: [
       ...(!isPortfolio ? [{ id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices }] : []),
       ...(!isPortfolio ? [{ id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' }] : []),
-      ...(!isPortfolio ? [{ id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck }] : []),
+      ...(!isPortfolio ? [{ id: "e_waybills", label: txt('e-İrsaliyeler', 'e-Waybills', 'Ηλεκτρονικά Δελτία Αποστολής'), icon: Truck }] : []),
       { id: "companies", label: t.companies, icon: Store },
-      { id: "portfolio_finances", label: isTr ? 'Gelir & Gider / Kasa' : 'Finances & Cash Flow', icon: Wallet },
+      { id: "portfolio_finances", label: txt('Gelir & Gider / Kasa', 'Finances & Cash Flow', 'Έσοδα & Έξοδα / Ταμείο'), icon: Wallet },
     ]},
-    { type: 'category', key: "team", title: isTr ? "Personel & Şube" : "Staff & Branches", items: [
-      { id: "team-crm", label: isTr ? "Personel & Şube Yönetimi" : "Staff & Branch CRM", icon: Users },
-      { id: "real_estate_crm", label: isTr ? "Mülk Sahibi & Yatırımcı CRM" : "Property Owner & Investor CRM", icon: Users },
-      ...(isRealEstate ? [{ id: "authority_transfer", label: isTr ? "Yetki Devri (Tapu)" : "Authority Transfer", icon: Briefcase }] : []),
+    { type: 'category', key: "team", title: txt('Personel & Şube', 'Staff & Branches', 'Προσωπικό & Υποκαταστήματα'), items: [
+      { id: "team-crm", label: txt('Personel & Şube Yönetimi', 'Staff & Branch CRM', 'Διαχείριση Προσωπικού & Υποκαταστημάτων'), icon: Users },
+      { id: "real_estate_crm", label: txt('Mülk Sahibi & Yatırımcı CRM', 'Property Owner & Investor CRM', 'CRM Ιδιοκτητών & Επενδυτών'), icon: Users },
+      ...(isRealEstate ? [{ id: "authority_transfer", label: txt('Yetki Devri (Tapu)', 'Authority Transfer', 'Μεταβίβαση Εξουσιοδότησης'), icon: Briefcase }] : []),
     ]},
-    { type: 'category', key: "integrations", title: isTr ? "Yedekleme & Kanallar" : "Backup & Channels", items: [
+    { type: 'category', key: "integrations", title: txt('Yedekleme & Kanallar', 'Backup & Channels', 'Δημιουργία Αντιγράφων & Κανάλια'), items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
-      { id: "settings_yedekleme", label: isTr ? "Yedekleme" : "Backup", icon: Database },
+      { id: "settings_yedekleme", label: txt('Yedekleme', 'Backup', 'Δημιουργία Αντιγράφων'), icon: Database },
     ]},
-    { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Rapor" : "Analytics & Logs", items: [
+    { type: 'category', key: "dashboard", title: txt('İstatistik & Rapor', 'Analytics & Logs', 'Στατιστικά & Αναφορές'), items: [
       { id: "analytics", label: t.analytics, icon: BarChart3 },
-      { id: "radar_alerts", label: isTr ? (isAutomotive ? "Motorlu Taşıtlar & Haber Radarı" : "İmar & Haber Radarı") : "Radar & Alerts", icon: Radar },
-      { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
-      { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
-      { id: "seo", label: isTr ? "SEO Sayfaları" : "SEO Pages", icon: Globe },
-      { id: "website-generator", label: isTr ? 'Web Sitesi Oluştur' : 'Website Generator', icon: Globe },
+      { id: "radar_alerts", label: txt(isAutomotive ? 'Motorlu Taşıtlar & Haber Radarı' : 'İmar & Haber Radarı', 'Radar & Alerts', 'Ραντάρ & Ειδοποιήσεις'), icon: Radar },
+      { id: "notifications", label: txt('Bildirimler', 'Notifications', 'Ειδοποιήσεις'), icon: Bell },
+      { id: "blog", label: txt('Blog', 'Blog', 'Blog'), icon: BookOpen },
+      { id: "seo", label: txt('SEO Sayfaları', 'SEO Pages', 'Σελίδες SEO'), icon: Globe },
+      { id: "website-generator", label: txt('Web Sitesi Oluştur', 'Website Generator', 'Δημιουργία Ιστοσελίδας'), icon: Globe },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
   ] : [
-    { type: 'category', key: "operations", title: isTr ? "Operasyonlar" : "Operations", items: [
+    { type: 'category', key: "operations", title: txt('Operasyonlar', 'Operations', 'Λειτουργίες'), items: [
       { id: "products", label: t.products, icon: Package },
       { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices },
       ...(!isCafeRestaurant ? [{ id: "service", label: t.service, icon: Wrench, badge: notifications.service }] : []),
-      ...(!isCafeRestaurant ? [{ id: "fleet", label: isTr ? 'Filo Yönetimi' : 'Fleet Management', icon: Car, badge: notifications.fleet }] : []),
+      ...(!isCafeRestaurant ? [{ id: "fleet", label: txt('Filo Yönetimi', 'Fleet Management', 'Διαχείριση Στόλου'), icon: Car, badge: notifications.fleet }] : []),
       { id: "procurements", label: t.procurements, icon: Truck },
       { id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight, badge: notifications.transfers },
     ]},
-    { type: 'category', key: "sales", title: isTr ? "Finans" : "Finance", items: [
+    { type: 'category', key: "sales", title: txt('Finans', 'Finance', 'Οικονομικά'), items: [
       ...(!isCafeRestaurant ? [{ id: "quotations", label: t.quotations, icon: FileCheck }] : []),
       { id: "sales_invoices", label: t.sales_invoices, icon: FileText, badge: notifications.sales_invoices, badgeType: 'error' },
-      ...(!isCafeRestaurant ? [{ id: "e_waybills", label: isTr ? "e-İrsaliyeler" : "e-Waybills", icon: Truck }] : []),
+      ...(!isCafeRestaurant ? [{ id: "e_waybills", label: txt('e-İrsaliyeler', 'e-Waybills', 'Ηλεκτρονικά Δελτία Αποστολής'), icon: Truck }] : []),
       { id: "companies", label: t.companies, icon: Store },
       { id: "pos", label: t.pos, icon: CreditCard, badge: notifications.sales },
       { id: "fast-pos", label: t.fastPos, icon: Scan },
     ]},
-    { type: 'category', key: "integrations", title: isTr ? "Yedekleme & Kanallar" : "Backup & Channels", items: [
+    { type: 'category', key: "integrations", title: txt('Yedekleme & Kanallar', 'Backup & Channels', 'Δημιουργία Αντιγράφων & Κανάλια'), items: [
       { id: "meta", label: "Meta Entegrasyonu", icon: Facebook },
       ...(!isCafeRestaurant ? [{ id: "google-merchant", label: "Google Merchant", icon: ShoppingBag }] : []),
-      { id: "settings_yedekleme", label: isTr ? "Yedekleme" : "Backup", icon: Database },
+      { id: "settings_yedekleme", label: txt('Yedekleme', 'Backup', 'Δημιουργία Αντιγράφων'), icon: Database },
     ]},
-    { type: 'category', key: "dashboard", title: isTr ? "İstatistik & Blog" : "Analytics & Blog", items: [
+    { type: 'category', key: "dashboard", title: txt('İstatistik & Blog', 'Analytics & Blog', 'Στατιστικά & Blog'), items: [
       { id: "analytics", label: t.analytics, icon: BarChart3 },
-      { id: "notifications", label: isTr ? 'Bildirimler' : 'Notifications', icon: Bell },
-      { id: "blog", label: isTr ? "Blog" : "Blog", icon: BookOpen },
-      ...(!isCafeRestaurant ? [{ id: "faq", label: isTr ? "S.S.S" : "FAQ", icon: HelpCircle }] : []),
+      { id: "notifications", label: txt('Bildirimler', 'Notifications', 'Ειδοποιήσεις'), icon: Bell },
+      { id: "blog", label: txt('Blog', 'Blog', 'Blog'), icon: BookOpen },
+      ...(!isCafeRestaurant ? [{ id: "faq", label: txt('S.S.S', 'FAQ', 'Συχνές Ερωτήσεις'), icon: HelpCircle }] : []),
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
@@ -775,23 +780,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
     if (activeStaffRole === 'waiter') {
       return [
-        { type: 'item', id: "fast-pos", label: isTr ? "Hızlı POS / Masalar" : "Fast POS / Tables", icon: Scan }
+        { type: 'item', id: "fast-pos", label: txt('Hızlı POS / Masalar', 'Fast POS / Tables', 'Γρήγορο POS / Τραπέζια'), icon: Scan }
       ];
     }
     if (activeStaffRole === 'cashier') {
       return [
-        { type: 'item', id: "fast-pos", label: isTr ? "Hızlı POS / Masalar" : "Fast POS / Tables", icon: Scan },
-        { type: 'item', id: "products", label: isTr ? "Ürün & Fiyat Listesi" : "Products", icon: Package },
+        { type: 'item', id: "fast-pos", label: txt('Hızlı POS / Masalar', 'Fast POS / Tables', 'Γρήγορο POS / Τραπέζια'), icon: Scan },
+        { type: 'item', id: "products", label: txt('Ürün & Fiyat Listesi', 'Products & Price List', 'Προϊόντα & Τιμοκατάλογος'), icon: Package },
         { type: 'item', id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown },
         { type: 'item', id: "procurements", label: t.procurements, icon: Truck },
         { type: 'item', id: "stock_transfer", label: t.stock_transfer, icon: ArrowLeftRight },
-        { type: 'item', id: "sales_invoices", label: isTr ? "Satış Faturaları" : "Sales Invoices", icon: FileText },
+        { type: 'item', id: "sales_invoices", label: txt('Satış Faturaları', 'Sales Invoices', 'Τιμολόγια Πώλησης'), icon: FileText },
         { type: 'item', id: "companies", label: t.companies, icon: Store },
         { type: 'item', id: "pos", label: t.pos, icon: CreditCard }
       ];
     }
     return restaurantItems;
   }, [rawNavItems, activeStaffRole, isCafeRestaurant, isTr, t.companies, t.purchase_invoices, t.procurements, t.stock_transfer]);
+
+  const currentMenuItem: any = (navItems as any[]).flatMap(c => c.type === 'category' ? c.items : [c]).find(i => i && i.id === activeTab);
 
   return (
     <DashboardLayout
@@ -838,10 +845,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="bg-indigo-600 rounded-full h-10 w-1" />
               <div>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
-                  {activeTab.replace(/_/g, ' ')}
+                  {currentMenuItem?.label || activeTab.replace(/_/g, ' ')}
                 </h2>
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
-                  Control_Center / {activeTab}
+                  Control_Center / {currentMenuItem?.label || activeTab}
                 </p>
               </div>
             </motion.div>
@@ -965,17 +972,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     exit={{ opacity: 0, scale: 0.95 }}
                     className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6"
                   >
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">{isTr ? 'İptal Sebebi' : 'Cancellation Reason'}</h3>
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">{txt('İptal Sebebi', 'Cancellation Reason', 'Λόγος Ακύρωσης')}</h3>
                     <textarea 
                       value={cancelReason}
                       onChange={(e) => setCancelReason(e.target.value)}
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4"
                       rows={3}
-                      placeholder={isTr ? 'İptal nedenini girin...' : 'Enter cancellation reason...'}
+                      placeholder={txt('İptal nedenini girin...', 'Enter cancellation reason...', 'Εισαγάγετε τον λόγο ακύρωσης...')}
                     />
                     <div className="flex justify-end gap-3">
                       <button onClick={() => setShowCancelReasonModal(false)} className="px-4 py-2 text-slate-500 font-bold">{t.cancel}</button>
-                      <button onClick={handleCancelSale} className="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold">{isTr ? 'İptal Et' : 'Cancel'}</button>
+                      <button onClick={handleCancelSale} className="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold">{txt('İptal Et', 'Cancel', 'Ακύρωση')}</button>
                     </div>
                   </motion.div>
                 </div>
@@ -1313,10 +1320,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                 <div>
                   <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
-                    {isTr ? 'Çalışan Oturumu & Rolü' : 'Staff Session & Role'}
+                    {txt('Çalışan Oturumu & Rolü', 'Staff Session & Role', 'Συνεδρία Προσωπικού & Ρόλος')}
                   </h3>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                    {isTr ? 'Terminal Yetkilendirme Modeli' : 'Terminal Authorization Model'}
+                    {txt('Terminal Yetkilendirme Modeli', 'Terminal Authorization Model', 'Μοντέλο Εξουσιοδότησης Τερματικού')}
                   </p>
                 </div>
                 <button
@@ -1335,7 +1342,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     <div className="grid grid-cols-3 gap-2">
                       {(['manager', 'cashier', 'waiter'] as const).map((r) => {
                         const isSel = modalRole === r;
-                        const label = r === 'manager' ? (isTr ? 'Yönetici' : 'Manager') : r === 'cashier' ? (isTr ? 'Kasiyer' : 'Cashier') : (isTr ? 'Garson' : 'Waiter');
+                        const label = r === 'manager' ? (txt('Yönetici', 'Manager', 'Διευθυντής')) : r === 'cashier' ? (txt('Kasiyer', 'Cashier', 'Ταμίας')) : (txt('Garson', 'Waiter', 'Σερβιτόρος'));
                         const emoji = r === 'manager' ? '👑' : r === 'cashier' ? '💳' : '🍽️';
                         return (
                           <button
@@ -1361,7 +1368,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                     {/* PIN Input Dots Preview */}
                     <div className="flex flex-col items-center justify-center space-y-2 py-4">
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                        {isTr ? '4 Haneli Giriş PIN Kodu' : '4-Digit Entry PIN'}
+                        {txt('4 Haneli Giriş PIN Kodu', '4-Digit Entry PIN', '4-ψήφιο PIN Εισόδου')}
                       </p>
                       <div className="flex gap-4 justify-center py-2">
                         {Array.from({ length: 4 }).map((_, idx) => {
@@ -1382,7 +1389,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                       </div>
                       {pinError && (
                         <p className="text-xs font-black text-rose-500 uppercase tracking-wider animate-pulse">
-                          {isTr ? 'Hatalı Şifre!' : 'Incorrect PIN!'}
+                          {txt('Hatalı Şifre!', 'Incorrect PIN!', 'Λανθασμένο PIN!')}
                         </p>
                       )}
                     </div>
@@ -1416,7 +1423,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         }}
                         className="h-14 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center"
                       >
-                        {isTr ? 'TEMİZLE' : 'CLEAR'}
+                        {txt('TEMİZLE', 'CLEAR', 'ΚΑΘΑΡΙΣΜΟΣ')}
                       </button>
                       <button
                         onClick={() => {
@@ -1437,7 +1444,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onClick={() => handleVerifyRolePin(pinValue)}
                         className="h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center"
                       >
-                        {isTr ? 'GİRİŞ' : 'ENTER'}
+                        {txt('GİRİŞ', 'ENTER', 'ΕΙΣΟΔΟΣ')}
                       </button>
                     </div>
 
@@ -1448,7 +1455,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           onClick={() => setIsEditingPins(true)}
                           className="text-xs font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-widest transition-colors"
                         >
-                          ⚙️ {isTr ? 'PIN Kodlarını Güncelle' : 'Update PIN Codes'}
+                          ⚙️ {txt('PIN Kodlarını Güncelle', 'Update PIN Codes', 'Ενημέρωση Κωδικών PIN')}
                         </button>
                       </div>
                     )}
@@ -1457,13 +1464,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   /* Edit PINs Form (Only accessible to authenticated managers) */
                   <div className="space-y-4 py-2">
                     <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">
-                      {isTr ? 'YÖNETİCİ ŞİFRE AYARLARI' : 'MANAGER PIN CONFIGURATION'}
+                      {txt('YÖNETİCİ ŞİFRE AYARLARI', 'MANAGER PIN CONFIGURATION', 'ΡΥΘΜΙΣΕΙΣ PIN ΔΙΕΥΘΥΝΤΗ')}
                     </h4>
                     
                     <div className="space-y-3.5">
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                          👑 {isTr ? 'Yönetici PIN Kodu' : 'Manager PIN'}
+                          👑 {txt('Yönetici PIN Kodu', 'Manager PIN', 'PIN Διευθυντή')}
                         </label>
                         <input
                           type="password"
@@ -1476,7 +1483,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                          💳 {isTr ? 'Kasiyer PIN Kodu' : 'Cashier PIN'}
+                          💳 {txt('Kasiyer PIN Kodu', 'Cashier PIN', 'PIN Ταμία')}
                         </label>
                         <input
                           type="password"
@@ -1489,7 +1496,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
 
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                          🍽️ {isTr ? 'Garson PIN Kodu' : 'Waiter PIN'}
+                          🍽️ {txt('Garson PIN Kodu', 'Waiter PIN', 'PIN Σερβιτόρου')}
                         </label>
                         <input
                           type="password"
@@ -1506,16 +1513,16 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                         onClick={() => setIsEditingPins(false)}
                         className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
                       >
-                        {isTr ? 'Geri Dön' : 'Go Back'}
+                        {txt('Geri Dön', 'Go Back', 'Επιστροφή')}
                       </button>
                       <button
                         onClick={() => {
-                          toast.success(isTr ? 'PIN kodları başarıyla kaydedildi!' : 'PIN codes updated successfully!');
+                          toast.success(txt('PIN kodları başarıyla kaydedildi!', 'PIN codes updated successfully!', 'Οι κωδικοί PIN ενημερώθηκαν επιτυχώς!'));
                           setIsEditingPins(false);
                         }}
                         className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
                       >
-                        {isTr ? 'Değişiklikleri Kaydet' : 'Save Changes'}
+                        {txt('Değişiklikleri Kaydet', 'Save Changes', 'Αποθήκευση Αλλαγών')}
                       </button>
                     </div>
                   </div>

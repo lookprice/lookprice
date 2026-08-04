@@ -58,6 +58,7 @@ export const SettingsDomainTab = ({
   handleManualSave,
   fetchCfStatus,
 }: SettingsDomainTabProps) => {
+  const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -94,7 +95,7 @@ export const SettingsDomainTab = ({
                   onChange={(e) => {
                     onBrandingChange("custom_domain", e.target.value);
                   }}
-                  placeholder="Örn: shop.magazam.com"
+                  placeholder={txt('Örn: shop.magazam.com', 'e.g. shop.mystore.com', 'π.χ. shop.mystore.com')}
                 />
               </div>
             </div>
@@ -173,7 +174,7 @@ export const SettingsDomainTab = ({
                             </label>
                             <input
                               type="email"
-                              placeholder="Örn: user@example.com"
+                              placeholder={txt('Örn: user@example.com', 'e.g. user@example.com', 'π.χ. user@example.com')}
                               value={manualCfEmail}
                               onChange={(e) => setManualCfEmail(e.target.value)}
                               className="w-full p-2.5 text-[11px] border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white mb-2"
@@ -185,7 +186,7 @@ export const SettingsDomainTab = ({
                             </label>
                             <input
                               type="password"
-                              placeholder="Örn: 1234567890abcdef..."
+                              placeholder={txt('Örn: 1234567890abcdef...', 'e.g. 1234567890abcdef...', 'π.χ. 1234567890abcdef...')}
                               value={manualCfToken}
                               onChange={(e) => setManualCfToken(e.target.value)}
                               className="w-full p-2.5 text-[11px] border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
@@ -195,7 +196,7 @@ export const SettingsDomainTab = ({
                             <label className="text-[10px] font-medium text-indigo-700 ml-1">Cloudflare Account ID</label>
                             <input
                               type="text"
-                              placeholder="Örn: a1b2c3d4e5f6..."
+                              placeholder={txt('Örn: a1b2c3d4e5f6...', 'e.g. a1b2c3d4e5f6...', 'π.χ. a1b2c3d4e5f6...')}
                               value={manualCfAccount}
                               onChange={(e) => setManualCfAccount(e.target.value)}
                               className="w-full p-2.5 text-[11px] border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
