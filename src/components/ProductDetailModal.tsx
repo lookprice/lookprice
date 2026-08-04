@@ -37,7 +37,7 @@ interface ProductDetailModalProps {
   t: any;
   slug: string;
   onClose: () => void;
-  addToBasket: (p: Product) => void;
+  addToBasket: (p: any) => void;
   primaryColor: string;
   isLuxury?: boolean;
   sector?: string;

@@ -35,6 +35,7 @@ export const BasketSidebar: React.FC<BasketSidebarProps> = ({
   onCheckout,
   theme
 }) => {
+  const isTr = t?.language === 'tr' || store?.language === 'tr' || !t?.language;
   if (!isOpen) return null;
 
   return (
@@ -139,7 +140,7 @@ export const BasketSidebar: React.FC<BasketSidebarProps> = ({
                           {item.selected_variant_name && (
                             <div className="mt-1">
                               <span className="inline-block px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 rounded-md border border-amber-200/60">
-                                {lang === "tr" ? "Seçenek" : "Option"}: {item.selected_variant_name}
+                                {isTr ? "Seçenek" : "Option"}: {item.selected_variant_name}
                               </span>
                             </div>
                           )}

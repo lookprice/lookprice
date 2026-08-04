@@ -442,6 +442,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         itemsWithConvertedPrices.push({
           productId: null as any, name: lang === "tr" ? "Kargo Ücreti" : "Shipping Fee", barcode: "SHIPPING",
           quantity: 1, price: basketShippingTotal, branch_name: "", branch_id: 0,
+          selected_variant_id: null, selected_variant_name: null,
         });
       }
 
