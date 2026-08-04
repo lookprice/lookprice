@@ -249,7 +249,7 @@ export const Marketplace = () => {
 
   useEffect(() => {
     // Set default portal title on mount
-    document.title = "EnRakipsiz | KKTC'nin En Büyük Portföy Portalı";
+    document.title = "EnRakipsiz | Dijital Portföy, Gayrimenkul ve Vasıta Yönetim Platformu";
 
     setLoading(true);
     Promise.all([
@@ -264,7 +264,7 @@ export const Marketplace = () => {
         if (portalRes.settings) {
           setPortalSettings(portalRes.settings);
           // Set beautiful dynamic title from settings
-          const customTitle = portalRes.settings.seo_title || portalRes.settings.portal_title || "EnRakipsiz | KKTC'nin En Büyük Portföy Portalı";
+          const customTitle = portalRes.settings.seo_title || portalRes.settings.portal_title || "EnRakipsiz | Dijital Portföy, Gayrimenkul ve Vasıta Yönetim Platformu";
           document.title = customTitle;
         }
         if (portalRes.slides && portalRes.slides.length > 0) {

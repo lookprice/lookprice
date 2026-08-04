@@ -321,7 +321,7 @@ export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
               </div>
               <p className="text-[11px] font-medium text-slate-400 leading-relaxed uppercase tracking-wide">
                 {isTr 
-                  ? "Kuzey Kıbrıs'ın en köklü ve güvenilir emlak çözüm ortağı. Profesyonel kadromuzla yanınızdayız." 
+                  ? "Kurumsal ve güvenilir gayrimenkul çözüm ortağınız. Profesyonel kadromuzla yanınızdayız." 
                   : "North Cyprus' most established and reliable real estate partner. Always here for you."}
               </p>
               <div className="flex gap-4">

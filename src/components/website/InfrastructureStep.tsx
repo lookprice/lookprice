@@ -109,7 +109,7 @@ export const InfrastructureStep: React.FC<InfrastructureStepProps> = ({
             </div>
             <p className="text-sm font-bold text-blue-600 truncate">{storeSlug} | {isTr ? "Emlak Portföyü" : "Real Estate Portfolio"}</p>
             <p className="text-[11px] text-emerald-700 truncate">https://lookprice.net/s/{storeSlug}</p>
-            <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">Kuzey Kıbrıs'ın en seçkin mülklerini ve yatırım fırsatlarını keşfedin. Güvenilir emlak danışmanlığı...</p>
+            <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">Doğrulanmış gayrimenkul portföylerini ve nitelikli yatırım fırsatlarını keşfedin. Profesyonel danışmanlık...</p>
           </div>
         </div>
       </div>

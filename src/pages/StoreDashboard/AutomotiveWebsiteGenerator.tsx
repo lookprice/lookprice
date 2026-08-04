@@ -178,8 +178,8 @@ export const AutomotiveWebsiteGenerator = ({
               setContent((prev) => ({
                 ...prev,
                 hero: {
-                  title: prev.hero.title === "Kuzey Kıbrıs'ın En Seçkin Portföyü" || prev.hero.title === "North Cyprus' Most Exclusive Portfolio"
-                    ? (lang === 'tr' ? "Kuzey Kıbrıs'ın En Seçkin Araç Portföyü" : "North Cyprus' Most Exclusive Car Portfolio")
+                  title: prev.hero.title === "Kuzey Kıbrıs'ın En Seçkin Portföyü" || prev.hero.title === "Kurumsal Gayrimenkul & Yatırım Portföyü" || prev.hero.title === "North Cyprus' Most Exclusive Portfolio"
+                    ? (lang === 'tr' ? "Güvenilir Otomotiv & Araç Portföyü" : "Exclusive Vehicle & Automotive Portfolio")
                     : prev.hero.title,
                   subtitle: prev.hero.subtitle === "Yatırım hayallerinizi gerçeğe dönüştüren profesyonel gayrimenkul çözümleri." || prev.hero.subtitle === "Professional real estate solutions turning your investment dreams into reality."
                     ? (lang === 'tr' ? "Seçkin otomobiller ve prestijli taşıt portföyleriyle güvendesiniz." : "Delightful range of select luxury and condition-focused vehicles.")
@@ -493,8 +493,8 @@ export const AutomotiveWebsiteGenerator = ({
     hero: {
       title:
         lang === "tr"
-          ? "Kuzey Kıbrıs'ın En Seçkin Araç Portföyü"
-          : "North Cyprus' Most Exclusive Car Portfolio",
+          ? "Güvenilir Otomotiv & Araç Portföyü"
+          : "Exclusive Vehicle & Automotive Portfolio",
       subtitle:
         lang === "tr"
           ? "Prestijli otomobiller ve güvenilir motorlu taşıt çözümleri."

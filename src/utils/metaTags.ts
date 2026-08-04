@@ -245,7 +245,7 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
           const yearStr = vehicle.year ? `${vehicle.year} ` : '';
 
           // 1. DYNAMIC HIGH-CONVERTING TITLE TAG
-          const vTitle = `Satılık ${yearStr}${vehicle.brand} ${vehicle.model}${pkgStr} (${transStr}, ${fuelStr}) | KKTC İkinci El Oto Galeri - ${storeName}`;
+          const vTitle = `Satılık ${yearStr}${vehicle.brand} ${vehicle.model}${pkgStr} (${transStr}, ${fuelStr}) | Oto Galeri & Vasıta Portföyü - ${storeName}`;
 
           // 2. AUTOMATED SEARCH-INTENT DESCRIPTION PARAGRAPH
           const tramerText = (vehicle.tramer_amount && Number(vehicle.tramer_amount) > 0)
@@ -254,16 +254,14 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
 
           const tradeInText = vehicle.is_trade_in_available ? 'Takas seçeneği mevcuttur.' : '';
 
-          const autoDescription = `KKTC satılık ${yearStr}${vehicle.brand} ${vehicle.model}${pkgStr} (${transStr}, ${fuelStr}, ${kmStr}). ${tramerText} ${priceStr} cazip fiyatı ve ${storeName} güvencesiyle Girne / Lefkoşa galeri teslimi. ${tradeInText} Detaylı resimler ve ekspertiz için tıklayın.`;
+          const autoDescription = `Satılık ${yearStr}${vehicle.brand} ${vehicle.model}${pkgStr} (${transStr}, ${fuelStr}, ${kmStr}). ${tramerText} ${priceStr} cazip fiyatı ve ${storeName} güvencesiyle hızlı teslimat imkanı. ${tradeInText} Detaylı teknik özellikler ve ekspertiz için tıklayın.`;
 
           // 3. TARGETED LONG-TAIL KEYWORDS
           const keywordsArr = [
-            `kktc satılık ${vehicle.brand} ${vehicle.model}`,
-            `kıbrıs ${yearStr}${vehicle.brand} ${vehicle.model}`,
-            `ikinci el ${vehicle.brand} ${vehicle.model} lefkoşa`,
-            `girne satılık ${vehicle.brand}`,
-            `kktc oto galeri ${vehicle.brand}`,
-            `sahibinden ${vehicle.brand} ${vehicle.model} kıbrıs`,
+            `satılık ${vehicle.brand} ${vehicle.model}`,
+            `ikinci el ${vehicle.brand} ${vehicle.model}`,
+            `oto galeri ${vehicle.brand}`,
+            `ekspertizli ${vehicle.brand}`,
             `satılık ${transStr.toLowerCase()} ${vehicle.brand}`,
             `${storeName} satılık araçlar`
           ];
@@ -466,9 +464,9 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       const portalSettingsRes = await pool.query("SELECT * FROM enrakipsiz_settings WHERE id = 1");
       const portalSettings = portalSettingsRes.rows[0] || {};
       
-      const title = portalSettings.seo_title || portalSettings.portal_title || "EnRakipsiz | KKTC'nin En Büyük Portföy Portalı";
-      const desc = portalSettings.seo_description || portalSettings.portal_description || "KKTC'nin en geniş emlak, araç ve ürün portföyüne enrakipsiz.com ile ulaşın.";
-      const keywords = portalSettings.seo_keywords || "kktc emlak, kktc oto galeri, emlak ilanları, satılık araba, enrakipsiz";
+      const title = portalSettings.seo_title || portalSettings.portal_title || "EnRakipsiz | Dijital Portföy, Gayrimenkul ve Vasıta Yönetim Platformu";
+      const desc = portalSettings.seo_description || portalSettings.portal_description || "EnRakipsiz; kurumsal gayrimenkul portföyleri, motorlu araç envanterleri ve dijital mağaza katalogları için uçtan uca akıllı yönetim ve ilan yayınlama platformudur.";
+      const keywords = portalSettings.seo_keywords || "portföy yönetimi, gayrimenkul yazılımı, vasıta pazar yeri, dijital katalog, kurumsal emlak yazılımı, oto galeri yönetimi, enrakipsiz";
       const gaId = portalSettings.google_analytics_id;
       const gtmId = portalSettings.google_tag_manager_id;
       const gscId = portalSettings.google_search_console_id;
@@ -600,17 +598,17 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
       : `${protocol}://${host}/s/${store.slug}`;
 
     if (isRealEstate) {
-      defaultTitle += ` | ${store.hero_title || 'KKTC Satılık Lüks Villalar, Daireler ve Arsalar'}`;
-      defaultDesc = store.description || `${store.name} - Kuzey Kıbrıs genelinde seçkin emlak ilanları, lüks satılık villalar, daireler, arsalar ve yatırımlık gayrimenkuller. Profesyonel gayrimenkul danışmanlığı ile güvenli yatırım yapın.`;
-      defaultKeywords = `${store.name}, kıbrıs emlak, kktc satılık villa, girne satılık daire, lefkoşa satılık arsa, kıbrıs gayrimenkul, emlak ilanları`;
+      defaultTitle += ` | ${store.hero_title || 'Seçkin Gayrimenkul & Yatırım Portföyü'}`;
+      defaultDesc = store.description || `${store.name} - Doğrulanmış gayrimenkul portföyleri, lüks konut projeleri, nitelikli arsa ve ticari mülk yatırımları. Profesyonel danışmanlık hizmetiyle güvenli gayrimenkul çözümleri.`;
+      defaultKeywords = `${store.name}, gayrimenkul portföyü, satılık villa, satılık daire, arsa yatırımı, emlak ilanları, konut projeleri`;
     } else if (isAutomotive) {
-      defaultTitle += ` | ${store.hero_title || 'KKTC Güvenilir Oto Galeri & Satılık Araçlar'}`;
-      defaultDesc = store.description || `${store.name} - Kuzey Kıbrıs'ın lider araç galerisinden satılık güvenilir ikinci el araçlar, sıfır kilometre otomobiller ve ticari araçlar. Detaylı ekspertizli, garantili araç portföyümüzü inceleyin.`;
-      defaultKeywords = `${store.name}, kktc satılık araba, kıbrıs oto galeri, ikinci el oto kıbrıs, satılık araç galeri`;
+      defaultTitle += ` | ${store.hero_title || 'Güvenilir Otomotiv & Araç Portföyü'}`;
+      defaultDesc = store.description || `${store.name} - Ekspertiz garantili ikinci el araçlar, sıfır kilometre otomobiller ve ticari araç filosu. Detaylı teknik özellikler ve şeffaf araç geçmişiyle güvenli alım satım.`;
+      defaultKeywords = `${store.name}, satılık araba, oto galeri, ikinci el oto, araç portföyü, ekspertizli araçlar`;
     } else {
       defaultTitle += ` | ${store.hero_title || 'Online Katalog & Alışveriş'}`;
       defaultDesc = store.description || `${store.name} - En kaliteli ürünler ve seçkin katalog seçenekleri. Geniş ürün yelpazemiz ve güvenilir alışveriş kalitemizle hizmetinizdeyiz.`;
-      defaultKeywords = `${store.name}, online katalog, barkodlu satış, kıbrıs alışveriş`;
+      defaultKeywords = `${store.name}, online katalog, barkodlu satış, mağaza alışverişi`;
     }
 
     const storeSchema = {

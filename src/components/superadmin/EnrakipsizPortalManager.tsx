@@ -318,7 +318,7 @@ export const EnrakipsizPortalManager: React.FC<EnrakipsizPortalManagerProps> = (
                     className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
                     value={enrakipsizSettings.seo_title || ""}
                     onChange={e => setEnrakipsizSettings({...enrakipsizSettings, seo_title: e.target.value})}
-                    placeholder="Örn: EnRakipsiz | KKTC'nin En Büyük Portföy Portalı"
+                    placeholder="Örn: EnRakipsiz | Dijital Portföy, Gayrimenkul ve Vasıta Yönetim Platformu"
                   />
                 </div>
 
@@ -328,7 +328,7 @@ export const EnrakipsizPortalManager: React.FC<EnrakipsizPortalManagerProps> = (
                     className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs h-20"
                     value={enrakipsizSettings.seo_description || ""}
                     onChange={e => setEnrakipsizSettings({...enrakipsizSettings, seo_description: e.target.value})}
-                    placeholder="Örn: KKTC'nin en seçkin emlak yalı ve lüks vasıta ilanları..."
+                    placeholder="Örn: Doğrulanmış kurumsal emlak portföyleri, araç ilanları ve dijital mağaza katalogları..."
                   />
                 </div>
 

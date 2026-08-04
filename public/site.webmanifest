@@ -1,7 +1,7 @@
 {
-  "name": "EnRakipsiz Portal",
+  "name": "EnRakipsiz Platform",
   "short_name": "EnRakipsiz",
-  "description": "KKTC'nin En Büyük Portföy Portalı",
+  "description": "Dijital Portföy, Gayrimenkul ve Vasıta Yönetim Platformu",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111827",

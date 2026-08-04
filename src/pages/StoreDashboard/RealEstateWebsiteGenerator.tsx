@@ -90,8 +90,8 @@ export const RealEstateWebsiteGenerator = ({
 
   const [content, setContent] = useState<WebContent>({
     hero: {
-      title: isTr ? "Kuzey Kıbrıs'ın En Seçkin Portföyü" : "North Cyprus' Most Exclusive Portfolio",
-      subtitle: isTr ? "Yatırım hayallerinizi gerçeğe dönüştüren profesyonel gayrimenkul çözümleri." : "Professional real estate solutions turning your investment dreams into reality.",
+      title: isTr ? "Kurumsal Gayrimenkul & Yatırım Portföyü" : "Exclusive Real Estate & Investment Portfolio",
+      subtitle: isTr ? "Yatırım hedeflerinizi gerçeğe dönüştüren profesyonel gayrimenkul çözümleri." : "Professional real estate solutions turning your investment goals into reality.",
       bgImage: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2000",
     },
     stats: [
@@ -188,7 +188,7 @@ export const RealEstateWebsiteGenerator = ({
             setContent((prev) => ({
               ...prev,
               hero: {
-                title: isTr ? "Kuzey Kıbrıs'ın En Seçkin Araç Portföyü" : "North Cyprus' Most Exclusive Car Portfolio",
+                title: isTr ? "Güvenilir Otomotiv & Araç Portföyü" : "Exclusive Vehicle & Automotive Portfolio",
                 subtitle: isTr ? "Seçkin otomobiller ve prestijli taşıt portföyleriyle güvendesiniz." : "Delightful range of select luxury and condition-focused vehicles.",
                 bgImage: prev.hero.bgImage.includes("photo-1600585154340-be6161a56a0c") ? "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=2000&q=80" : prev.hero.bgImage
               },

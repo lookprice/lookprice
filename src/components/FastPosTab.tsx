@@ -1524,9 +1524,41 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && filteredProducts.length > 0) {
-                        addToCart(filteredProducts[0]);
-                        setSearchTerm("");
+                      if (e.key === 'Enter' && searchTerm.trim()) {
+                        const term = searchTerm.trim().toLowerCase();
+                        let matchedProduct: any = null;
+                        let matchedVariant: any = null;
+
+                        for (const p of allProducts) {
+                          if ((p.barcode && p.barcode.toLowerCase() === term) || (p.sku && p.sku.toLowerCase() === term)) {
+                            matchedProduct = p;
+                            break;
+                          }
+                          if (p.has_variants && Array.isArray(p.variants)) {
+                            const vMatch = p.variants.find((v: any) => 
+                              (v.barcode && v.barcode.toLowerCase() === term) || 
+                              (v.sku && v.sku.toLowerCase() === term)
+                            );
+                            if (vMatch) {
+                              matchedProduct = p;
+                              matchedVariant = vMatch;
+                              break;
+                            }
+                          }
+                        }
+
+                        if (!matchedProduct && filteredProducts.length > 0) {
+                          matchedProduct = filteredProducts[0];
+                        }
+
+                        if (matchedProduct) {
+                          if (matchedVariant) {
+                            addToCart(matchedProduct, matchedVariant);
+                          } else {
+                            handleProductClick(matchedProduct);
+                          }
+                          setSearchTerm("");
+                        }
                       }
                     }}
                   />
@@ -3490,24 +3522,61 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
               <div className="p-6">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                  {lang === 'tr' ? 'Seçenekler' : 'Options'}
+                  {lang === 'tr' ? 'Seçenekler & Varyantlar' : 'Options & Variants'}
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {(variantModalProduct.variants || []).map((v: any, idx: number) => {
                     const varPrice = v.price && parseFloat(v.price) > 0 ? v.price : variantModalProduct.price;
+                    const vStock = v.stock_quantity !== undefined && v.stock_quantity !== null && v.stock_quantity !== "" ? Number(v.stock_quantity) : undefined;
+                    const isOutOfStock = vStock !== undefined && vStock <= 0;
+
                     return (
                       <button
                         key={v.id || idx}
+                        disabled={isOutOfStock}
                         onClick={() => {
                           addToCart(variantModalProduct, v);
                           setVariantModalProduct(null);
                         }}
-                        className="p-4 rounded-2xl border-2 border-slate-200 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all flex flex-col items-center justify-center text-center group active:scale-95 cursor-pointer shadow-xs"
+                        className={`p-3.5 rounded-2xl border-2 transition-all flex flex-col items-center justify-between text-center group cursor-pointer shadow-xs relative ${
+                          isOutOfStock 
+                            ? 'bg-slate-100 border-slate-200 opacity-50 cursor-not-allowed'
+                            : 'bg-white border-slate-200 hover:border-indigo-600 hover:bg-indigo-50/50 active:scale-95'
+                        }`}
                       >
-                        <span className="text-sm font-black text-slate-900 group-hover:text-indigo-700">{v.name}</span>
-                        <span className="text-xs font-bold text-indigo-600 mt-1">
-                          {varPrice} {variantModalProduct.currency || 'TRY'}
+                        {/* Image or Color Badge if present */}
+                        {v.image_url ? (
+                          <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden mb-2 border border-slate-100 flex items-center justify-center">
+                            <img src={v.image_url} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                          </div>
+                        ) : v.color_code ? (
+                          <div 
+                            className="w-7 h-7 rounded-full border border-slate-300 shadow-xs mb-2" 
+                            style={{ backgroundColor: v.color_code }} 
+                            title={v.color_name || v.name}
+                          />
+                        ) : null}
+
+                        <span className="text-sm font-black text-slate-900 group-hover:text-indigo-700 leading-tight">
+                          {v.name}
                         </span>
+
+                        {v.barcode && (
+                          <span className="text-[9px] font-mono text-slate-400 block mt-0.5">
+                            {v.barcode}
+                          </span>
+                        )}
+
+                        <div className="mt-2 pt-2 border-t border-slate-100 w-full flex items-center justify-between gap-1">
+                          <span className="text-xs font-bold text-indigo-600">
+                            {varPrice} {variantModalProduct.currency || 'TRY'}
+                          </span>
+                          {vStock !== undefined && (
+                            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${isOutOfStock ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-800'}`}>
+                              {isOutOfStock ? (lang === 'tr' ? 'Tükendi' : 'Out') : `${vStock} ${lang === 'tr' ? 'stok' : 'qty'}`}
+                            </span>
+                          )}
+                        </div>
                       </button>
                     );
                   })}

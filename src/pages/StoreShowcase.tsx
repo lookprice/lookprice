@@ -191,8 +191,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
     let titleSuffix = store.hero_title;
     if (!titleSuffix) {
-      if (isRealEstate) titleSuffix = "KKTC Satılık Lüks Villalar, Daireler ve Arsalar";
-      else if (isAutomotive) titleSuffix = "KKTC Güvenilir Oto Galeri & Satılık Araçlar";
+      if (isRealEstate) titleSuffix = "Seçkin Gayrimenkul & Yatırım Portföyü";
+      else if (isAutomotive) titleSuffix = "Güvenilir Otomotiv & Araç Portföyü";
       else titleSuffix = "Online Katalog & Alışveriş";
     }
 
@@ -273,8 +273,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
         let titleSuffix = storeRes.hero_title;
         if (!titleSuffix) {
-          if (isRealEstate) titleSuffix = "KKTC Satılık Lüks Villalar, Daireler ve Arsalar";
-          else if (isAutomotive) titleSuffix = "KKTC Güvenilir Oto Galeri & Satılık Araçlar";
+          if (isRealEstate) titleSuffix = "Seçkin Gayrimenkul & Yatırım Portföyü";
+          else if (isAutomotive) titleSuffix = "Güvenilir Otomotiv & Araç Portföyü";
           else titleSuffix = "Online Katalog & Alışveriş";
         }
         document.title = `${storeRes.name} | ${titleSuffix}`;

@@ -153,6 +153,20 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         } catch (e) {}
       }
     }
+    // Also include images from variants if they exist
+    if (product?.variants) {
+      let vars = product.variants;
+      if (typeof vars === 'string') {
+        try { vars = JSON.parse(vars); } catch (e) { vars = []; }
+      }
+      if (Array.isArray(vars)) {
+        vars.forEach((v: any) => {
+          if (v?.image_url && typeof v.image_url === 'string' && !list.includes(v.image_url)) {
+            list.push(v.image_url);
+          }
+        });
+      }
+    }
     return list;
   }, [product]);
 
@@ -204,6 +218,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       setSelectedVariant(null);
     }
   }, [product?.id, hasVariants, productVariants]);
+
+  useEffect(() => {
+    if (selectedVariant?.image_url && productImages.length > 0) {
+      const imgIdx = productImages.findIndex((img) => img === selectedVariant.image_url);
+      if (imgIdx !== -1) {
+        setActiveImageIdx(imgIdx);
+      }
+    }
+  }, [selectedVariant, productImages]);
 
   const effectiveBasePrice = React.useMemo(() => {
     if (selectedVariant && selectedVariant.price !== undefined && selectedVariant.price !== null && Number(selectedVariant.price) > 0) {
