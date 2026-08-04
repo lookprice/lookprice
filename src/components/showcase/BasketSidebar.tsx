@@ -94,93 +94,106 @@ export const BasketSidebar: React.FC<BasketSidebarProps> = ({
                 </div>
               ) : (
                 <div className="space-y-8">
-                  {basket.map((item) => (
-                    <div key={item.id} className="flex gap-6 group">
-                      <div className="w-24 h-24 shrink-0 rounded-2xl bg-white border shadow-sm border-gray-100 overflow-hidden relative">
-                        {item.image_url || item.images?.[0] ? (
-                          <img
-                            src={item.image_url || item.images?.[0]}
-                            alt={item.title || item.name}
-                            className="w-full h-full object-contain"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center space-y-2 bg-gray-50">
-                            <ShoppingBasket className="w-6 h-6 text-gray-300" />
-                          </div>
-                        )}
-                        <button
-                          onClick={() => {
-                            setBasket((prev: any[]) =>
-                              prev.filter((i: any) => i.id !== item.id)
-                            );
-                          }}
-                          className="absolute top-2 right-2 w-6 h-6 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
+                  {basket.map((item: any) => {
+                    const itemKey = item.cart_key || item.id;
+                    const itemPrice = (basketItemPrices[itemKey] !== undefined ? basketItemPrices[itemKey] : basketItemPrices[item.id]) || 0;
 
-                      <div className="flex-1 min-w-0">
-                        {item.branch_name && (
-                           <div className="flex items-center gap-1.5 mb-1.5">
-                             <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                             <span className="text-xss font-bold text-gray-500 tracking-wide">{item.branch_name}</span>
-                           </div>
-                        )}
-                        <h4 className="text-sm font-semibold text-gray-900 line-clamp-2">
-                          {item.title || item.name}
-                        </h4>
-
-                        <div className="mt-4 flex items-center justify-between">
-                          <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm">
-                            <button
-                              onClick={() => {
-                                setBasket((prev: any[]) => {
-                                  const idx = prev.findIndex((i: any) => i.id === item.id);
-                                  if (idx === -1) return prev;
-                                  const newB = [...prev];
-                                  if (newB[idx].quantity > 1) {
-                                    newB[idx].quantity -= 1;
-                                  } else {
-                                    newB.splice(idx, 1);
-                                  }
-                                  return newB;
-                                });
-                              }}
-                              className="w-6 h-6 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors border border-gray-100"
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="text-sm font-semibold w-4 text-center">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() => {
-                                setBasket((prev: any[]) => {
-                                  const idx = prev.findIndex((i: any) => i.id === item.id);
-                                  if (idx === -1) return prev;
-                                  const newB = [...prev];
-                                  newB[idx].quantity += 1;
-                                  return newB;
-                                });
-                              }}
-                              className="w-6 h-6 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors border border-gray-100"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <span
-                            className="text-lg font-semibold whitespace-nowrap"
-                            style={{ color: theme?.primaryColor || "#000" }}
+                    return (
+                      <div key={itemKey} className="flex gap-6 group">
+                        <div className="w-24 h-24 shrink-0 rounded-2xl bg-white border shadow-sm border-gray-100 overflow-hidden relative">
+                          {item.image_url || item.images?.[0] ? (
+                            <img
+                              src={item.image_url || item.images?.[0]}
+                              alt={item.title || item.name}
+                              className="w-full h-full object-contain"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center space-y-2 bg-gray-50">
+                              <ShoppingBasket className="w-6 h-6 text-gray-300" />
+                            </div>
+                          )}
+                          <button
+                            onClick={() => {
+                              setBasket((prev: any[]) =>
+                                prev.filter((i: any) => (i.cart_key || i.id) !== itemKey)
+                              );
+                            }}
+                            className="absolute top-2 right-2 w-6 h-6 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
                           >
-                            {(basketItemPrices[item.id] || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}{" "}
-                            {store?.currency || "TL"}
-                          </span>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          {item.branch_name && (
+                             <div className="flex items-center gap-1.5 mb-1.5">
+                               <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                               <span className="text-xss font-bold text-gray-500 tracking-wide">{item.branch_name}</span>
+                             </div>
+                          )}
+                          <h4 className="text-sm font-semibold text-gray-900 line-clamp-2">
+                            {item.title || item.name}
+                          </h4>
+
+                          {item.selected_variant_name && (
+                            <div className="mt-1">
+                              <span className="inline-block px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 rounded-md border border-amber-200/60">
+                                {lang === "tr" ? "Seçenek" : "Option"}: {item.selected_variant_name}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="mt-4 flex items-center justify-between">
+                            <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm">
+                              <button
+                                onClick={() => {
+                                  setBasket((prev: any[]) => {
+                                    const idx = prev.findIndex((i: any) => (i.cart_key || i.id) === itemKey);
+                                    if (idx === -1) return prev;
+                                    const newB = [...prev];
+                                    if (newB[idx].quantity > 1) {
+                                      newB[idx].quantity -= 1;
+                                    } else {
+                                      newB.splice(idx, 1);
+                                    }
+                                    return newB;
+                                  });
+                                }}
+                                className="w-6 h-6 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors border border-gray-100"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="text-sm font-semibold w-4 text-center">
+                                {item.quantity}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setBasket((prev: any[]) => {
+                                    const idx = prev.findIndex((i: any) => (i.cart_key || i.id) === itemKey);
+                                    if (idx === -1) return prev;
+                                    const newB = [...prev];
+                                    newB[idx].quantity += 1;
+                                    return newB;
+                                  });
+                                }}
+                                className="w-6 h-6 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors border border-gray-100"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <span
+                              className="text-lg font-semibold whitespace-nowrap"
+                              style={{ color: theme?.primaryColor || "#000" }}
+                            >
+                              {(itemPrice * item.quantity).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}{" "}
+                              {store?.currency || "TL"}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

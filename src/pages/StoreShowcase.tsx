@@ -305,11 +305,39 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     fetchData();
   }, [slug, customer?.id]);
 
-  const addToBasket = (product: Product) => {
+  const addToBasket = (product: Product & { selectedVariant?: any; selected_variant_name?: string; selected_variant_id?: any }) => {
     setBasket((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) return prev.map((item) => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      return [...prev, { ...product, quantity: 1 }];
+      const variantObj = product.selectedVariant || null;
+      const variantName = product.selected_variant_name || (variantObj ? variantObj.name : null);
+      const variantId = product.selected_variant_id || (variantObj ? variantObj.id : null);
+      const variantPrice = product.price;
+
+      const cartKey = `${product.id}_${variantName || 'default'}_${product.branch_name || 'main'}`;
+
+      const existingIndex = prev.findIndex((item: any) => 
+        (item.cart_key ? item.cart_key === cartKey : (item.id === product.id && item.selected_variant_name === variantName))
+      );
+
+      if (existingIndex > -1) {
+        return prev.map((item: any, idx: number) => 
+          idx === existingIndex ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+
+      const displayName = variantName ? `${product.name} (${variantName})` : product.name;
+
+      return [...prev, {
+        ...product,
+        cart_key: cartKey,
+        title: displayName,
+        name: displayName,
+        price: variantPrice,
+        quantity: 1,
+        selectedVariant: variantObj,
+        selected_variant_name: variantName,
+        selected_variant_id: variantId,
+        variant_barcode: variantObj?.barcode || null
+      }];
     });
   };
 
@@ -317,14 +345,14 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [basketSubtotal, setBasketSubtotal] = useState(0);
   const [basketShippingTotal, setBasketShippingTotal] = useState(0);
   const basketCount = basket.reduce((sum, item) => sum + item.quantity, 0);
-  const [basketItemPrices, setBasketItemPrices] = useState<Record<number, number>>({});
+  const [basketItemPrices, setBasketItemPrices] = useState<Record<string | number, number>>({});
 
   useEffect(() => {
     const calculateTotal = async () => {
       if (!store?.currency) return;
       let subtotal = 0;
       let maxShippingCost = 0;
-      const newPrices: Record<number, number> = {};
+      const newPrices: Record<string | number, number> = {};
 
       for (const item of basket) {
         const itemPrice = Number(item.price) || 0;
@@ -365,7 +393,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           const rate = await getExchangeRate(item.currency, store.currency);
           convertedItemPrice = itemPrice * rate;
         }
-        newPrices[item.id] = convertedItemPrice;
+        const itemKey = (item as any).cart_key || item.id;
+        newPrices[itemKey] = convertedItemPrice;
         subtotal += convertedItemPrice * item.quantity;
       }
 
@@ -390,15 +419,22 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
     setCheckoutStatus("loading");
     try {
-      const itemsWithConvertedPrices = await Promise.all(basket.map(async (item) => {
+      const itemsWithConvertedPrices = await Promise.all(basket.map(async (item: any) => {
         let finalPrice = Number(item.price) || 0;
         if (item.currency && item.currency !== store.currency) {
           const rate = await getExchangeRate(item.currency, store.currency);
           finalPrice = finalPrice * rate;
         }
         return {
-          productId: item.id, name: item.name, barcode: item.barcode, quantity: item.quantity,
-          price: finalPrice, branch_name: item.branch_name, branch_id: item.store_id,
+          productId: item.id,
+          name: item.name,
+          barcode: item.variant_barcode || item.barcode,
+          quantity: item.quantity,
+          price: finalPrice,
+          branch_name: item.branch_name,
+          branch_id: item.store_id,
+          selected_variant_id: item.selected_variant_id || item.selectedVariant?.id || null,
+          selected_variant_name: item.selected_variant_name || item.selectedVariant?.name || null,
         };
       }));
 

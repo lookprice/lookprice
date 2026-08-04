@@ -252,6 +252,28 @@ router.post("/pos", async (req: any, res) => {
               "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
               [item.quantity, item.id]
             );
+
+            if (hasVariants && Array.isArray(variantsList) && variantsList.length > 0) {
+              const varId = item.variant_id || item.selected_variant_id;
+              const varName = item.variant_name || item.selected_variant_name;
+              if (varId || varName) {
+                let updated = false;
+                const updatedVars = variantsList.map((v: any) => {
+                  const matchId = varId && String(v.id) === String(varId);
+                  const matchName = varName && String(v.name).trim().toLowerCase() === String(varName).trim().toLowerCase();
+                  if (matchId || matchName) {
+                    updated = true;
+                    const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                    return { ...v, stock_quantity: Math.max(0, currentStock - Number(item.quantity)) };
+                  }
+                  return v;
+                });
+                if (updated) {
+                  await client.query("UPDATE products SET variants = $1 WHERE id = $2", [JSON.stringify(updatedVars), item.id]);
+                }
+              }
+            }
+
             await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`, item.price, customerName || 'Hızlı Satış', currency || 'TRY', saleId);
           }
         }

@@ -114,6 +114,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     return originalUrl;
   };
 
+  const pHasVars = React.useMemo(() => {
+    if (product.has_variants === true || String(product.has_variants) === 'true') return true;
+    let vars = product.variants;
+    if (typeof vars === 'string') {
+      try { vars = JSON.parse(vars); } catch (e) { vars = []; }
+    }
+    return Array.isArray(vars) && vars.length > 0;
+  }, [product.has_variants, product.variants]);
+
   const isRealEstate = product.type === "real_estate" || sector === "real_estate";
   const isAutomotive = product.type === "vehicle" || sector === "automotive";
 
@@ -337,7 +346,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </div>
               <button
                 onClick={() => {
-                  if (isRealEstate || isAutomotive || (product.available_branches && product.available_branches.length > 1)) {
+                  if (isRealEstate || isAutomotive || pHasVars || (product.available_branches && product.available_branches.length > 1)) {
                     onView(product);
                   } else {
                     addToBasket(product);
@@ -350,12 +359,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   <>
                     {lang === "tr" ? "İncele" : "View"} <ArrowRight className="w-4 h-4" />
                   </>
+                ) : pHasVars || (product.available_branches && product.available_branches.length > 1) ? (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    {lang === "tr" ? "Seçenekler" : "Options"}
+                  </>
                 ) : (
                   <>
                     <Plus className="w-4 h-4" />
-                    {product.available_branches && product.available_branches.length > 1
-                      ? lang === "tr" ? "Seçenekler" : "Options"
-                      : t.dashboard.addToBasket}
+                    {t.dashboard.addToBasket}
                   </>
                 )}
               </button>

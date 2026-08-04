@@ -18,6 +18,7 @@ import {
   Car,
   RefreshCw,
   ArrowDownUp,
+  Sparkles,
 } from "lucide-react";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { api } from "../services/api";
@@ -183,6 +184,34 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     ? (lang === "tr" ? "KONUM" : "LOCATION")
     : store?.brand_label || (lang === "tr" ? "Marka" : "Brand");
 
+  const productVariants = React.useMemo(() => {
+    if (!product?.variants) return [];
+    let list = product.variants;
+    if (typeof list === "string") {
+      try { list = JSON.parse(list); } catch (e) { list = []; }
+    }
+    return Array.isArray(list) ? list : [];
+  }, [product?.variants]);
+
+  const hasVariants = (product?.has_variants === true || String(product?.has_variants) === "true" || productVariants.length > 0) && productVariants.length > 0;
+
+  const [selectedVariant, setSelectedVariant] = useState<any>(null);
+
+  useEffect(() => {
+    if (hasVariants && productVariants.length > 0) {
+      setSelectedVariant(productVariants[0]);
+    } else {
+      setSelectedVariant(null);
+    }
+  }, [product?.id, hasVariants, productVariants]);
+
+  const effectiveBasePrice = React.useMemo(() => {
+    if (selectedVariant && selectedVariant.price !== undefined && selectedVariant.price !== null && Number(selectedVariant.price) > 0) {
+      return Number(selectedVariant.price);
+    }
+    return product?.price || 0;
+  }, [product?.price, selectedVariant]);
+
   useEffect(() => {
     if (
       product &&
@@ -191,12 +220,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       product.currency !== store.currency
     ) {
       getExchangeRate(product.currency, store.currency).then((rate) => {
-        setConvertedPrice(product.price * rate);
+        setConvertedPrice(effectiveBasePrice * rate);
       });
     } else if (product) {
-      setConvertedPrice(product.price);
+      setConvertedPrice(effectiveBasePrice);
     }
-  }, [product?.price, product?.currency, store?.currency]);
+  }, [effectiveBasePrice, product?.currency, store?.currency]);
 
   useEffect(() => {
     if (product?.id && store?.id) {
@@ -685,6 +714,73 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle'} />
 
+          {hasVariants && (
+            <div className="mt-8 mb-6 p-5 bg-slate-50 rounded-2xl border border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-600" />
+                  {lang === "tr" ? "Ürün Seçenekleri / Varyantlar" : "Product Options / Variants"}
+                </h4>
+                {selectedVariant && (
+                  <span className="text-xs font-bold text-indigo-600 bg-indigo-100/60 px-2.5 py-0.5 rounded-md">
+                    {selectedVariant.name}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {productVariants.map((v: any, idx: number) => {
+                  const isSelected = selectedVariant?.name === v.name || (selectedVariant?.id && selectedVariant?.id === v.id);
+                  const vStock = v.stock_quantity !== undefined && v.stock_quantity !== null && v.stock_quantity !== "" ? Number(v.stock_quantity) : undefined;
+                  const isOutOfStock = vStock !== undefined && vStock <= 0;
+                  const vPrice = v.price && Number(v.price) > 0 ? Number(v.price) : convertedPrice;
+
+                  return (
+                    <button
+                      key={v.id || idx}
+                      type="button"
+                      disabled={isOutOfStock}
+                      onClick={() => setSelectedVariant(v)}
+                      className={`p-3 rounded-xl border text-left transition-all relative cursor-pointer flex flex-col justify-between min-h-[72px] ${
+                        isOutOfStock
+                          ? "bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
+                          : isSelected
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-300"
+                          : "bg-white text-slate-800 border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div>
+                        <span className="font-extrabold text-xs block leading-tight line-clamp-1">
+                          {v.name}
+                        </span>
+                        {v.sku && (
+                          <span className={`text-[9px] font-mono block mt-0.5 ${isSelected ? "text-indigo-200" : "text-slate-400"}`}>
+                            SKU: {v.sku}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between mt-2 pt-1 border-t border-current/10">
+                        <span className={`text-xs font-black ${isSelected ? "text-white" : "text-slate-900"}`}>
+                          {formatPrice(vPrice, store?.currency || product?.currency || 'TRY', sector, store?.store_type)}
+                        </span>
+                        {vStock !== undefined && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                            isOutOfStock
+                              ? "bg-rose-100 text-rose-700"
+                              : isSelected
+                              ? "bg-white/20 text-white"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}>
+                            {isOutOfStock ? (lang === "tr" ? "Tükendi" : "Out of stock") : `${vStock} ${lang === "tr" ? "stok" : "in stock"}`}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {branchStocks.length > 0 && (
             <div className="mt-10 mb-10">
               <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-6">
@@ -822,11 +918,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           ) : (
             <button
               disabled={
-                branchStocks.length > 0 &&
-                branchStocks[selectedBranchIdx]?.stock <= 0
+                (branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0) ||
+                (selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0)
               }
               type="button"
               onClick={() => {
+                const isVariantOut = selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0;
+                if (isVariantOut) return;
+
                 if (branchStocks.length > 0) {
                   const selectedBranch = branchStocks[selectedBranchIdx];
                   if (selectedBranch.stock > 0) {
@@ -837,18 +936,27 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       branch_name: selectedBranch.branch_name,
                       branch_slug: selectedBranch.branch_slug,
                       stock_quantity: selectedBranch.stock,
+                      price: convertedPrice,
+                      selectedVariant: selectedVariant || null,
+                      selected_variant_name: selectedVariant ? selectedVariant.name : undefined,
+                      selected_variant_id: selectedVariant ? selectedVariant.id : undefined,
                     });
                     onClose();
                   }
                 } else {
-                  addToBasket(product);
+                  addToBasket({
+                    ...product,
+                    price: convertedPrice,
+                    selectedVariant: selectedVariant || null,
+                    selected_variant_name: selectedVariant ? selectedVariant.name : undefined,
+                    selected_variant_id: selectedVariant ? selectedVariant.id : undefined,
+                  });
                   onClose();
                 }
               }}
-              className={`w-full py-4 text-white rounded-[2rem] font-semibold text-lg transition-all shadow-lg flex items-center justify-center gap-4 group ${branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0 ? "opacity-50 cursor-not-allowed grayscale" : "active:scale-95"}`}
+              className={`w-full py-4 text-white rounded-[2rem] font-semibold text-lg transition-all shadow-lg flex items-center justify-center gap-4 group ${(branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0) || (selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0) ? "opacity-50 cursor-not-allowed grayscale" : "active:scale-95"}`}
               style={
-                branchStocks.length > 0 &&
-                branchStocks[selectedBranchIdx]?.stock <= 0
+                (branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0) || (selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0)
                   ? { backgroundColor: "#9ca3af" }
                   : {
                       backgroundColor: primaryColor,
@@ -857,8 +965,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               }
             >
               <ShoppingBag className="w-7 h-7 group-hover:scale-110 transition-transform" />
-              {branchStocks.length > 0 &&
-              branchStocks[selectedBranchIdx]?.stock <= 0
+              {(branchStocks.length > 0 && branchStocks[selectedBranchIdx]?.stock <= 0) || (selectedVariant && selectedVariant.stock_quantity !== undefined && Number(selectedVariant.stock_quantity) <= 0)
                 ? t.dashboard.outOfStock
                 : t.dashboard.addToCart}
             </button>

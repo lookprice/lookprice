@@ -1831,6 +1831,48 @@ router.post("/sales", async (req, res) => {
         "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, currency, branch_id, branch_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
         [saleId, item.productId || item.id || null, item.name || 'Bilinmeyen Ürün', item.barcode || '', item.quantity || 1, item.price || 0, taxRate, taxAmount, itemTotal, currency || 'TRY', item.branch_id || null, item.branch_name || null]
       );
+
+      const pId = item.productId || item.id;
+      if (pId) {
+        const qty = Number(item.quantity || 1);
+        await client.query(
+          "UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2 AND store_id = $3",
+          [qty, pId, storeId]
+        );
+
+        const pRes = await client.query("SELECT variants FROM products WHERE id = $1 AND store_id = $2", [pId, storeId]);
+        if (pRes.rows.length > 0) {
+          let vars = pRes.rows[0].variants;
+          if (typeof vars === 'string') {
+            try { vars = JSON.parse(vars); } catch (e) { vars = []; }
+          }
+          const varId = item.selected_variant_id || item.variant_id;
+          const varName = item.selected_variant_name || item.variant_name;
+
+          if (Array.isArray(vars) && vars.length > 0 && (varId || varName)) {
+            let updated = false;
+            const updatedVars = vars.map((v: any) => {
+              const matchId = varId && String(v.id) === String(varId);
+              const matchName = varName && String(v.name).trim().toLowerCase() === String(varName).trim().toLowerCase();
+              if (matchId || matchName) {
+                updated = true;
+                const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                return { ...v, stock_quantity: Math.max(0, currentStock - qty) };
+              }
+              return v;
+            });
+
+            if (updated) {
+              await client.query("UPDATE products SET variants = $1 WHERE id = $2 AND store_id = $3", [JSON.stringify(updatedVars), pId, storeId]);
+            }
+          }
+        }
+
+        await client.query(
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, 'out', $3, 'web_sale', $4, $5, $6)",
+          [storeId, pId, qty, `Web Siparişi #${saleId} (${item.name || 'Ürün'})`, item.price || 0, customerName || 'Web Müşterisi']
+        );
+      }
     }
 
     // Handle Payment Gateways
