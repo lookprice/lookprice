@@ -1,5 +1,6 @@
 import React, { useState, useDeferredValue } from "react";
 import { normalizeSearch } from "../../lib/searchUtils";
+import { api } from "../../services/api";
 import { 
   Plus, 
   Search, 
@@ -69,6 +70,25 @@ const CompaniesTab = ({
   };
 
   const [reconciliations, setReconciliations] = useState<any[]>(getReconciliations());
+
+  const handleClearHistory = () => {
+    if (window.confirm(isTr ? "Tüm dijital mutabakat geçmişini ve test verilerini silmek istediğinize emin misiniz? Bu işlem geri alınamaz." : "Are you sure you want to clear all digital reconciliation history? This cannot be undone.")) {
+      try {
+        localStorage.removeItem(`storeReconciliations_${storeId}`);
+        // Remove individual keys like recon_*
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('recon_')) {
+            localStorage.removeItem(key);
+          }
+        }
+        setReconciliations([]);
+        alert(isTr ? 'Dijital mutabakat geçmişi başarıyla temizlendi.' : 'Digital reconciliation history successfully cleared.');
+      } catch (e) {
+        console.error("Error clearing reconciliations:", e);
+      }
+    }
+  };
 
   const handleRefreshRecons = () => {
     setReconciliations(getReconciliations());
@@ -223,50 +243,142 @@ const CompaniesTab = ({
                           <FileText className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            const reconId = Date.now();
-                            const curr = defaultCurrency || 'TRY';
-                            const balance = Number(c.balances?.[curr] || Object.values(c.balances || {})[0] || 0);
-                            
-                            // Mock carry-over & sample monthly transactions for realistic BABS & statements
-                            const carryOver = Number((balance * 0.8).toFixed(2));
-                            const monthlyTxs = [
-                              { date: '05.08.2026', description: 'Mal Alım / Satış Faturası', debt: Math.max(0, balance * 0.3), credit: 0, balance: carryOver + Math.max(0, balance * 0.3) },
-                              { date: '18.08.2026', description: 'Banka Havale Tahsilat', debt: 0, credit: Math.max(0, balance * 0.1), balance: balance }
-                            ];
+                          onClick={async () => {
+                            try {
+                              const reconId = Date.now();
+                              const curr = defaultCurrency || 'TRY';
+                              const currentStoreId = c.store_id || branding?.id || storeId || 1;
+                              
+                              // Fetch all transactions to calculate dynamic carry-over and period details
+                              let allTransactions: any[] = [];
+                              try {
+                                const res = await api.getCompanyTransactions(c.id, "", "", currentStoreId);
+                                allTransactions = res.transactions || res || [];
+                              } catch (e) {
+                                console.error("Error fetching transactions for reconciliation:", e);
+                              }
 
-                            const reconObj = {
-                              id: reconId,
-                              storeName: branding?.legal_name || branding?.store_name || branding?.name || 'Seçkin İşletme',
-                              storeAddress: branding?.legal_address || branding?.address || 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul',
-                              storeTaxOffice: branding?.legal_tax_office || branding?.tax_office || 'Beşiktaş',
-                              storeTaxNumber: branding?.legal_tax_number || branding?.tax_id || '1234567890',
-                              companyTitle: c.title,
-                              companyAddress: c.address || 'Firma Adresi Belirtilmemiş',
-                              taxOffice: c.tax_office,
-                              taxNumber: c.tax_number,
-                              currency: curr,
-                              balance: balance,
-                              carryOverBalance: carryOver,
-                              startDate: '01.08.2026',
-                              periodMonthName: 'Ağustos 2026',
-                              transactions: monthlyTxs,
-                              babsInvoiceCount: 3,
-                              babsTotalSum: Math.abs(balance) > 0 ? Math.abs(balance) * 1.2 : 12500,
-                              date: new Date().toLocaleDateString(isTr ? 'tr-TR' : 'en-US'),
-                              status: 'pending',
-                              notes: 'Cari Hesap Bakiye & Ekstre Mutabakatı'
-                            };
+                              const today = new Date();
+                              const currentYear = today.getFullYear();
+                              const currentMonth = today.getMonth(); // 0-indexed
 
-                            const existing = JSON.parse(localStorage.getItem(`storeReconciliations_${storeId}`) || '[]');
-                            localStorage.setItem(`storeReconciliations_${storeId}`, JSON.stringify([reconObj, ...existing]));
-                            localStorage.setItem(`recon_${reconId}`, JSON.stringify(reconObj));
+                              let targetMonth = currentMonth - 1;
+                              let targetYear = currentYear;
+                              if (targetMonth < 0) {
+                                targetMonth = 11;
+                                targetYear = currentYear - 1;
+                              }
 
-                            const link = `${window.location.origin}/reconciliation/${reconId}`;
-                            navigator.clipboard.writeText(link);
-                            alert(isTr 
-                              ? `🔗 Dijital Mutabakat Linki Oluşturuldu & Panoya Kopyalandı!\n\n${link}\n\nMüşterinize/Tedarikçinize WhatsApp üzerinden ileterek online onay alabilirsiniz.`
-                              : `Digital Reconciliation Link created & copied!\n\n${link}`);
+                              const targetStart = new Date(targetYear, targetMonth, 1);
+                              const targetEnd = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+
+                              const formatDate = (d: Date) => {
+                                const day = String(d.getDate()).padStart(2, '0');
+                                const month = String(d.getMonth() + 1).padStart(2, '0');
+                                const year = d.getFullYear();
+                                return `${day}.${month}.${year}`;
+                              };
+
+                              const monthNamesTr = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+                              const monthNamesEn = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                              const periodMonthName = isTr ? `${monthNamesTr[targetMonth]} ${targetYear}` : `${monthNamesEn[targetMonth]} ${targetYear}`;
+
+                              // Filter transactions for this specific currency
+                              const currencyTxs = allTransactions.filter((tx: any) => (tx.currency || 'TRY') === curr);
+
+                              // Sort transactions by date ascending for correct running balance math
+                              currencyTxs.sort((a: any, b: any) => new Date(a.transaction_date || a.date).getTime() - new Date(b.transaction_date || b.date).getTime());
+
+                              // Calculate Carry-Over Balance (transactions before targetStart)
+                              const carryTxs = currencyTxs.filter((tx: any) => {
+                                const d = new Date(tx.transaction_date || tx.date);
+                                return d < targetStart;
+                              });
+
+                              const carryOverBalance = carryTxs.reduce((sum: number, tx: any) => {
+                                const amt = Number(tx.amount || 0);
+                                return sum + (tx.type === 'debt' ? amt : -amt);
+                              }, 0);
+
+                              // Calculate Period Transactions (transactions inside targetMonth)
+                              const periodTxs = currencyTxs.filter((tx: any) => {
+                                const d = new Date(tx.transaction_date || tx.date);
+                                return d >= targetStart && d <= targetEnd;
+                              });
+
+                              let runningBalance = carryOverBalance;
+                              const formattedPeriodTxs = periodTxs.map((tx: any) => {
+                                const amt = Number(tx.amount || 0);
+                                const isDebt = tx.type === 'debt';
+                                runningBalance += isDebt ? amt : -amt;
+                                return {
+                                  date: formatDate(new Date(tx.transaction_date || tx.date)),
+                                  description: tx.description || (tx.type === 'debt' ? (isTr ? 'Satış Faturası' : 'Sales Invoice') : (isTr ? 'Ödeme / Tahsilat' : 'Payment / Collection')),
+                                  debt: isDebt ? amt : 0,
+                                  credit: !isDebt ? amt : 0,
+                                  balance: runningBalance
+                                };
+                              });
+
+                              // BA/BS calculation: USD/EUR/TRY invoices in target period whose TRY equivalent excluding VAT is >= 5000 TL
+                              const babsInvoices = periodTxs.filter((tx: any) => {
+                                const desc = (tx.description || '').toLowerCase();
+                                const isInvoice = desc.includes('fatura') || desc.includes('invoice');
+                                if (!isInvoice) return false;
+                                const amt = Number(tx.amount || 0);
+                                const rate = tx.exchange_rate ? Number(tx.exchange_rate) : (tx.currency === 'USD' ? 33 : tx.currency === 'EUR' ? 36 : 1);
+                                const amtTry = amt * rate;
+                                const exclVatTry = amtTry / 1.2;
+                                return exclVatTry >= 5000;
+                              });
+
+                              const babsInvoiceCount = babsInvoices.length;
+                              const babsTotalSum = babsInvoices.reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
+
+                              const rawStoreName = branding?.legal_name || branding?.store_name || branding?.name || 'Seçkin İşletme';
+                              const finalStoreName = rawStoreName.toLowerCase().includes('lookprice') ? 'Seçkin İşletme' : rawStoreName;
+                              
+                              const finalStoreAddress = (branding?.legal_address || branding?.address || '').trim() || 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul';
+                              const finalStoreTaxOffice = (branding?.legal_tax_office || branding?.tax_office || '').trim() || 'Beşiktaş';
+                              const finalStoreTaxNumber = (branding?.legal_tax_number || branding?.tax_id || '').trim() || '1234567890';
+
+                              const reconObj = {
+                                id: reconId,
+                                storeName: finalStoreName,
+                                storeAddress: finalStoreAddress,
+                                storeTaxOffice: finalStoreTaxOffice,
+                                storeTaxNumber: finalStoreTaxNumber,
+                                companyTitle: c.title,
+                                companyAddress: c.address || 'Firma Adresi Belirtilmemiş',
+                                taxOffice: c.tax_office,
+                                taxNumber: c.tax_number,
+                                currency: curr,
+                                balance: runningBalance,
+                                carryOverBalance: carryOverBalance,
+                                startDate: formatDate(targetStart),
+                                periodMonthName: periodMonthName,
+                                transactions: formattedPeriodTxs,
+                                babsInvoiceCount: babsInvoiceCount,
+                                babsTotalSum: babsTotalSum,
+                                date: formatDate(today),
+                                status: 'pending',
+                                notes: `${curr} Cari Hesap Mutabakatı`
+                              };
+
+                              const existing = JSON.parse(localStorage.getItem(`storeReconciliations_${currentStoreId}`) || '[]');
+                              localStorage.setItem(`storeReconciliations_${currentStoreId}`, JSON.stringify([reconObj, ...existing]));
+                              localStorage.setItem(`recon_${reconId}`, JSON.stringify(reconObj));
+
+                              const link = `${window.location.origin}/reconciliation/${reconId}`;
+                              navigator.clipboard.writeText(link);
+                              alert(isTr 
+                                ? `🔗 Dijital Mutabakat Linki Oluşturuldu & Panoya Kopyalandı!\n\n${link}\n\nMüşterinize/Tedarikçinize WhatsApp üzerinden ileterek online onay alabilirsiniz.`
+                                : `Digital Reconciliation Link created & copied!\n\n${link}`);
+                              handleRefreshRecons();
+                            } catch (err) {
+                              console.error("Failed to create reconciliation link:", err);
+                              alert(isTr ? 'Mutabakat linki oluşturulurken bir hata oluştu.' : 'Failed to create reconciliation link.');
+                            }
                           }}
                           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                           title={isTr ? 'Dijital Mutabakat Gönder' : 'Send Digital Reconciliation'}
@@ -424,7 +536,16 @@ const CompaniesTab = ({
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+              {reconciliations.length > 0 ? (
+                <button
+                  onClick={handleClearHistory}
+                  className="px-4 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {isTr ? 'Tüm Geçmişi Temizle' : 'Clear All History'}
+                </button>
+              ) : <div />}
               <button
                 onClick={() => setShowReconHistory(false)}
                 className="px-5 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer"

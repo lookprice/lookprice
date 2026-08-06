@@ -142,18 +142,167 @@ const EL_DICTIONARY: Record<string, string> = {
   "Restoran & Kafe": "Εστιατόριο & Καφέ",
 };
 
+const HORECA_EN: Record<string, string> = {
+  "icecekler": "Beverages",
+  "icecek": "Beverage",
+  "sicak": "Hot Drinks",
+  "sicaklar": "Hot Drinks",
+  "soguk": "Cold Drinks",
+  "soguklar": "Cold Drinks",
+  "yiyecekler": "Food",
+  "yiyecek": "Food",
+  "tatlilar": "Desserts",
+  "tatli": "Dessert",
+  "cocuk menu": "Kids Menu",
+  "cocuk menusu": "Kids Menu",
+  "kahveler": "Coffees",
+  "kahve": "Coffee",
+  "kokteyller": "Cocktails",
+  "kokteyl": "Cocktail",
+  "biralar": "Beers",
+  "bira": "Beer",
+  "saraplar": "Wines",
+  "sarap": "Wine",
+  "mesrubatlar": "Soft Drinks",
+  "mesrubat": "Soft Drink",
+  "atistirmaliklar": "Snacks",
+  "atistirmalik": "Snack",
+  "salatalar": "Salads",
+  "salata": "Salad",
+  "corbalar": "Soups",
+  "corba": "Soup",
+  "ana yemekler": "Main Courses",
+  "ana yemek": "Main Course",
+  "ara sicaklar": "Starters",
+  "ara sicak": "Starter",
+  "makarnalar": "Pasta",
+  "makarna": "Pasta",
+  "pizzalar": "Pizzas",
+  "pizza": "Pizza",
+  "soslar": "Sauces",
+  "sos": "Sauce",
+  "meze": "Appetizer",
+  "mezeler": "Appetizers",
+  "izgara": "Grill",
+  "izgaralar": "Grills",
+  "kahvalti": "Breakfast",
+  "trendler": "Trending",
+  "tum menu": "Full Menu",
+  // Options & Variants
+  "acik": "Light",
+  "demli": "Strong",
+  "normal": "Normal",
+  "sade": "Plain",
+  "orta": "Medium",
+  "sekerli": "Sweet",
+  "sutlu": "With Milk",
+  "milkshake banana": "Banana Milkshake",
+  "milkshake chocolate": "Chocolate Milkshake",
+  "milkshake strawberry": "Strawberry Milkshake",
+  "milkshake vanilla": "Vanilla Milkshake",
+  // Common Horeca Products
+  "cay (fincan)": "Tea (Cup)",
+  "cay (ince belli)": "Traditional Tea",
+  "su": "Water",
+  "simit": "Simit (Turkish Bagel)",
+};
+
+const HORECA_EL: Record<string, string> = {
+  "icecekler": "Ροφήματα",
+  "icecek": "Ρόφημα",
+  "sicak": "Ζεστά Ροφήματα",
+  "sicaklar": "Ζεστά Ροφήματα",
+  "soguk": "Κρύα Ροφήματα",
+  "soguklar": "Κρύα Ροφήματα",
+  "yiyecekler": "Φαγητά",
+  "yiyecek": "Φαγητό",
+  "tatlilar": "Γλυκά",
+  "tatli": "Γλυκό",
+  "cocuk menu": "Παιδικό Μενού",
+  "cocuk menusu": "Παιδικό Μενού",
+  "kahveler": "Καφέδες",
+  "kahve": "Καφές",
+  "kokteyller": "Κοκτέιλ",
+  "kokteyl": "Κοκτέιλ",
+  "biralar": "Μπύρες",
+  "bira": "Μπύρα",
+  "saraplar": "Κρασιά",
+  "sarap": "Κρασί",
+  "mesrubatlar": "Αναψυκτικά",
+  "mesrubat": "Αναψυκτικό",
+  "atistirmaliklar": "Σνακ",
+  "atistirmalik": "Σνακ",
+  "salatalar": "Σαλάτες",
+  "salata": "Σαλάτα",
+  "corbalar": "Σούπες",
+  "corba": "Σούπα",
+  "ana yemekler": "Κυρίως Πιάτα",
+  "ana yemek": "Κυρίως Πιάτο",
+  "ara sicaklar": "Ορεκτικά",
+  "ara sicak": "Ορεκτικό",
+  "makarnalar": "Ζυμαρικά",
+  "makarna": "Ζυμαρικά",
+  "pizzalar": "Πίτσες",
+  "pizza": "Πίτσα",
+  "soslar": "Σάλτσες",
+  "sos": "Σάλτσα",
+  "meze": "Μεζέδες",
+  "mezeler": "Μεζέδες",
+  "izgara": "Σχάρα",
+  "izgaralar": "Σχάρα",
+  "kahvalti": "Πρωινό",
+  "trendler": "Τάσεις",
+  "tum menu": "Πλήρες Μενού",
+  // Options & Variants in Greek
+  "acik": "Ελαφρύ",
+  "demli": "Δυνατό",
+  "normal": "Κανονικό",
+  "sade": "Σκέτο",
+  "orta": "Μέτριο",
+  "sekerli": "Γλυκό",
+  "sutlu": "Με Γάλα",
+  "milkshake banana": "Μιλκσέικ Μπανάνα",
+  "milkshake chocolate": "Μιλκσέικ Σοκολάτα",
+  "milkshake strawberry": "Μιλκσέικ Φράουλα",
+  "milkshake vanilla": "Μιλκσέικ Βανίλια",
+  // Common Horeca Products in Greek
+  "cay (fincan)": "Τσάι (Φλιτζάνι)",
+  "cay (ince belli)": "Παραδοσιακό Τσάι",
+  "su": "Νερό",
+  "simit": "Κουλούρι",
+};
+
 export const translateText = (text: string, lang: Language): string => {
   if (!text || typeof text !== 'string') return text;
   if (lang === 'tr') return text;
   
   const trimmed = text.trim();
+  const normalized = trimmed.toLowerCase()
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ç/g, 'c')
+    .replace(/ö/g, 'o');
+
   if (lang === 'en') {
+    if (HORECA_EN[normalized]) return HORECA_EN[normalized];
     if (EN_DICTIONARY[trimmed]) return EN_DICTIONARY[trimmed];
-    // Fallback prefix simulation for custom titles
+    for (const key of Object.keys(EN_DICTIONARY)) {
+      if (key.toLowerCase().replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ç/g, 'c').replace(/ö/g, 'o') === normalized) {
+        return EN_DICTIONARY[key];
+      }
+    }
     return trimmed;
   }
   if (lang === 'el') {
+    if (HORECA_EL[normalized]) return HORECA_EL[normalized];
     if (EL_DICTIONARY[trimmed]) return EL_DICTIONARY[trimmed];
+    for (const key of Object.keys(EL_DICTIONARY)) {
+      if (key.toLowerCase().replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ç/g, 'c').replace(/ö/g, 'o') === normalized) {
+        return EL_DICTIONARY[key];
+      }
+    }
     return trimmed;
   }
   return text;

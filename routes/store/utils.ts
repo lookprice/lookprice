@@ -16,7 +16,7 @@ export const getAuthorizedStoreId = async (req: any, requestedStoreId: any) => {
  * Normalizes a string for Turkish-friendly case-insensitive search in SQL
  */
 export const getTurkishSearchSnippet = (field: string, paramIndex: number) => {
-  const normalizedField = `LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(${field}::text, 'İ', 'i'), 'I', 'ı'), 'ı', 'i'), 'Ç', 'c'), 'ç', 'c'), 'Ğ', 'g'), 'ğ', 'g'), 'Ö', 'o'), 'ö', 'o'), 'Ş', 's'), 'ş', 's'), 'Ü', 'u'), 'ü', 'u'))`;
+  const normalizedField = `LOWER(translate(${field}::text, 'İIıÇçĞğÖöŞşÜü', 'iiiccggoossuu'))`;
   return `${normalizedField} LIKE $${paramIndex}`;
 };
 

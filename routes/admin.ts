@@ -615,6 +615,77 @@ async function ensureEnrakipsizTables() {
       ('Burada Yer Alın: Aylık 1.2M+ Nitelikli Ziyaretçi', 'ENRAKİPSİZ SPONSOR NETWORK', 'Markanızı, projenizi veya özel hizmetlerinizi portalımızda sergileyerek doğrudan Alıcı ve Satıcı premium kitleyle buluşturun.', 'Yüksek Prestij & Dönüşüm', 'Sponsor Ol', '', 'image', '', 'middle', TRUE)
     `);
   }
+
+  // Create and Seed enrakipsiz_videos table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS enrakipsiz_videos (
+      id SERIAL PRIMARY KEY,
+      product_key TEXT NOT NULL,
+      page_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      youtube_id TEXT,
+      duration TEXT,
+      cover_img TEXT,
+      is_live BOOLEAN DEFAULT TRUE,
+      order_index INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `).catch((err) => console.error("Error creating enrakipsiz_videos:", err));
+
+  const videosCheck = await pool.query("SELECT id FROM enrakipsiz_videos LIMIT 1");
+  if (videosCheck.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index)
+      VALUES
+      ('shoplp', 'lookprice_net', 'ShopLP - Akıllı Perakende ve Hızlı POS', 'Perakende mağazaları, marketler ve bakkallar için barkodlu satış, stok takibi, e-fatura ve cari hesap otomasyonu.', 'bdbXezbS35c', '1:15', 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80', TRUE, 0),
+      ('autolp', 'lookprice_net', 'AutoLP - Bulut Tabanlı Oto Galeri Yönetimi', 'Oto galeriler için araç portföyü, tramer kayıtları, sözleşme şablonları, otomatik ilan yayınlama ve muhasebe takibi.', 'bdbXezbS35c', '1:30', 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80', TRUE, 1),
+      ('restatelp', 'lookprice_net', 'RestateLP - Dijital Emlak Ofisi & Portföy', 'Emlak ofisleri için gayrimenkul yönetimi, harita entegrasyonu, yetki sözleşmeleri ve otomatik enrakipsiz.com ilanı.', 'bdbXezbS35c', '1:45', 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80', TRUE, 2),
+      ('horecalp', 'lookprice_net', 'HoReCaLP - Restoran ve Cafe Adisyon Sistemi', 'Kafe, restoran ve barlar için masadan sipariş, QR dijital menü, mutfak hazırlık paneli, kurye takibi ve reçeteli stok.', 'bdbXezbS35c', '1:24', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80', TRUE, 3),
+      
+      ('pos', 'horecalp', 'Adisyon & Hızlı POS', 'Garson el terminalleri ve kasa POS ekranının canlı kullanım görünümü. Masaların adisyon açılışı, sipariş ekleme and masa durumlarının anlık güncellenmesi.', 'bdbXezbS35c', '1:24', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80', TRUE, 0),
+      ('qr_menu', 'horecalp', 'Temassız QR Menü Entegrasyonu', 'Müşteri gözünden temassız masadan sipariş ve interaktif dijital menü deneyimi. Ürün detayları ve varyasyonlar.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80', FALSE, 1),
+      ('kitchen_screen', 'horecalp', 'Dijital Mutfak Ekranı', 'Mutfak hazırlık paneli kullanımı. Siparişlerin departman bazlı (Mutfak, Bar, Fırın) ayrışması ve anlık mutfak paneli.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80', FALSE, 2),
+      ('stock_recipe', 'horecalp', 'Reçete & Stok Takibi', 'Hammadde bazlı milimetrik reçete (BOM) tanımlama ve satış anında depodan otomatik düşüş süreçlerinin yönetim paneli görünümü.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=80', FALSE, 3)
+    `).catch((err) => console.error("Error seeding enrakipsiz_videos:", err));
+  }
+
+  // Ensure individual page type videos are seeded if missing
+  const shoplpCount = await pool.query("SELECT id FROM enrakipsiz_videos WHERE page_type = 'shoplp' LIMIT 1");
+  if (shoplpCount.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index)
+      VALUES
+      ('shop_sale', 'shoplp', 'Hızlı Barkodlu Satış & POS', 'Mağaza içi hızlı barkod okuma, anlık sepet ve nakit/kart tahsilat süreçlerinin detaylı canlı kullanımı.', 'bdbXezbS35c', '1:15', 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80', TRUE, 0),
+      ('shop_invoice', 'shoplp', 'E-Fatura & E-Arşiv Entegrasyonu', 'Tek tıkla resmi e-fatura veya e-arşiv fatura düzenleme, müşteriye SMS/E-posta ile iletim ve entegratör entegrasyonu.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80', FALSE, 1),
+      ('shop_stock', 'shoplp', 'Stok & Depo Yönetimi', 'Kritik stok seviye uyarıları, varyantlı ürün takibi, toplu stok güncelleme ve depo giriş/çıkış hareketleri.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80', FALSE, 2),
+      ('shop_ledger', 'shoplp', 'Cari Hesap & Veresiye Takibi', 'Müşteri ve tedarikçi cari kartları oluşturma, veresiye borç limitleri, vade takibi ve hesap ekstresi paylaşımı.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80', FALSE, 3)
+    `).catch((err) => console.error("Error seeding shoplp videos:", err));
+  }
+
+  const autolpCount = await pool.query("SELECT id FROM enrakipsiz_videos WHERE page_type = 'autolp' LIMIT 1");
+  if (autolpCount.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index)
+      VALUES
+      ('auto_portfolio', 'autolp', 'Araç Portföyü & Tramer Kaydı', 'Marka, model, donanım paketleri ve detaylı tramer/boya-değişen bilgilerinin sisteme eklenmesi ve takibi.', 'bdbXezbS35c', '1:30', 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80', TRUE, 0),
+      ('auto_contract', 'autolp', 'Noter Satış & Konsinye Sözleşmesi', 'Tek tıkla resmi noter satış, konsinye (araç teslimat) ve kapora sözleşmelerinin dinamik basımı ve arşivlenmesi.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80', FALSE, 1),
+      ('auto_showcase', 'autolp', 'Dijital Vitrin & Sosyal Medya Paylaşımı', 'Eklenen araç ilanlarının anında galeri kurumsal web sitesinde ve sosyal medyadaki lüks şablonlarla otomatik paylaşımı.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1562577309-4932fdd64cd1?auto=format&fit=crop&w=1200&q=80', FALSE, 2),
+      ('auto_finance', 'autolp', 'Alış-Satış & Cari Finans Takibi', 'Konsinye ve öz-mal araçların alış/satış kâr-zarar tabloları, vergi hesaplamaları ve genel kasa gider raporları.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80', FALSE, 3)
+    `).catch((err) => console.error("Error seeding autolp videos:", err));
+  }
+
+  const restatelpCount = await pool.query("SELECT id FROM enrakipsiz_videos WHERE page_type = 'restatelp' LIMIT 1");
+  if (restatelpCount.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index)
+      VALUES
+      ('restate_portfolio', 'restatelp', 'Gayrimenkul Portföy CRM & Arşiv', 'Konut, ticari ve tarla/arsa portföylerinin koçan tipi, tapu bilgileri ve mülk sahibi detayları ile eksiksiz kaydı.', 'bdbXezbS35c', '1:45', 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80', TRUE, 0),
+      ('restate_calendar', 'restatelp', 'Yer Gösterim & Randevu Planlayıcı', 'Brokerlar ve danışmanlar arası ortak yer gösterme takvimi, müşteri saha randevuları ve randevu çakışma uyarıları.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=1200&q=80', FALSE, 1),
+      ('restate_signature', 'restatelp', 'Dijital Biyometrik İmzalama', 'Yer gösterme formları, kiralama ve kapora ön-sözleşmelerinin tablet/telefonda ıslak biyometrik imza ile imzalatılması.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80', FALSE, 2),
+      ('restate_design', 'restatelp', 'Ofis Vitrin Afiş & Kolaj Tasarımı', 'Tek tıkla portföy bilgilerini ofis vitrin afişine veya sosyal medya şablonlarına (Satıldı/Kiralandı şeritli) dökme.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80', FALSE, 3)
+    `).catch((err) => console.error("Error seeding restatelp videos:", err));
+  }
 }
 
 router.get("/enrakipsiz/settings", async (req: any, res) => {
@@ -758,6 +829,49 @@ router.delete("/enrakipsiz/ads/:id", async (req: any, res) => {
   try {
     await ensureEnrakipsizTables();
     await pool.query("DELETE FROM enrakipsiz_ads WHERE id = $1", [req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Video Management Routes
+router.get("/enrakipsiz/videos", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    const result = await pool.query("SELECT * FROM enrakipsiz_videos ORDER BY page_type ASC, order_index ASC, id ASC");
+    res.json(result.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/enrakipsiz/videos", async (req: any, res) => {
+  const { id, product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index } = req.body;
+  try {
+    await ensureEnrakipsizTables();
+    if (id) {
+      await pool.query(`
+        UPDATE enrakipsiz_videos
+        SET product_key = $1, page_type = $2, title = $3, description = $4, youtube_id = $5, duration = $6, cover_img = $7, is_live = $8, order_index = $9
+        WHERE id = $10
+      `, [product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index, id]);
+    } else {
+      await pool.query(`
+        INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `, [product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index]);
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.delete("/enrakipsiz/videos/:id", async (req: any, res) => {
+  try {
+    await ensureEnrakipsizTables();
+    await pool.query("DELETE FROM enrakipsiz_videos WHERE id = $1", [req.params.id]);
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });

@@ -26,7 +26,10 @@ import {
   Wrench,
   Smartphone,
   Calendar,
-  GitBranch
+  GitBranch,
+  Play,
+  Tv,
+  Youtube
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -58,6 +61,93 @@ export const LandingPage = () => {
     storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" | "restaurant" 
   });
   const [demoStatus, setDemoStatus] = useState({ type: "", text: "" });
+
+  const [activeVideoTab, setActiveVideoTab] = useState(0);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [dbVideos, setDbVideos] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getPublicVideos("lookprice_net")
+      .then(res => {
+        if (res && Array.isArray(res) && res.length > 0) {
+          setDbVideos(res);
+        }
+      })
+      .catch(err => console.error("Error fetching db videos:", err));
+  }, []);
+
+  const videoTabs = React.useMemo(() => {
+    if (dbVideos.length > 0) {
+      return dbVideos.map(v => ({
+        id: v.product_key,
+        title: v.title,
+        tag: v.product_key.toUpperCase(),
+        description: v.description || "",
+        youtubeId: v.youtube_id,
+        duration: v.duration || "1:00",
+        isLive: v.is_live,
+        coverImg: v.cover_img || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80"
+      }));
+    }
+    return [
+      {
+        id: "shoplp",
+        title: txt("ShopLP - Akıllı Perakende ve Hızlı POS", "ShopLP - Smart Retail & Fast POS", "ShopLP - Έξυπνο Λιανικό & Γρήγορο POS"),
+        tag: "SHOPLP",
+        description: txt(
+          "Perakende mağazaları, marketler ve bakkallar için barkodlu satış, stok takibi, e-fatura ve cari hesap otomasyonu.",
+          "Barcode sales, stock tracking, e-invoice and current account automation for retail stores and markets.",
+          "Πωλήσεις με barcode, παρακολούθηση αποθεμάτων, e-τιμολόγηση και αυτοματοποίηση τρεχούμενου λογαριασμού."
+        ),
+        youtubeId: "bdbXezbS35c",
+        duration: "1:24",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        id: "autolp",
+        title: txt("AutoLP - Bulut Tabanlı Oto Galeri Yönetimi", "AutoLP - Cloud Automotive Dealer Management", "AutoLP - Διαχείριση Αντιπροσωπείας Αυτοκινήτων στο Cloud"),
+        tag: "AUTOLP",
+        description: txt(
+          "Oto galeriler için araç portföy yönetimi, tramer sorguları, alıcı-satıcı sözleşmeleri ve dijital pazarlama entegrasyonları.",
+          "Vehicle portfolio management, accident queries, buyer-seller contracts and digital marketing integrations for auto dealers.",
+          "Διαχείριση χαρτοφυλακίου οχημάτων, ερωτήματα ατυχημάτων, συμβόλαια αγοραστή-πωλητή και ενσωματώσεις ψηφιακού μάρκετινγκ."
+        ),
+        youtubeId: null,
+        duration: txt("Yakında", "Coming Soon", "Σύντομα"),
+        isLive: false,
+        coverImg: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        id: "restatelp",
+        title: txt("RestateLP - Dijital Emlak Ofisi & Portföy", "RestateLP - Digital Real Estate & Portfolio", "RestateLP - Ψηφιακό Μεσιτικό & Χαρτοφυλάκιο"),
+        tag: "RESTATELP",
+        description: txt(
+          "Emlak ofisleri için ilan portföy yönetimi, akıllı eşleştirme motoru, otomatik sosyal medya paylaşımları ve müşteri takibi.",
+          "Listing portfolio management, smart matching engine, automated social media sharing and customer tracking for real estate offices.",
+          "Διαχείριση χαρτοφυλακίου καταχωρίσεων, έξυπνη μηχανή αντιστοίχισης, αυτοματοποιημένη κοινή χρήση στα μέσα κοινωνικής δικτύωσης."
+        ),
+        youtubeId: null,
+        duration: txt("Yakında", "Coming Soon", "Σύντομα"),
+        isLive: false,
+        coverImg: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        id: "horecalp",
+        title: txt("HoReCaLP - Restoran ve Cafe Adisyon Sistemi", "HoReCaLP - Restaurant & Cafe Bill System", "HoReCaLP - Σύστημα Λογαριασμών Εστιατορίου & Καφέ"),
+        tag: "HORECALP",
+        description: txt(
+          "Garson el terminalleri, temassız QR menü siparişi, dijital mutfak ekranı ve reçete bazlı milimetrik stok otomasyonu.",
+          "Waiter handheld units, contactless QR menu ordering, digital kitchen screen and ingredient-precise inventory automation.",
+          "Φορητές συσκευές σερβιτόρου, παραγγελία με μενού QR, ψηφιακή οθόνη κουζίνας και αυτοματοποίηση αποθεμάτων."
+        ),
+        youtubeId: null,
+        duration: txt("Yakında", "Coming Soon", "Σύντομα"),
+        isLive: false,
+        coverImg: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80"
+      }
+    ];
+  }, [dbVideos, lang]);
 
   useEffect(() => {
     if (location.state?.openDemo) {
@@ -599,6 +689,192 @@ export const LandingPage = () => {
                 </motion.div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* Video Showcase Section */}
+      <section className="py-24 border-t border-white/5 bg-[#08080c] relative overflow-hidden z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_rgba(245,158,11,0.05),_transparent_50%)] pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-amber-500/10 text-amber-400 rounded-full text-xs font-black tracking-wider uppercase border border-amber-500/20">
+              <Tv className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+              {txt('SİSTEMİ CANLI İZLEYİN', 'WATCH LIVE DEMO', 'ΠΑΡΑΚΟΛΟΥΘΗΣΤΕ LIVE')}
+            </span>
+            <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight mt-3 mb-4">
+              {txt('Uygulamalı Sistem Özellikleri & Video Turu', 'Interactive System Tour & Live Demos', 'Διαδραστική Περιήγηση Συστήματος & Live Demos')}
+            </h2>
+            <p className="text-white/50 text-sm sm:text-base font-semibold leading-relaxed">
+              {txt(
+                'HoReCaLP programının tüm modüllerini ve ekran akışlarını gerçek kullanım senaryoları eşliğinde canlı olarak izleyin.',
+                'Watch real usage scenarios and explore how the entire HoReCaLP suite functions in active environments.',
+                'Παρακολουθήστε πραγματικά σενάρια χρήσης και εξερευνήστε πώς λειτουργεί ολόκληρη η σουίτα HoReCaLP σε ενεργά περιβάλλοντα.'
+              )}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
+            {/* Left Side: Video Selector Tabs */}
+            <div className="lg:col-span-5 flex flex-col justify-between space-y-4 order-2 lg:order-1">
+              <div className="space-y-3">
+                {videoTabs.map((tab, idx) => {
+                  const isActive = activeVideoTab === idx;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveVideoTab(idx);
+                        setIsVideoPlaying(false);
+                      }}
+                      className={`w-full text-left p-5 rounded-2xl border transition-all relative overflow-hidden flex items-start gap-4 cursor-pointer ${
+                        isActive
+                          ? 'bg-white/[0.04] border-amber-500/30 shadow-2xl shadow-amber-500/5'
+                          : 'bg-white/[0.01] border-white/5 hover:bg-white/[0.02] hover:border-white/10'
+                      }`}
+                    >
+                      <div className={`p-2.5 rounded-xl shrink-0 ${
+                        isActive ? 'bg-amber-600 text-white shadow-sm' : 'bg-white/5 text-white/40'
+                      }`}>
+                        <Tv className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`text-[10px] font-black uppercase tracking-wider ${
+                            isActive ? 'text-amber-400' : 'text-white/40'
+                          }`}>
+                            {tab.tag}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            tab.isLive 
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                              : 'bg-white/5 text-white/40'
+                          }`}>
+                            {tab.duration}
+                          </span>
+                        </div>
+                        <h3 className={`text-base font-black tracking-tight mt-1 ${
+                          isActive ? 'text-white' : 'text-white/80'
+                        }`}>
+                          {tab.title}
+                        </h3>
+                        {isActive && (
+                          <p className="text-white/60 text-xs font-semibold mt-1.5 leading-relaxed">
+                            {tab.description}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Video Player Info */}
+              <div className="bg-amber-500/5 rounded-2xl p-4 border border-amber-500/10 flex items-center gap-3">
+                <Youtube className="h-5 w-5 text-red-500 shrink-0" />
+                <p className="text-xs text-amber-400/80 font-bold">
+                  {txt(
+                    'Sistemimizin canlı ekran videoları YouTube kanalımızda düzenli olarak yayınlanmaktadır.',
+                    'Our system screen recordings are regularly uploaded to our YouTube channel.',
+                    'Τα βίντεο της οθόνης του συστήματός μας ανεβαίνουν τακτικά στο κανάλι μας στο YouTube.'
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Right Side: Active Video Player Stage */}
+            <div className="lg:col-span-7 order-1 lg:order-2">
+              <div className="relative aspect-video rounded-3xl overflow-hidden border border-white/10 bg-[#050508] shadow-2xl w-full h-auto lg:h-full lg:min-h-[300px] flex flex-col justify-center">
+                {videoTabs[activeVideoTab].isLive && videoTabs[activeVideoTab].youtubeId ? (
+                  isVideoPlaying ? (
+                    <div className="relative w-full h-full">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${videoTabs[activeVideoTab].youtubeId}?autoplay=1&rel=0&modestbranding=1`}
+                        title={videoTabs[activeVideoTab].title}
+                        className="w-full h-full border-0 absolute inset-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                      {/* Floating Fallback Button */}
+                      <div className="absolute top-4 right-4 z-20 flex gap-2">
+                        <a
+                          href={`https://www.youtube.com/watch?v=${videoTabs[activeVideoTab].youtubeId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-black/85 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/15 shadow-xl transition-all"
+                        >
+                          <Youtube className="w-4 h-4 text-red-500" />
+                          {txt("YouTube'da Aç", "Open in YouTube", "YouTube'da Aç")}
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 group cursor-pointer animate-fade-in" onClick={() => setIsVideoPlaying(true)}>
+                      <img
+                        src={videoTabs[activeVideoTab].coverImg}
+                        alt={videoTabs[activeVideoTab].title}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-105 group-hover:opacity-75"
+                      />
+                      <div className="absolute inset-0 bg-black/45 group-hover:bg-black/35 transition-colors duration-300 flex items-center justify-center -translate-y-6 sm:-translate-y-8">
+                        <div className="relative">
+                          <div className="absolute -inset-4 bg-amber-500/20 rounded-full blur-xl group-hover:scale-125 transition-transform duration-300" />
+                          <button className="relative h-14 w-14 sm:h-16 sm:w-16 bg-amber-600 hover:bg-amber-500 hover:scale-105 rounded-full flex items-center justify-center text-white shadow-2xl transition-all duration-300">
+                            <Play className="h-6 w-6 sm:h-7 sm:w-7 fill-current ml-1" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 p-3 sm:p-4 bg-black/80 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase text-amber-400 tracking-wider">YOUTUBE VIDEO</p>
+                          <p className="text-xs font-black text-white mt-0.5 truncate">{videoTabs[activeVideoTab].title}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsVideoPlaying(true);
+                            }}
+                            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer whitespace-nowrap"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            {txt('İZLE', 'WATCH', 'İZLE')}
+                          </button>
+                          <a
+                            href={`https://www.youtube.com/watch?v=${videoTabs[activeVideoTab].youtubeId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 hover:bg-amber-500/20 transition-all whitespace-nowrap"
+                          >
+                            <Youtube className="w-3.5 h-3.5 text-red-500" />
+                            {txt('YOUTUBE\'DA AÇ', 'YOUTUBE', 'YOUTUBE')}
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="absolute inset-0 p-8 flex flex-col items-center justify-center text-center bg-[#050508] text-white relative overflow-hidden">
+                    <div className="absolute inset-0 bg-cover bg-center opacity-5 pointer-events-none" style={{ backgroundImage: `url(${videoTabs[activeVideoTab].coverImg})` }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#050508] via-[#050508]/90 to-[#050508] pointer-events-none" />
+                    <div className="relative z-10 max-w-sm space-y-4 flex flex-col items-center">
+                      <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                        <Tv className="h-8 w-8 text-amber-500 animate-pulse" />
+                      </div>
+                      <h3 className="text-xl font-black">{txt('Hazırlanıyor', 'Coming Soon', 'Σύντομα')}</h3>
+                      <p className="text-white/60 text-xs font-semibold leading-relaxed">
+                        {txt(
+                          `"${videoTabs[activeVideoTab].title}" özelliğinin detaylı ekran videosu şu an hazırlanma aşamasındadır. Çok yakında YouTube kanalımıza yüklenecektir!`,
+                          `Detailed screen video for "${videoTabs[activeVideoTab].title}" is being prepared. It will be uploaded to our YouTube channel very soon!`,
+                          `Το αναλυτικό βίντεο της οθόνης για τη δυνατότητα "${videoTabs[activeVideoTab].title}" προετοιμάζεται. Θα ανέβει στο κανάλι μας στο YouTube πολύ σύντομα!`
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </section>

@@ -136,7 +136,14 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                       {new Date(inv.invoice_date).toLocaleDateString('tr-TR')}
                     </td>
                     <td className="px-3 py-4">
-                      <div className="text-sm font-bold text-slate-900">#{inv.invoice_number}</div>
+                      <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                        #{inv.invoice_number}
+                        {(inv.gi_invoice_type === 'IADE' || inv.invoice_type === 'IADE') && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-700 border border-rose-200">
+                            - İADE -
+                          </span>
+                        )}
+                      </div>
                       {inv.document_number && (
                          <div className="text-[10px] text-indigo-600 font-bold tracking-widest mt-0.5">{inv.document_number}</div>
                       )}

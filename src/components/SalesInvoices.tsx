@@ -99,6 +99,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [invoiceProfile, setInvoiceProfile] = useState<'TEMELFATURA' | 'TICARIFATURA' | 'EARSIVFATURA'>('TICARIFATURA');
   const [giInvoiceType, setGiInvoiceType] = useState<string>('SATIS');
   const [isReturn, setIsReturn] = useState(false);
+  const [returnInvoiceNumber, setReturnInvoiceNumber] = useState("");
+  const [returnInvoiceDate, setReturnInvoiceDate] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [exemptionReasonCode, setExemptionReasonCode] = useState("");
   const [withholdingTaxCode, setWithholdingTaxCode] = useState("");
@@ -223,6 +225,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setCustomerEmail(initialData.customer_email || "");
       setExemptionReasonCode(initialData.gi_exemption_reason_code || "");
       setWithholdingTaxCode(initialData.gi_withholding_tax_code || "");
+      setReturnInvoiceNumber(initialData.return_invoice_number || "");
+      setReturnInvoiceDate(initialData.return_invoice_date || "");
       setIsReturn((initialData.gi_invoice_type || 'SATIS') === 'IADE');
       setIsNewCustomer(false);
       setIsTaxInclusive(initialData.is_tax_inclusive !== undefined ? initialData.is_tax_inclusive : true);
@@ -407,6 +411,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setInvoiceProfile('TICARIFATURA');
     setGiInvoiceType('SATIS');
     setIsReturn(false);
+    setReturnInvoiceNumber("");
+    setReturnInvoiceDate("");
     setCustomerEmail("");
     setExemptionReasonCode("");
     setWithholdingTaxCode("");
@@ -436,6 +442,25 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       }
     }
 
+    if (isReturn) {
+      const cleanNo = returnInvoiceNumber.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+      if (!cleanNo) {
+        toast.error(isTr ? "Lütfen iade edilen fatura numarasını girin" : "Please enter the returned invoice number");
+        return;
+      }
+      if (cleanNo.length !== 16) {
+        toast.error(isTr 
+          ? `İade edilen fatura numarası tam olarak 16 haneli olmalıdır (Örn: GIB2026000001234). Girilen: ${returnInvoiceNumber}`
+          : `Returned invoice number must be exactly 16 characters (e.g., GIB2026000001234). Entered: ${returnInvoiceNumber}`
+        );
+        return;
+      }
+      if (!returnInvoiceDate) {
+        toast.error(isTr ? "Lütfen iade edilen fatura tarihini seçin" : "Please select the returned invoice date");
+        return;
+      }
+    }
+
     const payload = {
       storeId: role === 'superadmin' ? (storeId || undefined) : undefined,
       sale_id: saleId,
@@ -461,6 +486,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       gi_invoice_type: isReturn ? 'IADE' : giInvoiceType,
       gi_exemption_reason_code: exemptionReasonCode,
       gi_withholding_tax_code: withholdingTaxCode,
+      return_invoice_number: isReturn ? returnInvoiceNumber.toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
+      return_invoice_date: isReturn ? returnInvoiceDate : null,
       customer_email: customerEmail,
       is_tax_inclusive: isTaxInclusive,
       tax_number: editTaxNumber,
@@ -522,6 +549,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setEDocumentType(data.e_document_type);
       setGiInvoiceType(data.gi_invoice_type);
       setIsReturn(data.gi_invoice_type === 'IADE');
+      setReturnInvoiceNumber(data.return_invoice_number || "");
+      setReturnInvoiceDate(data.return_invoice_date ? new Date(data.return_invoice_date).toISOString().split('T')[0] : "");
       setExemptionReasonCode(data.gi_exemption_reason_code || "");
       setWithholdingTaxCode(data.gi_withholding_tax_code || "");
       setInvoiceProfile(data.invoice_profile);
@@ -883,6 +912,10 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         setWithholdingTaxCode={setWithholdingTaxCode}
         isReturn={isReturn}
         setIsReturn={setIsReturn}
+        returnInvoiceNumber={returnInvoiceNumber}
+        setReturnInvoiceNumber={setReturnInvoiceNumber}
+        returnInvoiceDate={returnInvoiceDate}
+        setReturnInvoiceDate={setReturnInvoiceDate}
         isTaxInclusive={isTaxInclusive}
         setIsTaxInclusive={setIsTaxInclusive}
         editTaxOffice={editTaxOffice}

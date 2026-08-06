@@ -6,6 +6,7 @@ import {
   DollarSign, ChevronRight, PlusCircle, MinusCircle,
   FileText, Clock, AlertCircle, Search, Building, Users, Eye, EyeOff, Calculator, FileCheck
 } from "lucide-react";
+import { api } from "../../services/api";
 import { QRCodeSVG } from "qrcode.react";
 import ShippingSlip from "../../components/ShippingSlip";
 import { MultiImageUploader } from "../../components/MultiImageUploader";
@@ -781,35 +782,142 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                 {isTr ? 'Kur Farkı' : 'Exchange Diff'}
               </button>
               <button 
-                onClick={() => {
-                  const reconId = Date.now();
-                  const currentBalance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
-                  const reconObj = {
-                    id: reconId,
-                    storeName: branding?.legal_name || branding?.store_name || branding?.name || 'Seçkin İşletme',
-                    storeAddress: branding?.legal_address || branding?.address || 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul',
-                    storeTaxOffice: branding?.legal_tax_office || branding?.tax_office || 'Beşiktaş',
-                    storeTaxNumber: branding?.legal_tax_number || branding?.tax_id || '1234567890',
-                    companyTitle: selectedCompany.title || selectedCompany.name,
-                    taxOffice: selectedCompany.tax_office,
-                    taxNumber: selectedCompany.tax_number,
-                    currency: selectedCurrency,
-                    balance: currentBalance,
-                    date: new Date().toLocaleDateString(isTr ? 'tr-TR' : 'en-US'),
-                    status: 'pending',
-                    notes: `${selectedCurrency} Cari Hesap Mutabakatı`
-                  };
+                onClick={async () => {
+                  try {
+                    const reconId = Date.now();
+                    const storeId = selectedCompany.store_id || branding?.id || 1;
+                    
+                    // Fetch all company transactions to calculate dynamic carry-over and period details
+                    let allTransactions: any[] = [];
+                    try {
+                      const res = await api.getCompanyTransactions(selectedCompany.id, "", "", storeId);
+                      allTransactions = res.transactions || res || [];
+                    } catch (e) {
+                      console.error("Error fetching transactions for reconciliation:", e);
+                    }
 
-                  const storeId = selectedCompany.store_id || branding?.id || 1;
-                  const existing = JSON.parse(localStorage.getItem(`storeReconciliations_${storeId}`) || '[]');
-                  localStorage.setItem(`storeReconciliations_${storeId}`, JSON.stringify([reconObj, ...existing]));
-                  localStorage.setItem(`recon_${reconId}`, JSON.stringify(reconObj));
+                    const today = new Date();
+                    const currentYear = today.getFullYear();
+                    const currentMonth = today.getMonth(); // 0-indexed
 
-                  const link = `${window.location.origin}/reconciliation/${reconId}`;
-                  navigator.clipboard.writeText(link);
-                  alert(isTr 
-                    ? `🔗 Dijital Mutabakat Linki Oluşturuldu & Panoya Kopyalandı!\n\n${link}\n\nMüşterinize/Tedarikçinize WhatsApp üzerinden iletebilir, online onay alabilirsiniz.`
-                    : `Digital Reconciliation Link created & copied!\n\n${link}`);
+                    let targetMonth = currentMonth - 1;
+                    let targetYear = currentYear;
+                    if (targetMonth < 0) {
+                      targetMonth = 11;
+                      targetYear = currentYear - 1;
+                    }
+
+                    const targetStart = new Date(targetYear, targetMonth, 1);
+                    const targetEnd = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+
+                    const formatDate = (d: Date) => {
+                      const day = String(d.getDate()).padStart(2, '0');
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const year = d.getFullYear();
+                      return `${day}.${month}.${year}`;
+                    };
+
+                    const monthNamesTr = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+                    const monthNamesEn = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                    const periodMonthName = isTr ? `${monthNamesTr[targetMonth]} ${targetYear}` : `${monthNamesEn[targetMonth]} ${targetYear}`;
+
+                    const curr = selectedCurrency || 'TRY';
+
+                    // Filter transactions for this specific currency
+                    const currencyTxs = allTransactions.filter((tx: any) => (tx.currency || 'TRY') === curr);
+
+                    // Sort transactions by date ascending for correct running balance math
+                    currencyTxs.sort((a: any, b: any) => new Date(a.transaction_date || a.date).getTime() - new Date(b.transaction_date || b.date).getTime());
+
+                    // Calculate Carry-Over Balance (transactions before targetStart)
+                    const carryTxs = currencyTxs.filter((tx: any) => {
+                      const d = new Date(tx.transaction_date || tx.date);
+                      return d < targetStart;
+                    });
+
+                    const carryOverBalance = carryTxs.reduce((sum: number, tx: any) => {
+                      const amt = Number(tx.amount || 0);
+                      return sum + (tx.type === 'debt' ? amt : -amt);
+                    }, 0);
+
+                    // Calculate Period Transactions (transactions inside targetMonth)
+                    const periodTxs = currencyTxs.filter((tx: any) => {
+                      const d = new Date(tx.transaction_date || tx.date);
+                      return d >= targetStart && d <= targetEnd;
+                    });
+
+                    let runningBalance = carryOverBalance;
+                    const formattedPeriodTxs = periodTxs.map((tx: any) => {
+                      const amt = Number(tx.amount || 0);
+                      const isDebt = tx.type === 'debt';
+                      runningBalance += isDebt ? amt : -amt;
+                      return {
+                        date: formatDate(new Date(tx.transaction_date || tx.date)),
+                        description: tx.description || (tx.type === 'debt' ? (isTr ? 'Satış Faturası' : 'Sales Invoice') : (isTr ? 'Ödeme / Tahsilat' : 'Payment / Collection')),
+                        debt: isDebt ? amt : 0,
+                        credit: !isDebt ? amt : 0,
+                        balance: runningBalance
+                      };
+                    });
+
+                    // BA/BS calculation: USD/EUR/TRY invoices in target period whose TRY equivalent excluding VAT is >= 5000 TL
+                    const babsInvoices = periodTxs.filter((tx: any) => {
+                      const desc = (tx.description || '').toLowerCase();
+                      const isInvoice = desc.includes('fatura') || desc.includes('invoice');
+                      if (!isInvoice) return false;
+                      const amt = Number(tx.amount || 0);
+                      const rate = tx.exchange_rate ? Number(tx.exchange_rate) : (tx.currency === 'USD' ? 33 : tx.currency === 'EUR' ? 36 : 1);
+                      const amtTry = amt * rate;
+                      const exclVatTry = amtTry / 1.2;
+                      return exclVatTry >= 5000;
+                    });
+
+                    const babsInvoiceCount = babsInvoices.length;
+                    const babsTotalSum = babsInvoices.reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
+
+                    const rawStoreName = branding?.legal_name || branding?.store_name || branding?.name || 'Seçkin İşletme';
+                    const finalStoreName = rawStoreName.toLowerCase().includes('lookprice') ? 'Seçkin İşletme' : rawStoreName;
+                    
+                    const finalStoreAddress = (branding?.legal_address || branding?.address || '').trim() || 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul';
+                    const finalStoreTaxOffice = (branding?.legal_tax_office || branding?.tax_office || '').trim() || 'Beşiktaş';
+                    const finalStoreTaxNumber = (branding?.legal_tax_number || branding?.tax_id || '').trim() || '1234567890';
+
+                    const reconObj = {
+                      id: reconId,
+                      storeName: finalStoreName,
+                      storeAddress: finalStoreAddress,
+                      storeTaxOffice: finalStoreTaxOffice,
+                      storeTaxNumber: finalStoreTaxNumber,
+                      companyTitle: selectedCompany.title || selectedCompany.name,
+                      companyAddress: selectedCompany.address || 'Firma Adresi Belirtilmemiş',
+                      taxOffice: selectedCompany.tax_office,
+                      taxNumber: selectedCompany.tax_number,
+                      currency: curr,
+                      balance: runningBalance,
+                      carryOverBalance: carryOverBalance,
+                      startDate: formatDate(targetStart),
+                      periodMonthName: periodMonthName,
+                      transactions: formattedPeriodTxs,
+                      babsInvoiceCount: babsInvoiceCount,
+                      babsTotalSum: babsTotalSum,
+                      date: formatDate(today),
+                      status: 'pending',
+                      notes: `${curr} Cari Hesap Mutabakatı`
+                    };
+
+                    const existing = JSON.parse(localStorage.getItem(`storeReconciliations_${storeId}`) || '[]');
+                    localStorage.setItem(`storeReconciliations_${storeId}`, JSON.stringify([reconObj, ...existing]));
+                    localStorage.setItem(`recon_${reconId}`, JSON.stringify(reconObj));
+
+                    const link = `${window.location.origin}/reconciliation/${reconId}`;
+                    navigator.clipboard.writeText(link);
+                    alert(isTr 
+                      ? `🔗 Dijital Mutabakat Linki Oluşturuldu & Panoya Kopyalandı!\n\n${link}\n\nMüşterinize/Tedarikçinize WhatsApp üzerinden iletebilir, online onay alabilirsiniz.`
+                      : `Digital Reconciliation Link created & copied!\n\n${link}`);
+                  } catch (err) {
+                    console.error("Failed to create reconciliation link:", err);
+                    alert(isTr ? 'Mutabakat linki oluşturulurken bir hata oluştu.' : 'Failed to create reconciliation link.');
+                  }
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-sm cursor-pointer"
                 title={isTr ? "Online Mutabakat Linki Oluştur" : "Create Digital Reconciliation"}

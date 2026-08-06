@@ -613,167 +613,169 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
       </div>
 
       {/* Hourly Sales Distribution & Happy Hour Decision Assistant */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-          <div className="space-y-1">
-            <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <Clock className="h-5 w-5 text-rose-500 animate-pulse" />
-              {lang === 'tr' ? 'Saat Dilimlerine Göre Ciro ve Talep Yoğunluğu' : 'Hourly Sales Distribution & Activity'}
-            </h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
-              {lang === 'tr' ? 'Happy Hour Karar Destek ve Verimlilik Analizi' : 'Happy Hour Decision Support & Efficiency Analysis'}
-            </p>
+      {isCafeRestaurant && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <Clock className="h-5 w-5 text-rose-500 animate-pulse" />
+                {lang === 'tr' ? 'Saat Dilimlerine Göre Ciro ve Talep Yoğunluğu' : 'Hourly Sales Distribution & Activity'}
+              </h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
+                {lang === 'tr' ? 'Happy Hour Karar Destek ve Verimlilik Analizi' : 'Happy Hour Decision Support & Efficiency Analysis'}
+              </p>
+            </div>
+            <span className="self-start sm:self-center text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1.5">
+              <Flame className="h-3 w-3" />
+              {lang === 'tr' ? 'KAMPANYA ANALİZİ' : 'PROMO INSIGHTS'}
+            </span>
           </div>
-          <span className="self-start sm:self-center text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1.5">
-            <Flame className="h-3 w-3" />
-            {lang === 'tr' ? 'KAMPANYA ANALİZİ' : 'PROMO INSIGHTS'}
-          </span>
-        </div>
 
-        {/* Dynamic insights / Suggestions container */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 space-y-4">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                {lang === 'tr' ? 'GÜNLÜK SAATLİK CİRO DAĞILIMI (ORTALAMA)' : 'HOURLY REVENUE DISTRIBUTION (AVERAGE)'}
-              </span>
+          {/* Dynamic insights / Suggestions container */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8 space-y-4">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                  {lang === 'tr' ? 'GÜNLÜK SAATLİK CİRO DAĞILIMI (ORTALAMA)' : 'HOURLY REVENUE DISTRIBUTION (AVERAGE)'}
+                </span>
+                
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={[
+                        { hour: "08:00", revenue: 650, label: "Kahvaltı" },
+                        { hour: "10:00", revenue: 950, label: "Kahve" },
+                        { hour: "12:00", revenue: 3800, label: "Öğle Yemeği" },
+                        { hour: "14:00", revenue: 1400, label: "Happy Hour Adayı", isCandidate: true },
+                        { hour: "16:00", revenue: 1650, label: "Happy Hour Adayı", isCandidate: true },
+                        { hour: "18:00", revenue: 5900, label: "Akşam Başlangıcı" },
+                        { hour: "20:00", revenue: 8400, label: "Akşam Yoğun" },
+                        { hour: "22:00", revenue: 4200, label: "Gece Sohbeti" },
+                        { hour: "00:00", revenue: 1100, label: "Gece Sonu" },
+                      ]}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="hour" stroke="#94a3b8" fontSize={10} fontWeight="bold" />
+                      <YAxis stroke="#94a3b8" fontSize={10} fontWeight="bold" />
+                      <Tooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl text-xs font-semibold border border-slate-800">
+                                <p className="font-extrabold text-indigo-300">{data.hour} — {data.label}</p>
+                                <p className="mt-1">{lang === 'tr' ? 'Ort. Ciro:' : 'Avg. Sales:'} <span className="font-mono text-emerald-400 font-extrabold">{data.revenue} ₺</span></p>
+                                {data.isCandidate && (
+                                  <p className="text-[10px] text-rose-400 font-extrabold mt-1">⚠️ {lang === 'tr' ? 'Sakin Saat! %20 İndirim Önerilir' : 'Quiet hours! 20% discount recommended'}</p>
+                                )}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
+                        {[
+                          { isCandidate: false },
+                          { isCandidate: false },
+                          { isCandidate: false },
+                          { isCandidate: true },
+                          { isCandidate: true },
+                          { isCandidate: false },
+                          { isCandidate: false },
+                          { isCandidate: false },
+                          { isCandidate: false }
+                        ].map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.isCandidate ? "#f43f5e" : "#6366f1"} 
+                            opacity={entry.isCandidate ? 0.85 : 1}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-4 flex flex-col justify-between space-y-4">
               
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={[
-                      { hour: "08:00", revenue: 650, label: "Kahvaltı" },
-                      { hour: "10:00", revenue: 950, label: "Kahve" },
-                      { hour: "12:00", revenue: 3800, label: "Öğle Yemeği" },
-                      { hour: "14:00", revenue: 1400, label: "Happy Hour Adayı", isCandidate: true },
-                      { hour: "16:00", revenue: 1650, label: "Happy Hour Adayı", isCandidate: true },
-                      { hour: "18:00", revenue: 5900, label: "Akşam Başlangıcı" },
-                      { hour: "20:00", revenue: 8400, label: "Akşam Yoğun" },
-                      { hour: "22:00", revenue: 4200, label: "Gece Sohbeti" },
-                      { hour: "00:00", revenue: 1100, label: "Gece Sonu" },
-                    ]}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="hour" stroke="#94a3b8" fontSize={10} fontWeight="bold" />
-                    <YAxis stroke="#94a3b8" fontSize={10} fontWeight="bold" />
-                    <Tooltip 
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl text-xs font-semibold border border-slate-800">
-                              <p className="font-extrabold text-indigo-300">{data.hour} — {data.label}</p>
-                              <p className="mt-1">{lang === 'tr' ? 'Ort. Ciro:' : 'Avg. Sales:'} <span className="font-mono text-emerald-400 font-extrabold">{data.revenue} ₺</span></p>
-                              {data.isCandidate && (
-                                <p className="text-[10px] text-rose-400 font-extrabold mt-1">⚠️ {lang === 'tr' ? 'Sakin Saat! %20 İndirim Önerilir' : 'Quiet hours! 20% discount recommended'}</p>
-                              )}
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
-                      {[
-                        { isCandidate: false },
-                        { isCandidate: false },
-                        { isCandidate: false },
-                        { isCandidate: true },
-                        { isCandidate: true },
-                        { isCandidate: false },
-                        { isCandidate: false },
-                        { isCandidate: false },
-                        { isCandidate: false }
-                      ].map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.isCandidate ? "#f43f5e" : "#6366f1"} 
-                          opacity={entry.isCandidate ? 0.85 : 1}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-4 flex flex-col justify-between space-y-4">
-            
-            {/* Recommendation box */}
-            <div className="p-5 bg-gradient-to-br from-rose-50 to-amber-50/50 border border-rose-100 rounded-2xl flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Flame className="h-4 w-4 text-rose-500 animate-pulse" />
-                  <h4 className="text-xs font-black text-rose-900 uppercase tracking-wider">
-                    {lang === 'tr' ? 'DİNAMİK HAPPY HOUR ÖNERİSİ' : 'DYNAMIC HAPPY HOUR SUGGESTION'}
-                  </h4>
-                </div>
-                <p className="text-xs text-rose-800 font-semibold leading-relaxed">
-                  {lang === 'tr' 
-                    ? "Verileriniz analiz edildiğinde, saat 14:00 ile 17:30 arasında ciro oranınızın gün toplamına katkısı sadece %9.1 seviyesinde kalmaktadır. Bu aralıkta müşteri trafiğini canlandırmak için Happy Hour modülünü kullanmanız önerilir."
-                    : "Analyzing your sales data, the revenue share during 14:00 - 17:30 drops to just 9.1% of the daily total. Activating Happy Hour during this slot is highly recommended."}
-                </p>
-
-                <div className="mt-3 space-y-1.5 text-[11px] font-bold text-rose-900">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-rose-500">⏰</span>
-                    <span>{lang === 'tr' ? 'En Uygun Saat Dilimi: 14:00 - 18:00' : 'Best Slot Suggestion: 14:00 - 18:00'}</span>
+              {/* Recommendation box */}
+              <div className="p-5 bg-gradient-to-br from-rose-50 to-amber-50/50 border border-rose-100 rounded-2xl flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Flame className="h-4 w-4 text-rose-500 animate-pulse" />
+                    <h4 className="text-xs font-black text-rose-900 uppercase tracking-wider">
+                      {lang === 'tr' ? 'DİNAMİK HAPPY HOUR ÖNERİSİ' : 'DYNAMIC HAPPY HOUR SUGGESTION'}
+                    </h4>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-rose-500">🎯</span>
-                    <span>{lang === 'tr' ? 'Hedeflenen Ciro Artışı: %30 - %45' : 'Targeted Sales Boost: +30% to +45%'}</span>
-                  </div>
-                </div>
-              </div>
+                  <p className="text-xs text-rose-800 font-semibold leading-relaxed">
+                    {lang === 'tr' 
+                      ? "Verileriniz analiz edildiğinde, saat 14:00 ile 17:30 arasında ciro oranınızın gün toplamına katkısı sadece %9.1 seviyesinde kalmaktadır. Bu aralıkta müşteri trafiğini canlandırmak için Happy Hour modülünü kullanmanız önerilir."
+                      : "Analyzing your sales data, the revenue share during 14:00 - 17:30 drops to just 9.1% of the daily total. Activating Happy Hour during this slot is highly recommended."}
+                  </p>
 
-              <div className="mt-4 pt-4 border-t border-rose-100/50 text-[10px] text-rose-700 font-medium">
-                💡 {lang === 'tr' ? 'Öneri: POS tabındaki "Happy Hour" butonunu tıklayarak bu dilimdeki otomatik saatlik fiyat geçişini hemen başlatabilirsiniz.' : 'Tip: Go to POS tab and click "Happy Hour" to quickly active these automatic scheduled transitions.'}
-              </div>
-            </div>
-
-            {/* Quiet hours top products demand */}
-            <div className="p-5 bg-slate-50 border border-slate-150 rounded-2xl">
-              <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
-                {lang === 'tr' ? 'SAKİN SAATLERDE EN ÇOK SATANLAR' : 'TOP QUIET HOURS DEMANDS'}
-              </h4>
-
-              <div className="space-y-2.5 text-xs">
-                {(() => {
-                  const quietProducts = (analytics.top_products && analytics.top_products.length > 0)
-                    ? analytics.top_products.slice(0, 3).map((p: any, index: number) => {
-                        const shares = ["%38", "%29", "%18"];
-                        const colors = ["bg-indigo-600", "bg-amber-500", "bg-rose-500"];
-                        return {
-                          name: p.name,
-                          share: shares[index] || "%15",
-                          color: colors[index] || "bg-slate-500"
-                        };
-                      })
-                    : [
-                        { name: lang === 'tr' ? 'Filtre Kahve' : 'Filter Coffee', share: "%34", color: "bg-indigo-600" },
-                        { name: lang === 'tr' ? 'Fıçı Bira (Büyük)' : 'Draft Beer (Large)', share: "%28", color: "bg-amber-500" },
-                        { name: lang === 'tr' ? 'Tuzlu Fıstık / Patates' : 'French Fries / Peanuts', share: "%18", color: "bg-rose-500" },
-                      ];
-
-                  return quietProducts.map((item: any, idx: number) => (
-                    <div key={idx} className="space-y-1 font-bold text-slate-700">
-                      <div className="flex justify-between text-[11px]">
-                        <span>{item.name}</span>
-                        <span className="text-slate-500">{item.share}</span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div className={`h-full ${item.color}`} style={{ width: item.share }} />
-                      </div>
+                  <div className="mt-3 space-y-1.5 text-[11px] font-bold text-rose-900">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-rose-500">⏰</span>
+                      <span>{lang === 'tr' ? 'En Uygun Saat Dilimi: 14:00 - 18:00' : 'Best Slot Suggestion: 14:00 - 18:00'}</span>
                     </div>
-                  ));
-                })()}
-              </div>
-            </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-rose-500">🎯</span>
+                      <span>{lang === 'tr' ? 'Hedeflenen Ciro Artışı: %30 - %45' : 'Targeted Sales Boost: +30% to +45%'}</span>
+                    </div>
+                  </div>
+                </div>
 
+                <div className="mt-4 pt-4 border-t border-rose-100/50 text-[10px] text-rose-700 font-medium">
+                  💡 {lang === 'tr' ? 'Öneri: POS tabındaki "Happy Hour" butonunu tıklayarak bu dilimdeki otomatik saatlik fiyat geçişini hemen başlatabilirsiniz.' : 'Tip: Go to POS tab and click "Happy Hour" to quickly active these automatic scheduled transitions.'}
+                </div>
+              </div>
+
+              {/* Quiet hours top products demand */}
+              <div className="p-5 bg-slate-50 border border-slate-150 rounded-2xl">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                  {lang === 'tr' ? 'SAKİN SAATLERDE EN ÇOK SATANLAR' : 'TOP QUIET HOURS DEMANDS'}
+                </h4>
+
+                <div className="space-y-2.5 text-xs">
+                  {(() => {
+                    const quietProducts = (analytics.top_products && analytics.top_products.length > 0)
+                      ? analytics.top_products.slice(0, 3).map((p: any, index: number) => {
+                          const shares = ["%38", "%29", "%18"];
+                          const colors = ["bg-indigo-600", "bg-amber-500", "bg-rose-500"];
+                          return {
+                            name: p.name,
+                            share: shares[index] || "%15",
+                            color: colors[index] || "bg-slate-500"
+                          };
+                        })
+                      : [
+                          { name: lang === 'tr' ? 'Filtre Kahve' : 'Filter Coffee', share: "%34", color: "bg-indigo-600" },
+                          { name: lang === 'tr' ? 'Fıçı Bira (Büyük)' : 'Draft Beer (Large)', share: "%28", color: "bg-amber-500" },
+                          { name: lang === 'tr' ? 'Tuzlu Fıstık / Patates' : 'French Fries / Peanuts', share: "%18", color: "bg-rose-500" },
+                        ];
+
+                    return quietProducts.map((item: any, idx: number) => (
+                      <div key={idx} className="space-y-1 font-bold text-slate-700">
+                        <div className="flex justify-between text-[11px]">
+                          <span>{item.name}</span>
+                          <span className="text-slate-500">{item.share}</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                          <div className={`h-full ${item.color}`} style={{ width: item.share }} />
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="os-panel p-8">
         <div className="flex items-center justify-between mb-8">

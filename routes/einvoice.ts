@@ -9,7 +9,7 @@ import { numberToTurkishWords } from "../src/utils/formatUtils";
 
 const router = express.Router();
 
-// Self-Healing database schema updates for e_waybills cargo fields
+// Self-Healing database schema updates for e_waybills and sales_invoices cargo fields
 (async () => {
   try {
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS delivery_term TEXT;`);
@@ -17,9 +17,16 @@ const router = express.Router();
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS carrier_name TEXT;`);
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS tracking_number TEXT;`);
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS is_cargo_shipment BOOLEAN DEFAULT FALSE;`);
-    console.log("Self-healing schema verification: e_waybills cargo columns processed successfully.");
+
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_is_cargo_shipment BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_carrier_name TEXT;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_tracking_number TEXT;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_delivery_term TEXT;`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS waybill_transport_mode TEXT;`);
+
+    console.log("Self-healing schema verification: e_waybills and sales_invoices cargo columns processed successfully.");
   } catch (error) {
-    console.error("Self-healing schema error for e_waybills:", error);
+    console.error("Self-healing schema error for cargo columns:", error);
   }
 })();
 
@@ -195,6 +202,21 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const withholdingCode = invoice.gi_withholding_tax_code;
 
     // --- GİB Compliance Validations ---
+    if (giInvoiceType === 'IADE') {
+       const returnNo = (invoice.return_invoice_number || "").toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+       if (!returnNo) {
+          return res.status(400).json({ error: "İade faturaları için 'İade Edilen Fatura No' zorunludur." });
+       }
+       if (returnNo.length !== 16) {
+          return res.status(400).json({ 
+             error: `GİB kurallarına göre İADE faturalarında referans gösterilen fatura numarası (İade Edilen Fatura No) tam olarak 16 haneli olmalıdır (3 hane harf öneki, 4 hane yıl ve 9 hane sıra numarası, örn: GIB2026000001234). Girilen değer: "${invoice.return_invoice_number || ''}" (${returnNo.length} hane)` 
+          });
+       }
+       if (!invoice.return_invoice_date) {
+          return res.status(400).json({ error: "İade faturaları için 'İade Edilen Fatura Tarihi' zorunludur." });
+       }
+    }
+
     if (giInvoiceType === 'ISTISNA' && !exemptionCode) {
        return res.status(400).json({ error: "İstisna faturaları için 'İstisna Muafiyet Kodu' zorunludur." });
     }
@@ -279,7 +301,11 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         }
         
         invoice.e_document_type = docType;
-        invoice.invoice_profile = docType === 'E-ARSIV' ? 'EARSIVFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
+        if (giInvoiceType === 'IADE') {
+          invoice.invoice_profile = docType === 'E-ARSIV' ? 'EARSIVFATURA' : 'TEMELFATURA';
+        } else {
+          invoice.invoice_profile = docType === 'E-ARSIV' ? 'EARSIVFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
+        }
         
         // Save correct document_number, ettn, e_document_type, and set invoice_profile to EARSIVFATURA if E-Arşiv
         await client.query(
@@ -441,7 +467,12 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        id: 0, 
        connectorGuid: settings.connector_guid || undefined,
        eDocumentType: docType === 'E-FATURA' ? 'EFATURA' : 'EARSIVFATURA',
-       profile: docType === 'E-ARSIV' ? 'TEMELFATURA' : (invoice.invoice_profile || 'TEMELFATURA'),
+       profile: (() => {
+          if (giInvoiceType === 'IADE') {
+             return docType === 'E-ARSIV' ? 'EARSIVFATURA' : 'TEMELFATURA';
+          }
+          return docType === 'E-ARSIV' ? 'TEMELFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
+       })(),
        invoiceType: giInvoiceType,
        docDate: formattedDate,
        docTime: formattedTime,
@@ -456,6 +487,181 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        tenantIdentifierNumber: storeTaxNumber,
        
        pkAlias: docType === 'E-FATURA' ? pkAlias : undefined,
+       
+       // Handle Billing Reference for Return (IADE) Invoices (Mandatory UBL fields)
+       ...(giInvoiceType === 'IADE' && invoice.return_invoice_number ? (() => {
+          // Helper to format invoice number to exactly 16 characters required by GİB Schematron check
+          const formatInvoiceNumber16 = (input: string, fallbackYear = "2026"): string => {
+             let cleaned = (input || "").toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+             if (cleaned.length === 16) {
+                return cleaned;
+             }
+             if (!cleaned) {
+                return `IAD${fallbackYear}000000001`;
+             }
+             const prefixMatch = cleaned.match(/^([A-Z]{3})/);
+             const prefix = prefixMatch ? prefixMatch[1] : "IAD";
+             let rest = prefixMatch ? cleaned.substring(3) : cleaned;
+             const yearMatch = rest.match(/(20\d{2})/);
+             const year = yearMatch ? yearMatch[1] : fallbackYear;
+             if (yearMatch) {
+                rest = rest.replace(year, '');
+             }
+             const sequenceDigits = rest.replace(/[^0-9]/g, '');
+             const sequenceStr = sequenceDigits ? sequenceDigits.substring(0, 9) : "1";
+             const paddedSequence = sequenceStr.padStart(9, '0');
+             return `${prefix}${year}${paddedSequence}`;
+          };
+
+          const refId = formatInvoiceNumber16(invoice.return_invoice_number, formattedDate.substring(0, 4));
+
+          // Robustly format reference date to YYYY-MM-DD string
+          let refDate = formattedDate;
+          if (invoice.return_invoice_date) {
+             try {
+                const rDate = new Date(invoice.return_invoice_date);
+                if (!isNaN(rDate.getTime())) {
+                   refDate = rDate.toISOString().split('T')[0];
+                } else {
+                   const rawDateStr = String(invoice.return_invoice_date);
+                   refDate = rawDateStr.includes('T') ? rawDateStr.split('T')[0] : rawDateStr;
+                }
+             } catch (e) {
+                const rawDateStr = String(invoice.return_invoice_date);
+                refDate = rawDateStr.includes('T') ? rawDateStr.split('T')[0] : rawDateStr;
+             }
+          }
+          
+          return {
+             // Standard Mysoft root-level properties for return referencing (e-Invoice / e-Archive outbox schema)
+             billingRefInvoiceNo: refId,
+             billingRefInvoiceDate: refDate,
+             billingRefInvoiceTypeCode: 'IADE',
+
+             // 1. Nested array variations (most common for modern standard-compliant integrators)
+             billingReference: [
+                {
+                   invoiceDocumentReference: {
+                      id: refId,
+                      issueDate: refDate,
+                      documentTypeCode: 'IADE',
+                      documentType: 'IADE'
+                   }
+                }
+             ],
+             billingReferences: [
+                {
+                   invoiceDocumentReference: {
+                      id: refId,
+                      issueDate: refDate,
+                      documentTypeCode: 'IADE',
+                      documentType: 'IADE'
+                   }
+                }
+             ],
+             BillingReference: [
+                {
+                   InvoiceDocumentReference: {
+                      ID: refId,
+                      IssueDate: refDate,
+                      DocumentTypeCode: 'IADE',
+                      DocumentType: 'IADE'
+                   }
+                }
+             ],
+             BillingReferences: [
+                {
+                   InvoiceDocumentReference: {
+                      ID: refId,
+                      IssueDate: refDate,
+                      DocumentTypeCode: 'IADE',
+                      DocumentType: 'IADE'
+                   }
+                }
+             ],
+
+             // 2. Nested single object variations (for APIs that simplify singleton arrays to single objects)
+             billingReferenceObject: {
+                invoiceDocumentReference: {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             },
+             BillingReferenceObject: {
+                InvoiceDocumentReference: {
+                   ID: refId,
+                   IssueDate: refDate,
+                   DocumentTypeCode: 'IADE',
+                   DocumentType: 'IADE'
+                }
+             },
+
+             // 3. Flat list variations (for simplified APIs that flatten the intermediate UBL layer)
+             billingReferenceFlatList: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             ],
+             billingReferencesFlatList: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             ],
+
+             // 4. Flat direct key variations
+             billingRefList: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE'
+                }
+             ],
+             billingRef: {
+                id: refId,
+                issueDate: refDate,
+                documentTypeCode: 'IADE'
+             },
+             BillingRef: {
+                ID: refId,
+                IssueDate: refDate,
+                DocumentTypeCode: 'IADE'
+             },
+
+             // 5. Additional references variations (such as Izibiz, or generic XML attachment models)
+             additionalReferences: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             ],
+             additionalDocumentReference: [
+                {
+                   id: refId,
+                   issueDate: refDate,
+                   documentTypeCode: 'IADE',
+                   documentType: 'IADE'
+                }
+             ],
+             AdditionalDocumentReference: [
+                {
+                   ID: refId,
+                   IssueDate: refDate,
+                   DocumentTypeCode: 'IADE',
+                   DocumentType: 'IADE'
+                }
+             ]
+          };
+       })() : {}),
        
        invoiceAccount: {
           vknTckn: taxNumber,
@@ -579,7 +785,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
         // Reconstruct fields for E-FATURA
         ublData.eDocumentType = 'EFATURA';
-        ublData.profile = invoice.invoice_profile || 'TEMELFATURA';
+        ublData.profile = giInvoiceType === 'IADE' ? 'TEMELFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
         ublData.docNo = documentNumber;
         ublData.pkAlias = pkAlias;
         ublData.ettn = ettn;
@@ -1403,7 +1609,12 @@ router.post("/einvoice/waybill/save/:invoiceId", authenticate, async (req: any, 
     trailerPlate,
     actualDate,
     actualTime,
-    prefix
+    prefix,
+    isCargoShipment,
+    carrierName,
+    trackingNumber,
+    deliveryTerm,
+    transportMode
   } = req.body;
 
   try {
@@ -1416,19 +1627,31 @@ router.post("/einvoice/waybill/save/:invoiceId", authenticate, async (req: any, 
         UPDATE sales_invoices 
         SET waybill_driver_name = $1, waybill_driver_surname = $2, waybill_driver_vkn = $3, 
             waybill_plate_number = $4, waybill_trailer_plate = $5, waybill_actual_date = $6, 
-            waybill_actual_time = $7, waybill_prefix = $8
-        WHERE id = $9
+            waybill_actual_time = $7, waybill_prefix = $8,
+            waybill_is_cargo_shipment = $9, waybill_carrier_name = $10, waybill_tracking_number = $11,
+            waybill_delivery_term = $12, waybill_transport_mode = $13
+        WHERE id = $14
       `;
-      params = [driverName, driverSurname, driverVkn, plateNumber, trailerPlate, actualDate || null, actualTime || null, prefix || 'IRS', invoiceId];
+      params = [
+        driverName, driverSurname, driverVkn, plateNumber, trailerPlate, actualDate || null, actualTime || null, prefix || 'IRS',
+        !!isCargoShipment, carrierName || null, trackingNumber || null, deliveryTerm || null, transportMode || null,
+        invoiceId
+      ];
     } else {
       query = `
         UPDATE sales_invoices 
         SET waybill_driver_name = $1, waybill_driver_surname = $2, waybill_driver_vkn = $3, 
             waybill_plate_number = $4, waybill_trailer_plate = $5, waybill_actual_date = $6, 
-            waybill_actual_time = $7, waybill_prefix = $8
-        WHERE id = $9 AND store_id = $10
+            waybill_actual_time = $7, waybill_prefix = $8,
+            waybill_is_cargo_shipment = $9, waybill_carrier_name = $10, waybill_tracking_number = $11,
+            waybill_delivery_term = $12, waybill_transport_mode = $13
+        WHERE id = $14 AND store_id = $15
       `;
-      params = [driverName, driverSurname, driverVkn, plateNumber, trailerPlate, actualDate || null, actualTime || null, prefix || 'IRS', invoiceId, storeId];
+      params = [
+        driverName, driverSurname, driverVkn, plateNumber, trailerPlate, actualDate || null, actualTime || null, prefix || 'IRS',
+        !!isCargoShipment, carrierName || null, trackingNumber || null, deliveryTerm || null, transportMode || null,
+        invoiceId, storeId
+      ];
     }
 
     await pool.query(query, params);
@@ -1492,7 +1715,8 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
        return res.status(400).json({ error: "Alıcı firmaya ait geçerli bir TCKN/VKN bulunamadı." });
     }
 
-    // Driver / Plate validations (Mandatory for GİB E-Waybill)
+    // Driver / Plate validations (Mandatory for GİB E-Waybill unless cargo)
+    const isCargoShipment = !!invoice.waybill_is_cargo_shipment;
     const driverName = invoice.waybill_driver_name || "Sürücü";
     const driverSurname = invoice.waybill_driver_surname || "Bey/Hanım";
     const driverVkn = (invoice.waybill_driver_vkn || "11111111111").replace(/\D/g, '');
@@ -1501,7 +1725,7 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
     const actualDate = invoice.waybill_actual_date ? new Date(invoice.waybill_actual_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
     const actualTime = invoice.waybill_actual_time || new Date().toTimeString().split(' ')[0];
 
-    if (!plateNumber) {
+    if (!isCargoShipment && !plateNumber) {
       return res.status(400).json({ error: "GİB Şema/Şematron kuralları gereği Araç Plaka Numarası girilmesi zorunludur." });
     }
 
@@ -1591,17 +1815,21 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
         deliveredQuantity: quantity,
         qty: quantity.toString(),
         unitCode: (() => {
-          const rawUnit = item.unit_code;
-          if (!rawUnit) return UNIT_CODES.PIECE;
+          const rawUnit = (item.unit_code || "").trim();
+          if (!rawUnit) return UNIT_CODES.PIECE || "C62";
           const norm = rawUnit.toLowerCase();
           const mapping: { [key: string]: string } = {
             "adet": "C62", "ad": "C62", "pcs": "C62", "piece": "C62",
-            "kg": "KGM", "kilogram": "KGM", "gr": "GRM",
+            "kg": "KGM", "kilogram": "KGM", "gr": "GRM", "gram": "GRM",
             "litre": "LTR", "lt": "LTR", "meter": "MTR", "metre": "MTR",
             "paket": "PA", "kutu": "BX", "ton": "TNE",
-            "metrekare": "MTK", "m2": "MTK"
+            "metrekare": "MTK", "m2": "MTK", "gün": "DAY", "gun": "DAY", "saat": "HUR"
           };
-          return mapping[norm] || rawUnit;
+          if (mapping[norm]) return mapping[norm];
+          if (/^[A-Z0-9]{2,3}$/.test(rawUnit.toUpperCase())) {
+            return rawUnit.toUpperCase();
+          }
+          return "C62";
         })(),
         price: 0,
         unitPriceTra: "0",
@@ -1744,44 +1972,79 @@ router.post("/einvoice/waybill/send/:invoiceId", authenticate, async (req: any, 
       invoiceDetail: DespatchLines, // Mirror key redundancy
 
       // GİB shipment logistics block (Carrier/Driver)
-      shipment: {
-        carrierParty: {
-          vknTckn: storeTaxNumber,
-          accountName: branding.store_name || "Seçkin Mağaza",
-          postalAddress: {
-            streetName: settings.address || "İstanbul",
-            cityName: (settings.city || "İSTANBUL").toUpperCase(),
-            countryName: "Türkiye"
-          }
-        },
-        driverPerson: [
-          {
-            firstName: driverName,
-            familyName: driverSurname,
-            id: driverVkn
-          }
-        ],
-        delivery: {
-          actualDeliveryDate: actualDate,
-          actualDeliveryTime: actualTime
-        },
-        transportMeans: {
-          roadTransportMeans: {
-            plateId: plateNumber
-          }
-        },
-        shipmentStage: [
-          {
+      shipment: (() => {
+        const isCargo = !!invoice.waybill_is_cargo_shipment;
+        const carrierName = invoice.waybill_carrier_name || "Aras Kargo";
+        const carrierVknMap: { [key: string]: string } = {
+          "yurtiçi kargo": "9830022295",
+          "yurtici kargo": "9830022295",
+          "aras kargo": "0720039649",
+          "mng kargo": "6220353119",
+          "ptt kargo": "7330135756",
+          "sürat kargo": "7820257003",
+          "surat kargo": "7820257003",
+          "ups kargo": "9130018597",
+          "horoz lojistik": "4640030588",
+          "borusan lojistik": "1800033100"
+        };
+        const carrierVkn = carrierVknMap[carrierName.toLowerCase().trim()] || "3900383509";
+
+        return {
+          carrierParty: {
+            vknTckn: isCargo ? carrierVkn : storeTaxNumber,
+            accountName: isCargo ? carrierName : (branding.store_name || "Seçkin Mağaza"),
+            postalAddress: {
+              streetName: settings.address || "İstanbul",
+              cityName: (settings.city || "İSTANBUL").toUpperCase(),
+              countryName: "Türkiye"
+            }
+          },
+          ...(!isCargo ? {
+            driverPerson: [
+              {
+                firstName: driverName,
+                familyName: driverSurname,
+                id: driverVkn
+              }
+            ]
+          } : {}),
+          delivery: {
+            actualDeliveryDate: actualDate,
+            actualDeliveryTime: actualTime
+          },
+          ...((isCargo && !plateNumber) ? {} : {
             transportMeans: {
               roadTransportMeans: {
-                plateId: plateNumber
+                plateId: plateNumber || "KARGO"
               }
             }
-          }
-        ],
-        plateNumber: plateNumber,
-        trailerPlateNumber: trailerPlate || undefined
-      }
+          }),
+          shipmentStage: isCargo ? [
+            {
+              transportModeCode: invoice.waybill_transport_mode || "5",
+              carrierParty: {
+                vknTckn: carrierVkn,
+                accountName: carrierName
+              }
+            }
+          ] : [
+            {
+              transportMeans: {
+                roadTransportMeans: {
+                  plateId: plateNumber
+                }
+              }
+            }
+          ],
+          ...(!isCargo ? {
+            plateNumber: plateNumber,
+            trailerPlateNumber: trailerPlate || undefined
+          } : {}),
+          ...(isCargo && invoice.waybill_tracking_number ? {
+            specialInstructions: `Kargo Takip No: ${invoice.waybill_tracking_number}`
+          } : {})
+        };
+      })()
     };
 
     console.log(`[MySoft e-Waybill] Triggering sendWaybill with document number: ${waybillNumber}`);
@@ -2310,7 +2573,8 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
     const actualDate = waybill.actual_date ? new Date(waybill.actual_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
     const actualTime = waybill.actual_time || "12:00:00";
 
-    if (!plateNumber) {
+    const isCargoShipment = !!waybill.is_cargo_shipment;
+    if (!isCargoShipment && !plateNumber) {
       return res.status(400).json({ error: "GİB kuralları gereği İrsaliye Gönderiminde Araç Plakası girilmesi zorunludur." });
     }
 
@@ -2557,51 +2821,86 @@ router.post("/independent-waybills/:id/send", authenticate, async (req: any, res
       despatchLines: DespatchLines,
       despatchAdviceDetail: DespatchLines,
 
-      shipment: {
-        carrierParty: {
-          vknTckn: storeTaxNumber,
-          accountName: branding.store_name || "Seçkin Mağaza",
-          postalAddress: {
-            streetName: settings.address || "İstanbul",
-            cityName: (settings.city || "İSTANBUL").toUpperCase(),
-            countryName: "Türkiye"
-          }
-        },
-        driverPerson: [
-          {
-            firstName: driverName,
-            familyName: driverSurname,
-            id: driverVkn
-          }
-        ],
-        delivery: {
-          actualDeliveryDate: actualDate,
-          actualDeliveryTime: waybillActualTime
-        },
-        transportMeans: {
-          roadTransportMeans: {
-            plateId: plateNumber
-          }
-        },
-        shipmentStage: [
-           {
+      shipment: (() => {
+        const isCargo = !!waybill.is_cargo_shipment;
+        const carrierName = waybill.carrier_name || "Aras Kargo";
+        const carrierVknMap: { [key: string]: string } = {
+          "yurtiçi kargo": "9830022295",
+          "yurtici kargo": "9830022295",
+          "aras kargo": "0720039649",
+          "mng kargo": "6220353119",
+          "ptt kargo": "7330135756",
+          "sürat kargo": "7820257003",
+          "surat kargo": "7820257003",
+          "ups kargo": "9130018597",
+          "horoz lojistik": "4640030588",
+          "borusan lojistik": "1800033100"
+        };
+        const carrierVkn = carrierVknMap[carrierName.toLowerCase().trim()] || "3900383509";
+
+        return {
+          carrierParty: {
+            vknTckn: isCargo ? carrierVkn : storeTaxNumber,
+            accountName: isCargo ? carrierName : (branding.store_name || "Seçkin Mağaza"),
+            postalAddress: {
+              streetName: settings.address || "İstanbul",
+              cityName: (settings.city || "İSTANBUL").toUpperCase(),
+              countryName: "Türkiye"
+            }
+          },
+          ...(!isCargo ? {
+            driverPerson: [
+              {
+                firstName: driverName,
+                familyName: driverSurname,
+                id: driverVkn
+              }
+            ]
+          } : {}),
+          delivery: {
+            actualDeliveryDate: actualDate,
+            actualDeliveryTime: waybillActualTime
+          },
+          ...((isCargo && !plateNumber) ? {} : {
+            transportMeans: {
+              roadTransportMeans: {
+                plateId: plateNumber || "KARGO"
+              }
+            }
+          }),
+          shipmentStage: isCargo ? [
+            {
+              transportModeCode: waybill.transport_mode || "5",
+              carrierParty: {
+                vknTckn: carrierVkn,
+                accountName: carrierName
+              }
+            }
+          ] : [
+            {
               transportMeans: {
-                 roadTransportMeans: {
-                    plateId: plateNumber
-                 }
+                roadTransportMeans: {
+                  plateId: plateNumber
+                }
               },
               driverPerson: [
-                 {
-                    firstName: driverName,
-                    familyName: driverSurname,
-                    id: driverVkn
-                 }
+                {
+                  firstName: driverName,
+                  familyName: driverSurname,
+                  id: driverVkn
+                }
               ]
-           }
-        ],
-        plateNumber: plateNumber,
-        trailerPlateNumber: trailerPlate || undefined
-      }
+            }
+          ],
+          ...(!isCargo ? {
+            plateNumber: plateNumber,
+            trailerPlateNumber: trailerPlate || undefined
+          } : {}),
+          ...(isCargo && waybill.tracking_number ? {
+            specialInstructions: `Kargo Takip No: ${waybill.tracking_number}`
+          } : {})
+        };
+      })()
     };
 
     console.log(`[MySoft Independent e-Waybill] Transmitting e-Waybill #${waybillNumber}`);

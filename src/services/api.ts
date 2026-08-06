@@ -294,6 +294,12 @@ export const api = {
   getPublicEnrakipsizPortal: () => api.get("/api/public/enrakipsiz/portal"),
   updateStoreEnrakipsizFeatured: (id: number, data: any) => api.post(`/api/admin/stores/${id}/enrakipsiz-featured`, data),
 
+  // Video Management Methods
+  getPublicVideos: (pageType?: string) => api.get(`/api/public/enrakipsiz/videos${pageType ? `?page_type=${pageType}` : ""}`),
+  getAdminVideos: () => api.get("/api/admin/enrakipsiz/videos"),
+  saveAdminVideo: (data: any) => api.post("/api/admin/enrakipsiz/videos", data),
+  deleteAdminVideo: (id: number) => api.delete(`/api/admin/enrakipsiz/videos/${id}`),
+
   uploadFile: (formData: FormData) => api.upload("/api/upload", formData),
   
   // Supplier APIs

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { motion, AnimatePresence } from "motion/react";
 import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles, UserCheck, FlaskConical, RotateCcw } from "lucide-react";
+import { translateText } from "../utils/translator";
 
 export default function DigitalMenuPage() {
   const { storeId, tableId } = useParams();
@@ -565,7 +566,7 @@ export default function DigitalMenuPage() {
                       : "bg-white text-slate-600 border border-slate-200/60 hover:bg-slate-50"
                   }`}
                 >
-                  {cat}
+                  {translateText(cat, lang)}
                 </button>
               );
             })}
@@ -593,7 +594,7 @@ export default function DigitalMenuPage() {
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
-                      {sub}
+                      {translateText(sub, lang)}
                     </button>
                   );
                 })}
@@ -618,8 +619,8 @@ export default function DigitalMenuPage() {
             ) : (
               <>
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                {selectedCategory === "all" ? t("Tüm Menü", "Full Menu", "Πλήρες Μενού") : selectedCategory}
-                {selectedSubCategory !== "all" && ` / ${selectedSubCategory}`}
+                {selectedCategory === "all" ? t("Tüm Menü", "Full Menu", "Πλήρες Μενού") : translateText(selectedCategory, lang)}
+                {selectedSubCategory !== "all" && ` / ${translateText(selectedSubCategory, lang)}`}
               </>
             )}
           </h2>
@@ -641,7 +642,7 @@ export default function DigitalMenuPage() {
             return (
               <div 
                 key={product.id} 
-                className="w-full relative h-[310px]"
+                className="w-full relative h-[270px]"
                 style={{ perspective: "1000px" }}
               >
                 <motion.div
@@ -686,17 +687,17 @@ export default function DigitalMenuPage() {
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80';
                       }}
-                      className="w-full h-28 object-cover rounded-xl mb-3 shadow-xs" 
+                      className="w-full h-[120px] object-cover rounded-xl mb-2 shadow-xs" 
                     />
-                    <h3 className="font-bold text-slate-800 text-sm flex-grow line-clamp-2 leading-snug">{product.name}</h3>
+                    <h3 className="font-bold text-slate-800 text-sm line-clamp-2 leading-snug">{translateText(product.name, lang)}</h3>
                     
                     {product.description && (
-                      <p className="text-[10px] text-slate-400 font-semibold line-clamp-1 mt-0.5 mb-1.5 leading-tight">
-                        {product.description}
+                      <p className="text-[10px] text-slate-400 font-medium line-clamp-1 mt-0.5 leading-tight">
+                        {translateText(product.description, lang)}
                       </p>
                     )}
 
-                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-50">
+                    <div className="flex justify-between items-center mt-auto pt-1.5 border-t border-slate-100/70">
                       <p className="text-indigo-600 font-black text-sm">{product.price} ₺</p>
                       
                       {/* Dynamic Quantity Selector for fast cart updates */}
@@ -1160,7 +1161,7 @@ export default function DigitalMenuPage() {
                     <Sparkles className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-slate-900 text-base leading-tight">{variantModalProduct.name}</h3>
+                    <h3 className="font-extrabold text-slate-900 text-base leading-tight">{translateText(variantModalProduct.name, lang)}</h3>
                     <p className="text-xs text-indigo-600 font-bold mt-0.5">
                       {t('Lütfen seçenek seçiniz', 'Please select an option', 'Παρακαλώ επιλέξτε μια επιλογή')}
                     </p>
@@ -1188,7 +1189,7 @@ export default function DigitalMenuPage() {
                         className="p-4 rounded-2xl border-2 border-slate-100 hover:border-indigo-500 bg-slate-50/50 hover:bg-indigo-50/30 transition-all flex items-center justify-between gap-3 shadow-xs"
                       >
                         <div>
-                          <span className="text-sm font-black text-slate-800 block">{v.name}</span>
+                          <span className="text-sm font-black text-slate-800 block">{translateText(v.name, lang)}</span>
                           <span className="text-xs font-extrabold text-indigo-600 mt-0.5 block">
                             {varPrice} ₺
                           </span>

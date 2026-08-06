@@ -14,6 +14,8 @@ import {
   Instagram,
   Youtube,
   Linkedin,
+  Grid,
+  List,
 } from "lucide-react";
 import { Store, Product } from "../types";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -134,6 +136,38 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   const [pendingFurnished, setPendingFurnished] = useState<string>("all");
   const [pendingBillingPeriod, setPendingBillingPeriod] = useState<string>("all");
 
+  // Custom UI & Experience states
+  const [viewedStories, setViewedStories] = useState<(string | number)[]>([]);
+  const [sortBy, setSortBy] = useState<string>("default");
+  const [viewType, setViewType] = useState<"grid" | "list">("grid");
+
+  const clearAllFilters = () => {
+    setPendingLocation("all");
+    setPendingSubRegion("all");
+    setPendingType("all");
+    setPendingSubType("all");
+    setPendingBudget("all");
+    setPendingRooms("all");
+    setPendingTrafoBedeli("all");
+    setPendingKdvStatus("all");
+    setPendingCatiTerasi("all");
+    setPendingFurnished("all");
+    setPendingBillingPeriod("all");
+    
+    setActiveLocation("all");
+    setActiveSubRegion("all");
+    setActiveType("all");
+    setActiveSubType("all");
+    setActiveBudget("all");
+    setActiveRooms("all");
+    setActiveTrafoBedeli("all");
+    setActiveKdvStatus("all");
+    setActiveCatiTerasi("all");
+    setActiveFurnished("all");
+    setActiveBillingPeriod("all");
+    setListingTypeFilter("all");
+  };
+
   // Filter options derived from product list
   const locations = React.useMemo(() => {
     const locs = products.map(p => {
@@ -152,36 +186,20 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
     return Array.from(new Set(rms)).sort();
   }, [products]);
 
+  // Budget ranges are strictly in GBP (£) as per real estate market standards
   const budgetSpecs = React.useMemo(() => {
-    const maxVal = Math.max(...products.map(p => p.price || 0), 0);
-    const isLiraScale = maxVal > 1500000;
-    
-    if (isLiraScale) {
-      return {
-        isLira: true,
-        ranges: [
-          { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-          { value: "0-3000000", label: lang === "tr" ? "3 Milyon TL Altı" : "Under 3M TL" },
-          { value: "3000000-6000000", label: "3M - 6M TL" },
-          { value: "6000000-12000000", label: "6M - 12M TL" },
-          { value: "12000000-25000000", label: "12M - 25M TL" },
-          { value: "25000000+", label: lang === "tr" ? "25 Milyon TL Üstü" : "Over 25M TL" },
-        ]
-      };
-    } else {
-      return {
-        isLira: false,
-        ranges: [
-          { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-          { value: "0-150000", label: lang === "tr" ? "150k Altı" : "Under 150k" },
-          { value: "150000-300000", label: "150k - 300k" },
-          { value: "300000-500000", label: "300k - 500k" },
-          { value: "500000-1000000", label: "500k - 1M" },
-          { value: "1000000+", label: lang === "tr" ? "1M Üstü" : "Over 1M" },
-        ]
-      };
-    }
-  }, [products, lang]);
+    return {
+      isLira: false,
+      ranges: [
+        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
+        { value: "0-150000", label: lang === "tr" ? "150.000 GBP Altı" : "Under £150k" },
+        { value: "150000-300000", label: "£150k - £300k" },
+        { value: "300000-500000", label: "£300k - £500k" },
+        { value: "500000-1000000", label: "£500k - £1M" },
+        { value: "1000000+", label: lang === "tr" ? "1M GBP Üstü" : "Over £1M" },
+      ]
+    };
+  }, [lang]);
 
   // Filter implementation
   const filteredProducts = React.useMemo(() => {
@@ -456,7 +474,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   }, [layoutConfig.count]);
 
   const displayedProducts = React.useMemo(() => {
-    return filteredProducts.filter(p => {
+    let result = filteredProducts.filter(p => {
       // Determine if property is for rent or sale
       const isRentalIntent = p.sector_data?.listing_intent === 'rent' || 
                             p.category?.toLowerCase().includes('kira') || 
@@ -492,7 +510,28 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
 
       return true;
     });
-  }, [filteredProducts, listingTypeFilter]);
+
+    // Apply Advanced Sorting
+    if (sortBy === "price_desc") {
+      result.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+    } else if (sortBy === "price_asc") {
+      result.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+    } else if (sortBy === "date_desc") {
+      result.sort((a, b) => {
+        const valA = new Date(a.created_at || (a as any).createdAt || 0).getTime() || Number(a.id) || 0;
+        const valB = new Date(b.created_at || (b as any).createdAt || 0).getTime() || Number(b.id) || 0;
+        return valB - valA;
+      });
+    } else if (sortBy === "date_asc") {
+      result.sort((a, b) => {
+        const valA = new Date(a.created_at || (a as any).createdAt || 0).getTime() || Number(a.id) || 0;
+        const valB = new Date(b.created_at || (b as any).createdAt || 0).getTime() || Number(b.id) || 0;
+        return valA - valB;
+      });
+    }
+
+    return result;
+  }, [filteredProducts, listingTypeFilter, sortBy]);
 
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const [activeContentMap, setActiveContentMap] = useState<{title: string, content: string}|null>(null);
@@ -676,9 +715,77 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
       )}
 
       <div className="max-w-7xl mx-auto w-full px-4 lg:px-8 pb-32">
+        {/* Instagram-like Story Section */}
+        {products.length > 0 && (
+          <div className="mb-12">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 pl-2">
+              {lang === "tr" ? "YENİ & ACİL PORTFÖYLER" : "NEW & URGENT PORTFOLIOS"}
+            </h4>
+            <div className="flex gap-4 overflow-x-auto no-scrollbar py-2 px-2">
+              {products.slice(0, 8).map((p) => {
+                const isViewed = viewedStories.includes(p.id);
+                const isRent = p.sector_data?.listing_intent === 'rent' || p.category?.toLowerCase().includes('kira') || p.category?.toLowerCase().includes('rent');
+                const labelText = isRent 
+                  ? (lang === 'tr' ? 'KİRALIK' : 'RENT')
+                  : (lang === 'tr' ? 'ACİL' : 'URGENT');
+
+                return (
+                  <div 
+                    key={p.id}
+                    onClick={() => {
+                      if (!isViewed) {
+                        setViewedStories(prev => [...prev, p.id]);
+                      }
+                      onViewProduct(p);
+                    }}
+                    className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group"
+                  >
+                    {/* Circle Avatar */}
+                    <div className="relative">
+                      {/* Gradient Border ring */}
+                      <div className={`absolute inset-0 -m-1 rounded-full transition-all duration-300 ${
+                        isViewed 
+                          ? 'border-2 border-slate-200' 
+                          : 'bg-gradient-to-tr from-indigo-600 via-purple-500 to-rose-500 p-[2.5px]'
+                      }`} />
+                      
+                      {/* Inner image frame */}
+                      <div className="w-16 h-16 rounded-full border border-white overflow-hidden relative bg-slate-50">
+                        <img 
+                          src={p.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=200"}
+                          alt={p.name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+
+                      {/* Small badge overlay */}
+                      <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-black text-white px-1.5 py-0.5 rounded-full shadow-md leading-none ${
+                        isRent ? 'bg-emerald-600' : 'bg-rose-600'
+                      }`}>
+                        {labelText}
+                      </span>
+                    </div>
+
+                    {/* Short Caption below circle */}
+                    <div className="text-center w-20">
+                      <p className="text-[10px] font-black text-slate-800 truncate uppercase leading-tight group-hover:text-indigo-600 transition-colors">
+                        {p.sector_data?.district || p.sector_data?.city || p.location || (lang === 'tr' ? 'Kıbrıs' : 'Cyprus')}
+                      </p>
+                      <p className="text-[8px] font-bold text-slate-400 mt-0.5">
+                        {p.price ? `${Number(p.price).toLocaleString('tr-TR')} ${p.currency || 'GBP'}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Advanced Search Strip */}
         {isSectionEnabled("search") && (
-          <div className="-mt-12 relative z-30 w-full mb-12 md:mb-24">
+          <div className="relative z-30 w-full mb-12 md:mb-24">
             {/* Mobile Filter Button */}
             <div className="md:hidden flex justify-center w-full relative z-40">
                 <button
@@ -719,228 +826,123 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
               
               <div className={`${isFiltersOpen ? "block border-t border-slate-100" : "hidden"} transition-all`}>
                 <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {["LOCATION", "TYPE", "BUDGET", "ROOMS"].map((filt, idx) => {
-                    let displayTitle = filt;
-                    let value = "all";
-                    let onChange = (v: string) => {};
-                    let options: { value: string; label: string }[] = [];
+                  {/* Step 1: Portfolio Type (Tipi) & Alt Tip (Subtype) */}
+                  <div className="group relative px-2 flex flex-col justify-center border-r border-slate-200">
+                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
+                      {lang === "tr" ? "PORTFÖY TİPİ" : "PORTFOLIO TYPE"}
+                    </p>
+                    <select
+                      value={pendingType}
+                      onChange={(e) => { setPendingType(e.target.value); setPendingSubType("all"); }}
+                      className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                    >
+                      <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                      <option value="residence">{lang === "tr" ? "Konut" : "Residential"}</option>
+                      <option value="commercial">{lang === "tr" ? "Ticari" : "Commercial"}</option>
+                      <option value="land">{lang === "tr" ? "Arsa" : "Land"}</option>
+                    </select>
 
-                    if (filt === "LOCATION") {
-                      displayTitle = lang === "tr" ? "LOKASYON" : "LOCATION";
-                      value = pendingLocation;
-                      onChange = setPendingLocation;
-                      options = [
-                        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                        ...locations.map(v => ({ value: String(v), label: String(v) }))
-                      ];
-                    } else if (filt === "TYPE") {
-                      displayTitle = lang === "tr" ? "TÜR" : "TYPE";
-                      value = pendingType;
-                      onChange = setPendingType;
-                      options = [
-                        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                        ...types.map(v => {
-                          let displayLabel = String(v);
-                          if (lang === "tr") {
-                            const vLower = String(v).toLowerCase();
-                            if (vLower === "residence") displayLabel = "Konut";
-                            else if (vLower === "commercial") displayLabel = "Ticari";
-                            else if (vLower === "land") displayLabel = "Arsa";
-                          }
-                          return { value: String(v), label: displayLabel };
-                        })
-                      ];
-                    } else if (filt === "BUDGET") {
-                      displayTitle = lang === "tr" ? "BÜTÇE" : "BUDGET";
-                      value = pendingBudget;
-                      onChange = setPendingBudget;
-                      options = budgetSpecs.ranges;
-                    } else if (filt === "ROOMS") {
-                      displayTitle = lang === "tr" ? "ODA SAYISI" : "ROOMS";
-                      value = pendingRooms;
-                      onChange = setPendingRooms;
-                      options = [
-                        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                        ...roomsOptions.map(v => ({ value: String(v), label: String(v) }))
-                      ];
-                    }
-
-                    return (
-                      <div
-                        key={filt}
-                        className={`group relative ${idx < 3 ? "md:border-r border-slate-200" : ""} px-2 flex flex-col justify-center`}
-                      >
-                        <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
-                          {displayTitle}
+                    {pendingType !== "all" && (
+                      <>
+                        <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 mt-2">
+                          {lang === "tr" ? "ALT TİP" : "SUB TYPE"}
                         </p>
-                      {filt === "LOCATION" ? (
-                        <>
-                          <select
-                            value={pendingLocation}
-                            onChange={(e) => { setPendingLocation(e.target.value); setPendingSubRegion("all"); }}
-                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                          >
-                             <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                             {Object.keys(REAL_ESTATE_REGIONS).map(r => <option key={r} value={r}>{r}</option>)}
-                          </select>
-                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 mt-2">ALT BÖLGE</p>
-                          <select
-                            value={pendingSubRegion}
-                            onChange={(e) => setPendingSubRegion(e.target.value)}
-                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                          >
-                             <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                             {REAL_ESTATE_REGIONS[pendingLocation as keyof typeof REAL_ESTATE_REGIONS]?.map(sr => <option key={sr} value={sr}>{sr}</option>)}
-                          </select>
-                        </>
-                      ) : filt === "TYPE" ? (
-                        <>
-                          <select
-                            value={pendingType}
-                            onChange={(e) => { setPendingType(e.target.value); setPendingSubType("all"); }}
-                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                          >
-                             <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                             <option value="residence">Konut</option>
-                             <option value="commercial">Ticari</option>
-                             <option value="land">Arsa</option>
-                          </select>
-                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 mt-2">ALT TİP</p>
-                          <select
-                            value={pendingSubType}
-                            onChange={(e) => setPendingSubType(e.target.value)}
-                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                          >
-                             <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                             {EMLAK_TIPI_SUB_TIPLERI[pendingType === 'residence' ? 'Konut' : pendingType === 'commercial' ? 'Ticari' : 'Arsa']?.map(st => <option key={st} value={st}>{st}</option>)}
-                          </select>
-                        </>
-                      ) : (
-                        <div className="relative flex items-center justify-between pr-4">
-                          <select
-                            value={value}
-                            onChange={(e) => onChange(e.target.value)}
-                            className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                          >
-                            {options.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                          <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
-                        </div>
-                      )}
-                      </div>
-                    );
-                  })}
-
-                  {/* Extra filters row within the dropdown */}
-                  <div className="col-span-1 md:col-span-4 border-t border-slate-100 pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {listingTypeFilter === 'rent' ? (
-                      <>
-                        <div className="group relative px-2 flex flex-col justify-center">
-                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
-                            {lang === "tr" ? "EŞYA DURUMU" : "FURNISHED STATUS"}
-                          </p>
-                          <div className="relative flex items-center justify-between pr-4">
-                            <select
-                              value={pendingFurnished}
-                              onChange={(e) => setPendingFurnished(e.target.value)}
-                              className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                            >
-                              <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                              <option value="furnished">{lang === "tr" ? "Eşyalı" : "Furnished"}</option>
-                              <option value="unfurnished">{lang === "tr" ? "Eşyasız" : "Unfurnished"}</option>
-                            </select>
-                            <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
-                          </div>
-                        </div>
-
-                        <div className="group relative px-2 flex flex-col justify-center md:border-l md:border-slate-200">
-                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
-                            {lang === "tr" ? "ÖDEME PERİYODU" : "BILLING PERIOD"}
-                          </p>
-                          <div className="relative flex items-center justify-between pr-4">
-                            <select
-                              value={pendingBillingPeriod}
-                              onChange={(e) => setPendingBillingPeriod(e.target.value)}
-                              className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                            >
-                              <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                              <option value="monthly">{lang === "tr" ? "Aylık" : "Monthly"}</option>
-                              <option value="3-monthly">{lang === "tr" ? "3 Aylık" : "3-Monthly"}</option>
-                              <option value="6-monthly">{lang === "tr" ? "6 Aylık" : "6-Monthly"}</option>
-                              <option value="yearly">{lang === "tr" ? "Yıllık" : "Yearly"}</option>
-                            </select>
-                            <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="group relative px-2 flex flex-col justify-center">
-                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
-                            {lang === "tr" ? "TRAFO BEDELİ" : "TRANSFORMER FEE"}
-                          </p>
-                          <div className="relative flex items-center justify-between pr-4">
-                            <select
-                              value={pendingTrafoBedeli}
-                              onChange={(e) => setPendingTrafoBedeli(e.target.value)}
-                              className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                            >
-                              <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                              <option value="paid">{lang === "tr" ? "Ödendi" : "Paid"}</option>
-                              <option value="not_paid">{lang === "tr" ? "Ödenmedi / Ödenecek" : "Not Paid"}</option>
-                            </select>
-                            <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
-                          </div>
-                        </div>
-
-                        <div className="group relative px-2 flex flex-col justify-center md:border-l md:border-slate-200">
-                          <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
-                            {lang === "tr" ? "KDV DURUMU" : "VAT STATUS"}
-                          </p>
-                          <div className="relative flex items-center justify-between pr-4">
-                            <select
-                              value={pendingKdvStatus}
-                              onChange={(e) => setPendingKdvStatus(e.target.value)}
-                              className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                            >
-                              <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                              <option value="paid">{lang === "tr" ? "Ödendi" : "Paid"}</option>
-                              <option value="to_be_paid">{lang === "tr" ? "Ödenecek" : "To Be Paid"}</option>
-                            </select>
-                            <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="group relative px-2 flex flex-col justify-center md:border-l md:border-slate-200">
-                      <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 uppercase">
-                        {lang === "tr" ? "ÇATI TERASI" : "ROOF TERRACE"}
-                      </p>
-                      <div className="relative flex items-center justify-between pr-4">
                         <select
-                          value={pendingCatiTerasi}
-                          onChange={(e) => setPendingCatiTerasi(e.target.value)}
+                          value={pendingSubType}
+                          onChange={(e) => setPendingSubType(e.target.value)}
                           className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
                         >
                           <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                          <option value="yes">{lang === "tr" ? "Var" : "Available"}</option>
-                          <option value="no">{lang === "tr" ? "Yok" : "None"}</option>
+                          {EMLAK_TIPI_SUB_TIPLERI[pendingType === 'residence' ? 'Konut' : pendingType === 'commercial' ? 'Ticari' : 'Arsa']?.map(st => (
+                            <option key={st} value={st}>{st}</option>
+                          ))}
                         </select>
-                        <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
-                      </div>
-                    </div>
+                      </>
+                    )}
                   </div>
 
+                  {/* Step 2: Satılık / Kiralık (listingTypeFilter) */}
+                  <div className="group relative px-2 flex flex-col justify-center border-r border-slate-200">
+                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
+                      {lang === "tr" ? "DURUM (SATILIK/KİRALIK)" : "INTENT (FOR SALE/RENT)"}
+                    </p>
+                    <select
+                      value={listingTypeFilter}
+                      onChange={(e) => setListingTypeFilter(e.target.value as any)}
+                      className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                    >
+                      <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                      <option value="sale">{lang === "tr" ? "Satılık" : "For Sale"}</option>
+                      <option value="rent">{lang === "tr" ? "Kiralık" : "For Rent"}</option>
+                    </select>
+                  </div>
+
+                  {/* Step 3: Location (Ana Lokasyon & Alt Bölge) */}
+                  <div className="group relative px-2 flex flex-col justify-center border-r border-slate-200">
+                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
+                      {lang === "tr" ? "ANA LOKASYON" : "MAIN LOCATION"}
+                    </p>
+                    <select
+                      value={pendingLocation}
+                      onChange={(e) => { setPendingLocation(e.target.value); setPendingSubRegion("all"); }}
+                      className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                    >
+                      <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                      {Object.keys(REAL_ESTATE_REGIONS).map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+
+                    {pendingLocation !== "all" && (
+                      <>
+                        <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 mt-2">
+                          {lang === "tr" ? "ALT BÖLGE" : "SUB REGION"}
+                        </p>
+                        <select
+                          value={pendingSubRegion}
+                          onChange={(e) => setPendingSubRegion(e.target.value)}
+                          className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                        >
+                          <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                          {REAL_ESTATE_REGIONS[pendingLocation as keyof typeof REAL_ESTATE_REGIONS]?.map(sr => (
+                            <option key={sr} value={sr}>{sr}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Step 4: Budget in GBP */}
+                  <div className="group relative px-2 flex flex-col justify-center">
+                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
+                      {lang === "tr" ? "BÜTÇE (GBP)" : "BUDGET (GBP)"}
+                    </p>
+                    <div className="relative flex items-center justify-between pr-4">
+                      <select
+                        value={pendingBudget}
+                        onChange={(e) => setPendingBudget(e.target.value)}
+                        className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
+                      >
+                        {budgetSpecs.ranges.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Search buttons & Clear */}
+                <div className="p-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-5 gap-4">
                   <button 
                     onClick={handleSearchTrigger}
-                    className="col-span-1 md:col-span-4 bg-slate-900 text-white py-4 rounded-3xl text-[12px] font-black uppercase tracking-[0.4em] mt-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 cursor-pointer"
+                    className="col-span-1 md:col-span-4 bg-slate-900 text-white py-4 rounded-3xl text-[12px] font-black uppercase tracking-[0.4em] hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 cursor-pointer"
                   >
                     {lang === "tr" ? "HAYALİNDEKİ MÜLKÜ BUL" : "FIND YOUR DREAM"}
+                  </button>
+                  <button 
+                    onClick={clearAllFilters}
+                    className="col-span-1 md:col-span-1 border border-slate-200 text-slate-500 py-4 rounded-3xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
+                  >
+                    {lang === "tr" ? "TEMİZLE" : "CLEAR"}
                   </button>
                 </div>
               </div>
@@ -970,90 +972,141 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
                     {lang === "tr" ? "Gayrimenkul Filtrele" : "Filter Properties"}
                   </h3>
-                  <button
-                    onClick={() => setIsMobileFiltersOpen(false)}
-                    className="p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        clearAllFilters();
+                      }}
+                      className="text-[10px] font-black text-indigo-600 hover:text-indigo-850 uppercase tracking-widest px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all"
+                    >
+                      {lang === "tr" ? "TEMİZLE" : "CLEAR"}
+                    </button>
+                    <button
+                      onClick={() => setIsMobileFiltersOpen(false)}
+                      className="p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                  {["LOCATION", "TYPE", "BUDGET", "ROOMS"].map((filt, idx) => {
-                    let displayTitle = filt;
-                    let value = "all";
-                    let onChange = (v: string) => {};
-                    let options: { value: string; label: string }[] = [];
-                    
-                    if (filt === "LOCATION") {
-                      displayTitle = lang === "tr" ? "LOKASYON" : "LOCATION";
-                      value = pendingLocation;
-                      onChange = setPendingLocation;
-                      options = [
-                        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                        ...locations.map(v => ({ value: String(v), label: String(v) }))
-                      ];
-                    } else if (filt === "TYPE") {
-                      displayTitle = lang === "tr" ? "TÜR" : "TYPE";
-                      value = pendingType;
-                      onChange = setPendingType;
-                      options = [
-                        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                        ...types.map(v => {
-                          let displayLabel = String(v);
-                          if (lang === "tr") {
-                            if (displayLabel === "sale") displayLabel = "Satılık";
-                            if (displayLabel === "rent") displayLabel = "Kiralık";
-                          }
-                          return { value: String(v), label: displayLabel };
-                        })
-                      ];
-                    } else if (filt === "BUDGET") {
-                      displayTitle = lang === "tr" ? "BÜTÇE" : "BUDGET";
-                      value = pendingBudget;
-                      onChange = setPendingBudget;
-                      options = budgetSpecs.ranges;
-                    } else if (filt === "ROOMS") {
-                      displayTitle = lang === "tr" ? "ODA SAYISI" : "ROOMS";
-                      value = pendingRooms;
-                      onChange = setPendingRooms;
-                      options = [
-                        { value: "all", label: lang === "tr" ? "Tümü" : "All" },
-                        ...roomsOptions.map(v => ({ value: String(v), label: String(v) }))
-                      ];
-                    }
+                  {/* Step 1: Portfolio Type (Tipi) */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      {lang === "tr" ? "PORTFÖY TİPİ" : "PORTFOLIO TYPE"}
+                    </label>
+                    <select
+                      value={pendingType}
+                      onChange={(e) => { setPendingType(e.target.value); setPendingSubType("all"); }}
+                      className="w-full bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none cursor-pointer"
+                    >
+                      <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                      <option value="residence">{lang === "tr" ? "Konut" : "Residential"}</option>
+                      <option value="commercial">{lang === "tr" ? "Ticari" : "Commercial"}</option>
+                      <option value="land">{lang === "tr" ? "Arsa" : "Land"}</option>
+                    </select>
+                  </div>
 
-                    return (
-                      <div key={filt} className="flex flex-col gap-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          {displayTitle}
-                        </label>
-                        <select
-                          value={value}
-                          onChange={(e) => onChange(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none"
-                        >
-                          {options.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  })}
+                  {/* Step 1b: Alt Tip (SubType) */}
+                  {pendingType !== "all" && (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {lang === "tr" ? "ALT TİP" : "SUB TYPE"}
+                      </label>
+                      <select
+                        value={pendingSubType}
+                        onChange={(e) => setPendingSubType(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none cursor-pointer"
+                      >
+                        <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                        {EMLAK_TIPI_SUB_TIPLERI[pendingType === 'residence' ? 'Konut' : pendingType === 'commercial' ? 'Ticari' : 'Arsa']?.map(st => (
+                          <option key={st} value={st}>{st}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Step 2: Satılık / Kiralık */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      {lang === "tr" ? "DURUM (SATILIK/KİRALIK)" : "INTENT (FOR SALE/RENT)"}
+                    </label>
+                    <select
+                      value={listingTypeFilter}
+                      onChange={(e) => setListingTypeFilter(e.target.value as any)}
+                      className="w-full bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none cursor-pointer"
+                    >
+                      <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                      <option value="sale">{lang === "tr" ? "Satılık" : "For Sale"}</option>
+                      <option value="rent">{lang === "tr" ? "Kiralık" : "For Rent"}</option>
+                    </select>
+                  </div>
+
+                  {/* Step 3: Location (Ana Lokasyon) */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      {lang === "tr" ? "ANA LOKASYON" : "MAIN LOCATION"}
+                    </label>
+                    <select
+                      value={pendingLocation}
+                      onChange={(e) => { setPendingLocation(e.target.value); setPendingSubRegion("all"); }}
+                      className="w-full bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none cursor-pointer"
+                    >
+                      <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                      {Object.keys(REAL_ESTATE_REGIONS).map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Step 3b: Alt Bölge (Subregion) */}
+                  {pendingLocation !== "all" && (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {lang === "tr" ? "ALT BÖLGE" : "SUB REGION"}
+                      </label>
+                      <select
+                        value={pendingSubRegion}
+                        onChange={(e) => setPendingSubRegion(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none cursor-pointer"
+                      >
+                        <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
+                        {REAL_ESTATE_REGIONS[pendingLocation as keyof typeof REAL_ESTATE_REGIONS]?.map(sr => (
+                          <option key={sr} value={sr}>{sr}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Step 4: Budget in GBP */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      {lang === "tr" ? "BÜTÇE (GBP)" : "BUDGET (GBP)"}
+                    </label>
+                    <select
+                      value={pendingBudget}
+                      onChange={(e) => setPendingBudget(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none cursor-pointer"
+                    >
+                      {budgetSpecs.ranges.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 
                 <div className="p-6 border-t border-slate-100 bg-white pb-safe">
                   <button 
                     onClick={() => {
                       setActiveLocation(pendingLocation);
+                      setActiveSubRegion(pendingSubRegion);
                       setActiveType(pendingType);
+                      setActiveSubType(pendingSubType);
                       setActiveBudget(pendingBudget);
-                      setActiveRooms(pendingRooms);
                       setIsMobileFiltersOpen(false);
                     }}
-                    className="w-full py-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-indigo-700 transition-colors shadow-xl shadow-indigo-600/20 active:scale-95"
+                    className="w-full py-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-indigo-700 transition-colors shadow-xl shadow-indigo-600/20 active:scale-95 cursor-pointer"
                   >
                     {lang === "tr" ? "SONUÇLARI GÖSTER" : "SHOW RESULTS"}
                   </button>
@@ -1116,13 +1169,159 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                 </div>
               </div>
 
+              {/* Advanced Sorting & View Options Bar */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 border border-slate-100 p-4 rounded-[2rem]">
+                {/* Left: Product count */}
+                <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-2">
+                  {lang === "tr" 
+                    ? `TOPLAM ${displayedProducts.length} PORTFÖY LİSTELENİYOR` 
+                    : `LISTING ${displayedProducts.length} PORTFOLIOS`}
+                </div>
+                
+                {/* Right: Controls (Sorting and Layout) */}
+                <div className="flex items-center gap-4 flex-wrap">
+                  {/* Advanced Sorting */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'SIRALA:' : 'SORT:'}</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+                    >
+                      <option value="default">{lang === 'tr' ? 'Gelişmiş Sıralama' : 'Advanced Sorting'}</option>
+                      <option value="price_desc">{lang === 'tr' ? 'Fiyata Göre (Önce En Yüksek)' : 'Price: High to Low'}</option>
+                      <option value="price_asc">{lang === 'tr' ? 'Fiyata Göre (Önce En Düşük)' : 'Price: Low to High'}</option>
+                      <option value="date_desc">{lang === 'tr' ? 'Tarihe Göre (Önce En Yeni)' : 'Date: Newest First'}</option>
+                      <option value="date_asc">{lang === 'tr' ? 'Tarihe Göre (Önce En Eski)' : 'Date: Oldest First'}</option>
+                    </select>
+                  </div>
+
+                  {/* Layout Toggle (Grid / List) */}
+                  <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl">
+                    <button
+                      onClick={() => setViewType("grid")}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
+                        viewType === "grid"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      <Grid className="w-3.5 h-3.5" />
+                      {lang === "tr" ? "GALERİ" : "GALLERY"}
+                    </button>
+                    <button
+                      onClick={() => setViewType("list")}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
+                        viewType === "list"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      <List className="w-3.5 h-3.5" />
+                      {lang === "tr" ? "LİSTE" : "LIST"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {displayedProducts.length === 0 ? (
                 <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-[3rem] bg-slate-50/50">
                   <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">
                     {lang === "tr" ? "Aramanıza uygun portföy bulunamadı." : "No matching portfolios found."}
                   </p>
                 </div>
+              ) : viewType === "list" ? (
+                // Beautiful List Layout
+                <div className="flex flex-col gap-6">
+                  {displayedProducts.slice(0, visibleCount).map((p) => {
+                    const priceStr = formatPrice(p.price, store?.currency || p.currency);
+                    const isRent = p.sector_data?.listing_intent === 'rent' || p.category?.toLowerCase().includes('kira') || p.category?.toLowerCase().includes('rent');
+                    
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => onViewProduct(p)}
+                        className="group bg-white rounded-[2.5rem] overflow-hidden border border-slate-100 hover:border-slate-200 hover:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.06)] transition-all duration-500 cursor-pointer flex flex-col md:flex-row"
+                      >
+                        {/* Left image */}
+                        <div className="w-full md:w-[350px] shrink-0 relative overflow-hidden aspect-[16/11] md:aspect-auto md:h-60 bg-slate-50">
+                          <div
+                            className="h-full w-full bg-cover bg-center transition-transform duration-[2s] group-hover:scale-110"
+                            style={{
+                              backgroundImage: `url(${p.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"})`,
+                            }}
+                          ></div>
+                          <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                            <span className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-lg text-[9px] font-black text-slate-900 uppercase tracking-widest shadow-sm border border-slate-100">
+                              {isRent ? (lang === "tr" ? "KİRALIK" : "FOR RENT") : (lang === "tr" ? "SATILIK" : "FOR SALE")}
+                            </span>
+                            
+                            {(p.status === 'rented' || (p as any).status === 'rented') && (
+                              <span className="bg-emerald-600/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-[9px] font-black text-white uppercase tracking-widest shadow-lg animate-pulse">
+                                {lang === "tr" ? "KİRALANDI" : "RENTED"}
+                              </span>
+                            )}
+                            {(p.status === 'sold' || (p as any).status === 'sold') && (
+                              <span className="bg-rose-600/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-[9px] font-black text-white uppercase tracking-widest shadow-lg animate-pulse">
+                                {lang === "tr" ? "SATILDI" : "SOLD"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right details */}
+                        <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-2 text-[9px] font-black tracking-wider uppercase text-slate-400">
+                              {p.reference_no ? (
+                                <span className="font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 font-bold">
+                                  #{p.reference_no}
+                                </span>
+                              ) : <span></span>}
+                              <span>
+                                {lang === "tr" ? (p.category === "residence" ? "KONUT" : p.category === "commercial" ? "TİCARİ" : p.category === "land" ? "ARSA" : p.category) : p.category}
+                              </span>
+                            </div>
+
+                            <h4 className="text-lg md:text-xl font-extrabold tracking-tight text-slate-900 uppercase group-hover:text-indigo-600 transition-colors leading-snug">
+                              {p.name}
+                            </h4>
+
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 w-fit">
+                              <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                              <span className="truncate">
+                                {p.location || p.sector_data?.location || p.sector_data?.district || (lang === 'tr' ? 'Kuzey Kıbrıs' : 'North Cyprus')}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4">
+                            <div className="flex gap-4 text-[10px] font-bold text-slate-600">
+                              {p.sector_data?.rooms && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-indigo-500 text-xs">🛏️</span>
+                                  <span>{lang === "tr" ? "Oda:" : "Rooms:"} <span className="text-slate-900 font-black">{p.sector_data.rooms}</span></span>
+                                </div>
+                              )}
+                              {p.sector_data?.square_meters && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-emerald-500 text-xs">📏</span>
+                                  <span>{lang === "tr" ? "Net:" : "Net:"} <span className="text-slate-900 font-black">{p.sector_data.square_meters} m²</span></span>
+                                </div>
+                              )}
+                            </div>
+
+                            <p className="text-2xl font-black text-indigo-600 tracking-tight">
+                              {priceStr}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
+                // Beautiful Grid Layout
                 <div className={`grid gap-10 ${layoutConfig.grid === 'masonry' ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                   {displayedProducts.slice(0, visibleCount).map((p, i) => {
                     const priceStr = formatPrice(p.price, store?.currency || p.currency);

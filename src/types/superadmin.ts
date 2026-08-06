@@ -87,3 +87,16 @@ export interface EnrakipsizAd {
   is_active?: boolean;
   order?: number;
 }
+
+export interface EnrakipsizVideo {
+  id?: number;
+  product_key: string;
+  page_type: string;
+  title: string;
+  description?: string;
+  youtube_id?: string | null;
+  duration?: string;
+  cover_img?: string;
+  is_live?: boolean;
+  order_index?: number;
+}

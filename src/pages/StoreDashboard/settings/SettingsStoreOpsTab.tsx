@@ -274,39 +274,77 @@ export const SettingsStoreOpsTab = ({
             <div className="space-y-2 md:col-span-2">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Kategori KDV Kuralları', 'Category VAT Rules', 'Κανόνες ΦΠΑ ανά Κατηγορία')}</label>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    id="new-category-name"
-                    placeholder="Kategori Adı"
-                    className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
-                  />
-                  <div className="relative w-24">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
-                    <input 
-                      type="text" 
-                      id="new-category-tax"
-                      placeholder="0"
-                      className="w-full pl-8 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
-                    />
+                <div className="flex flex-col md:flex-row gap-3 items-end md:items-center">
+                  <div className="flex-1 w-full flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{txt('Mevcut Kategori', 'Existing Category', 'Υπάρχουσα Κατηγορία')}</label>
+                      <select 
+                        id="new-category-select"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const catInput = document.getElementById('new-category-name') as HTMLInputElement;
+                          if (catInput) {
+                            if (val !== '__custom__' && val !== '') {
+                              catInput.value = val;
+                            } else {
+                              catInput.value = '';
+                            }
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all focus:outline-none"
+                      >
+                        <option value="">{txt('Seçin veya Elle Yazın...', 'Select or Type Manually...', 'Επιλέξτε ή Πληκτρολογήστε...')}</option>
+                        {allStoreCategories.map((cat: string) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{txt('Kategori Adı', 'Category Name', 'Όνομα Κατηγορίας')}</label>
+                      <input 
+                        type="text" 
+                        id="new-category-name"
+                        placeholder={txt('Kategori Adı girin', 'Enter Category Name', 'Εισάγετε Όνομα Κατηγορίας')}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all focus:outline-none"
+                      />
+                    </div>
                   </div>
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      const catInput = document.getElementById('new-category-name') as HTMLInputElement;
-                      const taxInput = document.getElementById('new-category-tax') as HTMLInputElement;
-                      if (catInput.value.trim() && taxInput.value) {
-                        const newRules = [...(branding.category_tax_rules || [])];
-                        newRules.push({ category: catInput.value.trim(), taxRate: parseInt(taxInput.value.replace(/[^0-9]/g, '')) || 0 });
-                        onBrandingChange('category_tax_rules', newRules);
-                        catInput.value = '';
-                        taxInput.value = '';
-                      }
-                    }}
-                    className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 cursor-pointer"
-                  >
-                    Ekle
-                  </button>
+
+                  <div className="w-full md:w-auto flex gap-3 items-end">
+                    <div className="w-24 flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{txt('KDV Oranı', 'VAT Rate', 'ΦΠΑ')}</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">%</span>
+                        <input 
+                          type="text" 
+                          id="new-category-tax"
+                          placeholder="20"
+                          className="w-full pl-7 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const catInput = document.getElementById('new-category-name') as HTMLInputElement;
+                        const taxInput = document.getElementById('new-category-tax') as HTMLInputElement;
+                        const selectElement = document.getElementById('new-category-select') as HTMLSelectElement;
+                        if (catInput.value.trim() && taxInput.value) {
+                          const newRules = [...(branding.category_tax_rules || [])];
+                          newRules.push({ category: catInput.value.trim(), taxRate: parseInt(taxInput.value.replace(/[^0-9]/g, '')) || 0 });
+                          onBrandingChange('category_tax_rules', newRules);
+                          catInput.value = '';
+                          taxInput.value = '';
+                          if (selectElement) selectElement.value = '';
+                        }
+                      }}
+                      className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 cursor-pointer h-[42px] flex items-center justify-center min-w-[80px]"
+                    >
+                      {txt('Ekle', 'Add', 'Προσθήκη')}
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="space-y-2 mt-4">

@@ -40,6 +40,13 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
   const [actualTime, setActualTime] = useState('');
   const [prefix, setPrefix] = useState('IRS');
   
+  // Cargo shipping fields
+  const [isCargoShipment, setIsCargoShipment] = useState(false);
+  const [carrierName, setCarrierName] = useState('Aras Kargo');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [deliveryTerm, setDeliveryTerm] = useState('CFR');
+  const [transportMode, setTransportMode] = useState('1');
+
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'err'; text: string } | null>(null);
   const [viewHtml, setViewHtml] = useState(false);
@@ -52,6 +59,12 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
       setPlateNumber(invoice.waybill_plate_number || '');
       setTrailerPlate(invoice.waybill_trailer_plate || '');
       
+      setIsCargoShipment(!!invoice.waybill_is_cargo_shipment);
+      setCarrierName(invoice.waybill_carrier_name || 'Aras Kargo');
+      setTrackingNumber(invoice.waybill_tracking_number || '');
+      setDeliveryTerm(invoice.waybill_delivery_term || 'CFR');
+      setTransportMode(invoice.waybill_transport_mode || '1');
+
       // Populate actual ship date
       if (invoice.waybill_actual_date) {
         setActualDate(new Date(invoice.waybill_actual_date).toISOString().split('T')[0]);
@@ -83,7 +96,12 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
           trailerPlate,
           actualDate,
           actualTime,
-          prefix
+          prefix,
+          isCargoShipment,
+          carrierName,
+          trackingNumber,
+          deliveryTerm,
+          transportMode
         })
       });
       const data = await response.json();
@@ -99,7 +117,7 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
   };
 
   const handleSendToGIB = async () => {
-    if (!plateNumber.trim()) {
+    if (!isCargoShipment && !plateNumber.trim()) {
       setStatusMessage({ 
         type: 'err', 
         text: isTr ? "GİB kuralları gereği Araç Plaka Numarası doldurulması zorunludur." : "Vehicle Plate Number is strictly required." 
@@ -250,89 +268,178 @@ export const SalesInvoiceWaybillModal: React.FC<SalesInvoiceWaybillModalProps> =
 
             {/* Form Fields split */}
             <div className="space-y-4">
-              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Truck className="h-4 w-4 text-slate-500" />
-                {isTr ? 'Taşıyıcı ve Sevk Araç Detayları (GİB Zorunlu Sektörel Alanlar)' : 'Carrier Logistics Details'}
-              </h4>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-slate-500" />
+                  {isTr ? 'Taşıyıcı ve Sevk Araç Detayları (GİB Zorunlu Sektörel Alanlar)' : 'Carrier Logistics Details'}
+                </h4>
+                
+                {/* Cargo Toggle */}
+                <label className="inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox"
+                    checked={isCargoShipment}
+                    onChange={(e) => setIsCargoShipment(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="relative w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  <span className="ms-2 text-xs font-bold text-slate-700">{isTr ? 'Kargo / Kurye ile Gönderim' : 'Cargo Shipment'}</span>
+                </label>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
-                {/* Driver Name */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 text-slate-400" />
-                    {isTr ? 'Sürücü Adı' : 'Driver Name'}
-                  </label>
-                  <input 
-                    type="text"
-                    value={driverName}
-                    onChange={(e) => setDriverName(e.target.value)}
-                    placeholder="Örn: Ahmet"
-                    className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+                {isCargoShipment ? (
+                  <>
+                    {/* Cargo Carrier */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <Truck className="h-3.5 w-3.5 text-slate-400" />
+                        {isTr ? 'Kargo Firması' : 'Carrier'}
+                      </label>
+                      <input 
+                        type="text"
+                        value={carrierName}
+                        onChange={(e) => setCarrierName(e.target.value)}
+                        placeholder="Örn: Aras Kargo"
+                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
 
-                {/* Driver Surname */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 text-slate-400" />
-                    {isTr ? 'Sürücü Soyadı' : 'Driver Surname'}
-                  </label>
-                  <input 
-                    type="text"
-                    value={driverSurname}
-                    onChange={(e) => setDriverSurname(e.target.value)}
-                    placeholder="Örn: Yılmaz"
-                    className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+                    {/* Tracking Number */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5 text-slate-400" />
+                        {isTr ? 'Kargo Takip No / Desi' : 'Tracking Number'}
+                      </label>
+                      <input 
+                        type="text"
+                        value={trackingNumber}
+                        onChange={(e) => setTrackingNumber(e.target.value)}
+                        placeholder="Örn: 1234567890"
+                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
 
-                {/* Driver VKN / TCKN */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
-                    <CreditCard className="h-3.5 w-3.5 text-slate-400" />
-                    {isTr ? 'Sürücü TCKN / VKN' : 'Driver ID Number'}
-                  </label>
-                  <input 
-                    type="text"
-                    maxLength={11}
-                    value={driverVkn}
-                    onChange={(e) => setDriverVkn(e.target.value)}
-                    placeholder="11111111111"
-                    className="w-full text-xs font-mono font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+                    {/* Transport Mode */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <HelpCircle className="h-3.5 w-3.5 text-slate-400" />
+                        {isTr ? 'Taşıma Türü' : 'Transport Mode'}
+                      </label>
+                      <select
+                        value={transportMode}
+                        onChange={(e) => setTransportMode(e.target.value)}
+                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="5">{isTr ? '5 - Posta / Kargo' : '5 - Postal/Cargo'}</option>
+                        <option value="1">{isTr ? '1 - Karayolu Taşımacılığı' : '1 - Road Transport'}</option>
+                      </select>
+                    </div>
 
-                {/* Vehicle Plate Number */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
-                    <Truck className="h-3.5 w-3.5 text-slate-400" />
-                    {isTr ? 'Çekici Araç Plakası *' : 'Vehicle Plate Number *'}
-                    <span className="text-red-500 font-bold">*</span>
-                  </label>
-                  <input 
-                    type="text"
-                    value={plateNumber}
-                    onChange={(e) => setPlateNumber(e.target.value)}
-                    placeholder="Örn: 34ABC123"
-                    className="w-full text-xs font-mono font-black uppercase tracking-wider bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+                    {/* Delivery Term */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <HelpCircle className="h-3.5 w-3.5 text-slate-400" />
+                        {isTr ? 'Teslim Şekli (Incoterm)' : 'Delivery Term'}
+                      </label>
+                      <select
+                        value={deliveryTerm}
+                        onChange={(e) => setDeliveryTerm(e.target.value)}
+                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="CFR">CFR</option>
+                        <option value="CIF">CIF</option>
+                        <option value="EXW">EXW</option>
+                        <option value="FOB">FOB</option>
+                        <option value="CPT">CPT</option>
+                        <option value="CIP">CIP</option>
+                        <option value="DAT">DAT</option>
+                        <option value="DAP">DAP</option>
+                        <option value="DDP">DDP</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Driver Name */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-slate-400" />
+                        {isTr ? 'Sürücü Adı' : 'Driver Name'}
+                      </label>
+                      <input 
+                        type="text"
+                        value={driverName}
+                        onChange={(e) => setDriverName(e.target.value)}
+                        placeholder="Örn: Ahmet"
+                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
 
-                {/* Trailer / Dorse Plate */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
-                    <Truck className="h-3.5 w-3.5 text-slate-400" />
-                    {isTr ? 'Dorse / Treyler Plakası' : 'Trailer Plate Number'}
-                  </label>
-                  <input 
-                    type="text"
-                    value={trailerPlate}
-                    onChange={(e) => setTrailerPlate(e.target.value)}
-                    placeholder="Örn: 34XYZ987"
-                    className="w-full text-xs font-mono font-black uppercase tracking-wider bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+                    {/* Driver Surname */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-slate-400" />
+                        {isTr ? 'Sürücü Soyadı' : 'Driver Surname'}
+                      </label>
+                      <input 
+                        type="text"
+                        value={driverSurname}
+                        onChange={(e) => setDriverSurname(e.target.value)}
+                        placeholder="Örn: Yılmaz"
+                        className="w-full text-xs font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    {/* Driver VKN / TCKN */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <CreditCard className="h-3.5 w-3.5 text-slate-400" />
+                        {isTr ? 'Sürücü TCKN / VKN' : 'Driver ID Number'}
+                      </label>
+                      <input 
+                        type="text"
+                        maxLength={11}
+                        value={driverVkn}
+                        onChange={(e) => setDriverVkn(e.target.value)}
+                        placeholder="11111111111"
+                        className="w-full text-xs font-mono font-bold bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    {/* Vehicle Plate Number */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <Truck className="h-3.5 w-3.5 text-slate-400" />
+                        {isTr ? 'Çekici Araç Plakası *' : 'Vehicle Plate Number *'}
+                        <span className="text-red-500 font-bold">*</span>
+                      </label>
+                      <input 
+                        type="text"
+                        value={plateNumber}
+                        onChange={(e) => setPlateNumber(e.target.value)}
+                        placeholder="Örn: 34ABC123"
+                        className="w-full text-xs font-mono font-black uppercase tracking-wider bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    {/* Trailer / Dorse Plate */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                        <Truck className="h-3.5 w-3.5 text-slate-400" />
+                        {isTr ? 'Dorse / Treyler Plakası' : 'Trailer Plate Number'}
+                      </label>
+                      <input 
+                        type="text"
+                        value={trailerPlate}
+                        onChange={(e) => setTrailerPlate(e.target.value)}
+                        placeholder="Örn: 34XYZ987"
+                        className="w-full text-xs font-mono font-black uppercase tracking-wider bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 transition-all outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </>
+                )}
 
                 {/* Prefix */}
                 <div>

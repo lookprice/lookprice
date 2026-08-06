@@ -52,6 +52,10 @@ interface SalesInvoiceFormModalProps {
   setWithholdingTaxCode: (val: string) => void;
   isReturn: boolean;
   setIsReturn: (val: boolean) => void;
+  returnInvoiceNumber: string;
+  setReturnInvoiceNumber: (val: string) => void;
+  returnInvoiceDate: string;
+  setReturnInvoiceDate: (val: string) => void;
   isTaxInclusive: boolean;
   setIsTaxInclusive: (val: boolean) => void;
   
@@ -141,6 +145,10 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   setWithholdingTaxCode,
   isReturn,
   setIsReturn,
+  returnInvoiceNumber,
+  setReturnInvoiceNumber,
+  returnInvoiceDate,
+  setReturnInvoiceDate,
   isTaxInclusive,
   setIsTaxInclusive,
   editTaxOffice,
@@ -434,6 +442,33 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                          placeholder="601, 602, vb..."
                        />
                     </div>
+                  )}
+
+                  {giInvoiceType === 'IADE' && (
+                    <>
+                      <div className="lg:col-span-2 space-y-3">
+                         <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest px-2">{isTr ? 'İade Edilen Fatura No' : 'Returned Invoice No'}</label>
+                         <input 
+                           type="text"
+                           required
+                           maxLength={16}
+                           className="w-full px-4 py-3 bg-rose-50 border-2 border-rose-100 rounded-2xl focus:border-rose-500 focus:bg-white transition-all font-bold text-slate-700 placeholder:text-rose-300"
+                           value={returnInvoiceNumber}
+                           onChange={(e) => setReturnInvoiceNumber(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                           placeholder="ABC2026000001234"
+                         />
+                      </div>
+                      <div className="lg:col-span-2 space-y-3">
+                         <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest px-2">{isTr ? 'İade Edilen Fatura Tarihi' : 'Returned Invoice Date'}</label>
+                         <input 
+                           type="date"
+                           required
+                           className="w-full px-4 py-3 bg-rose-50 border-2 border-rose-100 rounded-2xl focus:border-rose-500 focus:bg-white transition-all font-bold text-slate-700"
+                           value={returnInvoiceDate}
+                           onChange={(e) => setReturnInvoiceDate(e.target.value)}
+                         />
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

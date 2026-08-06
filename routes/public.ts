@@ -2652,4 +2652,22 @@ router.post("/pos/sale", async (req: any, res) => {
   }
 });
 
+// Get Active Videos
+router.get("/enrakipsiz/videos", async (req, res) => {
+  try {
+    const { page_type } = req.query;
+    let query = "SELECT * FROM enrakipsiz_videos WHERE is_live = TRUE";
+    const params: any[] = [];
+    if (page_type) {
+      query += " AND page_type = $1";
+      params.push(page_type);
+    }
+    query += " ORDER BY order_index ASC, id ASC";
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

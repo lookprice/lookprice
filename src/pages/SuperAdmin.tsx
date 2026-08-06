@@ -3,7 +3,8 @@ import {
   Plus, 
   LogOut,
   Activity,
-  Megaphone
+  Megaphone,
+  Video
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { translations } from "@/translations";
@@ -17,6 +18,7 @@ import { SuperAdminLeads } from "../components/superadmin/SuperAdminLeads";
 import { SuperAdminRegistrations } from "../components/superadmin/SuperAdminRegistrations";
 import { SuperAdminStoresTable } from "../components/superadmin/SuperAdminStoresTable";
 import { EnrakipsizPortalManager } from "../components/superadmin/EnrakipsizPortalManager";
+import { SuperAdminVideosManager } from "../components/superadmin/SuperAdminVideosManager";
 import { 
   SlideModal, 
   AdModal, 
@@ -62,7 +64,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const [storeFilter, setStoreFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [leadFilter, setLeadFilter] = useState<'all' | 'new' | 'contacted' | 'converted'>('all');
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'enrakipsiz'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'enrakipsiz' | 'videos'>('dashboard');
   
   // Enrakipsiz states
   const [enrakipsizSettings, setEnrakipsizSettings] = useState<EnrakipsizSettings>({
@@ -573,6 +575,16 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           >
             <Megaphone className="h-4 w-4 text-rose-500 animate-pulse" /> ⚓ enrakipsiz.com Tema & Reklam Kaptan Köşkü
           </button>
+          <button
+            onClick={() => setActiveTab('videos')}
+            className={`pb-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'videos'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Video className="h-4 w-4 text-emerald-500" /> 🎥 lookprice.net & Sektörel Video Yönetimi
+          </button>
         </div>
 
         {activeTab === 'enrakipsiz' ? (
@@ -608,6 +620,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             handleDrop={handleDrop}
             toggleSectionEnabled={toggleSectionEnabled}
           />
+        ) : activeTab === 'videos' ? (
+          <SuperAdminVideosManager lang={lang} />
         ) : (
           <>
             <SuperAdminStats
