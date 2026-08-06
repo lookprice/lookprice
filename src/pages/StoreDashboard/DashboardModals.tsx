@@ -433,6 +433,20 @@ export const DashboardModals = (props: DashboardModalsProps) => {
               <div style={{ display: 'none' }}>
                 <ShippingSlip ref={shippingSlipRef} sale={selectedSale} store={branding} />
               </div>
+              {(selectedSale.status === 'cancelled' || selectedSale.cancellation_reason || selectedSale.cancel_reason) && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 text-rose-900">
+                  <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-black uppercase tracking-wider text-rose-700">
+                      {lang === 'tr' ? 'İptal Edilmiş Satış' : 'Cancelled Sale'}
+                    </p>
+                    <p className="text-xs font-bold text-rose-900">
+                      <span className="font-bold text-rose-600">{lang === 'tr' ? 'İptal Sebebi:' : 'Cancellation Reason:'} </span>
+                      {selectedSale.cancellation_reason || selectedSale.cancel_reason || selectedSale.notes || (lang === 'tr' ? 'Neden belirtilmedi' : 'No reason provided')}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="p-4 bg-indigo-600 rounded-2xl text-white">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{t.total?.toUpperCase() || 'TOTAL'}</span>

@@ -374,26 +374,39 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   }, [showReportModal, reportDate]);
 
   // Isolated high-quality thermal slip printing via invisible iframe
-  const handlePrintReceipt = () => {
-    const printContent = document.getElementById("pos-receipt-printable");
-    if (!printContent) return;
+  const handlePrintReceipt = (contentArg?: string | React.MouseEvent) => {
+    let content = typeof contentArg === 'string' ? contentArg : '';
+    if (!content) {
+      const printContent = document.getElementById("pos-receipt-printable");
+      if (!printContent) return;
+      content = printContent.innerHTML;
+    }
     
     const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0px";
-    iframe.style.height = "0px";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "100px";
+    iframe.style.height = "100px";
     iframe.style.border = "none";
+    iframe.style.opacity = "0.01";
+    iframe.style.zIndex = "-999";
     document.body.appendChild(iframe);
     
     const doc = iframe.contentWindow?.document;
     if (doc) {
       doc.open();
       doc.write(`
+        <!DOCTYPE html>
         <html>
           <head>
             <title>Sipariş Fişi</title>
             <style>
-              body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 10px; line-height: 1.4; color: black; }
+              @media print {
+                @page { margin: 0; size: auto; }
+                html, body { background: white !important; color: black !important; margin: 0 !important; padding: 5px !important; width: 100% !important; visibility: visible !important; }
+              }
+              body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 10px; line-height: 1.4; color: black; background: white; }
               .text-center { text-align: center; }
               .border-b { border-bottom: 1px dashed black; padding-bottom: 8px; margin-bottom: 8px; }
               .flex-between { display: flex; justify-content: space-between; }
@@ -407,42 +420,57 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             </style>
           </head>
           <body>
-            ${printContent.innerHTML}
-            <script>
-              window.onload = function() {
-                window.print();
-                setTimeout(function() {
-                  window.frameElement.remove();
-                }, 100);
-              }
-            </script>
+            ${content}
           </body>
         </html>
       `);
       doc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.error("Print error:", e);
+        }
+        setTimeout(() => {
+          try { iframe.remove(); } catch (e) {}
+        }, 1000);
+      }, 500);
     }
   };
 
   const handlePrintReport = () => {
     const printContent = document.getElementById("pos-z-report-printable");
+    console.log("Printing report, content found:", !!printContent);
+    if (printContent) console.log("Content HTML:", printContent.innerHTML);
     if (!printContent) return;
     
     const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0px";
-    iframe.style.height = "0px";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "100px";
+    iframe.style.height = "100px";
     iframe.style.border = "none";
+    iframe.style.opacity = "0.01";
+    iframe.style.zIndex = "-999";
     document.body.appendChild(iframe);
     
     const doc = iframe.contentWindow?.document;
     if (doc) {
       doc.open();
       doc.write(`
+        <!DOCTYPE html>
         <html>
           <head>
             <title>Gün Sonu Raporu</title>
             <style>
-              body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 10px; line-height: 1.4; color: black; }
+              @media print {
+                @page { margin: 0; size: auto; }
+                html, body { background: white !important; color: black !important; margin: 0 !important; padding: 5px !important; width: 100% !important; visibility: visible !important; }
+              }
+              body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 10px; line-height: 1.4; color: black; background: white; }
               .text-center { text-align: center; }
               .border-b { border-bottom: 1px dashed black; padding-bottom: 8px; margin-bottom: 8px; }
               .flex-between { display: flex; justify-content: space-between; }
@@ -457,18 +485,22 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           </head>
           <body>
             ${printContent.innerHTML}
-            <script>
-              window.onload = function() {
-                window.print();
-                setTimeout(function() {
-                  window.frameElement.remove();
-                }, 100);
-              }
-            </script>
           </body>
         </html>
       `);
       doc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.error("Print error:", e);
+        }
+        setTimeout(() => {
+          try { iframe.remove(); } catch (e) {}
+        }, 1000);
+      }, 300);
     }
   };
 
@@ -478,20 +510,29 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     const storeTitle = branding?.store_name || branding?.name || 'Seçkin Restoran';
     
     const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0px";
-    iframe.style.height = "0px";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "100px";
+    iframe.style.height = "100px";
     iframe.style.border = "none";
+    iframe.style.opacity = "0.01";
+    iframe.style.zIndex = "-999";
     document.body.appendChild(iframe);
     
     const doc = iframe.contentWindow?.document;
     if (doc) {
       doc.open();
       doc.write(`
+        <!DOCTYPE html>
         <html>
           <head>
             <title>Masa ${cleanNum} QR Kodu</title>
             <style>
+              @media print {
+                @page { margin: 0; size: auto; }
+                html, body { background: white !important; color: black !important; margin: 0 !important; width: 100% !important; visibility: visible !important; }
+              }
               body { 
                 font-family: system-ui, -apple-system, sans-serif; 
                 display: flex; 
@@ -581,27 +622,35 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               </p>
               <div class="footer">POWERED BY LOOKPRICE</div>
             </div>
-            <script>
-              window.onload = function() {
-                window.print();
-                setTimeout(function() {
-                  window.frameElement.remove();
-                }, 100);
-              }
-            </script>
           </body>
         </html>
       `);
       doc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.error("Print error:", e);
+        }
+        setTimeout(() => {
+          try { iframe.remove(); } catch (e) {}
+        }, 1000);
+      }, 500);
     }
   };
 
   const handlePrintAllQrs = () => {
     const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0px";
-    iframe.style.height = "0px";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "100px";
+    iframe.style.height = "100px";
     iframe.style.border = "none";
+    iframe.style.opacity = "0.01";
+    iframe.style.zIndex = "-999";
     document.body.appendChild(iframe);
     
     const doc = iframe.contentWindow?.document;
@@ -628,15 +677,18 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       }).join('');
 
       doc.write(`
+        <!DOCTYPE html>
         <html>
           <head>
             <title>Tüm Masalar QR Kodları</title>
             <style>
               @media print {
-                body {
+                @page { margin: 0; size: auto; }
+                html, body {
                   margin: 0;
                   padding: 0;
                   background: white;
+                  visibility: visible !important;
                 }
                 .page {
                   page-break-after: always;
@@ -727,18 +779,22 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           </head>
           <body>
             ${tablesHtml}
-            <script>
-              window.onload = function() {
-                window.print();
-                setTimeout(function() {
-                  window.frameElement.remove();
-                }, 100);
-              }
-            </script>
           </body>
         </html>
       `);
       doc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.error("Print error:", e);
+        }
+        setTimeout(() => {
+          try { iframe.remove(); } catch (e) {}
+        }, 1000);
+      }, 600);
     }
   };
 

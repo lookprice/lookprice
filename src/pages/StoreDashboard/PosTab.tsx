@@ -127,20 +127,21 @@ const PosTab = ({
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.customer}</th>
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.amount}</th>
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.status}</th>
+                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'İptal Sebebi' : 'Cancel Reason'}</th>
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-right">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-24 text-center">
+                  <td colSpan={7} className="px-6 py-24 text-center">
                     <div className="animate-spin h-10 w-10 border-4 border-slate-900 border-t-transparent rounded-full mx-auto mb-5"></div>
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">{t.loading}</p>
                   </td>
                 </tr>
               ) : paginatedSales.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-24 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic">
+                  <td colSpan={7} className="px-6 py-24 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic">
                     {t.noSales}
                   </td>
                 </tr>
@@ -196,6 +197,17 @@ const PosTab = ({
                             {lang === 'tr' ? 'Faturalandı' : 'Invoiced'}: {s.sales_invoice_number}
                           </span>
                         </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-5">
+                      {s.status === 'cancelled' ? (
+                        <div className="max-w-[220px]" title={s.cancellation_reason || s.cancel_reason || s.notes || ''}>
+                          <p className="text-xs font-bold text-rose-600 truncate bg-rose-50/80 px-2.5 py-1 rounded-lg border border-rose-100 inline-block">
+                            {s.cancellation_reason || s.cancel_reason || s.notes || (lang === 'tr' ? 'Belirtilmedi' : 'N/A')}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-300 font-medium ml-2">-</span>
                       )}
                     </td>
                     <td className="px-6 py-5 text-right">

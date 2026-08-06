@@ -19,6 +19,7 @@ const handleResponse = async (res: Response) => {
 
 export const api = {
   async get(url: string) {
+    console.log("API GET request:", url);
     const token = getToken(url);
     const isPublic = url.includes('/api/public/');
     const separator = url.includes('?') ? '&' : '?';

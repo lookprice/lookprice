@@ -274,6 +274,9 @@ export interface Sale {
   payment_method: 'cash' | 'card' | 'bank' | 'term';
   due_date?: string;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'returned';
+  cancellation_reason?: string;
+  cancel_reason?: string;
+  notes?: string;
   tracking_number?: string;
   shipping_carrier?: string;
   exchange_rate?: number;

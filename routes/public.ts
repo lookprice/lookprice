@@ -2654,6 +2654,7 @@ router.post("/pos/sale", async (req: any, res) => {
 
 // Get Active Videos
 router.get("/enrakipsiz/videos", async (req, res) => {
+  console.log("Fetching videos, query:", req.query);
   try {
     const { page_type } = req.query;
     let query = "SELECT * FROM enrakipsiz_videos WHERE is_live = TRUE";
@@ -2663,9 +2664,12 @@ router.get("/enrakipsiz/videos", async (req, res) => {
       params.push(page_type);
     }
     query += " ORDER BY order_index ASC, id ASC";
+    console.log("Executing query:", query, "with params:", params);
     const result = await pool.query(query, params);
+    console.log("Query result count:", result.rows.length);
     res.json(result.rows);
   } catch (error: any) {
+    console.error("Error fetching videos:", error);
     res.status(500).json({ error: error.message });
   }
 });
