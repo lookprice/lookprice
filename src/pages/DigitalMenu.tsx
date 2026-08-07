@@ -905,7 +905,7 @@ export default function DigitalMenuPage() {
                   <div key={`${item.id}-${idx}`} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="font-bold text-slate-800 text-sm leading-tight">{item.name}</h4>
+                        <h4 className="font-bold text-slate-800 text-sm leading-tight">{translateText(item.name, lang)}</h4>
                         <span className="text-xs text-indigo-600 font-bold mt-1 block">{(Number(item.price) * item.quantity).toFixed(2)} ₺</span>
                       </div>
                       <div className="flex items-center gap-3">

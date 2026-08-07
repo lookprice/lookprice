@@ -2,6 +2,23 @@
 
 export type Language = 'tr' | 'en' | 'el';
 
+// Normalize Turkish characters and unicode combining marks safely
+export const normalizeKey = (str: string): string => {
+  if (!str) return "";
+  return str.trim()
+    .replace(/İ/g, "i")
+    .replace(/I/g, "ı")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ç/g, "c")
+    .replace(/ö/g, "o");
+};
+
 const EN_DICTIONARY: Record<string, string> = {
   // Common / Navbar / General
   "Giriş Yap": "Sign In",
@@ -70,6 +87,31 @@ const EN_DICTIONARY: Record<string, string> = {
   "Emlak & Gayrimenkul": "Real Estate",
   "Genel Mağaza": "General Retail",
   "Restoran & Kafe": "Restaurant & Café",
+  // Direct Option & Variant Terms
+  "DEMLİ": "Strong",
+  "ŞEKERLİ": "Sweet",
+  "Demli": "Strong",
+  "Şekerli": "Sweet",
+  "AÇIK": "Light",
+  "Açık": "Light",
+  "SADE": "Plain",
+  "Sade": "Plain",
+  "ORTA": "Medium",
+  "Orta": "Medium",
+  "SÜTLÜ": "With Milk",
+  "Sütlü": "With Milk",
+  "AZ ŞEKERLİ": "Low Sugar",
+  "Az Şekerli": "Low Sugar",
+  "ORTA ŞEKERLİ": "Medium Sugar",
+  "Orta Şekerli": "Medium Sugar",
+  "ÇOK ŞEKERLİ": "Very Sweet",
+  "Çok Şekerli": "Very Sweet",
+  "ŞEKERSİZ": "Sugar-Free",
+  "Şekersiz": "Sugar-Free",
+  "KAFEİNSİZ": "Decaf",
+  "Kafeinsiz": "Decaf",
+  "BUZLU": "Iced",
+  "Buzlu": "Iced",
 };
 
 const EL_DICTIONARY: Record<string, string> = {
@@ -140,6 +182,31 @@ const EL_DICTIONARY: Record<string, string> = {
   "Emlak & Gayrimenkul": "Ακίνητα",
   "Genel Mağaza": "Γενικό Κατάστημα",
   "Restoran & Kafe": "Εστιατόριο & Καφέ",
+  // Direct Option & Variant Terms in Greek
+  "DEMLİ": "Δυνατό",
+  "ŞEKERLİ": "Γλυκό",
+  "Demli": "Δυνατό",
+  "Şekerli": "Γλυκό",
+  "AÇIK": "Ελαφρύ",
+  "Açık": "Ελαφρύ",
+  "SADE": "Σκέτο",
+  "Sade": "Σκέτο",
+  "ORTA": "Μέτριο",
+  "Orta": "Μέτριο",
+  "SÜTLÜ": "Με Γάλα",
+  "Sütlü": "Με Γάλα",
+  "AZ ŞEKERLİ": "Λίγο Γλυκό",
+  "Az Şekerli": "Λίγο Γλυκό",
+  "ORTA ŞEKERLİ": "Μέτριο Γλυκό",
+  "Orta Şekerli": "Μέτριο Γλυκό",
+  "ÇOK ŞEKERLİ": "Πολύ Γλυκό",
+  "Çok Şekerli": "Πολύ Γλυκό",
+  "ŞEKERSİZ": "Χωρίς Ζάχαρη",
+  "Şekersiz": "Χωρίς Ζάχαρη",
+  "KAFEİNSİZ": "Χωρίς Καφεΐνη",
+  "Kafeinsiz": "Χωρίς Καφεΐνη",
+  "BUZLU": "Με Πάγο",
+  "Buzlu": "Με Πάγο",
 };
 
 const HORECA_EN: Record<string, string> = {
@@ -196,6 +263,17 @@ const HORECA_EN: Record<string, string> = {
   "orta": "Medium",
   "sekerli": "Sweet",
   "sutlu": "With Milk",
+  "az sekerli": "Low Sugar",
+  "orta sekerli": "Medium Sugar",
+  "cok sekerli": "Very Sweet",
+  "sekersiz": "Sugar-Free",
+  "kafeinsiz": "Decaf",
+  "buzlu": "Iced",
+  "bol soslu": "Extra Sauce",
+  "sossuz": "No Sauce",
+  "bol malzemeli": "Extra Toppings",
+  "extra": "Extra",
+  "ekstra": "Extra",
   "milkshake banana": "Banana Milkshake",
   "milkshake chocolate": "Chocolate Milkshake",
   "milkshake strawberry": "Strawberry Milkshake",
@@ -203,6 +281,7 @@ const HORECA_EN: Record<string, string> = {
   // Common Horeca Products
   "cay (fincan)": "Tea (Cup)",
   "cay (ince belli)": "Traditional Tea",
+  "cay": "Tea",
   "su": "Water",
   "simit": "Simit (Turkish Bagel)",
 };
@@ -261,6 +340,17 @@ const HORECA_EL: Record<string, string> = {
   "orta": "Μέτριο",
   "sekerli": "Γλυκό",
   "sutlu": "Με Γάλα",
+  "az sekerli": "Λίγο Γλυκό",
+  "orta sekerli": "Μέτριο Γλυκό",
+  "cok sekerli": "Πολύ Γλυκό",
+  "sekersiz": "Χωρίς Ζάχαρη",
+  "kafeinsiz": "Χωρίς Καφεΐνη",
+  "buzlu": "Με Πάγο",
+  "bol soslu": "Επιπλέον Σάλτσα",
+  "sossuz": "Χωρίς Σάλτσα",
+  "bol malzemeli": "Επιπλέον Υλικά",
+  "extra": "Έξτρα",
+  "ekstra": "Έξτρα",
   "milkshake banana": "Μιλκσέικ Μπανάνα",
   "milkshake chocolate": "Μιλκσέικ Σοκολάτα",
   "milkshake strawberry": "Μιλκσέικ Φράουλα",
@@ -268,28 +358,23 @@ const HORECA_EL: Record<string, string> = {
   // Common Horeca Products in Greek
   "cay (fincan)": "Τσάι (Φλιτζάνι)",
   "cay (ince belli)": "Παραδοσιακό Τσάι",
+  "cay": "Τσάι",
   "su": "Νερό",
   "simit": "Κουλούρι",
 };
 
-export const translateText = (text: string, lang: Language): string => {
+const translateSingle = (text: string, lang: Language): string => {
   if (!text || typeof text !== 'string') return text;
   if (lang === 'tr') return text;
   
   const trimmed = text.trim();
-  const normalized = trimmed.toLowerCase()
-    .replace(/ı/g, 'i')
-    .replace(/ş/g, 's')
-    .replace(/ğ/g, 'g')
-    .replace(/ü/g, 'u')
-    .replace(/ç/g, 'c')
-    .replace(/ö/g, 'o');
+  const normalized = normalizeKey(trimmed);
 
   if (lang === 'en') {
     if (HORECA_EN[normalized]) return HORECA_EN[normalized];
     if (EN_DICTIONARY[trimmed]) return EN_DICTIONARY[trimmed];
     for (const key of Object.keys(EN_DICTIONARY)) {
-      if (key.toLowerCase().replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ç/g, 'c').replace(/ö/g, 'o') === normalized) {
+      if (normalizeKey(key) === normalized) {
         return EN_DICTIONARY[key];
       }
     }
@@ -299,13 +384,28 @@ export const translateText = (text: string, lang: Language): string => {
     if (HORECA_EL[normalized]) return HORECA_EL[normalized];
     if (EL_DICTIONARY[trimmed]) return EL_DICTIONARY[trimmed];
     for (const key of Object.keys(EL_DICTIONARY)) {
-      if (key.toLowerCase().replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ç/g, 'c').replace(/ö/g, 'o') === normalized) {
+      if (normalizeKey(key) === normalized) {
         return EL_DICTIONARY[key];
       }
     }
     return trimmed;
   }
   return text;
+};
+
+export const translateText = (text: string, lang: Language): string => {
+  if (!text || typeof text !== 'string') return text;
+  if (lang === 'tr') return text;
+
+  // Decompose parenthetical strings like "Çay (DEMLİ)" or "Türk Kahvesi (ŞEKERLİ)"
+  const match = text.match(/^(.+?)\s*\((.+?)\)$/);
+  if (match) {
+    const mainPart = translateSingle(match[1], lang);
+    const subPart = translateSingle(match[2], lang);
+    return `${mainPart} (${subPart})`;
+  }
+
+  return translateSingle(text, lang);
 };
 
 // Dynamic translator for product names, descriptions, categories in Digital Menu and POS

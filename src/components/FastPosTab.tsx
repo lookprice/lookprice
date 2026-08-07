@@ -31,11 +31,13 @@ import {
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useNetwork } from "../contexts/NetworkContext";
+import { translateText } from "../utils/translator";
 import { TableGrid } from './TableGrid';
 import { api } from "../services/api";
 import { matchesSearch, normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
+import { printThermalReceipt, printThermalZReport } from "../utils/thermalPrinter";
 
 interface FastPosTabProps {
   storeId?: number;
@@ -92,10 +94,34 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
 
-  // Printer Diagnostics States
+  // Printer Diagnostics & Auto-Print States
   const [showPrinterDiagnosticModal, setShowPrinterDiagnosticModal] = useState(false);
   const [printerDiagScenario, setPrinterDiagScenario] = useState<'success' | 'ip_conflict' | 'offline' | 'paper_jam'>('success');
   const [printerDiagStep, setPrinterDiagStep] = useState<'idle' | 'testing' | 'result'>('idle');
+
+  const [autoPrintOnOrder, setAutoPrintOnOrder] = useState<boolean>(() => {
+    const saved = localStorage.getItem(`pos_auto_print_order_${storeId}`);
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  const [autoPrintOnPay, setAutoPrintOnPay] = useState<boolean>(() => {
+    const saved = localStorage.getItem(`pos_auto_print_pay_${storeId}`);
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  const handleToggleAutoPrintOrder = () => {
+    const nextVal = !autoPrintOnOrder;
+    setAutoPrintOnOrder(nextVal);
+    localStorage.setItem(`pos_auto_print_order_${storeId}`, JSON.stringify(nextVal));
+    toast.info(nextVal ? "Sipariş kaydedildiğinde otomatik fiş yazdırılacak." : "Otomatik sipariş yazdırımı kapatıldı.");
+  };
+
+  const handleToggleAutoPrintPay = () => {
+    const nextVal = !autoPrintOnPay;
+    setAutoPrintOnPay(nextVal);
+    localStorage.setItem(`pos_auto_print_pay_${storeId}`, JSON.stringify(nextVal));
+    toast.info(nextVal ? "Ödeme alındığında otomatik fiş yazdırılacak." : "Otomatik ödeme fişi yazdırımı kapatıldı.");
+  };
 
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
@@ -373,135 +399,78 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }
   }, [showReportModal, reportDate]);
 
-  // Isolated high-quality thermal slip printing via invisible iframe
-  const handlePrintReceipt = (contentArg?: string | React.MouseEvent) => {
-    let content = typeof contentArg === 'string' ? contentArg : '';
-    if (!content) {
-      const printContent = document.getElementById("pos-receipt-printable");
-      if (!printContent) return;
-      content = printContent.innerHTML;
+  // Isolated high-quality 80mm thermal slip printing
+  const handlePrintReceipt = (overrideOptions?: any) => {
+    if (overrideOptions && typeof overrideOptions === 'object' && !('target' in overrideOptions)) {
+      printThermalReceipt({
+        storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
+        storePhone: branding?.phone || branding?.whatsapp_number,
+        ...overrideOptions
+      });
+      return;
     }
-    
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "100px";
-    iframe.style.height = "100px";
-    iframe.style.border = "none";
-    iframe.style.opacity = "0.01";
-    iframe.style.zIndex = "-999";
-    document.body.appendChild(iframe);
-    
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Sipariş Fişi</title>
-            <style>
-              @media print {
-                @page { margin: 0; size: auto; }
-                html, body { background: white !important; color: black !important; margin: 0 !important; padding: 5px !important; width: 100% !important; visibility: visible !important; }
-              }
-              body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 10px; line-height: 1.4; color: black; background: white; }
-              .text-center { text-align: center; }
-              .border-b { border-bottom: 1px dashed black; padding-bottom: 8px; margin-bottom: 8px; }
-              .flex-between { display: flex; justify-content: space-between; }
-              .font-bold { font-weight: bold; }
-              .mt-4 { margin-top: 16px; }
-              .mt-2 { margin-top: 8px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-              th, td { text-align: left; padding: 2px 0; }
-              th { border-bottom: 1px solid black; }
-              .text-right { text-align: right; }
-            </style>
-          </head>
-          <body>
-            ${content}
-          </body>
-        </html>
-      `);
-      doc.close();
 
-      setTimeout(() => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch (e) {
-          console.error("Print error:", e);
-        }
-        setTimeout(() => {
-          try { iframe.remove(); } catch (e) {}
-        }, 1000);
-      }, 500);
-    }
+    const itemsToPrint = cart.map(it => ({
+      name: it.name,
+      quantity: it.quantity,
+      price: it.price,
+      note: it.note
+    }));
+
+    const calculatedTotal = cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0);
+
+    printThermalReceipt({
+      title: selectedTable ? "ADİSYON FİŞİ" : "SATIŞ FİŞİ",
+      storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
+      storePhone: branding?.phone || branding?.whatsapp_number,
+      tableNo: selectedTable || "Hızlı Kasa",
+      saleId: activeSaleId || undefined,
+      items: itemsToPrint,
+      totalAmount: calculatedTotal,
+      paymentMethod: paymentMethod === 'cash' ? 'NAKİT' : (paymentMethod === 'credit_card' ? 'KREDİ KARTI' : 'SİPARİŞ')
+    });
+  };
+
+  const handlePrintTableBill = (sale: any) => {
+    if (!sale) return;
+    const itemsToPrint = (sale.items || []).map((it: any) => ({
+      name: it.product_name || it.name,
+      quantity: Math.floor(Number(it.quantity)) || 1,
+      price: it.unit_price || it.price || 0,
+      note: it.note || ''
+    }));
+
+    printThermalReceipt({
+      title: "ADİSYON FİŞİ",
+      storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
+      storePhone: branding?.phone || branding?.whatsapp_number,
+      tableNo: sale.customer_name || "Masa",
+      saleId: sale.id,
+      items: itemsToPrint,
+      totalAmount: parseFloat(sale.total_amount) || 0,
+      paymentMethod: "SİPARİŞ / ÖDENMEDİ",
+      notes: sale.notes || undefined
+    });
   };
 
   const handlePrintReport = () => {
-    const printContent = document.getElementById("pos-z-report-printable");
-    console.log("Printing report, content found:", !!printContent);
-    if (printContent) console.log("Content HTML:", printContent.innerHTML);
-    if (!printContent) return;
-    
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "100px";
-    iframe.style.height = "100px";
-    iframe.style.border = "none";
-    iframe.style.opacity = "0.01";
-    iframe.style.zIndex = "-999";
-    document.body.appendChild(iframe);
-    
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Gün Sonu Raporu</title>
-            <style>
-              @media print {
-                @page { margin: 0; size: auto; }
-                html, body { background: white !important; color: black !important; margin: 0 !important; padding: 5px !important; width: 100% !important; visibility: visible !important; }
-              }
-              body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 10px; line-height: 1.4; color: black; background: white; }
-              .text-center { text-align: center; }
-              .border-b { border-bottom: 1px dashed black; padding-bottom: 8px; margin-bottom: 8px; }
-              .flex-between { display: flex; justify-content: space-between; }
-              .font-bold { font-weight: bold; }
-              .mt-4 { margin-top: 16px; }
-              .mt-2 { margin-top: 8px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-              th, td { text-align: left; padding: 2px 0; }
-              th { border-bottom: 1px solid black; }
-              .text-right { text-align: right; }
-            </style>
-          </head>
-          <body>
-            ${printContent.innerHTML}
-          </body>
-        </html>
-      `);
-      doc.close();
+    if (!reportData) return;
 
-      setTimeout(() => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch (e) {
-          console.error("Print error:", e);
-        }
-        setTimeout(() => {
-          try { iframe.remove(); } catch (e) {}
-        }, 1000);
-      }, 300);
-    }
+    const cashAmount = reportData.payments?.find((p: any) => p.payment_method === 'cash')?.total_amount || 0;
+    const cardAmount = reportData.payments?.find((p: any) => p.payment_method === 'credit_card')?.total_amount || 0;
+    const otherAmount = reportData.payments?.filter((p: any) => p.payment_method !== 'cash' && p.payment_method !== 'credit_card')?.reduce((s: number, p: any) => s + p.total_amount, 0) || 0;
+    const totalAmount = (reportData.payments?.reduce((s: number, p: any) => s + p.total_amount, 0)) || 0;
+
+    printThermalZReport({
+      storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
+      reportDate: reportDate,
+      cashTotal: cashAmount,
+      cardTotal: cardAmount,
+      otherTotal: otherAmount,
+      grandTotal: totalAmount,
+      saleCount: reportData.total_sales || 0,
+      products: reportData.products || []
+    });
   };
 
   const handlePrintSingleQr = (tableNum: string) => {
@@ -1133,6 +1102,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         }, storeId);
 
         if (res.success) {
+          if (autoPrintOnPay) {
+            handlePrintReceipt();
+          }
           setLastSaleId(activeSaleId);
           setLastFiscal(res.fiscal);
           setLastCart(cart.map(item => ({ ...item, price: parseFloat(item.price) || 0, name: item.note ? `${item.name} (${item.note})` : item.name })));
@@ -1167,6 +1139,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         }, storeId);
 
         if (res.success) {
+          if (autoPrintOnPay) {
+            handlePrintReceipt();
+          }
           setLastSaleId(res.saleId);
           setLastFiscal(res.fiscal);
           setLastCart(currentCart);
@@ -1360,6 +1335,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     if (cart.length === 0 || !selectedTable) return;
     try {
       setCompleting(true);
+      const total = cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0);
       const itemsToSave = cart.map(it => ({
         id: it.id,
         product_id: it.product_id || it.id,
@@ -1381,6 +1357,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           customerName: selectedTable
         }, storeId);
         if (res.success) {
+          if (autoPrintOnOrder) {
+            handlePrintReceipt();
+          }
           setCart([]);
           setActiveSaleId(null);
           setSelectedTable(null);
@@ -1398,6 +1377,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           status: 'pending'
         }, storeId);
         if (res.success) {
+          if (autoPrintOnOrder) {
+            handlePrintReceipt();
+          }
           setCart([]);
           setActiveSaleId(null);
           setSelectedTable(null);
@@ -1461,18 +1443,47 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             </div>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto max-w-full">
-            {storeTableCalls.map(call => (
-              <div key={call.id} className="bg-white/15 backdrop-blur-xs px-3 py-1.5 rounded-xl flex items-center gap-2 shrink-0 border border-white/20">
-                <span className="text-xs font-black">{call.tableId} - {call.type}</span>
-                <button
-                  type="button"
-                  onClick={() => handleResolveTableCall(call.id)}
-                  className="px-2 py-0.5 bg-white text-rose-700 hover:bg-rose-50 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer shadow-xs"
-                >
-                  {lang === 'tr' ? 'İlgilenildi' : 'Resolve'}
-                </button>
-              </div>
-            ))}
+            {storeTableCalls.map(call => {
+              const saleForCall = pendingSales.find(s => 
+                s.customer_name?.toLowerCase().includes(call.tableId.toString().toLowerCase()) || 
+                s.restaurant_table_id?.toString() === call.tableId.toString()
+              );
+              return (
+                <div key={call.id} className="bg-white/15 backdrop-blur-xs px-3 py-1.5 rounded-xl flex items-center gap-2 shrink-0 border border-white/20">
+                  <span className="text-xs font-black">{call.tableId} - {call.type}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (saleForCall) {
+                        handlePrintTableBill(saleForCall);
+                      } else {
+                        printThermalReceipt({
+                          title: "HESAP TALEBİ FİŞİ",
+                          storeName: branding?.store_name || branding?.name || 'TELOCA CAFE',
+                          storePhone: branding?.phone || branding?.whatsapp_number,
+                          tableNo: call.tableId,
+                          items: [],
+                          totalAmount: 0,
+                          paymentMethod: "HESAP İSTENDİ"
+                        });
+                      }
+                    }}
+                    className="px-2 py-0.5 bg-indigo-900/80 hover:bg-indigo-900 text-white rounded-lg text-[10px] font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1"
+                    title={lang === 'tr' ? 'Masaya ait adisyon fişini yazdır' : 'Print bill for table'}
+                  >
+                    <Printer className="w-3 h-3 text-amber-300" />
+                    {lang === 'tr' ? 'Fiş Yazdır' : 'Print Bill'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleResolveTableCall(call.id)}
+                    className="px-2 py-0.5 bg-white text-rose-700 hover:bg-rose-50 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer shadow-xs"
+                  >
+                    {lang === 'tr' ? 'İlgilenildi' : 'Resolve'}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1907,6 +1918,14 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                           {parseFloat(sale.total_amount).toFixed(2)} ₺
                         </span>
                         <button
+                          type="button"
+                          onClick={() => handlePrintTableBill(sale)}
+                          className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1 border border-slate-200"
+                          title={lang === 'tr' ? 'Termal Adisyon Fişi Yazdır' : 'Print Thermal Bill'}
+                        >
+                          <Printer className="h-3.5 w-3.5 text-slate-600" />
+                        </button>
+                        <button
                           onClick={() => {
                             const tableName = sale.customer_name || 'Masa';
                             setSelectedTable(tableName);
@@ -2027,7 +2046,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0 mr-2">
-                          <p className="text-xs sm:text-sm font-bold text-slate-800 truncate">{item.name}</p>
+                          <p className="text-xs sm:text-sm font-bold text-slate-800 truncate">{translateText(item.name, lang)}</p>
                           <div className="flex items-center gap-1 mt-0.5">
                             <input
                               type="number"
@@ -2155,19 +2174,30 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                     </div>
 
                     {isCafeRestaurant && selectedTable !== null && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          disabled={cart.length === 0 || completing}
-                          onClick={handleSaveToTable}
-                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
-                        >
-                          <Coffee className="h-3.5 w-3.5" />
-                          {lang === 'tr' ? 'Adisyona Kaydet' : 'Save to Table'}
-                        </button>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            disabled={cart.length === 0 || completing}
+                            onClick={handleSaveToTable}
+                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                          >
+                            <Coffee className="h-3.5 w-3.5" />
+                            {lang === 'tr' ? 'Adisyona Kaydet' : 'Save to Table'}
+                          </button>
+                          <button
+                            disabled={cart.length === 0 || completing}
+                            onClick={() => handlePrintReceipt()}
+                            className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                            title={lang === 'tr' ? "Masanın güncel adisyon fişini termal yazıcıdan çıkar" : "Print current bill slip"}
+                          >
+                            <Printer className="h-3.5 w-3.5 text-amber-300" />
+                            {lang === 'tr' ? 'Adisyon Yazdır' : 'Print Bill'}
+                          </button>
+                        </div>
                         <button
                           disabled={activeSaleId === null || completing}
                           onClick={() => setIsChangingTable(true)}
-                          className="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                          className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
                         >
                           <ArrowLeftRight className="h-3.5 w-3.5" />
                           {lang === 'tr' ? 'Masa Değiştir' : 'Change Table'}
@@ -2853,10 +2883,73 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               </div>
 
               {printerDiagStep === 'idle' && (
-                <div className="space-y-4">
-                  <p className="text-sm text-slate-600 leading-relaxed">
+                <div className="space-y-4 overflow-y-auto pr-1">
+                  {/* Real Thermal Printer Test Card */}
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 rounded-2xl border border-amber-200/80 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-black text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <Printer className="w-4 h-4 text-amber-600" />
+                          Teloca Termal Yazıcı Sınama Fişi (80mm)
+                        </h4>
+                        <p className="text-[11px] text-amber-800/80 font-medium">
+                          Windows'a tanımlı termal yazıcıdan büyük ve okunaklı test çıktısı alın.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          printThermalReceipt({
+                            title: "TERMAL YAZICI SINAMA SAYFASI",
+                            storeName: branding?.store_name || branding?.name || "TELOCA CAFE",
+                            storePhone: branding?.phone || branding?.whatsapp_number,
+                            tableNo: "TEST MASA 1",
+                            saleId: "9999",
+                            items: [
+                              { name: "Türk Kahvesi (Orta)", quantity: 1, price: 45 },
+                              { name: "Demli Çay", quantity: 2, price: 30 },
+                              { name: "Şekerli Çay", quantity: 1, price: 15 }
+                            ],
+                            totalAmount: 120,
+                            paymentMethod: "WIN32 TEST OK",
+                            notes: "Windows Sınama Sayfası Başarılı!"
+                          });
+                        }}
+                        className="px-3 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-black rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        <Printer className="w-4 h-4 text-amber-200" />
+                        <span>Sınama Fişi Al</span>
+                      </button>
+                    </div>
+
+                    <div className="pt-2 border-t border-amber-200/60 space-y-2">
+                      <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider block">
+                        Otomatik Adisyon & Ödeme Fişi Ayarları:
+                      </span>
+                      <label className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-amber-200/80 cursor-pointer hover:bg-amber-50/50 transition-all">
+                        <span className="text-xs font-bold text-slate-700">Adisyona Kaydet dediğimde otomatik yazdır</span>
+                        <input
+                          type="checkbox"
+                          checked={autoPrintOnOrder}
+                          onChange={handleToggleAutoPrintOrder}
+                          className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-amber-200/80 cursor-pointer hover:bg-amber-50/50 transition-all">
+                        <span className="text-xs font-bold text-slate-700">Hesabı Kapat / Öde dediğimde otomatik yazdır</span>
+                        <input
+                          type="checkbox"
+                          checked={autoPrintOnPay}
+                          onChange={handleToggleAutoPrintPay}
+                          className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     {lang === 'tr' 
-                      ? 'Bu panel, mutfaktaki yazıcıların IP çakışmaları, kablo bağlantı hataları veya yazıcı çevrimdışı durumlarını tespit edip kullanıcı dostu yönlendirmeler sunar.' 
+                      ? 'Aşağıdaki panel, mutfaktaki yazıcıların IP çakışmaları, kablo bağlantı hataları veya yazıcı çevrimdışı durumlarını tespit edip yönlendirme sunar.' 
                       : 'This panel detects printer IP conflicts, cable disconnected errors, or offline status and provides user-friendly instructions.'}
                   </p>
 
@@ -3720,7 +3813,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                         ) : null}
 
                         <span className="text-sm font-black text-slate-900 group-hover:text-indigo-700 leading-tight">
-                          {v.name}
+                          {translateText(v.name, lang)}
                         </span>
 
                         {v.barcode && (
