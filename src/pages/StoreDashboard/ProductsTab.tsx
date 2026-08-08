@@ -800,7 +800,7 @@ const ProductsTab = ({
                                 )}
                                 {p.is_web_sale === false && (
                                   <span className="text-[8px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
-                                    OFF_LINE
+                                    {lang === 'tr' ? 'ÇEVRİM DIŞI' : 'OFFLINE'}
                                   </span>
                                 )}
                                 {p.is_pazarama_active && (
@@ -843,18 +843,18 @@ const ProductsTab = ({
                             const isLoss = profit.margin < 0;
                             return (
                               <span className={`text-[9px] font-black uppercase tracking-widest mt-0.5 ${isLoss ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                {isLoss ? 'LOW_MARGIN' : `+${profit.margin.toFixed(0)}%_PROFIT`}
+                                {isLoss ? (lang === 'tr' ? 'DÜŞÜK MARJ' : 'LOW MARGIN') : (lang === 'tr' ? `%${profit.margin.toFixed(0)} KÂR` : `+${profit.margin.toFixed(0)}% PROFIT`)}
                               </span>
                             );
                           })()}
                         </div>
                       ) : (
-                        <span className="text-[10px] font-black text-slate-300 uppercase letter-wider">NO_COST_DATA</span>
+                        <span className="text-[10px] font-black text-slate-300 uppercase letter-wider">{lang === 'tr' ? 'MALİYET BİLGİSİ YOK' : 'NO COST DATA'}</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       {p.product_type === 'service' ? (
-                        <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-2 py-1.5 rounded-xl uppercase tracking-widest leading-none">VIRTUAL</span>
+                        <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-2 py-1.5 rounded-xl uppercase tracking-widest leading-none">{lang === 'tr' ? 'DİJİTAL / HİZMET' : 'VIRTUAL / SERVICE'}</span>
                       ) : (
                         <div className="flex items-center space-x-3">
                           <span className={`text-[15px] font-black mono-data ${Number(p.stock_quantity) <= Number(p.min_stock_level) ? 'text-rose-600' : 'text-slate-900'}`}>
@@ -862,7 +862,7 @@ const ProductsTab = ({
                           </span>
                           {Number(p.stock_quantity) <= Number(p.min_stock_level) && (
                             <div className="flex items-center px-2 py-1 bg-rose-50 text-[8px] font-black text-rose-600 border border-rose-100 rounded-lg uppercase tracking-[0.15em] animate-pulse">
-                              LOW_STOCK
+                              {lang === 'tr' ? 'DÜŞÜK STOK' : 'LOW STOCK'}
                             </div>
                           )}
                         </div>
@@ -1133,7 +1133,7 @@ const ProductsTab = ({
         {totalPages > 1 && (
           <div className="px-8 py-5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-              {filteredProducts.length} RECORDS_LOCATED
+              {filteredProducts.length} {lang === 'tr' ? 'ÜRÜN BULUNDU' : 'RECORDS LOCATED'}
             </p>
             <div className="flex items-center space-x-3">
               <button 
