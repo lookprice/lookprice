@@ -40,8 +40,16 @@ export default function PublicReconciliationPage() {
         // Sanitize found object to display premium fallbacks for any missing details or "LookPrice" text
         const sanitized = { ...found };
         const rawStoreName = sanitized.storeName || '';
+        // Only use fallback if explicitly required, otherwise allow actual store name
         if (!rawStoreName || rawStoreName.toLowerCase().includes('lookprice')) {
-          sanitized.storeName = 'Seçkin İşletme';
+          // If we have a way to get the true official name, we should use it here.
+          // For now, just allow the existing name if it's not a placeholder.
+          if (rawStoreName && !rawStoreName.toLowerCase().includes('lookprice')) {
+              sanitized.storeName = rawStoreName;
+          } else {
+              // Keeping 'Seçkin İşletme' only as an absolute last resort if truly missing or placeholder
+              sanitized.storeName = sanitized.storeName || 'Seçkin İşletme';
+          }
         }
         
         if (!sanitized.storeAddress || sanitized.storeAddress.trim() === '') {
