@@ -559,13 +559,13 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6"
+            className="fixed inset-0 bg-black/80 z-[60] flex items-end sm:items-center justify-center p-2 sm:p-6"
           >
             <motion.div 
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-white w-full max-w-md rounded-[2.5rem] sm:rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl border border-slate-100"
             >
               <div className="p-6 border-b flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">{t.basket}</h3>
