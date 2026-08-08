@@ -1349,9 +1349,6 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                   </div>
                   {isTr ? 'Toplu Fiyat Güncelleme' : 'Bulk Price Update'}
                 </h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1 ml-11">
-                  Product_Pricing / Global_Action
-                </p>
               </div>
               <button 
                 onClick={() => setShowBulkPriceModal(false)}
