@@ -847,9 +847,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
                   {currentMenuItem?.label || activeTab.replace(/_/g, ' ')}
                 </h2>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
-                  Control_Center / {currentMenuItem?.label || activeTab}
-                </p>
               </div>
             </motion.div>
 
