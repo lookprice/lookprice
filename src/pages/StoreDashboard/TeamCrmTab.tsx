@@ -581,7 +581,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                    <div>
                       <h3 className="font-black text-slate-800 text-xl leading-none mb-2">{branch.name}</h3>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest">
-                         {branch.slug?.toUpperCase() || 'MAIN_BRANCH'}
+                         {branch.slug?.toUpperCase() || (isTr ? 'ANA ŞUBE' : 'MAIN BRANCH')}
                       </span>
                    </div>
                 </div>
