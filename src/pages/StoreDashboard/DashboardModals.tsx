@@ -889,8 +889,8 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                     const babsInvoiceCount = babsInvoices.length;
                     const babsTotalSum = babsInvoices.reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
 
-                    const rawStoreName = branding?.legal_name || branding?.store_name || branding?.name || 'Seçkin İşletme';
-                    const finalStoreName = rawStoreName.toLowerCase().includes('lookprice') ? 'Seçkin İşletme' : rawStoreName;
+                    const rawStoreName = branding?.legal_name || branding?.store_name || branding?.name;
+                    const finalStoreName = rawStoreName || 'Seçkin İşletme';
                     
                     const finalStoreAddress = (branding?.legal_address || branding?.address || '').trim() || 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul';
                     const finalStoreTaxOffice = (branding?.legal_tax_office || branding?.tax_office || '').trim() || 'Beşiktaş';
