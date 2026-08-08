@@ -1093,7 +1093,7 @@ export const PortfolioWebsiteGenerator = ({
                             CNAME {customDomain || "domain.com"} →
                             nodes.lookprice.net
                           </p>
-                          <p>Status: CLOUDFLARE_PROXY_READY</p>
+                          <p>{lang === 'tr' ? 'Durum: Güvenli Sunucu Yönlendirmesi Hazır' : 'Status: Proxy Domain Ready'}</p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100">
@@ -1101,7 +1101,7 @@ export const PortfolioWebsiteGenerator = ({
                           SSL / TLS
                         </span>
                         <span className="text-[9px] font-black text-emerald-600 uppercase">
-                          ENCRYPTED
+                          {lang === 'tr' ? 'ŞİFRELİ & KORUMALI' : 'ENCRYPTED'}
                         </span>
                       </div>
                     </div>
