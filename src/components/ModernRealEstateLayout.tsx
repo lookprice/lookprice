@@ -966,7 +966,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] z-[201] md:hidden shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+                className="fixed bottom-2 left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] max-w-xl bg-white rounded-[2.5rem] z-[201] md:hidden shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-100"
               >
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-xl z-10">
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
