@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { translations } from "@/translations";
 import {
@@ -866,11 +867,45 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
       )}
 
       {/* Real Estate Poster Print Component */}
-      {propertyToPrint && (
-        <div id="print-poster-wrapper" className="hidden print:block bg-white text-slate-900 h-full w-full font-sans p-6">
+      {propertyToPrint && createPortal(
+        <div id="print-poster-wrapper" className="hidden print:block bg-white text-slate-900 font-sans" style={{ width: '210mm', height: '297mm', padding: '10mm', boxSizing: 'border-box' }}>
           <style>
             {`
               @media print {
+                @page {
+                  size: A4 portrait !important;
+                  margin: 0 !important;
+                }
+                body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: white !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                #print-poster-wrapper {
+                  display: block !important;
+                  visibility: visible !important;
+                  position: absolute !important;
+                  top: 0 !important;
+                  left: 0 !important;
+                  width: 210mm !important;
+                  height: 297mm !important;
+                  min-height: 297mm !important;
+                  max-height: 297mm !important;
+                  padding: 10mm !important;
+                  margin: 0 !important;
+                  box-sizing: border-box !important;
+                  background: white !important;
+                  color: #0f172a !important;
+                  z-index: 999999999 !important;
+                  overflow: hidden !important;
+                }
+                #print-poster-wrapper * {
+                  visibility: visible !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
                 .print-description-content * {
                   color: #1e293b !important;
                   background-color: transparent !important;
@@ -885,16 +920,45 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
               }
             `}
           </style>
-          <div className="flex flex-col h-full border-[10px] border-double border-slate-900 p-6 min-h-[267mm]">
+          <div 
+            className="flex flex-col border-[10px] border-double p-6 box-border" 
+            style={{ 
+              height: '100%', 
+              minHeight: '100%', 
+              maxHeight: '100%', 
+              boxSizing: 'border-box', 
+              borderColor: branding?.page_layout_settings?.primary_color || "#0F172A",
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}
+          >
             
             {/* Header */}
-            <div className="flex justify-between items-center pb-4 border-b-2 border-slate-950">
+            <div 
+              className="flex justify-between items-center pb-4 flex-shrink-0" 
+              style={{ 
+                height: '70px', 
+                borderBottom: `2px solid ${branding?.page_layout_settings?.primary_color || "#0F172A"}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                boxSizing: 'border-box'
+              }}
+            >
               <div>
-                <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">{branding?.store_name || branding?.name || 'SEÇKİN EMLAK'}</h1>
-                <p className="text-[10px] font-black tracking-widest text-indigo-600 uppercase">PREMIUM REAL ESTATE</p>
+                <h1 className="text-3xl font-black tracking-tighter uppercase" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
+                  {branding?.store_name || branding?.name || 'SEÇKİN EMLAK'}
+                </h1>
+                <p className="text-[10px] font-black tracking-widest uppercase" style={{ color: branding?.page_layout_settings?.accent_color || "#4f46e5" }}>
+                  PREMIUM REAL ESTATE
+                </p>
               </div>
               <div className="text-right">
-                <span className="inline-block bg-slate-900 text-white font-mono text-[10px] font-bold px-2 py-0.5 rounded uppercase">
+                <span 
+                  className="inline-block text-white font-mono text-[10px] font-bold px-2.5 py-1 rounded uppercase"
+                  style={{ backgroundColor: branding?.page_layout_settings?.primary_color || "#0F172A" }}
+                >
                   LP-{propertyToPrint.reference_no || propertyToPrint.id}
                 </span>
                 <p className="text-[10px] text-slate-500 mt-1">İlan Tarihi: {new Date(propertyToPrint.created_at || Date.now()).toLocaleDateString('tr-TR')}</p>
@@ -902,19 +966,28 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             </div>
 
             {/* Title Section */}
-            <div className="my-5">
-              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block mb-1">
+            <div 
+              className="flex-shrink-0" 
+              style={{ 
+                height: '90px', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                justifyContent: 'center',
+                boxSizing: 'border-box'
+              }}
+            >
+              <span className="text-[10px] font-black uppercase tracking-widest block mb-1" style={{ color: branding?.page_layout_settings?.accent_color || "#4f46e5" }}>
                 {propertyToPrint.type === 'residence' ? '🏠 KONUT PORTFÖYÜ' : propertyToPrint.type === 'commercial' ? '🏢 TİCARİ PORTFÖY' : '🌿 ARSA PORTFÖYÜ'}
               </span>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight uppercase font-display">
+              <h2 className="text-2xl font-black tracking-tight leading-tight uppercase font-display line-clamp-2" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
                 {propertyToPrint.title}
               </h2>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-sm text-slate-500 font-bold bg-slate-100 px-2.5 py-1 rounded-lg">
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-xs text-slate-600 font-bold bg-slate-100 px-2.5 py-1 rounded-md">
                   📍 {propertyToPrint.location}
                 </span>
                 {propertyToPrint.country === 'KKTC' && (
-                  <span className="text-sm text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                  <span className="text-xs font-bold bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
                      KKTC • {propertyToPrint.kktc_region || 'Girne'}
                   </span>
                 )}
@@ -922,12 +995,21 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             </div>
 
             {/* Poster Image */}
-            <div className="relative w-full h-[220px] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 mb-5">
+            <div 
+              className="relative w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0"
+              style={{ 
+                height: '350px', 
+                minHeight: '350px', 
+                maxHeight: '350px',
+                boxSizing: 'border-box'
+              }}
+            >
               {propertyToPrint.images && propertyToPrint.images[0] ? (
                 <img 
                   src={propertyToPrint.images[0]} 
                   alt={propertyToPrint.title}
                   className="w-full h-full object-cover"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   referrerPolicy="no-referrer"
                 />
               ) : (
@@ -937,8 +1019,15 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                 </div>
               )}
               {/* Dynamic Price Plate */}
-              <div className="absolute bottom-4 right-4 bg-slate-950 text-white px-5 py-2.5 rounded-xl shadow-2xl border border-slate-800">
-                <span className="block text-[8px] font-black tracking-widest text-slate-400 uppercase">
+              <div 
+                className="absolute bottom-4 right-4 text-white px-5 py-2.5 rounded-xl shadow-2xl border"
+                style={{ 
+                  backgroundColor: branding?.page_layout_settings?.primary_color || "#0F172A",
+                  borderColor: branding?.page_layout_settings?.accent_color || "#4f46e5",
+                  boxSizing: 'border-box'
+                }}
+              >
+                <span className="block text-[8px] font-black tracking-widest text-slate-300 uppercase">
                   {propertyToPrint.listing_intent === 'rent' ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'}
                 </span>
                 <span className="text-xl font-black text-emerald-400">
@@ -949,149 +1038,152 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
             </div>
 
             {/* Basic Spec Table (Fit seamlessly in A4) */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 border-t border-b border-dashed border-slate-300 py-4 my-2 text-xs font-sans">
-              <div className="space-y-2">
-                <div className="flex justify-between border-b border-slate-100 pb-1">
-                  <span className="text-slate-500 font-medium">Metrekare (Net):</span>
-                  <span className="text-slate-900 font-extrabold">{propertyToPrint.square_meters ? `${formatNumberVal(propertyToPrint.square_meters)} m²` : 'Belirtilmedi'}</span>
+            <div 
+              className="border-dashed border-slate-300 flex-shrink-0"
+              style={{ 
+                height: '180px', 
+                minHeight: '180px', 
+                maxHeight: '180px',
+                borderTopWidth: '1px',
+                borderBottomWidth: '1px',
+                paddingTop: '8px',
+                paddingBottom: '8px',
+                boxSizing: 'border-box',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                columnGap: '24px'
+              }}
+            >
+              <div className="space-y-0.5" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                  <span className="text-[10px] text-slate-500 font-medium">Metrekare (Net):</span>
+                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.square_meters ? `${formatNumberVal(propertyToPrint.square_meters)} m²` : 'Belirtilmedi'}</span>
                 </div>
-                {propertyToPrint.sqm_gross && propertyToPrint.listing_intent !== 'rent' && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Metrekare (Brüt):</span>
-                    <span className="text-slate-900 font-extrabold">{formatNumberVal(propertyToPrint.sqm_gross)} m²</span>
+                {propertyToPrint.sqm_gross && propertyToPrint.listing_intent !== 'rent' ? (
+                  <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                    <span className="text-[10px] text-slate-500 font-medium">Metrekare (Brüt):</span>
+                    <span className="text-[10px] text-slate-900 font-extrabold">{formatNumberVal(propertyToPrint.sqm_gross)} m²</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                    <span className="text-[10px] text-slate-500 font-medium">İlan Türü:</span>
+                    <span className="text-[10px] text-slate-900 font-extrabold uppercase">{propertyToPrint.listing_intent === 'rent' ? 'Kiralık' : 'Satılık'}</span>
                   </div>
                 )}
-                {propertyToPrint.type !== 'land' && propertyToPrint.room_count && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Oda Sayısı:</span>
-                    <span className="text-slate-900 font-extrabold">{propertyToPrint.room_count}</span>
-                  </div>
-                )}
-                {propertyToPrint.type !== 'land' && propertyToPrint.building_age && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Bina Yaşı:</span>
-                    <span className="text-slate-900 font-extrabold">{propertyToPrint.building_age}</span>
-                  </div>
-                )}
-                {propertyToPrint.type !== 'land' && propertyToPrint.floor && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Kullanım Katı:</span>
-                    <span className="text-slate-900 font-extrabold">{propertyToPrint.floor}</span>
-                  </div>
-                )}
+                <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                  <span className="text-[10px] text-slate-500 font-medium">Oda Sayısı:</span>
+                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.room_count || 'Belirtilmedi'}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                  <span className="text-[10px] text-slate-500 font-medium">Bina Yaşı:</span>
+                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.building_age || 'Sıfır (Yeni)'}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                  <span className="text-[10px] text-slate-500 font-medium">Kullanım Katı:</span>
+                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.floor || 'Giriş Kat'}</span>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                {propertyToPrint.type !== 'land' && propertyToPrint.heating && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Isıtma Sistemi:</span>
-                    <span className="text-slate-900 font-extrabold">{propertyToPrint.heating}</span>
-                  </div>
-                )}
-                {propertyToPrint.type !== 'land' && propertyToPrint.furnished !== undefined && (
-                <div className="flex justify-between border-b border-slate-100 pb-1">
-                  <span className="text-slate-500 font-medium">Eşya Durumu:</span>
-                  <span className="text-slate-900 font-extrabold">{propertyToPrint.furnished ? 'Evet / Eşyalı' : 'Hayır / Eşyasız'}</span>
+              <div className="space-y-0.5" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                  <span className="text-[10px] text-slate-500 font-medium">Isıtma Sistemi:</span>
+                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.heating || 'Klima'}</span>
                 </div>
-                )}
-                {propertyToPrint.type !== 'land' && propertyToPrint.in_gated_community !== undefined && (
-                <div className="flex justify-between border-b border-slate-100 pb-1">
-                  <span className="text-slate-500 font-medium">Site İçi mi:</span>
-                  <span className="text-slate-900 font-extrabold">{propertyToPrint.in_gated_community ? 'Evet' : 'Hayır'}</span>
+                <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                  <span className="text-[10px] text-slate-500 font-medium">Eşya Durumu:</span>
+                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.furnished ? 'Evet / Eşyalı' : 'Hayır / Eşyasız'}</span>
                 </div>
-                )}
-                {propertyToPrint.type !== 'land' && propertyToPrint.dues && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Aidat Bedeli:</span>
-                    <span className="text-slate-900 font-extrabold">{formatNumberVal(propertyToPrint.dues)} {propertyToPrint.dues_currency || '₺'}</span>
-                  </div>
-                )}
-                {propertyToPrint.block_plot && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Ada / Parsel:</span>
-                    <span className="text-slate-900 font-extrabold">{propertyToPrint.block_plot}</span>
-                  </div>
-                )}
-                {propertyToPrint.facade && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Cephe:</span>
-                    <span className="text-slate-900 font-extrabold">{propertyToPrint.facade}</span>
-                  </div>
-                )}
-                {propertyToPrint.listing_intent !== 'rent' && propertyToPrint.kktc_title_type && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Koçan Türü (Tapu):</span>
-                    <span className="text-slate-900 font-extrabold text-amber-800">{propertyToPrint.kktc_title_type}</span>
-                  </div>
-                )}
-                {propertyToPrint.subtype && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Alt Tip:</span>
-                    <span className="text-slate-900 font-extrabold text-slate-800">{propertyToPrint.subtype}</span>
-                  </div>
-                )}
-                {propertyToPrint.listing_intent === 'rent' && propertyToPrint.deposit !== undefined && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Depozito Tutarı:</span>
-                    <span className="text-slate-900 font-extrabold text-indigo-700">
-                      {propertyToPrint.currency === 'GBP' ? '£' : propertyToPrint.currency === 'USD' ? '$' : propertyToPrint.currency === 'EUR' ? '€' : '₺'}
-                      {formatNumberVal(propertyToPrint.deposit)}
-                    </span>
-                  </div>
-                )}
-                {propertyToPrint.listing_intent === 'rent' && propertyToPrint.billing_period && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Ödeme Periyodu:</span>
-                    <span className="text-slate-900 font-extrabold text-indigo-700">
+                <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                  <span className="text-[10px] text-slate-500 font-medium">Site İçi mi:</span>
+                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.in_gated_community ? 'Evet' : 'Hayır'}</span>
+                </div>
+                {propertyToPrint.listing_intent === 'rent' ? (
+                  <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                    <span className="text-[10px] text-slate-500 font-medium">Ödeme Periyodu:</span>
+                    <span className="text-[10px] text-indigo-700 font-extrabold">
                       {propertyToPrint.billing_period === 'yearly' ? 'Yıllık' :
                        propertyToPrint.billing_period === '3-monthly' ? '3 Aylık' :
                        propertyToPrint.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık'}
                     </span>
                   </div>
-                )}
-                {propertyToPrint.listing_intent === 'rent' && (
-                  <div className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-500 font-medium">Sözleşme Standardı:</span>
-                    <span className="text-slate-900 font-extrabold text-indigo-700">Minimum 1 Yıl Kontrat</span>
+                ) : (
+                  <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                    <span className="text-[10px] text-slate-500 font-medium">Tapu Türü:</span>
+                    <span className="text-[10px] text-amber-800 font-extrabold">{propertyToPrint.kktc_title_type || 'Eşdeğer Koçan'}</span>
                   </div>
                 )}
+                <div className="flex justify-between border-b border-slate-100 pb-0.5">
+                  <span className="text-[10px] text-slate-500 font-medium">Depozito:</span>
+                  <span className="text-[10px] text-slate-900 font-extrabold">
+                    {propertyToPrint.deposit ? `${formatNumberVal(propertyToPrint.deposit)} ${propertyToPrint.currency || '₺'}` : 'Yok / Belirtilmedi'}
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* Short Marketing Description */}
-            {propertyToPrint.description && (
-              <div className="my-3 text-slate-700 leading-normal font-sans flex-1 overflow-hidden max-h-[135px] relative">
-                <span className="block font-black text-slate-900 mb-1 tracking-wider uppercase text-[9px]">AÇIKLAMA VE AYRINTILAR</span>
+            <div 
+              className="text-slate-700 font-sans flex-shrink-0 relative flex flex-col"
+              style={{ 
+                height: '130px', 
+                minHeight: '130px', 
+                maxHeight: '130px',
+                overflow: 'hidden',
+                boxSizing: 'border-box'
+              }}
+            >
+              <span className="block font-black mb-1 tracking-wider uppercase text-[8.5px]" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
+                AÇIKLAMA VE AYRINTILAR
+              </span>
+              {propertyToPrint.description ? (
                 <div 
-                  className="print-description-content text-[9.5px] columns-2 gap-x-6 gap-y-1 leading-relaxed max-h-[110px] overflow-hidden"
-                  style={{ columnFill: 'auto' }}
+                  className="print-description-content text-[9.5px] columns-2 gap-x-6 gap-y-1 leading-relaxed overflow-hidden"
+                  style={{ columnFill: 'auto', height: '110px', maxHeight: '110px' }}
                   dangerouslySetInnerHTML={{ __html: unescapeEntities(propertyToPrint.description) }}
                 />
-                <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-              </div>
-            )}
+              ) : (
+                <p className="text-[9.5px] text-slate-400 italic">Bu ilan için detaylı bir açıklama girilmemiştir.</p>
+              )}
+              <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+            </div>
 
             {/* Footer with agent details */}
-            <div className="mt-auto pt-4 border-t border-slate-950 flex justify-between items-end">
+            <div 
+              className="flex justify-between items-end flex-shrink-0"
+              style={{ 
+                height: '100px', 
+                borderTop: `1px solid ${branding?.page_layout_settings?.primary_color || "#0F172A"}`,
+                paddingTop: '12px',
+                boxSizing: 'border-box',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-end'
+              }}
+            >
               <div>
                 <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">SORUMLU PORTFÖY DANIŞMANI</span>
-                <h4 className="text-sm font-black text-slate-800 leading-snug mt-1">{propertyToPrint.responsible_agent || 'Tüm Şubeler Yetkili'}</h4>
+                <h4 className="text-sm font-black leading-snug mt-1" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
+                  {propertyToPrint.responsible_agent || 'Tüm Şubeler Yetkili'}
+                </h4>
                 <p className="text-[10px] text-slate-500 font-medium mb-1">Yetkili Şube: {propertyToPrint.branch_name || 'Merkez Şube Office'}</p>
                 {branding?.phone && (
-                  <p className="text-[10px] text-slate-500 font-semibold mb-0.5">📞 {branding.phone}</p>
+                  <p className="text-[10px] text-slate-600 font-bold mb-0.5">📞 {branding.phone}</p>
                 )}
                 {branding?.address && (
-                  <p className="text-[9px] text-slate-400 font-medium max-w-[200px] leading-tight">📍 {branding.address}</p>
+                  <p className="text-[9px] text-slate-400 font-medium max-w-[240px] leading-tight truncate">📍 {branding.address}</p>
                 )}
               </div>
               <div className="text-right">
-                <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">LOOKPRICE PORTAL GÜVENCESİ</p>
+                <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: branding?.page_layout_settings?.accent_color || "#4f46e5" }}>
+                  LOOKPRICE PORTAL GÜVENCESİ
+                </p>
                 <p className="text-[10px] text-slate-400 mt-1">Sektörün Güvenilir Emlak Yönetim Altyapısı</p>
               </div>
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Property Documents Quick Access Modal */}

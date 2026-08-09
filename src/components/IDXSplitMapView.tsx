@@ -926,7 +926,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                             ];
 
                         return storeTeam.map((tm: any, idx: number) => (
-                          <div key={tm.id || idx} className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between gap-3">
+                          <div key={`team_${tm.id || 'default'}_${idx}`} className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
                               {tm.image ? (
                                 <img src={tm.image} alt={tm.name} className="w-10 h-10 rounded-full object-cover border border-amber-500/40" />

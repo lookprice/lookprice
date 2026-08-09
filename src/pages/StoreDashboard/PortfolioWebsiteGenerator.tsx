@@ -63,6 +63,11 @@ export const PortfolioWebsiteGenerator = ({
   const [logoUrl, setLogoUrl] = useState("");
   const [faviconUrl, setFaviconUrl] = useState("");
 
+  const [colorPreset, setColorPreset] = useState<string>("default");
+  const [primaryColor, setPrimaryColor] = useState<string>("#0F172A");
+  const [accentColor, setAccentColor] = useState<string>("#4f46e5");
+  const [bgColor, setBgColor] = useState<string>("#ffffff");
+
   const isAutomotive = originalBranding?.store_type === 'motor_vehicle' || originalBranding?.page_layout_settings?.sector === 'automotive';
 
   useEffect(() => {
@@ -75,6 +80,12 @@ export const PortfolioWebsiteGenerator = ({
             setOriginalBranding(res);
             if (res.logo_url) setLogoUrl(res.logo_url);
             if (res.favicon_url) setFaviconUrl(res.favicon_url);
+
+            const savedSettings = res.page_layout_settings || {};
+            if (savedSettings.color_preset) setColorPreset(savedSettings.color_preset);
+            if (savedSettings.primary_color) setPrimaryColor(savedSettings.primary_color);
+            if (savedSettings.accent_color) setAccentColor(savedSettings.accent_color);
+            if (savedSettings.bg_color) setBgColor(savedSettings.bg_color);
 
             if (res.page_layout) {
               let layout = res.page_layout;
@@ -269,7 +280,15 @@ export const PortfolioWebsiteGenerator = ({
         logo_url: logoUrl,
         favicon_url: faviconUrl,
         page_layout: updatedLayout,
-        page_layout_settings: { ...originalBranding.page_layout_settings, web_content: content, team: team },
+        page_layout_settings: {
+          ...originalBranding.page_layout_settings,
+          web_content: content,
+          team: team,
+          color_preset: colorPreset,
+          primary_color: primaryColor,
+          accent_color: accentColor,
+          bg_color: bgColor
+        },
         team: team,
         slogan: content.trustSlogan,
         slug: storeSlug,
@@ -604,6 +623,153 @@ export const PortfolioWebsiteGenerator = ({
                     }
                     className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-indigo-800 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
                   />
+                </div>
+              </div>
+
+              {/* Color Preset & Combinations Card */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-indigo-500" />
+                  {lang === "tr" ? "WEB SİTESİ RENK KOMBİNASYONLARI" : "WEBSITE COLOR PALETTES"}
+                </h3>
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  {lang === "tr" 
+                    ? "Sitenizin renk dağılımı 60-30-10 kuralına göre uygulanır: %60 Zemin rengi, %30 Menüler & Başlıklar (Birincil) ve %10 Harekete Geçirici Butonlar (Vurgu)."
+                    : "Your site colors follow the 60-30-10 rule: 60% Background, 30% Primary Menus & Headings, 10% Call-to-Action Buttons."}
+                </p>
+
+                {/* Predefined Presets */}
+                <div className="space-y-2">
+                  {[
+                    {
+                      id: "saray-platin",
+                      name: lang === "tr" ? "Saray Platin" : "Palace Platinum",
+                      desc: lang === "tr" ? "Ultra Lüks ve Elite Konutlar" : "Ultra Luxury & Elite",
+                      primary: "#0F172A",
+                      accent: "#D4AF37",
+                      bg: "#F8FAFC"
+                    },
+                    {
+                      id: "derin-toprak",
+                      name: lang === "tr" ? "Derin Toprak & Arazi" : "Deep Earth & Land",
+                      desc: lang === "tr" ? "Yatırımlık Arsa ve Doğal Yaşam" : "Investment & Nature",
+                      primary: "#1E3A1E",
+                      accent: "#E5D3B3",
+                      bg: "#FAF9F6"
+                    },
+                    {
+                      id: "modern-safir",
+                      name: lang === "tr" ? "Modern Monokrom & Safir" : "Monochrome & Sapphire",
+                      desc: lang === "tr" ? "Yatırım ve Finans Odaklı" : "Investment & Finance",
+                      primary: "#27272A",
+                      accent: "#0284C7",
+                      bg: "#F4F4F5"
+                    },
+                    {
+                      id: "default",
+                      name: lang === "tr" ? "Orijinal LookPrice" : "Original LookPrice",
+                      desc: lang === "tr" ? "Klasik Güven Veren Lacivert" : "Classic Trustful Navy",
+                      primary: "#0F172A",
+                      accent: "#4f46e5",
+                      bg: "#ffffff"
+                    }
+                  ].map((preset) => {
+                    const isSelected = colorPreset === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => {
+                          setColorPreset(preset.id);
+                          setPrimaryColor(preset.primary);
+                          setAccentColor(preset.accent);
+                          setBgColor(preset.bg);
+                        }}
+                        className={`w-full p-2.5 rounded-xl border text-left transition-all ${
+                          isSelected 
+                            ? "border-slate-900 bg-slate-50 ring-2 ring-slate-100" 
+                            : "border-slate-100 bg-white hover:border-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-[11px] font-black text-slate-900">{preset.name}</p>
+                            <p className="text-[9px] text-slate-400 font-bold">{preset.desc}</p>
+                          </div>
+                          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-100 shrink-0">
+                            <span className="h-3 w-3 rounded-full border border-slate-200" style={{ backgroundColor: preset.bg }} title="60% Zemin" />
+                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.primary }} title="30% Birincil" />
+                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.accent }} title="10% Vurgu" />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom Fine-tuning */}
+                <div className="border-t border-slate-100 pt-3.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      {lang === "tr" ? "ÖZEL RENK AYARLARI" : "CUSTOM COLORS"}
+                    </span>
+                    {colorPreset !== "custom" && (
+                      <span className="text-[8px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded">
+                        {lang === "tr" ? "Hazır Şablon" : "Preset Active"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        {lang === "tr" ? "ZEMİN" : "BG"}
+                      </label>
+                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl p-1.5 justify-center">
+                        <input
+                          type="color"
+                          value={bgColor}
+                          onChange={(e) => {
+                            setBgColor(e.target.value);
+                            setColorPreset("custom");
+                          }}
+                          className="h-5 w-5 rounded border border-slate-200 cursor-pointer overflow-hidden p-0 bg-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        {lang === "tr" ? "BİRİNCİL" : "PRIMARY"}
+                      </label>
+                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl p-1.5 justify-center">
+                        <input
+                          type="color"
+                          value={primaryColor}
+                          onChange={(e) => {
+                            setPrimaryColor(e.target.value);
+                            setColorPreset("custom");
+                          }}
+                          className="h-5 w-5 rounded border border-slate-200 cursor-pointer overflow-hidden p-0 bg-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        {lang === "tr" ? "VURGU" : "ACCENT"}
+                      </label>
+                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl p-1.5 justify-center">
+                        <input
+                          type="color"
+                          value={accentColor}
+                          onChange={(e) => {
+                            setAccentColor(e.target.value);
+                            setColorPreset("custom");
+                          }}
+                          className="h-5 w-5 rounded border border-slate-200 cursor-pointer overflow-hidden p-0 bg-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

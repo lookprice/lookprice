@@ -87,6 +87,16 @@ This file outlines strict engineering, performance, and naming directives that m
 - **Operator Workflow Preservation (Kaldığı Yerden Devam Etme)**:
   - Sayfa yenilendiğinde (`F5` veya `Shift+F5`) ya da oturum tazelendiğinde operatörün çalıştığı aktif sekme (örn. `products`, `fast-pos`, `sales_invoices`, `settings`), alt sekmeler ve kategori/filtre durumları sıfırlanmamalıdır.
   - Aktif sekme `activeTab` ve kritik filtreler hem `localStorage` (`storeDashboardTab_${storeId}`, `productsTabCategory`, vb.) hem de URL arama parametreleri (`?tab=...`) ile senkronize tutulmalıdır.
-  - Operatörlerin ve kasiyerlerin tekrar tekrar tıklayarak vakit kaybetmesi kesinlikle önlenmeli, uygulama açılışta kullanıcının en son kaldığı ekranı otomatik olarak yüklemelidir.
+  
+---
+
+## 8. Stability & Regression Protocol (Anti-Regression)
+- **Module Identification**: Before editing any "Critical Module" (e.g., Poster System, CRM, Invoice logic, e-Waybill), explicitly identify it as such in the chain-of-thought.
+- **Test Path Documentation**: For every critical module, there must be a known manual test path or verification script.
+- **Pre-Post Verification**:
+    - **PRE**: Execute the manual test path to establish a baseline.
+    - **POST**: Execute the manual test path to verify no regression.
+- **Mandatory Reporting**: Every turn summary MUST explicitly state: "Regression check for [Module Name] passed."
+- **Failure Policy**: If regression tests fail post-change, the modification MUST be immediately rolled back.
 
 

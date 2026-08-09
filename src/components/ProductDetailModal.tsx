@@ -842,14 +842,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             description={product.description}
           />
 
-          {((store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (
-            <ListingFinancingCalculator
-              price={convertedPrice}
-              currency={store?.currency || product?.currency || 'TRY'}
-              lang={lang}
-              store={store}
-            />
-          )}
+          {((store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (() => {
+            const isRent = product.sector_data?.listing_intent === 'rent' || product.category?.toLowerCase().includes('kira') || product.category?.toLowerCase().includes('rent');
+            if (isRent) return null;
+            return (
+              <ListingFinancingCalculator
+                price={convertedPrice}
+                currency={store?.currency || product?.currency || 'TRY'}
+                lang={lang}
+                store={store}
+              />
+            );
+          })()}
 
           <DigitalSignature storeName={store?.name || ""} lang={lang} isPortfolio={store?.store_type === 'real_estate' || store?.store_type === 'motor_vehicle'} />
 

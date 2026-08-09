@@ -2681,18 +2681,21 @@ router.post("/property-submission", async (req, res) => {
     
     // Find store
     let storeId = null;
+    let storeType = null;
     if (storeSlug) {
-      const storeRes = await pool.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1)", [storeSlug]);
+      const storeRes = await pool.query("SELECT id, store_type FROM stores WHERE LOWER(slug) = LOWER($1)", [storeSlug]);
       if (storeRes.rows.length > 0) {
         storeId = storeRes.rows[0].id;
+        storeType = storeRes.rows[0].store_type;
       }
     }
 
-    console.log(`[Property Lead] Store ID: ${storeId || 'N/A'}, Name: ${ownerName}, Phone: ${ownerPhone}, Type: ${propertyType}, Location: ${location}, Price: ${expectedPrice}`);
+    console.log(`[Property Lead] Store ID: ${storeId || 'N/A'}, Store Type: ${storeType || 'N/A'}, Name: ${ownerName}, Phone: ${ownerPhone}, Type: ${propertyType}, Location: ${location}, Price: ${expectedPrice}`);
 
-    // Try inserting into leads or customers table if possible
+    // Try inserting into leads, customers, or real_estate_contacts table if possible
     try {
       if (storeId) {
+        // Always insert to customers as a general backup
         await pool.query(
           "INSERT INTO customers (store_id, name, phone, email, notes, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT DO NOTHING",
           [
@@ -2703,6 +2706,24 @@ router.post("/property-submission", async (req, res) => {
             `Mülk Değerleme Başvurusu: ${propertyType || ''} - ${location || ''} - Beklenen Fiyat: ${expectedPrice || ''}. Not: ${notes || ''}`
           ]
         );
+
+        // For real_estate stores, also insert into real_estate_contacts so they appear directly in the dashboard CRM
+        if (storeType === 'real_estate') {
+          await pool.query(
+            `INSERT INTO real_estate_contacts (store_id, name, phone, email, type, notes, address, id_number, created_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) ON CONFLICT DO NOTHING`,
+            [
+              storeId,
+              ownerName,
+              ownerPhone,
+              ownerEmail || '',
+              'owner', // It's a property owner submitting a property valuation request!
+              `[MÜLK SAHİBİ BAŞVURUSU] Tip: ${propertyType || ''} | Konum: ${location || ''} | Beklenen Fiyat: ${expectedPrice || ''} | Not: ${notes || ''}`,
+              location || '',
+              ''
+            ]
+          );
+        }
       }
     } catch (dbErr) {
       console.warn("Db insert lead warning:", dbErr);

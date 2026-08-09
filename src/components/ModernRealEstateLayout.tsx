@@ -402,7 +402,23 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
     },
   ];
 
-  const webContent = (store as any).page_layout_settings?.web_content;
+  const getContrastColor = (hex: string) => {
+    if (!hex) return "#ffffff";
+    const cleanHex = hex.replace("#", "");
+    if (cleanHex.length !== 6) return "#ffffff";
+    const r = parseInt(cleanHex.substring(0, 2), 16);
+    const g = parseInt(cleanHex.substring(2, 4), 16);
+    const b = parseInt(cleanHex.substring(4, 6), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 128) ? "#090d16" : "#ffffff";
+  };
+
+  const pageLayoutSettings = (store as any).page_layout_settings || {};
+  const primaryColor = pageLayoutSettings.primary_color || "#0F172A";
+  const accentColor = pageLayoutSettings.accent_color || "#4f46e5";
+  const bgColor = pageLayoutSettings.bg_color || "#ffffff";
+
+  const webContent = pageLayoutSettings.web_content;
   const content = {
     hero: {
       title: webContent?.hero?.title || store.name?.toUpperCase() || (lang === "tr" ? "YENİ NESİL PORTFÖY" : "NEW GENERATION PORTFOLIO"),
@@ -598,7 +614,67 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-white overflow-hidden min-h-screen relative w-full font-sans">
+    <div className="flex-1 bg-white overflow-hidden min-h-screen relative w-full font-sans store-theme-scoped">
+      <style dangerouslySetInnerHTML={{ __html: `
+        .store-theme-scoped {
+          --store-primary: ${primaryColor};
+          --store-accent: ${accentColor};
+          --store-bg: ${bgColor};
+          --store-text-on-accent: ${getContrastColor(accentColor)};
+          --store-text-on-primary: ${getContrastColor(primaryColor)};
+        }
+        
+        .store-theme-scoped {
+          background-color: var(--store-bg) !important;
+        }
+        
+        .store-theme-scoped .bg-indigo-600, 
+        .store-theme-scoped .bg-indigo-700, 
+        .store-theme-scoped .bg-amber-500, 
+        .store-theme-scoped .bg-amber-600,
+        .store-theme-scoped button[class*="bg-indigo-"],
+        .store-theme-scoped button[class*="bg-amber-"],
+        .store-theme-scoped a[class*="bg-indigo-"],
+        .store-theme-scoped a[class*="bg-amber-"],
+        .store-theme-scoped .bg-indigo-600\\/90,
+        .store-theme-scoped .bg-amber-500\\/90 {
+          background-color: var(--store-accent) !important;
+          color: var(--store-text-on-accent) !important;
+        }
+        
+        .store-theme-scoped .text-indigo-600, 
+        .store-theme-scoped .text-indigo-500, 
+        .store-theme-scoped .text-amber-500,
+        .store-theme-scoped span[class*="text-indigo-"],
+        .store-theme-scoped span[class*="text-amber-"] {
+          color: var(--store-accent) !important;
+        }
+        
+        .store-theme-scoped .border-indigo-600, 
+        .store-theme-scoped .border-indigo-500,
+        .store-theme-scoped .border-amber-500 {
+          border-color: var(--store-accent) !important;
+        }
+        
+        .store-theme-scoped .bg-slate-950, 
+        .store-theme-scoped .bg-slate-900, 
+        .store-theme-scoped .bg-slate-900\\/95, 
+        .store-theme-scoped .bg-slate-950\\/95,
+        .store-theme-scoped div[class*="bg-slate-950"],
+        .store-theme-scoped div[class*="bg-slate-900"] {
+          background-color: var(--store-primary) !important;
+          color: var(--store-text-on-primary) !important;
+        }
+        
+        .store-theme-scoped .text-slate-900, 
+        .store-theme-scoped .text-slate-850,
+        .store-theme-scoped .text-slate-800,
+        .store-theme-scoped h1,
+        .store-theme-scoped h2,
+        .store-theme-scoped h3 {
+          color: var(--store-primary) !important;
+        }
+      ` }} />
       {/* Top Navbar */}
       <div className="sticky top-0 left-0 w-full z-50 bg-slate-950/95 backdrop-blur-md text-white flex items-center justify-between px-4 sm:px-8 py-3.5 border-b border-slate-800 shadow-2xl">
         <div className="flex items-center gap-3">
@@ -626,7 +702,6 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
           ) : (
             <>
               <a href="#portfolio" className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm">{lang === 'tr' ? 'PORTFÖY' : 'PORTFOLIO'}</a>
-              <a href="#financing-section" className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm">{lang === 'tr' ? 'FİNANSMAN' : 'FINANCING'}</a>
             </>
           )}
           <button 
@@ -1059,50 +1134,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
             </div>
           )}
 
-          {/* Real estate Financing Calculator */}
-          {isSectionEnabled("financing") && (
-            <div id="financing-section" className="scroll-mt-6 border border-slate-100 rounded-[3rem] bg-gradient-to-br from-indigo-50/20 via-white to-indigo-50/10 shadow-2xl relative overflow-hidden">
-              <div 
-                className="p-8 flex justify-between items-center cursor-pointer border-b border-slate-100/50 hover:bg-slate-50 transition-colors" 
-                onClick={() => setIsFinancingOpen(!isFinancingOpen)}
-              >
-                <div>
-                  <h3 className="text-2xl font-black text-indigo-950 uppercase tracking-tighter leading-none">
-                    {lang === "tr" ? "AKILLI KONUT KREDİSİ HESAPLAYICI" : "SMART HOUSING FINANCE CALCULATOR"}
-                  </h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                    {isFinancingOpen
-                      ? (lang === "tr" ? "Hesaplayıcıyı Gizlemek İçin Tıklayın" : "Click to Hide Calculator")
-                      : (lang === "tr" ? "Hesaplayıcıyı Açmak İçin Tıklayın" : "Click to Open Calculator")
-                    }
-                  </p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-indigo-50/80 flex items-center justify-center text-indigo-600 font-bold text-xs transition-transform duration-200" style={{ transform: isFinancingOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
-                  ▼
-                </div>
-              </div>
-              <div className={`p-8 md:p-14 ${isFinancingOpen ? 'block' : 'hidden'} transition-all`}>
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                  <div className="lg:col-span-12 xl:col-span-5 space-y-6">
-                    <p className="text-xs text-slate-500 font-bold leading-relaxed uppercase">
-                      {lang === "tr"
-                        ? "Mülk değerine ve bütçenize göre Kıbrıs'ın saygın bankalarından ön onaylı kredi oranlarını karşılaştırın."
-                        : "Simulate and apply directly to prominent Cypriot banks with pre-calculated rates."}
-                    </p>
-                  </div>
-                  <div className="lg:col-span-12 xl:col-span-7">
-                    <ListingFinancingCalculator 
-                      price={products.length > 0 ? products[0].price : 100000} 
-                      currency={store.currency || "TRY"} 
-                      lang={lang} 
-                      store={store} 
-                      defaultOpen={true}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
 
