@@ -403,7 +403,7 @@ router.get("/marketplace/listings", async (req, res) => {
         store_slug: r.store_slug,
         store_phone: r.store_phone,
         store_whatsapp: r.store_whatsapp,
-        category: 'Emlak',
+        category: r.type || r.category || 'Emlak',
         brand: r.location,
         description: r.description || '',
         created_at: r.created_at,
@@ -437,7 +437,10 @@ router.get("/marketplace/listings", async (req, res) => {
           kktc_title_type: r.kktc_title_type,
           is_trade_in_available: r.is_trade_in_available,
           location: r.location,
-          reference_no: r.reference_no
+          reference_no: r.reference_no,
+          is_new_building: r.building_age === '0' || r.building_age === '0 (Yeni)' || r.building_age === 'Yeni',
+          is_opportunity: r.name?.toLowerCase().includes('fırsat') || r.description?.toLowerCase().includes('fırsat'),
+          is_discounted: false
         }
       });
     });
@@ -1075,7 +1078,10 @@ router.get("/store/:slug/products", async (req, res) => {
         kktc_title_type: r.kktc_title_type,
         is_trade_in_available: r.is_trade_in_available,
         location: r.location,
-        reference_no: r.reference_no
+        reference_no: r.reference_no,
+        is_new_building: r.building_age === '0' || r.building_age === '0 (Yeni)' || r.building_age === 'Yeni',
+        is_opportunity: r.name?.toLowerCase().includes('fırsat') || r.description?.toLowerCase().includes('fırsat'),
+        is_discounted: false
       }
     });
   });

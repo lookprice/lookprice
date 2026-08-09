@@ -66,6 +66,7 @@ const ProductsTab = React.lazy(() => import("./ProductsTab"));
 const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
 const PortfolioAnalyticsTab = React.lazy(() => import("./PortfolioAnalyticsTab"));
 const PortfolioNotificationsTab = React.lazy(() => import("./PortfolioNotificationsTab").then(m => ({ default: m.PortfolioNotificationsTab })));
+const PortfolioWebsiteGeneratorTab = React.lazy(() => import("./PortfolioWebsiteGenerator").then(m => ({ default: m.PortfolioWebsiteGenerator })));
 const RealEstateWebsiteGeneratorTab = React.lazy(() => import("./RealEstateWebsiteGenerator").then(m => ({ default: m.RealEstateWebsiteGenerator })));
 const AutomotiveWebsiteGeneratorTab = React.lazy(() => import("./AutomotiveWebsiteGenerator").then(m => ({ default: m.AutomotiveWebsiteGenerator })));
 const TeamCrmTab = React.lazy(() => import("./TeamCrmTab").then(m => ({ default: m.TeamCrmTab })));
@@ -1117,11 +1118,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <PortfolioNotificationsTab analytics={analytics} />
               )}
               {activeTab === "website-generator" && (
-                isAutomotive ? (
-                  <AutomotiveWebsiteGeneratorTab storeId={currentStoreId!} />
-                ) : (
-                  <RealEstateWebsiteGeneratorTab storeId={currentStoreId!} />
-                )
+                <PortfolioWebsiteGeneratorTab storeId={currentStoreId!} />
               )}
               {activeTab === "team-crm" && (
                 <TeamCrmTab 

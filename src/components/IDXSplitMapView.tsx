@@ -29,7 +29,7 @@ import {
   Clock
 } from "lucide-react";
 import { Product, Store } from "../types";
-import { APIProvider, Map, AdvancedMarker, InfoWindow } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, AdvancedMarker, InfoWindow, useMap } from "@vis.gl/react-google-maps";
 import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../data/realEstateConfig";
 
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || process.env.GOOGLE_MAPS_PLATFORM_KEY || "";
@@ -124,6 +124,23 @@ const NEIGHBORHOOD_POIS: POI[] = [
   { id: 'm-hosp-1', name: 'Gazimağusa Devlet Hastanesi', type: 'hospital', icon: '🏥', lat: 35.1520, lng: 33.9100, region: 'Gazimağusa', address: 'Tuzla Yolu' },
   { id: 'i-park-1', name: 'Long Beach Sahil Parkı & Bisiklet Yolu', type: 'park', icon: '🏖️', lat: 35.2780, lng: 33.9120, region: 'İskele', address: 'Long Beach, İskele' }
 ];
+
+const MapHandler = ({ center, zoom }: { center: { lat: number; lng: number }; zoom: number }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (map && center) {
+      map.panTo(center);
+    }
+  }, [map, center]);
+
+  useEffect(() => {
+    if (map && zoom) {
+      map.setZoom(zoom);
+    }
+  }, [map, zoom]);
+
+  return null;
+};
 
 interface IDXSplitMapViewProps {
   products: Product[];
@@ -573,7 +590,6 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
           {/* Level 2 Fihrist: Mülk Tipleri & Kelepir Filtreleri */}
           <div className="flex items-center justify-between gap-2 overflow-x-auto pt-1 no-scrollbar">
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">MÜLK TİPİ:</span>
               {[
                 { key: 'all', label: isTr ? 'Tüm Tipler' : 'All Types', icon: '🏢' },
                 { key: 'residence', label: 'Konut / Daire', icon: '🏠' },
@@ -623,7 +639,6 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
           {/* Level 3 Fihrist: Şehir / Bölge Seçimi (Tıklanınca Detay Filtre Çekmecesi & Alt Bölgeler Açılır) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pt-1.5 border-t border-slate-200/70 pb-1 no-scrollbar text-xs">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1 shrink-0">BÖLGE:</span>
             {['all', 'Girne', 'Lefkoşa', 'Gazimağusa', 'İskele', 'Lefke', 'Güzelyurt'].map((reg) => (
               <button
                 key={reg}
@@ -723,15 +738,14 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                   <APIProvider apiKey={GOOGLE_MAPS_KEY}>
                     <Map
                       style={{ width: "100%", height: "100%" }}
-                      center={mapCenterState}
-                      zoom={mapZoomState}
-                      onCenterChanged={(ev) => setMapCenterState(ev.detail.center)}
-                      onZoomChanged={(ev) => setMapZoomState(ev.detail.zoom)}
+                      defaultCenter={mapCenterState}
+                      defaultZoom={mapZoomState}
                       gestureHandling="greedy"
                       disableDefaultUI={false}
                       zoomControl={true}
                       mapId="idx_real_estate_map"
                     >
+                      <MapHandler center={mapCenterState} zoom={mapZoomState} />
                       {/* Render Property Price Markers */}
                       {filteredProducts.map((p) => {
                         const coords = getPropertyCoords(p);
@@ -1112,7 +1126,9 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                 return (
                   <div
                     key={p.id}
-                    onClick={() => onViewProduct(p)}
+                    onClick={() => {
+                      onViewProduct(p);
+                    }}
                     className="group bg-slate-950 rounded-3xl overflow-hidden border border-slate-800 hover:border-amber-500/50 hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
                   >
                     <div className="relative aspect-[16/11] overflow-hidden bg-slate-900">
@@ -1176,13 +1192,15 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
               <APIProvider apiKey={GOOGLE_MAPS_KEY}>
                 <Map
                   style={{ width: "100%", height: "100%" }}
-                  center={mapCenterState}
-                  zoom={12}
+                  defaultCenter={mapCenterState}
+                  defaultZoom={12}
                   gestureHandling="greedy"
                   mapId="full_idx_map"
                 >
+                  <MapHandler center={mapCenterState} zoom={12} />
                   {filteredProducts.map((p) => {
                     const coords = getPropertyCoords(p);
+                    const isSelected = selectedProperty?.id === p.id;
                     const priceText = formatPrice(p.price, store?.currency || p.currency);
                     return (
                       <AdvancedMarker
@@ -1190,12 +1208,51 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                         position={coords}
                         onClick={() => setSelectedProperty(p)}
                       >
-                        <div className="px-3 py-1.5 bg-slate-900 text-amber-400 font-black text-xs rounded-2xl border border-amber-500/50 shadow-2xl hover:scale-125 transition-transform cursor-pointer">
-                          🏠 {priceText}
+                        <div
+                          className={`px-3 py-1.5 rounded-2xl font-black text-xs shadow-2xl transition-all duration-300 transform cursor-pointer flex items-center gap-1 border ${
+                            isSelected
+                              ? "bg-amber-500 text-slate-950 scale-125 border-slate-950 z-50 ring-4 ring-amber-400/60 font-black"
+                              : "bg-slate-900 text-amber-400 border-amber-500/30 hover:bg-slate-800 hover:scale-115"
+                          }`}
+                        >
+                          <Home className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span>{priceText}</span>
                         </div>
                       </AdvancedMarker>
                     );
                   })}
+
+                  {/* Selected Property Popup InfoWindow on Full Screen Map */}
+                  {selectedProperty && (
+                    <InfoWindow
+                      position={getPropertyCoords(selectedProperty)}
+                      onCloseClick={() => setSelectedProperty(null)}
+                    >
+                      <div className="p-1 max-w-[220px] text-slate-900 font-sans">
+                        <img
+                          src={selectedProperty.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"}
+                          alt={selectedProperty.name}
+                          className="w-full h-24 object-cover rounded-xl mb-2 shadow-xs"
+                        />
+                        <p className="font-extrabold text-xs uppercase leading-tight text-slate-900 line-clamp-1">
+                          {selectedProperty.name}
+                        </p>
+                        <p className="text-amber-700 font-black text-sm my-1">
+                          {formatPrice(selectedProperty.price, store?.currency || selectedProperty.currency)}
+                        </p>
+                        <div className="text-[10px] text-slate-600 font-bold mb-2 flex items-center gap-1 truncate">
+                          <span>📍 {selectedProperty.location}</span>
+                          {selectedProperty.sector_data?.square_meters && <span>• {selectedProperty.sector_data.square_meters} m²</span>}
+                        </div>
+                        <button
+                          onClick={() => onViewProduct(selectedProperty)}
+                          className="w-full py-1.5 bg-slate-900 text-white font-black text-[10px] uppercase rounded-lg hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
+                        >
+                          Detaylı İncele ➔
+                        </button>
+                      </div>
+                    </InfoWindow>
+                  )}
                 </Map>
               </APIProvider>
             ) : (

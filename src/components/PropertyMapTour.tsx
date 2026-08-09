@@ -146,7 +146,7 @@ export const PropertyMapTour: React.FC<PropertyMapTourProps> = ({ location: locS
             mapId="DEMO_MAP_ID"
             defaultCenter={position}
             defaultZoom={13}
-            gestureHandling={"cooperative"}
+            gestureHandling={"greedy"}
             disableDefaultUI={false}
           >
             <AdvancedMarker position={position}>

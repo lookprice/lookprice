@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
+import { toast } from "sonner";
 
 interface SectionConfig {
   id: string;
@@ -298,14 +299,14 @@ export const PortfolioWebsiteGenerator = ({
       };
 
       await api.updateBranding(payload, storeId);
-      alert(
+      toast.success(
         lang === "tr"
           ? "Ayarlar başarıyla kaydedildi!"
           : "Settings saved successfully!",
       );
     } catch (error) {
       console.error(error);
-      alert(
+      toast.error(
         lang === "tr"
           ? "Kaydedilirken bir hata oluştu."
           : "An error occurred while saving.",

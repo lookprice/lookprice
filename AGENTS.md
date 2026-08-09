@@ -92,6 +92,26 @@ This file outlines strict engineering, performance, and naming directives that m
 
 ## 8. Stability & Regression Protocol (Anti-Regression)
 - **Module Identification**: Before editing any "Critical Module" (e.g., Poster System, CRM, Invoice logic, e-Waybill), explicitly identify it as such in the chain-of-thought.
+
+## 9. Real Estate Showcase Layout & A4 Poster Design Specifications
+
+- **Logo Size and Sticky Header Guard**:
+  - The sticky header in `ModernRealEstateLayout.tsx` MUST retain a compact height structure (e.g. `py-1 md:py-1.5`) while supporting an oversized logo visibility. The logo image should use negative margins (e.g. `-my-8 md:-my-10 h-28 md:h-36`) to visually overlap elegant container boundaries without expanding the physical layout grid's vertical footprint.
+
+- **A4 Portrait Real Estate Poster Layout**:
+  - The printed/PDF poster designed under `RealEstateTab.tsx` (the `handlePrintProperty` print window HTML generation) is formatted strictly for professional physical standard A4 dimensions (`210mm x 297mm`, inside a `277mm` double border with `8mm` inner padding).
+  - You are STRICTLY forbidden from using dynamically loaded external utility scripts (like Tailwind CDN) inside the generated iframe document, as they can fail, freeze page loads, or alter styling during print rendering.
+  - Rely purely on explicit inline or embedded document CSS classes to control pixel-perfect layout nodes:
+    - **Header**: Flex-based brand title & date subtitle block (exactly `20mm` height).
+    - **Title Area**: Intent badge, main property title, and region tag pills (exactly `22mm` height).
+    - **Property Image**: Perfect `108mm` height bounded cover canvas with absolute embedded pricing overlay badge.
+    - **Bento Specs**: Exactly a 4-column flat grid with `22mm` fixed height structure displaying Rooms, Area, Heating, and Deed types.
+    - **Description**: Sided highlight card exactly `26mm` height limiting the description content to 3-line clamp safely.
+    - **Agent Footer**: Fully resolved contact credentials with integrated Lookprice platform guarantee indicators (exactly `22mm` height).
+
+- **Interactive Full-Screen Map (Map Mode)**:
+  - On the full-screen interactive discovery layout in `IDXSplitMapView.tsx`, clicking any marker MUST toggle high-contrast visual focus styling (with scale zoom animations) and trigger a complete, fully featured floating info-popup containing a rich product cover image, formatted price tags, and immediate detail navigation links.
+
 - **Test Path Documentation**: For every critical module, there must be a known manual test path or verification script.
 - **Pre-Post Verification**:
     - **PRE**: Execute the manual test path to establish a baseline.

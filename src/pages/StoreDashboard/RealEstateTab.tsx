@@ -199,13 +199,545 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   }, []);
 
   const handlePrintProperty = (property: any) => {
-    setPropertyToPrint(property);
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        setPropertyToPrint(null);
-      }, 3000);
-    }, 800);
+    const primaryColor = branding?.page_layout_settings?.primary_color || "#0F172A";
+    const accentColor = branding?.page_layout_settings?.accent_color || "#4f46e5";
+    const storeName = branding?.store_name || branding?.name || 'SEÇKİN EMLAK';
+    const referenceNo = property.reference_no || property.id;
+    const dateStr = new Date(property.created_at || Date.now()).toLocaleDateString('tr-TR');
+    
+    const isRent = property.listing_intent === 'rent';
+    const titleText = property.type === 'residence' ? '🏠 KONUT PORTFÖYÜ' : property.type === 'commercial' ? '🏢 TİCARİ PORTFÖY' : '🌿 ARSA PORTFÖYÜ';
+    const priceCurrency = property.currency === 'GBP' ? '£' : property.currency === 'USD' ? '$' : property.currency === 'EUR' ? '€' : '₺';
+    const priceText = `${priceCurrency}${formatNumberVal(property.price)}`;
+    const imageUrl = property.images && property.images[0] ? property.images[0] : '';
+    
+    const roomCount = property.room_count || 'Belirtilmedi';
+    const netArea = property.square_meters ? `${formatNumberVal(property.square_meters)} m²` : 'Belirtilmedi';
+    const heating = property.heating || 'Klima';
+    const deedType = isRent ? (property.furnished ? 'Eşyalı' : 'Eşyasız') : (property.kktc_title_type || 'Eşdeğer Koçan');
+    const deedLabel = isRent ? 'EŞYA DURUMU' : 'KOÇAN / TAPU';
+    const deedSubLabel = isRent ? 'FURNITURE' : 'DEED TYPE';
+    
+    const descContent = property.description ? unescapeEntities(property.description) : 'Bu gayrimenkul portföyü için detaylı teknik açıklama girilmemiştir. Lütfen yetkili danışmanımız ile irtibata geçiniz.';
+    const agentName = property.responsible_agent || 'Sorumlu Şube Temsilcisi';
+    const branchName = property.branch_name || 'Merkez Ofis';
+    const phoneInfo = branding?.phone ? `📞 ${branding.phone}` : '';
+    const addressInfo = branding?.address ? `📍 ${branding.address}` : '';
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      toast.error("Tarayıcınızın yeni sekme açmasını engelleyen pop-up engelleyicisini kapatıp tekrar deneyiniz.");
+      return;
+    }
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${property.title} - A4 Afiş</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+            
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              margin: 0;
+              padding: 0;
+              background-color: #ffffff;
+              color: #1e293b;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+
+            @page {
+              size: A4 portrait;
+              margin: 0;
+            }
+
+            .poster-page {
+              width: 210mm;
+              height: 297mm;
+              padding: 10mm;
+              box-sizing: border-box;
+              background: white;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              overflow: hidden;
+            }
+
+            .double-border {
+              border: 10px double ${primaryColor};
+              height: 277mm;
+              padding: 8mm;
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              overflow: hidden;
+            }
+
+            /* Header Section */
+            .header-container {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              height: 20mm;
+              overflow: hidden;
+            }
+
+            .brand-section {
+              display: flex;
+              flex-direction: column;
+            }
+
+            .store-title {
+              font-size: 24px;
+              font-weight: 900;
+              letter-spacing: 0.5px;
+              text-transform: uppercase;
+              margin: 0;
+              line-height: 1.1;
+              color: ${primaryColor};
+            }
+
+            .brand-eyebrow {
+              font-size: 8.5px;
+              font-weight: 800;
+              letter-spacing: 1.5px;
+              text-transform: uppercase;
+              margin-top: 5px;
+              margin-bottom: 0;
+              color: ${accentColor};
+            }
+
+            .ref-section {
+              display: flex;
+              flex-direction: column;
+              align-items: flex-end;
+              justify-content: center;
+            }
+
+            .ref-badge {
+              display: inline-block;
+              color: #ffffff;
+              font-family: monospace;
+              font-size: 11px;
+              font-weight: 900;
+              padding: 4px 10px;
+              border-radius: 4px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              background-color: ${primaryColor};
+            }
+
+            .date-text {
+              font-size: 9px;
+              color: #64748b;
+              font-weight: 700;
+              margin-top: 6px;
+              margin-bottom: 0;
+            }
+
+            /* Title & Location Section */
+            .title-container {
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              height: 22mm;
+              overflow: hidden;
+            }
+
+            .intent-tag {
+              font-size: 10px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              color: ${accentColor};
+              margin-bottom: 4px;
+            }
+
+            .property-title {
+              font-size: 20px;
+              font-weight: 900;
+              letter-spacing: -0.5px;
+              line-height: 1.2;
+              text-transform: uppercase;
+              margin: 0 0 6px 0;
+              color: ${primaryColor};
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+
+            .location-pills {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+
+            .pill-loc {
+              font-size: 10px;
+              font-weight: 700;
+              color: #334155;
+              background-color: #f1f5f9;
+              padding: 4px 10px;
+              border-radius: 9999px;
+              border: 1px solid #e2e8f0;
+              display: flex;
+              align-items: center;
+              gap: 4px;
+            }
+
+            .pill-country {
+              font-size: 10px;
+              font-weight: 700;
+              color: #b45309;
+              background-color: #fef3c7;
+              padding: 4px 10px;
+              border-radius: 9999px;
+              border: 1px solid #fde68a;
+            }
+
+            /* Image Section */
+            .image-container {
+              width: 100%;
+              height: 108mm;
+              border-radius: 12px;
+              overflow: hidden;
+              background-color: #f1f5f9;
+              border: 1px solid #e2e8f0;
+              position: relative;
+            }
+
+            .property-img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+
+            .no-img-placeholder {
+              width: 100%;
+              height: 100%;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              color: #94a3b8;
+            }
+
+            .price-badge-container {
+              position: absolute;
+              bottom: 16px;
+              right: 16px;
+              border-radius: 8px;
+              padding: 8px 16px;
+              color: #ffffff;
+              background-color: ${primaryColor};
+              border: 1px solid rgba(255, 255, 255, 0.15);
+              box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+              text-align: right;
+            }
+
+            .price-label {
+              display: block;
+              font-size: 8px;
+              font-weight: 900;
+              letter-spacing: 1px;
+              color: #cbd5e1;
+              text-transform: uppercase;
+              margin-bottom: 2px;
+            }
+
+            .price-val {
+              font-size: 24px;
+              font-weight: 900;
+              color: #34d399; /* emerald-400 */
+              line-height: 1;
+            }
+
+            /* Bento Specs Grid */
+            .specs-grid {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 12px;
+              height: 22mm;
+              overflow: hidden;
+            }
+
+            .spec-card {
+              background-color: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 8px;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              text-align: center;
+            }
+
+            .spec-card-title {
+              font-size: 8px;
+              font-weight: 900;
+              text-transform: uppercase;
+              color: #94a3b8;
+              letter-spacing: 0.5px;
+              margin-bottom: 4px;
+            }
+
+            .spec-card-val {
+              font-size: 13px;
+              font-weight: 900;
+              color: #1e293b;
+              margin-bottom: 2px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              width: 100%;
+            }
+
+            .spec-card-sub {
+              font-size: 7px;
+              color: #94a3b8;
+              font-weight: 700;
+              text-transform: uppercase;
+            }
+
+            /* Description Section */
+            .description-section {
+              border-left: 4px solid ${accentColor};
+              padding-left: 12px;
+              height: 26mm;
+              overflow: hidden;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+            }
+
+            .desc-title {
+              display: block;
+              font-weight: 900;
+              letter-spacing: 1px;
+              text-transform: uppercase;
+              font-size: 9px;
+              margin-bottom: 6px;
+              color: ${primaryColor};
+            }
+
+            .desc-body {
+              font-size: 10px;
+              line-height: 1.5;
+              color: #475569;
+              font-weight: 500;
+              display: -webkit-box;
+              -webkit-line-clamp: 3;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+            }
+
+            /* Footer Section */
+            .footer-section {
+              border-top: 1px solid #e2e8f0;
+              padding-top: 10px;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              height: 22mm;
+              overflow: hidden;
+            }
+
+            .agent-info {
+              display: flex;
+              flex-direction: column;
+              align-items: flex-start;
+              justify-content: flex-end;
+            }
+
+            .agent-label {
+              font-size: 8px;
+              font-weight: 900;
+              color: #94a3b8;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              line-height: 1;
+            }
+
+            .agent-name {
+              font-size: 15px;
+              font-weight: 900;
+              color: ${primaryColor};
+              margin: 4px 0 2px 0;
+              line-height: 1.2;
+            }
+
+            .branch-name {
+              font-size: 9px;
+              color: #64748b;
+              font-weight: 700;
+              margin: 0 0 6px 0;
+            }
+
+            .contact-info {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+            }
+
+            .phone-span {
+              font-size: 10px;
+              color: #1e293b;
+              font-weight: 900;
+            }
+
+            .address-span {
+              font-size: 9px;
+              color: #94a3b8;
+              font-weight: 700;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 280px;
+            }
+
+            .footer-right {
+              display: flex;
+              flex-direction: column;
+              align-items: flex-end;
+              justify-content: flex-end;
+            }
+
+            .badge-secure {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              background-color: #0f172a;
+              color: #ffffff;
+              font-weight: 900;
+              text-transform: uppercase;
+              font-size: 8px;
+              letter-spacing: 1px;
+              padding: 4px 8px;
+              border-radius: 4px;
+              margin-bottom: 4px;
+            }
+
+            .footer-desc {
+              font-size: 8px;
+              color: #94a3b8;
+              font-weight: 700;
+              margin: 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="poster-page">
+            <div class="double-border">
+              
+              <!-- Header -->
+              <div class="header-container">
+                <div class="brand-section">
+                  <h1 class="store-title">${storeName}</h1>
+                  <p class="brand-eyebrow">PREMIUM REAL ESTATE SOLUTIONS</p>
+                </div>
+                <div class="ref-section">
+                  <span class="ref-badge">REF: LP-${referenceNo}</span>
+                  <p class="date-text">İlan Tarihi: ${dateStr}</p>
+                </div>
+              </div>
+
+              <!-- Title & Location -->
+              <div class="title-container">
+                <div class="intent-tag">${titleText}</div>
+                <h2 class="property-title">${property.title}</h2>
+                <div class="location-pills">
+                  <span class="pill-loc">📍 ${property.location}</span>
+                  <span class="pill-country">
+                    ${property.country === 'KKTC' ? `KKTC • ${property.kktc_region || 'Girne'}` : `${property.country || 'Türkiye'}`}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Main Image -->
+              <div class="image-container">
+                ${imageUrl ? `
+                  <img src="${imageUrl}" alt="${property.title}" class="property-img" />
+                ` : `
+                  <div class="no-img-placeholder">
+                    <span style="font-size: 40px;">🏢</span>
+                    <span style="font-size: 11px; font-weight: bold; margin-top: 8px;">Görsel Bulunmuyor</span>
+                  </div>
+                `}
+                <div class="price-badge-container">
+                  <span class="price-label">${isRent ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'}</span>
+                  <span class="price-val">${priceText}</span>
+                </div>
+              </div>
+
+              <!-- Bento Specs -->
+              <div class="specs-grid">
+                <div class="spec-card">
+                  <span class="spec-card-title">ODA SAYISI</span>
+                  <span class="spec-card-val">${roomCount}</span>
+                  <span class="spec-card-sub">ROOMS</span>
+                </div>
+                <div class="spec-card">
+                  <span class="spec-card-title">NET ALAN</span>
+                  <span class="spec-card-val">${netArea}</span>
+                  <span class="spec-card-sub">NET AREA</span>
+                </div>
+                <div class="spec-card">
+                  <span class="spec-card-title">ISITMA SİSTEMİ</span>
+                  <span class="spec-card-val">${heating}</span>
+                  <span class="spec-card-sub">HEATING</span>
+                </div>
+                <div class="spec-card">
+                  <span class="spec-card-title">${deedLabel}</span>
+                  <span class="spec-card-val" style="color: #92400e;">${deedType}</span>
+                  <span class="spec-card-sub">${deedSubLabel}</span>
+                </div>
+              </div>
+
+              <!-- Description Summary Module -->
+              <div class="description-section">
+                <span class="desc-title">AÇIKLAMA VE PORTFÖY DETAYLARI • DESCRIPTION</span>
+                <div class="desc-body">${descContent}</div>
+              </div>
+
+              <!-- Footer -->
+              <div class="footer-section">
+                <div class="agent-info">
+                  <span class="agent-label">YETKİLİ GAYRİMENKUL DANIŞMANI</span>
+                  <h4 class="agent-name">${agentName}</h4>
+                  <p class="branch-name">Şube: ${branchName}</p>
+                  <div class="contact-info">
+                    ${phoneInfo ? `<span class="phone-span">${phoneInfo}</span>` : ''}
+                    ${addressInfo ? `<span class="address-span">${addressInfo}</span>` : ''}
+                  </div>
+                </div>
+                <div class="footer-right">
+                  <div class="badge-secure">🛡️ LOOKPRICE SECURE</div>
+                  <p class="footer-desc">Sektörün En Güçlü CRM & Emlak Entegrasyon Altyapısı</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(() => {
+                window.print();
+                setTimeout(() => { window.close(); }, 1500);
+              }, 600);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWin.document.close();
   };
 
   return (
@@ -868,7 +1400,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
       {/* Real Estate Poster Print Component */}
       {propertyToPrint && createPortal(
-        <div id="print-poster-wrapper" className="hidden print:block bg-white text-slate-900 font-sans" style={{ width: '210mm', height: '297mm', padding: '10mm', boxSizing: 'border-box' }}>
+        <div id="print-poster-wrapper" className="hidden print:block bg-white text-slate-900 font-sans" style={{ width: '210mm', height: '297mm', padding: '10mm', boxSizing: 'border-box', backgroundColor: '#ffffff' }}>
           <style>
             {`
               @media print {
@@ -882,6 +1414,10 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   background: white !important;
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+                body > *:not(#print-poster-wrapper) {
+                  display: none !important;
                 }
                 #print-poster-wrapper {
                   display: block !important;
@@ -905,279 +1441,266 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                   visibility: visible !important;
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
+                  color-adjust: exact !important;
                 }
                 .print-description-content * {
-                  color: #1e293b !important;
+                  color: #334155 !important;
                   background-color: transparent !important;
                   background: none !important;
                   font-family: inherit !important;
-                  font-size: 9.5px !important;
-                  line-height: 1.4 !important;
+                  font-size: 8px !important;
+                  line-height: 1.3 !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
                 }
-                .print-description-content p {
+                .print-description-content p, .print-description-content div {
                   margin-bottom: 2px !important;
+                }
+                .print-description-content ul, .print-description-content ol {
+                  padding-left: 10px !important;
+                  margin-bottom: 2px !important;
+                }
+                .print-description-content li {
+                  margin-bottom: 1px !important;
                 }
               }
             `}
           </style>
           <div 
-            className="flex flex-col border-[10px] border-double p-6 box-border" 
+            className="border-[10px] border-double box-border bg-white" 
             style={{ 
-              height: '100%', 
-              minHeight: '100%', 
-              maxHeight: '100%', 
+              height: '254mm', 
+              width: '100%',
+              padding: '5mm',
               boxSizing: 'border-box', 
               borderColor: branding?.page_layout_settings?.primary_color || "#0F172A",
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between'
+              display: 'block',
+              overflow: 'hidden'
             }}
           >
             
-            {/* Header */}
+            {/* Solid Brand Header - 16mm */}
             <div 
-              className="flex justify-between items-center pb-4 flex-shrink-0" 
+              className="px-0" 
               style={{ 
-                height: '70px', 
-                borderBottom: `2px solid ${branding?.page_layout_settings?.primary_color || "#0F172A"}`,
+                height: '16mm', 
+                marginBottom: '4mm',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                overflow: 'hidden'
               }}
             >
               <div>
-                <h1 className="text-3xl font-black tracking-tighter uppercase" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
+                <h1 className="text-[20px] font-black tracking-wider uppercase leading-none font-display" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
                   {branding?.store_name || branding?.name || 'SEÇKİN EMLAK'}
                 </h1>
-                <p className="text-[10px] font-black tracking-widest uppercase" style={{ color: branding?.page_layout_settings?.accent_color || "#4f46e5" }}>
-                  PREMIUM REAL ESTATE
+                <p className="text-[7.5px] font-black tracking-widest uppercase mt-1.5 leading-none opacity-90" style={{ color: branding?.page_layout_settings?.accent_color || "#4f46e5" }}>
+                  PREMIUM REAL ESTATE SOLUTIONS
                 </p>
               </div>
-              <div className="text-right">
+              <div className="text-right flex flex-col items-end justify-center">
                 <span 
-                  className="inline-block text-white font-mono text-[10px] font-bold px-2.5 py-1 rounded uppercase"
+                  className="inline-block text-white font-mono text-[8px] font-black px-2.5 py-0.5 rounded uppercase tracking-widest"
                   style={{ backgroundColor: branding?.page_layout_settings?.primary_color || "#0F172A" }}
                 >
-                  LP-{propertyToPrint.reference_no || propertyToPrint.id}
+                  REF: LP-{propertyToPrint.reference_no || propertyToPrint.id}
                 </span>
-                <p className="text-[10px] text-slate-500 mt-1">İlan Tarihi: {new Date(propertyToPrint.created_at || Date.now()).toLocaleDateString('tr-TR')}</p>
+                <p className="text-[7px] text-slate-500 font-bold mt-1.5 leading-none">İlan Tarihi: {new Date(propertyToPrint.created_at || Date.now()).toLocaleDateString('tr-TR')}</p>
               </div>
             </div>
 
-            {/* Title Section */}
+            {/* Title & Location Module - 16mm */}
             <div 
-              className="flex-shrink-0" 
+              className="pb-2 flex flex-col justify-center" 
               style={{ 
-                height: '90px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'center',
+                height: '16mm', 
+                marginBottom: '4mm',
                 boxSizing: 'border-box'
               }}
             >
-              <span className="text-[10px] font-black uppercase tracking-widest block mb-1" style={{ color: branding?.page_layout_settings?.accent_color || "#4f46e5" }}>
-                {propertyToPrint.type === 'residence' ? '🏠 KONUT PORTFÖYÜ' : propertyToPrint.type === 'commercial' ? '🏢 TİCARİ PORTFÖY' : '🌿 ARSA PORTFÖYÜ'}
-              </span>
-              <h2 className="text-2xl font-black tracking-tight leading-tight uppercase font-display line-clamp-2" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[7.5px] font-black uppercase tracking-widest" style={{ color: branding?.page_layout_settings?.accent_color || "#4f46e5" }}>
+                  {propertyToPrint.type === 'residence' ? '🏠 KONUT PORTFÖYÜ' : propertyToPrint.type === 'commercial' ? '🏢 TİCARİ PORTFÖY' : '🌿 ARSA PORTFÖYÜ'}
+                </span>
+              </div>
+              
+              <h2 
+                className="font-black tracking-tight leading-none uppercase font-display line-clamp-1 mb-2 text-slate-900" 
+                style={{ 
+                  color: branding?.page_layout_settings?.primary_color || "#0F172A",
+                  fontSize: propertyToPrint.title.length > 55 ? '13px' : '15px'
+                }}
+              >
                 {propertyToPrint.title}
               </h2>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-xs text-slate-600 font-bold bg-slate-100 px-2.5 py-1 rounded-md">
+
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full flex items-center gap-1 border border-slate-200 shadow-sm leading-none">
                   📍 {propertyToPrint.location}
                 </span>
-                {propertyToPrint.country === 'KKTC' && (
-                  <span className="text-xs font-bold bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
-                     KKTC • {propertyToPrint.kktc_region || 'Girne'}
-                  </span>
-                )}
+                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200 shadow-sm leading-none">
+                  {propertyToPrint.country === 'KKTC' ? `KKTC • ${propertyToPrint.kktc_region || 'Girne'}` : `${propertyToPrint.country || 'Türkiye'}`}
+                </span>
               </div>
             </div>
 
-            {/* Poster Image */}
+            {/* Poster Image - 112mm */}
             <div 
-              className="relative w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0"
+              className="w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200"
               style={{ 
-                height: '350px', 
-                minHeight: '350px', 
-                maxHeight: '350px',
-                boxSizing: 'border-box'
+                height: '112mm', 
+                marginBottom: '4mm',
+                boxSizing: 'border-box',
+                position: 'relative'
               }}
             >
               {propertyToPrint.images && propertyToPrint.images[0] ? (
                 <img 
                   src={propertyToPrint.images[0]} 
                   alt={propertyToPrint.title}
-                  className="w-full h-full object-cover"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
-                  <span className="text-5xl">🏢</span>
-                  <span className="text-xs mt-2 font-bold">Görsel Bulunmuyor</span>
+                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 absolute top-0 left-0">
+                  <span className="text-4xl">🏢</span>
+                  <span className="text-[10px] mt-2 font-bold">Görsel Bulunmuyor</span>
                 </div>
               )}
-              {/* Dynamic Price Plate */}
+              
               <div 
-                className="absolute bottom-4 right-4 text-white px-5 py-2.5 rounded-xl shadow-2xl border"
+                className="absolute bottom-4 right-4 rounded-xl px-4 py-2 text-white shadow-lg backdrop-blur-md border border-white/10"
                 style={{ 
                   backgroundColor: branding?.page_layout_settings?.primary_color || "#0F172A",
-                  borderColor: branding?.page_layout_settings?.accent_color || "#4f46e5",
-                  boxSizing: 'border-box'
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3)'
                 }}
               >
-                <span className="block text-[8px] font-black tracking-widest text-slate-300 uppercase">
-                  {propertyToPrint.listing_intent === 'rent' ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'}
-                </span>
-                <span className="text-xl font-black text-emerald-400">
-                  {propertyToPrint.currency === 'GBP' ? '£' : propertyToPrint.currency === 'USD' ? '$' : propertyToPrint.currency === 'EUR' ? '€' : '₺'}
-                  {formatNumberVal(propertyToPrint.price)}
-                </span>
-              </div>
-            </div>
-
-            {/* Basic Spec Table (Fit seamlessly in A4) */}
-            <div 
-              className="border-dashed border-slate-300 flex-shrink-0"
-              style={{ 
-                height: '180px', 
-                minHeight: '180px', 
-                maxHeight: '180px',
-                borderTopWidth: '1px',
-                borderBottomWidth: '1px',
-                paddingTop: '8px',
-                paddingBottom: '8px',
-                boxSizing: 'border-box',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                columnGap: '24px'
-              }}
-            >
-              <div className="space-y-0.5" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                  <span className="text-[10px] text-slate-500 font-medium">Metrekare (Net):</span>
-                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.square_meters ? `${formatNumberVal(propertyToPrint.square_meters)} m²` : 'Belirtilmedi'}</span>
-                </div>
-                {propertyToPrint.sqm_gross && propertyToPrint.listing_intent !== 'rent' ? (
-                  <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                    <span className="text-[10px] text-slate-500 font-medium">Metrekare (Brüt):</span>
-                    <span className="text-[10px] text-slate-900 font-extrabold">{formatNumberVal(propertyToPrint.sqm_gross)} m²</span>
-                  </div>
-                ) : (
-                  <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                    <span className="text-[10px] text-slate-500 font-medium">İlan Türü:</span>
-                    <span className="text-[10px] text-slate-900 font-extrabold uppercase">{propertyToPrint.listing_intent === 'rent' ? 'Kiralık' : 'Satılık'}</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                  <span className="text-[10px] text-slate-500 font-medium">Oda Sayısı:</span>
-                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.room_count || 'Belirtilmedi'}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                  <span className="text-[10px] text-slate-500 font-medium">Bina Yaşı:</span>
-                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.building_age || 'Sıfır (Yeni)'}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                  <span className="text-[10px] text-slate-500 font-medium">Kullanım Katı:</span>
-                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.floor || 'Giriş Kat'}</span>
-                </div>
-              </div>
-
-              <div className="space-y-0.5" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                  <span className="text-[10px] text-slate-500 font-medium">Isıtma Sistemi:</span>
-                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.heating || 'Klima'}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                  <span className="text-[10px] text-slate-500 font-medium">Eşya Durumu:</span>
-                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.furnished ? 'Evet / Eşyalı' : 'Hayır / Eşyasız'}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                  <span className="text-[10px] text-slate-500 font-medium">Site İçi mi:</span>
-                  <span className="text-[10px] text-slate-900 font-extrabold">{propertyToPrint.in_gated_community ? 'Evet' : 'Hayır'}</span>
-                </div>
-                {propertyToPrint.listing_intent === 'rent' ? (
-                  <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                    <span className="text-[10px] text-slate-500 font-medium">Ödeme Periyodu:</span>
-                    <span className="text-[10px] text-indigo-700 font-extrabold">
-                      {propertyToPrint.billing_period === 'yearly' ? 'Yıllık' :
-                       propertyToPrint.billing_period === '3-monthly' ? '3 Aylık' :
-                       propertyToPrint.billing_period === '6-monthly' ? '6 Aylık' : 'Aylık'}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                    <span className="text-[10px] text-slate-500 font-medium">Tapu Türü:</span>
-                    <span className="text-[10px] text-amber-800 font-extrabold">{propertyToPrint.kktc_title_type || 'Eşdeğer Koçan'}</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-b border-slate-100 pb-0.5">
-                  <span className="text-[10px] text-slate-500 font-medium">Depozito:</span>
-                  <span className="text-[10px] text-slate-900 font-extrabold">
-                    {propertyToPrint.deposit ? `${formatNumberVal(propertyToPrint.deposit)} ${propertyToPrint.currency || '₺'}` : 'Yok / Belirtilmedi'}
+                <div className="text-right">
+                  <span className="block text-[7px] font-black tracking-widest text-slate-300 uppercase leading-none mb-1">
+                    {propertyToPrint.listing_intent === 'rent' ? 'TALEP EDİLEN AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'}
+                  </span>
+                  <span className="text-[20px] font-black text-emerald-400 leading-none tracking-tight font-display drop-shadow-sm">
+                    {propertyToPrint.currency === 'GBP' ? '£' : propertyToPrint.currency === 'USD' ? '$' : propertyToPrint.currency === 'EUR' ? '€' : '₺'}
+                    {formatNumberVal(propertyToPrint.price)}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Short Marketing Description */}
+            {/* Bento Spec Highlights (4 Columns, Beautiful Visual Blocks) - 18mm */}
             <div 
-              className="text-slate-700 font-sans flex-shrink-0 relative flex flex-col"
+              className="w-full"
               style={{ 
-                height: '130px', 
-                minHeight: '130px', 
-                maxHeight: '130px',
-                overflow: 'hidden',
-                boxSizing: 'border-box'
+                height: '18mm', 
+                marginBottom: '4mm',
+                boxSizing: 'border-box',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                columnGap: '8px'
               }}
             >
-              <span className="block font-black mb-1 tracking-wider uppercase text-[8.5px]" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
-                AÇIKLAMA VE AYRINTILAR
+              {/* Card 1: Oda Sayısı */}
+              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 flex flex-col justify-center items-center text-center">
+                <span className="text-[7.5px] font-black uppercase text-slate-400 tracking-wider mb-1">ODA SAYISI</span>
+                <span className="text-[13px] font-black text-slate-800 leading-none mb-1">{propertyToPrint.room_count || 'Belirtilmedi'}</span>
+                <span className="text-[7px] text-slate-400 font-bold uppercase leading-none">ROOMS</span>
+              </div>
+
+              {/* Card 2: Alan */}
+              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 flex flex-col justify-center items-center text-center">
+                <span className="text-[7.5px] font-black uppercase text-slate-400 tracking-wider mb-1">NET ALAN</span>
+                <span className="text-[13px] font-black text-slate-800 leading-none mb-1">{propertyToPrint.square_meters ? `${formatNumberVal(propertyToPrint.square_meters)} m²` : 'Belirtilmedi'}</span>
+                <span className="text-[7px] text-slate-400 font-bold uppercase leading-none">NET AREA</span>
+              </div>
+
+              {/* Card 3: Isıtma */}
+              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 flex flex-col justify-center items-center text-center">
+                <span className="text-[7.5px] font-black uppercase text-slate-400 tracking-wider mb-1">ISITMA SİSTEMİ</span>
+                <span className="text-[11px] font-black text-slate-800 truncate max-w-full leading-none mb-1">{propertyToPrint.heating || 'Klima'}</span>
+                <span className="text-[7px] text-slate-400 font-bold uppercase leading-none">HEATING</span>
+              </div>
+
+              {/* Card 4: Tapu veya Eşya */}
+              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 flex flex-col justify-center items-center text-center">
+                <span className="text-[7.5px] font-black uppercase text-slate-400 tracking-wider mb-1">
+                  {propertyToPrint.listing_intent === 'rent' ? 'EŞYA DURUMU' : 'KOÇAN / TAPU'}
+                </span>
+                <span className="text-[10px] font-black text-amber-800 truncate max-w-full leading-none uppercase mb-1">
+                  {propertyToPrint.listing_intent === 'rent' 
+                    ? (propertyToPrint.furnished ? 'Eşyalı' : 'Eşyasız') 
+                    : (propertyToPrint.kktc_title_type || 'Eşdeğer Koçan')}
+                </span>
+                <span className="text-[7px] text-slate-400 font-bold uppercase leading-none">
+                  {propertyToPrint.listing_intent === 'rent' ? 'FURNITURE' : 'DEED TYPE'}
+                </span>
+              </div>
+            </div>
+
+            {/* Description Summary Module - 22mm */}
+            <div 
+              className="text-slate-700 font-sans relative flex flex-col justify-center overflow-hidden"
+              style={{ 
+                height: '22mm', 
+                marginBottom: '4mm',
+                boxSizing: 'border-box',
+                borderLeft: `3px solid ${branding?.page_layout_settings?.accent_color || "#4f46e5"}`,
+                paddingLeft: '10px'
+              }}
+            >
+              <span className="block font-black mb-1 tracking-wider uppercase text-[7.5px]" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
+                AÇIKLAMA VE PORTFÖY DETAYLARI • DESCRIPTION
               </span>
               {propertyToPrint.description ? (
                 <div 
-                  className="print-description-content text-[9.5px] columns-2 gap-x-6 gap-y-1 leading-relaxed overflow-hidden"
-                  style={{ columnFill: 'auto', height: '110px', maxHeight: '110px' }}
+                  className="print-description-content text-[8px] columns-2 gap-x-6 leading-snug overflow-hidden text-slate-600 font-medium"
+                  style={{ columnFill: 'auto', height: '100%', maxHeight: '100%' }}
                   dangerouslySetInnerHTML={{ __html: unescapeEntities(propertyToPrint.description) }}
                 />
               ) : (
-                <p className="text-[9.5px] text-slate-400 italic">Bu ilan için detaylı bir açıklama girilmemiştir.</p>
+                <p className="text-[8px] text-slate-400 italic">Bu gayrimenkul portföyü için detaylı teknik açıklama girilmemiştir. Lütfen yetkili danışmanımız ile irtibata geçiniz.</p>
               )}
-              <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+              <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-t from-white to-transparent pointer-events-none" />
             </div>
 
-            {/* Footer with agent details */}
+            {/* Footer with agent details - 20mm */}
             <div 
-              className="flex justify-between items-end flex-shrink-0"
+              className="border-t pt-2"
               style={{ 
-                height: '100px', 
-                borderTop: `1px solid ${branding?.page_layout_settings?.primary_color || "#0F172A"}`,
-                paddingTop: '12px',
+                height: '20mm', 
+                borderColor: '#e2e8f0',
                 boxSizing: 'border-box',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'flex-end'
+                alignItems: 'flex-end',
+                overflow: 'hidden'
               }}
             >
               <div>
-                <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">SORUMLU PORTFÖY DANIŞMANI</span>
-                <h4 className="text-sm font-black leading-snug mt-1" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
-                  {propertyToPrint.responsible_agent || 'Tüm Şubeler Yetkili'}
+                <span className="block text-[7.5px] font-black text-slate-400 uppercase tracking-widest leading-none">YETKİLİ GAYRİMENKUL DANIŞMANI</span>
+                <h4 className="text-[12px] font-black leading-tight mt-1" style={{ color: branding?.page_layout_settings?.primary_color || "#0F172A" }}>
+                  {propertyToPrint.responsible_agent || 'Sorumlu Şube Temsilcisi'}
                 </h4>
-                <p className="text-[10px] text-slate-500 font-medium mb-1">Yetkili Şube: {propertyToPrint.branch_name || 'Merkez Şube Office'}</p>
-                {branding?.phone && (
-                  <p className="text-[10px] text-slate-600 font-bold mb-0.5">📞 {branding.phone}</p>
-                )}
-                {branding?.address && (
-                  <p className="text-[9px] text-slate-400 font-medium max-w-[240px] leading-tight truncate">📍 {branding.address}</p>
-                )}
+                <p className="text-[8px] text-slate-500 font-bold mb-1">Şube: {propertyToPrint.branch_name || 'Merkez Ofis'}</p>
+                <div className="flex items-center gap-3 mt-1">
+                  {branding?.phone && (
+                    <span className="text-[9px] text-slate-800 font-black flex items-center gap-1">
+                      📞 {branding.phone}
+                    </span>
+                  )}
+                  {branding?.address && (
+                    <span className="text-[8px] text-slate-400 font-bold truncate max-w-[220px]">
+                      📍 {branding.address}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: branding?.page_layout_settings?.accent_color || "#4f46e5" }}>
-                  LOOKPRICE PORTAL GÜVENCESİ
-                </p>
-                <p className="text-[10px] text-slate-400 mt-1">Sektörün Güvenilir Emlak Yönetim Altyapısı</p>
+              <div className="text-right flex flex-col items-end justify-end">
+                <div className="flex items-center gap-1 mb-1 bg-slate-900 text-white font-black uppercase text-[7.5px] tracking-widest px-2 py-1 rounded">
+                  🛡️ LOOKPRICE SECURE
+                </div>
+                <p className="text-[7.5px] text-slate-450 font-bold leading-none">Sektörün En Güçlü CRM & Emlak Entegrasyon Altyapısı</p>
               </div>
             </div>
 

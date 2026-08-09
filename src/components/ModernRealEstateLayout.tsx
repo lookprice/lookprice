@@ -632,10 +632,6 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
         .store-theme-scoped .bg-indigo-700, 
         .store-theme-scoped .bg-amber-500, 
         .store-theme-scoped .bg-amber-600,
-        .store-theme-scoped button[class*="bg-indigo-"],
-        .store-theme-scoped button[class*="bg-amber-"],
-        .store-theme-scoped a[class*="bg-indigo-"],
-        .store-theme-scoped a[class*="bg-amber-"],
         .store-theme-scoped .bg-indigo-600\\/90,
         .store-theme-scoped .bg-amber-500\\/90 {
           background-color: var(--store-accent) !important;
@@ -644,9 +640,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
         
         .store-theme-scoped .text-indigo-600, 
         .store-theme-scoped .text-indigo-500, 
-        .store-theme-scoped .text-amber-500,
-        .store-theme-scoped span[class*="text-indigo-"],
-        .store-theme-scoped span[class*="text-amber-"] {
+        .store-theme-scoped .text-amber-500 {
           color: var(--store-accent) !important;
         }
         
@@ -659,9 +653,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
         .store-theme-scoped .bg-slate-950, 
         .store-theme-scoped .bg-slate-900, 
         .store-theme-scoped .bg-slate-900\\/95, 
-        .store-theme-scoped .bg-slate-950\\/95,
-        .store-theme-scoped div[class*="bg-slate-950"],
-        .store-theme-scoped div[class*="bg-slate-900"] {
+        .store-theme-scoped .bg-slate-950\\/95 {
           background-color: var(--store-primary) !important;
           color: var(--store-text-on-primary) !important;
         }
@@ -676,10 +668,10 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
         }
       ` }} />
       {/* Top Navbar */}
-      <div className="sticky top-0 left-0 w-full z-50 bg-slate-950/95 backdrop-blur-md text-white flex items-center justify-between px-4 sm:px-8 py-3.5 border-b border-slate-800 shadow-2xl">
+      <div className="sticky top-0 left-0 w-full z-50 bg-slate-950/95 backdrop-blur-md text-white flex items-center justify-between px-4 sm:px-8 py-1 md:py-1.5 border-b border-slate-800 shadow-2xl">
         <div className="flex items-center gap-3">
           {store.logo_url ? (
-            <img src={store.logo_url} className="h-12 md:h-16 max-w-[240px] md:max-w-[300px] object-contain drop-shadow" alt={store.name} />
+            <img src={store.logo_url} className="h-28 md:h-36 max-w-[320px] md:max-w-[400px] object-contain drop-shadow -my-8 md:-my-10" alt={store.name} />
           ) : (
             <div className="h-10 w-10 md:h-12 md:w-12 bg-white/90 backdrop-blur rounded-xl flex items-center justify-center shadow-lg">
               <Layout className="h-5 w-5 md:h-6 md:w-6 text-indigo-600" />
@@ -1173,7 +1165,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
             <div className="col-span-1 md:col-span-2 flex flex-col gap-4">
               <div className="flex flex-row items-center justify-between gap-4 w-full flex-nowrap">
                 {store.logo_url ? (
-                  <img src={store.logo_url} className="h-10 sm:h-16 md:h-20 w-auto max-w-[50%] object-contain filter drop-shadow-[0_4px_24px_rgba(255,255,255,0.08)] align-middle shrink-0" alt={store.name} />
+                  <img src={store.logo_url} className="h-20 sm:h-32 md:h-40 w-auto max-w-[50%] object-contain filter drop-shadow-[0_4px_24px_rgba(255,255,255,0.08)] align-middle shrink-0" alt={store.name} />
                 ) : (
                   <h2 className="text-lg sm:text-2xl font-black italic tracking-tighter uppercase text-white shrink-0 truncate max-w-[50%]">{store.name}</h2>
                 )}
