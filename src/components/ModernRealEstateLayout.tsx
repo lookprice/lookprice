@@ -26,6 +26,7 @@ import { ListingFinancingCalculator } from "./ListingFinancingCalculator";
 import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../data/realEstateConfig";
 
 import { StoreMapSection } from "./StoreMapSection";
+import { IDXSplitMapView } from "./IDXSplitMapView";
 
 interface ModernRealEstateLayoutProps {
   store: Store;
@@ -58,6 +59,48 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   const [applyPhone, setApplyPhone] = useState<string>("");
   const [applyEmail, setApplyEmail] = useState<string>("");
   const [applySuccess, setApplySuccess] = useState<boolean>(false);
+
+  // Property Submission / Sell-Rent Modal States
+  const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+  const [sellOwnerName, setSellOwnerName] = useState("");
+  const [sellPhone, setSellPhone] = useState("");
+  const [sellEmail, setSellEmail] = useState("");
+  const [sellRegion, setSellRegion] = useState("Girne");
+  const [sellPropType, setSellPropType] = useState("Daire");
+  const [sellExpectedPrice, setSellExpectedPrice] = useState("");
+  const [sellNotes, setSellNotes] = useState("");
+  const [sellSubmitting, setSellSubmitting] = useState(false);
+  const [sellSuccess, setSellSuccess] = useState(false);
+
+  const handlePropertySubmission = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sellOwnerName || !sellPhone) {
+      alert("Lütfen adınızı ve telefon numaranızı giriniz.");
+      return;
+    }
+    setSellSubmitting(true);
+    try {
+      await fetch('/api/public/property-submission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeSlug: store.slug,
+          ownerName: sellOwnerName,
+          ownerPhone: sellPhone,
+          ownerEmail: sellEmail,
+          propertyType: sellPropType,
+          location: sellRegion,
+          expectedPrice: sellExpectedPrice,
+          notes: sellNotes
+        })
+      });
+      setSellSuccess(true);
+    } catch (err) {
+      alert("İşlem sırasında bir hata oluştu.");
+    } finally {
+      setSellSubmitting(false);
+    }
+  };
 
   // Sync interest rate from store.financing_settings dynamically by active currency (e.g., TRY, GBP, EUR, USD)
   useEffect(() => {
@@ -557,7 +600,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
   return (
     <div className="flex-1 bg-white overflow-hidden min-h-screen relative w-full font-sans">
       {/* Top Navbar */}
-      <div className="absolute top-0 left-0 w-full z-40 bg-transparent flex items-center justify-between p-6">
+      <div className="sticky top-0 left-0 w-full z-50 bg-slate-950/95 backdrop-blur-md text-white flex items-center justify-between px-4 sm:px-8 py-3.5 border-b border-slate-800 shadow-2xl">
         <div className="flex items-center gap-3">
           {store.logo_url ? (
             <img src={store.logo_url} className="h-12 md:h-16 max-w-[240px] md:max-w-[300px] object-contain drop-shadow" alt={store.name} />
@@ -586,12 +629,167 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
               <a href="#financing-section" className="text-white/80 text-[10px] font-black uppercase tracking-widest hover:text-white cursor-pointer transition-colors shadow-sm">{lang === 'tr' ? 'FİNANSMAN' : 'FINANCING'}</a>
             </>
           )}
+          <button 
+            onClick={() => { setIsSellModalOpen(true); setSellSuccess(false); }}
+            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-2 rounded-xl text-[10px] uppercase tracking-wider shadow-lg transition-all flex items-center gap-1 active:scale-95"
+          >
+            🏠 {lang === 'tr' ? 'MÜLKÜNÜ SAT / KİRALA' : 'SELL PROPERTY'}
+          </button>
           <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer ml-2">MENU</div>
         </div>
-        <div className="md:hidden">
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer">MENU</div>
+        <div className="md:hidden flex items-center gap-2">
+          <button 
+            onClick={() => { setIsSellModalOpen(true); setSellSuccess(false); }}
+            className="bg-amber-500 text-slate-950 font-black px-2.5 py-1.5 rounded-lg text-[9px] uppercase tracking-tight shadow flex items-center gap-1 active:scale-95"
+          >
+            🏠 {lang === 'tr' ? 'MÜLKÜNÜ SAT / KİRALA' : 'SELL / RENT'}
+          </button>
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer">MENU</div>
         </div>
       </div>
+
+      {/* Mülkünü Sat / Kirala Modal */}
+      {isSellModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100 relative">
+            <div className="bg-slate-900 p-6 text-white relative">
+              <button 
+                onClick={() => setIsSellModalOpen(false)}
+                className="absolute top-5 right-5 h-8 w-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-slate-300 hover:text-white transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest mb-2 border border-amber-500/30">
+                🏡 MÜLK SAHİBİ BAŞVURU FORMU
+              </div>
+              <h3 className="text-xl font-black tracking-tight text-white">Mülkünüzü Ücretsiz Değerlendirelim</h3>
+              <p className="text-xs text-slate-400 mt-1 font-medium">
+                Mülkünüzü profesyonel pazarlama ağımıza ekleyelim, doğru alıcı ve kiracılarla en hızlı şekilde buluşturalım.
+              </p>
+            </div>
+
+            <div className="p-6">
+              {sellSuccess ? (
+                <div className="text-center py-8 space-y-4">
+                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                    <Check className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-lg font-black text-slate-900">Talebiniz Alındı!</h4>
+                  <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
+                    Gayrimenkul uzmanımız mülkünüzün analizi ve ekspertiz süreci için en kısa sürede sizinle iletişime geçecektir.
+                  </p>
+                  <button 
+                    onClick={() => setIsSellModalOpen(false)}
+                    className="mt-4 px-6 py-2.5 bg-slate-900 text-white text-xs font-black rounded-xl uppercase tracking-wider"
+                  >
+                    Kapat
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handlePropertySubmission} className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Ad Soyad *
+                    </label>
+                    <input 
+                      type="text" 
+                      required
+                      value={sellOwnerName}
+                      onChange={(e) => setSellOwnerName(e.target.value)}
+                      placeholder="Örn: Ahmet Yılmaz"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Telefon / WhatsApp *
+                      </label>
+                      <input 
+                        type="tel" 
+                        required
+                        value={sellPhone}
+                        onChange={(e) => setSellPhone(e.target.value)}
+                        placeholder="+90 533 ..."
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        E-Posta (İsteğe Bağlı)
+                      </label>
+                      <input 
+                        type="email" 
+                        value={sellEmail}
+                        onChange={(e) => setSellEmail(e.target.value)}
+                        placeholder="ornek@email.com"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Bölge / Şehir
+                      </label>
+                      <select 
+                        value={sellRegion}
+                        onChange={(e) => setSellRegion(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      >
+                        <option value="Girne">Girne</option>
+                        <option value="Lefkoşa">Lefkoşa</option>
+                        <option value="Gazimağusa">Gazimağusa</option>
+                        <option value="İskele">İskele</option>
+                        <option value="Güzelyurt">Güzelyurt</option>
+                        <option value="Lefke">Lefke</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Mülk Tipi
+                      </label>
+                      <select 
+                        value={sellPropType}
+                        onChange={(e) => setSellPropType(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      >
+                        <option value="Daire">Daire / Penthouse</option>
+                        <option value="Villa">Villa / Müstakil Ev</option>
+                        <option value="Arsa">Arsa / Arazi</option>
+                        <option value="Ticari">Ticari Dükkan / Ofis</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Beklenen Satış/Kira Fiyatı & Not
+                    </label>
+                    <input 
+                      type="text" 
+                      value={sellExpectedPrice}
+                      onChange={(e) => setSellExpectedPrice(e.target.value)}
+                      placeholder="Örn: £120,000 veya Satılık 3+1 Daire"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={sellSubmitting}
+                    className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2 mt-2"
+                  >
+                    {sellSubmitting ? "Gönderiliyor..." : "🚀 Ücretsiz Değerleme ve Portföy Başvurusu Yap"}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isContentModalOpen && activeContentMap && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
@@ -619,336 +817,9 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
         </div>
       )}
 
-      {/* Hero Container */}
-      {isSectionEnabled("hero") && (
-        <div className="h-[480px] relative flex flex-col items-center justify-center w-full overflow-hidden rounded-3xl shadow-xl border border-white/5">
-          {banners.map((slide: any, idx: number) => {
-            const isActive = activeBannerIndex === idx;
-            return (
-              <div
-                key={slide.id || idx}
-                className={`absolute inset-0 transition-opacity duration-1000 ${isActive ? 'opacity-100' : 'opacity-0'}`}
-                style={{
-                  backgroundImage: `url(${slide.image_url})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  zIndex: isActive ? 1 : 0
-                }}
-              ></div>
-            );
-          })}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/35 to-slate-950/90" style={{ zIndex: 2 }}></div>
 
-          {/* Active slide details overlay */}
-          {(() => {
-            const activeSlide = banners[activeBannerIndex] || banners[0];
-            if (!activeSlide) return null;
-            const rawName = (store as any)?.branding?.store_name || (store as any)?.branding?.name || store?.name || "";
-            const getDisplayStoreName = (name: string) => {
-              if (!name || name.toLowerCase().includes("lookprice")) {
-                return "Seçkin Emlak";
-              }
-              return name;
-            };
-            const displayName = getDisplayStoreName(rawName);
 
-            return (
-              <div 
-                className={`relative w-full h-full flex items-center px-8 md:px-16 py-12 ${
-                  activeSlide.text_position === 'left' 
-                    ? 'justify-start text-left' 
-                    : activeSlide.text_position === 'right' 
-                      ? 'justify-end text-right' 
-                      : 'justify-center text-center'
-                }`}
-                style={{ zIndex: 10 }}
-              >
-                <div className={`max-w-2xl flex flex-col space-y-4 ${
-                  activeSlide.text_position === 'left' 
-                    ? 'items-start' 
-                    : activeSlide.text_position === 'right' 
-                      ? 'items-end' 
-                      : 'items-center'
-                }`}>
-                  {activeSlide.show_store_name !== false && (
-                    <div className="inline-flex items-center gap-2 bg-indigo-600/20 backdrop-blur-xl px-4 py-1.5 rounded-full border border-indigo-400/30">
-                      <Check className="h-4 w-4 text-indigo-400" />
-                      <span className="text-[12px] font-black text-indigo-300 uppercase tracking-widest">
-                        {displayName}
-                      </span>
-                    </div>
-                  )}
-                  <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter leading-[0.95] drop-shadow-2xl">
-                    {activeSlide.title || content.hero.title}
-                  </h1>
-                  <p className="text-slate-300 text-sm md:text-base font-medium max-w-lg leading-relaxed italic drop-shadow-sm">
-                    "{activeSlide.subtitle || content.hero.subtitle}"
-                  </p>
-                  {(activeSlide as any).button_text && (
-                    <a
-                      href={(activeSlide as any).button_link || "#portfolio"}
-                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg transition-all hover:scale-105"
-                    >
-                      {(activeSlide as any).button_text}
-                    </a>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Slide dots indicators */}
-          {banners.length > 1 && (
-            <div className="absolute bottom-6 right-6 z-20 flex gap-2">
-              {banners.map((_: any, idx: number) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveBannerIndex(idx)}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    activeBannerIndex === idx ? "bg-white scale-125 w-4" : "bg-white/40 hover:bg-white/60"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto w-full px-4 lg:px-8 pb-32">
-        {/* Instagram-like Story Section */}
-        {products.length > 0 && (
-          <div className="mb-12">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 pl-2">
-              {lang === "tr" ? "YENİ & ACİL PORTFÖYLER" : "NEW & URGENT PORTFOLIOS"}
-            </h4>
-            <div className="flex gap-4 overflow-x-auto no-scrollbar py-2 px-2">
-              {products.slice(0, 8).map((p) => {
-                const isViewed = viewedStories.includes(p.id);
-                const isRent = p.sector_data?.listing_intent === 'rent' || p.category?.toLowerCase().includes('kira') || p.category?.toLowerCase().includes('rent');
-                const labelText = isRent 
-                  ? (lang === 'tr' ? 'KİRALIK' : 'RENT')
-                  : (lang === 'tr' ? 'ACİL' : 'URGENT');
-
-                return (
-                  <div 
-                    key={p.id}
-                    onClick={() => {
-                      if (!isViewed) {
-                        setViewedStories(prev => [...prev, p.id]);
-                      }
-                      onViewProduct(p);
-                    }}
-                    className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group"
-                  >
-                    {/* Circle Avatar */}
-                    <div className="relative">
-                      {/* Gradient Border ring */}
-                      <div className={`absolute inset-0 -m-1 rounded-full transition-all duration-300 ${
-                        isViewed 
-                          ? 'border-2 border-slate-200' 
-                          : 'bg-gradient-to-tr from-indigo-600 via-purple-500 to-rose-500 p-[2.5px]'
-                      }`} />
-                      
-                      {/* Inner image frame */}
-                      <div className="w-16 h-16 rounded-full border border-white overflow-hidden relative bg-slate-50">
-                        <img 
-                          src={p.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=200"}
-                          alt={p.name}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-
-                      {/* Small badge overlay */}
-                      <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-black text-white px-1.5 py-0.5 rounded-full shadow-md leading-none ${
-                        isRent ? 'bg-emerald-600' : 'bg-rose-600'
-                      }`}>
-                        {labelText}
-                      </span>
-                    </div>
-
-                    {/* Short Caption below circle */}
-                    <div className="text-center w-20">
-                      <p className="text-[10px] font-black text-slate-800 truncate uppercase leading-tight group-hover:text-indigo-600 transition-colors">
-                        {p.sector_data?.district || p.sector_data?.city || p.location || (lang === 'tr' ? 'Kıbrıs' : 'Cyprus')}
-                      </p>
-                      <p className="text-[8px] font-bold text-slate-400 mt-0.5">
-                        {p.price ? `${Number(p.price).toLocaleString('tr-TR')} ${p.currency || 'GBP'}` : ''}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Advanced Search Strip */}
-        {isSectionEnabled("search") && (
-          <div className="relative z-30 w-full mb-12 md:mb-24">
-            {/* Mobile Filter Button */}
-            <div className="md:hidden flex justify-center w-full relative z-40">
-                <button
-                  onClick={() => setIsMobileFiltersOpen(true)}
-                  className="bg-indigo-600 text-white px-8 py-3.5 rounded-2xl shadow-xl flex items-center gap-2 font-black tracking-widest text-xs uppercase"
-                >
-                  <SlidersHorizontal className="w-4 h-4" />
-                  {lang === "tr" ? "Filtrele" : "Filters"}
-                </button>
-            </div>
-
-            {/* Desktop Filters */}
-            <div className="hidden md:block bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl overflow-hidden">
-              <div 
-                className="p-6 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors" 
-                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-50 rounded-xl">
-                    <SlidersHorizontal className="h-5 w-5 text-indigo-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-sm uppercase tracking-widest text-slate-800 leading-none">
-                      {lang === "tr" ? "DETAYLI ARAMA & FİLTRELER" : "DETAILED SEARCH & FILTERS"}
-                    </h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                      {isFiltersOpen 
-                        ? (lang === "tr" ? "Filtreleri Gizlemek İçin Tıklayın" : "Click to Hide Filters")
-                        : (lang === "tr" ? "Filtreleri Göstermek İçin Tıklayın" : "Click to Show Filters")
-                      }
-                    </p>
-                  </div>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 font-bold text-xs transition-transform duration-200" style={{ transform: isFiltersOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
-                  ▼
-                </div>
-              </div>
-              
-              <div className={`${isFiltersOpen ? "block border-t border-slate-100" : "hidden"} transition-all`}>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {/* Step 1: Portfolio Type (Tipi) & Alt Tip (Subtype) */}
-                  <div className="group relative px-2 flex flex-col justify-center border-r border-slate-200">
-                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
-                      {lang === "tr" ? "PORTFÖY TİPİ" : "PORTFOLIO TYPE"}
-                    </p>
-                    <select
-                      value={pendingType}
-                      onChange={(e) => { setPendingType(e.target.value); setPendingSubType("all"); }}
-                      className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                    >
-                      <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                      <option value="residence">{lang === "tr" ? "Konut" : "Residential"}</option>
-                      <option value="commercial">{lang === "tr" ? "Ticari" : "Commercial"}</option>
-                      <option value="land">{lang === "tr" ? "Arsa" : "Land"}</option>
-                    </select>
-
-                    {pendingType !== "all" && (
-                      <>
-                        <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 mt-2">
-                          {lang === "tr" ? "ALT TİP" : "SUB TYPE"}
-                        </p>
-                        <select
-                          value={pendingSubType}
-                          onChange={(e) => setPendingSubType(e.target.value)}
-                          className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                        >
-                          <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                          {EMLAK_TIPI_SUB_TIPLERI[pendingType === 'residence' ? 'Konut' : pendingType === 'commercial' ? 'Ticari' : 'Arsa']?.map(st => (
-                            <option key={st} value={st}>{st}</option>
-                          ))}
-                        </select>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Step 2: Satılık / Kiralık (listingTypeFilter) */}
-                  <div className="group relative px-2 flex flex-col justify-center border-r border-slate-200">
-                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
-                      {lang === "tr" ? "DURUM (SATILIK/KİRALIK)" : "INTENT (FOR SALE/RENT)"}
-                    </p>
-                    <select
-                      value={listingTypeFilter}
-                      onChange={(e) => setListingTypeFilter(e.target.value as any)}
-                      className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                    >
-                      <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                      <option value="sale">{lang === "tr" ? "Satılık" : "For Sale"}</option>
-                      <option value="rent">{lang === "tr" ? "Kiralık" : "For Rent"}</option>
-                    </select>
-                  </div>
-
-                  {/* Step 3: Location (Ana Lokasyon & Alt Bölge) */}
-                  <div className="group relative px-2 flex flex-col justify-center border-r border-slate-200">
-                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
-                      {lang === "tr" ? "ANA LOKASYON" : "MAIN LOCATION"}
-                    </p>
-                    <select
-                      value={pendingLocation}
-                      onChange={(e) => { setPendingLocation(e.target.value); setPendingSubRegion("all"); }}
-                      className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                    >
-                      <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                      {Object.keys(REAL_ESTATE_REGIONS).map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-
-                    {pendingLocation !== "all" && (
-                      <>
-                        <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1 mt-2">
-                          {lang === "tr" ? "ALT BÖLGE" : "SUB REGION"}
-                        </p>
-                        <select
-                          value={pendingSubRegion}
-                          onChange={(e) => setPendingSubRegion(e.target.value)}
-                          className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                        >
-                          <option value="all">{lang === "tr" ? "Tümü" : "All"}</option>
-                          {REAL_ESTATE_REGIONS[pendingLocation as keyof typeof REAL_ESTATE_REGIONS]?.map(sr => (
-                            <option key={sr} value={sr}>{sr}</option>
-                          ))}
-                        </select>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Step 4: Budget in GBP */}
-                  <div className="group relative px-2 flex flex-col justify-center">
-                    <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] mb-1">
-                      {lang === "tr" ? "BÜTÇE (GBP)" : "BUDGET (GBP)"}
-                    </p>
-                    <div className="relative flex items-center justify-between pr-4">
-                      <select
-                        value={pendingBudget}
-                        onChange={(e) => setPendingBudget(e.target.value)}
-                        className="w-full bg-transparent text-sm font-black text-slate-900 focus:outline-none appearance-none cursor-pointer pr-8 py-1"
-                      >
-                        {budgetSpecs.ranges.map(opt => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                      <SlidersHorizontal className="absolute right-2 h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors pointer-events-none" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Search buttons & Clear */}
-                <div className="p-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <button 
-                    onClick={handleSearchTrigger}
-                    className="col-span-1 md:col-span-4 bg-slate-900 text-white py-4 rounded-3xl text-[12px] font-black uppercase tracking-[0.4em] hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 cursor-pointer"
-                  >
-                    {lang === "tr" ? "HAYALİNDEKİ MÜLKÜ BUL" : "FIND YOUR DREAM"}
-                  </button>
-                  <button 
-                    onClick={clearAllFilters}
-                    className="col-span-1 md:col-span-1 border border-slate-200 text-slate-500 py-4 rounded-3xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
-                  >
-                    {lang === "tr" ? "TEMİZLE" : "CLEAR"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-6 pt-2 pb-24">
         
         {/* Mobile Filters Modal */}
         <AnimatePresence>
@@ -966,7 +837,7 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] z-[201] md:hidden shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+                className="fixed bottom-2 left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] max-w-xl bg-white rounded-[2.5rem] z-[201] md:hidden shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-100"
               >
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-xl z-10">
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
@@ -1120,322 +991,16 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
 
           {/* Portfolio/Listing Grid Preview */}
           {isSectionEnabled("portfolio") && (
-            <div id="listings-section" className="space-y-12">
-              <div className="flex flex-col md:flex-row md:items-end justify-between border-b-2 border-slate-100 pb-8 gap-4">
-                <div className="space-y-2">
-                  <h3 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">
-                    {lang === "tr" ? "PORTFÖYÜMÜZ" : "OUR PORTFOLIO"}
-                  </h3>
-                  <div className="flex items-center gap-4">
-                    <div className="h-1 w-12 bg-indigo-600 rounded-full"></div>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
-                      {lang === "tr" ? "SEÇKİN YAŞAM ALANLARI" : "EXCLUSIVE LISTINGS"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Filter Selector Tabs */}
-                <div className="flex items-center gap-3 self-start md:self-end bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                  <button
-                    onClick={() => setListingTypeFilter("all")}
-                    className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                      listingTypeFilter === "all"
-                        ? "bg-slate-900 text-white shadow-md shadow-slate-950/20"
-                        : "text-slate-500 hover:text-slate-900"
-                    }`}
-                  >
-                    {lang === "tr" ? "TÜMÜ" : "ALL"}
-                  </button>
-                  <button
-                    onClick={() => setListingTypeFilter("sale")}
-                    className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                      listingTypeFilter === "sale"
-                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-650/20"
-                        : "text-slate-500 hover:text-slate-900"
-                    }`}
-                  >
-                    {lang === "tr" ? "SATILIK" : "FOR SALE"}
-                  </button>
-                  <button
-                    onClick={() => setListingTypeFilter("rent")}
-                    className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                      listingTypeFilter === "rent"
-                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-650/20"
-                        : "text-slate-500 hover:text-slate-900"
-                    }`}
-                  >
-                    {lang === "tr" ? "KİRALIK" : "FOR RENT"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Advanced Sorting & View Options Bar */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 border border-slate-100 p-4 rounded-[2rem]">
-                {/* Left: Product count */}
-                <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-2">
-                  {lang === "tr" 
-                    ? `TOPLAM ${displayedProducts.length} PORTFÖY LİSTELENİYOR` 
-                    : `LISTING ${displayedProducts.length} PORTFOLIOS`}
-                </div>
-                
-                {/* Right: Controls (Sorting and Layout) */}
-                <div className="flex items-center gap-4 flex-wrap">
-                  {/* Advanced Sorting */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'SIRALA:' : 'SORT:'}</span>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
-                    >
-                      <option value="default">{lang === 'tr' ? 'Gelişmiş Sıralama' : 'Advanced Sorting'}</option>
-                      <option value="price_desc">{lang === 'tr' ? 'Fiyata Göre (Önce En Yüksek)' : 'Price: High to Low'}</option>
-                      <option value="price_asc">{lang === 'tr' ? 'Fiyata Göre (Önce En Düşük)' : 'Price: Low to High'}</option>
-                      <option value="date_desc">{lang === 'tr' ? 'Tarihe Göre (Önce En Yeni)' : 'Date: Newest First'}</option>
-                      <option value="date_asc">{lang === 'tr' ? 'Tarihe Göre (Önce En Eski)' : 'Date: Oldest First'}</option>
-                    </select>
-                  </div>
-
-                  {/* Layout Toggle (Grid / List) */}
-                  <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl">
-                    <button
-                      onClick={() => setViewType("grid")}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
-                        viewType === "grid"
-                          ? "bg-slate-900 text-white shadow-sm"
-                          : "text-slate-500 hover:text-slate-900"
-                      }`}
-                    >
-                      <Grid className="w-3.5 h-3.5" />
-                      {lang === "tr" ? "GALERİ" : "GALLERY"}
-                    </button>
-                    <button
-                      onClick={() => setViewType("list")}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
-                        viewType === "list"
-                          ? "bg-slate-900 text-white shadow-sm"
-                          : "text-slate-500 hover:text-slate-900"
-                      }`}
-                    >
-                      <List className="w-3.5 h-3.5" />
-                      {lang === "tr" ? "LİSTE" : "LIST"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {displayedProducts.length === 0 ? (
-                <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-[3rem] bg-slate-50/50">
-                  <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">
-                    {lang === "tr" ? "Aramanıza uygun portföy bulunamadı." : "No matching portfolios found."}
-                  </p>
-                </div>
-              ) : viewType === "list" ? (
-                // Beautiful List Layout
-                <div className="flex flex-col gap-6">
-                  {displayedProducts.slice(0, visibleCount).map((p) => {
-                    const priceStr = formatPrice(p.price, store?.currency || p.currency);
-                    const isRent = p.sector_data?.listing_intent === 'rent' || p.category?.toLowerCase().includes('kira') || p.category?.toLowerCase().includes('rent');
-                    
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => onViewProduct(p)}
-                        className="group bg-white rounded-[2.5rem] overflow-hidden border border-slate-100 hover:border-slate-200 hover:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.06)] transition-all duration-500 cursor-pointer flex flex-col md:flex-row"
-                      >
-                        {/* Left image */}
-                        <div className="w-full md:w-[350px] shrink-0 relative overflow-hidden aspect-[16/11] md:aspect-auto md:h-60 bg-slate-50">
-                          <div
-                            className="h-full w-full bg-cover bg-center transition-transform duration-[2s] group-hover:scale-110"
-                            style={{
-                              backgroundImage: `url(${p.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"})`,
-                            }}
-                          ></div>
-                          <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-                            <span className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-lg text-[9px] font-black text-slate-900 uppercase tracking-widest shadow-sm border border-slate-100">
-                              {isRent ? (lang === "tr" ? "KİRALIK" : "FOR RENT") : (lang === "tr" ? "SATILIK" : "FOR SALE")}
-                            </span>
-                            
-                            {(p.status === 'rented' || (p as any).status === 'rented') && (
-                              <span className="bg-emerald-600/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-[9px] font-black text-white uppercase tracking-widest shadow-lg animate-pulse">
-                                {lang === "tr" ? "KİRALANDI" : "RENTED"}
-                              </span>
-                            )}
-                            {(p.status === 'sold' || (p as any).status === 'sold') && (
-                              <span className="bg-rose-600/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-[9px] font-black text-white uppercase tracking-widest shadow-lg animate-pulse">
-                                {lang === "tr" ? "SATILDI" : "SOLD"}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Right details */}
-                        <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between gap-2 text-[9px] font-black tracking-wider uppercase text-slate-400">
-                              {p.reference_no ? (
-                                <span className="font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 font-bold">
-                                  #{p.reference_no}
-                                </span>
-                              ) : <span></span>}
-                              <span>
-                                {lang === "tr" ? (p.category === "residence" ? "KONUT" : p.category === "commercial" ? "TİCARİ" : p.category === "land" ? "ARSA" : p.category) : p.category}
-                              </span>
-                            </div>
-
-                            <h4 className="text-lg md:text-xl font-extrabold tracking-tight text-slate-900 uppercase group-hover:text-indigo-600 transition-colors leading-snug">
-                              {p.name}
-                            </h4>
-
-                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 w-fit">
-                              <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
-                              <span className="truncate">
-                                {p.location || p.sector_data?.location || p.sector_data?.district || (lang === 'tr' ? 'Kuzey Kıbrıs' : 'North Cyprus')}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4">
-                            <div className="flex gap-4 text-[10px] font-bold text-slate-600">
-                              {p.sector_data?.rooms && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-indigo-500 text-xs">🛏️</span>
-                                  <span>{lang === "tr" ? "Oda:" : "Rooms:"} <span className="text-slate-900 font-black">{p.sector_data.rooms}</span></span>
-                                </div>
-                              )}
-                              {p.sector_data?.square_meters && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-emerald-500 text-xs">📏</span>
-                                  <span>{lang === "tr" ? "Net:" : "Net:"} <span className="text-slate-900 font-black">{p.sector_data.square_meters} m²</span></span>
-                                </div>
-                              )}
-                            </div>
-
-                            <p className="text-2xl font-black text-indigo-600 tracking-tight">
-                              {priceStr}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                // Beautiful Grid Layout
-                <div className={`grid gap-10 ${layoutConfig.grid === 'masonry' ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-                  {displayedProducts.slice(0, visibleCount).map((p, i) => {
-                    const priceStr = formatPrice(p.price, store?.currency || p.currency);
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => onViewProduct(p)}
-                        className="group bg-white rounded-[3rem] overflow-hidden border border-slate-100 hover:border-slate-200 hover:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.06)] transition-all duration-500 cursor-pointer flex flex-col justify-between"
-                      >
-                        <div className={`relative overflow-hidden ${layoutConfig.grid === 'masonry' ? (i % 2 === 0 ? 'aspect-[3/4]' : 'aspect-square') : 'aspect-[16/11]'}`}>
-                          <div
-                            className="h-full w-full bg-cover bg-center transition-transform duration-[2s] group-hover:scale-110"
-                            style={{
-                              backgroundImage: `url(${p.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"})`,
-                            }}
-                          ></div>
-                          <div className="absolute top-6 left-6 flex flex-wrap gap-2">
-                            {/* Listing Type Badge */}
-                            <span className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-slate-900 uppercase tracking-widest shadow-sm border border-slate-100">
-                              {p.sector_data?.listing_intent === 'rent' || p.category?.toLowerCase().includes('kira') || p.category?.toLowerCase().includes('rent')
-                                ? (lang === "tr" ? "KİRALIK" : "FOR RENT")
-                                : (lang === "tr" ? "SATILIK" : "FOR SALE")}
-                            </span>
-
-                            {/* Finalized Status Badge/Overlay */}
-                            {(p.status === 'rented' || (p as any).status === 'rented') && (
-                              <span className="bg-emerald-600/90 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-white uppercase tracking-widest shadow-lg animate-pulse">
-                                {lang === "tr" ? "KİRALANDI" : "RENTED"}
-                              </span>
-                            )}
-                            {(p.status === 'sold' || (p as any).status === 'sold') && (
-                              <span className="bg-rose-600/90 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-white uppercase tracking-widest shadow-lg animate-pulse">
-                                {lang === "tr" ? "SATILDI" : "SOLD"}
-                              </span>
-                            )}
-                            {p.status === 'optioned' && (
-                              <span className="bg-amber-500/90 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black text-white uppercase tracking-widest shadow-lg">
-                                {lang === "tr" ? "OPSİYONLU" : "OPTIONED"}
-                              </span>
-                            )}
-                          </div>
-                          
-                          {/* Sold/Rented Overlay on image */}
-                          {(p.status === 'sold' || p.status === 'rented') && (
-                            <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center backdrop-grayscale-[0.5]">
-                               <div className="border-4 border-white/40 px-8 py-4 -rotate-12">
-                                  <span className="text-3xl font-black text-white uppercase tracking-[0.2em] drop-shadow-2xl">
-                                     {p.status === 'sold' ? (lang === 'tr' ? 'SATILDI' : 'SOLD') : (lang === 'tr' ? 'KİRALANDI' : 'RENTED')}
-                                  </span>
-                               </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-8 space-y-3 px-6 pb-8">
-                          <div className="flex items-center justify-between gap-2 text-[10px] font-black tracking-wider uppercase text-slate-400">
-                            {p.reference_no ? (
-                              <span className="font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 font-bold">
-                                #{p.reference_no}
-                              </span>
-                            ) : <span></span>}
-                            <span>
-                              {lang === "tr" ? (p.category === "residence" ? "KONUT / RESIDENCE" : p.category === "commercial" ? "TİCARİ" : p.category === "land" ? "ARSA / LAND" : p.category) : p.category}
-                            </span>
-                          </div>
-
-                          <h4 className="text-[14px] md:text-[15px] font-extrabold tracking-tight text-slate-900 uppercase group-hover:text-indigo-600 transition-colors leading-snug line-clamp-2 min-h-[40px] flex items-center">
-                            {p.name}
-                          </h4>
-
-                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-50 px-3 py-2 rounded-2xl border border-slate-100/80">
-                            <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
-                            <span className="truncate">
-                              {p.location || p.sector_data?.location || p.sector_data?.district || (lang === 'tr' ? 'Kuzey Kıbrıs' : 'North Cyprus')}
-                            </span>
-                          </div>
-
-                          {/* Real Estate Specific details inside grid */}
-                          <div className="grid grid-cols-2 gap-2 py-1 border-y border-slate-100 text-[10px] font-bold text-slate-600">
-                            {p.sector_data?.rooms ? (
-                              <div className="flex items-center gap-1">
-                                <span className="text-indigo-500 font-extrabold text-xs">🛏️</span>
-                                <span>{lang === "tr" ? "Oda:" : "Rooms:"} <span className="text-slate-900 font-black">{p.sector_data.rooms}</span></span>
-                              </div>
-                            ) : null}
-                            {p.sector_data?.square_meters ? (
-                              <div className="flex items-center gap-1">
-                                <span className="text-emerald-500 font-extrabold text-xs">📏</span>
-                                <span>{lang === "tr" ? "Net:" : "Net:"} <span className="text-slate-900 font-black">{p.sector_data.square_meters} m²</span></span>
-                              </div>
-                            ) : null}
-                          </div>
-
-                          <div className="flex items-center justify-between pt-2">
-                             <p className="text-xl font-black text-indigo-600 tracking-tight">
-                                {priceStr}
-                             </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              
-              {displayedProducts.length > visibleCount && (
-                <div className="mt-16 flex justify-center">
-                  <button 
-                    onClick={() => setVisibleCount(prev => prev + 12)}
-                    className="px-8 py-3 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 hover:-translate-y-1"
-                  >
-                    {lang === "tr" ? "Daha Fazla Göster" : "Load More"}
-                  </button>
-                </div>
-              )}
+            <div id="listings-section" className="space-y-4">
+              {/* High-End IDX Split View Component */}
+              <IDXSplitMapView
+                products={products}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                formatPrice={formatPrice}
+                onOpenSellModal={() => { setIsSellModalOpen(true); setSellSuccess(false); }}
+              />
             </div>
           )}
 
@@ -1538,69 +1103,10 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
               </div>
             </div>
           )}
-
-          {/* Team Segment */}
-          {isSectionEnabled("team") && (
-            <div className="space-y-16">
-              <div className="text-center space-y-4 max-w-2xl mx-auto">
-                <div className="h-1 w-16 bg-indigo-600 mx-auto"></div>
-                <h3 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none">
-                  {lang === "tr" ? "GÜVEN BİZİM GENETİĞİMİZDE VAR" : "TRUST IS IN OUR DNA"}
-                </h3>
-                <p className="text-base font-bold text-slate-500 leading-relaxed">
-                  {lang === "tr"
-                    ? "Brokerlarımızın tecrübesiyle, her mülk doğru yatırımdır."
-                    : "Our brokers bring experience to every transaction."}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {team.map((tm, idx) => (
-                  <div key={idx} className="group cursor-pointer">
-                    <div className="aspect-[3/4] bg-slate-100 rounded-[3rem] overflow-hidden relative shadow-xl hover:-translate-y-4 transition-all duration-700">
-                      <img
-                        src={tm.image}
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400";
-                        }}
-                        className="h-full w-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-700 scale-105"
-                        alt={tm.name}
-                      />
-                    </div>
-                    <div className="mt-8 text-center space-y-2">
-                      <p className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                        {tm.name}
-                      </p>
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                        {tm.role}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Stats */}
-      {isSectionEnabled("stats") && (
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 mt-16">
-          <div className="grid grid-cols-3 gap-2 md:gap-12 border-y border-slate-200 py-4 md:py-12">
-            {content.stats.map((st, i) => (
-              <div key={i} className="text-center group flex flex-col justify-between">
-                <p className="text-xl sm:text-3xl md:text-5xl font-black text-slate-900 mb-0.5 md:mb-2 group-hover:scale-110 transition-transform">
-                  {st.value}
-                </p>
-                <div className="h-0.5 w-4 md:w-8 bg-indigo-600 mx-auto mb-1 md:mb-4 rounded-full"></div>
-                <p className="text-[8px] sm:text-[10px] md:text-[12px] font-black text-slate-400 uppercase tracking-tight leading-tight sm:tracking-widest truncate">
-                  {st.label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       <div className="max-w-7xl mx-auto px-4 lg:px-8 mb-24">
         <StoreMapSection store={store} />
@@ -1609,6 +1115,28 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
       {/* Footer */}
       <footer className="bg-slate-900 pt-12 pb-8 text-white mt-16">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
+          {/* Güven ve Referanslar Bölümü - Full Width Bar */}
+          <div className="py-8 bg-slate-800/80 rounded-[2rem] border border-slate-700/60 shadow-xl mb-12 backdrop-blur-md">
+            <h2 className="text-xl font-black text-amber-400 text-center mb-6 uppercase tracking-widest">Güvenin Adresi</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 px-6">
+              <div className="text-center p-4 bg-slate-900/50 rounded-2xl border border-slate-700/40">
+                <div className="text-amber-400 font-black text-3xl mb-1">500+</div>
+                <h3 className="font-bold text-white text-sm mb-0.5">Başarılı İşlem</h3>
+                <p className="text-slate-400 text-[10px] uppercase tracking-widest font-semibold">Tecrübeli Portföy</p>
+              </div>
+              <div className="text-center p-4 bg-slate-900/50 rounded-2xl border border-slate-700/40">
+                <div className="text-emerald-400 font-black text-3xl mb-1">%98</div>
+                <h3 className="font-bold text-white text-sm mb-0.5">Memnuniyet</h3>
+                <p className="text-slate-400 text-[10px] uppercase tracking-widest font-semibold">Şeffaf Süreç</p>
+              </div>
+              <div className="text-center p-4 bg-slate-900/50 rounded-2xl border border-slate-700/40">
+                <div className="text-indigo-400 font-black text-3xl mb-1">15+</div>
+                <h3 className="font-bold text-white text-sm mb-0.5">Yıllık Deneyim</h3>
+                <p className="text-slate-400 text-[10px] uppercase tracking-widest font-semibold">Köklü Güven</p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 pb-8 border-b border-slate-800 items-start">
             <div className="col-span-1 md:col-span-2 flex flex-col gap-4">
               <div className="flex flex-row items-center justify-between gap-4 w-full flex-nowrap">

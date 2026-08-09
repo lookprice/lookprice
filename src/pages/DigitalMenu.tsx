@@ -885,7 +885,7 @@ export default function DigitalMenuPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xl bg-white rounded-t-[2.5rem] shadow-2xl border-t border-slate-100 z-50 max-h-[85vh] flex flex-col"
+              className="fixed bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] max-w-xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100/80 z-50 max-h-[85vh] flex flex-col overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -1004,7 +1004,7 @@ export default function DigitalMenuPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xl bg-white rounded-t-[2.5rem] shadow-2xl border-t border-slate-100 z-50 max-h-[85vh] flex flex-col"
+              className="fixed bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] max-w-xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100/80 z-50 max-h-[85vh] flex flex-col overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -1153,7 +1153,7 @@ export default function DigitalMenuPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xl bg-white rounded-t-[2.5rem] shadow-2xl border-t border-slate-100 z-50 max-h-[85vh] flex flex-col"
+              className="fixed bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] max-w-xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100/80 z-50 max-h-[85vh] flex flex-col overflow-hidden"
             >
               <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-indigo-50/50">
                 <div className="flex items-center gap-3">

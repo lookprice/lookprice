@@ -79,6 +79,8 @@ export const DashboardSidebar = ({
     settings: false
   });
 
+  const storeLogoUrl = branding?.logo_url || branding?.logo;
+
   return (
     <>
       {/* Mobile Sidebar Overlay */}
@@ -102,12 +104,23 @@ export const DashboardSidebar = ({
         <div className="flex flex-col h-full">
           <div className="p-8 border-b border-indigo-500/10 flex items-center justify-between">
             <div className="flex items-center space-x-4 min-w-0">
-              <div className="p-2.5 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-500/20 scale-110 shrink-0">
-                <Logo size={28} className="text-white" />
-              </div>
+              {storeLogoUrl ? (
+                <div className="w-12 h-12 bg-white/95 rounded-2xl shadow-xl shadow-indigo-500/20 p-1 flex items-center justify-center shrink-0 border border-white/15 overflow-hidden">
+                  <img 
+                    src={storeLogoUrl} 
+                    alt={branding.store_name || branding.name || "Logo"} 
+                    className="w-full h-full object-contain rounded-xl"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              ) : (
+                <div className="p-2.5 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-500/20 scale-110 shrink-0">
+                  <Logo size={28} className="text-white" />
+                </div>
+              )}
               <div className="min-w-0">
                 <h1 className="text-lg font-black text-white tracking-tighter leading-none truncate max-w-[120px]">
-                  {branding.name || branding.store_name || "LookPrice"}
+                  {branding.store_name || branding.name || "LookPrice"}
                 </h1>
                 <div className="flex items-center space-x-1.5 mt-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

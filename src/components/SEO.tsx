@@ -52,9 +52,10 @@ const SEO: React.FC<SEOProps> = ({
 
       {/* Structured Data (JSON-LD) */}
       {schemaData && (
-        <script type="application/ld+json">
-          {JSON.stringify(schemaData)}
-        </script>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+        />
       )}
     </Helmet>
   );

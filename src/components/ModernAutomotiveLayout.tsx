@@ -1050,7 +1050,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[3rem] p-8 max-h-[85vh] overflow-y-auto"
+              className="fixed bottom-2 left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] max-w-xl bg-white rounded-[2.5rem] p-6 sm:p-8 max-h-[85vh] overflow-y-auto shadow-2xl border border-slate-100"
             >
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">

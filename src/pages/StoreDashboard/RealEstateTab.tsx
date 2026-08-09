@@ -682,6 +682,15 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                       </div>
 
                       <div className="flex gap-1.5 items-center flex-wrap shrink-0 sm:justify-end">
+                        <a
+                          href={`/mulk-takip/${property.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center p-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl transition-all shadow active:scale-95 border border-emerald-200 shrink-0"
+                          title="Mülk Sahibi Canlı Takip & İstatistik Ekranı"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </a>
                         <button
                           onClick={() => { setContractProperty(property); setIsContractModalOpen(true); }}
                           className="flex items-center justify-center p-2.5 bg-slate-900 text-white hover:bg-slate-800 rounded-xl transition-all shadow active:scale-95 border border-slate-950 shrink-0"

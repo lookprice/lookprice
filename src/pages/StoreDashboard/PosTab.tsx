@@ -162,7 +162,7 @@ const PosTab = ({
                       </div>
                     </td>
                     <td className="px-6 py-5 text-[13px] font-black text-slate-500 uppercase tracking-tight">
-                      {s.customer_name || "WALK_IN_CUSTOMER"}
+                      {s.customer_name || (lang === 'tr' ? 'Perakende Müşteri' : 'Walk-in Customer')}
                     </td>
                     <td className="px-6 py-5">
                       <div className="text-[15px] font-black text-slate-900 mono-data tracking-tighter">
@@ -243,7 +243,7 @@ const PosTab = ({
         {totalPages > 1 && (
           <div className="px-8 py-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-              {sales.length} RECORDS_PARSED
+              {sales.length} {lang === 'tr' ? 'SATIŞ KAYDI' : 'RECORDS FOUND'}
             </p>
             <div className="flex items-center space-x-6">
               <button 

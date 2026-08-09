@@ -37,6 +37,7 @@ const HoReCaLanding = React.lazy(() => import("./pages/HoReCaLanding"));
 const AutoLanding = React.lazy(() => import("./pages/AutoLanding"));
 const REstateLanding = React.lazy(() => import("./pages/REstateLanding"));
 const ShopLanding = React.lazy(() => import("./pages/ShopLanding"));
+const PropertyTrackingPage = React.lazy(() => import("./pages/PropertyTrackingPage"));
 
 const SuspenseLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -202,6 +203,7 @@ export default function App() {
           <Routes>
             {/* Scan Routes */}
             <Route path="/scan/:slug?" element={<CustomerScanPage customSlug={detectedSlug || undefined} />} />
+            <Route path="/mulk-takip/:code" element={<PropertyTrackingPage />} />
             <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/profile" element={<StoreShowcase customSlug={detectedSlug} />} />
@@ -260,6 +262,8 @@ export default function App() {
             <Route path="/terms" element={<LegalPage type="terms" />} />
             <Route path="/data-deletion" element={<LegalPage type="deletion" />} />
             <Route path="/reconciliation/:reconId" element={<React.Suspense fallback={<SuspenseLoader />}><PublicReconciliationPage /></React.Suspense>} />
+            <Route path="/mulk-takip/:code" element={<PropertyTrackingPage />} />
+            <Route path="/s/:slug/mulk-takip/:code" element={<PropertyTrackingPage />} />
             
             {/* Auth Routes */}
             <Route path="/login" element={

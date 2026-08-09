@@ -484,6 +484,32 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
           <div className="space-y-4">
             <h4 className="text-sm font-black text-slate-800 border-l-4 border-slate-800 pl-2">Temel İlan Detayları</h4>
             
+            {/* Kelepir & Fırsat / VIP Badges */}
+            <div className="bg-amber-50/80 border border-amber-200/80 p-3.5 rounded-2xl flex flex-wrap items-center gap-6 shadow-2xs">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={Boolean((formData as any).is_discounted)}
+                  onChange={(e) => setFormData({ ...formData, is_discounted: e.target.checked } as any)}
+                  className="w-4 h-4 text-rose-600 rounded border-amber-300 focus:ring-rose-500 cursor-pointer"
+                />
+                <span className="text-xs font-black text-rose-900 uppercase tracking-wide">
+                  🔥 Kelepir & Fırsat İlanı (Fırsat Kampanyaları & Kelepirler)
+                </span>
+              </label>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={Boolean((formData as any).is_featured)}
+                  onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked } as any)}
+                  className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500 cursor-pointer"
+                />
+                <span className="text-xs font-black text-amber-900 uppercase tracking-wide">
+                  ⭐ Öne Çıkan / VIP İlan
+                </span>
+              </label>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-1">
                 <label className="block text-xs font-bold text-slate-500 mb-1">Referans / Portföy No</label>

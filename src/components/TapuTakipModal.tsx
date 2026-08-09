@@ -114,8 +114,9 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
     const currencySym = feeCurrency === 'GBP' ? '£' : feeCurrency === 'USD' ? '$' : feeCurrency === 'EUR' ? '€' : '₺';
     const formattedFee = feeAmount ? `${currencySym}${new Intl.NumberFormat('tr-TR').format(parseFloat(feeAmount))}` : "Henüz Belirlenmedi";
     const appTime = formatDateTime(appointmentDateTime);
+    const trackingUrl = `${window.location.origin}/mulk-takip/${property.id}`;
 
-    return `Sayın *${name}*,\n\n*[LP-${property.id}] ${property.title}* portföyünüzün Girne/Kıbrıs Tapu Dairesi işlemleri ile ilgili tescil süreci güncellenmiştir:\n\n📂 *Tapu Başvuru No:* ${appNumber || 'İnceleme Aşamasında'}\n📊 *İşlem Aşaması:* ${stage}\n💰 *Hesaplanan Tapu Harcı:* ${formattedFee}\n📅 *Randevu Günü ve Saati:* ${appTime}\n\n*Açıklama:* Tapu dairesi randevu saatinden 15 dakika önce tüm orijinal kimlik, pasaport belgeleriniz ve ödeme makbuzları ile birlikte hazır bulunmanız önemle rica olunur.\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    return `Sayın *${name}*,\n\n*[LP-${property.id}] ${property.title}* portföyünüzün Girne/Kıbrıs Tapu Dairesi tescil süreci ve pazarlama raporu güncellenmiştir:\n\n📂 *Tapu Başvuru No:* ${appNumber || 'İnceleme Aşamasında'}\n📊 *İşlem Aşaması:* ${stage}\n💰 *Hesaplanan Tapu Harcı:* ${formattedFee}\n📅 *Randevu Günü ve Saati:* ${appTime}\n\n🌐 *Canlı Mülk Takip ve Tescil Linkiniz:* ${trackingUrl}\n\n*Açıklama:* Tapu dairesi randevu saatinden 15 dakika önce tüm orijinal kimlik, pasaport belgeleriniz ve ödeme makbuzları ile birlikte hazır bulunmanız önemle rica olunur.\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
   };
 
   const handleShareWhatsApp = (role: 'buyer' | 'seller') => {
@@ -370,8 +371,17 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
                       className="col-span-2 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 font-bold text-[10px] rounded-xl flex items-center justify-center gap-1 transition-all"
                     >
                       {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
-                      {copied ? "Kopyalandı!" : "Metni Panoya Kopyala"}
+                      {copied ? "Kopyalandı!" : "Rapor Metnini Kopyala"}
                     </button>
+
+                    <a 
+                      href={`/mulk-takip/${property.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="col-span-2 py-2.5 bg-gradient-to-r from-indigo-900 to-slate-900 hover:from-indigo-800 hover:to-slate-800 text-indigo-200 border border-indigo-700/50 font-black text-[11px] rounded-xl flex items-center justify-center gap-1.5 transition-all text-center"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-indigo-400" /> Mülk Sahibine Özel Canlı Ekranı Aç ➔
+                    </a>
                   </div>
                 </div>
 

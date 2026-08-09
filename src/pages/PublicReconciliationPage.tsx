@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { CheckCircle2, AlertCircle, FileCheck, Building, ShieldCheck, ArrowRight, Printer, Receipt, Calendar } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
+import { api } from "../services/api";
 
 export default function PublicReconciliationPage() {
   const { reconId } = useParams();
@@ -15,55 +16,79 @@ export default function PublicReconciliationPage() {
   const [showDisputeModal, setShowDisputeModal] = useState(false);
 
   useEffect(() => {
-    try {
-      let found = null;
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('storeReconciliations_')) {
-          const list = JSON.parse(localStorage.getItem(key) || '[]');
-          const match = list.find((r: any) => String(r.id) === String(reconId));
-          if (match) {
-            found = match;
-            break;
+    async function loadReconciliation() {
+      try {
+        let found = null;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('storeReconciliations_')) {
+            const list = JSON.parse(localStorage.getItem(key) || '[]');
+            const match = list.find((r: any) => String(r.id) === String(reconId));
+            if (match) {
+              found = match;
+              break;
+            }
           }
         }
-      }
-      
-      if (!found && reconId) {
-        const demoStored = localStorage.getItem(`recon_${reconId}`);
-        if (demoStored) {
-          found = JSON.parse(demoStored);
-        }
-      }
-
-      if (found) {
-        // Sanitize found object to display premium fallbacks for any missing details or "LookPrice" text
-        const sanitized = { ...found };
-        const rawStoreName = sanitized.storeName || '';
-        if (!rawStoreName || rawStoreName.toLowerCase().includes('lookprice')) {
-          sanitized.storeName = 'Seçkin İşletme';
-        }
         
-        if (!sanitized.storeAddress || sanitized.storeAddress.trim() === '') {
-          sanitized.storeAddress = 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul';
-        }
-        
-        if (!sanitized.storeTaxOffice || sanitized.storeTaxOffice.trim() === '') {
-          sanitized.storeTaxOffice = 'Beşiktaş';
-        }
-        
-        if (!sanitized.storeTaxNumber || sanitized.storeTaxNumber.trim() === '') {
-          sanitized.storeTaxNumber = '1234567890';
+        if (!found && reconId) {
+          const demoStored = localStorage.getItem(`recon_${reconId}`);
+          if (demoStored) {
+            found = JSON.parse(demoStored);
+          }
         }
 
-        setReconData(sanitized);
-        setActionStatus(sanitized.status || 'pending');
+        if (found) {
+          const sanitized = { ...found };
+
+          // Try to fetch active official store branding from API to override any placeholder or missing details
+          try {
+            const targetStoreId = sanitized.storeId;
+            const storeInfo = await api.getBranding(targetStoreId);
+            if (storeInfo && !storeInfo.error) {
+              const realName = (storeInfo.legal_name || storeInfo.einvoice_settings?.title || storeInfo.store_name || storeInfo.name || storeInfo.title || '').trim();
+              if (realName && !realName.toLowerCase().includes('lookprice')) {
+                sanitized.storeName = realName;
+              }
+              const realAddr = (storeInfo.legal_address || storeInfo.einvoice_settings?.address || storeInfo.address || storeInfo.location || '').trim();
+              if (realAddr) {
+                sanitized.storeAddress = realAddr;
+              }
+              const realTaxOff = (storeInfo.legal_tax_office || storeInfo.einvoice_settings?.tax_office || storeInfo.tax_office || '').trim();
+              if (realTaxOff) {
+                sanitized.storeTaxOffice = realTaxOff;
+              }
+              const realTaxNum = (storeInfo.legal_tax_number || storeInfo.einvoice_settings?.vkn || storeInfo.tax_id || storeInfo.tax_number || storeInfo.vkn || '').trim();
+              if (realTaxNum) {
+                sanitized.storeTaxNumber = realTaxNum;
+              }
+            }
+          } catch (err) {
+            console.warn("Could not fetch store info for reconciliation link, using stored object:", err);
+          }
+
+          // Clean up legacy placeholder strings if present
+          if (sanitized.storeAddress === 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul') {
+            sanitized.storeAddress = '';
+          }
+          if (sanitized.storeTaxOffice === 'Beşiktaş') {
+            sanitized.storeTaxOffice = '';
+          }
+          if (sanitized.storeTaxNumber === '1234567890') {
+            sanitized.storeTaxNumber = '';
+          }
+
+          setReconData(sanitized);
+          setActionStatus(sanitized.status || 'pending');
+        }
+      } catch (e) {
+        console.error("Error loading reconciliation:", e);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error("Error loading reconciliation:", e);
-    } finally {
-      setLoading(false);
     }
+
+    loadReconciliation();
   }, [reconId]);
 
   const handleUpdateStatus = (newStatus: 'confirmed' | 'disputed', note = '') => {
@@ -222,7 +247,7 @@ export default function PublicReconciliationPage() {
                   {isTr ? 'Resmi Dijital Mutabakat Portalı' : 'Official Digital Reconciliation Portal'}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black print:text-xl print:text-slate-900">{reconData.storeName || 'Seçkin İşletme'}</h1>
+              <h1 className="text-2xl sm:text-3xl font-black print:text-xl print:text-slate-900">{reconData.storeName || 'Seçkin Mağaza'}</h1>
               <p className="text-sm text-indigo-100 font-medium print:text-xs print:text-slate-600">{isTr ? 'Cari Hesap Bakiye & Ekstre Mutabakat Formu' : 'Current Account Balance & Statement Reconciliation'}</p>
             </div>
             <button
@@ -241,8 +266,13 @@ export default function PublicReconciliationPage() {
               <div className="space-y-1">
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest print:text-[8px]">{isTr ? 'İşletme Bilgileri (Gönderen)' : 'Store Info (Sender)'}</span>
                 <h3 className="font-black text-slate-900 text-base print:text-sm">{reconData.storeName || 'Seçkin Mağaza'}</h3>
-                <p className="text-xs text-slate-600 print:text-[10px]">{reconData.storeAddress || ''}</p>
-                <p className="text-xs text-slate-500 font-medium print:text-[10px]">{reconData.storeTaxOffice ? `${reconData.storeTaxOffice} V.D. - ${reconData.storeTaxNumber || ''}` : ''}</p>
+                {reconData.storeAddress ? <p className="text-xs text-slate-600 print:text-[10px]">{reconData.storeAddress}</p> : null}
+                {(reconData.storeTaxOffice || reconData.storeTaxNumber) ? (
+                  <p className="text-xs text-slate-500 font-medium print:text-[10px]">
+                    {reconData.storeTaxOffice ? `${reconData.storeTaxOffice} V.D. ` : ''}
+                    {reconData.storeTaxNumber ? `${reconData.storeTaxOffice ? '- ' : ''}VKN/TC: ${reconData.storeTaxNumber}` : ''}
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-1 sm:text-right print:text-right">

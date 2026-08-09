@@ -723,7 +723,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       { id: "notifications", label: txt('Bildirimler', 'Notifications', 'Ειδοποιήσεις'), icon: Bell },
       { id: "blog", label: txt('Blog', 'Blog', 'Blog'), icon: BookOpen },
       { id: "seo", label: txt('SEO Sayfaları', 'SEO Pages', 'Σελίδες SEO'), icon: Globe },
-      { id: "website-generator", label: txt('Web Sitesi Oluştur', 'Website Generator', 'Δημιουργία Ιστοσελίδας'), icon: Globe },
+      { id: "website-generator", label: txt('Web Sitesi & Footer Yönetimi', 'Website & Footer Management', 'Διαχείριση Ιστοσελίδας & Footer'), icon: Globe },
       { id: "audit-logs", label: t.auditLogs, icon: History },
     ]},
     { type: 'item', id: "settings", label: t.settings, icon: SettingsIcon }
@@ -847,9 +847,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
                   {currentMenuItem?.label || activeTab.replace(/_/g, ' ')}
                 </h2>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
-                  Control_Center / {currentMenuItem?.label || activeTab}
-                </p>
               </div>
             </motion.div>
 

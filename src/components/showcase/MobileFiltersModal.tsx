@@ -55,7 +55,7 @@ export const MobileFiltersModal: React.FC<MobileFiltersModalProps> = ({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 max-h-[90vh] bg-white rounded-t-[3rem] z-[101] overflow-hidden flex flex-col shadow-lg"
+            className="fixed bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] max-w-lg max-h-[88vh] bg-white rounded-[2.5rem] z-[101] overflow-hidden flex flex-col shadow-2xl border border-slate-100"
           >
             <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
               <div>

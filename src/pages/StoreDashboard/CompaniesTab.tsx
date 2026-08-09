@@ -335,15 +335,40 @@ const CompaniesTab = ({
                               const babsInvoiceCount = babsInvoices.length;
                               const babsTotalSum = babsInvoices.reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
 
-                              const rawStoreName = branding?.legal_name || branding?.store_name || branding?.name || 'Seçkin İşletme';
-                              const finalStoreName = rawStoreName.toLowerCase().includes('lookprice') ? 'Seçkin İşletme' : rawStoreName;
+                              const rawStoreName = (branding?.legal_name || branding?.einvoice_settings?.title || branding?.store_name || branding?.name || branding?.title || '').trim();
+                              const finalStoreName = rawStoreName && !rawStoreName.toLowerCase().includes('lookprice') 
+                                ? rawStoreName 
+                                : (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' 
+                                    ? 'Seçkin Otomotiv' 
+                                    : (branding?.store_type === 'real_estate' ? 'Seçkin Emlak' : 'Seçkin Mağaza'));
                               
-                              const finalStoreAddress = (branding?.legal_address || branding?.address || '').trim() || 'Merkez Mahallesi, Ticaret Cad. No:15 İstanbul';
-                              const finalStoreTaxOffice = (branding?.legal_tax_office || branding?.tax_office || '').trim() || 'Beşiktaş';
-                              const finalStoreTaxNumber = (branding?.legal_tax_number || branding?.tax_id || '').trim() || '1234567890';
+                              const finalStoreAddress = (
+                                branding?.legal_address || 
+                                branding?.einvoice_settings?.address || 
+                                branding?.address || 
+                                branding?.location || 
+                                (branding?.city ? `${branding.city}, Türkiye` : '')
+                              ).trim();
+
+                              const finalStoreTaxOffice = (
+                                branding?.legal_tax_office || 
+                                branding?.einvoice_settings?.tax_office || 
+                                branding?.tax_office || 
+                                ''
+                              ).trim();
+
+                              const finalStoreTaxNumber = (
+                                branding?.legal_tax_number || 
+                                branding?.einvoice_settings?.vkn || 
+                                branding?.tax_id || 
+                                branding?.tax_number || 
+                                branding?.vkn || 
+                                ''
+                              ).trim();
 
                               const reconObj = {
                                 id: reconId,
+                                storeId: currentStoreId || 1,
                                 storeName: finalStoreName,
                                 storeAddress: finalStoreAddress,
                                 storeTaxOffice: finalStoreTaxOffice,

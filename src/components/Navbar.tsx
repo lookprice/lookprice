@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, X, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Logo from "./Logo";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -15,7 +15,7 @@ interface NavbarProps {
 const Navbar = ({ user, onLogout }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-  const { lang } = useLanguage();
+  const { lang, setLang } = useLanguage();
   const t = translations[lang].nav;
 
   return (
@@ -32,8 +32,29 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
             </div>
           </div>
           
-          <div className="hidden md:flex items-center space-x-8">
-            <div className="flex items-center space-x-8 mr-8">
+          <div className="hidden md:flex items-center space-x-6">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200">
+              <Globe className="w-3.5 h-3.5 text-slate-400 ml-2 mr-1" />
+              {(['tr', 'en', 'el'] as const).map((l) => (
+                <button 
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`w-7 h-7 flex items-center justify-center rounded-full text-[10px] font-black transition-all cursor-pointer ${
+                    lang === l 
+                      ? 'bg-indigo-600 text-white shadow-md' 
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  }`}
+                  title={l === 'tr' ? 'Türkçe' : l === 'en' ? 'English' : 'Ελληνικά'}
+                >
+                  {l === 'el' ? 'GR' : l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <div className="h-6 w-px bg-slate-200" />
+
+            <div className="flex items-center space-x-6">
               {['Features', 'Pricing', 'ROI'].map((item) => (
                 <button 
                   key={item} 
@@ -41,9 +62,11 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                     const element = document.getElementById(item);
                     if (element) {
                       element.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                      navigate('/');
                     }
                   }}
-                  className="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors uppercase tracking-widest"
+                  className="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors uppercase tracking-widest cursor-pointer"
                 >
                   {item}
                 </button>
@@ -51,16 +74,16 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
             </div>
 
             {!user && (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
                 <button 
                   onClick={() => navigate("/login")}
-                  className="text-sm font-black text-slate-900 hover:text-indigo-600 transition-colors uppercase tracking-widest px-4"
+                  className="text-sm font-black text-slate-900 hover:text-indigo-600 transition-colors uppercase tracking-widest px-3 cursor-pointer"
                 >
                   {t.login}
                 </button>
                 <button 
                   onClick={() => navigate("/", { state: { openDemo: true } })}
-                  className="bg-slate-900 text-white px-8 py-3.5 rounded-2xl text-sm font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-widest"
+                  className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-sm font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-widest cursor-pointer"
                 >
                   {translations[lang].nav.demo}
                 </button>
@@ -75,7 +98,7 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                 <div className="h-10 w-px bg-slate-200" />
                 <button 
                   onClick={onLogout}
-                  className="flex items-center text-slate-500 hover:text-rose-600 px-4 py-2.5 rounded-2xl text-sm font-black transition-colors hover:bg-rose-50 uppercase tracking-widest"
+                  className="flex items-center text-slate-500 hover:text-rose-600 px-4 py-2.5 rounded-2xl text-sm font-black transition-colors hover:bg-rose-50 uppercase tracking-widest cursor-pointer"
                 >
                   <LogOut className="h-4 w-4 mr-2" /> {t.logout}
                 </button>
@@ -83,7 +106,20 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
             )}
           </div>
 
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200">
+              {(['tr', 'en', 'el'] as const).map((l) => (
+                <button 
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`w-6 h-6 flex items-center justify-center rounded-full text-[9px] font-black transition-all ${
+                    lang === l ? 'bg-indigo-600 text-white' : 'text-slate-600'
+                  }`}
+                >
+                  {l === 'el' ? 'GR' : l.toUpperCase()}
+                </button>
+              ))}
+            </div>
             <button 
               onClick={() => setIsOpen(!isOpen)} 
               className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"

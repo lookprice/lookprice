@@ -2674,4 +2674,45 @@ router.get("/enrakipsiz/videos", async (req, res) => {
   }
 });
 
+// Property submission endpoint for real estate leads
+router.post("/property-submission", async (req, res) => {
+  try {
+    const { storeSlug, ownerName, ownerPhone, ownerEmail, propertyType, location, expectedPrice, notes } = req.body;
+    
+    // Find store
+    let storeId = null;
+    if (storeSlug) {
+      const storeRes = await pool.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1)", [storeSlug]);
+      if (storeRes.rows.length > 0) {
+        storeId = storeRes.rows[0].id;
+      }
+    }
+
+    console.log(`[Property Lead] Store ID: ${storeId || 'N/A'}, Name: ${ownerName}, Phone: ${ownerPhone}, Type: ${propertyType}, Location: ${location}, Price: ${expectedPrice}`);
+
+    // Try inserting into leads or customers table if possible
+    try {
+      if (storeId) {
+        await pool.query(
+          "INSERT INTO customers (store_id, name, phone, email, notes, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT DO NOTHING",
+          [
+            storeId, 
+            ownerName, 
+            ownerPhone, 
+            ownerEmail || null, 
+            `Mülk Değerleme Başvurusu: ${propertyType || ''} - ${location || ''} - Beklenen Fiyat: ${expectedPrice || ''}. Not: ${notes || ''}`
+          ]
+        );
+      }
+    } catch (dbErr) {
+      console.warn("Db insert lead warning:", dbErr);
+    }
+
+    res.json({ success: true, message: "Property lead received successfully" });
+  } catch (error: any) {
+    console.error("Property submission error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

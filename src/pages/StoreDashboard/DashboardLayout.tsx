@@ -60,8 +60,18 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
           <button onClick={() => sidebarProps.setSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg">
             <Menu className="w-6 h-6" />
           </button>
-          <div className="ml-4 font-bold text-slate-900 truncate tracking-tight uppercase text-sm">
-            {sidebarProps.branding?.name || "LookPrice"}
+          <div className="ml-4 flex items-center gap-2.5 min-w-0">
+            {(sidebarProps.branding?.logo_url || sidebarProps.branding?.logo) ? (
+              <img 
+                src={sidebarProps.branding.logo_url || sidebarProps.branding.logo} 
+                alt="" 
+                className="h-7 w-7 object-contain rounded-lg border border-slate-200 p-0.5 bg-white shrink-0" 
+                referrerPolicy="no-referrer"
+              />
+            ) : null}
+            <div className="font-bold text-slate-900 truncate tracking-tight uppercase text-sm">
+              {sidebarProps.branding?.store_name || sidebarProps.branding?.name || "LookPrice"}
+            </div>
           </div>
         </div>
 
@@ -76,8 +86,18 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
               <Menu className="w-4 h-4" />
               <span>{lang === 'tr' ? 'Menüyü Aç' : 'Open Menu'}</span>
             </button>
-            <div className="ml-4 font-black text-slate-900 truncate tracking-tight uppercase text-xs">
-              {sidebarProps.branding?.name || "LookPrice"}
+            <div className="ml-4 flex items-center gap-2.5 min-w-0">
+              {(sidebarProps.branding?.logo_url || sidebarProps.branding?.logo) ? (
+                <img 
+                  src={sidebarProps.branding.logo_url || sidebarProps.branding.logo} 
+                  alt="" 
+                  className="h-7 w-7 object-contain rounded-lg border border-slate-200 p-0.5 bg-white shrink-0" 
+                  referrerPolicy="no-referrer"
+                />
+              ) : null}
+              <div className="font-black text-slate-900 truncate tracking-tight uppercase text-xs">
+                {sidebarProps.branding?.store_name || sidebarProps.branding?.name || "LookPrice"}
+              </div>
             </div>
           </div>
         )}
