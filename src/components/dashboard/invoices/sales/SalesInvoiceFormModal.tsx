@@ -83,7 +83,6 @@ interface SalesInvoiceFormModalProps {
   handleAddProduct: (p: any) => void;
   setShowQuickProductModal: (val: boolean) => void;
   setQuickProductForm: (form: any) => void;
-  setQuickProductForm: (form: any) => void;
   
   // Payment & Currency
   paymentMethod: string;
