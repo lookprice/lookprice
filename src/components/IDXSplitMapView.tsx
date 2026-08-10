@@ -1126,9 +1126,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                 return (
                   <div
                     key={p.id}
-                    onClick={() => {
-                      onViewProduct(p);
-                    }}
+                    onClick={() => onViewProduct(p)}
                     className="group bg-slate-950 rounded-3xl overflow-hidden border border-slate-800 hover:border-amber-500/50 hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
                   >
                     <div className="relative aspect-[16/11] overflow-hidden bg-slate-900">
