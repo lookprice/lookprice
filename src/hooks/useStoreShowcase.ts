@@ -55,6 +55,8 @@ export const useStoreShowcase = (customSlug?: string) => {
           }
         }
 
+        const defaultSections = [{ id: 'hero', type: 'hero', enabled: true }, { id: 'featured', type: 'featured', enabled: true }, { id: 'blog', type: 'blog', enabled: true }, { id: 'about', type: 'about', enabled: true }, { id: 'contact', type: 'contact', enabled: true }];
+
         if (parsedLayout) {
           storeRes.page_layout_full = parsedLayout;
           const defaultSectionIds = ['hero', 'search', 'stats', 'portfolio', 'news', 'blog', 'team', 'financing', 'calculator', 'map', 'social'];
@@ -69,17 +71,17 @@ export const useStoreShowcase = (customSlug?: string) => {
             } else {
               storeRes.page_layout = defaultSectionIds.map(defId => ({ id: defId, type: defId, enabled: true }));
             }
-          } else if (Array.isArray(parsedLayout)) {
+          } else if (Array.isArray(parsedLayout) && parsedLayout.length > 0) {
             storeRes.page_layout = parsedLayout.map((s: any) => ({
               id: s.id || s.type,
               type: s.type || s.id,
               enabled: s.enabled !== false
             }));
           } else {
-            storeRes.page_layout = defaultSectionIds.map(defId => ({ id: defId, type: defId, enabled: true }));
+            storeRes.page_layout = defaultSections;
           }
         } else {
-          storeRes.page_layout = [];
+          storeRes.page_layout = defaultSections;
         }
 
         if (typeof storeRes.menu_links === "string") {

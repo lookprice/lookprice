@@ -152,9 +152,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
       {/* Slide dots indicators */}
       {banners.length > 1 && (
         <div className="absolute bottom-8 right-8 z-20 flex gap-2">
-          {banners.map((_: any, index: number) => (
+          {banners.map((slide: any, index: number) => (
             <button
-              key={index}
+              key={`${slide.id || index}`}
               onClick={() => setCurrentSlideIdx(index)}
               className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                 index === currentSlideIdx ? "bg-white scale-125" : "bg-white/40 hover:bg-white/60"

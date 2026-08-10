@@ -29,7 +29,7 @@ router.get("/", async (req: any, res) => {
       SELECT 
         id, name, slug, address, contact_person, phone, country, email, api_key, subscription_end,
         logo_url, favicon_url, primary_color, default_currency, language, plan, background_image_url,
-        fiscal_brand, fiscal_terminal_id, fiscal_active, default_tax_rate, currency_rates, branding,
+        fiscal_brand, fiscal_terminal_id, fiscal_active, default_tax_rate, currency_rates, branding, payment_settings, meta_settings,
         custom_domain, custom_domain_status, page_layout, menu_links, shipping_profiles, emails, phones,
         description, einvoice_settings, footer_links, parent_id, store_type, sub_sector,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number, about_text
@@ -51,22 +51,29 @@ router.get("/", async (req: any, res) => {
     }
 
     // Parse JSON fields
-    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'page_layout', 'menu_links', 'currency_rates', 'einvoice_settings'];
+    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'payment_settings', 'meta_settings', 'page_layout', 'menu_links', 'currency_rates', 'einvoice_settings'];
     jsonFields.forEach(field => {
       if (typeof store[field] === 'string') {
         try {
           store[field] = JSON.parse(store[field]);
         } catch (e) {
-          store[field] = field === 'branding' || field === 'einvoice_settings' || field === 'currency_rates' ? {} : [];
+          store[field] = field === 'branding' || field === 'payment_settings' || field === 'meta_settings' || field === 'einvoice_settings' || field === 'currency_rates' ? {} : [];
         }
       } else if (!store[field]) {
-        store[field] = field === 'branding' || field === 'einvoice_settings' || field === 'currency_rates' ? {} : [];
+        store[field] = field === 'branding' || field === 'payment_settings' || field === 'meta_settings' || field === 'einvoice_settings' || field === 'currency_rates' ? {} : [];
       }
     });
 
     // Merge branding onto store top-level
     if (store.branding && typeof store.branding === 'object') {
+      const psFromCol = store.payment_settings || {};
+      const psFromBr = store.branding.payment_settings || {};
+      const msFromCol = store.meta_settings || {};
+      const msFromBr = store.branding.meta_settings || {};
       Object.assign(store, store.branding);
+      store.payment_settings = { ...psFromCol, ...psFromBr };
+      store.meta_settings = { ...msFromCol, ...msFromBr };
+      store.branding.meta_settings = store.meta_settings;
     }
 
     // Fetch branches if this is a main store

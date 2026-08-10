@@ -173,9 +173,9 @@ export const WebsitePreview: React.FC<WebsitePreviewProps> = ({
             {/* Carousel navigation indicators */}
             {previewBanners.length > 1 && (
               <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
-                {previewBanners.map((_, idx) => (
+                {previewBanners.map((banner, idx) => (
                   <button
-                    key={idx}
+                    key={banner.id || idx}
                     type="button"
                     onClick={() => setActiveSlideIdx(idx)}
                     className={`h-2 rounded-full transition-all ${

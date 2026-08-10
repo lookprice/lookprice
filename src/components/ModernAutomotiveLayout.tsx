@@ -442,7 +442,7 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
             const isActive = activeBannerIndex === idx;
             return (
               <div
-                key={slide.id || idx}
+                key={`${slide.id}_${idx}`}
                 className={`absolute inset-0 transition-opacity duration-1000 ${isActive ? 'opacity-100' : 'opacity-0'}`}
                 style={{
                   backgroundImage: `url(${slide.image_url})`,

@@ -474,6 +474,8 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
         subtitle: content.hero.subtitle,
         text_position: 'center',
         show_store_name: true,
+        button_text: undefined,
+        button_link: undefined,
       }];
     }
 
@@ -486,6 +488,8 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
           subtitle: content.hero.subtitle,
           text_position: 'center',
           show_store_name: true,
+          button_text: undefined,
+          button_link: undefined,
         };
       }
       return {
@@ -887,6 +891,95 @@ export const ModernRealEstateLayout: React.FC<ModernRealEstateLayoutProps> = ({
 
 
       <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-6 pt-2 pb-24">
+        
+        {/* Hero Banner Slider */}
+        {isSectionEnabled("hero") && banners && banners.length > 0 && (
+          <div className="relative mb-8 h-[440px] md:h-[500px] w-full overflow-hidden rounded-3xl shadow-2xl border border-white/10 group">
+            {banners.map((slide: any, idx: number) => {
+              const isActive = activeBannerIndex === idx;
+              return (
+                <div
+                  key={`${slide.id}_${idx}`}
+                  className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? 'opacity-100' : 'opacity-0'}`}
+                  style={{
+                    backgroundImage: `url(${slide.image_url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    zIndex: isActive ? 1 : 0
+                  }}
+                />
+              );
+            })}
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/40 to-slate-950/90" style={{ zIndex: 2 }} />
+
+            {/* Active slide overlay details */}
+            {(() => {
+              const activeSlide = banners[activeBannerIndex] || banners[0];
+              if (!activeSlide) return null;
+              const rawName = (store as any)?.branding?.store_name || (store as any)?.branding?.name || store?.name || "";
+              const displayName = rawName && !rawName.toLowerCase().includes("lookprice") ? rawName : "Seçkin Emlak";
+
+              return (
+                <div 
+                  className={`relative w-full h-full flex items-center px-8 md:px-16 py-12 ${
+                    activeSlide.text_position === 'left' 
+                      ? 'justify-start text-left' 
+                      : activeSlide.text_position === 'right' 
+                        ? 'justify-end text-right' 
+                        : 'justify-center text-center'
+                  }`}
+                  style={{ zIndex: 10 }}
+                >
+                  <div className={`max-w-3xl flex flex-col space-y-4 ${
+                    activeSlide.text_position === 'left' 
+                      ? 'items-start' 
+                      : activeSlide.text_position === 'right' 
+                        ? 'items-end' 
+                        : 'items-center'
+                  }`}>
+                    {activeSlide.show_store_name !== false && (
+                      <div className="inline-flex items-center gap-2 bg-amber-500/20 backdrop-blur-xl px-4 py-1.5 rounded-full border border-amber-400/30">
+                        <Check className="h-4 w-4 text-amber-400" />
+                        <span className="text-[12px] font-black text-amber-300 uppercase tracking-widest">
+                          {displayName}
+                        </span>
+                      </div>
+                    )}
+                    <h1 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter leading-[0.95] drop-shadow-2xl">
+                      {activeSlide.title || content.hero.title}
+                    </h1>
+                    <p className="text-slate-200 text-sm md:text-base font-medium max-w-xl leading-relaxed italic drop-shadow">
+                      "{activeSlide.subtitle || content.hero.subtitle}"
+                    </p>
+                    {activeSlide.button_text && (
+                      <a
+                        href={activeSlide.button_link || "#listings-section"}
+                        className="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider shadow-xl transition-all hover:scale-105"
+                      >
+                        {activeSlide.button_text}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Slide dots indicators */}
+            {banners.length > 1 && (
+              <div className="absolute bottom-6 right-6 z-20 flex gap-2">
+                {banners.map((_: any, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveBannerIndex(idx)}
+                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                      idx === activeBannerIndex ? "bg-amber-400 scale-125 shadow-md" : "bg-white/40 hover:bg-white/70"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Mobile Filters Modal */}
         <AnimatePresence>

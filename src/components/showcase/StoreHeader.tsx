@@ -67,8 +67,17 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
   const navigate = useNavigate();
   const displayName = getDisplayStoreName(store);
 
+  const announcementText = store?.page_layout_settings?.announcement_text || store?.announcement_text || store?.branding?.announcement_text;
+  const showAnnouncement = store?.page_layout_settings?.show_announcement !== false && store?.page_layout_settings?.announcement_bar !== false && store?.show_announcement !== false && store?.announcement_bar !== false && !!announcementText;
+
   return (
-    <div className="sticky top-4 z-[60] px-4 md:px-8 pointer-events-none flex justify-center mb-6">
+    <div className="sticky top-4 z-[60] px-4 md:px-8 pointer-events-none flex flex-col items-center gap-2 mb-6">
+      {showAnnouncement && (
+        <div className="w-full max-w-7xl bg-slate-900/90 backdrop-blur-md text-white text-xs font-semibold py-2 px-6 rounded-2xl border border-white/10 shadow-lg pointer-events-auto flex items-center justify-center gap-2.5 text-center">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span className="tracking-wide leading-relaxed">{announcementText}</span>
+        </div>
+      )}
       <header className="w-full max-w-7xl bg-white/70 backdrop-blur-2xl border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-3xl pointer-events-auto transition-all duration-500 ease-out hover:bg-white/90">
         <div className="h-16 md:h-20 px-6 flex items-center justify-between gap-4 md:gap-8">
           <div

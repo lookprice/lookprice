@@ -634,7 +634,7 @@ router.get("/store/:slug", async (req, res) => {
       id, name, slug, logo_url, favicon_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text, description,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, shipping_profiles, custom_domain,
+      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, meta_settings, shipping_profiles, custom_domain,
       branding, page_layout, menu_links, status, is_approved
     FROM stores 
     WHERE LOWER(slug) = LOWER($1)
@@ -649,21 +649,24 @@ router.get("/store/:slug", async (req, res) => {
       return res.status(403).json({ error: 'store_pending', message: 'Bu mağaza onay sürecindedir. Lütfen daha sonra tekrar deneyiniz.' });
     }
 
-    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'page_layout', 'menu_links'];
+    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links'];
     jsonFields.forEach(field => {
       if (typeof store[field] === 'string') {
         try {
           store[field] = JSON.parse(store[field]);
         } catch (e) {
-          store[field] = field === 'branding' ? {} : [];
+          store[field] = field === 'branding' || field === 'meta_settings' ? {} : [];
         }
       } else if (!store[field]) {
-        store[field] = field === 'branding' ? {} : [];
+        store[field] = field === 'branding' || field === 'meta_settings' ? {} : [];
       }
     });
 
     if (store.branding && typeof store.branding === 'object') {
+      const msFromCol = store.meta_settings || {};
+      const msFromBr = store.branding.meta_settings || {};
       Object.assign(store, store.branding);
+      store.meta_settings = { ...msFromCol, ...msFromBr };
     }
 
     if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {

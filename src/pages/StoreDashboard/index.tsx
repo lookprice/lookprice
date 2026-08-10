@@ -551,7 +551,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
 
   const onBrandingChange = (field: string, value: any) => {
-    setBranding({ ...branding, [field]: value });
+    setBranding((prev: any) => ({ ...prev, [field]: value }));
   };
 
   const [savingBranding, setSavingBranding] = useState(false);

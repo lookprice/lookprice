@@ -20,7 +20,7 @@ router.post("/", async (req: any, res) => {
         name, logo_url, favicon_url, primary_color, background_image_url, about_text, description,
         phone, address, email, page_layout, menu_links, footer_links, store_type, sub_sector,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number,
-        branding
+        branding, payment_settings, meta_settings
       FROM stores 
       WHERE id = $1
     `, [targetStoreId]);
@@ -35,11 +35,29 @@ router.post("/", async (req: any, res) => {
       try { existingBranding = JSON.parse(existingBranding); } catch (e) { existingBranding = {}; }
     }
 
+    let existingPaymentSettings = existingStore.payment_settings || {};
+    if (typeof existingPaymentSettings === 'string') {
+      try { existingPaymentSettings = JSON.parse(existingPaymentSettings); } catch (e) { existingPaymentSettings = {}; }
+    }
+
+    let existingMetaSettings = existingStore.meta_settings || {};
+    if (typeof existingMetaSettings === 'string') {
+      try { existingMetaSettings = JSON.parse(existingMetaSettings); } catch (e) { existingMetaSettings = {}; }
+    }
+
     // Clean base64 data in incoming body
     const cleanedBody = await cleanDeepBase64(req.body, `store_${targetStoreId}_branding`);
 
     // Merge incoming cleaned body with existing branding
     const updatedBranding = await cleanDeepBase64({ ...existingBranding, ...cleanedBody }, `store_${targetStoreId}_branding`);
+
+    // Ensure payment_settings are merged and kept consistent across branding and payment_settings column
+    const mergedPaymentSettings = { ...existingPaymentSettings, ...(existingBranding.payment_settings || {}), ...(updatedBranding.payment_settings || {}) };
+    updatedBranding.payment_settings = mergedPaymentSettings;
+
+    // Ensure meta_settings are merged and kept consistent across branding and meta_settings column
+    const mergedMetaSettings = { ...existingMetaSettings, ...(existingBranding.meta_settings || {}), ...(updatedBranding.meta_settings || {}) };
+    updatedBranding.meta_settings = mergedMetaSettings;
 
     // Resolve column values (prefer cleanedBody, then existingStore)
     const name = cleanedBody.name !== undefined ? cleanedBody.name : existingStore.name;
@@ -94,7 +112,9 @@ router.post("/", async (req: any, res) => {
         facebook_url = $20,
         twitter_url = $21,
         whatsapp_number = $22,
-        branding = $23
+        branding = $23,
+        payment_settings = $25,
+        meta_settings = $26
       WHERE id = $24
     `, [
       name,
@@ -120,7 +140,9 @@ router.post("/", async (req: any, res) => {
       twitter_url,
       whatsapp_number,
       JSON.stringify(updatedBranding),
-      targetStoreId
+      targetStoreId,
+      JSON.stringify(mergedPaymentSettings),
+      JSON.stringify(mergedMetaSettings)
     ]);
 
     // Sync team/consultants to consultants table if provided

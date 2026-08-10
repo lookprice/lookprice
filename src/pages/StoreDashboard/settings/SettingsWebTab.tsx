@@ -75,28 +75,71 @@ export const SettingsWebTab = ({
 }: SettingsWebTabProps) => {
   const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
-  const rawBanners = Array.isArray(branding?.banners) ? branding.banners : [];
 
-  const displayBanners = React.useMemo(() => {
-    if (rawBanners.length > 0) return rawBanners;
-    if (branding?.hero_image_url || branding?.hero_title) {
-      return [{
-        id: "legacy",
-        image_url: branding?.hero_image_url || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80",
-        title: branding?.hero_title || "",
-        subtitle: branding?.hero_subtitle || "",
-        text_position: "center",
-        show_store_name: true,
-        button_text: lang === "tr" ? "İncele" : "Explore",
-        button_link: "#portfolio"
-      }];
+  const normalizedBanners = React.useMemo(() => {
+    const list = Array.isArray(branding?.banners) ? branding.banners : [];
+
+    if (list.length === 0) {
+      if (branding?.hero_image_url || branding?.hero_title) {
+        return [{
+          id: "banner_legacy_0",
+          image_url: branding?.hero_image_url || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80",
+          title: branding?.hero_title || "",
+          subtitle: branding?.hero_subtitle || "",
+          text_position: "center",
+          show_store_name: true,
+          button_text: lang === "tr" ? "İncele" : "Explore",
+          button_link: "#portfolio"
+        }];
+      }
+      return [];
     }
-    return [];
-  }, [rawBanners, branding?.hero_image_url, branding?.hero_title, branding?.hero_subtitle, lang]);
+
+    return list.map((b: any, idx: number) => {
+      if (typeof b === "string") {
+        return {
+          id: `banner_str_${idx}`,
+          image_url: b,
+          title: idx === 0 ? (branding?.hero_title || "") : "",
+          subtitle: idx === 0 ? (branding?.hero_subtitle || "") : "",
+          text_position: "center",
+          show_store_name: true,
+          button_text: lang === "tr" ? "İncele" : "Explore",
+          button_link: "#portfolio"
+        };
+      }
+      return {
+        id: b.id || `banner_obj_${idx}`,
+        image_url: b.image_url || b.url || (typeof b === 'string' ? b : '') || (idx === 0 ? branding?.hero_image_url : '') || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80",
+        title: b.title !== undefined ? b.title : (idx === 0 ? (branding?.hero_title || "") : ""),
+        subtitle: b.subtitle !== undefined ? b.subtitle : (idx === 0 ? (branding?.hero_subtitle || "") : ""),
+        text_position: b.text_position || "center",
+        show_store_name: b.show_store_name !== false,
+        button_text: b.button_text !== undefined ? b.button_text : (lang === "tr" ? "İncele" : "Explore"),
+        button_link: b.button_link !== undefined ? b.button_link : "#portfolio"
+      };
+    });
+  }, [branding?.banners, branding?.hero_image_url, branding?.hero_title, branding?.hero_subtitle, lang]);
+
+  React.useEffect(() => {
+    if (!branding?.banners) return;
+    const needsFix = branding.banners.some((b: any) => typeof b !== 'string' && !b.id);
+    if (needsFix) {
+      const fixedBanners = branding.banners.map((b: any, idx: number) => {
+        if (typeof b === 'string') return b;
+        if (b.id) return b;
+        return {
+          ...b,
+          id: `banner_${Date.now()}_${Math.random().toString(36).substring(2, 6)}_${idx}`
+        };
+      });
+      onBrandingChange("banners", fixedBanners);
+    }
+  }, [branding?.banners]);
 
   const handleAddBanner = () => {
     const newBanner = {
-      id: Date.now().toString(),
+      id: `banner_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       image_url: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80",
       title: "",
       subtitle: "",
@@ -105,11 +148,10 @@ export const SettingsWebTab = ({
       button_text: lang === "tr" ? "İncele" : "Explore",
       button_link: "#portfolio"
     };
-    
-    const baseBanners = rawBanners.length > 0 ? rawBanners : displayBanners;
-    const updated = [...baseBanners, newBanner];
+
+    const updated = [...normalizedBanners, newBanner];
     onBrandingChange("banners", updated);
-    
+
     if (updated.length > 0) {
       onBrandingChange("hero_image_url", updated[0].image_url || "");
       onBrandingChange("hero_title", updated[0].title || "");
@@ -118,10 +160,11 @@ export const SettingsWebTab = ({
   };
 
   const handleUpdateBannerFieldSafe = (id: string, field: string, value: any) => {
-    const baseBanners = rawBanners.length > 0 ? rawBanners : displayBanners;
-    const currentList = baseBanners.map((b: any) => b.id === id ? { ...b, [field]: value } : b);
-    
+    console.log("Updating banner field:", id, field, value);
+    const currentList = normalizedBanners.map((b: any) => b.id === id ? { ...b, [field]: value } : b);
+    console.log("New banner list:", currentList);
     onBrandingChange("banners", currentList);
+
     if (currentList.length > 0) {
       onBrandingChange("hero_image_url", currentList[0].image_url || "");
       onBrandingChange("hero_title", currentList[0].title || "");
@@ -130,8 +173,9 @@ export const SettingsWebTab = ({
   };
 
   const handleRemoveBannerSafe = (id: string) => {
-    const currentList = displayBanners.filter((b: any) => b.id !== id);
+    const currentList = normalizedBanners.filter((b: any) => b.id !== id);
     onBrandingChange("banners", currentList);
+
     if (currentList.length > 0) {
       onBrandingChange("hero_image_url", currentList[0].image_url || "");
       onBrandingChange("hero_title", currentList[0].title || "");
@@ -161,101 +205,104 @@ export const SettingsWebTab = ({
       animate={{ opacity: 1, y: 0 }}
       className="max-w-5xl mx-auto space-y-6 pb-20"
     >
-      {/* Main Visual Control Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 1. Showcase & Layout Controls */}
-        {!isPortfolio && (
-          <div className="lg:col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                <Palette className="w-4 h-4 text-indigo-500" />
-                {txt("VİTRİN VE TASARIM", "SHOWCASE & DESIGN", "ΒΙΤΡΙΝΑ ΚΑΙ ΣΧΕΔΙΑΣΜΟΣ")}
-              </h3>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              {[
-                { id: "announcement_bar", icon: <Tag className="w-4 h-4" />, label: txt("Duyuru Bandı", "Announcement Bar", "Γραμμή Ανακοινώσεων") },
-                { id: "testimonials", icon: <Star className="w-4 h-4" />, label: txt("Müşteri Yorumları", "Testimonials", "Μαρτυρίες") },
-                { id: "newsletter", icon: <Mail className="w-4 h-4" />, label: txt("Haber Bülteni", "Newsletter", "Newsletter") },
-                { id: "live_activity", icon: <MessageCircle className="w-4 h-4" />, label: txt("Canlı Aktivite", "Live Activity", "Ζωντανή Δραστηριότητα") },
-                { id: "featured_deals", icon: <Tag className="w-4 h-4" />, label: txt("Fiyatı Düşenler (Fırsat)", "Featured Deals", "Προσφορές") },
-              ].map(toggle => (
-                <label key={toggle.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-indigo-50/50 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={branding?.page_layout_settings?.[toggle.id] !== false}
-                    onChange={(e) => {
-                      const current = branding?.page_layout_settings || {};
-                      onBrandingChange("page_layout_settings", { ...current, [toggle.id]: e.target.checked });
-                    }}
-                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                  />
-                  <div className="flex items-center gap-2 text-slate-700 text-xs font-bold">
-                    {toggle.icon}
-                    <span>{toggle.label}</span>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            {branding?.page_layout_settings?.announcement_bar !== false && (
-              <div className="mb-6">
+      {/* 1. Showcase & Layout Controls */}
+      {!isPortfolio && (
+        <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+              <Palette className="w-4 h-4 text-indigo-500" />
+              {txt("VİTRİN VE TASARIM", "SHOWCASE & DESIGN", "ΒΙΤΡΙΝΑ ΚΑΙ ΣΧΕΔΙΑΣΜΟΣ")}
+            </h3>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {[
+              { id: "announcement_bar", icon: <Tag className="w-4 h-4" />, label: txt("Duyuru Bandı", "Announcement Bar", "Γραμμή Ανακοινώσεων") },
+              { id: "testimonials", icon: <Star className="w-4 h-4" />, label: txt("Müşteri Yorumları", "Testimonials", "Μαρτυρίες") },
+              { id: "newsletter", icon: <Mail className="w-4 h-4" />, label: txt("Haber Bülteni", "Newsletter", "Newsletter") },
+              { id: "live_activity", icon: <MessageCircle className="w-4 h-4" />, label: txt("Canlı Aktivite", "Live Activity", "Ζωντανή Δραστηριότητα") },
+              { id: "featured_deals", icon: <Tag className="w-4 h-4" />, label: txt("Fiyatı Düşenler (Fırsat)", "Featured Deals", "Προσφορές") },
+            ].map(toggle => (
+              <label key={toggle.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-indigo-50/50 transition-colors">
                 <input
-                  type="text"
-                  value={branding?.page_layout_settings?.announcement_text || ""}
+                  type="checkbox"
+                  checked={branding?.page_layout_settings?.[toggle.id] !== false}
                   onChange={(e) => {
                     const current = branding?.page_layout_settings || {};
-                    onBrandingChange("page_layout_settings", { ...current, announcement_text: e.target.value });
+                    onBrandingChange("page_layout_settings", { ...current, [toggle.id]: e.target.checked });
                   }}
-                  placeholder={txt("Duyuru metnini buraya yazın...", "Enter announcement text here...", "Πληκτρολογήστε κείμενο ανακοίνωσης...")}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700"
+                  className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                 />
-              </div>
-            )}
-            
-            <div className="pt-6 border-t border-slate-100">
-              <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">
-                {txt("TEMA KONSEPTİ", "THEME CONCEPT", "ΚΟΝΣΕΠΤ ΘΕΜΑΤΟΣ")}
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {['default', 'luxury', 'minimal', 'vibrant'].map(theme => (
-                  <button
-                    key={theme}
-                    type="button"
-                    onClick={() => onBrandingChange("theme_concept", theme)}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                      (branding?.theme_concept || 'default') === theme 
-                        ? 'bg-indigo-600 text-white' 
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {theme === 'luxury' ? txt('Moda / Lüks', 'Fashion / Luxury', 'Μόδα / Πολυτέλεια') : theme.toUpperCase()}
-                  </button>
-                ))}
-              </div>
+                <div className="flex items-center gap-2 text-slate-700 text-xs font-bold">
+                  {toggle.icon}
+                  <span>{toggle.label}</span>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {branding?.page_layout_settings?.announcement_bar !== false && (
+            <div className="mb-6">
+              <input
+                type="text"
+                value={branding?.page_layout_settings?.announcement_text || ""}
+                onChange={(e) => {
+                  const current = branding?.page_layout_settings || {};
+                  onBrandingChange("page_layout_settings", { ...current, announcement_text: e.target.value });
+                }}
+                placeholder={txt("Duyuru metnini buraya yazın...", "Enter announcement text here...", "Πληκτρολογήστε κείμενο ανακοίνωσης...")}
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700"
+              />
+            </div>
+          )}
+          
+          <div className="pt-6 border-t border-slate-100">
+            <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">
+              {txt("TEMA KONSEPTİ", "THEME CONCEPT", "ΚΟΝΣΕΠΤ ΘΕΜΑΤΟΣ")}
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {['default', 'luxury', 'minimal', 'vibrant'].map(theme => (
+                <button
+                  key={theme}
+                  type="button"
+                  onClick={() => onBrandingChange("theme_concept", theme)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    (branding?.theme_concept || 'default') === theme 
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {theme === 'luxury' ? txt('Moda / Lüks', 'Fashion / Luxury', 'Μόδα / Πολυτέλεια') : theme.toUpperCase()}
+                </button>
+              ))}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        <div className="lg:col-span-1 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 flex flex-col justify-between">
+      {/* 2. Banner Slider (Hero) Section */}
+      <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-indigo-500" />
-              BANNER SLIDER (HERO)
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-indigo-600" />
+              {txt("BANNER SLIDER (HERO METİN VE GÖRSELLERİ)", "BANNER SLIDER (HERO)", "SLIDER BANNER (HERO)")}
             </h3>
-            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-              {txt("Mağazanızın en üstündeki reklam alanına birden fazla görsel ekleyip sıralayabilir, üzerindeki metinlerin konumunu ve görünürlüğünü yönetebilirsiniz.", "You can add multiple images to the advertising area at the top of your store, order them, and manage the position and visibility of the texts on them.", "Μπορείτε να προσθέσετε πολλές εικόνες στον διαφημιστικό χώρο στο πάνω μέρος του καταστήματός σας, να τις παραγγείλετε και να διαχειριστείτε τη θέση και την ορατότητα των κειμένων σε αυτές.")}
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              {txt("Mağazanızın en üstündeki slider alanında gösterilecek afişleri, metin konumlarını ve buton linklerini yönetin.", "Manage banners, text positions, and button links displayed in the hero slider at the top of your store.", "Διαχειριστείτε banner, θέσεις κειμένου και συνδέσμους κουμπιών στο slider στο πάνω μέρος του καταστήματός σας.")}
             </p>
           </div>
-          <div className="flex items-center justify-center p-4 bg-white rounded-xl border border-dashed border-slate-200">
-            <span className="text-[10px] text-slate-400 font-medium">
-              {"💡 " + txt("Mağaza ismi 'lookprice' içerirse sistem otomatik olarak seçkin yerel firma fallbacks uygular.", "If the store name contains 'lookprice', the system automatically applies premium local business fallbacks.", "Εάν το όνομα του καταστήματος περιέχει 'lookprice', το σύστημα εφαρμόζει αυτόματα εναλλακτικές επιλογές κορυφαίων τοπικών επιχειρήσεων.")}
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={handleAddBanner}
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 flex items-center justify-center gap-2 self-start md:self-auto shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            {lang === "tr" ? "YENİ AFİŞ EKLE" : "ADD NEW SLIDE"}
+          </button>
         </div>
 
-        {displayBanners.length === 0 ? (
+        {normalizedBanners.length === 0 ? (
           <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
             <ImageIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500 text-sm font-medium">
@@ -270,175 +317,176 @@ export const SettingsWebTab = ({
             </button>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {displayBanners.map((banner: any, idx: number) => (
-                <div key={banner.id || idx} className="p-5 bg-slate-50/50 rounded-2xl border border-slate-200 relative group flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <span className="text-xs font-black text-indigo-600 tracking-wider">
-                      {lang === "tr" ? `SLAYT #${idx + 1}` : `SLIDE #${idx + 1}`}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {normalizedBanners.map((banner: any, idx: number) => (
+              <div key={`${banner.id}_${idx}`} className="p-5 bg-slate-50/70 rounded-2xl border border-slate-200 relative group flex flex-col gap-4 hover:border-slate-300 transition-all">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
+                  <span className="text-xs font-black text-indigo-600 tracking-wider flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black">
+                      #{idx + 1}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveBannerSafe(banner.id)}
-                      className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      {lang === "tr" ? "SİL" : "DELETE"}
-                    </button>
-                  </div>
+                    {lang === "tr" ? `SLAYT #${idx + 1}` : `SLIDE #${idx + 1}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveBannerSafe(banner.id)}
+                    className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {lang === "tr" ? "SİL" : "DELETE"}
+                  </button>
+                </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Image Selector & Preview */}
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                        {lang === "tr" ? "Görsel Seçimi" : "Banner Image"}
-                      </label>
-                      <div className="relative group/img h-32 bg-white border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center shadow-sm">
-                        {banner.image_url ? (
-                          <img
-                            src={banner.image_url}
-                            alt={`Slide ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="text-center">
-                            <Upload className="w-6 h-6 text-slate-300 mx-auto mb-1" />
-                            <span className="text-[8px] font-black text-slate-400 uppercase">{txt('YÜKLE', 'UPLOAD', 'ΜΕΤΑΦΟΡΤΩΣΗ')}</span>
-                          </div>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          onChange={(e) => handleBannerImageUpload(banner.id, e)}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Image Selector & Preview */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                      {lang === "tr" ? "Görsel Seçimi" : "Banner Image"}
+                    </label>
+                    <div className="relative group/img h-32 bg-white border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center shadow-sm">
+                      {banner.image_url ? (
+                        <img
+                          src={banner.image_url}
+                          alt={`Slide ${idx + 1}`}
+                          className="w-full h-full object-cover"
                         />
-                      </div>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono text-slate-600 shadow-sm outline-none"
-                        placeholder={txt('Görsel URL veya base64...', 'Image URL or base64...', 'Διεύθυνση URL εικόνας ή base64...')}
-                        value={banner.image_url || ""}
-                        onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "image_url", e.target.value)}
-                      />
-                    </div>
-
-                    {/* Content Fields */}
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                          {lang === "tr" ? "AFİŞ BAŞLIĞI" : "SLIDE TITLE"}
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-400 shadow-sm"
-                          value={banner.title || ""}
-                          onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "title", e.target.value)}
-                          placeholder={lang === "tr" ? "Örn: %50 Sezon İndirimi!" : "e.g. Summer Sale!"}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                          {lang === "tr" ? "AFİŞ ALT BAŞLIĞI" : "SLIDE SUBTITLE"}
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 outline-none focus:border-indigo-400 shadow-sm"
-                          value={banner.subtitle || ""}
-                          onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "subtitle", e.target.value)}
-                          placeholder={lang === "tr" ? "Örn: Seçili ürünlerde dev fırsat." : "e.g. Shop now."}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                    {/* Positioning Controls */}
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                        {lang === "tr" ? "Yazı Hizalaması" : "Text Alignment"}
-                      </span>
-                      <div className="flex gap-2">
-                        {[
-                          { key: 'left', label: lang === 'tr' ? 'Sol' : 'Left', icon: <AlignLeft className="w-3.5 h-3.5" /> },
-                          { key: 'center', label: lang === 'tr' ? 'Orta' : 'Center', icon: <AlignCenter className="w-3.5 h-3.5" /> },
-                          { key: 'right', label: lang === 'tr' ? 'Sağ' : 'Right', icon: <AlignRight className="w-3.5 h-3.5" /> },
-                        ].map((pos) => (
-                          <button
-                            key={pos.key}
-                            type="button"
-                            onClick={() => handleUpdateBannerFieldSafe(banner.id, "text_position", pos.key)}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-[10px] font-bold border transition-colors ${
-                              (banner.text_position || "center") === pos.key
-                                ? "bg-indigo-600 border-indigo-600 text-white"
-                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                            }`}
-                          >
-                            {pos.icon}
-                            {pos.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Store Name Visibility & Action Buttons */}
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                        {lang === "tr" ? "Diğer Gösterimler" : "Visibility & Buttons"}
-                      </span>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                          <span className="text-[10px] font-bold text-slate-600">
-                            {lang === "tr" ? "Mağaza İsmini Göster" : "Show Store Name"}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateBannerFieldSafe(banner.id, "show_store_name", banner.show_store_name === false ? true : false)}
-                            className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                              banner.show_store_name !== false ? "bg-indigo-600" : "bg-slate-300"
-                            }`}
-                          >
-                            <span
-                              className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform ${
-                                banner.show_store_name !== false ? "translate-x-3.5" : "translate-x-1"
-                              }`}
-                            />
-                          </button>
+                      ) : (
+                        <div className="text-center p-2">
+                          <Upload className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                          <span className="text-[8px] font-black text-slate-400 uppercase block">{txt('TKLAYIN VEYA DOSYA SÜRÜKLEYİN', 'CLICK OR DRAG FILE', 'ΚΑΝΤΕ ΚΛΙΚ Η ΣΥΡΕΤΕ ΑΡΧΕΙΟ')}</span>
                         </div>
-                      </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        onChange={(e) => handleBannerImageUpload(banner.id, e)}
+                      />
                     </div>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono text-slate-600 shadow-sm outline-none focus:border-indigo-400"
+                      placeholder={txt('Görsel URL veya base64...', 'Image URL or base64...', 'Διεύθυνση URL εικόνας ή base64...')}
+                      value={banner.image_url || ""}
+                      onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "image_url", e.target.value)}
+                    />
                   </div>
 
-                  {/* Button customization */}
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                  {/* Content Fields */}
+                  <div className="space-y-3">
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                        {lang === "tr" ? "BUTON YAZISI" : "BUTTON TEXT"}
+                        {lang === "tr" ? "AFİŞ BAŞLIĞI" : "SLIDE TITLE"}
                       </label>
                       <input
                         type="text"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold outline-none"
-                        value={banner.button_text || ""}
-                        onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "button_text", e.target.value)}
-                        placeholder={lang === "tr" ? "Boş bırakılırsa gizlenir" : "Leave blank to hide"}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-400 shadow-sm"
+                        value={banner.title || ""}
+                        onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "title", e.target.value)}
+                        placeholder={lang === "tr" ? "Örn: %50 Sezon İndirimi!" : "e.g. Summer Sale!"}
                       />
                     </div>
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                        {lang === "tr" ? "BUTON BAĞLANTISI (LINK)" : "BUTTON LINK"}
+                        {lang === "tr" ? "AFİŞ ALT BAŞLIĞI" : "SLIDE SUBTITLE"}
                       </label>
                       <input
                         type="text"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono outline-none"
-                        value={banner.button_link || ""}
-                        onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "button_link", e.target.value)}
-                        placeholder={txt('Örn: #portfolio veya #contact', 'e.g., #portfolio or #contact', 'π.χ. #portfolio ή #contact')}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 outline-none focus:border-indigo-400 shadow-sm"
+                        value={banner.subtitle || ""}
+                        onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "subtitle", e.target.value)}
+                        placeholder={lang === "tr" ? "Örn: Seçili ürünlerde dev fırsat." : "e.g. Shop now."}
                       />
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200/80">
+                  {/* Positioning Controls */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                      {lang === "tr" ? "Yazı Hizalaması" : "Text Alignment"}
+                    </span>
+                    <div className="flex gap-2">
+                      {[
+                        { key: 'left', label: lang === 'tr' ? 'Sol' : 'Left', icon: <AlignLeft className="w-3.5 h-3.5" /> },
+                        { key: 'center', label: lang === 'tr' ? 'Orta' : 'Center', icon: <AlignCenter className="w-3.5 h-3.5" /> },
+                        { key: 'right', label: lang === 'tr' ? 'Sağ' : 'Right', icon: <AlignRight className="w-3.5 h-3.5" /> },
+                      ].map((pos) => (
+                        <button
+                          key={pos.key}
+                          type="button"
+                          onClick={() => handleUpdateBannerFieldSafe(banner.id, "text_position", pos.key)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-colors ${
+                            (banner.text_position || "center") === pos.key
+                              ? "bg-indigo-600 border-indigo-600 text-white"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {pos.icon}
+                          {pos.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Store Name Visibility & Action Buttons */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                      {lang === "tr" ? "Diğer Gösterimler" : "Visibility & Buttons"}
+                    </span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                        <span className="text-[10px] font-bold text-slate-600">
+                          {lang === "tr" ? "Mağaza İsmini Göster" : "Show Store Name"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateBannerFieldSafe(banner.id, "show_store_name", banner.show_store_name === false ? true : false)}
+                          className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                            banner.show_store_name !== false ? "bg-indigo-600" : "bg-slate-300"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform ${
+                              banner.show_store_name !== false ? "translate-x-3.5" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Button customization */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/80">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                      {lang === "tr" ? "BUTON YAZISI" : "BUTTON TEXT"}
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold outline-none focus:border-indigo-400"
+                      value={banner.button_text || ""}
+                      onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "button_text", e.target.value)}
+                      placeholder={lang === "tr" ? "Boş bırakılırsa gizlenir" : "Leave blank to hide"}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                      {lang === "tr" ? "BUTON BAĞLANTISI (LINK)" : "BUTTON LINK"}
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono outline-none focus:border-indigo-400"
+                      value={banner.button_link || ""}
+                      onChange={(e) => handleUpdateBannerFieldSafe(banner.id, "button_link", e.target.value)}
+                      placeholder={txt('Örn: #portfolio veya #contact', 'e.g., #portfolio or #contact', 'π.χ. #portfolio ή #contact')}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
