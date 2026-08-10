@@ -371,6 +371,198 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
         </div>
       )}
 
+      {/* Commercial Specific Attributes */}
+      {data.is_main_road_frontage && (
+        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 group hover:border-amber-300 transition-all">
+          <p className="text-[8px] font-black text-amber-700 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "STRATEJİK KONUM" : "STRATEGIC LOCATION"}
+          </p>
+          <p className="text-sm font-black text-amber-950 transition-colors uppercase flex items-center gap-1.5">
+            <span>🛣️</span> {lang === "tr" ? "Ana Yol / Cadde Üzeri" : "Main Road Frontage"}
+          </p>
+        </div>
+      )}
+
+      {data.commercial_devir_status && (
+        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 group hover:border-blue-300 transition-all">
+          <p className="text-[8px] font-black text-blue-600 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "DEVİR & KİRACI DURUMU" : "TRANSFER / TENANT STATUS"}
+          </p>
+          <p className="text-sm font-black text-blue-950 transition-colors uppercase">
+            {data.commercial_devir_status === 'tenant' ? (lang === "tr" ? "📈 Hazır Kiracılı" : "Tenant Occupied") :
+             data.commercial_devir_status === 'devren' ? (lang === "tr" ? "🔄 Devren Satılık" : "Business Transfer") :
+             (lang === "tr" ? "🔑 Boş / Kullanıma Hazır" : "Vacant / Ready")}
+          </p>
+        </div>
+      )}
+
+      {data.monthly_rent_income && data.monthly_rent_income > 0 && (
+        <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 group hover:border-emerald-300 transition-all">
+          <p className="text-[8px] font-black text-emerald-600 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "AYLIK KİRA GELİRİ" : "MONTHLY RENT INCOME"}
+          </p>
+          <p className="text-sm font-black text-emerald-950 transition-colors uppercase">
+            {data.currency === 'GBP' ? '£' : data.currency === 'USD' ? '$' : data.currency === 'EUR' ? '€' : '₺'}{new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(data.monthly_rent_income)} / {lang === "tr" ? "Ay" : "Mo"}
+          </p>
+        </div>
+      )}
+
+      {data.frontage_width && data.frontage_width > 0 && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase flex items-center gap-1">
+            <span>📏</span> {lang === "tr" ? "VİTRİN / CEPHE GENİŞLİĞİ" : "FRONTAGE WIDTH"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.frontage_width} Meter (m)
+          </p>
+        </div>
+      )}
+
+      {data.ceiling_height && data.ceiling_height > 0 && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase flex items-center gap-1">
+            <span>📐</span> {lang === "tr" ? "TAVAN / VİTRİN YÜKSEKLİĞİ" : "CEILING HEIGHT"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.ceiling_height} Meter (m)
+          </p>
+        </div>
+      )}
+
+      {data.water_tank_capacity && data.water_tank_capacity > 0 && (
+        <div className="p-4 bg-sky-50 rounded-2xl border border-sky-100 group hover:border-sky-300 transition-all">
+          <p className="text-[8px] font-black text-sky-600 tracking-widest mb-1 uppercase flex items-center gap-1">
+            <span>🚰</span> {lang === "tr" ? "SU DEPOSU KAPASİTESİ" : "WATER TANK CAPACITY"}
+          </p>
+          <p className="text-sm font-black text-sky-950 transition-colors uppercase">
+            {data.water_tank_capacity} {lang === "tr" ? "Ton Su Deposu" : "Ton Water Tank"}
+          </p>
+        </div>
+      )}
+
+      {data.generator_capacity_kva && data.generator_capacity_kva > 0 && (
+        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 group hover:border-amber-300 transition-all">
+          <p className="text-[8px] font-black text-amber-600 tracking-widest mb-1 uppercase flex items-center gap-1">
+            <span>⚡</span> {lang === "tr" ? "JENERATÖR GÜCÜ" : "GENERATOR POWER"}
+          </p>
+          <p className="text-sm font-black text-amber-950 transition-colors uppercase">
+            {data.generator_capacity_kva} kVA {lang === "tr" ? "Jeneratör" : "Generator"}
+          </p>
+        </div>
+      )}
+
+      {data.entrance_count && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase flex items-center gap-1">
+            <span>🚪</span> {lang === "tr" ? "GİRİŞ / SEVKİYAT KAPISI" : "ENTRANCE COUNT"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.entrance_count}
+          </p>
+        </div>
+      )}
+
+      {data.ground_floor_sqm && data.ground_floor_sqm > 0 && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ZEMİN KAT METRAJI" : "GROUND FLOOR AREA"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.ground_floor_sqm} m²
+          </p>
+        </div>
+      )}
+
+      {data.has_basement && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "BODRUM KAT / DEPO" : "BASEMENT / STORAGE"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.basement_sqm ? `${data.basement_sqm} m²` : (lang === "tr" ? "Var" : "Available")}
+          </p>
+        </div>
+      )}
+
+      {data.has_mezzanine && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ASMA KAT / SENDE KAT" : "MEZZANINE FLOOR"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.mezzanine_sqm ? `${data.mezzanine_sqm} m²` : (lang === "tr" ? "Var" : "Available")}
+          </p>
+        </div>
+      )}
+
+      {data.has_outdoor_terrace && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "AÇIK ALAN / TERAS" : "OUTDOOR TERRACE"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.outdoor_sqm ? `${data.outdoor_sqm} m²` : (lang === "tr" ? "Var" : "Available")}
+          </p>
+        </div>
+      )}
+
+      {data.toilet_count && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "WC / TUVALET" : "TOILET COUNT"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.toilet_count}
+          </p>
+        </div>
+      )}
+
+      {data.has_chimney !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ENDÜSTRİYEL BACA" : "CHIMNEY / EXHAUST"}
+          </p>
+          <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
+            <span className={`w-1.5 h-1.5 rounded-full ${data.has_chimney ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span>{data.has_chimney ? (lang === 'tr' ? 'Var' : 'Available') : (lang === 'tr' ? 'Yok' : 'None')}</span>
+          </div>
+        </div>
+      )}
+
+      {data.has_industrial_electricity !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "SANAYİ ELEKTRİĞİ" : "THREE-PHASE POWER"}
+          </p>
+          <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
+            <span className={`w-1.5 h-1.5 rounded-full ${data.has_industrial_electricity ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span>{data.has_industrial_electricity ? (lang === 'tr' ? 'Var (Trifaze)' : 'Available') : (lang === 'tr' ? 'Yok' : 'None')}</span>
+          </div>
+        </div>
+      )}
+
+      {data.has_parking && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "OTOPARK" : "PARKING"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.parking_capacity || (lang === 'tr' ? 'Var' : 'Available')}
+          </p>
+        </div>
+      )}
+
+      {data.hotel_rooms && data.hotel_rooms > 0 && (
+        <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100 group hover:border-purple-300 transition-all">
+          <p className="text-[8px] font-black text-purple-600 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "OTEL ODA SAYISI" : "HOTEL ROOMS"}
+          </p>
+          <p className="text-sm font-black text-purple-950 transition-colors uppercase">
+            {data.hotel_rooms} {lang === "tr" ? "Oda" : "Rooms"} {data.hotel_beds ? `(${data.hotel_beds} Yatak)` : ''}
+          </p>
+        </div>
+      )}
+
       {data.cati_terasi !== undefined && data.listing_intent !== "rent" && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">

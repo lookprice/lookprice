@@ -226,6 +226,8 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
   const [landInfraFilter, setLandInfraFilter] = useState<string>('all'); // Arsa Altyapı (Yollu, Elektrik-Su, Anayol)
   const [commercialTypeFilter, setCommercialTypeFilter] = useState<string>('all'); // Ticari Türü (Dükkan, Ofis, Bina, Depo, Otel)
   const [commercialDevirFilter, setCommercialDevirFilter] = useState<string>('all'); // Devren / Kiracılı
+  const [commercialRoadFilter, setCommercialRoadFilter] = useState<string>('all'); // Ana Yol / Cadde
+  const [commercialInfraFilter, setCommercialInfraFilter] = useState<string>('all'); // Baca / Sanayi Elektriği / Jeneratör / Su Deposu / Sevkiyat
   const [furnishedFilter, setFurnishedFilter] = useState<string>('all'); // Eşya Durumu
   const [buildingAgeFilter, setBuildingAgeFilter] = useState<string>('all'); // Bina Yaşı
   const [siteAmenitiesFilter, setSiteAmenitiesFilter] = useState<string>('all'); // Site Özellikleri (Havuzlu, Bahçeli, Deniz)
@@ -250,7 +252,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
   useEffect(() => {
     setVisibleCount(6);
-  }, [activeIntent, activeCategory, activeRegion, activeSubRegion, activeBadgeFilter, selectedRooms, priceRange, trafoPaidFilter, kdvFilter, kocanTypeFilter, landZoningFilter, commercialTypeFilter, furnishedFilter]);
+  }, [activeIntent, activeCategory, activeRegion, activeSubRegion, activeBadgeFilter, selectedRooms, priceRange, trafoPaidFilter, kdvFilter, kocanTypeFilter, landZoningFilter, commercialTypeFilter, commercialDevirFilter, commercialRoadFilter, commercialInfraFilter, furnishedFilter]);
 
   // Reset All Filters Helper
   const handleResetFilters = () => {
@@ -270,6 +272,8 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
     setLandInfraFilter('all');
     setCommercialTypeFilter('all');
     setCommercialDevirFilter('all');
+    setCommercialRoadFilter('all');
+    setCommercialInfraFilter('all');
     setFurnishedFilter('all');
     setBuildingAgeFilter('all');
     setSiteAmenitiesFilter('all');
@@ -420,8 +424,31 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
       // Commercial Type Filter
       if (commercialTypeFilter !== 'all') {
-        const pComm = (p.sector_data?.commercial_type || p.category || "").toLowerCase();
+        const pComm = (p.sector_data?.commercial_type || p.sector_data?.subtype || p.category || "").toLowerCase();
         if (!pComm.includes(commercialTypeFilter.toLowerCase())) return false;
+      }
+
+      // Commercial Devir & Kiracı Durumu Filter
+      if (commercialDevirFilter !== 'all') {
+        const pDevir = (p.sector_data?.commercial_devir_status || p.sector_data?.devir_kiraci_durumu || p.sector_data?.commercial_status || "").toLowerCase();
+        if (commercialDevirFilter === 'empty' && !pDevir.includes('empty') && !pDevir.includes('boş')) return false;
+        if (commercialDevirFilter === 'devren' && !pDevir.includes('devren') && !pDevir.includes('transfer')) return false;
+        if (commercialDevirFilter === 'tenant' && !pDevir.includes('tenant') && !pDevir.includes('kiracılı') && !pDevir.includes('kiraci')) return false;
+      }
+
+      // Commercial Strategic Road Filter (Ana Yol / Cadde)
+      if (commercialRoadFilter !== 'all') {
+        const isMainRoad = !!(p.sector_data?.is_main_road_frontage || p.sector_data?.is_on_main_road || (p.sector_data?.facade && p.sector_data.facade.toLowerCase().includes('cadde')));
+        if (commercialRoadFilter === 'main_road' && !isMainRoad) return false;
+      }
+
+      // Commercial Infra & Equipment Filter
+      if (commercialInfraFilter !== 'all') {
+        if (commercialInfraFilter === 'chimney' && !p.sector_data?.has_chimney) return false;
+        if (commercialInfraFilter === 'electric' && !p.sector_data?.has_industrial_electricity) return false;
+        if (commercialInfraFilter === 'generator' && !(p.sector_data?.has_generator || (p.sector_data?.generator_capacity_kva && p.sector_data?.generator_capacity_kva > 0))) return false;
+        if (commercialInfraFilter === 'water' && !(p.sector_data?.water_tank_capacity && p.sector_data?.water_tank_capacity > 0)) return false;
+        if (commercialInfraFilter === 'entrance' && !p.sector_data?.entrance_count) return false;
       }
 
       // Furnished Status Filter
@@ -433,7 +460,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
       return true;
     });
-  }, [products, activeIntent, activeCategory, activeRegion, activeSubRegion, activeBadgeFilter, selectedRooms, priceRange, trafoPaidFilter, kdvFilter, terraceFilter, kocanTypeFilter, landZoningFilter, commercialTypeFilter, furnishedFilter]);
+  }, [products, activeIntent, activeCategory, activeRegion, activeSubRegion, activeBadgeFilter, selectedRooms, priceRange, trafoPaidFilter, kdvFilter, terraceFilter, kocanTypeFilter, landZoningFilter, commercialTypeFilter, commercialDevirFilter, commercialRoadFilter, commercialInfraFilter, furnishedFilter]);
 
   // Featured / Opportunity Property
   const opportunityProperty = useMemo(() => {
@@ -1597,6 +1624,52 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               }`}
                             >
                               {cd.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Stratejik Konum & Yol */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-blue-950 uppercase tracking-wider mb-1.5">Stratejik Konum</label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                            { key: 'all', label: 'Tüm Konumlar' },
+                            { key: 'main_road', label: '🛣️ Ana Yol / Cadde Üzeri' },
+                          ].map((cr) => (
+                            <button
+                              key={cr.key}
+                              onClick={() => setCommercialRoadFilter(cr.key)}
+                              className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
+                                commercialRoadFilter === cr.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-white text-slate-700 border-blue-200 hover:bg-blue-100"
+                              }`}
+                            >
+                              {cr.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Altyapı & Tesis Donanımı */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-blue-950 uppercase tracking-wider mb-1.5">Altyapı & Ekstra Donanım</label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                            { key: 'all', label: 'Tüm Donanımlar' },
+                            { key: 'chimney', label: '🌬️ Endüstriyel Baca' },
+                            { key: 'electric', label: '⚡ Sanayi Elektriği' },
+                            { key: 'generator', label: '🔋 Jeneratör Altyapısı' },
+                            { key: 'water', label: '🚰 Su Deposu Var' },
+                            { key: 'entrance', label: '🚪 Özel Giriş / Sevkiyat' },
+                          ].map((ci) => (
+                            <button
+                              key={ci.key}
+                              onClick={() => setCommercialInfraFilter(ci.key)}
+                              className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
+                                commercialInfraFilter === ci.key ? "bg-blue-600 text-white border-blue-700 font-black shadow-xs" : "bg-white text-slate-700 border-blue-200 hover:bg-blue-100"
+                              }`}
+                            >
+                              {ci.label}
                             </button>
                           ))}
                         </div>

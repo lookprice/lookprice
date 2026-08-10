@@ -636,13 +636,13 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             </div>
           </div>
 
-          {/* 4- DETAYLI METRİKLER & KONUM BİLGİSİ (Ada/parsel hidden for real estate; includes Trafo, KDV, Çatı Terası) */}
+          {/* 4- DETAYLI METRİKLER & KONUM BİLGİSİ (Conditional for Land vs Commercial vs Residence) */}
           <div className="bg-sky-50/40 border border-sky-100 p-4 md:p-5 rounded-2xl space-y-4 shadow-2xs">
             <h4 className="text-xs font-black uppercase text-sky-950 border-l-4 border-sky-600 pl-2">
-              📐 4. Detaylı Metrikler & Konum Bilgisi (Trafo, KDV, Çatı Terası)
+              📐 4. {formData.type === 'land' ? 'Arsa & Arazi İmar ve Metrik Bilgileri' : formData.type === 'commercial' ? '🏬 Ticari Mülk & İşyeri Detaylı Metrikleri' : '🏠 Konut / Residence Detaylı Metrikleri'}
             </h4>
 
-            {formData.listing_intent === 'rent' && (
+            {formData.listing_intent === 'rent' && formData.type !== 'land' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-amber-50 p-3.5 rounded-xl border border-amber-200">
                 <div>
                   <label className="block text-[10px] font-black text-rose-700 mb-1">Depozito Tutarı (Zorunlu) *</label>
@@ -671,129 +671,511 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
             )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-1">Net Alan (m²)</label>
-                <input
-                  type="number"
-                  placeholder="Net m²"
-                  className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
-                  value={formData.square_meters || ''}
-                  onChange={(e) => setFormData({...formData, square_meters: Number(e.target.value)})}
-                />
-              </div>
+            {formData.type === 'land' ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Arsa Alanı (m²)</label>
+                    <input
+                      type="number"
+                      placeholder="Örn: 500"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.square_meters || ''}
+                      onChange={(e) => setFormData({...formData, square_meters: Number(e.target.value)})}
+                    />
+                  </div>
 
-              {formData.listing_intent !== 'rent' && (
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-1">Brüt Alan (m²)</label>
-                  <input
-                    type="number"
-                    placeholder="Brüt m²"
-                    className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
-                    value={formData.sqm_gross || ''}
-                    onChange={(e) => setFormData({...formData, sqm_gross: Number(e.target.value)})}
-                  />
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">İmar Durumu</label>
+                    <select
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={(formData as any).imar_durumu || ''}
+                      onChange={(e) => setFormData({...formData, imar_durumu: e.target.value} as any)}
+                    >
+                      <option value="">Seçiniz</option>
+                      <option value="Konut İmarlı">Konut İmarlı</option>
+                      <option value="Ticari İmarlı">Ticari İmarlı</option>
+                      <option value="Konut + Ticari">Konut + Ticari (Karma)</option>
+                      <option value="Tarla / Tarım">Tarla / Tarım</option>
+                      <option value="Zeytinlik">Zeytinlik</option>
+                      <option value="Sanayi İmarlı">Sanayi İmarlı</option>
+                      <option value="Turizm İmarlı">Turizm İmarlı</option>
+                      <option value="İmarsız / Ham Arsa">İmarsız / Ham Arsa</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Emsal / Kaks</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 0.35 / 0.70"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={(formData as any).kaks || ''}
+                      onChange={(e) => setFormData({...formData, kaks: e.target.value} as any)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Gabari / Kat Sınırı</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 2 Kat (6.50m)"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={(formData as any).gabari || ''}
+                      onChange={(e) => setFormData({...formData, gabari: e.target.value} as any)}
+                    />
+                  </div>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-1">Oda Sayısı</label>
-                <input
-                  type="text"
-                  placeholder="3+1, 2+1 vb."
-                  className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold disabled:bg-slate-100"
-                  value={formData.room_count || ''}
-                  onChange={(e) => setFormData({...formData, room_count: e.target.value})}
-                  disabled={formData.type === 'land'}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3.5 rounded-xl border border-sky-200 text-xs font-bold text-slate-700">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!(formData as any).elektrik_var} onChange={(e) => setFormData({...formData, elektrik_var: e.target.checked} as any)} className="w-4 h-4 text-sky-600 rounded" />
+                    <span>⚡ Elektrik Altyapısı Var</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!(formData as any).su_var} onChange={(e) => setFormData({...formData, su_var: e.target.checked} as any)} className="w-4 h-4 text-sky-600 rounded" />
+                    <span>💧 Su Altyapısı Var</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!(formData as any).yol_var} onChange={(e) => setFormData({...formData, yol_var: e.target.checked} as any)} className="w-4 h-4 text-sky-600 rounded" />
+                    <span>🛣️ Kadastro Yolu Var</span>
+                  </label>
+                </div>
               </div>
+            ) : formData.type === 'commercial' ? (
+              <div className="space-y-4">
+                {/* Devir & Kiracı Durumu + Cephe & Kat Sayısı */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-blue-50/80 p-3.5 rounded-xl border border-blue-200">
+                  <div>
+                    <label className="block text-[10px] font-black text-blue-900 mb-1">Devir & Kiracı Durumu *</label>
+                    <select
+                      className="w-full p-2.5 bg-white border border-blue-300 rounded-xl text-xs font-bold text-slate-800"
+                      value={formData.commercial_devir_status || 'empty'}
+                      onChange={(e) => setFormData({...formData, commercial_devir_status: e.target.value as any})}
+                    >
+                      <option value="empty">🔑 Boş / Kullanıma Hazır</option>
+                      <option value="devren">🔄 Devren Satılık</option>
+                      <option value="tenant">📈 Hazır Kiracılı</option>
+                    </select>
+                  </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-1">Bina Yaşı</label>
-                <input
-                  type="text"
-                  placeholder="Yaş"
-                  className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold disabled:bg-slate-100"
-                  value={formData.building_age || ''}
-                  onChange={(e) => setFormData({...formData, building_age: e.target.value})}
-                  disabled={formData.type === 'land'}
-                />
+                  {formData.commercial_devir_status === 'tenant' ? (
+                    <div>
+                      <label className="block text-[10px] font-black text-emerald-800 mb-1">Aylık Kira Geliri (£ / ₺ / $)</label>
+                      <input
+                        type="number"
+                        placeholder="Örn: 2500"
+                        className="w-full p-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold"
+                        value={formData.monthly_rent_income || ''}
+                        onChange={(e) => setFormData({...formData, monthly_rent_income: Number(e.target.value)})}
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">Vitrin / Cephe Genişliği (m)</label>
+                      <input
+                        type="number"
+                        placeholder="Örn: 12"
+                        className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                        value={formData.frontage_width || ''}
+                        onChange={(e) => setFormData({...formData, frontage_width: Number(e.target.value)})}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Tavan / Vitrin Yüksekliği (m)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      placeholder="Örn: 4.5"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.ceiling_height || ''}
+                      onChange={(e) => setFormData({...formData, ceiling_height: Number(e.target.value)})}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Toplam Kat Sayısı</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 3 Katlı (Bodrum, Zemin, Asma)"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.total_floors || ''}
+                      onChange={(e) => setFormData({...formData, total_floors: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                {/* Stratejik Altyapı & Kapasite Metrikleri */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-amber-50/50 p-3.5 rounded-xl border border-amber-200">
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-900 mb-1">🚰 Su Deposu Kapasitesi (Ton)</label>
+                    <input
+                      type="number"
+                      placeholder="Örn: 15 (Ton)"
+                      className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs font-bold"
+                      value={formData.water_tank_capacity || ''}
+                      onChange={(e) => setFormData({...formData, water_tank_capacity: Number(e.target.value)})}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-900 mb-1">⚡ Jeneratör Gücü (kVA)</label>
+                    <input
+                      type="number"
+                      placeholder="Örn: 110 (kVA)"
+                      className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs font-bold"
+                      value={formData.generator_capacity_kva || ''}
+                      onChange={(e) => setFormData({...formData, generator_capacity_kva: Number(e.target.value)})}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-900 mb-1">🚪 Giriş / Kapı / Sevkiyat Sayısı</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 2 Giriş + Tır Yükleme Kapısı"
+                      className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs font-bold"
+                      value={formData.entrance_count || ''}
+                      onChange={(e) => setFormData({...formData, entrance_count: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                {/* Metrajlar & Kullanım Alanları */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Toplam Net Alan (m²)</label>
+                    <input
+                      type="number"
+                      placeholder="Net m² (Örn: 600)"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.square_meters || ''}
+                      onChange={(e) => setFormData({...formData, square_meters: Number(e.target.value)})}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Toplam Brüt Alan (m²)</label>
+                    <input
+                      type="number"
+                      placeholder="Brüt m² (Örn: 680)"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.sqm_gross || ''}
+                      onChange={(e) => setFormData({...formData, sqm_gross: Number(e.target.value)})}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Zemin Kat Metrajı (m²)</label>
+                    <input
+                      type="number"
+                      placeholder="Örn: 250"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.ground_floor_sqm || ''}
+                      onChange={(e) => setFormData({...formData, ground_floor_sqm: Number(e.target.value)})}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">WC / Tuvalet Sayısı</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 2 WC / Bay-Bayan"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.toilet_count || ''}
+                      onChange={(e) => setFormData({...formData, toilet_count: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                {/* Kat Dağılımı ve Metraj Detayları (Bodrum Kat, Asma Kat, Teras/Açık Alan) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
+                      <input type="checkbox" checked={!!formData.has_basement} onChange={(e) => setFormData({...formData, has_basement: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                      <span>📦 Bodrum Kat / Depo Var</span>
+                    </label>
+                    {formData.has_basement && (
+                      <input
+                        type="number"
+                        placeholder="Bodrum Kat m² (Örn: 150)"
+                        className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-bold"
+                        value={formData.basement_sqm || ''}
+                        onChange={(e) => setFormData({...formData, basement_sqm: Number(e.target.value)})}
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
+                      <input type="checkbox" checked={!!formData.has_mezzanine} onChange={(e) => setFormData({...formData, has_mezzanine: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                      <span>🏢 Asma Kat / Sende Kat Var</span>
+                    </label>
+                    {formData.has_mezzanine && (
+                      <input
+                        type="number"
+                        placeholder="Asma Kat m² (Örn: 120)"
+                        className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-bold"
+                        value={formData.mezzanine_sqm || ''}
+                        onChange={(e) => setFormData({...formData, mezzanine_sqm: Number(e.target.value)})}
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
+                      <input type="checkbox" checked={!!formData.has_outdoor_terrace} onChange={(e) => setFormData({...formData, has_outdoor_terrace: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                      <span>🌅 Açık Kullanım / Teras Var</span>
+                    </label>
+                    {formData.has_outdoor_terrace && (
+                      <input
+                        type="number"
+                        placeholder="Açık Alan m² (Örn: 80)"
+                        className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-bold"
+                        value={formData.outdoor_sqm || ''}
+                        onChange={(e) => setFormData({...formData, outdoor_sqm: Number(e.target.value)})}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Ticari Tesis & Altyapı Toggles */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-xl border border-sky-200 text-xs font-bold text-slate-700">
+                  <label className="flex items-center gap-2 cursor-pointer text-amber-900 bg-amber-50/60 p-1.5 rounded-lg border border-amber-200/60">
+                    <input type="checkbox" checked={!!formData.is_main_road_frontage} onChange={(e) => setFormData({...formData, is_main_road_frontage: e.target.checked})} className="w-4 h-4 text-amber-600 rounded" />
+                    <span>🛣️ Ana Yol / Cadde Üzeri</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.has_chimney} onChange={(e) => setFormData({...formData, has_chimney: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                    <span>🌬️ Endüstriyel Baca</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.has_industrial_electricity} onChange={(e) => setFormData({...formData, has_industrial_electricity: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                    <span>⚡ Sanayi Elektriği</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.has_generator} onChange={(e) => setFormData({...formData, has_generator: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                    <span>🔋 Jeneratör Altyapısı</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.has_elevator} onChange={(e) => setFormData({...formData, has_elevator: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                    <span>🚛 Yük / Müşteri Asansörü</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.has_parking} onChange={(e) => setFormData({...formData, has_parking: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                    <span>🅿️ Otopark Alanı</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.has_kitchen} onChange={(e) => setFormData({...formData, has_kitchen: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                    <span>🍳 Mutfak / Kitchenette</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.trafo_bedeli} onChange={(e) => setFormData({...formData, trafo_bedeli: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+                    <span>⚡ Trafo Bedeli Ödendi</span>
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500">KDV:</span>
+                    <select className="p-1 border border-slate-200 rounded text-xs font-bold bg-white" value={formData.kdv_status} onChange={(e) => setFormData({...formData, kdv_status: e.target.value as any})}>
+                      <option value="to_be_paid">Ödenecek</option>
+                      <option value="paid">Ödendi</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Otopark Kapasitesi */}
+                {formData.has_parking && (
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Otopark Kapasitesi (Araç Sayısı)</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 10 Araçlık Özel Müşteri Otoparkı"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.parking_capacity || ''}
+                      onChange={(e) => setFormData({...formData, parking_capacity: e.target.value})}
+                    />
+                  </div>
+                )}
+
+                {/* Otel / Pansiyon Özel Alanları */}
+                {(formData.subtype?.toLowerCase().includes('otel') || formData.subtype?.toLowerCase().includes('pansiyon') || formData.subtype?.toLowerCase().includes('konaklama')) && (
+                  <div className="p-3.5 bg-purple-50/80 rounded-xl border border-purple-200 space-y-3">
+                    <h5 className="text-xs font-black uppercase text-purple-950 flex items-center gap-2">
+                      🏨 Otel & Konaklama Tesisi Özel Metrikleri
+                    </h5>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">Toplam Oda Sayısı</label>
+                        <input
+                          type="number"
+                          placeholder="Örn: 24"
+                          className="w-full p-2 bg-white border border-purple-200 rounded-lg text-xs font-bold"
+                          value={formData.hotel_rooms || ''}
+                          onChange={(e) => setFormData({...formData, hotel_rooms: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">Yatak Kapasitesi</label>
+                        <input
+                          type="number"
+                          placeholder="Örn: 60"
+                          className="w-full p-2 bg-white border border-purple-200 rounded-lg text-xs font-bold"
+                          value={formData.hotel_beds || ''}
+                          onChange={(e) => setFormData({...formData, hotel_beds: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">Sınıfı / Yıldız</label>
+                        <input
+                          type="text"
+                          placeholder="Örn: Butik Otel / 3 Yıldızlı"
+                          className="w-full p-2 bg-white border border-purple-200 rounded-lg text-xs font-bold"
+                          value={formData.hotel_stars || ''}
+                          onChange={(e) => setFormData({...formData, hotel_stars: e.target.value})}
+                        />
+                      </div>
+                      <div className="flex items-center pt-4">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-purple-900">
+                          <input type="checkbox" checked={!!formData.has_tourism_license} onChange={(e) => setFormData({...formData, has_tourism_license: e.target.checked})} className="w-4 h-4 text-purple-600 rounded" />
+                          <span>📜 Turizm Ruhsatlı</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Net Alan (m²)</label>
+                    <input
+                      type="number"
+                      placeholder="Net m²"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.square_meters || ''}
+                      onChange={(e) => setFormData({...formData, square_meters: Number(e.target.value)})}
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-1">Cephe</label>
-                <select
-                  className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
-                  value={formData.facade || ''}
-                  onChange={(e) => setFormData({...formData, facade: e.target.value})}
-                >
-                  <option value="">Seçiniz</option>
-                  <option value="Kuzey">Kuzey</option>
-                  <option value="Güney">Güney</option>
-                  <option value="Doğu">Doğu</option>
-                  <option value="Batı">Batı</option>
-                  <option value="Kuzeydoğu">Kuzeydoğu</option>
-                  <option value="Kuzeybatı">Kuzeybatı</option>
-                  <option value="Güneydoğu">Güneydoğu</option>
-                  <option value="Güneybatı">Güneybatı</option>
-                </select>
-              </div>
+                  {formData.listing_intent !== 'rent' && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">Brüt Alan (m²)</label>
+                      <input
+                        type="number"
+                        placeholder="Brüt m²"
+                        className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                        value={formData.sqm_gross || ''}
+                        onChange={(e) => setFormData({...formData, sqm_gross: Number(e.target.value)})}
+                      />
+                    </div>
+                  )}
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-1">Kat</label>
-                <input
-                  type="text"
-                  placeholder="3. Kat"
-                  className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold disabled:bg-slate-100"
-                  value={formData.floor || ''}
-                  onChange={(e) => setFormData({...formData, floor: e.target.value})}
-                  disabled={formData.type === 'land'}
-                />
-              </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Oda Sayısı</label>
+                    <input
+                      type="text"
+                      placeholder="3+1, 2+1 vb."
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.room_count || ''}
+                      onChange={(e) => setFormData({...formData, room_count: e.target.value})}
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 mb-1">Isıtma</label>
-                <select
-                  className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
-                  value={formData.heating || ''}
-                  onChange={(e) => setFormData({...formData, heating: e.target.value})}
-                  disabled={formData.type === 'land'}
-                >
-                  <option value="">Seçiniz</option>
-                  <option value="Klima">Klima (KKTC)</option>
-                  <option value="Yerden Isıtma">Yerden Isıtma</option>
-                  <option value="Kombi">Kombi</option>
-                  <option value="Merkezi Sistem">Merkezi</option>
-                  <option value="Yok">Yok</option>
-                </select>
-              </div>
-            </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Bina Yaşı</label>
+                    <input
+                      type="text"
+                      placeholder="Yaş"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.building_age || ''}
+                      onChange={(e) => setFormData({...formData, building_age: e.target.value})}
+                    />
+                  </div>
 
-            {/* Trafo, KDV, Çatı Terası, Site İçi toggles */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-xl border border-sky-200 text-xs font-bold text-slate-700">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!!formData.trafo_bedeli} onChange={(e) => setFormData({...formData, trafo_bedeli: e.target.checked})} className="w-4 h-4 text-sky-600 rounded" />
-                <span>Trafo Bedeli Ödendi</span>
-              </label>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Cephe</label>
+                    <select
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.facade || ''}
+                      onChange={(e) => setFormData({...formData, facade: e.target.value})}
+                    >
+                      <option value="">Seçiniz</option>
+                      <option value="Kuzey">Kuzey</option>
+                      <option value="Güney">Güney</option>
+                      <option value="Doğu">Doğu</option>
+                      <option value="Batı">Batı</option>
+                      <option value="Kuzeydoğu">Kuzeydoğu</option>
+                      <option value="Kuzeybatı">Kuzeybatı</option>
+                      <option value="Güneydoğu">Güneydoğu</option>
+                      <option value="Güneybatı">Güneybatı</option>
+                    </select>
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500">KDV:</span>
-                <select className="p-1 border border-slate-200 rounded text-xs font-bold" value={formData.kdv_status} onChange={(e) => setFormData({...formData, kdv_status: e.target.value as any})}>
-                  <option value="to_be_paid">Ödenecek</option>
-                  <option value="paid">Ödendi</option>
-                </select>
-              </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Kat</label>
+                    <input
+                      type="text"
+                      placeholder="3. Kat"
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.floor || ''}
+                      onChange={(e) => setFormData({...formData, floor: e.target.value})}
+                    />
+                  </div>
 
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!!formData.cati_terasi} onChange={(e) => setFormData({...formData, cati_terasi: e.target.checked})} className="w-4 h-4 text-sky-600 rounded" />
-                <span>Çatı Terası</span>
-              </label>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Isıtma</label>
+                    <select
+                      className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-bold"
+                      value={formData.heating || ''}
+                      onChange={(e) => setFormData({...formData, heating: e.target.value})}
+                    >
+                      <option value="">Seçiniz</option>
+                      <option value="Klima">Klima (KKTC)</option>
+                      <option value="Yerden Isıtma">Yerden Isıtma</option>
+                      <option value="Kombi">Kombi</option>
+                      <option value="Merkezi Sistem">Merkezi</option>
+                      <option value="Yok">Yok</option>
+                    </select>
+                  </div>
+                </div>
 
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!!formData.in_gated_community} onChange={(e) => setFormData({...formData, in_gated_community: e.target.checked})} className="w-4 h-4 text-sky-600 rounded" />
-                <span>Site İçi</span>
-              </label>
-            </div>
+                {/* Trafo, KDV, Çatı Terası, Site İçi toggles */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-xl border border-sky-200 text-xs font-bold text-slate-700">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.trafo_bedeli} onChange={(e) => setFormData({...formData, trafo_bedeli: e.target.checked})} className="w-4 h-4 text-sky-600 rounded" />
+                    <span>Trafo Bedeli Ödendi</span>
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500">KDV:</span>
+                    <select className="p-1 border border-slate-200 rounded text-xs font-bold" value={formData.kdv_status} onChange={(e) => setFormData({...formData, kdv_status: e.target.value as any})}>
+                      <option value="to_be_paid">Ödenecek</option>
+                      <option value="paid">Ödendi</option>
+                    </select>
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.cati_terasi} onChange={(e) => setFormData({...formData, cati_terasi: e.target.checked})} className="w-4 h-4 text-sky-600 rounded" />
+                    <span>Çatı Terası</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!formData.in_gated_community} onChange={(e) => setFormData({...formData, in_gated_community: e.target.checked})} className="w-4 h-4 text-sky-600 rounded" />
+                    <span>Site İçi</span>
+                  </label>
+                </div>
+              </>
+            )}
           </div>
 
           {/* 5- AÇIKLAMA (UK ve TR Yatırımcıları için Notlar) */}
@@ -827,36 +1209,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             </div>
           </div>
 
-          {/* 7- MÜLK SAHİBİ VE YETKİ BİLGİLERİ (Tekrar / Doğrulama) & GÜVENLİ DOKÜMAN YÖNETİMİ */}
-          <div className="bg-amber-50/70 border-l-4 border-amber-600 p-4 md:p-5 rounded-2xl border border-amber-200/80 space-y-4 shadow-2xs">
-            <h5 className="text-xs font-black uppercase text-amber-950 flex items-center gap-1.5 border-b border-amber-200/50 pb-2">
-              👤 7. Mülk Sahibi ve Yetki Bilgileri (Hızlı Doğrulama)
-            </h5>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Mülk Sahibi Adı</label>
-                <input 
-                  type="text" 
-                  className="w-full p-2.5 bg-white border border-amber-200 rounded-xl text-xs font-bold text-slate-800"
-                  value={formData.owner_info?.fullName || ''}
-                  onChange={(e) => setFormData({...formData, owner_info: {...formData.owner_info, fullName: e.target.value}})}
-                  placeholder="Mülk sahibi adı"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Mülk Sahibi Telefonu</label>
-                <input 
-                  type="tel" 
-                  className="w-full p-2.5 bg-white border border-amber-200 rounded-xl text-xs font-bold text-slate-800"
-                  value={formData.owner_info?.phone || ''}
-                  onChange={(e) => setFormData({...formData, owner_info: {...formData.owner_info, phone: e.target.value}})}
-                  placeholder="Telefon"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 7.2- GÜVENLİ DOKÜMAN YÖNETİMİ & PORTFÖY DOĞRULANMIŞ ROZETİ */}
+          {/* 7- GÜVENLİ DOKÜMAN YÖNETİMİ & PORTFÖY DOĞRULANMIŞ ROZETİ */}
           <div className="bg-amber-50/40 border border-amber-200/60 p-4 md:p-5 rounded-2xl space-y-4 shadow-2xs">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h4 className="text-xs font-black uppercase text-amber-950 border-l-4 border-amber-600 pl-2 flex items-center gap-1.5">
@@ -899,31 +1252,104 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   )}
                 </div>
 
-                {/* Quick Add Doc Form */}
-                <div className="bg-white p-3 rounded-xl border border-amber-200 flex flex-col sm:flex-row gap-2 items-center">
-                  <select
-                    className="p-2 border border-slate-200 rounded-xl text-xs font-bold bg-slate-50 w-full sm:w-auto"
-                    value={docCategory}
-                    onChange={(e) => setDocCategory(e.target.value as any)}
-                  >
-                    <option value="title_deed">Tapu Örneği</option>
-                    <option value="dask">DASK / Sigorta</option>
-                    <option value="contract">Yetki Belgesi</option>
-                  </select>
+                {/* Quick Add Doc Form with Camera & File Support */}
+                <div className="bg-white p-4 rounded-2xl border border-amber-200 space-y-3 shadow-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Belge Türü</label>
+                      <select
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-slate-50"
+                        value={docCategory}
+                        onChange={(e) => setDocCategory(e.target.value as any)}
+                      >
+                        <option value="title_deed">📋 Tapu Örneği / Title Deed</option>
+                        <option value="dask">🛡️ DASK / Sigorta</option>
+                        <option value="contract">✍️ Yetki & Aracılık Sözleşmesi</option>
+                        <option value="auth_doc">🔑 Diğer Resmî Evrak</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Evrak Adı (Opsiyonel)</label>
+                      <input
+                        type="text"
+                        placeholder="Örn: Blok A-3 Tapu Örneği"
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold"
+                        value={docName}
+                        onChange={(e) => setDocName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Hidden Camera Input */}
                   <input
-                    type="text"
-                    placeholder="Evrak Adı (Tapu, Sözleşme...)"
-                    className="p-2 border border-slate-200 rounded-xl text-xs font-bold flex-1 w-full"
-                    value={docName}
-                    onChange={(e) => setDocName(e.target.value)}
+                    type="file"
+                    ref={docCameraInputRef}
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setSelectedDocFile(file);
+                        if (!docName) {
+                          setDocName(file.name.split('.')[0] || "Belge Fotoğrafı");
+                        }
+                      }
+                    }}
                   />
-                  <button
-                    type="button"
-                    onClick={handleAddDocument}
-                    className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-sm hover:bg-indigo-700"
-                  >
-                    + Evrak Ekle
-                  </button>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <input
+                      type="file"
+                      id="document-secure-file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setSelectedDocFile(file);
+                          if (!docName) {
+                            setDocName(file.name.split('.')[0]);
+                          }
+                        }
+                      }}
+                      className="hidden"
+                    />
+
+                    <label htmlFor="document-secure-file" className="w-full sm:flex-1 p-2.5 border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl bg-slate-50 text-xs font-bold text-slate-600 flex items-center justify-center gap-2 cursor-pointer transition-all">
+                      <Upload className="w-4 h-4 text-indigo-600" />
+                      {selectedDocFile ? selectedDocFile.name : 'Dosya Seç veya Sürükle (PDF, Resim)'}
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => docCameraInputRef.current?.click()}
+                      className="w-full sm:w-auto px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <Camera className="w-4 h-4" />
+                      Kamera 📸
+                    </button>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    {selectedDocFile && (
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedDocFile(null); setDocName(''); }}
+                        className="px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold"
+                      >
+                        Vazgeç
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleAddDocument}
+                      disabled={!selectedDocFile && !docName}
+                      className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4 stroke-[3]" />
+                      Güvenli Sistemine Evrakı Kaydet
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1044,553 +1470,6 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 <span className="text-xs font-bold text-amber-200">⭐ Öne Çıkan / VIP İlan</span>
               </label>
             </div>
-          </div>
-
-          {/* Detaylı Metrikler */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-black text-slate-800 border-l-4 border-slate-800 pl-2">Detaylı Metrikler & Konum Bilgileri</h4>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {formData.listing_intent === 'sale' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Ada / Parsel</label>
-                  <input
-                    type="text"
-                    placeholder="Ada/Parsel No"
-                    className="w-full p-3 border rounded-xl text-sm font-medium"
-                    value={formData.block_plot || ''}
-                    onChange={(e) => setFormData({...formData, block_plot: e.target.value})}
-                  />
-                </div>
-              )}
-
-              {formData.listing_intent === 'rent' && (
-                <div className="grid grid-cols-2 gap-4 col-span-2 md:col-span-4 bg-amber-50/70 p-4 rounded-xl border border-amber-200">
-                  <div>
-                    <label className="block text-xs font-black text-rose-600 mb-1">
-                      Depozito Tutarı (Zorunlu) *
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Örn: 2000"
-                      className={`w-full p-3 border rounded-xl text-sm font-bold focus:outline-none focus:ring-1 ${(!formData.deposit || Number(formData.deposit) <= 0) ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/30' : 'border-slate-300 focus:border-amber-400 focus:ring-amber-400 bg-white'}`}
-                      value={formData.deposit || ''}
-                      onChange={(e) => {
-                        const val = e.target.value === '' ? 0 : Number(e.target.value);
-                        setFormData({...formData, deposit: val});
-                        if (val > 0) setValidationError(null);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Ödeme Periyodu</label>
-                    <select className="w-full p-3 border rounded-xl text-sm" value={formData.billing_period || 'monthly'} onChange={(e) => setFormData({...formData, billing_period: e.target.value as any})}>
-                        <option value="monthly">Aylık</option>
-                        <option value="3-monthly">3 Aylık</option>
-                        <option value="6-monthly">6 Aylık</option>
-                        <option value="yearly">Yıllık</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">
-                  Net Alan (m²) {formData.square_meters ? `(Format: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(formData.square_meters))})` : ''}
-                </label>
-                <input
-                  type="number"
-                  placeholder="Net m²"
-                  className="w-full p-3 border rounded-xl text-sm font-medium"
-                  value={formData.square_meters || ''}
-                  onChange={(e) => setFormData({...formData, square_meters: Number(e.target.value)})}
-                />
-              </div>
-
-              {formData.listing_intent !== 'rent' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">
-                    Brüt Alan (m²) {formData.sqm_gross ? `(Format: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(formData.sqm_gross))})` : ''}
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Brüt m²"
-                    className="w-full p-3 border rounded-xl text-sm font-medium"
-                    value={formData.sqm_gross || ''}
-                    onChange={(e) => setFormData({...formData, sqm_gross: Number(e.target.value)})}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Oda Sayısı</label>
-                <input
-                  type="text"
-                  placeholder="3+1, 2+1, Villa vb."
-                  className="w-full p-3 border rounded-xl text-sm font-medium disabled:bg-slate-50 text-slate-700"
-                  value={formData.room_count || ''}
-                  onChange={(e) => setFormData({...formData, room_count: e.target.value})}
-                  disabled={formData.type === 'land'}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Bina Yaşı</label>
-                <input
-                  type="text"
-                  placeholder="Bina Yaşı"
-                  className="w-full p-3 border rounded-xl text-sm font-medium disabled:bg-slate-50 text-slate-700"
-                  value={formData.building_age || ''}
-                  onChange={(e) => setFormData({...formData, building_age: e.target.value})}
-                  disabled={formData.type === 'land'}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Cephe</label>
-                <select
-                  className="w-full p-3 border rounded-xl text-sm text-slate-700 bg-white"
-                  value={formData.facade || ''}
-                  onChange={(e) => setFormData({...formData, facade: e.target.value})}
-                >
-                  <option value="">Seçiniz</option>
-                  <option value="Kuzey">Kuzey</option>
-                  <option value="Güney">Güney</option>
-                  <option value="Doğu">Doğu</option>
-                  <option value="Batı">Batı</option>
-                  <option value="Kuzeydoğu">Kuzeydoğu</option>
-                  <option value="Kuzeybatı">Kuzeybatı</option>
-                  <option value="Güneydoğu">Güneydoğu</option>
-                  <option value="Güneybatı">Güneybatı</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Bulunduğu Kat</label>
-                <input
-                  type="text"
-                  placeholder="3. Kat"
-                  className="w-full p-3 border rounded-xl text-sm font-medium disabled:bg-slate-50 text-slate-700"
-                  value={formData.floor || ''}
-                  onChange={(e) => setFormData({...formData, floor: e.target.value})}
-                  disabled={formData.type === 'land'}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Isıtma Tipi</label>
-                <select
-                  className="w-full p-3 border rounded-xl text-sm text-slate-700 bg-white disabled:bg-slate-50"
-                  value={formData.heating || ''}
-                  onChange={(e) => setFormData({...formData, heating: e.target.value})}
-                  disabled={formData.type === 'land'}
-                >
-                  <option value="">Seçiniz</option>
-                  <option value="Klima">Klima (KKTC Geneli)</option>
-                  <option value="Yerden Isıtma">Yerden Isıtma</option>
-                  <option value="Kombi (Doğalgaz)">Kombi (Doğalgaz)</option>
-                  <option value="Merkezi Sistem">Merkezi Sistem</option>
-                  <option value="Merkezi (Pay Ölçer)">Merkezi (Pay Ölçer)</option>
-                  <option value="Soba">Soba</option>
-                  <option value="Yok">Yok</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Site İçi ve Aidat Durumu */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 font-sans">
-              <div className="flex items-center">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    checked={formData.in_gated_community || false}
-                    onChange={(e) => setFormData({...formData, in_gated_community: e.target.checked})}
-                  />
-                  <div>
-                    <span className="block text-xs font-bold text-slate-700">Site İçi mi?</span>
-                    <span className="block text-[9px] text-slate-400">Yüzme havuzu/güvenlik</span>
-                  </div>
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
-                  Aidat / Bakım Ücreti {formData.dues ? `(Format: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(formData.dues))})` : ''}
-                </label>
-                <div className="flex gap-1">
-                  <input
-                    type="number"
-                    placeholder="Tutar"
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold"
-                    value={formData.dues || ''}
-                    disabled={!formData.in_gated_community}
-                    onChange={(e) => setFormData({...formData, dues: Number(e.target.value)})}
-                  />
-                  <select
-                    className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600"
-                    value={formData.dues_currency || 'GBP'}
-                    disabled={!formData.in_gated_community}
-                    onChange={(e) => setFormData({...formData, dues_currency: e.target.value})}
-                  >
-                    <option value="GBP">GBP (£)</option>
-                    <option value="TRY">TRY (₺)</option>
-                    <option value="EUR">EUR (€)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    checked={formData.furnished || false}
-                    onChange={(e) => setFormData({...formData, furnished: e.target.checked})}
-                  />
-                  <div>
-                    <span className="block text-xs font-bold text-slate-700">Eşyalı mı?</span>
-                    <span className="block text-[9px] text-slate-400">Mobilyalı anahtar teslim</span>
-                  </div>
-                </label>
-              </div>
-
-              <div className="flex items-center">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
-                    checked={formData.is_verified || false}
-                    onChange={(e) => setFormData({...formData, is_verified: e.target.checked})}
-                  />
-                  <div>
-                    <span className="block text-xs font-black text-amber-800 flex items-center gap-0.5">⭐ Portföy Doğrulanmış?</span>
-                    <span className="block text-[9px] text-slate-400">Evraklar ve tapu onaylandı</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Konum alanı kaldırıldı */}
-          </div>
-
-          {/* Medya ve Fotoğraflar */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-black text-slate-800 border-l-4 border-indigo-600 pl-2 text-indigo-950">Fotoğraflar & Medya</h4>
-            
-            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/65 space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-bold text-slate-500">Mülk Fotoğrafları</label>
-                  <MultiImageUploader onImagesUploaded={(urls) => setFormData({...formData, images: [...(formData.images || []), ...urls]})} />
-                </div>
-                <ImageGallery 
-                    images={formData.images || []} 
-                    onChange={(images) => setFormData({...formData, images})} 
-                    isEditable={true}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Açıklama */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-500">Açıklama (UK ve TR Yatırımcıları için Notlar)</label>
-            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-              <LiteRichEditor
-                value={formData.description || ''}
-                onChange={(newContent) => setFormData(prev => ({...prev, description: newContent}))}
-                placeholder="Mülk inceleme notları ve detaylı açıklamaları buraya yazabilirsiniz..."
-                minHeight="250px"
-              />
-            </div>
-          </div>
-
-          {/* DOKÜMAN YÖNETİMİ (Tapu, DASK, Yetki Belgesi) */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-black text-slate-800 border-l-4 border-amber-500 pl-2 flex items-center gap-1.5">
-                📁 Güvenli Doküman Yönetimi 
-                <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
-                  Sadece Yönetici
-                </span>
-              </h4>
-              <Shield className={`w-4 h-4 ${isOfficeManager ? 'text-emerald-500' : 'text-slate-400'}`} />
-            </div>
-
-            {isOfficeManager ? (
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-4">
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  🔒 GÜVENLİ DEPOLAMA ALANI: Gayrimenkule ait aşağıdaki resmî evraklar ofis yöneticisi ve danışman ekibinin yetkisinde saklanır, son kullanıcılara asla gösterilmez.
-                </p>
-
-                {/* Mevcut Dokümanlar listesi */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-600">Yüklü Evrak Listesi</label>
-                  {(!formData.documents || formData.documents.length === 0) ? (
-                    <div className="text-center py-6 border border-dashed border-slate-300 rounded-xl bg-white text-slate-400 text-xs font-medium">
-                      Bu gayrimenkule ait henüz yüklenmiş bir resmî evrak yok.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {formData.documents.map((doc) => (
-                        <div key={doc.id} className="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-xs relative group">
-                          <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="block text-xs font-bold text-slate-800 truncate" title={doc.name}>
-                              {doc.name}
-                            </span>
-                            <div className="flex gap-2 items-center text-[10px] text-slate-400 mt-0.5 font-bold">
-                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">
-                                {doc.category === 'title_deed' ? 'Tapu Örneği' :
-                                 doc.category === 'dask' ? 'DASK Poliçesi' :
-                                 doc.category === 'contract' ? 'Sözleşme' : 'Yetki Belgesi'}
-                              </span>
-                              <span>{doc.size || '1.8 MB'}</span>
-                              <span>•</span>
-                              <span>{doc.upload_date}</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-1 items-center">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (doc.file_url === "is_virtual_contract") {
-                                  const tDef = contractTemplates.find(t => t.id === (doc.details?.templateId || 'showing_agreement')) || contractTemplates[0];
-                                  const formattedPriceNum = Number(formData.price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                                  const symbol = formData.currency === 'GBP' ? '£' : formData.currency === 'USD' ? '$' : formData.currency === 'EUR' ? '€' : '₺';
-                                  
-                                  const { html } = tDef.getTemplate({
-                                    storeName: "LookPrice Real Estate",
-                                    storePhone: "+90 533 800 00 00",
-                                    storeEmail: "realestate@lookprice.me",
-                                    clientName: doc.details?.clientName || "[Alıcı / Mülk Sahibi Adı]",
-                                    clientIdentity: doc.details?.clientIdentity || "[T.C. No]",
-                                    clientPhone: doc.details?.clientPhone || "[Telefon]",
-                                    propertyTitle: `[İlan Kodu: LP-${formData.id}] ${formData.title}`,
-                                    propertyLocation: formData.location || "Kıbrıs",
-                                    propertyPrice: `${formattedPriceNum} ${symbol}`,
-                                    propertyBlockPlot: formData.block_plot,
-                                    commissionRate: doc.details?.commissionRate || "3",
-                                    contractDate: doc.upload_date,
-                                    propertyAddress: formData.address,
-                                    isSigned: doc.details?.signed,
-                                    signatureImage: doc.details?.signatureImage,
-                                    splitRatio: doc.details?.splitRatio,
-                                    contractDuration: doc.details?.contractDuration,
-                                    evictionDate: doc.details?.evictionDate,
-                                    depositAmount: doc.details?.depositAmount,
-                                    rentDuration: doc.details?.rentDuration,
-                                    paymentDay: doc.details?.paymentDay
-                                  });
-                                  
-                                  const printWin = window.open('', '_blank');
-                                  if (printWin) {
-                                    printWin.document.write(`
-                                      <html>
-                                        <head>
-                                          <title>${doc.name}</title>
-                                          <style>
-                                            body { font-family: sans-serif; background: white; margin: 40px; color: #1e293b; }
-                                          </style>
-                                        </head>
-                                        <body>
-                                          ${html}
-                                          <script>
-                                            window.onload = function() { window.print(); }
-                                          </script>
-                                        </body>
-                                      </html>
-                                    `);
-                                    printWin.document.close();
-                                  }
-                                } else {
-                                  window.open(doc.file_url, '_blank');
-                                }
-                              }}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
-                              title="Evrak Görüntüle"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveDocument(doc.id)}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Evrak Sil"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Yeni Doküman Ekleme Formu */}
-                <form onSubmit={handleAddDocument} className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm space-y-4 text-left">
-                  <div className="flex justify-between items-center pb-2 border-b border-indigo-50/50">
-                    <span className="block text-xs font-black text-indigo-950 uppercase tracking-tight flex items-center gap-1">
-                      🔒 Yeni Evrak Ekle (Güvenli Yerel Yükleme)
-                    </span>
-                    <span className="text-[9px] bg-emerald-500/10 text-emerald-700 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
-                      Askerî Düzey Şifreleme (AES-256)
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Kategori / Belge Türü</label>
-                      <select
-                        className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer"
-                        value={docCategory}
-                        onChange={(e) => setDocCategory(e.target.value as any)}
-                      >
-                        <option value="title_deed">📋 Tapu Örneği / Title Deed</option>
-                        <option value="dask">🛡️ DASK / Zorunlu Deprem Sigortası</option>
-                        <option value="contract">✍️ Yetki & Aracılık Sözleşmesi</option>
-                        <option value="auth_doc">🔑 Diğer Resmî İmar/Devir Evrağı</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Açıklayıcı Evrak Adı (Opsiyonel)</label>
-                      <input
-                        type="text"
-                        placeholder="Örn: Alsancak Blok A-3 Tapu Örneği"
-                        className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={docName}
-                        onChange={(e) => setDocName(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Native File Drag-and-Drop Uploader Component */}
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Resmî Belge Dosyası (Güvenli Yükleme)</label>
-                    
-                    {/* Hidden Camera Input */}
-                    <input
-                      type="file"
-                      ref={docCameraInputRef}
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setSelectedDocFile(file);
-                          if (!docName) {
-                            setDocName(file.name.split('.')[0] || "Belge Fotoğrafı");
-                          }
-                        }
-                      }}
-                    />
-
-                    <div className="relative">
-                      <input
-                        type="file"
-                        id="document-secure-file"
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setSelectedDocFile(file);
-                            if (!docName) {
-                              setDocName(file.name.split('.')[0]); // Prefill filename as docName!
-                            }
-                          }
-                        }}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      />
-                      
-                      <div className={`p-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center transition-all ${
-                        selectedDocFile 
-                          ? 'border-emerald-500 bg-emerald-50/10' 
-                          : 'border-slate-300 hover:border-indigo-400 bg-slate-50/30'
-                      }`}>
-                        {selectedDocFile ? (
-                          <div className="flex flex-col items-center gap-1 animate-fade-in">
-                            <span className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-1">
-                              <Check className="w-6 h-6 stroke-[3]" />
-                            </span>
-                            <span className="text-xs font-black text-slate-800">{selectedDocFile.name}</span>
-                            <span className="text-[10px] text-slate-400 font-extrabold font-mono">
-                              {(selectedDocFile.size / (1024 * 1024)).toFixed(2)} MB • Hazır
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-2">
-                            <span className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-1 border border-slate-200">
-                              <Upload className="w-5 h-5" />
-                            </span>
-                            <span className="text-xs font-black text-slate-700">
-                              Dosyayı sürükleyin veya <span className="text-indigo-600 underline">göz atın</span>
-                            </span>
-                            <span className="text-[9px] text-slate-400 font-bold leading-none">
-                              Desteklenen formatlar: PDF, PNG, JPG, DOCX (Maksimum 25 MB)
-                            </span>
-                            
-                            {/* Instant Mobile doc snapshot badge */}
-                            <div className="mt-2 pt-2 border-t border-slate-200/50 w-full flex justify-center">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  docCameraInputRef.current?.click();
-                                }}
-                                className="z-20 flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-150 text-rose-600 border border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
-                              >
-                                <Camera className="w-3.5 h-3.5" />
-                                Canlı Belge Fotoğrafı Çek 📸
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-1">
-                    {selectedDocFile && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedDocFile(null);
-                          setDocName('');
-                        }}
-                        className="px-3.5 py-2 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all"
-                      >
-                        Vazgeç
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      disabled={!selectedDocFile && !docName}
-                      className="px-5 py-2.5 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 text-xs flex items-center justify-center gap-1 transition-all shadow-md shadow-indigo-600/10 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <Plus className="w-4 h-4 stroke-[3]" />
-                      Güvenli Sistemine Evrakı Kaydet
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/50 border-dashed flex flex-col items-center justify-center text-center space-y-2">
-                <Shield className="w-8 h-8 text-amber-500/80 mb-2" />
-                <span className="text-sm font-black text-slate-800">Ofis Yöneticisi Yetkisi Gerekli</span>
-                <p className="text-xs text-slate-500 max-w-md leading-relaxed">
-                  Resmî Tapu örnekleri, DASK poliçeleri, satış yetki belgeleri ve aracılık sözleşmeleri sadece <strong>ofis yöneticisi/owner</strong> tarafından görüntülenebilir ve yönetilebilir.
-                </p>
-              </div>
-            )}
           </div>
 
         </div>

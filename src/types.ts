@@ -348,6 +348,37 @@ export interface RealEstateProperty {
   kdv_status?: 'paid' | 'to_be_paid';
   cati_terasi?: boolean;
   is_trade_in_available?: boolean;
+
+  // Commercial Specific Fields (Ticari Mülk Değişkenleri)
+  commercial_devir_status?: 'empty' | 'devren' | 'tenant';
+  monthly_rent_income?: number;
+  frontage_width?: number; // Vitrin / Cephe Genişliği (m)
+  ceiling_height?: number; // Vitrin / Tavan Yüksekliği (m)
+  is_main_road_frontage?: boolean; // Anayola Sıfır / Cadde Üzeri Stratejik Konum
+  water_tank_capacity?: number; // Su Deposu Kapasitesi (Ton)
+  generator_capacity_kva?: number; // Jeneratör Gücü (kVA)
+  entrance_count?: string; // Giriş / Kapı Sayısı (örn: 2 Giriş, Sevkiyat Kapısı)
+  toilet_count?: string;
+  has_kitchen?: boolean;
+  has_bathroom?: boolean;
+  has_parking?: boolean;
+  parking_capacity?: string;
+  has_balcony?: boolean;
+  has_chimney?: boolean; // Endüstriyel Baca / Havalandırma
+  has_industrial_electricity?: boolean; // Sanayi Elektriği (Trifaze)
+  has_generator?: boolean; // Jeneratör
+  has_elevator?: boolean; // Yük / Müşteri Asansörü
+  has_basement?: boolean; // Bodrum kat / depo var mı
+  basement_sqm?: number;
+  ground_floor_sqm?: number;
+  has_mezzanine?: boolean; // Asma Kat / Sende Kat var mı
+  mezzanine_sqm?: number;
+  has_outdoor_terrace?: boolean;
+  outdoor_sqm?: number;
+  hotel_rooms?: number;
+  hotel_beds?: number;
+  hotel_stars?: string;
+  has_tourism_license?: boolean;
   images?: string[];
   is_on_enrakipsiz?: boolean;
   is_on_website?: boolean;

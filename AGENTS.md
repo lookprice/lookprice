@@ -112,6 +112,8 @@ This file outlines strict engineering, performance, and naming directives that m
 - **Interactive Full-Screen Map (Map Mode)**:
   - On the full-screen interactive discovery layout in `IDXSplitMapView.tsx`, clicking any marker MUST toggle high-contrast visual focus styling (with scale zoom animations) and trigger a complete, fully featured floating info-popup containing a rich product cover image, formatted price tags, and immediate detail navigation links.
 
+- **Eşgüdümlü İlan ve Web Filtre Standardı**: İlan düzenle içeriğinde yapılan her bir geliştirme, filtre, web sitesindeki ilgili alana tam bir eşgüdüm ile yansıtılacak!
+
 - **Test Path Documentation**: For every critical module, there must be a known manual test path or verification script.
 - **Pre-Post Verification**:
     - **PRE**: Execute the manual test path to establish a baseline.
