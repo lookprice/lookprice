@@ -13,6 +13,48 @@ interface PropertyMapTourProps {
 
 // Comprehensive latitude-longitude centers for Northern Cyprus (KKTC) regions/districts
 const REGION_COOCDINATES: Record<string, { lat: number; lng: number }> = {
+  "dikmen": { lat: 35.2570, lng: 33.3650 },
+  "ağırdağ": { lat: 35.2850, lng: 33.3550 },
+  "agirdag": { lat: 35.2850, lng: 33.3550 },
+  "alagadi": { lat: 35.3350, lng: 33.4800 },
+  "bahçeli": { lat: 35.3400, lng: 33.6300 },
+  "bahceli": { lat: 35.3400, lng: 33.6300 },
+  "dağyolu": { lat: 35.2700, lng: 33.4100 },
+  "dagyolu": { lat: 35.2700, lng: 33.4100 },
+  "doğanköy": { lat: 35.3210, lng: 33.3200 },
+  "dogankoy": { lat: 35.3210, lng: 33.3200 },
+  "edremit": { lat: 35.3350, lng: 33.2550 },
+  "geçitköy": { lat: 35.3200, lng: 33.1200 },
+  "gecitkoy": { lat: 35.3200, lng: 33.1200 },
+  "ilgaz": { lat: 35.3300, lng: 33.2000 },
+  "incesu": { lat: 35.3150, lng: 33.1800 },
+  "karaağaç": { lat: 35.3450, lng: 33.6000 },
+  "karaagac": { lat: 35.3450, lng: 33.6000 },
+  "karakum": { lat: 35.3370, lng: 33.3350 },
+  "kayalar": { lat: 35.3700, lng: 32.9500 },
+  "kılıçarslan": { lat: 35.2800, lng: 33.4500 },
+  "kilicarslan": { lat: 35.2800, lng: 33.4500 },
+  "koruçam": { lat: 35.3700, lng: 32.9000 },
+  "korucam": { lat: 35.3700, lng: 32.9000 },
+  "kozan": { lat: 35.3200, lng: 33.0200 },
+  "kömürcü": { lat: 35.2500, lng: 33.3300 },
+  "komurcu": { lat: 35.2500, lng: 33.3300 },
+  "malatya": { lat: 35.3380, lng: 33.2450 },
+  "pınarbaşı": { lat: 35.2900, lng: 33.2900 },
+  "pinarbasi": { lat: 35.2900, lng: 33.2900 },
+  "sadrazamköy": { lat: 35.3900, lng: 32.8800 },
+  "sadrazamkoy": { lat: 35.3900, lng: 32.8800 },
+  "şirinevler": { lat: 35.2650, lng: 33.2700 },
+  "sirinevler": { lat: 35.2650, lng: 33.2700 },
+  "taşkent": { lat: 35.2600, lng: 33.4200 },
+  "taskent": { lat: 35.2600, lng: 33.4200 },
+  "tepebaşı": { lat: 35.3450, lng: 33.0000 },
+  "tepebasi": { lat: 35.3450, lng: 33.0000 },
+  "yeşiltepe": { lat: 35.3400, lng: 33.2000 },
+  "yesiltepe": { lat: 35.3400, lng: 33.2000 },
+  "aşağı girne": { lat: 35.3380, lng: 33.3180 },
+  "yukarı girne": { lat: 35.3250, lng: 33.3150 },
+  "girne merkez": { lat: 35.3364, lng: 33.3174 },
   "alsancak": { lat: 35.3444, lng: 33.2294 },
   "lapta": { lat: 35.3421, lng: 33.1517 },
   "karsiyaka": { lat: 35.3522, lng: 33.0560 },
@@ -99,13 +141,19 @@ export const PropertyMapTour: React.FC<PropertyMapTourProps> = ({ location: locS
       }
     }
 
+    // 1. Check sub-region first with high priority
+    const subReg = (property as any).sector_data?.kktc_sub_region || (property as any).sector_data?.district;
+    if (subReg) {
+      const matched = findCoordsForText(subReg);
+      if (matched) return matched;
+    }
+
     // Attempt intelligent textual mapping based on location, sector region definitions, or property name contents
     const textSources = [
       locStr,
       property.location,
       (property as any).sector_data?.kktc_region,
       (property as any).sector_data?.region,
-      (property as any).sector_data?.district,
       property.name
     ];
 

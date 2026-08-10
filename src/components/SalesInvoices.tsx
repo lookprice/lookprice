@@ -955,6 +955,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           setQuickCariSearchInitial(searchStr);
           setShowQuickCariModal(true);
         }}
+        setQuickProductForm={setQuickProductForm}
       />
 
       <SalesInvoiceDetailsModal 

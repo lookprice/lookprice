@@ -991,6 +991,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onSaleComplete={handleSaleSuccess}
                   storeId={currentStoreId!} 
                   activeStaffRole={activeStaffRole}
+                  setShowQuickProductModal={setShowQuickProductModal}
+                  setQuickProductForm={setQuickProductForm}
                 />
               )}
               {activeTab === "sales_invoices" && !isPortfolio && (

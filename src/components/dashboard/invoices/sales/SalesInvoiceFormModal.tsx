@@ -82,6 +82,8 @@ interface SalesInvoiceFormModalProps {
   filteredProducts: any[];
   handleAddProduct: (p: any) => void;
   setShowQuickProductModal: (val: boolean) => void;
+  setQuickProductForm: (form: any) => void;
+  setQuickProductForm: (form: any) => void;
   
   // Payment & Currency
   paymentMethod: string;
@@ -171,6 +173,7 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   filteredProducts,
   handleAddProduct,
   setShowQuickProductModal,
+  setQuickProductForm,
   paymentMethod,
   setPaymentMethod,
   currency,
@@ -596,7 +599,7 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                             <button
                               type="button"
                               onClick={() => {
-                                setShowQuickProductModal(true);
+                                setQuickProductForm({ name: productSearch, price: "", tax_rate: "20", category: "", sub_category: "", type: "product" }); setShowQuickProductModal(true);
                                 setShowProductDropdown(false);
                               }}
                               className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition-all shadow-sm"

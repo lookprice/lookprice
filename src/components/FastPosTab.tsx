@@ -44,9 +44,11 @@ interface FastPosTabProps {
   onSaleComplete?: () => void;
   branding?: any;
   activeStaffRole?: 'manager' | 'cashier' | 'waiter';
+  setShowQuickProductModal?: (show: boolean) => void;
+  setQuickProductForm?: (form: any) => void;
 }
 
-const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'manager' }: FastPosTabProps) => {
+const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'manager', setShowQuickProductModal, setQuickProductForm }: FastPosTabProps) => {
   const { lang } = useLanguage();
   const { isOnline } = useNetwork();
   const t = translations[lang].dashboard;
@@ -1957,6 +1959,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                             handleProductClick(matchedProduct);
                           }
                           setSearchTerm("");
+                        } else if (setShowQuickProductModal && setQuickProductForm) {
+                          setQuickProductForm({ name: term, price: '', tax_rate: '20', category: '', sub_category: '', type: 'product' });
+                          setShowQuickProductModal(true);
                         }
                       }
                     }}
