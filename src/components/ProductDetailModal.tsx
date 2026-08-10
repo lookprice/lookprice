@@ -830,6 +830,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   : sector
             }
             data={{
+              ...product,
               ...product.sector_data,
               ...((product?.type === "vehicle" || product?.type === "real_estate" || store?.store_type === "motor_vehicle" || store?.store_type === "real_estate") ? {
                 mileage: (product as any).current_mileage || (product.sector_data as any)?.current_mileage,

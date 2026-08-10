@@ -64,6 +64,7 @@ import { SettingsLayoutTab } from "./settings/SettingsLayoutTab";
 import { SettingsMenuTab } from "./settings/SettingsMenuTab";
 import { SettingsDomainTab } from "./settings/SettingsDomainTab";
 import { SettingsWebTab } from "./settings/SettingsWebTab";
+import TeamAccessManagement from "../../components/TeamAccessManagement";
 import { RealEstateWebsiteGenerator } from "./RealEstateWebsiteGenerator";
 import { AutomotiveWebsiteGenerator } from "./AutomotiveWebsiteGenerator";
 
@@ -487,6 +488,13 @@ const SettingsTab = ({
             </button>
           )}
           <button 
+            onClick={() => setActiveSubTab('team')}
+            className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'team' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            <span>{lang === 'tr' ? 'Ekip & Yetkiler' : 'Team & Permissions'}</span>
+          </button>
+          <button 
             onClick={() => setActiveSubTab('logs')}
             className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'logs' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
           >
@@ -494,6 +502,16 @@ const SettingsTab = ({
             <span>{lang === 'tr' ? 'Günlük' : 'Logs'}</span>
           </button>
         </div>
+
+      {activeSubTab === 'team' && (
+        <TeamAccessManagement 
+          users={users} 
+          currentUser={currentUser} 
+          storeId={currentStoreId} 
+          lang={lang} 
+          onRefreshUsers={onRefresh} 
+        />
+      )}
 
       {activeSubTab === 'integrations' && (
         <SettingsIntegrationsTab lang={lang} />

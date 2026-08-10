@@ -83,6 +83,7 @@ const upload = multer({ storage: multer.memoryStorage() });
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS kdv_status TEXT DEFAULT '';`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS cati_terasi BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS is_trade_in_available BOOLEAN DEFAULT FALSE;`);
+    await pool.query(`ALTER TABLE real_estate_properties ADD COLUMN IF NOT EXISTS sector_data JSONB;`);
 
     // Create Audit Log table
     await pool.query(`
@@ -349,16 +350,45 @@ router.get('/properties', authenticate, async (req: any, res) => {
     );
     
     // Fallback logic for name display if joined names are missing
-    const rows = result.rows.map(row => ({
-      ...row,
-      responsible_agent: row.consultant_name || row.responsible_agent || 'Belirtilmedi',
-      branch_name: row.branch_name_official || row.branch_name || 'Merkez Ofis',
-      owner_info: {
-        fullName: row.owner_name || '',
-        phone: row.owner_phone || '',
-        idNumber: row.owner_id_number || ''
+    const rows = result.rows.map(row => {
+      let secData = row.sector_data;
+      if (typeof secData === 'string') {
+        try { secData = JSON.parse(secData); } catch(e) { secData = {}; }
       }
-    }));
+      if (!secData || typeof secData !== 'object') {
+        secData = {};
+      }
+      secData = {
+        type: row.type,
+        subtype: row.subtype,
+        room_count: row.room_count,
+        rooms: row.room_count,
+        square_meters: Number(row.square_meters) || 0,
+        sqm_gross: Number(row.sqm_gross) || 0,
+        listing_intent: row.listing_intent,
+        kktc_region: row.kktc_region,
+        kktc_sub_region: row.kktc_sub_region,
+        kktc_title_type: row.kktc_title_type,
+        trafo_bedeli: !!row.trafo_bedeli,
+        kdv_status: row.kdv_status,
+        cati_terasi: !!row.cati_terasi,
+        furnished: !!row.furnished,
+        is_trade_in_available: !!row.is_trade_in_available,
+        ...secData
+      };
+
+      return {
+        ...row,
+        sector_data: secData,
+        responsible_agent: row.consultant_name || row.responsible_agent || 'Belirtilmedi',
+        branch_name: row.branch_name_official || row.branch_name || 'Merkez Ofis',
+        owner_info: {
+          fullName: row.owner_name || '',
+          phone: row.owner_phone || '',
+          idNumber: row.owner_id_number || ''
+        }
+      };
+    });
 
     res.json(rows);
   } catch (error) {
@@ -392,8 +422,8 @@ router.post('/properties', authenticate, async (req: any, res) => {
         branch_name, responsible_agent, sharing_scope, reserved_by_branch, reservation_notes,
         authorized_branch_id, responsible_consultant_id, is_verified, documents,
         owner_name, owner_phone, owner_id_number, tour_blueprint, reference_no, listing_intent,
-        deposit, billing_period, subtype, kktc_sub_region, trafo_bedeli, kdv_status, cati_terasi, auto_post_instagram, is_trade_in_available, address
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54) RETURNING *`,
+        deposit, billing_period, subtype, kktc_sub_region, trafo_bedeli, kdv_status, cati_terasi, auto_post_instagram, is_trade_in_available, address, sector_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55) RETURNING *`,
       [
         storeId, property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
@@ -414,10 +444,14 @@ router.post('/properties', authenticate, async (req: any, res) => {
         !!property.cati_terasi,
         !!property.auto_post_instagram,
         !!property.is_trade_in_available,
-        property.address || ''
+        property.address || '',
+        JSON.stringify(property.sector_data || {})
       ]
     );
     const newProperty = result.rows[0];
+    if (newProperty.sector_data && typeof newProperty.sector_data === 'string') {
+      try { newProperty.sector_data = JSON.parse(newProperty.sector_data); } catch(e) {}
+    }
     res.json(newProperty);
 
     // Background Instagram Posting
@@ -529,8 +563,8 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         authorized_branch_id = $34, responsible_consultant_id = $35, is_verified = $36, documents = $37,
         owner_name = $38, owner_phone = $39, owner_id_number = $40, tour_blueprint = $41, listing_intent = $42, reference_no = $43,
         deposit = $44, billing_period = $45, subtype = $46, kktc_sub_region = $47, trafo_bedeli = $48, kdv_status = $49, cati_terasi = $50, auto_post_instagram = $51, is_trade_in_available = $52,
-        address = $53, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $54 AND (store_id = $55 OR authorized_branch_id = $55) RETURNING *`,
+        address = $53, sector_data = $54, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $55 AND (store_id = $56 OR authorized_branch_id = $56) RETURNING *`,
       [
         property.title, property.description, property.price, property.currency, property.location, property.type, property.room_count, property.square_meters,
         property.sqm_gross, property.block_plot, property.facade, property.building_age, property.floor, property.total_floors, property.heating, property.furnished,
@@ -551,6 +585,7 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
         !!property.auto_post_instagram,
         !!property.is_trade_in_available,
         property.address || '',
+        JSON.stringify(property.sector_data || {}),
         id,
         storeId
       ]
@@ -559,6 +594,9 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
       return res.status(404).json({ error: 'Property not found' });
     }
     const updatedProperty = result.rows[0];
+    if (updatedProperty.sector_data && typeof updatedProperty.sector_data === 'string') {
+      try { updatedProperty.sector_data = JSON.parse(updatedProperty.sector_data); } catch(e) {}
+    }
     res.json(updatedProperty);
 
     // Background Instagram Posting on Update

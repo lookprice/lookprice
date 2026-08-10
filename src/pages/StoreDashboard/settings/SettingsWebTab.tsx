@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
+import TeamAccessManagement from "../../../components/TeamAccessManagement";
 import {
   Palette,
   RefreshCw,
@@ -779,59 +780,13 @@ export const SettingsWebTab = ({
         </div>
       </div>
 
-      {/* User Management Section (Keep it simple here) */}
-      <div className="bg-slate-900 p-8 rounded-[3rem] shadow-2xl relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-[100px] -mr-48 -mt-48 group-hover:bg-white/10 transition-all duration-1000"></div>
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h3 className="text-xl font-black text-white tracking-widest uppercase mb-1">
-                {lang === "tr" ? "EKİP YÖNETİMİ" : "TEAM MANAGEMENT"}
-              </h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em]">
-                {lang === "tr" ? "MAĞAZA ERİŞİM YETKİLERİ" : "STORE ACCESS CONTROL"}
-              </p>
-            </div>
-            {(currentUser?.role === "admin" ||
-              currentUser?.role === "storeadmin" ||
-              currentUser?.role === "superadmin") && (
-              <button
-                onClick={onAddUser}
-                className="px-6 py-3 bg-white text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all shadow-xl shadow-black/20"
-              >
-                + {lang === "tr" ? "YENİ ÜYE" : "NEW MEMBER"}
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {users.map((u) => (
-              <div
-                key={u.id}
-                className="p-5 bg-slate-800/50 rounded-3xl border border-slate-700/50 flex items-center justify-between group/user hover:bg-slate-800 transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-700 rounded-2xl flex items-center justify-center text-white font-black">
-                    {u.email?.[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-white leading-none mb-1">{u.email.split("@")[0]}</p>
-                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{u.role}</p>
-                  </div>
-                </div>
-                {((currentUser?.role === "admin" ||
-                  currentUser?.role === "storeadmin" ||
-                  currentUser?.role === "superadmin") &&
-                  u.id !== currentUser?.id) && (
-                  <button onClick={() => onDeleteUser(u.id)} className="p-2 text-slate-500 hover:text-rose-500 transition-colors">
-                    <Lock className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* EKİP YÖNETİMİ MAĞAZA ERİŞİM YETKİLERİ */}
+      <TeamAccessManagement 
+        users={users} 
+        currentUser={currentUser} 
+        lang={lang} 
+        onRefreshUsers={onAddUser} 
+      />
     </motion.div>
   );
 };

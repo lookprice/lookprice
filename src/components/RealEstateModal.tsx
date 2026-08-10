@@ -18,6 +18,18 @@ interface RealEstateModalProps {
   userRole?: string; // 'superadmin' | 'admin' | 'manager' | 'owner' | 'employee' | 'viewer'
 }
 
+const formatPriceDisplay = (val: number | string | undefined | null): string => {
+  if (val === undefined || val === null || val === '' || val === 0) return '';
+  const num = typeof val === 'number' ? val : parseInt(String(val).replace(/\D/g, ''), 10);
+  if (isNaN(num)) return '';
+  return new Intl.NumberFormat('tr-TR').format(num);
+};
+
+const parsePriceInput = (val: string): number => {
+  const digits = val.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+};
+
 export const RealEstateModal: React.FC<RealEstateModalProps> = ({ 
   isOpen, 
   onClose, 
@@ -163,7 +175,61 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
       }, storeId).catch(err => console.error("Auto CRM sync failed:", err));
     }
 
-    const dataToSave = { ...formData };
+    const sectorData = {
+      ...(formData.sector_data || {}),
+      type: formData.type,
+      subtype: formData.subtype,
+      room_count: formData.room_count,
+      rooms: formData.room_count,
+      square_meters: Number(formData.square_meters) || 0,
+      sqm_gross: Number(formData.sqm_gross) || 0,
+      listing_intent: formData.listing_intent,
+      kktc_region: formData.kktc_region,
+      kktc_sub_region: formData.kktc_sub_region,
+      kktc_title_type: formData.kktc_title_type,
+      trafo_bedeli: !!formData.trafo_bedeli,
+      kdv_status: formData.kdv_status,
+      cati_terasi: !!formData.cati_terasi,
+      furnished: !!formData.furnished,
+      is_trade_in_available: !!formData.is_trade_in_available,
+      commercial_devir_status: formData.commercial_devir_status || 'empty',
+      monthly_rent_income: Number(formData.monthly_rent_income) || 0,
+      frontage_width: Number(formData.frontage_width) || 0,
+      ceiling_height: Number(formData.ceiling_height) || 0,
+      water_tank_capacity: Number(formData.water_tank_capacity) || 0,
+      generator_capacity_kva: Number(formData.generator_capacity_kva) || 0,
+      entrance_count: formData.entrance_count || '',
+      is_main_road_frontage: !!formData.is_main_road_frontage,
+      ground_floor_sqm: Number(formData.ground_floor_sqm) || 0,
+      has_basement: !!formData.has_basement,
+      basement_sqm: Number(formData.basement_sqm) || 0,
+      has_mezzanine: !!formData.has_mezzanine,
+      mezzanine_sqm: Number(formData.mezzanine_sqm) || 0,
+      has_outdoor_terrace: !!formData.has_outdoor_terrace,
+      outdoor_sqm: Number(formData.outdoor_sqm) || 0,
+      toilet_count: formData.toilet_count || '',
+      has_chimney: !!formData.has_chimney,
+      has_industrial_electricity: !!formData.has_industrial_electricity,
+      has_generator: !!formData.has_generator,
+      has_elevator: !!formData.has_elevator,
+      has_parking: !!formData.has_parking,
+      parking_capacity: formData.parking_capacity || '',
+      has_kitchen: !!formData.has_kitchen,
+      hotel_rooms: Number(formData.hotel_rooms) || 0,
+      hotel_beds: Number(formData.hotel_beds) || 0,
+      hotel_stars: formData.hotel_stars || '',
+      has_tourism_license: !!formData.has_tourism_license,
+      ada: formData.ada || '',
+      parsel: formData.parsel || '',
+      mahalle: formData.mahalle || '',
+      kocan_type: formData.kocan_type || formData.kktc_title_type || '',
+      zoning_status: formData.zoning_status || ''
+    };
+
+    const dataToSave = {
+      ...formData,
+      sector_data: sectorData
+    };
 
     onSave(dataToSave as RealEstateProperty);
   };
@@ -196,24 +262,58 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
   useEffect(() => {
     setValidationError(null);
     if (property) {
+      const sec = typeof property.sector_data === 'string' ? (() => { try { return JSON.parse(property.sector_data); } catch(e) { return {}; } })() : (property.sector_data || {});
       setFormData({
+        ...sec,
         ...property,
+        commercial_devir_status: property.commercial_devir_status || sec.commercial_devir_status || 'empty',
+        monthly_rent_income: property.monthly_rent_income || sec.monthly_rent_income || 0,
+        frontage_width: property.frontage_width || sec.frontage_width || 0,
+        ceiling_height: property.ceiling_height || sec.ceiling_height || 0,
+        water_tank_capacity: property.water_tank_capacity || sec.water_tank_capacity || 0,
+        generator_capacity_kva: property.generator_capacity_kva || sec.generator_capacity_kva || 0,
+        entrance_count: property.entrance_count || sec.entrance_count || '',
+        is_main_road_frontage: property.is_main_road_frontage ?? sec.is_main_road_frontage ?? false,
+        ground_floor_sqm: property.ground_floor_sqm || sec.ground_floor_sqm || 0,
+        has_basement: property.has_basement ?? sec.has_basement ?? false,
+        basement_sqm: property.basement_sqm || sec.basement_sqm || 0,
+        has_mezzanine: property.has_mezzanine ?? sec.has_mezzanine ?? false,
+        mezzanine_sqm: property.mezzanine_sqm || sec.mezzanine_sqm || 0,
+        has_outdoor_terrace: property.has_outdoor_terrace ?? sec.has_outdoor_terrace ?? false,
+        outdoor_sqm: property.outdoor_sqm || sec.outdoor_sqm || 0,
+        toilet_count: property.toilet_count || sec.toilet_count || '',
+        has_chimney: property.has_chimney ?? sec.has_chimney ?? false,
+        has_industrial_electricity: property.has_industrial_electricity ?? sec.has_industrial_electricity ?? false,
+        has_generator: property.has_generator ?? sec.has_generator ?? false,
+        has_elevator: property.has_elevator ?? sec.has_elevator ?? false,
+        has_parking: property.has_parking ?? sec.has_parking ?? false,
+        parking_capacity: property.parking_capacity || sec.parking_capacity || '',
+        has_kitchen: property.has_kitchen ?? sec.has_kitchen ?? false,
+        hotel_rooms: property.hotel_rooms || sec.hotel_rooms || 0,
+        hotel_beds: property.hotel_beds || sec.hotel_beds || 0,
+        hotel_stars: property.hotel_stars || sec.hotel_stars || '',
+        has_tourism_license: property.has_tourism_license ?? sec.has_tourism_license ?? false,
+        ada: property.ada || sec.ada || (property.block_plot ? property.block_plot.split('/')[0] : ''),
+        parsel: property.parsel || sec.parsel || (property.block_plot ? property.block_plot.split('/')[1] : ''),
+        mahalle: property.mahalle || sec.mahalle || '',
+        kocan_type: property.kocan_type || sec.kocan_type || property.kktc_title_type || '',
+        zoning_status: property.zoning_status || sec.zoning_status || '',
         currency: property.currency || 'GBP',
         country: property.country || 'KKTC',
-        kktc_region: property.kktc_region || 'Girne',
-        kktc_sub_region: property.kktc_sub_region || '',
-        kktc_title_type: property.kktc_title_type || 'Eşdeğer Koçan',
-        trafo_bedeli: property.trafo_bedeli || false,
-        kdv_status: property.kdv_status || 'to_be_paid',
-        cati_terasi: property.cati_terasi || false,
+        kktc_region: property.kktc_region || sec.kktc_region || 'Girne',
+        kktc_sub_region: property.kktc_sub_region || sec.kktc_sub_region || '',
+        kktc_title_type: property.kktc_title_type || sec.kktc_title_type || 'Eşdeğer Koçan',
+        trafo_bedeli: property.trafo_bedeli ?? sec.trafo_bedeli ?? false,
+        kdv_status: property.kdv_status || sec.kdv_status || 'to_be_paid',
+        cati_terasi: property.cati_terasi ?? sec.cati_terasi ?? false,
         is_on_enrakipsiz: property.is_on_enrakipsiz ?? true,
         auto_post_instagram: property.auto_post_instagram || false,
-        subtype: property.subtype || '',
+        subtype: property.subtype || sec.subtype || '',
         branch_name: property.branch_name || 'Merkez Ofis',
         authorized_branch_id: property.authorized_branch_id,
         responsible_agent: property.responsible_agent || '',
         responsible_consultant_id: property.responsible_consultant_id,
-        listing_intent: property.listing_intent || (property.reference_no?.toUpperCase().includes('-K-') ? 'rent' : 'sale'),
+        listing_intent: property.listing_intent || sec.listing_intent || (property.reference_no?.toUpperCase().includes('-K-') ? 'rent' : 'sale'),
         owner_info: property.owner_info || { fullName: '', phone: '' },
         address: property.address || '',
         sharing_scope: property.sharing_scope || 'shared_pool',
@@ -560,19 +660,25 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">Fiyat</label>
-                <div className="flex gap-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3.5">
+              <div className="md:col-span-5">
+                <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1">
+                  Fiyat <span className="text-emerald-600 font-bold ml-1">(Binlik Ayraçlı)</span>
+                </label>
+                <div className="flex gap-1.5 items-center">
                   <input
-                    type="number"
-                    placeholder="Tutar"
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold"
-                    value={formData.price || ''}
-                    onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Örn: 850.000"
+                    className="flex-1 min-w-[120px] p-2.5 bg-white border border-slate-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/10 rounded-xl text-sm font-extrabold text-slate-900 shadow-2xs outline-none"
+                    value={formatPriceDisplay(formData.price)}
+                    onChange={(e) => {
+                      const numericVal = parsePriceInput(e.target.value);
+                      setFormData({ ...formData, price: numericVal });
+                    }}
                   />
                   <select
-                    className="p-2 border border-slate-200 rounded-xl text-xs font-bold bg-slate-50 text-slate-700"
+                    className="w-28 p-2.5 border border-slate-300 rounded-xl text-xs font-black bg-slate-100 text-slate-800 shadow-2xs outline-none cursor-pointer hover:bg-slate-200 transition-colors"
                     value={formData.currency}
                     onChange={(e) => setFormData({...formData, currency: e.target.value})}
                   >
@@ -584,10 +690,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">Emlak Tipi</label>
+              <div className="md:col-span-3">
+                <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1">Emlak Tipi</label>
                 <select
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white"
+                  className="w-full p-2.5 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 bg-white shadow-2xs outline-none cursor-pointer"
                   value={formData.type}
                   onChange={(e) => setFormData({...formData, type: e.target.value as any, subtype: ''})}
                 >
@@ -597,10 +703,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">Alt Tip</label>
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1">Alt Tip</label>
                 <select
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white"
+                  className="w-full p-2.5 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 bg-white shadow-2xs outline-none cursor-pointer"
                   value={formData.subtype || ''}
                   onChange={(e) => setFormData({...formData, subtype: e.target.value})}
                 >
@@ -611,10 +717,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">İlan Durumu</label>
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1">İlan Durumu</label>
                 <select
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white"
+                  className="w-full p-2.5 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 bg-white shadow-2xs outline-none cursor-pointer"
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                 >
@@ -763,11 +869,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     <div>
                       <label className="block text-[10px] font-black text-emerald-800 mb-1">Aylık Kira Geliri (£ / ₺ / $)</label>
                       <input
-                        type="number"
-                        placeholder="Örn: 2500"
-                        className="w-full p-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold"
-                        value={formData.monthly_rent_income || ''}
-                        onChange={(e) => setFormData({...formData, monthly_rent_income: Number(e.target.value)})}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Örn: 2.500"
+                        className="w-full p-2.5 bg-white border border-emerald-300 focus:border-emerald-500 rounded-xl text-xs font-bold text-slate-900 outline-none"
+                        value={formatPriceDisplay(formData.monthly_rent_income)}
+                        onChange={(e) => setFormData({...formData, monthly_rent_income: parsePriceInput(e.target.value)})}
                       />
                     </div>
                   ) : (

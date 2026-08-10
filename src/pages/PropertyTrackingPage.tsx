@@ -147,8 +147,10 @@ export default function PropertyTrackingPage() {
     }
   };
 
-  // KKTC Tapu Timeline stages mapping
-  const tapuStages = [
+  const isRental = property?.listing_intent === 'rent' || (property?.reference_no && /-k-/i.test(property.reference_no));
+
+  // KKTC Tapu Timeline stages mapping for SATILIK
+  const saleStages = [
     { 
       key: "Başvuru Yapıldı (İncelemede)", 
       title: "1. Portföy Yayına Alındı & Pazarlama",
@@ -187,11 +189,60 @@ export default function PropertyTrackingPage() {
     }
   ];
 
-  const currentStageName = property?.tapu_track?.stage || "Başvuru Yapıldı (İncelemede)";
+  // KKTC Kiralama & Tescil Timeline stages mapping for KİRALIK
+  const rentalStages = [
+    { 
+      key: "Portföy Yayına Alındı (Kiracı Taraması)", 
+      title: "1. Portföy Yayına Alındı & Kiracı Taraması",
+      desc: "İlan kiralık portföy ağımızda yayınlandı, aday kiracı başvuruları ve finansal yeterlilik incelemeleri sürdürülüyor.",
+      icon: Eye
+    },
+    { 
+      key: "Kiracı Teklifi & Depozito Alındı", 
+      title: "2. Kiracı Teklifi & Niyet Kaporası",
+      desc: "Aday kiracı teklifi mülk sahibi tarafından onaylandı, kiralama kaporası ve depozito güvence hesabına alındı.",
+      icon: TrendingUp
+    },
+    { 
+      key: "Kira Sözleşmesi & Şartlar Hazırlandı", 
+      title: "3. Resmi Kira Sözleşmesi & Tahliye Taahhütnamesi",
+      desc: "KKTC mevzuatına uygun resmi kira sözleşmesi, kefil onayları ve tahliye taahhütnamesi imzaya hazırlandı.",
+      icon: FileText
+    },
+    { 
+      key: "Vergi Dairesi Damga Pul Tescili", 
+      title: "4. Vergi Dairesi Damga Pul & Tescil Randevusu",
+      desc: "Girne/Kıbrıs Vergi Dairesi nezdinde sözleşmeye resmi damga pulu yapıştırılması ve tescil randevusu planlandı.",
+      icon: Calendar
+    },
+    { 
+      key: "Elektrik & Su Sayaç Devirleri", 
+      title: "5. KIB-TEK & Belediye Sayaç Devirleri",
+      desc: "KIB-TEK elektrik ve belediye su sayacı kiracı adına devir işlemleri ve güvence bedeli yatırımları tamamlandı.",
+      icon: Coins
+    },
+    { 
+      key: "Anahtar Teslimi & Kiracı Yerleşimi (Başarı!)", 
+      title: "6. Demirbaş Teslimi & Anahtar Teslimi",
+      desc: "Demirbaş ve envanter teslim tutanağı imzalandı, ilk ay kirası tahsil edilerek anahtarlar kiracıya teslim edildi.",
+      icon: CheckCircle2
+    }
+  ];
+
+  const tapuStages = isRental ? rentalStages : saleStages;
+  const currentStageName = property?.tapu_track?.stage || (isRental ? "Portföy Yayına Alındı (Kiracı Taraması)" : "Başvuru Yapıldı (İncelemede)");
   
   const getStageStatus = (stageKey: string) => {
     const keys = tapuStages.map(s => s.key);
-    const currentIndex = keys.indexOf(currentStageName);
+    const oppositeKeys = (isRental ? saleStages : rentalStages).map(s => s.key);
+
+    let currentIndex = keys.indexOf(currentStageName);
+    if (currentIndex === -1) {
+      // Map cross-type stage by index fallback
+      currentIndex = oppositeKeys.indexOf(currentStageName);
+    }
+    if (currentIndex === -1) currentIndex = 0;
+
     const targetIndex = keys.indexOf(stageKey);
 
     if (targetIndex < currentIndex) return "completed";
@@ -383,7 +434,9 @@ export default function PropertyTrackingPage() {
             </div>
             <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
               <span className="text-[10px] font-bold text-slate-500 uppercase block">Mevcut Durum</span>
-              <span className="font-extrabold text-emerald-400 text-sm">{property.tapu_track?.stage || 'Yayında (Aktif)'}</span>
+              <span className="font-extrabold text-emerald-400 text-sm">
+                {property.tapu_track?.stage || (isRental ? 'Yayında (Kiralık Aktif)' : 'Yayında (Aktif)')}
+              </span>
             </div>
           </div>
         </div>
@@ -394,14 +447,20 @@ export default function PropertyTrackingPage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Award className="w-5 h-5 text-amber-400" />
-                <h3 className="text-lg font-black text-white tracking-tight">KKTC Tapu & Tescil Süreç Zaman Çizelgesi</h3>
+                <h3 className="text-lg font-black text-white tracking-tight">
+                  {isRental ? "KKTC Resmi Kiralama & Tescil Süreç Zaman Çizelgesi" : "KKTC Tapu & Tescil Süreç Zaman Çizelgesi"}
+                </h3>
               </div>
-              <p className="text-xs text-slate-400">Resmi tescil ve sözleşme adımlarının güncel aşaması</p>
+              <p className="text-xs text-slate-400">
+                {isRental ? "Resmi kira sözleşmesi, Vergi Dairesi damga pulu ve anahtar teslim adımları" : "Resmi tescil ve sözleşme adımlarının güncel aşaması"}
+              </p>
             </div>
 
             {property.tapu_track?.appNumber && (
               <div className="bg-amber-500/10 border border-amber-500/20 px-3.5 py-1.5 rounded-xl text-right">
-                <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest block">TAPU BAŞVURU NO</span>
+                <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest block">
+                  {isRental ? "SÖZLEŞME / TESCİL NO" : "TAPU BAŞVURU NO"}
+                </span>
                 <span className="text-xs font-black text-white font-mono">{property.tapu_track.appNumber}</span>
               </div>
             )}
@@ -465,14 +524,18 @@ export default function PropertyTrackingPage() {
                     {status === 'active' && property.tapu_track?.feeAmount && (
                       <div className="mt-3 pt-3 border-t border-slate-800 flex flex-wrap gap-4 text-xs">
                         <div>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase block">Hesaplanan Tapu Harcı:</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                            {isRental ? "Aylık Kira & Depozito Tutarı:" : "Hesaplanan Tapu Harcı:"}
+                          </span>
                           <span className="font-extrabold text-amber-400">
                             {property.tapu_track.feeCurrency === 'GBP' ? '£' : '₺'}{property.tapu_track.feeAmount}
                           </span>
                         </div>
                         {property.tapu_track.appointmentDateTime && (
                           <div>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase block">Randevu Tarihi:</span>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                              {isRental ? "Anahtar Teslim / Imza Randevusu:" : "Randevu Tarihi:"}
+                            </span>
                             <span className="font-extrabold text-teal-400">
                               {new Date(property.tapu_track.appointmentDateTime).toLocaleString('tr-TR')}
                             </span>

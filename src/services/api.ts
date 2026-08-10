@@ -269,6 +269,8 @@ export const api = {
 
   getUsers: (storeId?: number) => api.get(`/api/store/users${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addUser: (data: any, storeId?: number) => api.post(`/api/store/users${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateUser: (id: number, data: any, storeId?: number) => api.put(`/api/store/users/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  toggleUserStatus: (id: number, isActive: boolean, storeId?: number) => api.patch(`/api/store/users/${id}/toggle-status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { is_active: isActive, storeId }),
   deleteUser: (id: number, storeId?: number) => api.delete(`/api/store/users/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
 
   getLeads: () => api.get("/api/admin/leads"),

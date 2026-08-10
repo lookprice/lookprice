@@ -1046,8 +1046,10 @@ router.get("/store/:slug/products", async (req, res) => {
       reference_no: r.reference_no,
       status: r.status,
       sector_data: {
+        ...(typeof r.sector_data === 'string' ? (() => { try { return JSON.parse(r.sector_data); } catch(e) { return {}; } })() : (r.sector_data || {})),
         square_meters: r.square_meters,
         rooms: r.room_count,
+        room_count: r.room_count,
         virtual_tour_url: r.virtual_tour_url,
         ai_tour_enabled: r.ai_tour_enabled,
         sqm_gross: r.sqm_gross,

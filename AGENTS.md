@@ -114,6 +114,8 @@ This file outlines strict engineering, performance, and naming directives that m
 
 - **Eşgüdümlü İlan ve Web Filtre Standardı**: İlan düzenle içeriğinde yapılan her bir geliştirme, filtre, web sitesindeki ilgili alana tam bir eşgüdüm ile yansıtılacak!
 
+- **Fiyat Formatlama ve Görünürlük Standartları (Binlik Ayraç Kuralı)**: Tüm ilan girme/düzenleme formlarında (ör. `RealEstateModal.tsx`), fiyat giriş alanları optimum genişlikte (fiyat ve para birimi sıkışmayacak şekilde) tasarlanmalı ve fiyat değerleri hem giriş esnasında hem de gösterimde binlik ayraç (ör. `850.000` veya `1.250.000`) formatıyla sunulmalıdır. Fiyat alanı dar sütunlara sıkıştırılamaz.
+
 - **Test Path Documentation**: For every critical module, there must be a known manual test path or verification script.
 - **Pre-Post Verification**:
     - **PRE**: Execute the manual test path to establish a baseline.

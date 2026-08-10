@@ -42,12 +42,45 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Identify if property is rental vs sale
+  const isRental = property?.listing_intent === 'rent' || (property?.reference_no && /-k-/i.test(property.reference_no));
+
+  const saleStagesList = [
+    "Başvuru Yapıldı (İncelemede)",
+    "Vergi ve Harç Değerlemesinde",
+    "Ödeme Aşamasında",
+    "Randevu Günü Belirlendi",
+    "İmza Aşamasında (Tescil Bekliyor)",
+    "Tapu Devri Tamamlandı (Başarı!)"
+  ];
+
+  const rentalStagesList = [
+    "Portföy Yayına Alındı (Kiracı Taraması)",
+    "Kiracı Teklifi & Depozito Alındı",
+    "Kira Sözleşmesi & Şartlar Hazırlandı",
+    "Vergi Dairesi Damga Pul Tescili",
+    "Elektrik & Su Sayaç Devirleri",
+    "Anahtar Teslimi & Kiracı Yerleşimi (Başarı!)"
+  ];
+
+  const activeStagesList = isRental ? rentalStagesList : saleStagesList;
+
   // Initialize from property metadata if exists
   useEffect(() => {
+    const defaultStage = isRental ? rentalStagesList[0] : saleStagesList[0];
     if (property && property.tapu_track) {
       const track = property.tapu_track;
       setAppNumber(track.appNumber || "");
-      setStage(track.stage || "Başvuru Yapıldı (İncelemede)");
+      
+      let initialStage = track.stage || defaultStage;
+      // If stage stored is from opposite type, map by index
+      const oppositeList = isRental ? saleStagesList : rentalStagesList;
+      if (!activeStagesList.includes(initialStage) && oppositeList.includes(initialStage)) {
+        const idx = oppositeList.indexOf(initialStage);
+        initialStage = activeStagesList[idx] || defaultStage;
+      }
+      setStage(initialStage);
+
       setFeeAmount(track.feeAmount || "");
       setFeeCurrency(track.feeCurrency || "TRY");
       setAppointmentDateTime(track.appointmentDateTime || "");
@@ -56,7 +89,7 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
       setSellerName(track.sellerName || property?.owner_name || "");
     } else if (property) {
       setAppNumber("");
-      setStage("Başvuru Yapıldı (İncelemede)");
+      setStage(defaultStage);
       setFeeAmount("");
       setFeeCurrency("TRY");
       setAppointmentDateTime("");
@@ -64,7 +97,7 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
       setBuyerPhone("");
       setSellerName(property?.owner_name || "");
     }
-  }, [property]);
+  }, [property, isRental]);
 
   if (!isOpen || !property) return null;
 
@@ -91,30 +124,41 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
   const getStatusColor = (currentStage: string) => {
     switch (currentStage) {
       case "Başvuru Yapıldı (İncelemede)":
+      case "Portföy Yayına Alındı (Kiracı Taraması)":
         return "bg-amber-500/10 text-amber-500 border-amber-500/20";
       case "Vergi ve Harç Değerlemesinde":
+      case "Kiracı Teklifi & Depozito Alındı":
         return "bg-cyan-500/10 text-cyan-500 border-cyan-500/20";
       case "Ödeme Aşamasında":
+      case "Kira Sözleşmesi & Şartlar Hazırlandı":
         return "bg-indigo-500/10 text-indigo-500 border-indigo-500/20";
       case "Randevu Günü Belirlendi":
+      case "Vergi Dairesi Damga Pul Tescili":
         return "bg-teal-500/10 text-teal-500 border-teal-500/20";
       case "İmza Aşamasında (Tescil Bekliyor)":
+      case "Elektrik & Su Sayaç Devirleri":
         return "bg-purple-500/10 text-purple-500 border-purple-500/20";
       case "Tapu Devri Tamamlandı (Başarı!)":
-        return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+      case "Anahtar Teslimi & Kiracı Yerleşimi (Başarı!)":
+        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
       default:
         return "bg-slate-500/10 text-slate-500 border-slate-500/20";
     }
   };
 
   const getWhatsAppMessage = (targetRole: 'buyer' | 'seller') => {
-    const name = targetRole === 'buyer' ? (buyerName || "Değerli Alıcımız") : (sellerName || "Değerli Satıcımız");
-    const roleLabel = targetRole === 'buyer' ? "Alıcı" : "Satıcı";
+    const defaultBuyerName = isRental ? "Değerli Kiracımız" : "Değerli Alıcımız";
+    const defaultSellerName = isRental ? "Değerli Mülk Sahibimiz" : "Değerli Satıcımız";
+    const name = targetRole === 'buyer' ? (buyerName || defaultBuyerName) : (sellerName || defaultSellerName);
     
     const currencySym = feeCurrency === 'GBP' ? '£' : feeCurrency === 'USD' ? '$' : feeCurrency === 'EUR' ? '€' : '₺';
     const formattedFee = feeAmount ? `${currencySym}${new Intl.NumberFormat('tr-TR').format(parseFloat(feeAmount))}` : "Henüz Belirlenmedi";
     const appTime = formatDateTime(appointmentDateTime);
     const trackingUrl = `${window.location.origin}/mulk-takip/${property.id}`;
+
+    if (isRental) {
+      return `Sayın *${name}*,\n\n*[LP-${property.id}] ${property.title}* kiralık portföyünüzün resmi kiralama, Vergi Dairesi damga pulu tescili ve sözleşme süreci güncellenmiştir:\n\n📂 *Sözleşme / Tescil No:* ${appNumber || 'Hazırlık Aşamasında'}\n📊 *Süreç Aşaması:* ${stage}\n💰 *Kira & Depozito Tutarı:* ${formattedFee}\n📅 *Anahtar Teslim / Randevu Tarihi:* ${appTime}\n\n🌐 *Canlı Kiralama Takip Linkiniz:* ${trackingUrl}\n\n*Açıklama:* Sözleşme ve sayaç devir randevu saatinde kimlik/pasaport belgeleriniz ve depozito makbuzları ile hazır bulunmanız rica olunur.\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
+    }
 
     return `Sayın *${name}*,\n\n*[LP-${property.id}] ${property.title}* portföyünüzün Girne/Kıbrıs Tapu Dairesi tescil süreci ve pazarlama raporu güncellenmiştir:\n\n📂 *Tapu Başvuru No:* ${appNumber || 'İnceleme Aşamasında'}\n📊 *İşlem Aşaması:* ${stage}\n💰 *Hesaplanan Tapu Harcı:* ${formattedFee}\n📅 *Randevu Günü ve Saati:* ${appTime}\n\n🌐 *Canlı Mülk Takip ve Tescil Linkiniz:* ${trackingUrl}\n\n*Açıklama:* Tapu dairesi randevu saatinden 15 dakika önce tüm orijinal kimlik, pasaport belgeleriniz ve ödeme makbuzları ile birlikte hazır bulunmanız önemle rica olunur.\n\nSaygılarımızla,\n*${storeNameVal}*\nİrtibat: ${storePhoneVal}`;
   };
@@ -186,7 +230,7 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
             <div>
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md">
-                  KKTC TAPU TESCİL TAKİP MOTORU
+                  {isRental ? "KKTC KİRALAMA & SÖZLEŞME TAKİP MOTORU" : "KKTC TAPU TESCİL TAKİP MOTORU"}
                 </span>
                 <span className="text-[10px] text-slate-500 font-bold">Ref: LP-{property.id}</span>
               </div>
@@ -215,10 +259,12 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Tapu Başvuru No</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                      {isRental ? "Sözleşme / Tescil No" : "Tapu Başvuru No"}
+                    </label>
                     <input 
                       type="text" 
-                      placeholder="Örn: G-2026/894"
+                      placeholder={isRental ? "Örn: K-2026/412" : "Örn: G-2026/894"}
                       value={appNumber}
                       onChange={(e) => setAppNumber(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl py-2.5 px-4 text-xs font-bold text-white placeholder-slate-700 outline-none transition-all"
@@ -232,19 +278,18 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
                       onChange={(e) => setStage(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl py-2.5 px-3 text-xs font-bold text-white outline-none transition-all cursor-pointer"
                     >
-                      <option value="Başvuru Yapıldı (İncelemede)">Başvuru Yapıldı (İncelemede)</option>
-                      <option value="Vergi ve Harç Değerlemesinde">Vergi ve Harç Değerlemesinde</option>
-                      <option value="Ödeme Aşamasında">Ödeme Aşamasında</option>
-                      <option value="Randevu Günü Belirlendi">Randevu Günü Belirlendi</option>
-                      <option value="İmza Aşamasında (Tescil Bekliyor)">İmza Aşamasında (Tescil Bekliyor)</option>
-                      <option value="Tapu Devri Tamamlandı (Başarı!)">Tapu Devri Tamamlandı (Başarı!)</option>
+                      {activeStagesList.map((stg) => (
+                        <option key={stg} value={stg}>{stg}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Hesaplanan Tapu Harcı</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                      {isRental ? "Aylık Kira & Depozito Tutarı" : "Hesaplanan Tapu Harcı"}
+                    </label>
                     <div className="flex gap-1.5">
                       <input 
                         type="number" 
@@ -267,7 +312,9 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Randevu Tarih & Saat</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                      {isRental ? "Anahtar Teslim / Randevu Tarihi" : "Randevu Tarih & Saat"}
+                    </label>
                     <input 
                       type="datetime-local"
                       value={appointmentDateTime}
@@ -278,15 +325,17 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
                 </div>
 
                 <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-800 pt-3 pb-2">
-                  <User className="w-4 h-4" /> Tescil Tarafları
+                  <User className="w-4 h-4" /> {isRental ? "Kiralama Tarafları" : "Tescil Tarafları"}
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Alıcı Adı Soyadı</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                      {isRental ? "Kiracı Adı Soyadı" : "Alıcı Adı Soyadı"}
+                    </label>
                     <input 
                       type="text" 
-                      placeholder="Müşteri Alıcı"
+                      placeholder={isRental ? "Müşteri Kiracı" : "Müşteri Alıcı"}
                       value={buyerName}
                       onChange={(e) => setBuyerName(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl py-2.5 px-4 text-xs font-bold text-white placeholder-slate-700 outline-none transition-all"
@@ -294,7 +343,9 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Alıcı Telefonu (WhatsApp)</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                      {isRental ? "Kiracı Telefonu (WhatsApp)" : "Alıcı Telefonu (WhatsApp)"}
+                    </label>
                     <input 
                       type="tel" 
                       placeholder="+90 533 ......"
@@ -307,10 +358,12 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Mülk Sahibi (Satıcı)</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                      {isRental ? "Mülk Sahibi (Kiralayan)" : "Mülk Sahibi (Satıcı)"}
+                    </label>
                     <input 
                       type="text" 
-                      placeholder="Müşteri Satıcı"
+                      placeholder={isRental ? "Müşteri Kiralayan" : "Müşteri Satıcı"}
                       value={sellerName}
                       onChange={(e) => setSellerName(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl py-2.5 px-4 text-xs font-bold text-white placeholder-slate-700 outline-none transition-all"
@@ -318,7 +371,9 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Satıcı Telefonu</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                      {isRental ? "Mülk Sahibi Telefonu" : "Satıcı Telefonu"}
+                    </label>
                     <input 
                       type="text" 
                       value={property.owner_phone || "Mülk kaydında mevcut"}
@@ -357,13 +412,13 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
                       onClick={() => handleShareWhatsApp('buyer')}
                       className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95"
                     >
-                      <Send className="w-3.5 h-3.5" /> Alıcıya Gönder
+                      <Send className="w-3.5 h-3.5" /> {isRental ? "Kiracıya Gönder" : "Alıcıya Gönder"}
                     </button>
                     <button 
                       onClick={() => handleShareWhatsApp('seller')}
                       className="py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-[11px] rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95"
                     >
-                      <Send className="w-3.5 h-3.5" /> Satıcıya Gönder
+                      <Send className="w-3.5 h-3.5" /> {isRental ? "Mülk Sahibine Gönder" : "Satıcıya Gönder"}
                     </button>
                     
                     <button 
@@ -386,8 +441,12 @@ export const TapuTakipModal: React.FC<TapuTakipModalProps> = ({
                 </div>
 
                 <div className="p-3.5 bg-slate-950/40 border border-slate-850 rounded-xl text-[10px] text-slate-400 font-bold space-y-1">
-                  <p className="text-white">💡 TAPU TAKİP DETAYI:</p>
-                  <p>Alıcı ve satıcı için tescil randevuları ve harç analizleri yapıldıktan sonra WhatsApp bildirimleri tek tıkla paylaşılabilir.</p>
+                  <p className="text-white">{isRental ? "💡 KİRALAMA TAKİP DETAYI:" : "💡 TAPU TAKİP DETAYI:"}</p>
+                  <p>
+                    {isRental 
+                      ? "Kiracı ve mülk sahibi için resmi kiralama, damga pulu tescili ve sayaç devir süreç bilgileri WhatsApp üzerinden tek tıkla paylaşılabilir."
+                      : "Alıcı ve satıcı için tescil randevuları ve harç analizleri yapıldıktan sonra WhatsApp bildirimleri tek tıkla paylaşılabilir."}
+                  </p>
                 </div>
               </div>
 
