@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180">
+  <!-- Green House & Car Contour (Emerald Green #059669) -->
+  <g fill="none" stroke="#059669" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <!-- House roof & chimney outline -->
+    <path d="M 32 78 L 72 38 L 112 78" />
+    <path d="M 46 64 V 44 H 56 V 54" />
+    <!-- Car body contour merging smoothly -->
+    <path d="M 72 38 C 110 38 125 78 155 78 L 220 78 C 248 78 268 90 272 108 C 274 122 265 132 248 132 L 40 132 C 30 132 25 122 25 108 C 25 90 40 78 72 38 Z" />
+    <!-- Car wheels cutouts -->
+    <circle cx="85" cy="132" r="16" fill="#ffffff" stroke="#059669" stroke-width="8" />
+    <circle cx="218" cy="132" r="16" fill="#ffffff" stroke="#059669" stroke-width="8" />
+  </g>
+  <!-- Text 'Enrakipsiz' -->
+  <text x="160" y="170" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="40" fill="#1e293b" letter-spacing="-1">Enrakipsiz</text>
+</svg>

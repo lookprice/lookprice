@@ -1,42 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f97316" />
-      <stop offset="50%" stop-color="#ea580c" />
-      <stop offset="100%" stop-color="#c2410c" />
-    </linearGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fef08a" />
-      <stop offset="50%" stop-color="#eab308" />
-      <stop offset="100%" stop-color="#ca8a04" />
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.35" />
-    </filter>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- House Outline (Dark Navy #0f1c3f) -->
+  <path d="M 100 12 L 192 82 V 188 H 8 V 82 Z" fill="#0f1c3f" />
+  <!-- Chimney -->
+  <rect x="32" y="38" width="22" height="38" fill="#0f1c3f" />
   
-  <!-- Rounded Square Canvas -->
-  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad)" />
-  <rect x="24" y="24" width="464" height="464" rx="100" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="8" />
+  <!-- White Car Body inside Garage -->
+  <!-- Car Windshield & Roof -->
+  <path d="M 58 102 C 64 82, 136 82, 142 102 Z" fill="#ffffff" />
+  <!-- Car Hood & Main Body -->
+  <path d="M 38 118 C 38 105, 162 105, 162 118 V 162 C 162 170, 156 174, 146 174 H 54 C 44 174, 38 170, 38 162 Z" fill="#ffffff" />
+  <!-- Windshield Glass Cutout (Dark Navy) -->
+  <path d="M 64 105 C 70 92, 130 92, 136 105 Z" fill="#0f1c3f" />
 
-  <!-- Crown Emblem at Top -->
-  <path d="M 186 160 L 226 195 L 256 140 L 286 195 L 326 160 L 312 215 L 200 215 Z" fill="url(#goldGrad)" filter="url(#shadow)" />
-  
-  <!-- Stylized Monogram E + Rocket Arrow -->
-  <g filter="url(#shadow)">
-    <!-- Main E Vertical Bar -->
-    <rect x="160" y="235" width="48" height="180" rx="12" fill="#ffffff" />
-    
-    <!-- Top Horizontal Bar -->
-    <rect x="160" y="235" width="165" height="42" rx="10" fill="#ffffff" />
-    
-    <!-- Middle Horizontal Bar (Golden Accent) -->
-    <rect x="160" y="304" width="135" height="38" rx="8" fill="url(#goldGrad)" />
-    
-    <!-- Bottom Horizontal Bar -->
-    <rect x="160" y="373" width="175" height="42" rx="10" fill="#ffffff" />
+  <!-- Orange/Amber Headlights (#f59e0b) -->
+  <circle cx="60" cy="138" r="11" fill="#f59e0b" />
+  <circle cx="140" cy="138" r="11" fill="#f59e0b" />
 
-    <!-- Upward Rocket Arrow / Diamond Accent on Right -->
-    <path d="M 360 305 L 395 340 L 375 340 L 375 385 L 345 385 L 345 340 L 325 340 Z" fill="url(#goldGrad)" />
-  </g>
+  <!-- Grille / Bumper lines -->
+  <rect x="76" y="150" width="48" height="14" rx="4" fill="#0f1c3f" />
 </svg>

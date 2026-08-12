@@ -45,7 +45,9 @@ import {
   Compass,
   Calendar,
   Sliders,
-  ChevronDown
+  ChevronDown,
+  Key,
+  Shield
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
@@ -136,6 +138,176 @@ const cleanHtmlText = (text: string) => {
   return cleaned;
 };
 
+// Helper to format Category / Type accurately (Arsa, Dükkan, Daire, Villa, etc.)
+function formatCategory(listing: any) {
+  if (!listing) return "İlan";
+  if (listing.listing_type === "vehicle") {
+    return listing.brand || listing.category || listing.sector_data?.model || "Vasıta";
+  }
+  
+  const sec = listing.sector_data || {};
+  const rawCat = sec.re_type || sec.category || listing.category || "";
+  const titleLower = (listing.title || "").toLowerCase();
+  const rawLower = (rawCat || "").toLowerCase();
+
+  if (rawLower.includes("arsa") || titleLower.includes("arsa")) return "Arsa";
+  if (rawLower.includes("tarla") || titleLower.includes("tarla")) return "Tarla";
+  if (rawLower.includes("dükkan") || rawLower.includes("dukkan") || titleLower.includes("dükkan") || titleLower.includes("dukkan") || titleLower.includes("işyeri") || titleLower.includes("isyeri") || titleLower.includes("ofis") || titleLower.includes("mağaza")) return "Dükkan / İşyeri";
+  if (rawLower.includes("villa") || titleLower.includes("villa") || titleLower.includes("müstakil") || titleLower.includes("mustakil")) return "Müstakil / Villa";
+  if (rawLower.includes("daire") || titleLower.includes("daire") || titleLower.includes("penthouse") || titleLower.includes("stüdyo") || titleLower.includes("konut")) return "Daire";
+  if (rawLower.includes("bina") || titleLower.includes("bina")) return "Bina";
+
+  if (rawCat && rawCat.toLowerCase() !== "emlak" && rawCat.toLowerCase() !== "real_estate") {
+    return rawCat;
+  }
+  return "Konut";
+}
+
+// Helper to format upper and lower location (City / District)
+function formatLocation(listing: any) {
+  if (!listing) return "LEFKOŞA / Küçük Kaymaklı";
+  const sec = listing.sector_data || {};
+  let city = sec.kktc_region || sec.city || listing.city || "";
+  let district = sec.district || sec.region || sec.neighborhood || listing.district || "";
+
+  if (!city && listing.location && typeof listing.location === "string") {
+    const parts = listing.location.split("/").map((s: string) => s.trim());
+    if (parts.length >= 2) {
+      city = parts[0];
+      district = parts[1];
+    } else if (parts.length === 1 && !parts[0].toLowerCase().includes("istanbul")) {
+      city = parts[0];
+    }
+  }
+
+  if (!city || city.toLowerCase() === "istanbul") {
+    const titleLower = (listing.title || "").toLowerCase();
+    if (titleLower.includes("girne") || titleLower.includes("alsancak") || titleLower.includes("lapta") || titleLower.includes("ozanköy")) {
+      city = "GİRNE";
+      district = titleLower.includes("alsancak") ? "Alsancak" : titleLower.includes("lapta") ? "Lapta" : titleLower.includes("ozanköy") ? "Ozanköy" : "Merkez";
+    } else if (titleLower.includes("magusa") || titleLower.includes("mağusa") || titleLower.includes("iskele") || titleLower.includes("yeniboğaziçi")) {
+      city = "GAZİMAĞUSA";
+      district = titleLower.includes("iskele") ? "İskele" : titleLower.includes("yeniboğaziçi") ? "Yeniboğaziçi" : "Merkez";
+    } else if (titleLower.includes("kadıköy") || titleLower.includes("beşiktaş") || titleLower.includes("şişli")) {
+      city = "İSTANBUL";
+      district = titleLower.includes("kadıköy") ? "Kadıköy" : titleLower.includes("beşiktaş") ? "Beşiktaş" : "Şişli";
+    } else {
+      city = "LEFKOŞA";
+      district = "Küçük Kaymaklı";
+    }
+  }
+
+  city = city.toUpperCase();
+  if (district) {
+    return `${city} / ${district}`;
+  }
+  return city;
+}
+
+// Helper component for browsing images on listing cards without opening detail modal
+function ListingCardImage({ 
+  listing, 
+  aspect = "aspect-[16/10]",
+  className = "",
+  disableCarousel = false,
+  onImageClick 
+}: { 
+  listing: any; 
+  aspect?: string; 
+  className?: string;
+  disableCarousel?: boolean;
+  onImageClick?: () => void;
+}) {
+  const images = React.useMemo(() => {
+    const list: string[] = [];
+    if (Array.isArray(listing.images) && listing.images.length > 0) {
+      list.push(...listing.images.filter((i: any) => typeof i === "string" && i.trim()));
+    }
+    if (listing.image_url && !list.includes(listing.image_url)) {
+      list.unshift(listing.image_url);
+    }
+    return list;
+  }, [listing]);
+
+  const [currentIdx, setCurrentIdx] = useState(0);
+
+  const prevImg = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setCurrentIdx((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const nextImg = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setCurrentIdx((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  return (
+    <div className={`bg-slate-950 overflow-hidden relative border border-slate-800/80 group/img ${aspect} ${className}`}>
+      {images.length > 0 ? (
+        <img
+          src={images[currentIdx]}
+          alt={listing.title || 'İlan görseli'}
+          className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500 cursor-pointer"
+          onClick={onImageClick}
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <div 
+          onClick={onImageClick}
+          className="w-full h-full flex flex-col items-center justify-center text-slate-600 cursor-pointer"
+        >
+          {listing.listing_type === 'vehicle' ? <Car className="w-8 h-8 opacity-30 text-rose-500" /> : <Home className="w-8 h-8 opacity-30 text-blue-500" />}
+          <span className="text-[10px] uppercase font-bold text-slate-500 mt-1">Görsel Yok</span>
+        </div>
+      )}
+
+      {/* Category Tag Badge */}
+      <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/90 backdrop-blur-md rounded text-[10px] font-extrabold text-amber-300 border border-slate-800 pointer-events-none z-10 shadow">
+        {formatCategory(listing)}
+      </div>
+
+      {/* Multiple Images Chevron Nav Buttons & Indicator (Disabled in Table View Mode) */}
+      {!disableCarousel && images.length > 1 && (
+        <>
+          <button
+            onClick={prevImg}
+            className="absolute left-1 top-1/2 -translate-y-1/2 w-6 h-6 md:w-7 md:h-7 rounded-full bg-slate-950/80 border border-white/20 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-blue-600 hover:border-blue-400 z-20 cursor-pointer shadow-lg"
+            title="Önceki Fotoğraf"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={nextImg}
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 md:w-7 md:h-7 rounded-full bg-slate-950/80 border border-white/20 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-blue-600 hover:border-blue-400 z-20 cursor-pointer shadow-lg"
+            title="Sonraki Fotoğraf"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
+          {/* Photo Counter Badge */}
+          <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 bg-slate-950/85 text-white backdrop-blur-md rounded text-[9px] font-bold border border-white/10 z-10 pointer-events-none">
+            {currentIdx + 1}/{images.length}
+          </div>
+
+          {/* Dot Indicators */}
+          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10 pointer-events-none">
+            {images.slice(0, 5).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === currentIdx ? "w-3 bg-amber-400" : "w-1.5 bg-white/50"
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export const Marketplace = () => {
   const navigate = useNavigate();
   const [listings, setListings] = useState<any[]>([]);
@@ -178,6 +350,14 @@ export const Marketplace = () => {
   const [reRooms, setReRooms] = useState<string>("all");
   const [reFurnished, setReFurnished] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">("newest");
+
+  // Pagination state: limit initially to 12
+  const [visibleCount, setVisibleCount] = useState<number>(12);
+
+  // Reset pagination on filter change
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [mainTab, reFihristTab, vehFihristTab, searchQuery, viewMode, activeSubSector, activeVehicleBrand, activeVehicleFuel, activeVehicleTransmission, minPrice, maxPrice, minYear, maxYear, reRegion, reType, reRooms, reFurnished, sortBy]);
 
   // Modal / Detail / Video Story States
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
@@ -363,7 +543,7 @@ export const Marketplace = () => {
   const headerBg = isDarkMode ? "bg-slate-900/95 border-slate-800" : "bg-white/95 border-slate-200 shadow-sm";
 
   return (
-    <div className={`min-h-screen font-sans transition-colors duration-300 ${bgCanvas}`}>
+    <div className={`min-h-screen w-full max-w-full overflow-x-hidden font-sans transition-colors duration-300 ${bgCanvas}`}>
       
       {/* Dynamic SEO Headings (sr-only for search engines) */}
       <h1 className="sr-only">
@@ -454,69 +634,11 @@ export const Marketplace = () => {
         </div>
       </nav>
 
-      {/* Hero Visual Banner */}
-      <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-800/60">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-2">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Sadece Doğrulanmış Kurumsal Mağaza Portföyleri</span>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-black tracking-tight">
-              Emlak & Vasıta <span className="bg-gradient-to-r from-blue-500 via-amber-400 to-rose-500 text-transparent bg-clip-text">Fihrist Klasörü</span>
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{stats.total} Aktif İlan Yayında</span>
-          </div>
-        </div>
-
-        {/* 15-Second Short Video Reels Story Strip */}
-        <div className="mt-6 mb-2">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-400">
-              <Play className="w-3.5 h-3.5 text-rose-500 animate-pulse fill-rose-500" />
-              <span>Canlı Portföy Reels & Video Turlar</span>
-            </div>
-            <span className="text-[10px] text-slate-500 font-bold">15 Sn Dikey Turlar</span>
-          </div>
-
-          <div className="flex items-center gap-4 overflow-x-auto pb-3 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-            {DEFAULT_STORIES.map((story) => (
-              <button
-                key={story.id}
-                onClick={() => setSelectedStory(story)}
-                className="flex flex-col items-center gap-1.5 flex-shrink-0 group cursor-pointer text-left"
-              >
-                <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full p-[2.5px] bg-gradient-to-tr from-amber-500 via-rose-500 to-blue-500 group-hover:scale-105 transition-transform shadow-lg">
-                  <div className="w-full h-full rounded-full overflow-hidden bg-slate-950 relative">
-                    <img 
-                      src={story.poster} 
-                      alt={story.title} 
-                      className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" 
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-slate-950/30 flex items-center justify-center">
-                      <Play className="w-5 h-5 text-white fill-white shadow-md" />
-                    </div>
-                  </div>
-                </div>
-                <span className="text-[11px] font-extrabold text-slate-300 max-w-[80px] truncate group-hover:text-amber-400 transition-colors text-center">
-                  {story.storeName}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 📁 PHYSICAL FILE FOLDER TAB SYSTEM ("FİHRİST GÖRÜNÜMLÜ AYRAÇLAR") */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      {/* 📁 PHYSICAL FILE FOLDER TAB SYSTEM */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
         
         {/* Top Tier Primary Folder Tabs (EMLAK vs ARAÇLAR) */}
-        <div className="flex items-end gap-2 border-b-4 border-blue-600 pt-2 px-2 overflow-x-auto select-none">
+        <div className="flex items-end gap-2 border-b-4 border-blue-600 pt-2 px-2 overflow-x-auto select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           
           {/* EMLAK PRIMARY TAB */}
           <button
@@ -531,7 +653,7 @@ export const Marketplace = () => {
             }`}
           >
             <Home className="w-5 h-5 text-amber-300" />
-            <span className="uppercase tracking-wider">EMLAK FİHRİSTİ</span>
+            <span className="uppercase tracking-wider">EMLAK</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
               mainTab === "real_estate" ? "bg-white/20 text-white" : "bg-slate-900 text-slate-400"
             }`}>
@@ -552,7 +674,7 @@ export const Marketplace = () => {
             }`}
           >
             <Car className="w-5 h-5 text-amber-300" />
-            <span className="uppercase tracking-wider">ARAÇLAR FİHRİSTİ</span>
+            <span className="uppercase tracking-wider">ARAÇLAR</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
               mainTab === "vehicle" ? "bg-white/20 text-white" : "bg-slate-900 text-slate-400"
             }`}>
@@ -572,10 +694,6 @@ export const Marketplace = () => {
           {/* SUB-FIHRIST FOLDER TABS BAR FOR EMLAK */}
           {mainTab === "real_estate" && (
             <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-slate-800">
-              <span className="text-xs text-blue-400 font-black uppercase tracking-wider mr-2 flex items-center gap-1">
-                <FileText className="w-4 h-4" /> Emlak Klasörleri:
-              </span>
-
               {[
                 { id: "satilik", label: "SATILIK", icon: Tag, desc: "Daire, Villa & Müstakil" },
                 { id: "kiralik", label: "KİRALIK", icon: Key, desc: "Konut & İşyeri" },
@@ -606,10 +724,6 @@ export const Marketplace = () => {
           {/* SUB-FIHRIST FOLDER TABS BAR FOR VEHICLE */}
           {mainTab === "vehicle" && (
             <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-slate-800">
-              <span className="text-xs text-rose-400 font-black uppercase tracking-wider mr-2 flex items-center gap-1">
-                <FileText className="w-4 h-4" /> Araç Klasörleri:
-              </span>
-
               {[
                 { id: "latest", label: "SON GELENLER", icon: Sparkles, desc: "En Yeni Galeri İlanları" },
                 { id: "fiyati-dusen", label: "FİYATI DÜŞENLER", icon: TrendingDown, desc: "Fırsat & Kelepir Araçlar" },
@@ -640,12 +754,8 @@ export const Marketplace = () => {
           {/* TOOLBAR BAR (3 GRID VIEW SWITCHER + SORTING + COUNT) */}
           <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mb-6">
             
-            {/* View Mode Switcher (3 Farklı Izgara Modeli) */}
+            {/* View Mode Switcher (3 Farklı Görünüm Modeli) */}
             <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider px-2 hidden sm:inline">
-                Izgara Modeli:
-              </span>
-
               {/* Model 1: Rich Cards */}
               <button
                 onClick={() => setViewMode("rich")}
@@ -682,7 +792,7 @@ export const Marketplace = () => {
                     ? "bg-blue-600 text-white shadow-md"
                     : "text-slate-400 hover:text-white hover:bg-slate-850"
                 }`}
-                title="Detaylı Yatay Liste Modeli"
+                title="Detaylı Tablo Liste Modeli"
               >
                 <ListFilter className="w-4 h-4" />
                 <span className="hidden md:inline">Detaylı Liste</span>
@@ -741,39 +851,19 @@ export const Marketplace = () => {
               {/* MODEL 1: RICH BENTO GRID (3 COLUMN) */}
               {viewMode === "rich" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredListings.map((listing: any) => (
+                  {filteredListings.slice(0, visibleCount).map((listing: any) => (
                     <article 
                       key={listing.id}
                       className={`group ${cardBg} rounded-3xl p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between`}
                     >
                       <div>
-                        {/* Cover Image */}
-                        <div className="aspect-[16/10] bg-slate-950 rounded-2xl mb-4 overflow-hidden relative border border-slate-800/80">
-                          {listing.image_url ? (
-                            <img 
-                              src={listing.image_url} 
-                              alt={listing.title} 
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-600">
-                              {listing.listing_type === 'vehicle' ? <Car className="w-10 h-10 opacity-30 text-rose-500" /> : <Home className="w-10 h-10 opacity-30 text-blue-500" />}
-                              <span className="text-[10px] uppercase font-bold text-slate-500 mt-2">Görsel Yok</span>
-                            </div>
-                          )}
-
-                          {/* Category Tag Badge */}
-                          <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-950/90 backdrop-blur-md rounded-lg text-[10px] font-extrabold text-amber-300 border border-slate-800">
-                            {listing.category || (listing.listing_type === "vehicle" ? "Vasıta" : "Emlak")}
-                          </div>
-
-                          {/* Verified Badge */}
-                          <div className="absolute top-3 right-3 px-2.5 py-1 bg-emerald-500/90 text-white backdrop-blur-md rounded-lg text-[9px] font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>Doğrulanmış</span>
-                          </div>
-                        </div>
+                        {/* Cover Image Carousel */}
+                        <ListingCardImage 
+                          listing={listing} 
+                          aspect="aspect-[16/10]" 
+                          className="rounded-2xl mb-4" 
+                          onImageClick={() => setSelectedListing(listing)} 
+                        />
 
                         {/* Title */}
                         <h3 
@@ -858,22 +948,18 @@ export const Marketplace = () => {
               {/* MODEL 2: COMPACT GRID (4 COLUMN) */}
               {viewMode === "compact" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {filteredListings.map((listing: any) => (
+                  {filteredListings.slice(0, visibleCount).map((listing: any) => (
                     <article 
                       key={listing.id}
                       className={`group ${cardBg} rounded-2xl p-3 hover:border-blue-500/50 transition-all duration-200 flex flex-col justify-between`}
                     >
                       <div>
-                        <div className="aspect-[4/3] bg-slate-950 rounded-xl mb-2.5 overflow-hidden relative">
-                          {listing.image_url ? (
-                            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-700">Görsel Yok</div>
-                          )}
-                          <span className="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/90 text-white rounded text-[9px] font-bold">
-                            {listing.category || "İlan"}
-                          </span>
-                        </div>
+                        <ListingCardImage 
+                          listing={listing} 
+                          aspect="aspect-[4/3]" 
+                          className="rounded-xl mb-2.5" 
+                          onImageClick={() => setSelectedListing(listing)} 
+                        />
 
                         <h3 
                           onClick={() => setSelectedListing(listing)}
@@ -899,66 +985,188 @@ export const Marketplace = () => {
                 </div>
               )}
 
-              {/* MODEL 3: DETAILED LIST / SPLIT ROW VIEW */}
+              {/* MODEL 3: DETAILED STRUCTURED TABLE VIEW */}
               {viewMode === "list" && (
-                <div className="space-y-4">
-                  {filteredListings.map((listing: any) => (
-                    <article 
-                      key={listing.id}
-                      className={`${cardBg} rounded-3xl p-4 flex flex-col md:flex-row items-center justify-between gap-6 hover:border-blue-500/50 transition-all`}
-                    >
-                      <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                        <div className="w-full md:w-48 h-36 bg-slate-950 rounded-2xl overflow-hidden flex-shrink-0 relative border border-slate-800">
-                          {listing.image_url ? (
-                            <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-700">Görsel Yok</div>
-                          )}
-                          <span className="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/90 text-amber-300 rounded text-[10px] font-bold">
-                            {listing.category || "İlan"}
-                          </span>
-                        </div>
+                <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/90 shadow-xl">
+                  <table className="w-full text-left text-xs border-collapse min-w-[900px]">
+                    <thead>
+                      <tr className="bg-slate-900 border-b border-slate-800 text-slate-300 font-black uppercase text-[11px] tracking-wider">
+                        <th className="p-3 w-36 text-center border-r border-slate-800">Fotoğraf</th>
+                        {mainTab === "vehicle" ? (
+                          <>
+                            <th className="p-3 border-r border-slate-800">Marka</th>
+                            <th className="p-3 border-r border-slate-800">Seri</th>
+                            <th className="p-3 border-r border-slate-800">Model</th>
+                            <th className="p-3 border-r border-slate-800 min-w-[220px]">İlan Başlığı</th>
+                            <th className="p-3 text-center border-r border-slate-800">Yıl</th>
+                            <th className="p-3 text-right border-r border-slate-800">KM</th>
+                            <th className="p-3 text-right border-r border-slate-800">Fiyat</th>
+                            <th className="p-3 text-center border-r border-slate-800">İlan Tarihi</th>
+                            <th className="p-3 border-r border-slate-800">İl / İlçe</th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="p-3 border-r border-slate-800">Kategori / Tip</th>
+                            <th className="p-3 text-center border-r border-slate-800">Oda</th>
+                            <th className="p-3 text-right border-r border-slate-800">m² (Brüt)</th>
+                            <th className="p-3 border-r border-slate-800 min-w-[220px]">İlan Başlığı</th>
+                            <th className="p-3 text-center border-r border-slate-800">Isınma / Kat</th>
+                            <th className="p-3 text-right border-r border-slate-800">Fiyat</th>
+                            <th className="p-3 text-center border-r border-slate-800">İlan Tarihi</th>
+                            <th className="p-3 border-r border-slate-800">İl / İlçe</th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {filteredListings.slice(0, visibleCount).map((listing: any) => {
+                        const price = Math.round(Number(listing.price) || 0).toLocaleString('tr-TR');
+                        const currency = listing.currency || 'TL';
+                        const dateStr = listing.created_at 
+                          ? new Date(listing.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+                          : '12 Ağustos 2026';
+                        const loc = formatLocation(listing);
 
-                        <div>
-                          <span className="text-[10px] font-black uppercase text-blue-400 block mb-1">
-                            {listing.store_name} — Doğrulanmış Mağaza
-                          </span>
-                          <h3 
-                            onClick={() => setSelectedListing(listing)}
-                            className="text-base font-black text-white hover:text-blue-400 cursor-pointer mb-2"
-                          >
-                            {listing.title}
-                          </h3>
-                          <p className="text-xs text-slate-400 line-clamp-2 max-w-xl">
-                            {listing.description ? cleanHtmlText(listing.description).replace(/<[^>]*>?/gm, '') : 'İlan açıklaması için tıklayın.'}
-                          </p>
-                        </div>
-                      </div>
+                        if (mainTab === "vehicle" || listing.listing_type === "vehicle") {
+                          const brand = listing.brand || listing.sector_data?.brand || "-";
+                          const seri = listing.sector_data?.series || listing.sector_data?.seri || (listing.title ? listing.title.split(' ')[1] : "-");
+                          const model = listing.sector_data?.model || listing.category || "-";
+                          const year = listing.year || listing.sector_data?.year || listing.sector_data?.model_year || "-";
+                          const km = listing.mileage 
+                            ? Math.round(Number(listing.mileage)).toLocaleString('tr-TR') 
+                            : (listing.sector_data?.km ? Number(listing.sector_data.km).toLocaleString('tr-TR') : "-");
 
-                      <div className="flex flex-col items-end gap-3 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-800">
-                        <span className="text-xl font-black text-white">
-                          {Math.round(Number(listing.price) || 0).toLocaleString('tr-TR')} <span className="text-xs text-blue-400">{listing.currency || 'TL'}</span>
-                        </span>
+                          return (
+                            <tr 
+                              key={listing.id} 
+                              className="hover:bg-blue-950/30 transition-colors border-b border-slate-800/50 group"
+                            >
+                              <td className="p-2 border-r border-slate-800/60 align-middle">
+                                <ListingCardImage 
+                                  listing={listing} 
+                                  aspect="aspect-[4/3]" 
+                                  className="w-32 h-20 rounded-xl" 
+                                  disableCarousel={true}
+                                  onImageClick={() => setSelectedListing(listing)} 
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-200 border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {brand}
+                              </td>
+                              <td className="p-3 font-semibold text-blue-400 border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {seri}
+                              </td>
+                              <td className="p-3 text-slate-300 border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {model}
+                              </td>
+                              <td className="p-3 border-r border-slate-800/60 align-middle">
+                                <div 
+                                  onClick={() => setSelectedListing(listing)} 
+                                  className="font-bold text-white hover:text-blue-400 cursor-pointer line-clamp-2 leading-snug"
+                                >
+                                  {listing.title}
+                                </div>
+                                {listing.store_name && (
+                                  <span className="text-[10px] font-semibold text-amber-400 block mt-1">
+                                    {listing.store_name}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3 text-center font-bold text-slate-300 border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {year}
+                              </td>
+                              <td className="p-3 text-right font-semibold text-slate-300 border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {km}
+                              </td>
+                              <td className="p-3 text-right font-black text-rose-500 text-sm md:text-base border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {price} {currency}
+                              </td>
+                              <td className="p-3 text-center text-slate-400 text-[11px] border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {dateStr}
+                              </td>
+                              <td className="p-3 text-slate-300 text-[11px] align-middle whitespace-nowrap">
+                                {loc}
+                              </td>
+                            </tr>
+                          );
+                        } else {
+                          const reType = formatCategory(listing);
+                          const rooms = listing.sector_data?.rooms || listing.sector_data?.oda || "-";
+                          const m2 = listing.sector_data?.gross_m2 
+                            ? `${listing.sector_data.gross_m2} m²` 
+                            : (listing.sector_data?.m2 ? `${listing.sector_data.m2} m²` : "-");
+                          const heating = listing.sector_data?.heating || listing.sector_data?.building_age || listing.sector_data?.floor || "-";
 
-                        <div className="flex items-center gap-2 w-full md:w-auto">
-                          <button 
-                            onClick={() => setSelectedListing(listing)}
-                            className="px-4 py-2 bg-slate-950 border border-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold"
-                          >
-                            İncele
-                          </button>
-                          <Link 
-                            to={`/s/${listing.store_slug}/p/${listing.barcode || listing.id}`}
-                            target="_blank"
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1"
-                          >
-                            <span>Mağaza</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </Link>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
+                          return (
+                            <tr 
+                              key={listing.id} 
+                              className="hover:bg-blue-950/30 transition-colors border-b border-slate-800/50 group"
+                            >
+                              <td className="p-2 border-r border-slate-800/60 align-middle">
+                                <ListingCardImage 
+                                  listing={listing} 
+                                  aspect="aspect-[4/3]" 
+                                  className="w-32 h-20 rounded-xl" 
+                                  disableCarousel={true}
+                                  onImageClick={() => setSelectedListing(listing)} 
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-amber-300 border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {reType}
+                              </td>
+                              <td className="p-3 text-center font-bold text-slate-200 border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {rooms}
+                              </td>
+                              <td className="p-3 text-right font-semibold text-slate-300 border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {m2}
+                              </td>
+                              <td className="p-3 border-r border-slate-800/60 align-middle">
+                                <div 
+                                  onClick={() => setSelectedListing(listing)} 
+                                  className="font-bold text-white hover:text-blue-400 cursor-pointer line-clamp-2 leading-snug"
+                                >
+                                  {listing.title}
+                                </div>
+                                {listing.store_name && (
+                                  <span className="text-[10px] font-semibold text-amber-400 block mt-1">
+                                    {listing.store_name}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3 text-center text-slate-400 border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {heating}
+                              </td>
+                              <td className="p-3 text-right font-black text-rose-500 text-sm md:text-base border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {price} {currency}
+                              </td>
+                              <td className="p-3 text-center text-slate-400 text-[11px] border-r border-slate-800/60 align-middle whitespace-nowrap">
+                                {dateStr}
+                              </td>
+                              <td className="p-3 text-slate-300 text-[11px] align-middle whitespace-nowrap">
+                                {loc}
+                              </td>
+                            </tr>
+                          );
+                        }
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* PAGINATION / DAHA FAZLA GÖSTER BUTTON */}
+              {filteredListings.length > visibleCount && (
+                <div className="mt-10 text-center flex flex-col items-center justify-center gap-2">
+                  <span className="text-xs text-slate-400 font-bold">
+                    Toplam {filteredListings.length} ilandan {Math.min(visibleCount, filteredListings.length)} adedi gösteriliyor
+                  </span>
+                  <button
+                    onClick={() => setVisibleCount((prev) => prev + 12)}
+                    className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl text-xs font-black shadow-xl shadow-blue-600/20 transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer border border-blue-400/30"
+                  >
+                    <span>Daha Fazla İlan Göster (+12)</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
                 </div>
               )}
 
@@ -1002,10 +1210,85 @@ export const Marketplace = () => {
           </section>
         )}
 
+        {/* 15-Second Short Video Reels Story Strip */}
+        <section className="mt-12 mb-8">
+          <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-800/80">
+            <div className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-white">
+              <div className="w-7 h-7 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center">
+                <Play className="w-4 h-4 text-rose-500 animate-pulse fill-rose-500" />
+              </div>
+              <span className="bg-gradient-to-r from-white via-slate-200 to-amber-300 bg-clip-text text-transparent">
+                Canlı Portföy Reels & Video Turlar
+              </span>
+            </div>
+            <span className="text-xs text-amber-400 font-extrabold px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>15 Sn Dikey Turlar</span>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-5">
+            {DEFAULT_STORIES.map((story) => (
+              <button
+                key={story.id}
+                onClick={() => setSelectedStory(story)}
+                className="relative rounded-3xl overflow-hidden border border-slate-800 hover:border-amber-400/70 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-amber-500/20 group cursor-pointer aspect-[9/14] bg-slate-950 flex flex-col justify-between p-3.5 text-left"
+              >
+                {/* Background Poster Image */}
+                <img 
+                  src={story.poster} 
+                  alt={story.title} 
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 brightness-90 group-hover:brightness-100" 
+                  referrerPolicy="no-referrer"
+                />
+                
+                {/* Gradient Overlays */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-slate-950/50 group-hover:via-slate-950/20 transition-all duration-300" />
+
+                {/* Top Badges */}
+                <div className="relative z-10 flex items-center justify-between gap-1 w-full">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-950/80 backdrop-blur-md text-amber-300 border border-white/10 shadow-md">
+                    {story.category}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-rose-600 text-white flex items-center gap-1 shadow-lg animate-pulse">
+                    <Play className="w-2.5 h-2.5 fill-white" /> Live
+                  </span>
+                </div>
+
+                {/* Center Glassmorphic Play Button */}
+                <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-slate-950/60 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-2xl group-hover:scale-110 group-hover:bg-amber-400 group-hover:border-amber-300 group-hover:text-slate-950 transition-all duration-300">
+                    <Play className="w-5 h-5 md:w-6 md:h-6 fill-current ml-0.5" />
+                  </div>
+                </div>
+
+                {/* Bottom Detail Overlay */}
+                <div className="relative z-10 w-full mt-auto pt-8">
+                  <div className="text-[11px] font-extrabold text-amber-400 flex items-center gap-1 truncate mb-0.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                    <span className="truncate">{story.storeName}</span>
+                  </div>
+                  <h4 className="text-xs md:text-sm font-black text-white line-clamp-2 leading-tight group-hover:text-amber-200 transition-colors">
+                    {story.title}
+                  </h4>
+                  <div className="mt-2.5 pt-2 border-t border-white/15 flex items-center justify-between">
+                    <span className="text-xs md:text-sm font-black text-emerald-400">
+                      {story.price}
+                    </span>
+                    <span className="text-[10px] font-extrabold text-slate-200 bg-white/15 px-2 py-0.5 rounded-lg group-hover:bg-amber-400 group-hover:text-slate-950 transition-colors">
+                      İzle &rarr;
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
         {/* REGIONAL RADAR SHOWCASE SLIDER */}
         {portalNews && portalNews.length > 0 && (
           <section className="my-12">
-            <RadarShowcaseSlider newsItems={portalNews} />
+            <RadarShowcaseSlider radarNews={portalNews} />
           </section>
         )}
 
@@ -1375,7 +1658,6 @@ export const Marketplace = () => {
             <Link to="/" className="hover:text-blue-400">Ana Sayfa</Link>
             <a href="https://lookprice.net/login" className="hover:text-blue-400">Mağaza Paneli</a>
             <a href="https://lookprice.net/register" className="hover:text-blue-400">Mağaza Açın</a>
-            <a href="/llms.txt" target="_blank" className="hover:text-blue-400">AI Index (llms.txt)</a>
           </div>
         </div>
       </footer>

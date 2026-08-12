@@ -1,22 +1,31 @@
 import React from "react";
 
-export function Logo({ size = 24, className = "" }: { size?: number, className?: string }) {
+export function Logo({ size = 32, className = "", showText = true }: { size?: number, className?: string, showText?: boolean }) {
   return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2.5" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <polyline points="3.29 7 12 12 20.71 7" />
-      <line x1="12" y1="22" x2="12" y2="12" />
-    </svg>
+    <div className={`flex items-center gap-2.5 ${className}`}>
+      {/* Icon Mark: Green house-car contour */}
+      <svg 
+        width={size} 
+        height={size} 
+        viewBox="0 0 200 130" 
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+        className="flex-shrink-0"
+      >
+        <g fill="none" stroke="#059669" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M 22 58 L 52 28 L 82 58" />
+          <path d="M 32 48 V 32 H 40 V 40" />
+          <path d="M 52 28 C 80 28 92 58 115 58 L 165 58 C 185 58 198 68 200 80 C 202 92 195 100 182 100 L 28 100 C 20 100 16 92 16 80 C 16 68 28 58 52 28 Z" />
+          <circle cx="62" cy="100" r="12" fill="#ffffff" stroke="#059669" strokeWidth="7" />
+          <circle cx="162" cy="100" r="12" fill="#ffffff" stroke="#059669" strokeWidth="7" />
+        </g>
+      </svg>
+      {showText && (
+        <span className="font-black text-slate-900 dark:text-white tracking-tight text-xl leading-none font-sans">
+          Enrakipsiz
+        </span>
+      )}
+    </div>
   );
 }
 
