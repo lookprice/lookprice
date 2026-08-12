@@ -353,6 +353,32 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
     return { lat: 35.3364 + offsetLat, lng: 33.3174 + offsetLng };
   };
 
+  const getNormalizedCategory = (p: Product): string => {
+    const cat = (p.category || "").toLowerCase();
+    const titleLower = (p.name || (p as any).title || "").toLowerCase();
+    const secType = (p.sector_data?.type || p.sector_data?.property_type || p.sector_data?.re_type || "").toLowerCase();
+    
+    // Check for villa / house
+    if (cat.includes("villa") || cat.includes("müstakil") || cat.includes("mustakil") || secType.includes("villa") || secType.includes("müstakil") || titleLower.includes("müstakil") || titleLower.includes("mustakil") || titleLower.includes("villa")) {
+      return "villa";
+    }
+    // Check for land / arsa (only if not a house/villa indicator)
+    const hasHouseIndicator = titleLower.includes("müstakil") || titleLower.includes("mustakil") || titleLower.includes("villa") || titleLower.includes("ev") || titleLower.includes("daire") || titleLower.includes("penthouse") || titleLower.includes("1+1") || titleLower.includes("2+1") || titleLower.includes("3+1") || titleLower.includes("4+1") || titleLower.includes("apartman") || titleLower.includes("stüdyo") || titleLower.includes("studio") || titleLower.includes("rezidans");
+    if (cat.includes("land") || cat.includes("arsa") || cat.includes("tarla") || cat.includes("arazi") || secType.includes("land") || secType.includes("arsa") || (titleLower.includes("arsa") && !hasHouseIndicator)) {
+      return "land";
+    }
+    // Check for commercial
+    if (cat.includes("commercial") || cat.includes("ticari") || cat.includes("dükkan") || cat.includes("dukkan") || cat.includes("isyeri") || cat.includes("işyeri") || cat.includes("ofis") || secType.includes("commercial") || titleLower.includes("dükkan") || titleLower.includes("ofis") || titleLower.includes("işyeri") || titleLower.includes("ticari")) {
+      return "commercial";
+    }
+    // Check for residence / flat / apart / konut
+    if (cat.includes("residence") || cat.includes("konut") || cat.includes("daire") || cat.includes("flat") || cat.includes("apartment") || secType.includes("residence") || secType.includes("daire") || titleLower.includes("daire") || titleLower.includes("1+1") || titleLower.includes("2+1") || titleLower.includes("3+1") || titleLower.includes("stüdyo")) {
+      return "residence";
+    }
+    
+    return "residence"; // Default fallback
+  };
+
   // Filtered Products Calculation
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -363,7 +389,8 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
       // Category filter (Daire, Villa, Arsa, Ticari)
       if (activeCategory !== 'all') {
-        if (p.category?.toLowerCase() !== activeCategory.toLowerCase()) return false;
+        const normCat = getNormalizedCategory(p);
+        if (normCat !== activeCategory) return false;
       }
 
       // Region match
@@ -1091,19 +1118,19 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
               ) : (
                 <>
                   {/* Results Header */}
-                  <div className="flex items-center justify-between bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
-                    <span className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-amber-400" />
-                      <span>Listelenen Portföy: <span className="text-amber-400 font-black">{filteredProducts.length} İlan</span></span>
+                  <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-amber-500" />
+                      <span>Listelenen Portföy: <span className="text-amber-500 font-black">{filteredProducts.length} İlan</span></span>
                     </span>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Canlı IDX Akışı</span>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Canlı IDX Akışı</span>
                   </div>
 
               {/* Product Cards Container */}
               {filteredProducts.length === 0 ? (
-                <div className="text-center py-20 bg-slate-950/60 border-2 border-dashed border-slate-800 rounded-3xl p-8">
-                  <Search className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-                  <p className="text-slate-300 font-black text-sm uppercase">Aramanıza Uygun Portföy Bulunamadı</p>
+                <div className="text-center py-20 bg-slate-100 dark:bg-slate-900/60 border-2 border-dashed border-slate-300 dark:border-slate-850 rounded-3xl p-8">
+                  <Search className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                  <p className="text-slate-700 dark:text-slate-300 font-black text-sm uppercase">Aramanıza Uygun Portföy Bulunamadı</p>
                   <p className="text-xs text-slate-500 mt-1">Filtre kriterlerinizi genişleterek tekrar deneyebilirsiniz.</p>
                   <button
                     onClick={handleResetFilters}
@@ -1126,17 +1153,18 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                           onMouseEnter={() => setHoveredPropertyId(p.id)}
                           onMouseLeave={() => setHoveredPropertyId(null)}
                           onClick={() => setSelectedProperty(p)}
-                          className={`group bg-slate-950 rounded-3xl overflow-hidden border transition-all duration-300 cursor-pointer flex flex-col sm:flex-row ${
+                          className={`group bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border transition-all duration-300 cursor-pointer flex flex-col sm:flex-row ${
                             isSelected
-                              ? "border-amber-400 ring-2 ring-amber-400/40 shadow-2xl scale-[1.01]"
-                              : "border-slate-800/90 hover:border-slate-700 hover:shadow-xl"
+                              ? "border-amber-500 ring-2 ring-amber-500/40 shadow-2xl scale-[1.01]"
+                              : "border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xl"
                           }`}
                         >
                           {/* Image Thumbnail */}
-                          <div className="w-full sm:w-44 h-40 shrink-0 relative overflow-hidden bg-slate-900">
+                          <div className="w-full sm:w-44 h-40 shrink-0 relative overflow-hidden bg-slate-100 dark:bg-slate-950">
                             <img
                               src={p.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"}
                               alt={p.name}
+                              referrerPolicy="no-referrer"
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                             />
                             <div className="absolute top-2 left-2 flex flex-col gap-1">
@@ -1168,21 +1196,21 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                           {/* Details Area */}
                           <div className="p-4 flex-1 flex flex-col justify-between">
                             <div>
-                              <div className="flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                              <div className="flex items-center justify-between text-[9px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                                 <span>{translateCategory(p.category)}</span>
                                 <span className="text-slate-500">{p.sector_data?.kktc_sub_region || p.sector_data?.district || 'KKTC'}</span>
                               </div>
-                              <h4 className="text-sm font-black text-slate-100 group-hover:text-amber-400 transition-colors line-clamp-1 uppercase">
+                              <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-1 uppercase">
                                 {p.name}
                               </h4>
-                              <p className="text-[11px] font-bold text-slate-400 flex items-center gap-1 mt-1">
+                              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
                                 <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                                 <span className="truncate">{p.location || p.sector_data?.location || "Girne, Kıbrıs"}</span>
                               </p>
                             </div>
 
-                            <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-900">
-                              <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
+                            <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center gap-3 text-[10px] font-bold text-slate-600 dark:text-slate-400">
                                 {p.sector_data?.rooms && <span>🛏️ {p.sector_data.rooms}</span>}
                                 {p.sector_data?.square_meters && <span>📏 {p.sector_data.square_meters} m²</span>}
                               </div>
@@ -1190,7 +1218,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                                 <p className="text-base font-black text-slate-900 dark:text-amber-400 tracking-tight">{priceStr}</p>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onViewProduct(p); }}
-                                  className="text-[9px] font-black text-slate-400 group-hover:text-white uppercase tracking-wider flex items-center gap-0.5 ml-auto mt-0.5"
+                                  className="text-[9px] font-black text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white uppercase tracking-wider flex items-center gap-0.5 ml-auto mt-0.5 cursor-pointer"
                                 >
                                   {isTr ? "Detay" : "View"} ➔
                                 </button>
@@ -1223,9 +1251,9 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
         {/* VIEW MODE 2: FULL GRID GALLERY VIEW */}
         {viewMode === 'grid' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <span className="text-sm font-black text-slate-200 uppercase tracking-wider">
-                Toplama Portföy: <span className="text-amber-400">{filteredProducts.length} İlan Bulundu</span>
+            <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-850">
+              <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                Toplama Portföy: <span className="text-amber-500">{filteredProducts.length} İlan Bulundu</span>
               </span>
             </div>
 
@@ -1238,12 +1266,13 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                   <div
                     key={p.id}
                     onClick={() => onViewProduct(p)}
-                    className="group bg-slate-950 rounded-3xl overflow-hidden border border-slate-800 hover:border-amber-500/50 hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
+                    className="group bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500/50 hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
                   >
-                    <div className="relative aspect-[16/11] overflow-hidden bg-slate-900">
+                    <div className="relative aspect-[16/11] overflow-hidden bg-slate-100 dark:bg-slate-950">
                       <img
                         src={p.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"}
                         alt={p.name}
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       />
                       <div className="absolute top-3 left-3 flex gap-1.5">
@@ -1269,18 +1298,18 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                     <div className="p-5 space-y-3">
                       <div>
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{translateCategory(p.category)}</span>
-                        <h4 className="text-base font-black text-white group-hover:text-amber-400 transition-colors uppercase line-clamp-1 mt-0.5">
+                        <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{translateCategory(p.category)}</span>
+                        <h4 className="text-base font-black text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors uppercase line-clamp-1 mt-0.5">
                           {p.name}
                         </h4>
-                        <p className="text-xs font-bold text-slate-400 flex items-center gap-1 mt-1">
+                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
                           <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                           <span className="truncate">{p.location || "Kıbrıs"}</span>
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-900">
-                        <div className="text-xs font-bold text-slate-400">
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <div className="text-xs font-bold text-slate-600 dark:text-slate-400">
                           {p.sector_data?.rooms && <span>🛏️ {p.sector_data.rooms} &nbsp;</span>}
                           {p.sector_data?.square_meters && <span>📏 {p.sector_data.square_meters} m²</span>}
                         </div>
@@ -1394,17 +1423,17 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="w-full max-w-md bg-white h-full shadow-2xl border-l border-slate-200 flex flex-col justify-between overflow-y-auto p-6 text-slate-800"
+              className="w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col justify-between overflow-y-auto p-6 text-slate-800 dark:text-slate-200"
             >
               <div>
-                <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-6">
-                  <div className="flex items-center gap-2 text-amber-700">
-                    <SlidersHorizontal className="w-5 h-5 text-amber-600" />
-                    <h3 className="text-lg font-black uppercase text-slate-900 tracking-wider">Detaylı Arama Filtreleri</h3>
+                <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-6">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-500">
+                    <SlidersHorizontal className="w-5 h-5 text-amber-600 dark:text-amber-500" />
+                    <h3 className="text-lg font-black uppercase text-slate-900 dark:text-white tracking-wider">Detaylı Arama Filtreleri</h3>
                   </div>
                   <button
                     onClick={() => setIsDrawerOpen(false)}
-                    className="p-2 text-slate-500 hover:text-slate-900 bg-slate-100 rounded-full cursor-pointer hover:bg-slate-200 transition-colors"
+                    className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-full cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1414,7 +1443,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                   
                   {/* Mülk Tipi Seçimi (Çekmece İçi Hızlı Geçiş) */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Mülk Tipi Kategorisi</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Mülk Tipi Kategorisi</label>
                     <div className="grid grid-cols-3 gap-1.5">
                       {[
                         { key: 'all', label: 'Tüm Tipler', icon: '🏢' },
@@ -1427,7 +1456,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                           key={cat.key}
                           onClick={() => setActiveCategory(cat.key)}
                           className={`py-2 px-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all flex items-center justify-center gap-1 ${
-                            activeCategory === cat.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                            activeCategory === cat.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                           }`}
                         >
                           <span>{cat.icon}</span>
@@ -1439,14 +1468,14 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                   {/* Şehir / Bölge & Alt Mahalle Seçimi */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Şehir / Bölge Seçimi</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Şehir / Bölge Seçimi</label>
                     <div className="grid grid-cols-3 gap-1.5 mb-3">
                       {['all', 'Girne', 'Lefkoşa', 'Gazimağusa', 'İskele', 'Lefke', 'Güzelyurt'].map((reg) => (
                         <button
                           key={reg}
                           onClick={() => { setActiveRegion(reg); setActiveSubRegion('all'); }}
                           className={`py-2 px-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                            activeRegion === reg ? "bg-indigo-600 text-white border-indigo-700 font-black shadow-xs" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                            activeRegion === reg ? "bg-indigo-600 text-white border-indigo-700 font-black shadow-xs" : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                           }`}
                         >
                           {reg === 'all' ? 'Tüm Şehirler' : reg}
@@ -1456,15 +1485,15 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                     {/* Alt Semt / Mahalle Seçimi */}
                     {activeRegion !== 'all' && REAL_ESTATE_REGIONS[activeRegion as keyof typeof REAL_ESTATE_REGIONS] && (
-                      <div className="bg-amber-50/80 p-3 rounded-2xl border border-amber-200 shadow-2xs">
-                        <label className="block text-[10px] font-black text-amber-900 uppercase tracking-wider mb-2">
+                      <div className="bg-amber-50/80 dark:bg-slate-900/50 p-3 rounded-2xl border border-amber-200 dark:border-slate-800 shadow-2xs">
+                        <label className="block text-[10px] font-black text-amber-900 dark:text-amber-400 uppercase tracking-wider mb-2">
                           📍 {activeRegion} — Alt Semtler & Mahalleler:
                         </label>
                         <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1 no-scrollbar">
                           <button
                             onClick={() => setActiveSubRegion('all')}
                             className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                              activeSubRegion === 'all' ? "bg-indigo-600 text-white font-black shadow-xs" : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                              activeSubRegion === 'all' ? "bg-indigo-600 text-white font-black shadow-xs" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750"
                             }`}
                           >
                             Tüm Semtler
@@ -1476,7 +1505,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer border ${
                                 activeSubRegion === sub
                                   ? "bg-indigo-600 text-white font-black border-indigo-700 shadow-xs"
-                                  : "bg-white text-slate-700 border-slate-200 hover:bg-indigo-50"
+                                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
                               }`}
                             >
                               {sub}
@@ -1489,11 +1518,11 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                   {/* Fiyat Aralığı */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Fiyat Aralığı (£)</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Fiyat Aralığı (£)</label>
                     <select
                       value={priceRange}
                       onChange={(e) => setPriceRange(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-amber-500"
+                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:outline-none focus:border-amber-500"
                     >
                       <option value="all">Tüm Fiyatlar</option>
                       <option value="0-150000">£150.000 Altı</option>
@@ -1505,7 +1534,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                   {/* Koçan / Tapu Türü (Tüm Mülk Tiplerine Ortak KKTC Özel Filtresi) */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Koçan / Tapu Türü (KKTC)</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Koçan / Tapu Türü (KKTC)</label>
                     <div className="grid grid-cols-2 gap-2">
                       {[
                         { key: 'all', label: 'Tüm Tapu Türleri' },
@@ -1517,7 +1546,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                           key={kc.key}
                           onClick={() => setKocanTypeFilter(kc.key)}
                           className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                            kocanTypeFilter === kc.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                            kocanTypeFilter === kc.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                           }`}
                         >
                           {kc.label}
@@ -1528,15 +1557,15 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                   {/* === CASE 1: ARSA / ARAZİ / TARLA ÖZEL FİLTRELERİ === */}
                   {activeCategory === 'land' && (
-                    <div className="p-3.5 bg-emerald-50/80 rounded-2xl border border-emerald-200 space-y-4">
-                      <div className="flex items-center gap-2 text-emerald-900 border-b border-emerald-200 pb-2">
+                    <div className="p-3.5 bg-emerald-50/80 dark:bg-emerald-950/10 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 space-y-4">
+                      <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-900/50 pb-2">
                         <span>🏞️</span>
                         <h4 className="font-black uppercase tracking-wider text-[11px]">Arsa & Arazi Özel Detay Filtreleri</h4>
                       </div>
 
                       {/* İmar Durumu */}
                       <div>
-                        <label className="block text-[10px] font-bold text-emerald-950 uppercase tracking-wider mb-1.5">İmar Durumu</label>
+                        <label className="block text-[10px] font-bold text-emerald-950 dark:text-emerald-300 uppercase tracking-wider mb-1.5">İmar Durumu</label>
                         <div className="grid grid-cols-2 gap-1.5">
                           {[
                             { key: 'all', label: 'Tüm İmar Durumları' },
@@ -1550,7 +1579,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               key={zm.key}
                               onClick={() => setLandZoningFilter(zm.key)}
                               className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                                landZoningFilter === zm.key ? "bg-emerald-600 text-white border-emerald-700 font-black shadow-xs" : "bg-white text-slate-700 border-emerald-200 hover:bg-emerald-100"
+                                landZoningFilter === zm.key ? "bg-emerald-600 text-white border-emerald-700 font-black shadow-xs" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-emerald-200 dark:border-slate-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
                               }`}
                             >
                               {zm.label}
@@ -1561,7 +1590,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                       {/* İmar Oranı / KAKS */}
                       <div>
-                        <label className="block text-[10px] font-bold text-emerald-950 uppercase tracking-wider mb-1.5">İmar Oranı / KAKS (Yoğunluk)</label>
+                        <label className="block text-[10px] font-bold text-emerald-950 dark:text-emerald-300 uppercase tracking-wider mb-1.5">İmar Oranı / KAKS (Yoğunluk)</label>
                         <div className="grid grid-cols-3 gap-1.5">
                           {[
                             { key: 'all', label: 'Tümü' },
@@ -1574,7 +1603,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               key={kks.key}
                               onClick={() => setLandKaksFilter(kks.key)}
                               className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                                landKaksFilter === kks.key ? "bg-emerald-600 text-white border-emerald-700 font-black shadow-xs" : "bg-white text-slate-700 border-emerald-200 hover:bg-emerald-100"
+                                landKaksFilter === kks.key ? "bg-emerald-600 text-white border-emerald-700 font-black shadow-xs" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-emerald-200 dark:border-slate-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
                               }`}
                             >
                               {kks.label}
@@ -1585,7 +1614,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                       {/* Altyapı & Yolu */}
                       <div>
-                        <label className="block text-[10px] font-bold text-emerald-950 uppercase tracking-wider mb-1.5">Altyapı & Ulaşım</label>
+                        <label className="block text-[10px] font-bold text-emerald-950 dark:text-emerald-300 uppercase tracking-wider mb-1.5">Altyapı & Ulaşım</label>
                         <div className="grid grid-cols-2 gap-1.5">
                           {[
                             { key: 'all', label: 'Fark Etmez' },
@@ -1597,7 +1626,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               key={inf.key}
                               onClick={() => setLandInfraFilter(inf.key)}
                               className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                                landInfraFilter === inf.key ? "bg-emerald-600 text-white border-emerald-700 font-black shadow-xs" : "bg-white text-slate-700 border-emerald-200 hover:bg-emerald-100"
+                                landInfraFilter === inf.key ? "bg-emerald-600 text-white border-emerald-700 font-black shadow-xs" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-emerald-200 dark:border-slate-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
                               }`}
                             >
                               {inf.label}
@@ -1610,15 +1639,15 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                   {/* === CASE 2: TİCARİ DÜKKAN / İŞYERİ ÖZEL FİLTRELERİ === */}
                   {activeCategory === 'commercial' && (
-                    <div className="p-3.5 bg-blue-50/80 rounded-2xl border border-blue-200 space-y-4">
-                      <div className="flex items-center gap-2 text-blue-900 border-b border-blue-200 pb-2">
+                    <div className="p-3.5 bg-blue-50/80 dark:bg-blue-950/10 rounded-2xl border border-blue-200 dark:border-blue-900/50 space-y-4">
+                      <div className="flex items-center gap-2 text-blue-900 dark:text-blue-400 border-b border-blue-200 dark:border-blue-900/50 pb-2">
                         <span>🏪</span>
                         <h4 className="font-black uppercase tracking-wider text-[11px]">Ticari Mülk & İşyeri Filtreleri</h4>
                       </div>
 
                       {/* Ticari Türü */}
                       <div>
-                        <label className="block text-[10px] font-bold text-blue-950 uppercase tracking-wider mb-1.5">Ticari Mülk Türü</label>
+                        <label className="block text-[10px] font-bold text-blue-950 dark:text-blue-300 uppercase tracking-wider mb-1.5">Ticari Mülk Türü</label>
                         <div className="grid grid-cols-2 gap-1.5">
                           {[
                             { key: 'all', label: 'Tüm Ticari Türler' },
@@ -1632,7 +1661,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               key={ct.key}
                               onClick={() => setCommercialTypeFilter(ct.key)}
                               className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                                commercialTypeFilter === ct.key ? "bg-blue-600 text-white border-blue-700 font-black shadow-xs" : "bg-white text-slate-700 border-blue-200 hover:bg-blue-100"
+                                commercialTypeFilter === ct.key ? "bg-blue-600 text-white border-blue-700 font-black shadow-xs" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-blue-200 dark:border-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                               }`}
                             >
                               {ct.label}
@@ -1643,7 +1672,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                       {/* Devren & Kiracı Durumu */}
                       <div>
-                        <label className="block text-[10px] font-bold text-blue-950 uppercase tracking-wider mb-1.5">Devir & Kiracı Durumu</label>
+                        <label className="block text-[10px] font-bold text-blue-950 dark:text-blue-300 uppercase tracking-wider mb-1.5">Devir & Kiracı Durumu</label>
                         <div className="grid grid-cols-2 gap-1.5">
                           {[
                             { key: 'all', label: 'Tümü' },
@@ -1655,7 +1684,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               key={cd.key}
                               onClick={() => setCommercialDevirFilter(cd.key)}
                               className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                                commercialDevirFilter === cd.key ? "bg-blue-600 text-white border-blue-700 font-black shadow-xs" : "bg-white text-slate-700 border-blue-200 hover:bg-blue-100"
+                                commercialDevirFilter === cd.key ? "bg-blue-600 text-white border-blue-700 font-black shadow-xs" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-blue-200 dark:border-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                               }`}
                             >
                               {cd.label}
@@ -1666,7 +1695,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                       {/* Stratejik Konum & Yol */}
                       <div>
-                        <label className="block text-[10px] font-bold text-blue-950 uppercase tracking-wider mb-1.5">Stratejik Konum</label>
+                        <label className="block text-[10px] font-bold text-blue-950 dark:text-blue-300 uppercase tracking-wider mb-1.5">Stratejik Konum</label>
                         <div className="grid grid-cols-2 gap-1.5">
                           {[
                             { key: 'all', label: 'Tüm Konumlar' },
@@ -1676,7 +1705,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               key={cr.key}
                               onClick={() => setCommercialRoadFilter(cr.key)}
                               className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                                commercialRoadFilter === cr.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-white text-slate-700 border-blue-200 hover:bg-blue-100"
+                                commercialRoadFilter === cr.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                               }`}
                             >
                               {cr.label}
@@ -1687,7 +1716,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                       {/* Altyapı & Tesis Donanımı */}
                       <div>
-                        <label className="block text-[10px] font-bold text-blue-950 uppercase tracking-wider mb-1.5">Altyapı & Ekstra Donanım</label>
+                        <label className="block text-[10px] font-bold text-blue-950 dark:text-blue-300 uppercase tracking-wider mb-1.5">Altyapı & Ekstra Donanım</label>
                         <div className="grid grid-cols-2 gap-1.5">
                           {[
                             { key: 'all', label: 'Tüm Donanımlar' },
@@ -1701,7 +1730,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               key={ci.key}
                               onClick={() => setCommercialInfraFilter(ci.key)}
                               className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                                commercialInfraFilter === ci.key ? "bg-blue-600 text-white border-blue-700 font-black shadow-xs" : "bg-white text-slate-700 border-blue-200 hover:bg-blue-100"
+                                commercialInfraFilter === ci.key ? "bg-blue-600 text-white border-blue-700 font-black shadow-xs" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                               }`}
                             >
                               {ci.label}
@@ -1717,14 +1746,14 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                     <>
                       {/* Oda Sayısı */}
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Oda Sayısı</label>
+                        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Oda Sayısı</label>
                         <div className="grid grid-cols-4 gap-2">
                           {['all', '1+1', '2+1', '3+1', '4+1', '4+2', 'Penthouse'].map((rm) => (
                             <button
                               key={rm}
                               onClick={() => setSelectedRooms(rm)}
                               className={`py-2 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
-                                selectedRooms === rm ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                selectedRooms === rm ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                               }`}
                             >
                               {rm === 'all' ? 'Tümü' : rm}
@@ -1735,7 +1764,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
                       {/* Eşya Durumu */}
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Eşya Durumu</label>
+                        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Eşya Durumu</label>
                         <div className="grid grid-cols-3 gap-2">
                           {[
                             { key: 'all', label: 'Tümü' },
@@ -1746,7 +1775,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               key={fn.key}
                               onClick={() => setFurnishedFilter(fn.key)}
                               className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                                furnishedFilter === fn.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                furnishedFilter === fn.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                               }`}
                             >
                               {fn.label}
@@ -1758,11 +1787,11 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                       {/* Trafo Bedeli & KDV */}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Trafo Bedeli</label>
+                          <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Trafo Bedeli</label>
                           <select
                             value={trafoPaidFilter}
                             onChange={(e) => setTrafoPaidFilter(e.target.value)}
-                            className="w-full p-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold"
+                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none"
                           >
                             <option value="all">Tümü</option>
                             <option value="paid">✅ Ödendi</option>
@@ -1770,11 +1799,11 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                           </select>
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">KDV Durumu</label>
+                          <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">KDV Durumu</label>
                           <select
                             value={kdvFilter}
                             onChange={(e) => setKdvFilter(e.target.value)}
-                            className="w-full p-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold"
+                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none"
                           >
                             <option value="all">Tümü</option>
                             <option value="paid">KDV Ödendi</option>
@@ -1788,7 +1817,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-slate-200 space-y-3">
+              <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-3">
                 <button
                   onClick={() => setIsDrawerOpen(false)}
                   className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
@@ -1797,7 +1826,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                 </button>
                 <button
                   onClick={handleResetFilters}
-                  className="w-full py-2.5 bg-slate-100 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer"
+                  className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
                 >
                   Filtreleri Temizle
                 </button>

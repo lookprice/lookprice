@@ -166,17 +166,24 @@ function formatCategory(listing: any) {
   const titleLower = (listing.title || "").toLowerCase();
   const rawLower = (rawCat || "").toLowerCase();
 
-  // 1. Arsa Check
-  if (rawLower.includes("arsa") || titleLower.includes("arsa") || sec.type === 'land' || sec.property_type === 'land') {
-    return "Arsa";
+  // 1. House Indicators
+  const hasHouseIndicator = titleLower.includes("müstakil") || titleLower.includes("mustakil") || titleLower.includes("villa") || titleLower.includes("ev") || titleLower.includes("daire") || titleLower.includes("penthouse") || titleLower.includes("1+1") || titleLower.includes("2+1") || titleLower.includes("3+1") || titleLower.includes("4+1") || titleLower.includes("apartman") || titleLower.includes("stüdyo") || titleLower.includes("studio") || titleLower.includes("rezidans");
+
+  // 2. Arsa Check
+  if (rawLower.includes("arsa") || (titleLower.includes("arsa") && !hasHouseIndicator) || sec.type === 'land' || sec.property_type === 'land') {
+    if (!rawLower.includes("residence") && !rawLower.includes("konut") && !rawLower.includes("villa") && !rawLower.includes("müstakil")) {
+      return "Arsa";
+    }
   }
 
-  // 2. Tarla / Arazi Check
-  if (rawLower.includes("tarla") || titleLower.includes("tarla") || rawLower.includes("arazi") || titleLower.includes("arazi") || titleLower.includes("dönüm") || titleLower.includes("donum")) {
-    return "Tarla / Arazi";
+  // 3. Tarla / Arazi Check
+  if (rawLower.includes("tarla") || (titleLower.includes("tarla") && !hasHouseIndicator) || rawLower.includes("arazi") || (titleLower.includes("arazi") && !hasHouseIndicator) || titleLower.includes("dönüm") || titleLower.includes("donum")) {
+    if (!rawLower.includes("residence") && !rawLower.includes("konut") && !rawLower.includes("villa") && !rawLower.includes("müstakil")) {
+      return "Tarla / Arazi";
+    }
   }
 
-  // 3. Ticari / Dükkan / İşyeri / Ofis Check
+  // 4. Ticari / Dükkan / İşyeri / Ofis Check
   if (
     rawLower.includes("dükkan") || rawLower.includes("dukkan") || 
     rawLower.includes("ofis") || rawLower.includes("işyeri") || rawLower.includes("isyeri") ||
@@ -188,7 +195,7 @@ function formatCategory(listing: any) {
     return "Ticari / Dükkan";
   }
 
-  // 4. Müstakil / Villa Check
+  // 5. Müstakil / Villa Check
   if (
     rawLower.includes("villa") || rawLower.includes("müstakil") || rawLower.includes("mustakil") ||
     titleLower.includes("villa") || titleLower.includes("müstakil") || titleLower.includes("mustakil") ||
@@ -197,7 +204,7 @@ function formatCategory(listing: any) {
     return "Müstakil / Villa";
   }
 
-  // 5. Daire / Konut Check
+  // 6. Daire / Konut Check
   if (
     rawLower.includes("daire") || titleLower.includes("daire") || 
     rawLower.includes("penthouse") || titleLower.includes("penthouse") ||
@@ -678,7 +685,8 @@ export const Marketplace = () => {
           const isVilla = catFormatted.includes("villa") || catFormatted.includes("müstakil") || categoryStr.includes("villa") || titleStr.includes("villa") || titleStr.includes("müstakil");
           if (!isVilla) return false;
         } else if (rePropertyType === "arsa") {
-          const isArsa = catFormatted === "arsa" || categoryStr.includes("arsa") || titleStr.includes("arsa") || secType.includes("land") || secType.includes("arsa");
+          const hasHouseIndicator = titleStr.includes("müstakil") || titleStr.includes("mustakil") || titleStr.includes("villa") || titleStr.includes("ev") || titleStr.includes("daire") || titleStr.includes("penthouse") || titleStr.includes("1+1") || titleStr.includes("2+1") || titleStr.includes("3+1") || titleStr.includes("4+1") || titleStr.includes("apartman") || titleStr.includes("stüdyo");
+          const isArsa = (catFormatted === "arsa" || categoryStr.includes("arsa") || (titleStr.includes("arsa") && !hasHouseIndicator) || secType.includes("land") || secType.includes("arsa")) && !catFormatted.includes("villa") && !catFormatted.includes("müstakil") && !catFormatted.includes("daire") && !categoryStr.includes("residence") && !categoryStr.includes("konut");
           if (!isArsa) return false;
         } else if (rePropertyType === "tarla") {
           const isTarla = catFormatted.includes("tarla") || catFormatted.includes("arazi") || categoryStr.includes("tarla") || titleStr.includes("tarla") || titleStr.includes("arazi") || titleStr.includes("dönüm");
