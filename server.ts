@@ -93,8 +93,29 @@ async function startServer() {
 
   app.set("trust proxy", true);
 
+  // Security & HSTS Header Middleware for enrakipsiz.com
+  app.use((req, res, next) => {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    next();
+  });
+
   // Enable Gzip/Deflate compression for all responses
   app.use(compression());
+
+  // Explicit LLMS.txt handlers for AI Search Engines (Perplexity, ChatGPT, Claude)
+  const sendLlmsTxt = (req: express.Request, res: express.Response) => {
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    const filePath = path.join(process.cwd(), "public", "llms.txt");
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).send("# Enrakipsiz AI Index\n> Enrakipsiz Emlak ve Vasıta Portföy Platformu");
+    }
+  };
+  app.get("/llms.txt", sendLlmsTxt);
+  app.get("/.well-known/llms.txt", sendLlmsTxt);
 
   // 1. Serve Static Files FIRST (Highest Priority)
   if (process.env.NODE_ENV === "production") {

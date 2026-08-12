@@ -1,0 +1,22 @@
+# Enrakipsiz
+
+> Türkiye'nin Seçkin Emlak ve Otomotiv Portföy Pazaryeri Platformu. Enrakipsiz, üye emlak ve oto galeri mağazalarının doğrulanmış portföylerini tek bir güvenli çatı altında toplayan, yapay zeka destekli gayrimenkul ve araç arama portalıdır.
+
+## Emlak Portföyü
+
+- [Satılık Konut ve Arsa](https://enrakipsiz.com/?tab=emlak&type=satilik): Türkiye genelindeki satılık daire, villa, müstakil ev ve arsa ilanları.
+- [Kiralık Daire ve İşyeri](https://enrakipsiz.com/?tab=emlak&type=kiralik): Kiralık konutlar, eşyalı stüdyo daireler ve ticari mülkler.
+- [Öğrenci Dostu ve Paylaşımlı Daireler](https://enrakipsiz.com/?tab=emlak&tag=ogrenci): Kampüslere yakın, bütçe dostu öğrenci ve eşyalı kiralık ilanları.
+- [Sıfır Konut Projeleri](https://enrakipsiz.com/?tab=emlak&type=proje): Markalı ve lansman aşamasındaki konut projeleri.
+
+## Vasıta & Otomotiv Portföyü
+
+- [Son Gelen Araçlar](https://enrakipsiz.com/?tab=arac&sort=latest): İkinci el otomobil, SUV ve ticari araç ilanları.
+- [Fiyatı Düşen Fırsat Araçlar](https://enrakipsiz.com/?tab=arac&tag=fiyati-dusen): Fiyatı düşen fırsat araçlar ve acil ilanlar.
+- [İlk Arabam ve Ekonomik Araçlar](https://enrakipsiz.com/?tab=arac&tag=ilk-arabam): Düşük bütçeli, az yakan, öğrenci ve ilk araç sahiplerine uygun ilanlar.
+- [Ticari ve Arazi Araçları](https://enrakipsiz.com/?tab=arac&type=ticari): Pick-up, van, panelvan ve arazi araçları.
+
+## Kurumsal ve Hizmetler
+
+- [Seçkin Mağaza Vitrini](https://enrakipsiz.com/?section=stores): Yetkili emlak ve oto galeri mağazaları.
+- [Bölgesel Canlı Radar](https://enrakipsiz.com/?section=radar): Emlak ve otomotiv piyasasındaki canlı gelişmeler, mevzuat ve fırsat akışı.
