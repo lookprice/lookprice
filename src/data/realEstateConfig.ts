@@ -8,7 +8,7 @@ export const REAL_ESTATE_REGIONS = {
 };
 
 export const EMLAK_TIPI_SUB_TIPLERI: Record<string, string[]> = {
-  "Konut": ["Daire", "Villa", "Penthouse", "Müstakil Ev", "Residence", "Yazlık"],
+  "Konut": ["Daire", "Villa", "Penthouse", "Müstakil", "Residence", "Yazlık"],
   "Ticari": ["Dükkan", "Ofis", "İş Yeri", "Komple Bina", "Plaza", "Depo"],
   "Arsa": ["Tarla", "İmarlı Arsa", "Bahçeli Arsa", "Turistik Arsa", "Zeytinlik"]
 };

@@ -109,8 +109,11 @@ This file outlines strict engineering, performance, and naming directives that m
     - **Description**: Sided highlight card exactly `26mm` height limiting the description content to 3-line clamp safely.
     - **Agent Footer**: Fully resolved contact credentials with integrated Lookprice platform guarantee indicators (exactly `22mm` height).
 
-- **Interactive Full-Screen Map (Map Mode)**:
+- **Interactive Full-Screen Map (Map Mode) & Advanced Filtering Safeguards**:
   - On the full-screen interactive discovery layout in `IDXSplitMapView.tsx`, clicking any marker MUST toggle high-contrast visual focus styling (with scale zoom animations) and trigger a complete, fully featured floating info-popup containing a rich product cover image, formatted price tags, and immediate detail navigation links.
+  - **Category Classification Guard (`getNormalizedCategory`)**: Under no circumstances should the normalization logic be modified or bypassed. Residential indicators (e.g., `hasHouseIndicator` detecting keyword variations like "müstakil", "villa", "daire", "ev", "1+1", "2+1") MUST always take precedence over generic sector tags (e.g., land/"arsa" indicators) to prevent villas/houses from being misclassified as raw land.
+  - **Legibility & Theme Continuity**: To preserve optimal contrast and prevent invisible text in light/dark mode transitions, all containers, search drawers, filter selections, and headers MUST adhere to adaptive utility variables (e.g., `bg-white dark:bg-slate-900`, `text-slate-900 dark:text-slate-100`, and `border-slate-200 dark:border-slate-800`). No hardcoded dark-only colors (`bg-slate-950`, etc.) are allowed on core panels or interactive controls unless explicitly styled for high-contrast light mode counterparts.
+  - **Absolute Filter Isolation**: The filters inside the advanced search drawer—including tapu türü, imar durumu (zoning), KAKS, altyapı, devir/kiracı durumu, oda sayısı, eşya durumu, trafo bedeli, and KDV—are locked. No future agent is authorized to simplify, alter the filtering logic, or remove these specialized KKTC real estate parameters from the codebase.
 
 - **Eşgüdümlü İlan ve Web Filtre Standardı**: İlan düzenle içeriğinde yapılan her bir geliştirme, filtre, web sitesindeki ilgili alana tam bir eşgüdüm ile yansıtılacak!
 

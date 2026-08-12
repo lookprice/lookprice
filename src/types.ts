@@ -54,6 +54,7 @@ export interface Product {
   sub_category?: string;
   category_2?: string;
   sub_category_2?: string;
+  subtype?: string;
   has_variants?: boolean;
   variants?: ProductVariant[];
   brand?: string;

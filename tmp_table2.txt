@@ -1,0 +1,151 @@
+                          </>
+                        ) : (
+                          <>
+                            <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Kategori / Tip</th>
+                            <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Oda</th>
+                            <th className={`p-3 text-right border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>m² (Net)</th>
+                            <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"} min-w-[220px]`}>İlan Başlığı</th>
+                            <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Isınma / Kat</th>
+                            <th className={`p-3 text-right border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Fiyat</th>
+                            <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İlan Tarihi</th>
+                            <th className={`p-3 ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İl / İlçe</th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDarkMode ? "divide-slate-800/60" : "divide-slate-200"}`}>
+                      {filteredListings.slice(0, visibleCount).map((listing: any) => {
+                        const price = Math.round(Number(listing.price) || 0).toLocaleString('tr-TR');
+                        const currency = listing.currency || 'TL';
+                        const dateStr = listing.created_at 
+                          ? new Date(listing.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+                          : '12 Ağustos 2026';
+                        const loc = formatLocation(listing);
+
+                        if (mainTab === "vehicle" || listing.listing_type === "vehicle") {
+                          const brand = listing.brand || listing.sector_data?.brand || "-";
+                          const seri = listing.sector_data?.series || listing.sector_data?.seri || (listing.title ? listing.title.split(' ')[1] : "-");
+                          const model = listing.sector_data?.model || listing.category || "-";
+                          const year = listing.year || listing.sector_data?.year || listing.sector_data?.model_year || "-";
+                          const km = listing.mileage 
+                            ? Math.round(Number(listing.mileage)).toLocaleString('tr-TR') 
+                            : (listing.sector_data?.km ? Number(listing.sector_data.km).toLocaleString('tr-TR') : "-");
+
+                          return (
+                            <tr 
+                              key={listing.id} 
+                              className={`transition-colors border-b ${isDarkMode ? "hover:bg-blue-950/30 border-slate-800/50" : "hover:bg-slate-50 border-slate-200"} group`}
+                            >
+                              <td className={`p-2 border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle`}>
+                                <ListingCardImage 
+                                  listing={listing} 
+                                  aspect="aspect-[4/3]" 
+                                  className="w-32 h-20 rounded-xl" 
+                                  disableCarousel={true}
+                                  disableBadges={true}
+                                  onImageClick={() => setSelectedListing(listing)} 
+                                />
+                              </td>
+                              <td className={`p-3 font-bold ${isDarkMode ? "text-slate-200" : "text-slate-800"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {brand}
+                              </td>
+                              <td className={`p-3 font-semibold ${isDarkMode ? "text-blue-400" : "text-blue-600"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {seri}
+                              </td>
+                              <td className={`p-3 ${isDarkMode ? "text-slate-300" : "text-slate-700"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {model}
+                              </td>
+                              <td className={`p-3 border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle`}>
+                                <div 
+                                  onClick={() => setSelectedListing(listing)} 
+                                  className={`font-bold hover:text-blue-400 cursor-pointer line-clamp-2 leading-snug ${isDarkMode ? "text-white" : "text-slate-900"}`}
+                                >
+                                  {listing.title}
+                                </div>
+                                {listing.store_name && (
+                                  <span className={`text-[10px] font-semibold block mt-1 ${isDarkMode ? "text-amber-400" : "text-amber-600"}`}>
+                                    {listing.store_name}
+                                  </span>
+                                )}
+                              </td>
+                              <td className={`p-3 text-center font-bold ${isDarkMode ? "text-slate-300" : "text-slate-800"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {year}
+                              </td>
+                              <td className={`p-3 text-right font-semibold ${isDarkMode ? "text-slate-300" : "text-slate-800"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {km}
+                              </td>
+                              <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {price} {currency}
+                              </td>
+                              <td className={`p-3 text-center ${isDarkMode ? "text-slate-400" : "text-slate-600"} text-[11px] border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {dateStr}
+                              </td>
+                              <td className={`p-3 ${isDarkMode ? "text-slate-300" : "text-slate-600"} text-[11px] align-middle whitespace-nowrap`}>
+                                {loc}
+                              </td>
+                            </tr>
+                          );
+                        } else {
+                          const reType = formatCategory(listing);
+                          const rooms = listing.room_count || listing.sector_data?.rooms || listing.sector_data?.oda || "-";
+                          
+                          const sqVal = listing.square_meters || listing.sector_data?.net_m2 || listing.sector_data?.m2 || listing.sqm_gross || listing.sector_data?.gross_m2;
+                          const m2 = sqVal ? `${sqVal} m²` : "-";
+
+                          const heating = listing.sector_data?.heating || listing.sector_data?.building_age || listing.sector_data?.floor || "-";
+
+                          return (
+                            <tr 
+                              key={listing.id} 
+                              className={`transition-colors border-b ${isDarkMode ? "hover:bg-blue-950/30 border-slate-800/50" : "hover:bg-slate-50 border-slate-200"} group`}
+                            >
+                              <td className={`p-2 border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle`}>
+                                <ListingCardImage 
+                                  listing={listing} 
+                                  aspect="aspect-[4/3]" 
+                                  className="w-32 h-20 rounded-xl" 
+                                  disableCarousel={true}
+                                  disableBadges={true}
+                                  onImageClick={() => setSelectedListing(listing)} 
+                                />
+                              </td>
+                              <td className={`p-3 font-bold ${isDarkMode ? "text-amber-300" : "text-amber-600"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {reType}
+                              </td>
+                              <td className={`p-3 text-center font-bold ${isDarkMode ? "text-slate-200" : "text-slate-800"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {rooms}
+                              </td>
+                              <td className={`p-3 text-right font-semibold ${isDarkMode ? "text-slate-300" : "text-slate-800"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {m2}
+                              </td>
+                              <td className={`p-3 border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle`}>
+                                <div 
+                                  onClick={() => setSelectedListing(listing)} 
+                                  className={`font-bold hover:text-blue-400 cursor-pointer line-clamp-2 leading-snug ${isDarkMode ? "text-white" : "text-slate-900"}`}
+                                >
+                                  {listing.title}
+                                </div>
+                                {listing.store_name && (
+                                  <span className={`text-[10px] font-semibold block mt-1 ${isDarkMode ? "text-amber-400" : "text-amber-600"}`}>
+                                    {listing.store_name}
+                                  </span>
+                                )}
+                              </td>
+                              <td className={`p-3 text-center ${isDarkMode ? "text-slate-400" : "text-slate-600"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {heating}
+                              </td>
+                              <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {price} {currency}
+                              </td>
+                              <td className={`p-3 text-center ${isDarkMode ? "text-slate-400" : "text-slate-600"} text-[11px] border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {dateStr}
+                              </td>
+                              <td className={`p-3 ${isDarkMode ? "text-slate-300" : "text-slate-600"} text-[11px] align-middle whitespace-nowrap`}>
+                                {loc}
+                              </td>
+                            </tr>
+                          );
+                        }
+                      })}
+                    </tbody>
+                  </table>

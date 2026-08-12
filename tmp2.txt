@@ -1,0 +1,201 @@
+                        onChange={(e) => setActiveVehicleFuel(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                      >
+                        <option value="all">Tüm Yakıtlar</option>
+                        <option value="Benzin">Benzin</option>
+                        <option value="Dizel">Dizel</option>
+                        <option value="Hibrit">Hibrit</option>
+                        <option value="Elektrik">Elektrik</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-black text-slate-300 uppercase block mb-1">Model Yılı Aralığı</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input 
+                          type="number"
+                          value={minYear}
+                          onChange={(e) => setMinYear(e.target.value)}
+                          placeholder="Min Yıl"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                        />
+                        <input 
+                          type="number"
+                          value={maxYear}
+                          onChange={(e) => setMaxYear(e.target.value)}
+                          placeholder="Max Yıl"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Drawer Bottom Actions */}
+              <div className="pt-6 border-t border-slate-800 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => {
+                    setMinPrice("");
+                    setMaxPrice("");
+                    setReRegion("all");
+                    setReType("all");
+                    setReRooms("all");
+                    setActiveVehicleBrand("all");
+                    setActiveVehicleFuel("all");
+                    setMinYear("");
+                    setMaxYear("");
+                  }}
+                  className="py-3 bg-slate-950 border border-slate-800 text-slate-400 hover:text-white text-xs font-bold rounded-xl"
+                >
+                  Sıfırla
+                </button>
+
+                <button
+                  onClick={() => setIsRightFilterOpen(false)}
+                  className="py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-lg"
+                >
+                  Uygula ({filteredListings.length})
+                </button>
+              </div>
+
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* FULLSCREEN REELS STORY VIDEO MODAL */}
+      {selectedStory && (
+        <div 
+          onClick={() => setSelectedStory(null)}
+          className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-sm h-[80vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col justify-between cursor-default"
+          >
+            
+            {/* Header Overlay */}
+            <div className="absolute top-0 inset-x-0 p-4 z-20 bg-gradient-to-b from-slate-950/90 to-transparent flex items-center justify-between">
+              <div>
+                <span className="text-xs font-black text-amber-400 block">{selectedStory.storeName}</span>
+                <span className="text-[10px] text-white/80 font-bold">{selectedStory.title}</span>
+              </div>
+              <button 
+                onClick={() => setSelectedStory(null)}
+                className="p-1.5 rounded-full bg-slate-950/80 text-white hover:bg-rose-600 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Video Canvas */}
+            <video 
+              src={selectedStory.videoUrl} 
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+              className="w-full h-full object-cover"
+            />
+
+            {/* Bottom Overlay Action */}
+            <div className="absolute bottom-0 inset-x-0 p-4 z-20 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-black text-white">{selectedStory.price}</span>
+                <span className="px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold">{selectedStory.category}</span>
+              </div>
+
+              <Link
+                to={`/s/${selectedStory.storeSlug}`}
+                target="_blank"
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg"
+              >
+                <span>Mağazaya Git ve İncele</span>
+                <ExternalLink className="w-4 h-4" />
+              </Link>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN IMAGE LIGHTBOX */}
+      {zoomedImage && (
+        <div 
+          onClick={() => setZoomedImage(null)}
+          className="fixed inset-0 z-[110] bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-4 cursor-zoom-out"
+        >
+          <button 
+            onClick={() => setZoomedImage(null)}
+            className="absolute top-6 right-6 p-3 rounded-full bg-slate-900 border border-slate-700 text-white hover:bg-rose-600 transition z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img 
+            src={zoomedImage} 
+            alt="Büyük Görsel" 
+            className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+      )}
+
+      {/* QUICK DETAIL MODAL (SOFT, PASTEL & LIGHT THEME) */}
+      {selectedListing && (() => {
+        const modalImages: string[] = [];
+        if (Array.isArray(selectedListing.images) && selectedListing.images.length > 0) {
+          modalImages.push(...selectedListing.images.filter((i: any) => typeof i === "string" && i.trim()));
+        }
+        if (selectedListing.image_url && !modalImages.includes(selectedListing.image_url)) {
+          modalImages.unshift(selectedListing.image_url);
+        }
+
+        const currentImg = modalImages[activeDetailImageIndex] || selectedListing.image_url;
+        const intent = getListingIntent(selectedListing);
+        const sec = selectedListing.sector_data || {};
+        const cleanedDesc = formatDescriptionText(selectedListing.description);
+
+        return (
+          <div 
+            onClick={handleCloseModal}
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-slate-900/60 backdrop-blur-md overflow-y-auto cursor-pointer"
+          >
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-4xl bg-white text-slate-800 border border-slate-200/90 rounded-3xl p-5 md:p-8 shadow-2xl max-h-[92vh] overflow-y-auto my-auto cursor-default"
+            >
+              
+              {/* Close Button */}
+              <button 
+                onClick={handleCloseModal}
+                className="absolute top-4 right-4 z-20 p-2.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-rose-100 border border-slate-200 transition cursor-pointer shadow-xs"
+                title="Kapat (ESC)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Modal Header Title */}
+              <div className="mb-4 pr-12">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-black flex items-center gap-1 shadow-xs">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    {selectedListing.store_name}
+                  </span>
+                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-extrabold">
+                    {formatCategory(selectedListing)}
+                  </span>
+                  {selectedListing.listing_type === 'real_estate' && (
+                    <span className={`px-2.5 py-1 rounded-lg text-xs font-black border ${
+                      intent === 'kiralik'
+                        ? "bg-purple-50 text-purple-800 border-purple-200"
+                        : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                    }`}>
+                      {intent === 'kiralik' ? '🔑 KİRALIK' : '🏷️ SATILIK'}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight">
+                  {selectedListing.title}
+                </h2>

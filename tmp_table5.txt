@@ -1,0 +1,21 @@
+                                {price} {currency}
+                              </td>
+                              <td className={`p-3 text-center ${isDarkMode ? "text-slate-400" : "text-slate-600"} text-[11px] border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {dateStr}
+                              </td>
+                              <td className={`p-3 ${isDarkMode ? "text-slate-300" : "text-slate-600"} text-[11px] align-middle whitespace-nowrap`}>
+                                {loc}
+                              </td>
+                            </tr>
+                          );
+                        } else {
+                          const reType = formatCategory(listing);
+                          const rooms = listing.room_count || listing.sector_data?.rooms || listing.sector_data?.oda || "-";
+                          
+                          const sqVal = listing.square_meters || listing.sector_data?.net_m2 || listing.sector_data?.m2 || listing.sqm_gross || listing.sector_data?.gross_m2;
+                          const m2 = sqVal ? `${sqVal} m²` : "-";
+
+                          const heating = listing.sector_data?.heating || listing.sector_data?.building_age || listing.sector_data?.floor || "-";
+
+                          return (
+                            <tr 
