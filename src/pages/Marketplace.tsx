@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { 
   MoveRight, 
   MapPin, 
+  Map as MapIcon,
   Tag, 
   Car, 
   Home, 
@@ -14,6 +15,7 @@ import {
   Sparkles,
   ArrowUpDown,
   PhoneCall,
+  Phone,
   ExternalLink,
   ChevronRight,
   ChevronLeft,
@@ -54,9 +56,10 @@ import { api } from "../services/api";
 import { RadarShowcaseSlider } from "../components/RadarShowcaseSlider";
 import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../data/realEstateConfig";
 import { SectorSpecs } from "../components/SectorSpecs";
+import { IDXSplitMapView } from "../components/IDXSplitMapView";
 
 type MainTab = "real_estate" | "vehicle";
-type ViewMode = "rich" | "compact" | "list";
+type ViewMode = "rich" | "compact" | "list" | "map";
 
 // High quality short video reels for story bar
 const DEFAULT_STORIES = [
@@ -204,6 +207,60 @@ function formatLocation(listing: any) {
   return city;
 }
 
+// Helper to normalize and get listing intent (Satılık vs Kiralık)
+function getListingIntent(item: any): "satilik" | "kiralik" {
+  if (!item) return "satilik";
+
+  const sec = item.sector_data || {};
+  const rawIntent = (
+    sec.listing_intent ||
+    sec.intent ||
+    sec.listing_type_intent ||
+    item.listing_intent ||
+    item.intent ||
+    ""
+  ).toString().toLowerCase();
+
+  if (rawIntent.includes("kiralık") || rawIntent.includes("kiralik") || rawIntent.includes("rent")) {
+    return "kiralik";
+  }
+  if (rawIntent.includes("satılık") || rawIntent.includes("satilik") || rawIntent.includes("sale")) {
+    return "satilik";
+  }
+
+  const category = (item.category || "").toLowerCase();
+  const title = (item.title || "").toLowerCase();
+  const desc = (item.description || "").toLowerCase();
+
+  if (
+    category.includes("kiralık") ||
+    category.includes("kiralik") ||
+    title.includes("kiralık") ||
+    title.includes("kiralik") ||
+    title.includes("aylık") ||
+    title.includes("depozito") ||
+    desc.includes("kiralık") ||
+    desc.includes("kiralik")
+  ) {
+    return "kiralik";
+  }
+
+  if (
+    category.includes("satılık") ||
+    category.includes("satilik") ||
+    title.includes("satılık") ||
+    title.includes("satilik")
+  ) {
+    return "satilik";
+  }
+
+  if (sec.rental_period || sec.period || item.rental_period || item.period) {
+    return "kiralik";
+  }
+
+  return "satilik";
+}
+
 // Helper component for browsing images on listing cards without opening detail modal
 function ListingCardImage({ 
   listing, 
@@ -243,6 +300,8 @@ function ListingCardImage({
     setCurrentIdx((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
 
+  const intent = getListingIntent(listing);
+
   return (
     <div className={`bg-slate-950 overflow-hidden relative border border-slate-800/80 group/img ${aspect} ${className}`}>
       {images.length > 0 ? (
@@ -264,35 +323,46 @@ function ListingCardImage({
       )}
 
       {/* Category Tag Badge */}
-      <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/90 backdrop-blur-md rounded text-[10px] font-extrabold text-amber-300 border border-slate-800 pointer-events-none z-10 shadow">
+      <div className="absolute top-2 left-2 px-2.5 py-1 bg-slate-950/90 backdrop-blur-md rounded-lg text-[10px] font-black text-amber-300 border border-slate-800 pointer-events-none z-10 shadow-lg">
         {formatCategory(listing)}
       </div>
+
+      {/* Intent Badge (Satılık / Kiralık) */}
+      {listing.listing_type === 'real_estate' && (
+        <div className={`absolute top-2 right-2 px-2.5 py-1 backdrop-blur-md rounded-lg text-[10px] font-black border z-10 shadow-lg pointer-events-none ${
+          intent === 'kiralik'
+            ? "bg-purple-950/95 text-purple-200 border-purple-500/80 ring-2 ring-purple-500/30"
+            : "bg-emerald-950/95 text-emerald-200 border-emerald-500/80 ring-2 ring-emerald-500/30"
+        }`}>
+          {intent === 'kiralik' ? '🔑 KİRALIK' : '🏷️ SATILIK'}
+        </div>
+      )}
 
       {/* Multiple Images Chevron Nav Buttons & Indicator (Disabled in Table View Mode) */}
       {!disableCarousel && images.length > 1 && (
         <>
           <button
             onClick={prevImg}
-            className="absolute left-1 top-1/2 -translate-y-1/2 w-6 h-6 md:w-7 md:h-7 rounded-full bg-slate-950/80 border border-white/20 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-blue-600 hover:border-blue-400 z-20 cursor-pointer shadow-lg"
+            className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-slate-950/85 border border-white/20 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-blue-600 hover:border-blue-400 z-20 cursor-pointer shadow-xl"
             title="Önceki Fotoğraf"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={nextImg}
-            className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 md:w-7 md:h-7 rounded-full bg-slate-950/80 border border-white/20 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-blue-600 hover:border-blue-400 z-20 cursor-pointer shadow-lg"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-slate-950/85 border border-white/20 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-blue-600 hover:border-blue-400 z-20 cursor-pointer shadow-xl"
             title="Sonraki Fotoğraf"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
 
           {/* Photo Counter Badge */}
-          <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 bg-slate-950/85 text-white backdrop-blur-md rounded text-[9px] font-bold border border-white/10 z-10 pointer-events-none">
+          <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-slate-950/90 text-white backdrop-blur-md rounded-md text-[10px] font-black border border-white/10 z-10 pointer-events-none">
             {currentIdx + 1}/{images.length}
           </div>
 
           {/* Dot Indicators */}
-          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10 pointer-events-none">
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10 pointer-events-none">
             {images.slice(0, 5).map((_, i) => (
               <div
                 key={i}
@@ -330,7 +400,12 @@ export const Marketplace = () => {
   const [reFihristTab, setReFihristTab] = useState<string>("satilik");
   const [vehFihristTab, setVehFihristTab] = useState<string>("latest");
 
-  // 3 Grid View Options
+  // Property Type Filter (for Emlak)
+  const [rePropertyType, setRePropertyType] = useState<string>("all");
+  // Active Tag Filters
+  const [activeTags, setActiveTags] = useState<string[]>([]);
+
+  // 4 Grid View Options
   const [viewMode, setViewMode] = useState<ViewMode>("rich");
 
   // Slide-Over Right Filter Drawer State
@@ -357,7 +432,7 @@ export const Marketplace = () => {
   // Reset pagination on filter change
   useEffect(() => {
     setVisibleCount(12);
-  }, [mainTab, reFihristTab, vehFihristTab, searchQuery, viewMode, activeSubSector, activeVehicleBrand, activeVehicleFuel, activeVehicleTransmission, minPrice, maxPrice, minYear, maxYear, reRegion, reType, reRooms, reFurnished, sortBy]);
+  }, [mainTab, reFihristTab, vehFihristTab, searchQuery, viewMode, activeSubSector, activeVehicleBrand, activeVehicleFuel, activeVehicleTransmission, minPrice, maxPrice, minYear, maxYear, reRegion, reType, reRooms, reFurnished, sortBy, rePropertyType, activeTags]);
 
   // Modal / Detail / Video Story States
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
@@ -383,8 +458,21 @@ export const Marketplace = () => {
     });
   };
 
+  // Custom Logo and Favicon resolution
+  const customLogo = portalSettings?.portal_logo_url || localStorage.getItem("enrakipsiz_portal_logo") || "/enrakipsiz-logo.svg";
+  const customFavicon = portalSettings?.favicon_url || localStorage.getItem("enrakipsiz_portal_favicon") || "/enrakipsiz-favicon.svg";
+
   useEffect(() => {
-    document.title = "EnRakipsiz | Seçkin Emlak ve Otomotiv Portföy Pazaryeri";
+    if (customFavicon) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+      if (link) {
+        link.href = customFavicon;
+      }
+    }
+  }, [customFavicon]);
+
+  useEffect(() => {
+    document.title = portalSettings?.seo_title || "EnRakipsiz | Seçkin Emlak ve Otomotiv Portföy Pazaryeri";
     setLoading(true);
     Promise.all([
       api.getMarketplaceListings().catch(() => []),
@@ -442,30 +530,81 @@ export const Marketplace = () => {
       }
     }
 
-    // Fihrist Sub-Tab Filtering
+    // Fihrist Sub-Tab Filtering for Emlak
     if (mainTab === "real_estate") {
-      const intent = (item.sector_data?.listing_intent || item.category || "").toLowerCase();
+      const itemIntent = getListingIntent(item);
       const category = (item.category || "").toLowerCase();
       const title = (item.title || "").toLowerCase();
+      const desc = (item.description || "").toLowerCase();
+      const secData = item.sector_data || {};
 
-      if (reFihristTab === "satilik" && !intent.includes("satılık") && !intent.includes("satilik") && !category.includes("satılık")) {
-        // Fallback check
-        if (intent.includes("kiralık") || intent.includes("kiralik")) return false;
+      // SATILIK vs KİRALIK
+      if (reFihristTab === "satilik" && itemIntent !== "satilik") {
+        return false;
       }
-      if (reFihristTab === "kiralik" && !intent.includes("kiralık") && !intent.includes("kiralik") && !category.includes("kiralık")) {
-        if (intent.includes("satılık") || intent.includes("satilik")) return false;
+      if (reFihristTab === "kiralik" && itemIntent !== "kiralik") {
+        return false;
       }
-      if (reFihristTab === "ogrenci") {
-        const isStudent = title.includes("öğrenci") || title.includes("stüdyo") || title.includes("1+1") || title.includes("eşyalı") || item.sector_data?.furnished;
-        if (!isStudent) return false;
+
+      // Mülk Tipi Filter (Konut, Villa, Arsa, Ticari)
+      if (rePropertyType === "konut") {
+        const isKonut = category.includes("daire") || category.includes("konut") || category.includes("ev") || category.includes("stüdyo") || title.includes("daire") || title.includes("konut") || title.includes("ev") || title.includes("stüdyo");
+        if (!isKonut && (category.includes("arsa") || category.includes("dükkan") || category.includes("ofis") || category.includes("villa"))) return false;
+      } else if (rePropertyType === "villa") {
+        const isVilla = category.includes("villa") || category.includes("müstakil") || title.includes("villa") || title.includes("müstakil");
+        if (!isVilla) return false;
+      } else if (rePropertyType === "arsa") {
+        const isArsa = category.includes("arsa") || category.includes("tarla") || category.includes("arazi") || title.includes("arsa") || title.includes("tarla") || title.includes("arazi");
+        if (!isArsa) return false;
+      } else if (rePropertyType === "ticari") {
+        const isTicari = category.includes("dükkan") || category.includes("dukkan") || category.includes("ofis") || category.includes("mağaza") || category.includes("işyeri") || category.includes("ticari") || title.includes("dükkan") || title.includes("ofis") || title.includes("işyeri");
+        if (!isTicari) return false;
       }
-      if (reFihristTab === "ticari") {
-        const isCommercial = category.includes("arsa") || category.includes("ticari") || category.includes("ofis") || category.includes("dükkan") || category.includes("arazi");
-        if (!isCommercial) return false;
-      }
-      if (reFihristTab === "proje") {
-        const isProject = category.includes("proje") || category.includes("villa") || category.includes("müstakil") || title.includes("proje") || title.includes("lansman");
-        if (!isProject) return false;
+
+      // Tag Filtering
+      if (activeTags.length > 0) {
+        for (const tag of activeTags) {
+          if (tag === "öğrenci") {
+            const m = title.includes("öğrenci") || title.includes("stüdyo") || title.includes("1+1") || title.includes("eşyalı") || secData.furnished || desc.includes("öğrenci") || desc.includes("kampüs");
+            if (!m) return false;
+          } else if (tag === "eşyalı") {
+            const m = secData.furnished || title.includes("eşyalı") || desc.includes("eşyalı") || category.includes("eşyalı");
+            if (!m) return false;
+          } else if (tag === "kampüs") {
+            const m = title.includes("kampüs") || title.includes("üniversite") || title.includes("ydü") || title.includes("daü") || title.includes("gau") || desc.includes("kampüs") || desc.includes("üniversite");
+            if (!m) return false;
+          } else if (tag === "hemen") {
+            const m = title.includes("hemen") || title.includes("hazır") || desc.includes("hemen") || desc.includes("hazır");
+            if (!m) return false;
+          } else if (tag === "plaza") {
+            const m = title.includes("plaza") || title.includes("işevi") || category.includes("ofis") || desc.includes("plaza");
+            if (!m) return false;
+          } else if (tag === "deniz") {
+            const m = title.includes("deniz") || title.includes("sahil") || desc.includes("deniz") || (item.location || "").toLowerCase().includes("long beach");
+            if (!m) return false;
+          } else if (tag === "cadde") {
+            const m = title.includes("cadde") || title.includes("bulvar") || desc.includes("cadde");
+            if (!m) return false;
+          } else if (tag === "kredi") {
+            const m = title.includes("kredi") || desc.includes("kredi") || secData.deed_type === "Türk Koçanlı" || category.includes("kredi");
+            if (!m) return false;
+          } else if (tag === "koçan") {
+            const m = secData.deed_type || title.includes("koçan") || title.includes("tapu") || desc.includes("koçan");
+            if (!m) return false;
+          } else if (tag === "otopark") {
+            const m = title.includes("otopark") || desc.includes("otopark") || secData.parking;
+            if (!m) return false;
+          } else if (tag === "havuz") {
+            const m = title.includes("havuz") || desc.includes("havuz") || secData.pool;
+            if (!m) return false;
+          } else if (tag === "manzara") {
+            const m = title.includes("manzara") || desc.includes("manzara");
+            if (!m) return false;
+          } else if (tag === "sıfır") {
+            const m = title.includes("sıfır") || title.includes("proje") || title.includes("yeni") || desc.includes("sıfır");
+            if (!m) return false;
+          }
+        }
       }
     }
 
@@ -532,11 +671,25 @@ export const Marketplace = () => {
     return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
   });
 
-  const stats = {
-    total: listings.filter(i => i.status === 'active' && i.listing_type !== 'product').length,
-    properties: listings.filter(i => i.status === 'active' && i.listing_type === 'real_estate').length,
-    vehicles: listings.filter(i => i.status === 'active' && i.listing_type === 'vehicle').length,
-  };
+  const stats = React.useMemo(() => {
+    const activeListings = listings.filter(i => (!i.status || i.status === 'active') && i.listing_type !== 'product');
+    let reCount = 0;
+    let vehCount = 0;
+
+    activeListings.forEach(i => {
+      if (i.listing_type === 'vehicle' || i.type === 'vehicle' || (i.category && i.category.toLowerCase().includes('vasıta')) || (i.category && i.category.toLowerCase().includes('otomobil'))) {
+        vehCount++;
+      } else {
+        reCount++;
+      }
+    });
+
+    return {
+      total: activeListings.length,
+      properties: reCount || (listings.length > 0 ? listings.length - vehCount : 0),
+      vehicles: vehCount,
+    };
+  }, [listings]);
 
   const bgCanvas = isDarkMode ? "bg-slate-950 text-slate-100" : "bg-slate-100 text-slate-900";
   const cardBg = isDarkMode ? "bg-slate-900/90 border-slate-800" : "bg-white border-slate-200 shadow-md";
@@ -554,26 +707,22 @@ export const Marketplace = () => {
       <nav className={`sticky top-0 z-40 border-b backdrop-blur-md transition-colors ${headerBg}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
-          {/* Logo & Crown Emblem */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500 p-0.5 shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
-              </div>
+          {/* Official Brand Logo */}
+          <Link to="/" className="flex items-center gap-2 group transition-transform hover:scale-[1.01]">
+            <div className="h-10 md:h-12 flex items-center px-3 py-1 rounded-xl bg-white border border-slate-200/90 shadow-md shadow-slate-900/10">
+              <img 
+                src={customLogo} 
+                alt="Enrakipsiz Logo" 
+                className="h-7 md:h-9 w-auto object-contain"
+                onError={(e: any) => {
+                  e.target.onerror = null;
+                  e.target.src = "/enrakipsiz-logo.svg";
+                }}
+              />
             </div>
-            <div>
-              <div className="flex items-center gap-1">
-                <span className="font-black text-lg md:text-xl tracking-tight bg-gradient-to-r from-blue-500 via-amber-400 to-rose-500 text-transparent bg-clip-text">
-                  ENRAKİPSİZ
-                </span>
-                <span className="text-xs font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                  PORTAL
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase hidden sm:block">
-                Seçkin Portföy Pazaryeri
-              </p>
-            </div>
+            <span className="text-[11px] font-black text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20 tracking-wider hidden sm:inline-block">
+              PORTAL
+            </span>
           </Link>
 
           {/* Quick Search Bar */}
@@ -693,31 +842,156 @@ export const Marketplace = () => {
           
           {/* SUB-FIHRIST FOLDER TABS BAR FOR EMLAK */}
           {mainTab === "real_estate" && (
-            <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-slate-800">
-              {[
-                { id: "satilik", label: "SATILIK", icon: Tag, desc: "Daire, Villa & Müstakil" },
-                { id: "kiralik", label: "KİRALIK", icon: Key, desc: "Konut & İşyeri" },
-                { id: "ogrenci", label: "ÖĞRENCİ & STÜDYO", icon: GraduationCap, desc: "Kampüse Yakın & Eşyalı" },
-                { id: "ticari", label: "TİCARİ & ARSA", icon: Building2, desc: "Ofis, Dükkan & Arsa" },
-                { id: "proje", label: "PROJELER & LÜKS", icon: Sparkles, desc: "Lüks Konut & Proje" }
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = reFihristTab === tab.id;
-                return (
+            <div className="space-y-3 pb-4 border-b border-slate-800">
+              {/* Primary Satılık / Kiralık Tabs */}
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: "satilik", label: "SATILIK EMLAK", icon: Tag, desc: "Satılık Daire, Villa & Arsa" },
+                  { id: "kiralik", label: "KİRALIK EMLAK", icon: Key, desc: "Kiralık Konut & İşyeri" },
+                  { id: "all", label: "TÜM EMLAK PORTFÖYÜ", icon: Layers, desc: "Satılık & Kiralık Hepsi" }
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = reFihristTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setReFihristTab(tab.id)}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs md:text-sm font-extrabold transition-all duration-200 border cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
+                        isActive
+                          ? "bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-600/30 ring-2 ring-blue-400/50"
+                          : "bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-850 hover:text-white"
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 ${isActive ? "text-amber-300" : "text-blue-400"}`} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mülk Tipleri Bar */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
+                  <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                  Mülk Tipi:
+                </span>
+                {[
+                  { id: "all", label: "🧰 Tüm Tipler" },
+                  { id: "konut", label: "🏠 Konut / Daire" },
+                  { id: "villa", label: "🏰 Villa" },
+                  { id: "arsa", label: "🏞️ Arsa / Arazi" },
+                  { id: "ticari", label: "🏪 Ticari Dükkan" }
+                ].map((pt) => {
+                  const isActive = rePropertyType === pt.id;
+                  return (
+                    <button
+                      key={pt.id}
+                      onClick={() => setRePropertyType(pt.id)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                        isActive
+                          ? "bg-amber-500 text-slate-950 border-amber-400 font-extrabold shadow-sm"
+                          : "bg-slate-950/80 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      {pt.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* KKTC Şehirler / Bölgeler Bar */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                  Şehir / Bölge:
+                </span>
+                {[
+                  { id: "all", label: "TÜM ŞEHİRLER" },
+                  { id: "Girne", label: "GİRNE" },
+                  { id: "Lefkoşa", label: "LEFKOŞA" },
+                  { id: "Gazimağusa", label: "GAZİMAĞUSA" },
+                  { id: "İskele", label: "İSKELE" },
+                  { id: "Lefke", label: "LEFKE" },
+                  { id: "Güzelyurt", label: "GÜZELYURT" }
+                ].map((reg) => {
+                  const isActive = reRegion === reg.id;
+                  return (
+                    <button
+                      key={reg.id}
+                      onClick={() => setReRegion(reg.id)}
+                      className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all border cursor-pointer ${
+                        isActive
+                          ? "bg-rose-600 text-white border-rose-400 font-black shadow-md shadow-rose-600/30"
+                          : "bg-slate-950/80 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      📍 {reg.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Dynamic Etiketler Bar */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 mr-1 flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5 text-amber-400" />
+                  Öne Çıkan Etiketler:
+                </span>
+                {(reFihristTab === "kiralik"
+                  ? [
+                      { id: "öğrenci", label: "🎓 Öğrenci & Stüdyo" },
+                      { id: "eşyalı", label: "🛋️ Eşyalı Konut" },
+                      { id: "kampüs", label: "📍 Kampüse Yakın" },
+                      { id: "hemen", label: "🔑 Hemen Teslim" },
+                      { id: "plaza", label: "🏢 Plaza / Ofis" },
+                      { id: "deniz", label: "🌊 Denize Sıfır" },
+                      { id: "cadde", label: "🏬 Cadde Üzeri" }
+                    ]
+                  : [
+                      { id: "kredi", label: "🏦 Krediye Uygun" },
+                      { id: "koçan", label: "📜 Koçanlı / Tapulu" },
+                      { id: "otopark", label: "🚗 Otoparklı" },
+                      { id: "havuz", label: "🏊 Yüzme Havuzlu" },
+                      { id: "manzara", label: "🌇 Manzaralı" },
+                      { id: "sıfır", label: "🏗️ Sıfır / Projeden" },
+                      { id: "öğrenci", label: "🎓 Öğrenci & Stüdyo" }
+                    ]
+                ).map((tagObj) => {
+                  const isSelected = activeTags.includes(tagObj.id);
+                  const toggleTag = () => {
+                    setActiveTags(prev =>
+                      prev.includes(tagObj.id)
+                        ? prev.filter(t => t !== tagObj.id)
+                        : [...prev, tagObj.id]
+                    );
+                  };
+
+                  return (
+                    <button
+                      key={tagObj.id}
+                      onClick={toggleTag}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all border flex items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 ${
+                        isSelected
+                          ? "bg-amber-500 text-slate-950 border-amber-300 font-black shadow-md shadow-amber-500/20"
+                          : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white"
+                      }`}
+                    >
+                      <span>{tagObj.label}</span>
+                      {isSelected && <Check className="w-3 h-3 text-slate-950 stroke-[3]" />}
+                    </button>
+                  );
+                })}
+
+                {activeTags.length > 0 && (
                   <button
-                    key={tab.id}
-                    onClick={() => setReFihristTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all duration-200 border cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
-                      isActive
-                        ? "bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-600/30 ring-2 ring-blue-400/50"
-                        : "bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
+                    onClick={() => setActiveTags([])}
+                    className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-950/80 text-rose-400 border border-rose-800/80 hover:bg-rose-900 transition flex items-center gap-1 cursor-pointer"
                   >
-                    <Icon className={`w-4 h-4 ${isActive ? "text-amber-300" : "text-blue-400"}`} />
-                    <span>{tab.label}</span>
+                    <X className="w-3 h-3" />
+                    <span>Temizle ({activeTags.length})</span>
                   </button>
-                );
-              })}
+                )}
+              </div>
             </div>
           )}
 
@@ -751,10 +1025,10 @@ export const Marketplace = () => {
             </div>
           )}
 
-          {/* TOOLBAR BAR (3 GRID VIEW SWITCHER + SORTING + COUNT) */}
+          {/* TOOLBAR BAR (4 VIEW SWITCHER + SORTING + COUNT) */}
           <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mb-6">
             
-            {/* View Mode Switcher (3 Farklı Görünüm Modeli) */}
+            {/* View Mode Switcher (4 Farklı Görünüm Modeli) */}
             <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
               {/* Model 1: Rich Cards */}
               <button
@@ -784,7 +1058,7 @@ export const Marketplace = () => {
                 <span className="hidden md:inline">Yoğun</span>
               </button>
 
-              {/* Model 3: Split Row / Detailed List */}
+              {/* Model 3: Detailed List */}
               <button
                 onClick={() => setViewMode("list")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
@@ -796,6 +1070,20 @@ export const Marketplace = () => {
               >
                 <ListFilter className="w-4 h-4" />
                 <span className="hidden md:inline">Detaylı Liste</span>
+              </button>
+
+              {/* Model 4: Map View */}
+              <button
+                onClick={() => setViewMode("map")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  viewMode === "map"
+                    ? "bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20"
+                    : "text-slate-400 hover:text-white hover:bg-slate-850"
+                }`}
+                title="Harita Üzerinde Keşfet"
+              >
+                <MapIcon className="w-4 h-4 text-amber-400" />
+                <span className="hidden md:inline">Haritada Göster</span>
               </button>
             </div>
 
@@ -1151,6 +1439,25 @@ export const Marketplace = () => {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* MODEL 4: MAP INTERACTIVE DISCOVERY VIEW */}
+              {viewMode === "map" && (
+                <div className="w-full h-[700px] md:h-[750px] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 my-2">
+                  <IDXSplitMapView
+                    products={filteredListings as any}
+                    store={{
+                      id: "enrakipsiz-portal",
+                      name: "Enrakipsiz Portföy Pazaryeri",
+                      slug: "enrakipsiz-portal",
+                      store_type: mainTab,
+                      page_layout_settings: { sector: mainTab }
+                    } as any}
+                    lang="tr"
+                    onViewProduct={(item: any) => setSelectedListing(item)}
+                    formatPrice={(price: any, curr: any) => `${Number(price || 0).toLocaleString('tr-TR')} ${curr || '₺'}`}
+                  />
                 </div>
               )}
 
@@ -1598,58 +1905,287 @@ export const Marketplace = () => {
         </div>
       )}
 
-      {/* QUICK DETAIL MODAL */}
-      {selectedListing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-          <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <button 
-              onClick={handleCloseModal}
-              className="absolute top-4 right-4 p-2 rounded-full bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 mb-4 border border-slate-800">
-              <img src={selectedListing.image_url} alt={selectedListing.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            </div>
-
-            <span className="text-xs font-black text-amber-400 uppercase block mb-1">
-              {selectedListing.store_name} — Portföy İlanı
-            </span>
-            <h3 className="text-xl font-black text-white mb-2">{selectedListing.title}</h3>
-            
-            <p className="text-2xl font-black text-blue-400 mb-4">
-              {Math.round(Number(selectedListing.price) || 0).toLocaleString('tr-TR')} {selectedListing.currency || 'TL'}
-            </p>
-
-            <div className="pt-4 border-t border-slate-800 grid grid-cols-2 gap-3">
-              <Link
-                to={`/s/${selectedListing.store_slug}/p/${selectedListing.barcode || selectedListing.id}`}
-                target="_blank"
-                className="py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs text-center rounded-xl flex items-center justify-center gap-1"
-              >
-                <span>Tüm Detayları Gör</span>
-                <ExternalLink className="w-4 h-4" />
-              </Link>
-
-              <button
-                onClick={() => {
-                  const rawPhone = selectedListing.store_phone || "905330000000";
-                  window.open(`https://wa.me/${rawPhone.replace(/\D/g, "")}`, "_blank");
-                }}
-                className="py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1"
-              >
-                <PhoneCall className="w-4 h-4" />
-                <span>WhatsApp İletişim</span>
-              </button>
-            </div>
-          </div>
+      {/* FULLSCREEN IMAGE LIGHTBOX */}
+      {zoomedImage && (
+        <div 
+          onClick={() => setZoomedImage(null)}
+          className="fixed inset-0 z-[110] bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-4 cursor-zoom-out"
+        >
+          <button 
+            onClick={() => setZoomedImage(null)}
+            className="absolute top-6 right-6 p-3 rounded-full bg-slate-900 border border-slate-700 text-white hover:bg-rose-600 transition z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img 
+            src={zoomedImage} 
+            alt="Büyük Görsel" 
+            className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
+            referrerPolicy="no-referrer"
+          />
         </div>
       )}
 
+      {/* QUICK DETAIL MODAL */}
+      {selectedListing && (() => {
+        const modalImages: string[] = [];
+        if (Array.isArray(selectedListing.images) && selectedListing.images.length > 0) {
+          modalImages.push(...selectedListing.images.filter((i: any) => typeof i === "string" && i.trim()));
+        }
+        if (selectedListing.image_url && !modalImages.includes(selectedListing.image_url)) {
+          modalImages.unshift(selectedListing.image_url);
+        }
+
+        const currentImg = modalImages[activeDetailImageIndex] || selectedListing.image_url;
+        const intent = getListingIntent(selectedListing);
+        const sec = selectedListing.sector_data || {};
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-slate-950/90 backdrop-blur-xl overflow-y-auto">
+            <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl p-5 md:p-8 shadow-2xl max-h-[92vh] overflow-y-auto my-auto">
+              
+              {/* Close Button */}
+              <button 
+                onClick={handleCloseModal}
+                className="absolute top-4 right-4 z-20 p-2.5 rounded-full bg-slate-950/80 text-slate-400 hover:text-white border border-slate-800 hover:bg-rose-600 transition cursor-pointer"
+                title="Kapat"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Modal Header Title */}
+              <div className="mb-4 pr-12">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-black flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    {selectedListing.store_name}
+                  </span>
+                  <span className="px-2.5 py-1 bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-xs font-extrabold">
+                    {formatCategory(selectedListing)}
+                  </span>
+                  {selectedListing.listing_type === 'real_estate' && (
+                    <span className={`px-2.5 py-1 rounded-lg text-xs font-black border ${
+                      intent === 'kiralik'
+                        ? "bg-purple-950 text-purple-200 border-purple-500"
+                        : "bg-emerald-950 text-emerald-200 border-emerald-500"
+                    }`}>
+                      {intent === 'kiralik' ? '🔑 KİRALIK' : '🏷️ SATILIK'}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-xl md:text-2xl font-black text-white leading-tight">
+                  {selectedListing.title}
+                </h2>
+              </div>
+
+              {/* Main Photo Canvas & Thumbnails */}
+              <div className="space-y-3 mb-6">
+                <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 group">
+                  <img 
+                    src={currentImg} 
+                    alt={selectedListing.title} 
+                    className="w-full h-full object-cover cursor-zoom-in"
+                    onClick={() => setZoomedImage(currentImg)}
+                    referrerPolicy="no-referrer"
+                  />
+                  
+                  {modalImages.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setActiveDetailImageIndex(prev => prev === 0 ? modalImages.length - 1 : prev - 1)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-950/80 border border-white/20 text-white flex items-center justify-center hover:bg-blue-600 transition shadow-xl"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setActiveDetailImageIndex(prev => prev === modalImages.length - 1 ? 0 : prev + 1)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-950/80 border border-white/20 text-white flex items-center justify-center hover:bg-blue-600 transition shadow-xl"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                      
+                      <div className="absolute bottom-3 right-3 px-3 py-1 bg-slate-950/90 text-white rounded-lg text-xs font-black border border-white/10 backdrop-blur-md">
+                        {activeDetailImageIndex + 1} / {modalImages.length} Fotoğraf
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Thumbnails Row */}
+                {modalImages.length > 1 && (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {modalImages.map((img, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveDetailImageIndex(idx)}
+                        className={`relative w-20 h-14 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all ${
+                          idx === activeDetailImageIndex 
+                            ? "border-amber-400 scale-105 shadow-lg shadow-amber-400/20" 
+                            : "border-slate-800 opacity-60 hover:opacity-100"
+                        }`}
+                      >
+                        <img src={img} alt={`Foto ${idx+1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Price Banner */}
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 md:p-5 flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase block mb-1">
+                    {intent === 'kiralik' ? 'Aylık Kira Bedeli' : 'Satış Fiyatı'}
+                  </span>
+                  <div className="text-2xl md:text-3xl font-black text-amber-400 flex items-baseline gap-2">
+                    <span>{Math.round(Number(selectedListing.price) || 0).toLocaleString('tr-TR')}</span>
+                    <span className="text-lg text-blue-400">{selectedListing.currency || 'TL'}</span>
+                    {intent === 'kiralik' && <span className="text-xs text-slate-400 font-normal">/ Aylık</span>}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-300 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-rose-500" />
+                    {formatLocation(selectedListing)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Detailed Specs Grid */}
+              <div className="space-y-4 mb-6">
+                <h3 className="text-sm font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-amber-400" />
+                  İlan Özellikleri & Detaylar
+                </h3>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {selectedListing.listing_type === 'real_estate' ? (
+                    <>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Mülk Tipi</span>
+                        <span className="text-xs font-black text-white">{formatCategory(selectedListing)}</span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Oda Sayısı</span>
+                        <span className="text-xs font-black text-blue-300">{sec.rooms || sec.oda || 'Belirtilmedi'}</span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Metrekare (m²)</span>
+                        <span className="text-xs font-black text-emerald-300">{sec.gross_m2 || sec.m2 || 'Belirtilmedi'} m²</span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Koçan / Tapu</span>
+                        <span className="text-xs font-black text-amber-300">{sec.deed_type || 'Türk Koçanlı'}</span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Eşya Durumu</span>
+                        <span className="text-xs font-black text-white">{sec.furnished ? 'Eşyalı' : 'Eşyasız'}</span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Bulunduğu Kat</span>
+                        <span className="text-xs font-black text-white">{sec.floor || 'Giriş / Bahçe'}</span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Isınma / Soğutma</span>
+                        <span className="text-xs font-black text-white">{sec.heating || 'Klima'}</span>
+                      </div>
+                      {sec.deposit && (
+                        <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block">Depozito</span>
+                          <span className="text-xs font-black text-purple-300">{sec.deposit}</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Marka</span>
+                        <span className="text-xs font-black text-white">{selectedListing.brand || 'Belirtilmedi'}</span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Model Yılı</span>
+                        <span className="text-xs font-black text-blue-300">{selectedListing.year || sec.year || 'Belirtilmedi'}</span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Kilometre (KM)</span>
+                        <span className="text-xs font-black text-emerald-300">
+                          {selectedListing.mileage ? Math.round(Number(selectedListing.mileage)).toLocaleString('tr-TR') + ' KM' : 'Sıfır'}
+                        </span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Yakıt Tipi</span>
+                        <span className="text-xs font-black text-amber-300">{sec.fuel_type || 'Benzin'}</span>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Vites Tipi</span>
+                        <span className="text-xs font-black text-white">{sec.transmission || 'Otomatik'}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Description Block */}
+              {selectedListing.description && (
+                <div className="mb-6 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-2">Açıklama</h4>
+                  <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line">
+                    {selectedListing.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Footer Actions */}
+              <div className="pt-4 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  onClick={() => {
+                    const rawPhone = selectedListing.store_phone || sec.phone || "905330000000";
+                    window.open(`https://wa.me/${rawPhone.replace(/\D/g, "")}`, "_blank");
+                  }}
+                  className="py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+                >
+                  <PhoneCall className="w-4 h-4" />
+                  <span>WhatsApp İletişim</span>
+                </button>
+
+                <a
+                  href={`tel:${(selectedListing.store_phone || sec.phone || "").replace(/\D/g, "")}`}
+                  className="py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 border border-slate-700 transition"
+                >
+                  <Phone className="w-4 h-4 text-amber-400" />
+                  <span>Hemen Ara</span>
+                </a>
+
+                <Link
+                  to={`/s/${selectedListing.store_slug}/p/${selectedListing.barcode || selectedListing.id}`}
+                  target="_blank"
+                  className="py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs text-center rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition"
+                >
+                  <span>Mağaza Sayfasına Git</span>
+                  <ExternalLink className="w-4 h-4" />
+                </Link>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
       {/* FOOTER */}
       <footer className="bg-slate-950 border-t border-slate-850 py-12 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center">
+          <div className="h-10 px-4 py-1.5 bg-white rounded-xl border border-slate-800 flex items-center justify-center mb-3">
+            <img 
+              src={customLogo} 
+              alt="Enrakipsiz Logo" 
+              className="h-7 w-auto object-contain"
+              onError={(e: any) => {
+                e.target.onerror = null;
+                e.target.src = "/enrakipsiz-logo.svg";
+              }}
+            />
+          </div>
           <p className="font-bold text-slate-300 mb-1">ENRAKİPSİZ PORTAL SİSTEMİ</p>
           <p className="max-w-md mx-auto leading-relaxed mb-6">
             Otomotiv ve Gayrimenkul Portföy Yönetimi. Tüm hakları saklıdır. © 2026 Enrakipsiz.com.

@@ -16,7 +16,12 @@ import {
   Trash2,
   Search,
   Filter,
-  Database
+  Database,
+  Upload,
+  Image as ImageIcon,
+  RotateCcw,
+  FileImage,
+  CheckCircle2
 } from "lucide-react";
 import { StoreFeaturedRow } from "./StoreFeaturedRow";
 import { Store, EnrakipsizSettings, EnrakipsizSlide, EnrakipsizAd } from "../../types/superadmin";
@@ -128,7 +133,185 @@ export const EnrakipsizPortalManager: React.FC<EnrakipsizPortalManagerProps> = (
               Ayarlar Yükleniyor...
             </div>
           ) : (
-            <form onSubmit={handleSaveSettings} className="space-y-4">
+            <form onSubmit={handleSaveSettings} className="space-y-5">
+              
+              {/* PORTAL LOGO & FAVİCON YÖNETİM BLOĞU */}
+              <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 shadow-md space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+                  <ImageIcon className="w-4 h-4 text-emerald-400" />
+                  <h4 className="text-xs font-black uppercase text-emerald-400 tracking-wider">
+                    Portal Logo & Favicon Yönetimi
+                  </h4>
+                </div>
+
+                {/* LOGO SECTİON */}
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-extrabold text-slate-300 uppercase">
+                    1. Portal Ana Logosu (Üst Menü & Marka)
+                  </label>
+                  
+                  {/* Logo Preview */}
+                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="h-10 px-3 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-center">
+                        <img 
+                          src={enrakipsizSettings.portal_logo_url || "/enrakipsiz-logo.svg"} 
+                          alt="Portal Logosu" 
+                          className="h-7 w-auto object-contain"
+                          onError={(e: any) => {
+                            e.target.onerror = null;
+                            e.target.src = "/enrakipsiz-logo.svg";
+                          }}
+                        />
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                        {enrakipsizSettings.portal_logo_url ? "Özel Yüklü Logo" : "Sistem Varsayılan Logosu"}
+                      </div>
+                    </div>
+
+                    {enrakipsizSettings.portal_logo_url && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEnrakipsizSettings({ ...enrakipsizSettings, portal_logo_url: "" });
+                          localStorage.removeItem("enrakipsiz_portal_logo");
+                        }}
+                        className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1 font-bold bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20"
+                        title="Varsayılana Sıfırla"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Sıfırla</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* URL Input */}
+                  <input 
+                    type="text" 
+                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:border-emerald-500 outline-none"
+                    value={enrakipsizSettings.portal_logo_url || ""}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setEnrakipsizSettings({...enrakipsizSettings, portal_logo_url: val});
+                      if (val) localStorage.setItem("enrakipsiz_portal_logo", val);
+                      else localStorage.removeItem("enrakipsiz_portal_logo");
+                    }}
+                    placeholder="https://.../logo.png veya varsayılan için boş bırakın"
+                  />
+
+                  {/* File Upload Trigger */}
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 cursor-pointer py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-[11px] font-bold flex items-center justify-center gap-2 transition">
+                      <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Cihazdan Logo Yükle</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const base64 = event.target?.result as string;
+                              if (base64) {
+                                setEnrakipsizSettings({ ...enrakipsizSettings, portal_logo_url: base64 });
+                                localStorage.setItem("enrakipsiz_portal_logo", base64);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* FAVİCON SECTİON */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <label className="block text-[10px] font-extrabold text-slate-300 uppercase">
+                    2. Tarayıcı Sekme İkonu (Favicon)
+                  </label>
+                  
+                  {/* Favicon Preview */}
+                  <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-center p-1">
+                        <img 
+                          src={enrakipsizSettings.favicon_url || "/enrakipsiz-favicon.svg"} 
+                          alt="Favicon" 
+                          className="w-full h-full object-contain"
+                          onError={(e: any) => {
+                            e.target.onerror = null;
+                            e.target.src = "/enrakipsiz-favicon.svg";
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-400">
+                        {enrakipsizSettings.favicon_url ? "Özel Yüklü Favicon" : "Sistem Faviconu"}
+                      </span>
+                    </div>
+
+                    {enrakipsizSettings.favicon_url && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEnrakipsizSettings({ ...enrakipsizSettings, favicon_url: "" });
+                          localStorage.removeItem("enrakipsiz_portal_favicon");
+                        }}
+                        className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1 font-bold bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20"
+                        title="Varsayılana Sıfırla"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Sıfırla</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* URL Input */}
+                  <input 
+                    type="text" 
+                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:border-emerald-500 outline-none"
+                    value={enrakipsizSettings.favicon_url || ""}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setEnrakipsizSettings({...enrakipsizSettings, favicon_url: val});
+                      if (val) localStorage.setItem("enrakipsiz_portal_favicon", val);
+                      else localStorage.removeItem("enrakipsiz_portal_favicon");
+                    }}
+                    placeholder="https://.../favicon.ico veya boş bırakın"
+                  />
+
+                  {/* File Upload Trigger */}
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 cursor-pointer py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-[11px] font-bold flex items-center justify-center gap-2 transition">
+                      <FileImage className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Favicon Yükle</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const base64 = event.target?.result as string;
+                              if (base64) {
+                                setEnrakipsizSettings({ ...enrakipsizSettings, favicon_url: base64 });
+                                localStorage.setItem("enrakipsiz_portal_favicon", base64);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+              </div>
+
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Portal Giriş Ana Başlığı</label>
                 <input 

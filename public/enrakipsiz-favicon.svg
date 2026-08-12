@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none">
+  <rect width="120" height="120" rx="28" fill="#0f172a" />
+  <g transform="translate(10, 15)">
+    <!-- House Roof -->
+    <path d="M 12 48 L 50 12 L 88 48 H 74 V 54 H 26 V 48 Z" fill="#94a3b8" />
+    <!-- Car Body -->
+    <path d="M 5 52 C 10 38 24 30 42 28 C 60 26 80 26 95 30 C 108 34 115 40 118 48 C 120 52 120 56 118 60 C 115 62 105 64 92 64 L 12 64 C 5 64 2 58 5 52 Z" fill="#ffffff" />
+    <!-- Window -->
+    <path d="M 45 32 C 58 30 75 30 88 32 C 98 34 105 38 108 42 H 48 Z" fill="#0f172a" />
+    <!-- Speed line -->
+    <path d="M 0 52 Q 30 40 80 38 Q 110 38 120 50" stroke="#059669" stroke-width="5" stroke-linecap="round" fill="none" />
+    <!-- Wheels -->
+    <circle cx="32" cy="62" r="11" fill="#0f172a" stroke="#059669" stroke-width="3" />
+    <circle cx="92" cy="62" r="11" fill="#0f172a" stroke="#059669" stroke-width="3" />
+  </g>
+</svg>

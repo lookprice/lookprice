@@ -1,15 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180">
-  <!-- Green House & Car Contour (Emerald Green #059669) -->
-  <g fill="none" stroke="#059669" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
-    <!-- House roof & chimney outline -->
-    <path d="M 32 78 L 72 38 L 112 78" />
-    <path d="M 46 64 V 44 H 56 V 54" />
-    <!-- Car body contour merging smoothly -->
-    <path d="M 72 38 C 110 38 125 78 155 78 L 220 78 C 248 78 268 90 272 108 C 274 122 265 132 248 132 L 40 132 C 30 132 25 122 25 108 C 25 90 40 78 72 38 Z" />
-    <!-- Car wheels cutouts -->
-    <circle cx="85" cy="132" r="16" fill="#ffffff" stroke="#059669" stroke-width="8" />
-    <circle cx="218" cy="132" r="16" fill="#ffffff" stroke="#059669" stroke-width="8" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 140" width="540" height="140" fill="none">
+  <!-- Icon Group: House + Sports Car -->
+  <g transform="translate(10, 5)">
+    <!-- House Roof & Chimney -->
+    <path d="M 20 62 L 78 12 L 136 62 H 118 V 70 H 38 V 62 Z" fill="#2d3748" />
+    <rect x="98" y="20" width="13" height="24" fill="#2d3748" rx="2" />
+    
+    <!-- Sports Car Silhouette -->
+    <g transform="translate(0, 26)">
+      <!-- Car Roof / Body -->
+      <path d="M 5 62 C 12 44 32 34 56 31 C 80 28 108 28 132 33 C 150 37 165 44 172 54 C 176 60 178 66 178 70 C 178 74 170 76 155 76 L 15 76 C 5 76 2 70 5 62 Z" fill="#1a202c" />
+      <!-- Window Cutout -->
+      <path d="M 60 35 C 78 32 102 32 120 35 C 134 38 148 44 152 50 H 65 Z" fill="#ffffff" />
+      <!-- Dynamic Speed Swoosh -->
+      <path d="M 0 62 Q 45 46 115 45 Q 155 45 182 60" stroke="#059669" stroke-width="6" stroke-linecap="round" fill="none" />
+      <!-- Front & Rear Wheels -->
+      <circle cx="45" cy="74" r="16" fill="#0f172a" stroke="#ffffff" stroke-width="3" />
+      <circle cx="45" cy="74" r="7" fill="#e2e8f0" />
+      <circle cx="138" cy="74" r="16" fill="#0f172a" stroke="#ffffff" stroke-width="3" />
+      <circle cx="138" cy="74" r="7" fill="#e2e8f0" />
+    </g>
   </g>
-  <!-- Text 'Enrakipsiz' -->
-  <text x="160" y="170" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="40" fill="#1e293b" letter-spacing="-1">Enrakipsiz</text>
+
+  <!-- Brand Typography 'Enrakipsiz' -->
+  <text x="205" y="96" font-family="'Inter', 'Plus Jakarta Sans', -apple-system, sans-serif" font-weight="900" font-size="76" fill="#059669" letter-spacing="-2">Enrakipsiz</text>
 </svg>

@@ -180,7 +180,10 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
       setLoadingEnrakipsiz(true);
       const res = await api.getEnrakipsizSettings();
       if (res && !res.error) {
-        setEnrakipsizSettings(res.settings || {
+        const storedLogo = localStorage.getItem("enrakipsiz_portal_logo");
+        const storedFavicon = localStorage.getItem("enrakipsiz_portal_favicon");
+        
+        const settingsData = res.settings || {
           portal_title: "Seçkin Mağazalardan Rakipsiz Teklifler & İlanlar",
           portal_description: "Oto galeri, emlak ofisleri ve premium e-ticaret markalarının en güncel, doğrulanmış ilanlarını tek bir ekranda canlı olarak inceleyin.",
           announcement: "Sadece portal müşterilerine lüks gayrimenkul ve araç alımlarında 12 ila 36 ay vadede kişiye özel oranlı prestij kredisi ve takas desteği.",
@@ -194,10 +197,17 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           seo_title: "",
           seo_description: "",
           seo_keywords: "",
+          portal_logo_url: storedLogo || "",
+          favicon_url: storedFavicon || "",
           google_analytics_id: "",
           google_tag_manager_id: "",
           google_search_console_id: ""
-        });
+        };
+
+        if (storedLogo && !settingsData.portal_logo_url) settingsData.portal_logo_url = storedLogo;
+        if (storedFavicon && !settingsData.favicon_url) settingsData.favicon_url = storedFavicon;
+
+        setEnrakipsizSettings(settingsData);
         setEnrakipsizSlides(res.slides || []);
         setEnrakipsizAds(res.ads || []);
       }
@@ -218,9 +228,24 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     e.preventDefault();
     try {
       setSavingSettings(true);
+      if (enrakipsizSettings.portal_logo_url) {
+        localStorage.setItem("enrakipsiz_portal_logo", enrakipsizSettings.portal_logo_url);
+      } else {
+        localStorage.removeItem("enrakipsiz_portal_logo");
+      }
+      if (enrakipsizSettings.favicon_url) {
+        localStorage.setItem("enrakipsiz_portal_favicon", enrakipsizSettings.favicon_url);
+        let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+        if (link) {
+          link.href = enrakipsizSettings.favicon_url;
+        }
+      } else {
+        localStorage.removeItem("enrakipsiz_portal_favicon");
+      }
+
       const res = await api.saveEnrakipsizSettings(enrakipsizSettings);
       if (res && !res.error) {
-        alert(lang === 'tr' ? "Ayarlar başarıyla kaydedildi!" : "Settings saved successfully!");
+        alert(lang === 'tr' ? "Ayarlar ve Logo/Favicon başarıyla kaydedildi!" : "Settings saved successfully!");
         fetchEnrakipsizData();
       } else {
         alert(res.error || "Hata oluştu");
