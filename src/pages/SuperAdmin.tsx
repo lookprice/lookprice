@@ -618,32 +618,16 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             st={st}
             enrakipsizSettings={enrakipsizSettings}
             setEnrakipsizSettings={setEnrakipsizSettings}
-            enrakipsizSlides={enrakipsizSlides}
-            enrakipsizAds={enrakipsizAds}
             loadingEnrakipsiz={loadingEnrakipsiz}
             savingSettings={savingSettings}
             handleSaveSettings={handleSaveSettings}
-            handleDeleteSlide={handleDeleteSlide}
-            handleDeleteAd={handleDeleteAd}
             handleSaveStoreFeatured={handleSaveStoreFeatured}
             savingFeaturedStoreId={savingFeaturedStoreId}
-            setEditingSlide={setEditingSlide}
-            setShowSlideModal={setShowSlideModal}
-            setEditingAd={setEditingAd}
-            setShowAdModal={setShowAdModal}
             featuredSearchTerm={featuredSearchTerm}
             setFeaturedSearchTerm={setFeaturedSearchTerm}
             showOnlySponsors={showOnlySponsors}
             setShowOnlySponsors={setShowOnlySponsors}
             stores={stores}
-            draggedIndex={draggedIndex}
-            setDraggedIndex={setDraggedIndex}
-            dragOverIndex={dragOverIndex}
-            setDragOverIndex={setDragOverIndex}
-            getParsedSections={getParsedSections}
-            moveSection={moveSection}
-            handleDrop={handleDrop}
-            toggleSectionEnabled={toggleSectionEnabled}
           />
         ) : activeTab === 'videos' ? (
           <SuperAdminVideosManager lang={lang} />

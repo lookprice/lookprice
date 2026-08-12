@@ -28,7 +28,17 @@ export const BlogShowcaseModal: React.FC<BlogShowcaseModalProps> = ({
 
   const title = blog.title;
   const content = blog.content || blog.summary || "";
-  const imageUrl = blog.image_url || blog.img || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=800";
+  let imageUrl = blog.image_url || blog.img || (blog as any).cover_image || "";
+  if (!imageUrl || imageUrl.trim().length < 10) {
+    const titleLower = (title || "").toLowerCase();
+    if (titleLower.includes("araç") || titleLower.includes("araba") || titleLower.includes("otomotiv") || titleLower.includes("devir") || titleLower.includes("sahibinden") || titleLower.includes("kıbrıs ikinci el")) {
+      imageUrl = "/src/assets/images/cyprus_used_cars_1786552229707.jpg";
+    } else if (titleLower.includes("emlak") || titleLower.includes("konut") || titleLower.includes("villa") || titleLower.includes("arsa") || titleLower.includes("imar")) {
+      imageUrl = "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80";
+    } else {
+      imageUrl = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=800";
+    }
+  }
   const dateStr = blog.date || (blog.created_at ? new Date(blog.created_at).toLocaleDateString() : "");
 
   // Calculated reading time helper

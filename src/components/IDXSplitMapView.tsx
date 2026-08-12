@@ -521,248 +521,283 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
   };
 
   return (
-    <div ref={topSectionRef} className="w-full bg-slate-50 text-slate-800 min-h-screen relative font-sans">
+    <div ref={topSectionRef} className="w-full bg-slate-50 text-slate-800 relative font-sans">
       
-      {/* 1. TOP HEADER & FIHRIST FILTER BAR (Light Directory Index Theme) */}
-      <div className="bg-amber-50/95 border-b border-amber-200/80 sticky top-[60px] sm:top-[68px] z-40 shadow-md backdrop-blur-xl">
-        
-        {/* Üst Sekme Fihrist Yapısı (Directory Header Binder Folder Tabs) */}
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 pt-2.5 pb-0">
-          <div className="flex items-center gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar border-b-2 border-slate-300">
-            <button
-              onClick={() => { setActiveTab('listings'); handleResetFilters(); }}
-              className={`px-4 sm:px-6 py-2.5 rounded-t-xl sm:rounded-t-2xl text-[10px] sm:text-[12px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-2 shrink-0 relative border-t-2 border-x ${
-                activeTab === 'listings'
-                  ? "bg-slate-800 border-slate-900 text-white shadow-md -mb-0.5 z-10 scale-[1.01]"
-                  : "bg-slate-300 border-slate-400 text-slate-800 hover:bg-slate-400 hover:text-slate-950"
-              }`}
-            >
-              <Building2 className="w-4 h-4 text-amber-400" />
-              <span>{isTr ? "EMLAK PORTFÖYÜ" : "REAL ESTATE PORTFOLIO"}</span>
-              <div className="w-2 h-2 bg-amber-400 rounded-full absolute -top-1 right-2 border border-white shadow-xs" />
-            </button>
+      {/* MAIN CONTENT BODY (SPLIT VIEW / GRID / MAP) */}
+      <div className="max-w-[1700px] mx-auto p-1 sm:p-3">
 
-            <button
-              onClick={() => { setActiveTab('offices'); }}
-              className={`px-4 sm:px-6 py-2.5 rounded-t-xl sm:rounded-t-2xl text-[10px] sm:text-[12px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-2 shrink-0 relative border-t-2 border-x ${
-                activeTab === 'offices'
-                  ? "bg-blue-600 border-blue-800 text-white shadow-md -mb-0.5 z-10 scale-[1.01]"
-                  : "bg-blue-200 border-blue-300 text-blue-900 hover:bg-blue-300 hover:text-blue-950"
-              }`}
-            >
-              <Home className="w-4 h-4 text-blue-200" />
-              <span>{isTr ? "OFİSLERİMİZ & DANIŞMANLAR" : "OFFICES & AGENTS"}</span>
-              <div className="w-2 h-2 bg-blue-300 rounded-full absolute -top-1 right-2 border border-white shadow-xs" />
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('deals'); setActiveBadgeFilter('discounted'); }}
-              className={`px-4 sm:px-6 py-2.5 rounded-t-xl sm:rounded-t-2xl text-[10px] sm:text-[12px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-2 shrink-0 relative border-t-2 border-x ${
-                activeTab === 'deals' || activeBadgeFilter === 'discounted'
-                  ? "bg-rose-600 border-rose-800 text-white shadow-md -mb-0.5 z-10 scale-[1.01]"
-                  : "bg-rose-200 border-rose-300 text-rose-900 hover:bg-rose-300 hover:text-rose-950"
-              }`}
-            >
-              <Zap className="w-4 h-4 text-yellow-300 animate-pulse" />
-              <span>{isTr ? "FIRSAT KAMPANYALARI" : "DEALS & CAMPAIGNS"}</span>
-              <div className="w-2 h-2 bg-yellow-400 rounded-full absolute -top-1 right-2 border border-white shadow-xs" />
-            </button>
-          </div>
-        </div>
-
-        {/* Fihrist Controls Content */}
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 space-y-2.5 bg-white/80 border-b border-amber-200/60 shadow-xs">
+        {/* PERSISTENT HIGH-END FILTER BAR (EŞGÜDÜMLÜ FİLTRE VE HARİTA PANELİ) */}
+        <div className="mb-6 bg-white border border-slate-200/80 rounded-3xl p-4 md:p-6 shadow-md transition-all">
           
-          {/* Main Fihrist Navigation Bar */}
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            
-            {/* Intent Selector Tabs (Satılık / Kiralık / Tümü) */}
-            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shrink-0 shadow-inner">
-              <button
-                onClick={() => { setActiveIntent('all'); setSelectedProperty(null); }}
-                className={`px-3 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                  activeIntent === 'all'
-                    ? "bg-amber-500 text-slate-950 shadow-md scale-[1.02]"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>🌐</span>
-                <span>{isTr ? "Tümü" : "All"}</span>
-              </button>
-              <button
-                onClick={() => { setActiveIntent('sale'); setSelectedProperty(null); }}
-                className={`px-3 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                  activeIntent === 'sale'
-                    ? "bg-indigo-600 text-white shadow-md scale-[1.02]"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>🏠</span>
-                <span>{isTr ? "Satılık" : "For Sale"}</span>
-              </button>
-              <button
-                onClick={() => { setActiveIntent('rent'); setSelectedProperty(null); }}
-                className={`px-3 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                  activeIntent === 'rent'
-                    ? "bg-emerald-600 text-white shadow-md scale-[1.02]"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>🔑</span>
-                <span>{isTr ? "Kiralık" : "For Rent"}</span>
-              </button>
+          {/* Top Header Row within the filter bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
+                <Search className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 tracking-tight leading-tight">
+                  {isTr ? "Emlak Portföy Filtreleme" : "Real Estate Portfolio Search"}
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  {isTr 
+                    ? `Toplam ${products.length} ilan arasından kriterlerinize uyan ${filteredProducts.length} mülk listelendi.` 
+                    : `${filteredProducts.length} of ${products.length} properties matching your criteria.`}
+                </p>
+              </div>
             </div>
 
-            {/* View Mode Toggle Switch & Action Icons */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner">
-                <button
-                  onClick={() => setViewMode('split')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
-                    viewMode === 'split' ? "bg-amber-500 text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                  }`}
-                  title="Harita ve İlanlar Yan Yana (IDX)"
-                >
-                  <Compass className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{isTr ? "IDX Yan Yana" : "Split View"}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
-                    viewMode === 'grid' ? "bg-amber-500 text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                  }`}
-                  title="Galeri / Izgara Görünümü"
-                >
-                  <Grid className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{isTr ? "Galeri" : "Grid"}</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('map')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
-                    viewMode === 'map' ? "bg-amber-500 text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                  }`}
-                  title="Tam Ekran Harita Keşfi"
-                >
-                  <MapIcon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{isTr ? "Harita" : "Map"}</span>
-                </button>
-              </div>
+            {/* View Mode Switcher */}
+            <div className="flex items-center bg-slate-100 p-1.5 rounded-xl self-start sm:self-auto">
+              <button
+                onClick={() => setViewMode('split')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'split' 
+                    ? "bg-slate-950 text-white shadow-sm font-black" 
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Grid className="w-3.5 h-3.5" />
+                <span>{isTr ? "Bölünmüş" : "Split"}</span>
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'grid' 
+                    ? "bg-slate-950 text-white shadow-sm font-black" 
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>{isTr ? "Liste" : "List"}</span>
+              </button>
+              <button
+                onClick={() => setViewMode('map')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'map' 
+                    ? "bg-slate-950 text-white shadow-sm font-black" 
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <MapIcon className="w-3.5 h-3.5" />
+                <span>{isTr ? "Harita" : "Map"}</span>
+              </button>
+            </div>
+          </div>
 
-              {/* Reset/Back Button (ONLY ICON) */}
-              {(activeRegion !== 'all' || activeCategory !== 'all' || activeBadgeFilter !== 'all' || activeSubRegion !== 'all' || priceRange !== 'all' || activeIntent !== 'all') && (
+          {/* Main Filters Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            
+            {/* 1. İlan Niyeti (Satılık / Kiralık / Tümü) */}
+            <div>
+              <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">
+                {isTr ? "DURUM" : "INTENT"}
+              </label>
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  { key: 'all', label: isTr ? 'Tümü' : 'All' },
+                  { key: 'sale', label: isTr ? 'Satılık' : 'For Sale' },
+                  { key: 'rent', label: isTr ? 'Kiralık' : 'For Rent' }
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveIntent(item.key as any)}
+                    className={`py-2 px-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center ${
+                      activeIntent === item.key 
+                        ? "bg-slate-900 text-white border-slate-900 font-extrabold shadow-sm" 
+                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Mülk Tipi */}
+            <div>
+              <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">
+                {isTr ? "MÜLK TİPİ" : "PROPERTY TYPE"}
+              </label>
+              <select
+                value={activeCategory}
+                onChange={(e) => setActiveCategory(e.target.value)}
+                className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer transition-colors"
+              >
+                <option value="all">{isTr ? 'Tüm Tipler' : 'All Types'}</option>
+                <option value="residence">{isTr ? 'Konut / Daire' : 'Residence / Apartment'}</option>
+                <option value="villa">{isTr ? 'Villa / Müstakil' : 'Villa / House'}</option>
+                <option value="land">{isTr ? 'Arsa / Arazi' : 'Land / Plot'}</option>
+                <option value="commercial">{isTr ? 'Ticari / İş Yeri' : 'Commercial'}</option>
+              </select>
+            </div>
+
+            {/* 3. Şehir / Bölge */}
+            <div>
+              <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">
+                {isTr ? "ŞEHİR" : "CITY"}
+              </label>
+              <select
+                value={activeRegion}
+                onChange={(e) => { setActiveRegion(e.target.value); setActiveSubRegion('all'); }}
+                className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer transition-colors"
+              >
+                <option value="all">{isTr ? 'Tüm Şehirler' : 'All Cities'}</option>
+                <option value="Girne">Girne</option>
+                <option value="Lefkoşa">Lefkoşa</option>
+                <option value="Gazimağusa">Gazimağusa</option>
+                <option value="İskele">İskele</option>
+                <option value="Lefke">Lefke</option>
+                <option value="Güzelyurt">Güzelyurt</option>
+              </select>
+            </div>
+
+            {/* 4. Oda Sayısı */}
+            <div>
+              <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">
+                {isTr ? "ODA SAYISI" : "ROOMS"}
+              </label>
+              <select
+                value={selectedRooms}
+                onChange={(e) => setSelectedRooms(e.target.value)}
+                disabled={activeCategory === 'land'}
+                className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <option value="all">{isTr ? 'Tüm Odalar' : 'All Rooms'}</option>
+                <option value="1+1">1+1</option>
+                <option value="2+1">2+1</option>
+                <option value="3+1">3+1</option>
+                <option value="4+1">4+1+</option>
+                <option value="Penthouse">Penthouse</option>
+              </select>
+            </div>
+
+            {/* 5. Fiyat Aralığı */}
+            <div>
+              <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">
+                {isTr ? "FİYAT ARALIĞI" : "PRICE RANGE"}
+              </label>
+              <select
+                value={priceRange}
+                onChange={(e) => setPriceRange(e.target.value)}
+                className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer transition-colors"
+              >
+                <option value="all">{isTr ? 'Tüm Fiyatlar' : 'All Prices'}</option>
+                <option value="0-150000">£150.000 Altı</option>
+                <option value="150000-300000">£150.000 - £300.000</option>
+                <option value="300000-500000">£300.000 - £500.000</option>
+                <option value="500000+">£500.000 Üstü Lüks</option>
+              </select>
+            </div>
+
+          </div>
+
+          {/* Alt Semt / Mahalle Seçimi (Only visible if a city is chosen) */}
+          {activeRegion !== 'all' && REAL_ESTATE_REGIONS[activeRegion as keyof typeof REAL_ESTATE_REGIONS] && (
+            <div className="mt-4 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+              <span className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2">
+                📍 {activeRegion} {isTr ? "Semt ve Mahalleleri:" : "Districts & Neighborhoods:"}
+              </span>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto no-scrollbar pr-1">
                 <button
-                  onClick={handleResetFilters}
-                  className="p-2 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 rounded-xl cursor-pointer transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95"
-                  title={isTr ? "Tüm Filtreleri Sıfırla" : "Reset Filters"}
+                  onClick={() => setActiveSubRegion('all')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                    activeSubRegion === 'all' 
+                      ? "bg-amber-500 text-slate-950 font-black shadow-xs" 
+                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                  }`}
                 >
-                  <RotateCcw className="w-4 h-4 text-amber-800" />
+                  {isTr ? "Tüm Mahalleler" : "All Districts"}
                 </button>
+                {REAL_ESTATE_REGIONS[activeRegion as keyof typeof REAL_ESTATE_REGIONS].map((sub) => (
+                  <button
+                    key={sub}
+                    onClick={() => setActiveSubRegion(sub)}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer border ${
+                      activeSubRegion === sub
+                        ? "bg-amber-500 text-slate-950 font-black border-amber-600 shadow-xs"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    {sub}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Active Filters Summary / Reset Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-slate-100 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                {isTr ? "Aktif Filtreler:" : "Active Filters:"}
+              </span>
+              {activeIntent !== 'all' && (
+                <span className="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase flex items-center gap-1">
+                  <span>{activeIntent === 'sale' ? (isTr ? 'Satılık' : 'Sale') : (isTr ? 'Kiralık' : 'Rent')}</span>
+                  <button onClick={() => setActiveIntent('all')} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {activeCategory !== 'all' && (
+                <span className="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase flex items-center gap-1">
+                  <span>{activeCategory === 'residence' ? (isTr ? 'Konut' : 'Residence') : activeCategory === 'villa' ? 'Villa' : activeCategory === 'land' ? (isTr ? 'Arsa' : 'Land') : (isTr ? 'Ticari' : 'Commercial')}</span>
+                  <button onClick={() => setActiveCategory('all')} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {activeRegion !== 'all' && (
+                <span className="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase flex items-center gap-1">
+                  <span>{activeRegion}</span>
+                  <button onClick={() => { setActiveRegion('all'); setActiveSubRegion('all'); }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {activeSubRegion !== 'all' && (
+                <span className="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase flex items-center gap-1">
+                  <span>{activeSubRegion}</span>
+                  <button onClick={() => setActiveSubRegion('all')} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {selectedRooms !== 'all' && (
+                <span className="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase flex items-center gap-1">
+                  <span>{selectedRooms}</span>
+                  <button onClick={() => setSelectedRooms('all')} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {priceRange !== 'all' && (
+                <span className="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase flex items-center gap-1">
+                  <span>{priceRange === '0-150000' ? '£150k Altı' : priceRange === '150000-300000' ? '£150k-£300k' : priceRange === '300000-500000' ? '£300k-£500k' : '£500k+ Lüks'}</span>
+                  <button onClick={() => setPriceRange('all')} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                </span>
               )}
 
-
-            </div>
-          </div>
-
-          {/* Level 2 Fihrist: Mülk Tipleri & Kelepir Filtreleri */}
-          <div className="flex items-center justify-between gap-2 overflow-x-auto pt-1 no-scrollbar">
-            <div className="flex items-center gap-1.5 shrink-0">
-              {[
-                { key: 'all', label: isTr ? 'Tüm Tipler' : 'All Types', icon: '🏢' },
-                { key: 'residence', label: 'Konut / Daire', icon: '🏠' },
-                { key: 'villa', label: 'Villa', icon: '🏰' },
-                { key: 'land', label: 'Arsa / Arazi', icon: '🏞️' },
-                { key: 'commercial', label: 'Ticari Dükkan', icon: '🏪' },
-              ].map((cat) => (
+              {/* If there is any active filter, show Reset Button */}
+              {(activeIntent !== 'all' || activeCategory !== 'all' || activeRegion !== 'all' || activeSubRegion !== 'all' || selectedRooms !== 'all' || priceRange !== 'all') && (
                 <button
-                  key={cat.key}
-                  onClick={() => setActiveCategory(cat.key)}
-                  className={`px-3 py-1 rounded-xl text-[10px] font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 border ${
-                    activeCategory === cat.key
-                      ? "bg-amber-500 text-slate-950 font-black border-amber-600 shadow-xs"
-                      : "bg-white text-slate-700 hover:text-slate-900 hover:bg-amber-50 border-slate-200"
-                  }`}
+                  onClick={handleResetFilters}
+                  className="text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-colors uppercase tracking-wider flex items-center gap-1 cursor-pointer"
                 >
-                  <span>{cat.icon}</span>
-                  <span>{cat.label}</span>
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{isTr ? "Tümünü Temizle" : "Clear All"}</span>
                 </button>
-              ))}
+              )}
             </div>
 
-            {/* Quick Badge Filters */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={() => setActiveBadgeFilter(activeBadgeFilter === 'discounted' ? 'all' : 'discounted')}
-                className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 border ${
-                  activeBadgeFilter === 'discounted'
-                    ? "bg-rose-600 text-white shadow-sm border-rose-700"
-                    : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
-                }`}
-              >
-                🔥 {isTr ? "Kelepirler" : "Discounted"}
-              </button>
-              <button
-                onClick={() => setActiveBadgeFilter(activeBadgeFilter === 'new' ? 'all' : 'new')}
-                className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 border ${
-                  activeBadgeFilter === 'new'
-                    ? "bg-emerald-600 text-white shadow-sm border-emerald-700"
-                    : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                }`}
-              >
-                ✨ {isTr ? "Yeni Gelenler" : "New"}
-              </button>
-            </div>
-          </div>
-
-          {/* Level 3 Fihrist: Şehir / Bölge Seçimi (Tıklanınca Detay Filtre Çekmecesi & Alt Bölgeler Açılır) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pt-1.5 border-t border-slate-200/70 pb-1 no-scrollbar text-xs">
-            {['all', 'Girne', 'Lefkoşa', 'Gazimağusa', 'İskele', 'Lefke', 'Güzelyurt'].map((reg) => (
-              <button
-                key={reg}
-                onClick={() => { 
-                  setActiveRegion(reg); 
-                  setActiveSubRegion('all'); 
-                  if (reg !== 'all') {
-                    setIsDrawerOpen(true); // Şehir seçilince detay filtreler & alt semtler otomatik açılır
-                  }
-                }}
-                className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer border ${
-                  activeRegion === reg
-                    ? "bg-indigo-600 text-white font-black shadow-md border-indigo-700 scale-[1.02]"
-                    : "bg-white text-slate-700 hover:bg-indigo-50 hover:text-slate-900 border-slate-200 shadow-2xs"
-                }`}
-              >
-                📍 {reg === 'all' ? (isTr ? "Tüm Şehirler" : "All Cities") : reg}
-              </button>
-            ))}
-          </div>
-
-        </div>
-      </div>
-
-      {/* 2. FEATURED / SPONSORED HIGHLIGHT BAR */}
-      {opportunityProperty && (
-        <div className="bg-amber-100/80 border-b border-amber-200 py-2.5 px-4 shadow-2xs">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 text-xs">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <span className="bg-amber-500 text-slate-950 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0 flex items-center gap-1 shadow-xs">
-                <Zap className="w-3 h-3 text-slate-950" /> {isTr ? "ÖNE ÇIKAN FIRSAT" : "FEATURED"}
+            {/* Quick Stats & Drawer Trigger */}
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">
+                {isTr ? "Detaylı kriterler için yan çekmeceyi kullanabilirsiniz" : "Use right drawer for advanced details"}
               </span>
-              <p className="text-slate-900 font-bold truncate text-[11px]">
-                {opportunityProperty.name} — <span className="text-amber-700 font-black">{formatPrice(opportunityProperty.price, store?.currency || opportunityProperty.currency)}</span>
-              </p>
+              <button
+                onClick={() => setIsDrawerOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer border border-slate-200"
+              >
+                <SlidersHorizontal className="w-3 h-3" />
+                <span>{isTr ? "Gelişmiş Filtreler" : "Advanced Filters"}</span>
+              </button>
             </div>
-            <button
-              onClick={() => onViewProduct(opportunityProperty)}
-              className="text-[10px] font-black text-amber-800 hover:text-amber-950 uppercase tracking-widest shrink-0 flex items-center gap-1 cursor-pointer"
-            >
-              {isTr ? "İncele" : "View"} <ChevronRight className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      )}
 
-      {/* 3. MAIN CONTENT BODY (SPLIT VIEW / GRID / MAP) */}
-      <div className="max-w-[1700px] mx-auto p-2 sm:p-4 md:p-6">
+          </div>
+
+        </div>
         
         {/* VIEW MODE 1: SPLIT VIEW (HALF MAP, HALF GRID) */}
         {viewMode === 'split' && (
@@ -1152,7 +1187,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                                 {p.sector_data?.square_meters && <span>📏 {p.sector_data.square_meters} m²</span>}
                               </div>
                               <div className="text-right">
-                                <p className="text-base font-black text-amber-400 tracking-tight">{priceStr}</p>
+                                <p className="text-base font-black text-slate-900 dark:text-amber-400 tracking-tight">{priceStr}</p>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onViewProduct(p); }}
                                   className="text-[9px] font-black text-slate-400 group-hover:text-white uppercase tracking-wider flex items-center gap-0.5 ml-auto mt-0.5"
@@ -1249,7 +1284,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                           {p.sector_data?.rooms && <span>🛏️ {p.sector_data.rooms} &nbsp;</span>}
                           {p.sector_data?.square_meters && <span>📏 {p.sector_data.square_meters} m²</span>}
                         </div>
-                        <p className="text-lg font-black text-amber-400">{priceStr}</p>
+                        <p className="text-lg font-black text-slate-900 dark:text-amber-400">{priceStr}</p>
                       </div>
                     </div>
                   </div>

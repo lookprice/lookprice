@@ -546,7 +546,8 @@ async function ensureEnrakipsizTables() {
     await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS custom_css TEXT DEFAULT ''").catch(() => {});
   }
 
-  // Ensure SEO & Analytic columns exist in enrakipsiz_settings
+  // Ensure SEO, Logo & Analytic columns exist in enrakipsiz_settings
+  await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS portal_logo_url TEXT").catch(() => {});
   await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS seo_title TEXT").catch(() => {});
   await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS seo_description TEXT").catch(() => {});
   await pool.query("ALTER TABLE enrakipsiz_settings ADD COLUMN IF NOT EXISTS seo_keywords TEXT").catch(() => {});
@@ -712,6 +713,7 @@ router.post("/enrakipsiz/settings", async (req: any, res) => {
     primary_color, 
     footer_text, 
     portal_domain,
+    portal_logo_url,
     theme_style,
     font_family,
     layout_sections,
@@ -734,17 +736,18 @@ router.post("/enrakipsiz/settings", async (req: any, res) => {
           primary_color = $4, 
           footer_text = $5, 
           portal_domain = $6,
-          theme_style = $7,
-          font_family = $8,
-          layout_sections = $9,
-          custom_css = $10,
-          seo_title = $11,
-          seo_description = $12,
-          seo_keywords = $13,
-          favicon_url = $14,
-          google_analytics_id = $15,
-          google_tag_manager_id = $16,
-          google_search_console_id = $17
+          portal_logo_url = $7,
+          theme_style = $8,
+          font_family = $9,
+          layout_sections = $10,
+          custom_css = $11,
+          seo_title = $12,
+          seo_description = $13,
+          seo_keywords = $14,
+          favicon_url = $15,
+          google_analytics_id = $16,
+          google_tag_manager_id = $17,
+          google_search_console_id = $18
       WHERE id = 1
     `, [
       portal_title, 
@@ -753,6 +756,7 @@ router.post("/enrakipsiz/settings", async (req: any, res) => {
       primary_color, 
       footer_text, 
       portal_domain,
+      portal_logo_url || null,
       theme_style || 'dark_gold',
       font_family || 'Inter',
       layout_sections || '["hero","announcement","sponsors","vehicles","properties"]',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Star, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -9,7 +9,23 @@ interface ImageGalleryProps {
 }
 
 export const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onChange, isEditable }) => {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (selectedIndex === null || images.length === 0) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") {
+        setSelectedIndex((prev) => (prev !== null ? (prev + 1) % images.length : 0));
+      } else if (e.key === "ArrowLeft") {
+        setSelectedIndex((prev) => (prev !== null ? (prev - 1 + images.length) % images.length : 0));
+      } else if (e.key === "Escape") {
+        setSelectedIndex(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedIndex, images.length]);
 
   const removeImage = (index: number) => {
     if (onChange) {
@@ -61,7 +77,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onChange, is
                 src={url}
                 alt={`Gallery ${index}`}
                 className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
-                onClick={() => setSelectedImage(url)}
+                onClick={() => setSelectedIndex(index)}
               />
 
               {/* Cover Badge */}
@@ -177,30 +193,101 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onChange, is
         })}
       </div>
 
-      {/* Lightbox */}
+      {/* Lightbox with Multi-Image Carousel / Navigation */}
       <AnimatePresence>
-        {selectedImage && (
+        {selectedIndex !== null && images.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-            onClick={() => setSelectedImage(null)}
+            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 md:p-8"
+            onClick={() => setSelectedIndex(null)}
           >
-            <button
-              className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full"
-              onClick={() => setSelectedImage(null)}
+            {/* Top Bar inside Lightbox */}
+            <div className="w-full flex justify-between items-center z-[210] pointer-events-none">
+              <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-xl text-white text-xs font-bold tracking-wider uppercase">
+                Görsel ({selectedIndex + 1} / {images.length})
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedIndex(null)}
+                className="pointer-events-auto p-3 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-xl transition-all active:scale-95 border border-white/10 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Central Viewport with Prev/Next buttons */}
+            <div
+              className="relative flex-1 w-full max-w-6xl mx-auto flex items-center justify-center px-4"
+              onClick={(e) => e.stopPropagation()}
             >
-              <X className="w-8 h-8" />
-            </button>
-            <img
-              src={selectedImage}
-              alt="Full size"
-              className="max-w-full max-h-full object-contain"
-            />
+              {images.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedIndex((prev) =>
+                      prev !== null ? (prev - 1 + images.length) % images.length : 0
+                    )
+                  }
+                  className="absolute left-2 md:left-4 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/85 hover:bg-slate-900 hover:scale-105 border border-white/10 text-white flex items-center justify-center shadow-2xl transition-all z-[220] cursor-pointer"
+                >
+                  <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
+                </button>
+              )}
+
+              <motion.img
+                key={selectedIndex}
+                src={images[selectedIndex]}
+                alt={`Lightbox ${selectedIndex}`}
+                className="max-w-full max-h-[70vh] md:max-h-[82vh] object-contain select-none shadow-2xl rounded-xl"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              />
+
+              {images.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedIndex((prev) =>
+                      prev !== null ? (prev + 1) % images.length : 0
+                    )
+                  }
+                  className="absolute right-2 md:right-4 w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-900/85 hover:bg-slate-900 hover:scale-105 border border-white/10 text-white flex items-center justify-center shadow-2xl transition-all z-[220] cursor-pointer"
+                >
+                  <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
+                </button>
+              )}
+            </div>
+
+            {/* Bottom Thumbnail Scroller */}
+            {images.length > 1 && (
+              <div
+                className="w-full max-w-4xl mx-auto flex gap-3.5 justify-center py-4 overflow-x-auto no-scrollbar z-[210]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedIndex(idx)}
+                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                      selectedIndex === idx
+                        ? "border-amber-400 scale-110 shadow-lg"
+                        : "border-slate-800 hover:border-slate-600 opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <img src={img} alt={`Thumb ${idx}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 };
+
