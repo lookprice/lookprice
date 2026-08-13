@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { MapPin, CheckCircle2, ExternalLink } from "lucide-react";
 import { ListingCardImage } from "./ListingCardImage";
-import { formatLocation, getSquareMeters } from "../../utils/marketplace";
+import { formatLocation, getSquareMeters, getVehicleMileage, getVehicleYear } from "../../utils/marketplace";
 
 export const MarketplaceListingGrid = ({ 
   listings, 
@@ -127,17 +127,19 @@ export const MarketplaceListingGrid = ({
           <table className="w-full text-left text-xs border-collapse min-w-[900px]">
             <thead>
               <tr className={`${isDarkMode ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"} border-b font-black uppercase text-[11px] tracking-wider`}>
+                <th className={`p-3 text-right font-black uppercase text-[11px] tracking-wider text-rose-600 dark:text-rose-400 border-r sticky left-0 z-20 shadow-md ${isDarkMode ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-200"} min-w-[130px]`}>
+                  Fiyat
+                </th>
                 <th className={`p-3 w-36 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Fotoğraf</th>
                 {mainTab === "vehicle" ? (
                   <>
                     <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Marka</th>
-                    <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Seri</th>
+                    <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Yakıt</th>
                     <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Model</th>
                     <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"} min-w-[220px]`}>İlan Başlığı</th>
                     <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Yıl</th>
                     <th className={`p-3 text-right border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>KM</th>
-                    <th className={`p-3 text-right border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Fiyat</th>
-                    <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İlan Tarihi</th>
+                    <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Vites Tipi</th>
                     <th className={`p-3 ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İl / İlçe</th>
                   </>
                 ) : (
@@ -155,7 +157,6 @@ export const MarketplaceListingGrid = ({
                     ) : (
                       <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Isınma / Kat</th>
                     )}
-                    <th className={`p-3 text-right border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Fiyat</th>
                     <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İlan Tarihi</th>
                     <th className={`p-3 ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İl / İlçe</th>
                   </>
@@ -164,6 +165,8 @@ export const MarketplaceListingGrid = ({
             </thead>
             <tbody className={`divide-y ${isDarkMode ? "divide-slate-800/60" : "divide-slate-200"}`}>
               {listings.slice(0, visibleCount).map((listing: any) => {
+                const price = Math.round(Number(listing.price) || 0).toLocaleString('tr-TR');
+                const currency = listing.currency || 'TL';
                 const dateStr = listing.created_at 
                   ? new Date(listing.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
                   : '12 Ağustos 2026';
@@ -171,18 +174,42 @@ export const MarketplaceListingGrid = ({
 
                 if (mainTab === "vehicle" || listing.listing_type === "vehicle") {
                   const brand = listing.brand || listing.sector_data?.brand || "-";
-                  const seri = listing.sector_data?.series || listing.sector_data?.seri || (listing.title ? listing.title.split(' ')[1] : "-");
-                  const model = listing.sector_data?.model || listing.category || "-";
-                  const year = listing.year || listing.sector_data?.year || listing.sector_data?.model_year || "-";
-                  const km = listing.mileage 
-                    ? Math.round(Number(listing.mileage)).toLocaleString('tr-TR') 
-                    : (listing.sector_data?.km ? Number(listing.sector_data.km).toLocaleString('tr-TR') : "-");
+                  
+                  const rawFuel = listing.fuel_type || listing.sector_data?.fuel_type || listing.sector_data?.fuel || listing.fuel;
+                  let fuelType = "-";
+                  if (rawFuel) {
+                    const f = String(rawFuel).toLowerCase();
+                    if (f === 'gasoline' || f === 'petrol' || f === 'benzin') fuelType = 'Benzin';
+                    else if (f === 'diesel' || f === 'dizel') fuelType = 'Dizel';
+                    else if (f === 'hybrid' || f === 'hibrit') fuelType = 'Hibrit';
+                    else if (f === 'electric' || f === 'elektrik' || f === 'elektrikli') fuelType = 'Elektrik';
+                    else if (f === 'lpg') fuelType = 'LPG';
+                    else fuelType = String(rawFuel);
+                  }
+
+                  const rawTrans = listing.transmission || listing.sector_data?.transmission || listing.sector_data?.vites || listing.vites;
+                  let transType = "-";
+                  if (rawTrans) {
+                    const t = String(rawTrans).toLowerCase();
+                    if (t === 'automatic' || t === 'otomatik' || t === 'oto') transType = 'Otomatik';
+                    else if (t === 'manual' || t === 'manuel') transType = 'Manuel';
+                    else if (t === 'semi_automatic' || t === 'yarı otomatik' || t === 'yari_otomatik' || t === 'yari otomatik') transType = 'Yarı Otomatik';
+                    else if (t === 'dual_clutch' || t === 'çift kavrama' || t === 'cift_kavrama') transType = 'Çift Kavrama';
+                    else transType = String(rawTrans);
+                  }
+
+                  const model = listing.model || listing.sector_data?.model || listing.category || "-";
+                  const year = getVehicleYear(listing);
+                  const km = getVehicleMileage(listing);
 
                   return (
                     <tr 
                       key={listing.id} 
                       className={`transition-colors border-b ${isDarkMode ? "hover:bg-blue-950/30 border-slate-800/50" : "hover:bg-slate-50 border-slate-200"} group`}
                     >
+                      <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60 bg-slate-950 group-hover:bg-blue-950/40" : "border-slate-200 bg-white group-hover:bg-slate-50"} sticky left-0 z-10 shadow-md align-middle whitespace-nowrap`}>
+                        {price} {currency}
+                      </td>
                       <td className={`p-2 border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle`}>
                         <ListingCardImage 
                           listing={listing} 
@@ -192,25 +219,38 @@ export const MarketplaceListingGrid = ({
                           disableCarousel={true}
                         />
                       </td>
-                      <td className="p-3 border-r text-center">{brand}</td>
-                      <td className="p-3 border-r text-center">{seri}</td>
+                      <td className="p-3 border-r text-center font-bold">{brand}</td>
+                      <td className="p-3 border-r text-center font-semibold text-amber-600 dark:text-amber-400">{fuelType}</td>
                       <td className="p-3 border-r text-center">{model}</td>
-                      <td className="p-3 border-r text-xs font-bold text-white">{listing.title}</td>
-                      <td className="p-3 border-r text-center">{year}</td>
-                      <td className="p-3 border-r text-right">{km}</td>
-                      <td className="p-3 border-r text-right font-black">{Math.round(Number(listing.price) || 0).toLocaleString('tr-TR')}</td>
-                      <td className="p-3 border-r text-center">{dateStr}</td>
+                      <td className="p-3 border-r text-xs font-bold">{listing.title}</td>
+                      <td className="p-3 border-r text-center font-bold">{year}</td>
+                      <td className="p-3 border-r text-right font-semibold">{km}</td>
+                      <td className="p-3 border-r text-center font-bold text-blue-600 dark:text-blue-400">{transType}</td>
                       <td className="p-3 text-center">{loc}</td>
                     </tr>
                   );
                 } else {
                   // Real Estate Row
                   const catType = listing.sector_data?.type || listing.category || "-";
-                  const rooms = listing.sector_data?.rooms || listing.sector_data?.oda || "-";
+                  const rooms = listing.sector_data?.rooms || listing.sector_data?.oda || listing.room_count || "-";
                   const area = getSquareMeters(listing) || "-";
-                  const extraInfo = rePropertyType === "land" ? (listing.sector_data?.zoning || "-") : (listing.sector_data?.heating || listing.sector_data?.floor || "-");
+
+                  const isRent = listing.listing_intent === 'rent' || listing.intent === 'rent' || listing.sector_data?.listing_intent === 'rent' || listing.sector_data?.intent === 'rent' || listing.fihrist_type === 'kiralik';
+
+                  const rawKocan = listing.kocan_type || listing.kktc_title_type || listing.deed_type || listing.sector_data?.kocan_type || listing.sector_data?.kktc_title_type || listing.sector_data?.deed_type || listing.sector_data?.kocan || listing.sector_data?.title_deed;
+                  const kocanTipi = isRent ? "-" : (rawKocan || "-");
+
+                  const rawImar = listing.zoning_status || listing.imar_durumu || listing.zoning || listing.sector_data?.zoning_status || listing.sector_data?.imar_durumu || listing.sector_data?.zoning || listing.sector_data?.zoning_type;
+                  const imarDurumu = rawImar || "-";
+
+                  const col4Val = rePropertyType === "land" ? kocanTipi : rooms;
+                  const col7Val = rePropertyType === "land" ? imarDurumu : (listing.sector_data?.heating || listing.sector_data?.floor || "-");
+
                   return (
                     <tr key={listing.id} className={`transition-colors border-b ${isDarkMode ? "hover:bg-blue-950/30 border-slate-800/50" : "hover:bg-slate-50 border-slate-200"} group`}>
+                      <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60 bg-slate-950 group-hover:bg-blue-950/40" : "border-slate-200 bg-white group-hover:bg-slate-50"} sticky left-0 z-10 shadow-md align-middle whitespace-nowrap`}>
+                        {price} {currency}
+                      </td>
                       <td className={`p-2 border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle`}>
                         <ListingCardImage 
                           listing={listing} 
@@ -221,11 +261,10 @@ export const MarketplaceListingGrid = ({
                         />
                       </td>
                       <td className="p-3 border-r text-center">{catType}</td>
-                      <td className="p-3 border-r text-center">{rooms}</td>
+                      <td className="p-3 border-r text-center font-bold">{col4Val}</td>
                       <td className="p-3 border-r text-right">{area} {area !== "-" && "m²"}</td>
-                      <td className="p-3 border-r text-xs font-bold text-white">{listing.title}</td>
-                      <td className="p-3 border-r text-center">{extraInfo}</td>
-                      <td className="p-3 border-r text-right font-black">{Math.round(Number(listing.price) || 0).toLocaleString('tr-TR')}</td>
+                      <td className="p-3 border-r text-xs font-bold">{listing.title}</td>
+                      <td className="p-3 border-r text-center">{col7Val}</td>
                       <td className="p-3 border-r text-center">{dateStr}</td>
                       <td className="p-3 text-center">{loc}</td>
                     </tr>

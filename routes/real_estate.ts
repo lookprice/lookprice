@@ -379,6 +379,7 @@ router.get('/properties', authenticate, async (req: any, res) => {
 
       return {
         ...row,
+        ...secData,
         sector_data: secData,
         responsible_agent: row.consultant_name || row.responsible_agent || 'Belirtilmedi',
         branch_name: row.branch_name_official || row.branch_name || 'Merkez Ofis',
@@ -449,10 +450,17 @@ router.post('/properties', authenticate, async (req: any, res) => {
       ]
     );
     const newProperty = result.rows[0];
-    if (newProperty.sector_data && typeof newProperty.sector_data === 'string') {
-      try { newProperty.sector_data = JSON.parse(newProperty.sector_data); } catch(e) {}
+    let secData = newProperty.sector_data;
+    if (typeof secData === 'string') {
+      try { secData = JSON.parse(secData); } catch(e) { secData = {}; }
     }
-    res.json(newProperty);
+    if (!secData || typeof secData !== 'object') secData = {};
+    newProperty.sector_data = secData;
+    res.json({
+      ...newProperty,
+      ...secData,
+      sector_data: secData
+    });
 
     // Background Instagram Posting
     if (newProperty.images?.length > 0) {
@@ -594,10 +602,17 @@ router.put('/properties/:id', authenticate, async (req: any, res) => {
       return res.status(404).json({ error: 'Property not found' });
     }
     const updatedProperty = result.rows[0];
-    if (updatedProperty.sector_data && typeof updatedProperty.sector_data === 'string') {
-      try { updatedProperty.sector_data = JSON.parse(updatedProperty.sector_data); } catch(e) {}
+    let secData = updatedProperty.sector_data;
+    if (typeof secData === 'string') {
+      try { secData = JSON.parse(secData); } catch(e) { secData = {}; }
     }
-    res.json(updatedProperty);
+    if (!secData || typeof secData !== 'object') secData = {};
+    updatedProperty.sector_data = secData;
+    res.json({
+      ...updatedProperty,
+      ...secData,
+      sector_data: secData
+    });
 
     // Background Instagram Posting on Update
     if (updatedProperty.images?.length > 0) {

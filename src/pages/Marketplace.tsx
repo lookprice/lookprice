@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { MarketplaceListingGrid } from "../components/marketplace/MarketplaceListingGrid";
 import { FilterDrawer } from "../components/FilterDrawer";
 import { TagFilter } from "../components/marketplace/TagFilter";
-import { aggregateTags } from "../utils/marketplace";
+import { aggregateTags, getListingIntent, isRentalListing } from "../utils/marketplace";
 import { useMarketplaceLogic } from "../hooks/useMarketplaceLogic";
 import { 
   MoveRight, 
@@ -53,6 +53,7 @@ import {
   Calendar,
   Sliders,
   ChevronDown,
+  ChevronUp,
   Key,
   Shield,
   RotateCcw
@@ -285,60 +286,6 @@ function formatLocation(listing: any) {
   return city;
 }
 
-// Helper to normalize and get listing intent (Satılık vs Kiralık)
-function getListingIntent(item: any): "satilik" | "kiralik" {
-  if (!item) return "satilik";
-
-  const sec = item.sector_data || {};
-  const rawIntent = (
-    sec.listing_intent ||
-    sec.intent ||
-    sec.listing_type_intent ||
-    item.listing_intent ||
-    item.intent ||
-    ""
-  ).toString().toLowerCase();
-
-  if (rawIntent.includes("kiralık") || rawIntent.includes("kiralik") || rawIntent.includes("rent")) {
-    return "kiralik";
-  }
-  if (rawIntent.includes("satılık") || rawIntent.includes("satilik") || rawIntent.includes("sale")) {
-    return "satilik";
-  }
-
-  const category = (item.category || "").toLowerCase();
-  const title = (item.title || "").toLowerCase();
-  const desc = (item.description || "").toLowerCase();
-
-  if (
-    category.includes("kiralık") ||
-    category.includes("kiralik") ||
-    title.includes("kiralık") ||
-    title.includes("kiralik") ||
-    title.includes("aylık") ||
-    title.includes("depozito") ||
-    desc.includes("kiralık") ||
-    desc.includes("kiralik")
-  ) {
-    return "kiralik";
-  }
-
-  if (
-    category.includes("satılık") ||
-    category.includes("satilik") ||
-    title.includes("satılık") ||
-    title.includes("satilik")
-  ) {
-    return "satilik";
-  }
-
-  if (sec.rental_period || sec.period || item.rental_period || item.period) {
-    return "kiralik";
-  }
-
-  return "satilik";
-}
-
 // Helper component for browsing images on listing cards without opening detail modal
 function ListingCardImage({ 
   listing, 
@@ -492,6 +439,9 @@ export const Marketplace = () => {
   const navigate = useNavigate();
   const [reRooms, setReRooms] = useState<string>("all");
   const [reFurnished, setReFurnished] = useState<string>("all");
+  const [reSubRegion, setReSubRegion] = useState<string>("all");
+  const [priceRange, setPriceRange] = useState<string>("all");
+  const [reKocanType, setReKocanType] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">("newest");
 
   // Pagination state: limit initially to 12
@@ -500,13 +450,19 @@ export const Marketplace = () => {
   // Reset pagination on filter change
   useEffect(() => {
     setVisibleCount(12);
-  }, [mainTab, reFihristTab, vehFihristTab, searchQuery, viewMode, activeSubSector, activeVehicleBrand, activeVehicleFuel, activeVehicleTransmission, minPrice, maxPrice, minYear, maxYear, reRegion, reType, reRooms, reFurnished, sortBy, rePropertyType, activeTags]);
+  }, [mainTab, reFihristTab, vehFihristTab, searchQuery, viewMode, activeSubSector, activeVehicleBrand, activeVehicleFuel, activeVehicleTransmission, minPrice, maxPrice, minYear, maxYear, reRegion, reSubRegion, reType, reRooms, reFurnished, priceRange, reKocanType, sortBy, rePropertyType, activeTags]);
 
   // Modal / Detail / Video Story States
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
   const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [selectedStory, setSelectedStory] = useState<any | null>(null);
+  const [showFeaturedStores, setShowFeaturedStores] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 768;
+    }
+    return false;
+  });
 
   // Close story modal on Escape key
   useEffect(() => {
@@ -740,7 +696,9 @@ export const Marketplace = () => {
             const m = title.includes("kredi") || desc.includes("kredi") || secData.deed_type === "Türk Koçanlı" || category.includes("kredi");
             if (!m) return false;
           } else if (tag === "koçan") {
-            const m = secData.deed_type || title.includes("koçan") || title.includes("tapu") || desc.includes("koçan");
+            const isRent = item.listing_intent === "rent" || item.intent === "rent" || secData.listing_intent === "rent" || secData.intent === "rent" || item.fihrist_type === "kiralik" || reFihristTab === "kiralik";
+            if (isRent) return false;
+            const m = item.kocan_type || item.kktc_title_type || secData.kocan_type || secData.kktc_title_type || secData.deed_type || title.includes("koçan") || title.includes("tapu") || desc.includes("koçan");
             if (!m) return false;
           } else if (tag === "otopark") {
             const m = title.includes("otopark") || desc.includes("otopark") || secData.parking;
@@ -779,22 +737,60 @@ export const Marketplace = () => {
     if (maxPrice && Number(item.price) > Number(maxPrice)) return false;
 
     if (mainTab === "real_estate") {
+      const secData = item.sector_data || {};
+      const titleLower = (item.title || "").toLowerCase();
+      const descLower = (item.description || "").toLowerCase();
+
       if (reRegion !== "all") {
-        const reg = (item.sector_data?.kktc_region || item.sector_data?.city || item.location || "").toLowerCase();
+        const reg = (secData.kktc_region || secData.city || item.location || item.brand || "").toLowerCase();
         if (!reg.includes(reRegion.toLowerCase())) return false;
       }
+
+      if (reSubRegion !== "all") {
+        const subReg = (secData.kktc_sub_region || secData.district || secData.neighborhood || item.location || "").toLowerCase();
+        const target = reSubRegion.toLowerCase();
+        if (!subReg.includes(target) && !titleLower.includes(target) && !descLower.includes(target)) return false;
+      }
+
       if (reType !== "all") {
         const t = (item.category || "").toLowerCase();
         if (!t.includes(reType.toLowerCase())) return false;
       }
+
       if (reRooms !== "all") {
-        const r = String(item.sector_data?.rooms || "");
-        if (reRooms === "5+" && !r.includes("5") && !r.includes("6")) return false;
-        if (reRooms !== "5+" && !r.includes(reRooms)) return false;
+        const r = String(secData.rooms || secData.room_count || item.rooms || item.room_count || "");
+        if (reRooms === "5+") {
+          if (!r.includes("5") && !r.includes("6") && !r.includes("7") && !titleLower.includes("5+1") && !titleLower.includes("6+1")) return false;
+        } else if (reRooms === "Penthouse") {
+          if (!titleLower.includes("penthouse") && !String(secData.subtype || "").toLowerCase().includes("penthouse")) return false;
+        } else if (reRooms === "1+0") {
+          if (!r.includes("1+0") && !r.includes("stüdyo") && !titleLower.includes("1+0") && !titleLower.includes("stüdyo") && !titleLower.includes("studio")) return false;
+        } else {
+          if (!r.includes(reRooms) && !titleLower.includes(reRooms)) return false;
+        }
       }
+
+      if (priceRange !== "all") {
+        const p = Number(item.price) || 0;
+        if (priceRange === "0-150000" && p > 150000) return false;
+        if (priceRange === "150000-300000" && (p < 150000 || p > 300000)) return false;
+        if (priceRange === "300000-500000" && (p < 300000 || p > 500000)) return false;
+        if (priceRange === "500000+" && p < 500000) return false;
+      }
+
       if (reFurnished !== "all") {
-        const f = item.sector_data?.furnished ? "yes" : "no";
-        if (f !== reFurnished) return false;
+        const isFurnished = secData.furnished || titleLower.includes("eşyalı") || descLower.includes("eşyalı");
+        if (reFurnished === "yes" && !isFurnished) return false;
+        if (reFurnished === "no" && isFurnished) return false;
+      }
+
+      if (reKocanType !== "all" && reFihristTab !== "kiralik") {
+        const isRent = item.listing_intent === "rent" || item.intent === "rent" || secData.listing_intent === "rent" || secData.intent === "rent" || item.fihrist_type === "kiralik";
+        if (!isRent) {
+          const deed = (item.kocan_type || item.kktc_title_type || item.deed_type || secData.kocan_type || secData.kktc_title_type || secData.deed_type || secData.kocan || "").toLowerCase();
+          const target = reKocanType.toLowerCase();
+          if (!deed.includes(target) && !titleLower.includes(target) && !descLower.includes(target)) return false;
+        }
       }
     }
 
@@ -982,119 +978,303 @@ export const Marketplace = () => {
           {/* SUB-FIHRIST FOLDER TABS BAR FOR EMLAK */}
           {mainTab === "real_estate" && (
             <div className="space-y-4 pb-4 border-b border-slate-800">
-
-              {/* ACTIVE SELECTION BREADCRUMBS & RESET BAR */}
-              {(reFihristTab !== "all" || rePropertyType !== "all" || reSubPropertyType !== "all" || reRegion !== "all" || activeTags.length > 0) && (
-                <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-950/90 rounded-2xl border border-blue-500/30">
-                  <span className="text-[11px] font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
-                    <Filter className="w-3.5 h-3.5 text-blue-400" /> Aktif Seçimler:
-                  </span>
-                  
-                  {/* Selected Satılık / Kiralık Tag */}
-                  {reFihristTab !== "all" && (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600 text-white rounded-xl text-xs font-black border border-blue-400 shadow-md">
-                      <span>{reFihristTab === "satilik" ? "SATILIK EMLAK" : "KİRALIK EMLAK"}</span>
-                      <button 
-                        onClick={() => setReFihristTab("all")} 
-                        className="ml-1 p-0.5 hover:bg-blue-700 rounded-md transition-colors text-amber-300 font-bold flex items-center gap-1 cursor-pointer"
-                        title="Seçimi Kaldır ve Değiştir"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span className="text-[10px]">Geri</span>
-                      </button>
+              {/* EMLAK PORTFÖY FİLTRE BAR (RESTATED MODEL) */}
+              <div className="bg-slate-950/80 p-4 md:p-5 rounded-2xl border border-blue-500/20 shadow-xl space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-blue-600/20 rounded-xl border border-blue-500/30 text-blue-400">
+                      <Filter className="w-4 h-4" />
                     </div>
-                  )}
-
-                  {/* Selected Mülk Tipi Tag */}
-                  {rePropertyType !== "all" && (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500 text-slate-950 rounded-xl text-xs font-black border border-amber-300 shadow-md">
-                      <span>
-                        {rePropertyType === "residence" && "Konut / Residence"}
-                        {rePropertyType === "commercial" && "Ticari / Commercial"}
-                        {rePropertyType === "land" && "Arsa / Land"}
-                      </span>
-                      <button 
-                        onClick={() => { setRePropertyType("all"); setReSubPropertyType("all"); }} 
-                        className="ml-1 p-0.5 hover:bg-amber-600 rounded-md transition-colors text-slate-950 font-bold flex items-center gap-1 cursor-pointer"
-                        title="Seçimi Kaldır ve Değiştir"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span className="text-[10px]">Geri</span>
-                      </button>
+                    <div>
+                      <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        Emlak Portföy Filtreleme
+                        <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-[10px] font-black">
+                          {filteredListings.length}
+                        </span>
+                      </h3>
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        Toplam {stats.properties} ilan arasından kriterlerinize uyan {filteredListings.length} mülk listelendi.
+                      </p>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Selected Sub Property Type Tag */}
-                  {reSubPropertyType !== "all" && (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500 text-slate-950 rounded-xl text-xs font-black border border-emerald-300 shadow-md">
-                      <span>{reSubPropertyType}</span>
-                      <button 
-                        onClick={() => setReSubPropertyType("all")} 
-                        className="ml-1 p-0.5 hover:bg-emerald-600 rounded-md transition-colors text-slate-950 font-bold flex items-center gap-1 cursor-pointer"
-                        title="Seçimi Kaldır"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span className="text-[10px]">Geri</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Selected Şehir Tag */}
-                  {reRegion !== "all" && (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-600 text-white rounded-xl text-xs font-black border border-rose-400 shadow-md">
-                      <span>📍 {reRegion.toUpperCase()}</span>
-                      <button 
-                        onClick={() => setReRegion("all")} 
-                        className="ml-1 p-0.5 hover:bg-rose-700 rounded-md transition-colors text-white font-bold flex items-center gap-1 cursor-pointer"
-                        title="Seçimi Kaldır ve Değiştir"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span className="text-[10px]">Geri</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Active Tags */}
-                  {activeTags.map(tag => (
-                    <div key={tag} className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-800 text-amber-300 rounded-xl text-xs font-bold border border-slate-700">
-                      <span>#{tag}</span>
-                      <button 
-                        onClick={() => setActiveTags(prev => prev.filter(t => t !== tag))} 
-                        className="ml-1 hover:text-white cursor-pointer"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Reset All Filters Button */}
                   <button
-                    onClick={() => {
-                      setReFihristTab("all");
-                      setRePropertyType("all");
-                      setReSubPropertyType("all");
-                      setReRegion("all");
-                      setActiveTags([]);
-                      setSearchQuery("");
-                    }}
-                    className="ml-auto text-[11px] font-black text-rose-400 hover:text-rose-300 flex items-center gap-1 bg-rose-500/10 px-3 py-1 rounded-xl border border-rose-500/20 transition-all cursor-pointer"
+                    onClick={() => setIsFilterDrawerOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
                   >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Filtreleri Temizle</span>
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Gelişmiş Filtreler</span>
                   </button>
                 </div>
-              )}
 
-              {/* Filter Drawer Trigger */}
-              <div className="flex justify-end pt-2 pb-4">
-                <button
-                  onClick={() => setIsFilterDrawerOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold border border-slate-700 shadow-sm transition-all"
-                >
-                  <Filter className="w-3.5 h-3.5" />
-                  DETAYLI FİLTRELEME
-                </button>
+                {/* PRIMARY EMLAK SELECT CONTROLS GRID */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                  {/* 1. İLAN NİYETİ (SATILIK / KİRALIK / TÜMÜ) */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Tag className="w-3 h-3 text-blue-400" /> Durum
+                    </label>
+                    <div className="flex p-0.5 bg-slate-900 rounded-xl border border-slate-800">
+                      <button
+                        onClick={() => setReFihristTab("all")}
+                        className={`flex-1 py-1.5 text-[11px] font-black rounded-lg transition-all cursor-pointer ${
+                          reFihristTab === "all" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        Tümü
+                      </button>
+                      <button
+                        onClick={() => setReFihristTab("satilik")}
+                        className={`flex-1 py-1.5 text-[11px] font-black rounded-lg transition-all cursor-pointer ${
+                          reFihristTab === "satilik" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        Satılık
+                      </button>
+                      <button
+                        onClick={() => setReFihristTab("kiralik")}
+                        className={`flex-1 py-1.5 text-[11px] font-black rounded-lg transition-all cursor-pointer ${
+                          reFihristTab === "kiralik" ? "bg-purple-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        Kiralık
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. MÜLK TİPİ */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Building2 className="w-3 h-3 text-amber-400" /> Mülk Tipi
+                    </label>
+                    <select
+                      value={rePropertyType}
+                      onChange={(e) => {
+                        setRePropertyType(e.target.value);
+                        setReSubPropertyType("all");
+                      }}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-blue-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Tipler</option>
+                      <option value="residence">🏢 Konut / Residence</option>
+                      <option value="commercial">🏪 Ticari</option>
+                      <option value="land">🏞️ Arsa</option>
+                    </select>
+                  </div>
+
+                  {/* 3. ALT MÜLK TİPİ */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Layers className="w-3 h-3 text-emerald-400" /> Alt Tip
+                    </label>
+                    <select
+                      value={reSubPropertyType}
+                      onChange={(e) => setReSubPropertyType(e.target.value)}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-blue-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Alt Tipler</option>
+                      {(rePropertyType !== "all" && EMLAK_TIPI_SUB_TIPLERI[rePropertyType]
+                        ? EMLAK_TIPI_SUB_TIPLERI[rePropertyType]
+                        : Object.values(EMLAK_TIPI_SUB_TIPLERI).flat()
+                      ).map((sub) => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 4. ŞEHİR */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-rose-500" /> Şehir
+                    </label>
+                    <select
+                      value={reRegion}
+                      onChange={(e) => {
+                        setReRegion(e.target.value);
+                        setReSubRegion("all");
+                      }}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-blue-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Şehirler</option>
+                      <option value="girne">Girne</option>
+                      <option value="lefkoşa">Lefkoşa</option>
+                      <option value="gazimağusa">Gazimağusa</option>
+                      <option value="iskele">İskele</option>
+                      <option value="lefke">Lefke</option>
+                      <option value="güzelyurt">Güzelyurt</option>
+                    </select>
+                  </div>
+
+                  {/* 5. ODA SAYISI */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Home className="w-3 h-3 text-cyan-400" /> Oda Sayısı
+                    </label>
+                    <select
+                      value={reRooms}
+                      onChange={(e) => setReRooms(e.target.value)}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-blue-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Odalar</option>
+                      <option value="1+0">1+0 (Stüdyo)</option>
+                      <option value="1+1">1+1</option>
+                      <option value="2+1">2+1</option>
+                      <option value="3+1">3+1</option>
+                      <option value="4+1">4+1</option>
+                      <option value="5+">5+1 ve üzeri</option>
+                      <option value="Penthouse">Penthouse</option>
+                    </select>
+                  </div>
+
+                  {/* 6. FİYAT ARALIĞI */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-emerald-400" /> Fiyat
+                    </label>
+                    <select
+                      value={priceRange}
+                      onChange={(e) => setPriceRange(e.target.value)}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-blue-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Fiyatlar</option>
+                      <option value="0-150000">£150.000 Altı</option>
+                      <option value="150000-300000">£150k - £300k</option>
+                      <option value="300000-500000">£300k - £500k</option>
+                      <option value="500000+">£500.000 Üstü Lüks</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* SEMT VE MAHALLELERİ ROW (Only if city selected) */}
+                {reRegion !== "all" && REAL_ESTATE_REGIONS[reRegion] && (
+                  <div className="pt-2 space-y-2 border-t border-slate-800/80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                        📍 {reRegion.toUpperCase()} SEMT VE MAHALLELERİ:
+                      </span>
+                      {reSubRegion !== "all" && (
+                        <button
+                          onClick={() => setReSubRegion("all")}
+                          className="text-[10px] text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <X className="w-3 h-3" /> Mahalle Seçimini Sıfırla
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                      <button
+                        onClick={() => setReSubRegion("all")}
+                        className={`px-3 py-1 rounded-xl text-xs font-black shrink-0 transition-all cursor-pointer ${
+                          reSubRegion === "all"
+                            ? "bg-amber-500 text-slate-950 border border-amber-300 shadow-md"
+                            : "bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700"
+                        }`}
+                      >
+                        TÜM MAHALLELER
+                      </button>
+                      {REAL_ESTATE_REGIONS[reRegion].map((sub) => (
+                        <button
+                          key={sub}
+                          onClick={() => setReSubRegion(sub)}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                            reSubRegion === sub
+                              ? "bg-blue-600 text-white border border-blue-400 shadow-md font-black"
+                              : "bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 hover:text-white"
+                          }`}
+                        >
+                          {sub}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ACTIVE SELECTION TAGS & RESET BAR */}
+                {(reFihristTab !== "all" || rePropertyType !== "all" || reSubPropertyType !== "all" || reRegion !== "all" || reSubRegion !== "all" || reRooms !== "all" || priceRange !== "all" || reFurnished !== "all" || reKocanType !== "all" || activeTags.length > 0) && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
+                    <span className="text-[10px] font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
+                      <Filter className="w-3 h-3 text-blue-400" /> Aktif Filtreler:
+                    </span>
+                    
+                    {reFihristTab !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-600/30 text-blue-300 rounded-lg text-[11px] font-bold border border-blue-500/40">
+                        {reFihristTab === "satilik" ? "Satılık" : "Kiralık"}
+                        <button onClick={() => setReFihristTab("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {rePropertyType !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-lg text-[11px] font-bold border border-amber-500/30">
+                        {rePropertyType === "residence" ? "Konut" : rePropertyType === "commercial" ? "Ticari" : "Arsa"}
+                        <button onClick={() => { setRePropertyType("all"); setReSubPropertyType("all"); }} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {reSubPropertyType !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-lg text-[11px] font-bold border border-emerald-500/30">
+                        {reSubPropertyType}
+                        <button onClick={() => setReSubPropertyType("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {reRegion !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-500/20 text-rose-300 rounded-lg text-[11px] font-bold border border-rose-500/30">
+                        📍 {reRegion.toUpperCase()}
+                        <button onClick={() => { setReRegion("all"); setReSubRegion("all"); }} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {reSubRegion !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-lg text-[11px] font-bold border border-purple-500/30">
+                        {reSubRegion}
+                        <button onClick={() => setReSubRegion("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {reRooms !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-lg text-[11px] font-bold border border-cyan-500/30">
+                        {reRooms}
+                        <button onClick={() => setReRooms("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {priceRange !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-lg text-[11px] font-bold border border-emerald-500/30">
+                        {priceRange}
+                        <button onClick={() => setPriceRange("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {activeTags.map(tag => (
+                      <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-800 text-amber-300 rounded-lg text-[11px] font-bold border border-slate-700">
+                        #{tag}
+                        <button onClick={() => setActiveTags(prev => prev.filter(t => t !== tag))} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    ))}
+
+                    <button
+                      onClick={() => {
+                        setReFihristTab("all");
+                        setRePropertyType("all");
+                        setReSubPropertyType("all");
+                        setReRegion("all");
+                        setReSubRegion("all");
+                        setReRooms("all");
+                        setPriceRange("all");
+                        setReFurnished("all");
+                        setReKocanType("all");
+                        setActiveTags([]);
+                        setSearchQuery("");
+                      }}
+                      className="ml-auto text-[10px] font-black text-rose-400 hover:text-rose-300 flex items-center gap-1 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20 transition-all cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Filtreleri Temizle</span>
+                    </button>
+                  </div>
+                )}
               </div>
+
               <FilterDrawer 
                 isOpen={isFilterDrawerOpen} 
                 onClose={() => setIsFilterDrawerOpen(false)}
@@ -1107,9 +1287,24 @@ export const Marketplace = () => {
                 setReSubPropertyType={setReSubPropertyType}
                 reRegion={reRegion}
                 setReRegion={setReRegion}
+                reSubRegion={reSubRegion}
+                setReSubRegion={setReSubRegion}
+                reRooms={reRooms}
+                setReRooms={setReRooms}
+                priceRange={priceRange}
+                setPriceRange={setPriceRange}
+                minPrice={minPrice}
+                setMinPrice={setMinPrice}
+                maxPrice={maxPrice}
+                setMaxPrice={setMaxPrice}
+                reFurnished={reFurnished}
+                setReFurnished={setReFurnished}
+                reKocanType={reKocanType}
+                setReKocanType={setReKocanType}
                 activeTags={activeTags}
                 setActiveTags={setActiveTags}
                 EMLAK_TIPI_SUB_TIPLERI={EMLAK_TIPI_SUB_TIPLERI}
+                REAL_ESTATE_REGIONS={REAL_ESTATE_REGIONS}
               />
             </div>
           )}
@@ -1262,17 +1457,19 @@ export const Marketplace = () => {
                   <table className="w-full text-left text-xs border-collapse min-w-[900px]">
                     <thead>
                       <tr className={`${isDarkMode ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"} border-b font-black uppercase text-[11px] tracking-wider`}>
+                        <th className={`p-3 text-right font-black uppercase text-[11px] tracking-wider text-rose-600 dark:text-rose-400 border-r sticky left-0 z-20 shadow-md ${isDarkMode ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-200"} min-w-[130px]`}>
+                          Fiyat
+                        </th>
                         <th className={`p-3 w-36 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Fotoğraf</th>
                         {mainTab === "vehicle" ? (
                           <>
                             <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Marka</th>
-                            <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Seri</th>
+                            <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Yakıt</th>
                             <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Model</th>
                             <th className={`p-3 border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"} min-w-[220px]`}>İlan Başlığı</th>
                             <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Yıl</th>
                             <th className={`p-3 text-right border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>KM</th>
-                            <th className={`p-3 text-right border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Fiyat</th>
-                            <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İlan Tarihi</th>
+                            <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Vites Tipi</th>
                             <th className={`p-3 ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İl / İlçe</th>
                           </>
                         ) : (
@@ -1290,7 +1487,6 @@ export const Marketplace = () => {
                             ) : (
                               <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Isınma / Kat</th>
                             )}
-                            <th className={`p-3 text-right border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>Fiyat</th>
                             <th className={`p-3 text-center border-r ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İlan Tarihi</th>
                             <th className={`p-3 ${isDarkMode ? "border-slate-800" : "border-slate-200"}`}>İl / İlçe</th>
                           </>
@@ -1308,7 +1504,30 @@ export const Marketplace = () => {
 
                         if (mainTab === "vehicle" || listing.listing_type === "vehicle") {
                           const brand = listing.brand || listing.sector_data?.brand || "-";
-                          const seri = listing.sector_data?.series || listing.sector_data?.seri || (listing.title ? listing.title.split(' ')[1] : "-");
+                          
+                          const rawFuel = listing.fuel_type || listing.sector_data?.fuel_type || listing.sector_data?.fuel || listing.fuel;
+                          let fuelType = "-";
+                          if (rawFuel) {
+                            const f = String(rawFuel).toLowerCase();
+                            if (f === 'gasoline' || f === 'petrol' || f === 'benzin') fuelType = 'Benzin';
+                            else if (f === 'diesel' || f === 'dizel') fuelType = 'Dizel';
+                            else if (f === 'hybrid' || f === 'hibrit') fuelType = 'Hibrit';
+                            else if (f === 'electric' || f === 'elektrik' || f === 'elektrikli') fuelType = 'Elektrik';
+                            else if (f === 'lpg') fuelType = 'LPG';
+                            else fuelType = String(rawFuel);
+                          }
+
+                          const rawTrans = listing.transmission || listing.sector_data?.transmission || listing.sector_data?.vites || listing.vites;
+                          let transType = "-";
+                          if (rawTrans) {
+                            const t = String(rawTrans).toLowerCase();
+                            if (t === 'automatic' || t === 'otomatik' || t === 'oto') transType = 'Otomatik';
+                            else if (t === 'manual' || t === 'manuel') transType = 'Manuel';
+                            else if (t === 'semi_automatic' || t === 'yarı otomatik' || t === 'yari_otomatik' || t === 'yari otomatik') transType = 'Yarı Otomatik';
+                            else if (t === 'dual_clutch' || t === 'çift kavrama' || t === 'cift_kavrama') transType = 'Çift Kavrama';
+                            else transType = String(rawTrans);
+                          }
+
                           const model = listing.sector_data?.model || listing.category || "-";
                           const year = listing.year || listing.sector_data?.year || listing.sector_data?.model_year || "-";
                           const km = listing.mileage 
@@ -1320,6 +1539,9 @@ export const Marketplace = () => {
                               key={listing.id} 
                               className={`transition-colors border-b ${isDarkMode ? "hover:bg-blue-950/30 border-slate-800/50" : "hover:bg-slate-50 border-slate-200"} group`}
                             >
+                              <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60 bg-slate-950 group-hover:bg-blue-950/40" : "border-slate-200 bg-white group-hover:bg-slate-50"} sticky left-0 z-10 shadow-md align-middle whitespace-nowrap`}>
+                                {price} {currency}
+                              </td>
                               <td className={`p-2 border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle`}>
                                 <ListingCardImage 
                                   listing={listing} 
@@ -1333,8 +1555,8 @@ export const Marketplace = () => {
                               <td className={`p-3 font-bold ${isDarkMode ? "text-slate-200" : "text-slate-800"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
                                 {brand}
                               </td>
-                              <td className={`p-3 font-semibold ${isDarkMode ? "text-blue-400" : "text-blue-600"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
-                                {seri}
+                              <td className={`p-3 font-semibold ${isDarkMode ? "text-amber-400" : "text-amber-600"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {fuelType}
                               </td>
                               <td className={`p-3 ${isDarkMode ? "text-slate-300" : "text-slate-700"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
                                 {model}
@@ -1358,11 +1580,8 @@ export const Marketplace = () => {
                               <td className={`p-3 text-right font-semibold ${isDarkMode ? "text-slate-300" : "text-slate-800"} border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
                                 {km}
                               </td>
-                              <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
-                                {price} {currency}
-                              </td>
-                              <td className={`p-3 text-center ${isDarkMode ? "text-slate-400" : "text-slate-600"} text-[11px] border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
-                                {dateStr}
+                              <td className={`p-3 text-center font-bold ${isDarkMode ? "text-blue-400" : "text-blue-600"} text-xs border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
+                                {transType}
                               </td>
                               <td className={`p-3 ${isDarkMode ? "text-slate-300" : "text-slate-600"} text-[11px] align-middle whitespace-nowrap`}>
                                 {loc}
@@ -1376,8 +1595,14 @@ export const Marketplace = () => {
                           const sqVal = getSquareMeters(listing);
                           const isLand = listing.sector_data?.type === 'land' || listing.sector_data?.property_type === 'land' || listing.type === 'land' || (listing.category || '').toLowerCase().includes('land') || (listing.category || '').toLowerCase().includes('arsa');
                           const m2 = sqVal ? (isLand ? `${sqVal}` : `${sqVal} m²`) : "-";
-                          const kocanTipi = listing.sector_data?.deed_type || listing.sector_data?.kocan || "-";
-                          const imarDurumu = listing.sector_data?.zoning_status || listing.sector_data?.zoning || "-";
+
+                          const isRent = listing.listing_intent === 'rent' || listing.intent === 'rent' || listing.sector_data?.listing_intent === 'rent' || listing.sector_data?.intent === 'rent' || listing.fihrist_type === 'kiralik' || reFihristTab === 'kiralik';
+
+                          const rawKocan = listing.kocan_type || listing.kktc_title_type || listing.deed_type || listing.sector_data?.kocan_type || listing.sector_data?.kktc_title_type || listing.sector_data?.deed_type || listing.sector_data?.kocan || listing.sector_data?.title_deed;
+                          const kocanTipi = isRent ? "-" : (rawKocan || "-");
+
+                          const rawImar = listing.zoning_status || listing.imar_durumu || listing.zoning || listing.sector_data?.zoning_status || listing.sector_data?.imar_durumu || listing.sector_data?.zoning || listing.sector_data?.zoning_type;
+                          const imarDurumu = rawImar || "-";
 
                           const heating = listing.sector_data?.heating || listing.sector_data?.building_age || listing.sector_data?.floor || "-";
 
@@ -1386,6 +1611,9 @@ export const Marketplace = () => {
                               key={listing.id} 
                               className={`transition-colors border-b ${isDarkMode ? "hover:bg-blue-950/30 border-slate-800/50" : "hover:bg-slate-50 border-slate-200"} group`}
                             >
+                              <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60 bg-slate-950 group-hover:bg-blue-950/40" : "border-slate-200 bg-white group-hover:bg-slate-50"} sticky left-0 z-10 shadow-md align-middle whitespace-nowrap`}>
+                                {price} {currency}
+                              </td>
                               <td className={`p-2 border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle`}>
                                 <ListingCardImage 
                                   listing={listing} 
@@ -1433,9 +1661,6 @@ export const Marketplace = () => {
                                   {heating}
                                 </td>
                               )}
-                              <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
-                                {price} {currency}
-                              </td>
                               <td className={`p-3 text-center ${isDarkMode ? "text-slate-400" : "text-slate-600"} text-[11px] border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle whitespace-nowrap`}>
                                 {dateStr}
                               </td>
@@ -1476,41 +1701,66 @@ export const Marketplace = () => {
 
         {/* ÖNE ÇIKAN SPONSOR MAĞAZALAR VİTRİNİ */}
         {featuredStores && featuredStores.length > 0 && (
-          <section className="mt-12 mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                Seçkin Mağaza Vitrin Ortaklarımız
-              </h2>
+          <section className="mt-12 mb-8 bg-slate-100/80 dark:bg-slate-900/60 p-4 md:p-5 rounded-3xl border border-amber-500/20 shadow-md">
+            <div 
+              onClick={() => setShowFeaturedStores(!showFeaturedStores)}
+              className="flex items-center justify-between cursor-pointer select-none group"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-amber-500/10 rounded-xl border border-amber-500/30 text-amber-500 dark:text-amber-400 group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <span>Seçkin Mağaza Vitrin Ortaklarımız</span>
+                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full text-[10px] font-black border border-amber-500/30">
+                      {featuredStores.length} Mağaza
+                    </span>
+                  </h2>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
+                    Doğrulanmış kurumsal emlak ve oto galeri partner mağazalarımız
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-black border border-amber-500/30 transition-all cursor-pointer shrink-0"
+              >
+                <span>{showFeaturedStores ? "Gizle" : "Göster"}</span>
+                {showFeaturedStores ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {featuredStores.map((store) => {
-                const isAuto = store.store_type === 'motor_vehicle' || store.sector === 'automotive' || store.sub_sector === 'vehicle' || store.store_type === 'vehicle';
-                const isGeneral = store.store_type === 'retail' || store.store_type === 'general';
-                const partnerSectorLabel = isAuto ? 'Oto Galeri' : isGeneral ? 'Perakende Mağaza' : 'Emlak Ofisi';
-                return (
-                  <Link
-                    key={store.id}
-                    to={`/s/${store.slug}`}
-                    className={`${cardBg} rounded-2xl p-4 hover:border-amber-500/50 transition-all group flex flex-col justify-between`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-black text-amber-400">{store.name}</span>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase">{partnerSectorLabel}</span>
+            {showFeaturedStores && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800/80">
+                {featuredStores.map((store) => {
+                  const isAuto = store.store_type === 'motor_vehicle' || store.sector === 'automotive' || store.sub_sector === 'vehicle' || store.store_type === 'vehicle';
+                  const isGeneral = store.store_type === 'retail' || store.store_type === 'general';
+                  const partnerSectorLabel = isAuto ? 'Oto Galeri' : isGeneral ? 'Perakende Mağaza' : 'Emlak Ofisi';
+                  return (
+                    <Link
+                      key={store.id}
+                      to={`/s/${store.slug}`}
+                      className={`${cardBg} rounded-2xl p-4 hover:border-amber-500/50 transition-all group flex flex-col justify-between`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-black text-amber-600 dark:text-amber-400">{store.name}</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">{partnerSectorLabel}</span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                          {store.enrakipsiz_featured_title || "Kurumsal üye mağazamızı ziyaret ederek özel ilanlarımızı inceleyin."}
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-400 line-clamp-2">
-                        {store.enrakipsiz_featured_title || "Kurumsal üye mağazamızı ziyaret ederek özel ilanlarımızı inceleyin."}
-                      </p>
-                    </div>
-                    <span className="mt-4 text-[11px] font-extrabold text-blue-400 group-hover:underline flex items-center gap-1">
-                      Mağazayı İncele &rarr;
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
+                      <span className="mt-4 text-[11px] font-extrabold text-blue-600 dark:text-blue-400 group-hover:underline flex items-center gap-1">
+                        Mağazayı İncele &rarr;
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
 
@@ -1597,45 +1847,45 @@ export const Marketplace = () => {
         )}
 
         {/* SEO COMPLIANT ~500+ WORD TEXT & FAQ SECTION */}
-        <section className={`my-16 p-8 rounded-3xl border ${cardBg}`}>
-          <div className="max-w-4xl mx-auto space-y-6 text-sm leading-relaxed text-slate-400">
-            <div className="border-b border-slate-800 pb-4">
-              <h2 className="text-xl font-black text-white mb-2">
-                Türkiye'nin Doğrulanmış Emlak ve Otomotiv Portföy Pazaryeri — Enrakipsiz.com
-              </h2>
-              <p>
-                <strong>Enrakipsiz.com</strong>, Türkiye ve KKTC genelindeki yetkili emlak danışmanları, inşaat firmaları ve kurumsal oto galeri mağazalarının güncel portföylerini tek bir dijital fihrist çatısı altında buluşturan yenilikçi bir ilan ve pazar yeridir. Sistemimiz üzerinde yer alan tüm satılık daire, kiralık konut, arsa, işyeri ve ikinci el vasıta ilanları, doğrudan yetkili üye mağazalarımız tarafından anlık olarak güncellenmektedir.
+        <section className={`my-16 p-6 md:p-8 rounded-3xl border ${cardBg}`}>
+          <div className="max-w-4xl mx-auto space-y-6 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
+              <p className="text-xs md:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                <strong className="text-slate-900 dark:text-white font-black">Enrakipsiz.com</strong>, Türkiye ve KKTC genelindeki yetkili emlak danışmanları, inşaat firmaları ve kurumsal oto galeri mağazalarının güncel portföylerini tek bir dijital fihrist çatısı altında buluşturan yenilikçi bir ilan ve pazar yeridir. Sistemimiz üzerinde yer alan tüm satılık daire, kiralık konut, arsa, işyeri ve ikinci el vasıta ilanları, doğrudan yetkili üye mağazalarımız tarafından anlık olarak güncellenmektedir.
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-base font-extrabold text-amber-400 mb-2">🏠 Emlak & Gayrimenkul Klasörü</h3>
-                <p className="text-xs leading-relaxed">
+                <h3 className="text-base font-extrabold text-amber-600 dark:text-amber-400 mb-2">🏠 Emlak & Gayrimenkul Klasörü</h3>
+                <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
                   Emlak fihristimiz altında satılık konutlar, eşyalı kiralık daireler, kampüslere yakın öğrenci stüdyoları, deniz manzaralı villalar, arsa ve ticari mülkler kategorize edilmiş olarak sunulmaktadır. Filtreleme seçeneklerimiz sayesinde oda sayısı, eşya durumu, bölge ve fiyat aralıklarına göre saniyeler içinde aradığınız mülke ulaşabilirsiniz.
                 </p>
               </div>
 
               <div>
-                <h3 className="text-base font-extrabold text-rose-400 mb-2">🚗 Vasıta & Oto Galeri Klasörü</h3>
-                <p className="text-xs leading-relaxed">
+                <h3 className="text-base font-extrabold text-rose-600 dark:text-rose-400 mb-2">🚗 Vasıta & Oto Galeri Klasörü</h3>
+                <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
                   Otomotiv fihristimizde son gelen ikinci el araçlar, acil satılık ve fiyatı düşen otomobiller, ilk araç alacaklara özel bütçe dostu seçenekler, az yakan dizel ve hibrit modeller ile SUV ve ticari araçlar yer alır. Tüm araçlar mağaza güvencesiyle sergilenir.
                 </p>
               </div>
             </div>
 
-            <div className="border-t border-slate-800 pt-6">
-              <h3 className="text-base font-extrabold text-white mb-3">Sıkça Sorulan Sorular (SSS)</h3>
-              <div className="space-y-4 text-xs">
-                <div>
-                  <h4 className="font-bold text-slate-200">1. Enrakipsiz portalındaki ilanlar güvenilir mi?</h4>
-                  <p className="mt-1">
+            <div className="border-t border-slate-200 dark:border-slate-800 pt-6">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <span>Sıkça Sorulan Sorular (SSS)</span>
+              </h3>
+              <div className="space-y-4 text-xs md:text-sm">
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">1. Enrakipsiz portalındaki ilanlar güvenilir mi?</h4>
+                  <p className="mt-1 text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
                     Evet. Portalımızda yalnızca onaylı ve yetkili kurumsal mağazaların portföyleri yayınlanır. Bireysel sahte ilanlara izin verilmez.
                   </p>
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-200">2. Mağaza açarak ilanlarımı nasıl yayınlayabilirim?</h4>
-                  <p className="mt-1">
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">2. Mağaza açarak ilanlarımı nasıl yayınlayabilirim?</h4>
+                  <p className="mt-1 text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
                     Emlak ofisiniz veya oto galeriniz için mağaza paneliniz üzerinden portföyünüzü eklediğinizde ilanlarınız otomatik olarak enrakipsiz.com portalında yayına alınır.
                   </p>
                 </div>
@@ -1644,14 +1894,17 @@ export const Marketplace = () => {
           </div>
         </section>
 
-        {/* Right side interaction trigger for filter drawer (Hover on desktop, FAB on mobile) */}
+        {/* Right side pull-tab trigger for filter drawer */}
         <div 
           className="fixed right-0 top-1/2 -translate-y-1/2 z-50 cursor-pointer group"
           onMouseEnter={() => setIsFilterDrawerOpen(true)}
           onClick={() => setIsFilterDrawerOpen(true)}
         >
-          <div className="w-8 h-32 bg-blue-600 rounded-l-2xl opacity-40 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-             <Filter className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-2 py-4 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-l-2xl shadow-2xl transition-all duration-300 border-l border-t border-b border-blue-400/50 group-hover:pl-4 group-hover:scale-105">
+            <Filter className="w-5 h-5 text-white shrink-0 animate-pulse" />
+            <span className="text-xs font-black uppercase tracking-widest [writing-mode:vertical-lr] rotate-180 hidden sm:inline">
+              DETAYLI FİLTRE
+            </span>
           </div>
         </div>
 
@@ -1897,10 +2150,18 @@ export const Marketplace = () => {
                           })()}
                         </span>
                       </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Koçan / Tapu</span>
-                        <span className="text-xs font-black text-amber-800">{sec.deed_type || 'Türk Koçanlı'}</span>
-                      </div>
+                      {(() => {
+                        const isRent = selectedListing.listing_intent === 'rent' || selectedListing.intent === 'rent' || sec.listing_intent === 'rent' || sec.intent === 'rent' || selectedListing.fihrist_type === 'kiralik' || reFihristTab === 'kiralik';
+                        if (isRent) return null;
+                        const titleType = selectedListing.kocan_type || selectedListing.kktc_title_type || sec.kocan_type || sec.kktc_title_type || sec.deed_type || sec.kocan;
+                        if (!titleType) return null;
+                        return (
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Koçan / Tapu</span>
+                            <span className="text-xs font-black text-amber-800">{titleType}</span>
+                          </div>
+                        );
+                      })()}
                       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                         <span className="text-[10px] font-bold text-slate-400 uppercase block">Eşya Durumu</span>
                         <span className="text-xs font-black text-slate-900">{sec.furnished ? 'Eşyalı' : 'Eşyasız'}</span>

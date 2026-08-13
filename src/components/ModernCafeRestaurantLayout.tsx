@@ -269,7 +269,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                     )}
                     {!product.is_bestseller && product.tags && (
                       <div className="absolute top-1.5 left-1.5 bg-amber-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
-                        {product.tags.split(",")[0]}
+                        {(product.tags as any)?.split ? (product.tags as any).split(",")[0] : (Array.isArray(product.tags) ? product.tags[0] : "")}
                       </div>
                     )}
                   </div>

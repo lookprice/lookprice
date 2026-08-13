@@ -314,16 +314,22 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
         </div>
       )}
-      {data.kktc_title_type && data.listing_intent !== "rent" && (
-        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
-          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
-            {lang === "tr" ? "KOÇAN TİPİ" : "TITLE TYPE"}
-          </p>
-          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
-            {data.kktc_title_type}
-          </p>
-        </div>
-      )}
+      {(() => {
+        const isRent = data.listing_intent === "rent" || data.intent === "rent" || data.fihrist_type === "kiralik" || (data.title || "").toLowerCase().includes("kiralık");
+        if (isRent) return null;
+        const kocanVal = data.kktc_title_type || data.kocan_type || data.deed_type || data.kocan || data.title_deed;
+        if (!kocanVal) return null;
+        return (
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+            <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+              {lang === "tr" ? "KOÇAN TİPİ" : "TITLE TYPE"}
+            </p>
+            <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+              {kocanVal}
+            </p>
+          </div>
+        );
+      })()}
 
       {data.is_trade_in_available !== undefined && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
@@ -345,6 +351,64 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           <p className="text-sm font-black text-indigo-950 transition-colors uppercase">
             {data.kktc_sub_region}
           </p>
+        </div>
+      )}
+
+      {data.kaks && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "EMSAL / KAKS" : "PLOT RATIO (KAKS)"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.kaks}
+          </p>
+        </div>
+      )}
+
+      {data.gabari && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "GABARİ / KAT SINIRI" : "MAX HEIGHT (GABARI)"}
+          </p>
+          <p className="text-sm font-black text-slate-900 transition-colors uppercase">
+            {data.gabari}
+          </p>
+        </div>
+      )}
+
+      {data.elektrik_var !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "ELEKTRİK ALTYAPISI" : "ELECTRICITY INFRASTRUCTURE"}
+          </p>
+          <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
+            <span className={`w-1.5 h-1.5 rounded-full ${data.elektrik_var ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span>{data.elektrik_var ? (lang === 'tr' ? '⚡ Altyapı Var' : 'Available') : (lang === 'tr' ? 'Yok' : 'None')}</span>
+          </div>
+        </div>
+      )}
+
+      {data.su_var !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "SU ALTYAPISI" : "WATER INFRASTRUCTURE"}
+          </p>
+          <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
+            <span className={`w-1.5 h-1.5 rounded-full ${data.su_var ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span>{data.su_var ? (lang === 'tr' ? '💧 Altyapı Var' : 'Available') : (lang === 'tr' ? 'Yok' : 'None')}</span>
+          </div>
+        </div>
+      )}
+
+      {data.yol_var !== undefined && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
+          <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase">
+            {lang === "tr" ? "KADASTRO YOLU" : "ROAD ACCESS"}
+          </p>
+          <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
+            <span className={`w-1.5 h-1.5 rounded-full ${data.yol_var ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span>{data.yol_var ? (lang === 'tr' ? '🛣️ Kadastro Yolu Var' : 'Road Access') : (lang === 'tr' ? 'Yok' : 'None')}</span>
+          </div>
         </div>
       )}
 

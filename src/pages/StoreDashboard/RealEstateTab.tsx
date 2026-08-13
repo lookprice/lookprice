@@ -1303,7 +1303,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
         </div>}>
           <RealEstateModal 
             isOpen={isModalOpen} 
-            onClose={() => setIsModalOpen(false)} 
+            onClose={() => { setIsModalOpen(false); setSelectedProperty(null); }} 
             property={selectedProperty}
             storeId={storeId || user?.store_id}
             userRole={userRole}
@@ -1312,6 +1312,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                 if (onSave) {
                   await onSave(p);
                   setIsModalOpen(false);
+                  setSelectedProperty(null);
                 }
               } catch (err: any) {
                 alert("İlan kaydedilirken bir hata oluştu: " + (err.message || err));

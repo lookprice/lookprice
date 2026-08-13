@@ -450,9 +450,9 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
 
       if (terraceFilter === 'yes' && !p.sector_data?.cati_terasi) return false;
 
-      // Koçan / Title Deed Filter
-      if (kocanTypeFilter !== 'all') {
-        const pKocan = (p.sector_data?.kocan_type || p.sector_data?.title_deed || "").toLowerCase();
+      // Koçan / Title Deed Filter (Only for For Sale properties)
+      if (kocanTypeFilter !== 'all' && activeIntent !== 'rent' && (p as any).listing_intent !== 'rent') {
+        const pKocan = ((p as any).kocan_type || (p as any).kktc_title_type || (p as any).deed_type || p.sector_data?.kocan_type || p.sector_data?.kktc_title_type || p.sector_data?.deed_type || p.sector_data?.title_deed || p.sector_data?.kocan || "").toLowerCase();
         if (!pKocan.includes(kocanTypeFilter.toLowerCase())) return false;
       }
 
@@ -1617,28 +1617,30 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                     </select>
                   </div>
 
-                  {/* Koçan / Tapu Türü (Tüm Mülk Tiplerine Ortak KKTC Özel Filtresi) */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Koçan / Tapu Türü (KKTC)</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { key: 'all', label: 'Tüm Tapu Türleri' },
-                        { key: 'eşdeğer', label: '📜 Eşdeğer Koçan' },
-                        { key: 'türk', label: '🏛️ Türk Koçanı' },
-                        { key: 'tahsis', label: '📑 Tahsis Koçan' },
-                      ].map((kc) => (
-                        <button
-                          key={kc.key}
-                          onClick={() => setKocanTypeFilter(kc.key)}
-                          className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
-                            kocanTypeFilter === kc.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          }`}
-                        >
-                          {kc.label}
-                        </button>
-                      ))}
+                  {/* Koçan / Tapu Türü (Tüm Satılık Mülk Tiplerine Ortak KKTC Özel Filtresi) */}
+                  {activeIntent !== 'rent' && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Koçan / Tapu Türü (KKTC)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { key: 'all', label: 'Tüm Tapu Türleri' },
+                          { key: 'eşdeğer', label: '📜 Eşdeğer Koçan' },
+                          { key: 'türk', label: '🏛️ Türk Koçanı' },
+                          { key: 'tahsis', label: '📑 Tahsis Koçan' },
+                        ].map((kc) => (
+                          <button
+                            key={kc.key}
+                            onClick={() => setKocanTypeFilter(kc.key)}
+                            className={`py-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all ${
+                              kocanTypeFilter === kc.key ? "bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs" : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                            }`}
+                          >
+                            {kc.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* === CASE 1: ARSA / ARAZİ / TARLA ÖZEL FİLTRELERİ === */}
                   {activeCategory === 'land' && (

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { isRentalListing } from "../../utils/marketplace";
 
 export const ListingCardImage = ({ 
   listing, 
@@ -36,7 +37,7 @@ export const ListingCardImage = ({
     setCurrentIdx((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
 
-  const intent = listing.sector_data?.intent || (listing.title?.toLowerCase().includes("kiralık") ? "kiralik" : "satilik");
+  const isRental = isRentalListing(listing);
 
   return (
     <div className={`relative overflow-hidden ${aspect} ${className}`} onClick={onImageClick}>
@@ -54,11 +55,11 @@ export const ListingCardImage = ({
           </div>
           {listing.listing_type === 'real_estate' && (
             <div className={`absolute top-2 right-2 px-2.5 py-1 backdrop-blur-md rounded-lg text-[10px] font-black border z-10 shadow-lg pointer-events-none ${
-              intent === 'kiralik'
+              isRental
                 ? "bg-purple-950/95 text-purple-200 border-purple-500/80 ring-2 ring-purple-500/30"
                 : "bg-emerald-950/95 text-emerald-200 border-emerald-500/80 ring-2 ring-emerald-500/30"
             }`}>
-              {intent === 'kiralik' ? '🔑 KİRALIK' : '🏷️ SATILIK'}
+              {isRental ? '🔑 KİRALIK' : '🏷️ SATILIK'}
             </div>
           )}
         </>

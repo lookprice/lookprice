@@ -356,6 +356,9 @@ router.get("/marketplace/listings", async (req, res) => {
         title: generatedTitle,
         price: v.selling_price || 0,
         currency: v.currency,
+        year: v.year,
+        mileage: v.mileage,
+        km: v.mileage,
         image_url: v.images && v.images.length > 0 ? v.images[0] : null,
         images: v.images || [],
         store_name: v.store_name,
@@ -364,6 +367,7 @@ router.get("/marketplace/listings", async (req, res) => {
         store_whatsapp: v.store_whatsapp,
         category: 'Oto Galeri',
         brand: v.brand,
+        model: v.model,
         description: v.description || '',
         paint_report: v.paint_report,
         is_trade_in_available: v.is_trade_in_available,
@@ -371,12 +375,16 @@ router.get("/marketplace/listings", async (req, res) => {
         market_story: v.market_story,
         technical_description: v.technical_description,
         sector_data: {
+          year: v.year,
+          brand: v.brand,
+          model: v.model,
           hp: v.hp || '',
           engine: v.engine_number ? 'Mevcut' : '',
           transmission: v.transmission,
           fuel: v.fuel_type,
           is_trade_in_available: v.is_trade_in_available,
           mileage: v.mileage,
+          km: v.mileage,
           paint_report: v.paint_report,
           package_name: v.package_name,
           color: v.color,
@@ -390,6 +398,12 @@ router.get("/marketplace/listings", async (req, res) => {
     });
 
     realEstateList.forEach((r: any) => {
+      let secData = r.sector_data;
+      if (typeof secData === 'string') {
+        try { secData = JSON.parse(secData); } catch(e) { secData = {}; }
+      }
+      if (!secData || typeof secData !== 'object') secData = {};
+
       allListings.push({
         id: `re_${r.id}`,
         db_id: r.id,
@@ -399,6 +413,10 @@ router.get("/marketplace/listings", async (req, res) => {
         title: r.title,
         price: r.price,
         currency: r.currency,
+        square_meters: r.square_meters,
+        m2: r.square_meters,
+        rooms: r.room_count,
+        room_count: r.room_count,
         image_url: r.images && r.images.length > 0 ? r.images[0] : null,
         images: r.images || [],
         store_name: r.store_name,
@@ -408,10 +426,18 @@ router.get("/marketplace/listings", async (req, res) => {
         category: 'Emlak',
         brand: r.location,
         description: r.description || '',
+        listing_intent: r.listing_intent || (r.title?.toLowerCase().includes("kiralık") ? "rent" : "sale"),
+        intent: (r.listing_intent === 'rent' || r.title?.toLowerCase().includes("kiralık")) ? 'kiralik' : 'satilik',
+        reference_no: r.reference_no,
         created_at: r.created_at,
+        ...secData,
         sector_data: {
-          square_meters: r.square_meters,
-          rooms: r.room_count,
+          ...secData,
+          square_meters: r.square_meters || secData.square_meters,
+          net_m2: r.square_meters || secData.net_m2 || secData.square_meters,
+          m2: r.square_meters || secData.m2 || secData.square_meters,
+          rooms: r.room_count || secData.rooms,
+          room_count: r.room_count || secData.room_count,
           virtual_tour_url: r.virtual_tour_url,
           ai_tour_enabled: r.ai_tour_enabled,
           sqm_gross: r.sqm_gross,
@@ -433,10 +459,12 @@ router.get("/marketplace/listings", async (req, res) => {
           kdv_status: r.kdv_status,
           cati_terasi: r.cati_terasi,
           subtype: r.subtype,
-          listing_intent: r.listing_intent,
+          listing_intent: r.listing_intent || (r.title?.toLowerCase().includes("kiralık") ? "rent" : "sale"),
+          intent: (r.listing_intent === 'rent' || r.title?.toLowerCase().includes("kiralık")) ? 'kiralik' : 'satilik',
           deposit: r.deposit,
           billing_period: r.billing_period,
-          kktc_title_type: r.kktc_title_type,
+          kktc_title_type: r.kktc_title_type || secData.kktc_title_type || secData.kocan_type,
+          kocan_type: r.kktc_title_type || secData.kocan_type || secData.kktc_title_type,
           is_trade_in_available: r.is_trade_in_available,
           location: r.location,
           reference_no: r.reference_no

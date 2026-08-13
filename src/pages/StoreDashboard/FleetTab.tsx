@@ -984,6 +984,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         onEditVehicle={() => {
           if (!selectedVehicle) return;
           setFormData({
+            ...selectedVehicle,
             plate: selectedVehicle.plate,
             brand: selectedVehicle.brand,
             model: selectedVehicle.model,
@@ -1003,6 +1004,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
             tramer_currency: selectedVehicle.tramer_currency || 'GBP',
             buying_price: selectedVehicle.buying_price || 0,
             buying_currency: selectedVehicle.buying_currency || 'GBP',
+            selling_price: selectedVehicle.selling_price || 0,
             currency: selectedVehicle.currency || 'GBP',
             expenses: typeof selectedVehicle.expenses === 'string' ? selectedVehicle.expenses : JSON.stringify(selectedVehicle.expenses || []),
             target_profit_margin: selectedVehicle.target_profit_margin || 0,
