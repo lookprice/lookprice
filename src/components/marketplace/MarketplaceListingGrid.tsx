@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { MapPin, CheckCircle2, ExternalLink } from "lucide-react";
 import { ListingCardImage } from "./ListingCardImage";
-import { formatLocation } from "../../utils/marketplace";
+import { formatLocation, getSquareMeters } from "../../utils/marketplace";
 
 export const MarketplaceListingGrid = ({ 
   listings, 
@@ -51,7 +51,7 @@ export const MarketplaceListingGrid = ({
                   {listing.listing_type === "vehicle" && (
                     <>
                       <span className="text-[11px] font-bold text-slate-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
-                        KM: {listing.mileage ? Math.round(Number(listing.mileage)).toLocaleString('tr-TR') : 'Sıfır'}
+                        KM: {listing.mileage ? Math.round(Number(listing.mileage)).toLocaleString('tr-TR') : (listing.sector_data?.km ? Number(listing.sector_data.km).toLocaleString('tr-TR') : 'Sıfır')}
                       </span>
                       {listing.brand && (
                         <span className="text-[11px] font-bold text-slate-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
@@ -66,6 +66,11 @@ export const MarketplaceListingGrid = ({
                       {listing.sector_data?.rooms && (
                         <span className="text-[11px] font-bold text-blue-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
                           {listing.sector_data.rooms} Oda
+                        </span>
+                      )}
+                      {getSquareMeters(listing) && (
+                        <span className="text-[11px] font-bold text-emerald-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                          {getSquareMeters(listing)} m²
                         </span>
                       )}
                       {(listing.sector_data?.city || listing.location) && (
@@ -201,9 +206,9 @@ export const MarketplaceListingGrid = ({
                 } else {
                   // Real Estate Row
                   const catType = listing.sector_data?.type || listing.category || "-";
-                  const rooms = listing.sector_data?.rooms || "-";
-                  const area = listing.sector_data?.area || "-";
-                  const extraInfo = rePropertyType === "land" ? (listing.sector_data?.zoning || "-") : (listing.sector_data?.heating || "-");
+                  const rooms = listing.sector_data?.rooms || listing.sector_data?.oda || "-";
+                  const area = getSquareMeters(listing) || "-";
+                  const extraInfo = rePropertyType === "land" ? (listing.sector_data?.zoning || "-") : (listing.sector_data?.heating || listing.sector_data?.floor || "-");
                   return (
                     <tr key={listing.id} className={`transition-colors border-b ${isDarkMode ? "hover:bg-blue-950/30 border-slate-800/50" : "hover:bg-slate-50 border-slate-200"} group`}>
                       <td className={`p-2 border-r ${isDarkMode ? "border-slate-800/60" : "border-slate-200"} align-middle`}>
@@ -217,7 +222,7 @@ export const MarketplaceListingGrid = ({
                       </td>
                       <td className="p-3 border-r text-center">{catType}</td>
                       <td className="p-3 border-r text-center">{rooms}</td>
-                      <td className="p-3 border-r text-right">{area}</td>
+                      <td className="p-3 border-r text-right">{area} {area !== "-" && "m²"}</td>
                       <td className="p-3 border-r text-xs font-bold text-white">{listing.title}</td>
                       <td className="p-3 border-r text-center">{extraInfo}</td>
                       <td className="p-3 border-r text-right font-black">{Math.round(Number(listing.price) || 0).toLocaleString('tr-TR')}</td>

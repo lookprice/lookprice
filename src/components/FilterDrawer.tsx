@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Filter, Tag, Key, Building2, Layers, MapPin, Check } from 'lucide-react';
+import { X, Filter, Tag, Key, Building2, Layers, MapPin, RotateCcw, Car, Gauge, Fuel } from 'lucide-react';
 
 interface FilterDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  activeSector: 'emlak' | 'araclar';
   reFihristTab: string;
   setReFihristTab: (tab: string) => void;
   rePropertyType: string;
@@ -19,7 +20,7 @@ interface FilterDrawerProps {
 }
 
 export const FilterDrawer: React.FC<FilterDrawerProps> = ({ 
-  isOpen, onClose, 
+  isOpen, onClose, activeSector,
   reFihristTab, setReFihristTab,
   rePropertyType, setRePropertyType,
   reSubPropertyType, setReSubPropertyType,
@@ -27,6 +28,20 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
   activeTags, setActiveTags,
   EMLAK_TIPI_SUB_TIPLERI
 }) => {
+  const resetFilters = () => {
+    setReFihristTab("all");
+    setRePropertyType("all");
+    setReSubPropertyType("all");
+    setReRegion("all");
+  };
+
+  const getButtonClass = (isActive: boolean) => 
+    `flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-black transition-all border cursor-pointer ${
+      isActive
+        ? "bg-blue-600 text-white border-blue-400 shadow-lg ring-2 ring-blue-500/30"
+        : "bg-slate-950/90 border-slate-700 text-slate-300 hover:bg-slate-800 hover:border-slate-500"
+    }`;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -53,79 +68,97 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="p-4 space-y-6">
-              {/* Filter Content Migrated from Marketplace.tsx */}
-              {reFihristTab === "all" && (
-                <div className="space-y-1.5">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                    <Tag className="w-3.5 h-3.5 text-blue-400" />
-                    1. Emlak Niyeti Seçin:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {[
-                      { id: "satilik", label: "SATILIK EMLAK", icon: Tag },
-                      { id: "kiralik", label: "KİRALIK EMLAK", icon: Key }
-                    ].map((tab) => {
-                      const Icon = tab.icon;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => setReFihristTab(tab.id)}
-                          className="flex items-center gap-2.5 px-6 py-3 rounded-2xl text-xs font-black transition-all border cursor-pointer bg-blue-600 text-white border-blue-400 hover:bg-blue-500"
-                        >
-                          <Icon className="w-4 h-4 text-amber-300" />
-                          <span>{tab.label}</span>
+            
+            <div className="p-4 space-y-8">
+              {activeSector === 'emlak' ? (
+                // EMLAK FİLTRELERİ
+                <>
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-blue-400" />
+                      1. Emlak Niyeti:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { id: "all", label: "HEPSİ" },
+                        { id: "satilik", label: "SATILIK" },
+                        { id: "kiralik", label: "KİRALIK" }
+                      ].map((tab) => (
+                        <button key={tab.id} onClick={() => setReFihristTab(tab.id)} className={getButtonClass(reFihristTab === tab.id)}>
+                          {tab.label}
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              {/* STEP 2: MÜLK TİPİ SEÇİMİ */}
-              {rePropertyType === "all" && (
-                <div className="space-y-1.5 pt-1">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-amber-400" />
-                    2. Mülk Tipi Seçin:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {[
-                      { id: "residence", label: "Konut / Residence" },
-                      { id: "commercial", label: "Ticari / Commercial" },
-                      { id: "land", label: "Arsa / Land" }
-                    ].map((pt) => (
-                      <button
-                        key={pt.id}
-                        onClick={() => { setRePropertyType(pt.id); setReSubPropertyType("all"); }}
-                        className="px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer bg-slate-950/90 border-slate-700 text-slate-200 hover:bg-amber-500 hover:text-slate-950 hover:border-amber-400 shadow-sm"
-                      >
-                        {pt.label}
-                      </button>
-                    ))}
+                  
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                      2. Mülk Tipi:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { id: "all", label: "HEPSİ" },
+                        { id: "residence", label: "KONUT" },
+                        { id: "commercial", label: "TİCARİ" },
+                        { id: "land", label: "ARSA" }
+                      ].map((pt) => (
+                        <button key={pt.id} onClick={() => { setRePropertyType(pt.id); setReSubPropertyType("all"); }} className={getButtonClass(rePropertyType === pt.id)}>
+                          {pt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                      3. Bölge:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {["all", "girne", "lefkoşa", "gazimağusa", "iskele", "lefke", "güzelyurt"].map((reg) => (
+                        <button key={reg} onClick={() => setReRegion(reg)} className={getButtonClass(reRegion === reg)}>
+                          {reg === "all" ? "TÜMÜ" : reg.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                // ARAÇ FİLTRELERİ
+                <div className="space-y-6">
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <Gauge className="w-3.5 h-3.5 text-blue-400" />
+                      KM Aralığı:
+                    </span>
+                    <input 
+                      type="number" 
+                      placeholder="Max KM" 
+                      className="w-full p-3 bg-slate-900 rounded-xl border border-slate-700 text-white text-xs" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <Fuel className="w-3.5 h-3.5 text-amber-400" />
+                      Yakıt Tipi:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                        {['Benzin', 'Dizel', 'Hibrit', 'Elektrik'].map(f => (
+                           <button key={f} className={getButtonClass(false)}>{f}</button>
+                        ))}
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* STEP 3: ŞEHİR / BÖLGE SEÇİMİ */}
-              {reRegion === "all" && (
-                <div className="space-y-1.5 pt-1">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-rose-500" />
-                    3. Şehir / Bölge Seçin:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {["Girne", "Lefkoşa", "Gazimağusa", "İskele", "Lefke", "Güzelyurt"].map((reg) => (
-                      <button
-                        key={reg}
-                        onClick={() => setReRegion(reg.toLowerCase())}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer bg-slate-950/80 border-slate-800 text-slate-300 hover:bg-rose-600 hover:text-white hover:border-rose-400 shadow-sm"
-                      >
-                        📍 {reg}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <button 
+                onClick={resetFilters}
+                className="w-full mt-10 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black transition-all bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700"
+              >
+                <RotateCcw className="w-4 h-4" />
+                FİLTRELERİ TEMİZLE
+              </button>
             </div>
           </motion.div>
         </>

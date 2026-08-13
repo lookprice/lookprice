@@ -80,7 +80,7 @@ export interface Product {
   is_trade_in_available?: boolean;
   market_story?: string;
   technical_description?: string;
-  tags?: string;
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { MarketplaceListingGrid } from "../components/marketplace/MarketplaceListingGrid";
 import { FilterDrawer } from "../components/FilterDrawer";
+import { TagFilter } from "../components/marketplace/TagFilter";
+import { aggregateTags } from "../utils/marketplace";
 import { useMarketplaceLogic } from "../hooks/useMarketplaceLogic";
 import { 
   MoveRight, 
@@ -987,14 +989,7 @@ export const Marketplace = () => {
                   <span className="text-[11px] font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
                     <Filter className="w-3.5 h-3.5 text-blue-400" /> Aktif Seçimler:
                   </span>
-                  <button
-                    onClick={() => setIsFilterDrawerOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold border border-slate-700"
-                  >
-                    <Filter className="w-3.5 h-3.5" />
-                    Filtreler
-                  </button>
-
+                  
                   {/* Selected Satılık / Kiralık Tag */}
                   {reFihristTab !== "all" && (
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600 text-white rounded-xl text-xs font-black border border-blue-400 shadow-md">
@@ -1103,6 +1098,7 @@ export const Marketplace = () => {
               <FilterDrawer 
                 isOpen={isFilterDrawerOpen} 
                 onClose={() => setIsFilterDrawerOpen(false)}
+                activeSector={mainTab === 'real_estate' ? 'emlak' : 'araclar'}
                 reFihristTab={reFihristTab}
                 setReFihristTab={setReFihristTab}
                 rePropertyType={rePropertyType}
@@ -1235,16 +1231,29 @@ export const Marketplace = () => {
               
               {/* MODEL 1: RICH BENTO GRID (3 COLUMN) */}
               {viewMode === "rich" && (
-                <MarketplaceListingGrid 
-                  listings={filteredListings}
-                  visibleCount={visibleCount}
-                  viewMode={viewMode}
-                  isDarkMode={isDarkMode}
-                  cardBg={cardBg}
-                  setSelectedListing={setSelectedListing}
-                  mainTab={mainTab}
-                  rePropertyType={rePropertyType}
-                />
+                <>
+                  <TagFilter 
+                    tags={aggregateTags(filteredListings)}
+                    selectedTags={activeTags}
+                    onToggleTag={(tag) => {
+                      if (activeTags.includes(tag)) {
+                        setActiveTags(activeTags.filter((t) => t !== tag));
+                      } else {
+                        setActiveTags([...activeTags, tag]);
+                      }
+                    }}
+                  />
+                  <MarketplaceListingGrid 
+                    listings={filteredListings}
+                    visibleCount={visibleCount}
+                    viewMode={viewMode}
+                    isDarkMode={isDarkMode}
+                    cardBg={cardBg}
+                    setSelectedListing={setSelectedListing}
+                    mainTab={mainTab}
+                    rePropertyType={rePropertyType}
+                  />
+                </>
               )}
 
               {/* MODEL 3: DETAILED STRUCTURED TABLE VIEW */}
@@ -1634,6 +1643,17 @@ export const Marketplace = () => {
             </div>
           </div>
         </section>
+
+        {/* Right side interaction trigger for filter drawer (Hover on desktop, FAB on mobile) */}
+        <div 
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-50 cursor-pointer group"
+          onMouseEnter={() => setIsFilterDrawerOpen(true)}
+          onClick={() => setIsFilterDrawerOpen(true)}
+        >
+          <div className="w-8 h-32 bg-blue-600 rounded-l-2xl opacity-40 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+             <Filter className="w-5 h-5 text-white" />
+          </div>
+        </div>
 
       </main>
 
