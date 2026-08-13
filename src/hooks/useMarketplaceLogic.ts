@@ -1,0 +1,62 @@
+import { useState } from "react";
+
+export type MainTab = "real_estate" | "vehicle";
+export type ViewMode = "rich" | "list";
+
+export const useMarketplaceLogic = () => {
+  // State definitions extracted from Marketplace.tsx
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [listings, setListings] = useState<any[]>([]);
+  const [portalNews, setPortalNews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const [mainTab, setMainTab] = useState<MainTab>("real_estate");
+  const [reFihristTab, setReFihristTab] = useState<string>("satilik");
+  const [vehFihristTab, setVehFihristTab] = useState<string>("latest");
+  const [rePropertyType, setRePropertyType] = useState<string>("all");
+  const [reSubPropertyType, setReSubPropertyType] = useState<string>("all");
+  const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("rich");
+  
+  const [activeSubSector, setActiveSubSector] = useState<string>("all");
+  const [activeVehicleBrand, setActiveVehicleBrand] = useState<string>("all");
+  const [activeVehicleFuel, setActiveVehicleFuel] = useState<string>("all");
+  const [activeVehicleTransmission, setActiveVehicleTransmission] = useState<string>("all");
+  const [minPrice, setMinPrice] = useState<string>("");
+  const [maxPrice, setMaxPrice] = useState<string>("");
+  const [minYear, setMinYear] = useState<string>("");
+  const [maxYear, setMaxYear] = useState<string>("");
+  const [reRegion, setReRegion] = useState<string>("all");
+  const [reType, setReType] = useState<string>("all");
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem("enrakipsiz_theme");
+    return saved ? saved === "dark" : true;
+  });
+
+  return {
+    isFilterDrawerOpen, setIsFilterDrawerOpen,
+    listings, setListings,
+    portalNews, setPortalNews,
+    loading, setLoading,
+    searchQuery, setSearchQuery,
+    mainTab, setMainTab,
+    reFihristTab, setReFihristTab,
+    vehFihristTab, setVehFihristTab,
+    rePropertyType, setRePropertyType,
+    reSubPropertyType, setReSubPropertyType,
+    activeTags, setActiveTags,
+    viewMode, setViewMode,
+    activeSubSector, setActiveSubSector,
+    activeVehicleBrand, setActiveVehicleBrand,
+    activeVehicleFuel, setActiveVehicleFuel,
+    activeVehicleTransmission, setActiveVehicleTransmission,
+    minPrice, setMinPrice,
+    maxPrice, setMaxPrice,
+    minYear, setMinYear,
+    maxYear, setMaxYear,
+    reRegion, setReRegion,
+    reType, setReType,
+    isDarkMode, setIsDarkMode
+  };
+};
