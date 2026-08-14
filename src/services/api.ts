@@ -13,67 +13,98 @@ const handleResponse = async (res: Response) => {
     return res.json();
   }
   const text = await res.text();
-  console.error("Non-JSON response received:", text);
-  return { error: `Sunucu hatası (JSON bekleniyordu). Durum: ${res.status}` };
+  if (res.ok) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { success: true, text };
+    }
+  }
+  console.warn("Non-JSON response received:", text);
+  return { error: `Sunucu yanıtı (${res.status})` };
 };
 
 export const api = {
   async get(url: string) {
-    console.log("API GET request:", url);
-    const token = getToken(url);
-    const isPublic = url.includes('/api/public/');
-    const separator = url.includes('?') ? '&' : '?';
-    // Only cache bust if it's NOT a public request
-    const finalUrl = isPublic ? url : `${url}${separator}_t=${Date.now()}`;
-    const res = await fetch(finalUrl, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      ...(!isPublic ? { cache: 'no-store' } : {}),
-    });
-    return handleResponse(res);
+    try {
+      const token = getToken(url);
+      const isPublic = url.includes('/api/public/');
+      const separator = url.includes('?') ? '&' : '?';
+      // Only cache bust if it's NOT a public request
+      const finalUrl = isPublic ? url : `${url}${separator}_t=${Date.now()}`;
+      const res = await fetch(finalUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        ...(!isPublic ? { cache: 'no-store' } : {}),
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API GET (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
   },
   async post(url: string, body: any) {
-    const token = getToken(url);
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(body),
-    });
-    return handleResponse(res);
+    try {
+      const token = getToken(url);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API POST (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
   },
   async put(url: string, body: any) {
-    const token = getToken(url);
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(body),
-    });
-    return handleResponse(res);
+    try {
+      const token = getToken(url);
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API PUT (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
   },
   async patch(url: string, body: any) {
-    const token = getToken(url);
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(body),
-    });
-    return handleResponse(res);
+    try {
+      const token = getToken(url);
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API PATCH (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
   },
   async delete(url: string) {
-    const token = getToken(url);
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    return handleResponse(res);
+    try {
+      const token = getToken(url);
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API DELETE (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
   },
   async download(url: string, filename: string) {
     const token = getToken(url);
@@ -201,7 +232,18 @@ export const api = {
   cancelSale: (id: number, data: { reason: string }, storeId?: number) => api.post(`/api/store/sales/${id}/cancel${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteSale: (id: number, storeId?: number) => api.delete(`/api/store/sales/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getDailySalesReport: (start = "", end = "", storeId?: number) => api.get(`/api/store/reports/daily-sales?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
-  getPosDailyReport: (date = "", storeId?: number) => api.get(`/api/store/reports/pos-daily?date=${date}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  getPosDailyReport: (dateOrStart = "", storeId?: number, endDate?: string) => {
+    let url = `/api/store/reports/pos-daily?`;
+    if (dateOrStart && endDate) {
+      url += `startDate=${dateOrStart}&endDate=${endDate}`;
+    } else if (dateOrStart) {
+      url += `date=${dateOrStart}`;
+    }
+    if (storeId !== undefined && storeId !== null) {
+      url += `&storeId=${storeId}`;
+    }
+    return api.get(url);
+  },
   
   getSalesInvoices: (storeId?: number, search?: string, startDate?: string, endDate?: string) => {
     let url = `/api/store/sales-invoices?`;

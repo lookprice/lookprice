@@ -61,13 +61,17 @@ export default function REstateLanding() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     api.getPublicVideos("restatelp")
       .then(res => {
-        if (res && Array.isArray(res) && res.length > 0) {
+        if (isMounted && res && Array.isArray(res) && res.length > 0) {
           setDbVideos(res);
         }
       })
-      .catch(err => console.error("Error fetching REstate videos:", err));
+      .catch(err => console.warn("Could not load REstate videos, using defaults:", err?.message || err));
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const videoTabs = useMemo(() => {

@@ -642,7 +642,7 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={[
+                      data={analytics.hourly_sales && analytics.hourly_sales.length > 0 ? analytics.hourly_sales : [
                         { hour: "08:00", revenue: 650, label: "Kahvaltı" },
                         { hour: "10:00", revenue: 950, label: "Kahve" },
                         { hour: "12:00", revenue: 3800, label: "Öğle Yemeği" },
@@ -675,17 +675,17 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
                         }}
                       />
                       <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
-                        {[
-                          { isCandidate: false },
-                          { isCandidate: false },
-                          { isCandidate: false },
-                          { isCandidate: true },
-                          { isCandidate: true },
-                          { isCandidate: false },
-                          { isCandidate: false },
-                          { isCandidate: false },
-                          { isCandidate: false }
-                        ].map((entry, index) => (
+                        {(analytics.hourly_sales && analytics.hourly_sales.length > 0 ? analytics.hourly_sales : [
+                          { hour: "08:00", revenue: 650 },
+                          { hour: "10:00", revenue: 950 },
+                          { hour: "12:00", revenue: 3800 },
+                          { hour: "14:00", revenue: 1400, isCandidate: true },
+                          { hour: "16:00", revenue: 1650, isCandidate: true },
+                          { hour: "18:00", revenue: 5900 },
+                          { hour: "20:00", revenue: 8400 },
+                          { hour: "22:00", revenue: 4200 },
+                          { hour: "00:00", revenue: 1100 },
+                        ]).map((entry: any, index: number) => (
                           <Cell 
                             key={`cell-${index}`} 
                             fill={entry.isCandidate ? "#f43f5e" : "#6366f1"} 

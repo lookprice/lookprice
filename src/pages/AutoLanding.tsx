@@ -58,13 +58,17 @@ export default function AutoLanding() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     api.getPublicVideos("autolp")
       .then(res => {
-        if (res && Array.isArray(res) && res.length > 0) {
+        if (isMounted && res && Array.isArray(res) && res.length > 0) {
           setDbVideos(res);
         }
       })
-      .catch(err => console.error("Error fetching Auto videos:", err));
+      .catch(err => console.warn("Could not load Auto videos, using defaults:", err?.message || err));
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const videoTabs = useMemo(() => {

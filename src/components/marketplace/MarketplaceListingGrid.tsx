@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { MapPin, CheckCircle2, ExternalLink } from "lucide-react";
 import { ListingCardImage } from "./ListingCardImage";
 import { formatLocation, getSquareMeters, getVehicleMileage, getVehicleYear } from "../../utils/marketplace";
+import { formatFuelType, formatTransmission } from "../../utils/formatUtils";
 
 export const MarketplaceListingGrid = ({ 
   listings, 
@@ -58,6 +59,24 @@ export const MarketplaceListingGrid = ({
                           {listing.brand}
                         </span>
                       )}
+                      {(() => {
+                        const rawFuel = listing.fuel_type || listing.fuel || listing.sector_data?.fuel_type || listing.sector_data?.fuel;
+                        if (!rawFuel) return null;
+                        return (
+                          <span className="text-[11px] font-bold text-amber-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                            {formatFuelType(rawFuel)}
+                          </span>
+                        );
+                      })()}
+                      {(() => {
+                        const rawTrans = listing.transmission || listing.vites || listing.sector_data?.transmission || listing.sector_data?.vites;
+                        if (!rawTrans) return null;
+                        return (
+                          <span className="text-[11px] font-bold text-blue-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                            {formatTransmission(rawTrans)}
+                          </span>
+                        );
+                      })()}
                     </>
                   )}
 
@@ -176,27 +195,10 @@ export const MarketplaceListingGrid = ({
                   const brand = listing.brand || listing.sector_data?.brand || "-";
                   
                   const rawFuel = listing.fuel_type || listing.sector_data?.fuel_type || listing.sector_data?.fuel || listing.fuel;
-                  let fuelType = "-";
-                  if (rawFuel) {
-                    const f = String(rawFuel).toLowerCase();
-                    if (f === 'gasoline' || f === 'petrol' || f === 'benzin') fuelType = 'Benzin';
-                    else if (f === 'diesel' || f === 'dizel') fuelType = 'Dizel';
-                    else if (f === 'hybrid' || f === 'hibrit') fuelType = 'Hibrit';
-                    else if (f === 'electric' || f === 'elektrik' || f === 'elektrikli') fuelType = 'Elektrik';
-                    else if (f === 'lpg') fuelType = 'LPG';
-                    else fuelType = String(rawFuel);
-                  }
+                  const fuelType = formatFuelType(rawFuel);
 
                   const rawTrans = listing.transmission || listing.sector_data?.transmission || listing.sector_data?.vites || listing.vites;
-                  let transType = "-";
-                  if (rawTrans) {
-                    const t = String(rawTrans).toLowerCase();
-                    if (t === 'automatic' || t === 'otomatik' || t === 'oto') transType = 'Otomatik';
-                    else if (t === 'manual' || t === 'manuel') transType = 'Manuel';
-                    else if (t === 'semi_automatic' || t === 'yarı otomatik' || t === 'yari_otomatik' || t === 'yari otomatik') transType = 'Yarı Otomatik';
-                    else if (t === 'dual_clutch' || t === 'çift kavrama' || t === 'cift_kavrama') transType = 'Çift Kavrama';
-                    else transType = String(rawTrans);
-                  }
+                  const transType = formatTransmission(rawTrans);
 
                   const model = listing.model || listing.sector_data?.model || listing.category || "-";
                   const year = getVehicleYear(listing);

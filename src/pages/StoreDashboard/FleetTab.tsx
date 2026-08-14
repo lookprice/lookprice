@@ -43,6 +43,7 @@ import { IncidentFormModal } from '../../components/dashboard/fleet/IncidentForm
 import { DocumentFormModal } from '../../components/dashboard/fleet/DocumentFormModal';
 import { AutoContractModal } from '../../components/AutoContractModal';
 import { AutomotiveSocialMediaShareModal } from '../../components/AutomotiveSocialMediaShareModal';
+import { formatFuelType, formatTransmission } from '../../utils/formatUtils';
 
 interface FleetTabProps {
   storeId: number;
@@ -215,24 +216,9 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
 
   const generateVehicleTitle = (v: any) => {
     if (!v) return "";
-    const transMap: Record<string, string> = {
-      'manual': 'Manuel',
-      'automatic': 'Otomatik',
-      'semi_automatic': 'Yarı Otomatik',
-      'dual_clutch': 'Çift Kavrama (DCT/DSG)'
-    };
-    const fuelMap: Record<string, string> = {
-      'gasoline': 'Benzin',
-      'diesel': 'Dizel',
-      'gasoline_hybrid': 'Benzin / Hibrit',
-      'diesel_hybrid': 'Dizel / Hibrit',
-      'electric': 'Elektrik',
-      'lpg': 'LPG'
-    };
-
     const year = v.year ? `${v.year} Model` : "";
-    const trans = transMap[v.transmission] || transMap['manual'];
-    const fuel = fuelMap[v.fuel_type] || fuelMap['gasoline'];
+    const trans = formatTransmission(v.transmission);
+    const fuel = formatFuelType(v.fuel_type);
     const brand = v.brand || "";
     const model = v.model || "";
 

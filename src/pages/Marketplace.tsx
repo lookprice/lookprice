@@ -3,6 +3,7 @@ import { MarketplaceListingGrid } from "../components/marketplace/MarketplaceLis
 import { FilterDrawer } from "../components/FilterDrawer";
 import { TagFilter } from "../components/marketplace/TagFilter";
 import { aggregateTags, getListingIntent, isRentalListing } from "../utils/marketplace";
+import { formatFuelType, formatTransmission, formatTitleDeedType } from "../utils/formatUtils";
 import { useMarketplaceLogic } from "../hooks/useMarketplaceLogic";
 import { 
   MoveRight, 
@@ -34,7 +35,7 @@ import {
   UserCheck,
   Maximize2,
   Grid3X3,
-  
+  Settings,
   ListFilter,
   Moon,
   Sun,
@@ -425,9 +426,14 @@ export const Marketplace = () => {
     activeTags, setActiveTags,
     viewMode, setViewMode,
     activeSubSector, setActiveSubSector,
+    activeVehicleCategory, setActiveVehicleCategory,
     activeVehicleBrand, setActiveVehicleBrand,
+    activeVehicleModel, setActiveVehicleModel,
     activeVehicleFuel, setActiveVehicleFuel,
     activeVehicleTransmission, setActiveVehicleTransmission,
+    activeVehicleYear, setActiveVehicleYear,
+    activeVehicleBodyType, setActiveVehicleBodyType,
+    activeVehicleTradeIn, setActiveVehicleTradeIn,
     minPrice, setMinPrice,
     maxPrice, setMaxPrice,
     minYear, setMinYear,
@@ -443,6 +449,55 @@ export const Marketplace = () => {
   const [priceRange, setPriceRange] = useState<string>("all");
   const [reKocanType, setReKocanType] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">("newest");
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState<boolean>(false);
+  const [isVehicleMobileFiltersOpen, setIsVehicleMobileFiltersOpen] = useState<boolean>(false);
+
+  // Derived Vehicle Options from AutoLP stores portfolio
+  const vehicleListings = React.useMemo(() => {
+    return listings.filter(i => {
+      return i.listing_type === 'vehicle' || i.type === 'vehicle' || (i.category && (i.category.toLowerCase().includes('vasıta') || i.category.toLowerCase().includes('otomobil') || i.category.toLowerCase().includes('araç')));
+    });
+  }, [listings]);
+
+  const vehicleCategories = React.useMemo(() => {
+    const list = vehicleListings.map(p => p.category || p.sector_data?.category || p.sub_sector || "").filter(Boolean);
+    return Array.from(new Set(list));
+  }, [vehicleListings]);
+
+  const vehicleBrands = React.useMemo(() => {
+    let filtered = vehicleListings;
+    if (activeVehicleCategory !== "all") {
+      filtered = filtered.filter(p => {
+        const c = (p.category || p.sector_data?.category || p.sub_sector || "").toLowerCase();
+        return c.includes(activeVehicleCategory.toLowerCase());
+      });
+    }
+    const list = filtered.map(p => p.brand || p.sector_data?.brand || p.sector_data?.brand_name).filter(Boolean);
+    return Array.from(new Set(list)).sort((a: any, b: any) => a.localeCompare(b));
+  }, [vehicleListings, activeVehicleCategory]);
+
+  const vehicleModels = React.useMemo(() => {
+    let filtered = vehicleListings;
+    if (activeVehicleCategory !== "all") {
+      filtered = filtered.filter(p => {
+        const c = (p.category || p.sector_data?.category || p.sub_sector || "").toLowerCase();
+        return c.includes(activeVehicleCategory.toLowerCase());
+      });
+    }
+    if (activeVehicleBrand !== "all") {
+      filtered = filtered.filter(p => {
+        const b = (p.brand || p.sector_data?.brand || p.sector_data?.brand_name || "").toLowerCase();
+        return b === activeVehicleBrand.toLowerCase();
+      });
+    }
+    const list = filtered.map(p => p.model || p.sector_data?.model || p.sector_data?.model_name || p.sector_data?.series).filter(Boolean);
+    return Array.from(new Set(list)).sort((a: any, b: any) => a.localeCompare(b));
+  }, [vehicleListings, activeVehicleCategory, activeVehicleBrand]);
+
+  const vehicleYears = React.useMemo(() => {
+    const list = vehicleListings.map(p => String(p.year || p.sector_data?.year || p.sector_data?.model_year || "")).filter(Boolean);
+    return Array.from(new Set(list)).sort((a, b) => Number(b) - Number(a));
+  }, [vehicleListings]);
 
   // Pagination state: limit initially to 12
   const [visibleCount, setVisibleCount] = useState<number>(12);
@@ -450,19 +505,14 @@ export const Marketplace = () => {
   // Reset pagination on filter change
   useEffect(() => {
     setVisibleCount(12);
-  }, [mainTab, reFihristTab, vehFihristTab, searchQuery, viewMode, activeSubSector, activeVehicleBrand, activeVehicleFuel, activeVehicleTransmission, minPrice, maxPrice, minYear, maxYear, reRegion, reSubRegion, reType, reRooms, reFurnished, priceRange, reKocanType, sortBy, rePropertyType, activeTags]);
+  }, [mainTab, reFihristTab, vehFihristTab, searchQuery, viewMode, activeSubSector, activeVehicleCategory, activeVehicleBrand, activeVehicleModel, activeVehicleFuel, activeVehicleTransmission, activeVehicleYear, activeVehicleBodyType, activeVehicleTradeIn, minPrice, maxPrice, minYear, maxYear, reRegion, reSubRegion, reType, reRooms, reFurnished, priceRange, reKocanType, sortBy, rePropertyType, activeTags]);
 
   // Modal / Detail / Video Story States
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
   const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [selectedStory, setSelectedStory] = useState<any | null>(null);
-  const [showFeaturedStores, setShowFeaturedStores] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth >= 768;
-    }
-    return false;
-  });
+  const [showFeaturedStores, setShowFeaturedStores] = useState<boolean>(false);
 
   // Close story modal on Escape key
   useEffect(() => {
@@ -720,7 +770,8 @@ export const Marketplace = () => {
     if (mainTab === "vehicle") {
       const isPriceDrop = item.sector_data?.price_drop || item.price_dropped;
       const isLowBudget = Number(item.price) > 0 && Number(item.price) <= 650000;
-      const isEcoFuel = (item.sector_data?.fuel_type || "").toLowerCase().includes("dizel") || (item.sector_data?.fuel_type || "").toLowerCase().includes("hibrit") || (item.sector_data?.fuel_type || "").toLowerCase().includes("elektrik");
+      const fuelRaw = (item.fuel_type || item.fuel || item.sector_data?.fuel_type || item.sector_data?.fuel || "").toLowerCase();
+      const isEcoFuel = fuelRaw.includes("dizel") || fuelRaw.includes("diesel") || fuelRaw.includes("hibrit") || fuelRaw.includes("hybrid") || fuelRaw.includes("elektrik") || fuelRaw.includes("electric");
       const category = (item.category || "").toLowerCase();
 
       if (vehFihristTab === "fiyati-dusen" && !isPriceDrop) return false;
@@ -795,20 +846,68 @@ export const Marketplace = () => {
     }
 
     if (mainTab === "vehicle") {
-      if (activeVehicleBrand !== "all") {
-        const b = (item.brand || "").toLowerCase();
-        if (!b.includes(activeVehicleBrand.toLowerCase())) return false;
+      const secData = item.sector_data || {};
+      const titleLower = (item.title || "").toLowerCase();
+      const descLower = (item.description || "").toLowerCase();
+
+      if (activeVehicleCategory !== "all") {
+        const cat = (item.category || secData.category || item.sub_sector || "").toLowerCase();
+        if (!cat.includes(activeVehicleCategory.toLowerCase())) return false;
       }
-      if (activeVehicleFuel !== "all") {
-        const f = (item.sector_data?.fuel_type || "").toLowerCase();
-        if (!f.includes(activeVehicleFuel.toLowerCase())) return false;
+      if (activeVehicleBrand !== "all") {
+        const b = (item.brand || secData.brand || secData.brand_name || "").toLowerCase();
+        if (b !== activeVehicleBrand.toLowerCase()) return false;
+      }
+      if (activeVehicleModel !== "all") {
+        const m = (item.model || secData.model || secData.model_name || secData.series || "").toLowerCase();
+        if (m !== activeVehicleModel.toLowerCase()) return false;
       }
       if (activeVehicleTransmission !== "all") {
-        const t = (item.sector_data?.transmission || "").toLowerCase();
-        if (!t.includes(activeVehicleTransmission.toLowerCase())) return false;
+        const t = (item.transmission || secData.transmission || secData.vites || "").toLowerCase();
+        const target = activeVehicleTransmission.toLowerCase();
+        const isAuto = target === "automatic" || target === "otomatik";
+        const isMan = target === "manual" || target === "manuel";
+        const isSemi = target === "semi_automatic" || target === "semi-automatic" || target.includes("yarı");
+        if (isSemi) {
+          if (!t.includes("semi") && !t.includes("yarı")) return false;
+        } else if (isAuto) {
+          if (!t.includes("auto") && !t.includes("otomatik")) return false;
+        } else if (isMan) {
+          if (!t.includes("man")) return false;
+        } else if (!t.includes(target)) return false;
       }
-      if (minYear && Number(item.year) < Number(minYear)) return false;
-      if (maxYear && Number(item.year) > Number(maxYear)) return false;
+      if (activeVehicleFuel !== "all") {
+        const f = (item.fuel_type || item.fuel || secData.fuel_type || secData.fuel || "").toLowerCase();
+        const target = activeVehicleFuel.toLowerCase();
+        const isGas = target === "gasoline" || target === "benzin";
+        const isDiesel = target === "diesel" || target === "dizel";
+        const isHybrid = target === "hybrid" || target === "hibrit";
+        const isElec = target === "electric" || target === "elektrik";
+        const isLpg = target === "lpg";
+        if (isGas) {
+          if (!f.includes("gas") && !f.includes("benzin")) return false;
+        } else if (isDiesel) {
+          if (!f.includes("diesel") && !f.includes("dizel")) return false;
+        } else if (isHybrid) {
+          if (!f.includes("hyb") && !f.includes("hibrit")) return false;
+        } else if (isElec) {
+          if (!f.includes("elec") && !f.includes("elektrik")) return false;
+        } else if (isLpg) {
+          if (!f.includes("lpg")) return false;
+        } else if (!f.includes(target)) return false;
+      }
+      if (activeVehicleYear !== "all") {
+        const y = String(item.year || secData.year || secData.model_year || "");
+        if (y !== activeVehicleYear) return false;
+      }
+      if (activeVehicleBodyType !== "all") {
+        const bt = (item.body_type || secData.body_type || secData.kasa_tipi || "").toLowerCase();
+        if (!bt.includes(activeVehicleBodyType.toLowerCase())) return false;
+      }
+      if (activeVehicleTradeIn === "yes") {
+        const tradeIn = item.is_trade_in_available || secData.is_trade_in_available || secData.takas || titleLower.includes("takas") || descLower.includes("takas");
+        if (!tradeIn) return false;
+      }
     }
 
     return true;
@@ -981,7 +1080,7 @@ export const Marketplace = () => {
               {/* EMLAK PORTFÖY FİLTRE BAR (RESTATED MODEL) */}
               <div className="bg-slate-950/80 p-4 md:p-5 rounded-2xl border border-blue-500/20 shadow-xl space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 cursor-pointer md:cursor-default" onClick={() => setIsMobileFiltersOpen(prev => !prev)}>
                     <div className="p-2 bg-blue-600/20 rounded-xl border border-blue-500/30 text-blue-400">
                       <Filter className="w-4 h-4" />
                     </div>
@@ -991,6 +1090,9 @@ export const Marketplace = () => {
                         <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-[10px] font-black">
                           {filteredListings.length}
                         </span>
+                        <span className="md:hidden text-xs text-blue-400 font-bold ml-1">
+                          {isMobileFiltersOpen ? '▲ Gizle' : '▼ Filtreleri Aç'}
+                        </span>
                       </h3>
                       <p className="text-[11px] text-slate-400 font-medium">
                         Toplam {stats.properties} ilan arasından kriterlerinize uyan {filteredListings.length} mülk listelendi.
@@ -998,15 +1100,25 @@ export const Marketplace = () => {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setIsFilterDrawerOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5" />
-                    <span>Gelişmiş Filtreler</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsMobileFiltersOpen(prev => !prev)}
+                      className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-blue-300 rounded-xl text-xs font-black transition-all border border-blue-500/30 cursor-pointer"
+                    >
+                      <Filter className="w-3.5 h-3.5" />
+                      <span>{isMobileFiltersOpen ? 'Filtreleri Kapat' : 'Filtreleri Aç'}</span>
+                    </button>
+                    <button
+                      onClick={() => setIsFilterDrawerOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      <span>Gelişmiş Filtreler</span>
+                    </button>
+                  </div>
                 </div>
 
+                <div className={`${isMobileFiltersOpen ? 'block' : 'hidden md:block'} space-y-4`}>
                 {/* PRIMARY EMLAK SELECT CONTROLS GRID */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
                   {/* 1. İLAN NİYETİ (SATILIK / KİRALIK / TÜMÜ) */}
@@ -1273,69 +1385,294 @@ export const Marketplace = () => {
                     </button>
                   </div>
                 )}
+                </div>
               </div>
-
-              <FilterDrawer 
-                isOpen={isFilterDrawerOpen} 
-                onClose={() => setIsFilterDrawerOpen(false)}
-                activeSector={mainTab === 'real_estate' ? 'emlak' : 'araclar'}
-                reFihristTab={reFihristTab}
-                setReFihristTab={setReFihristTab}
-                rePropertyType={rePropertyType}
-                setRePropertyType={setRePropertyType}
-                reSubPropertyType={reSubPropertyType}
-                setReSubPropertyType={setReSubPropertyType}
-                reRegion={reRegion}
-                setReRegion={setReRegion}
-                reSubRegion={reSubRegion}
-                setReSubRegion={setReSubRegion}
-                reRooms={reRooms}
-                setReRooms={setReRooms}
-                priceRange={priceRange}
-                setPriceRange={setPriceRange}
-                minPrice={minPrice}
-                setMinPrice={setMinPrice}
-                maxPrice={maxPrice}
-                setMaxPrice={setMaxPrice}
-                reFurnished={reFurnished}
-                setReFurnished={setReFurnished}
-                reKocanType={reKocanType}
-                setReKocanType={setReKocanType}
-                activeTags={activeTags}
-                setActiveTags={setActiveTags}
-                EMLAK_TIPI_SUB_TIPLERI={EMLAK_TIPI_SUB_TIPLERI}
-                REAL_ESTATE_REGIONS={REAL_ESTATE_REGIONS}
-              />
             </div>
           )}
 
-          {/* SUB-FIHRIST FOLDER TABS BAR FOR VEHICLE */}
+          {/* SUB-FIHRIST FOLDER TABS BAR FOR VEHICLE & VEHICLE PORTFOLIO FILTER BAR */}
           {mainTab === "vehicle" && (
-            <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-slate-800">
-              {[
-                { id: "latest", label: "SON GELENLER", icon: Sparkles, desc: "En Yeni Galeri İlanları" },
-                { id: "fiyati-dusen", label: "FİYATI DÜŞENLER", icon: TrendingDown, desc: "Fırsat & Kelepir Araçlar" },
-                { id: "ilk-arabam", label: "İLK ARABAM / UYGUN", icon: DollarSign, desc: "Bütçe Dostu Otomobiller" },
-                { id: "az-yakan", label: "AZ YAKAN / EKONOMİK", icon: Fuel, desc: "Dizel, Hibrit & Elektrik" },
-                { id: "suv-ticari", label: "SUV & TİCARİ", icon: Shield, desc: "Pick-up, SUV & Van" }
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = vehFihristTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setVehFihristTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all duration-200 border cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
-                      isActive
-                        ? "bg-rose-600 text-white border-rose-400 shadow-lg shadow-rose-600/30 ring-2 ring-rose-400/50"
-                        : "bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${isActive ? "text-amber-300" : "text-rose-400"}`} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+            <div className="space-y-4 pb-4 border-b border-slate-800">
+              {/* VEHICLE PORTFOLIO FILTER BAR */}
+              <div className="bg-slate-950/80 p-4 md:p-5 rounded-2xl border border-rose-500/20 shadow-xl space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+                  <div className="flex items-center gap-2 cursor-pointer md:cursor-default" onClick={() => setIsVehicleMobileFiltersOpen(prev => !prev)}>
+                    <div className="p-2 bg-rose-600/20 rounded-xl border border-rose-500/30 text-rose-400">
+                      <Car className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        Araç Portföy Filtreleme (AutoLP)
+                        <span className="px-2 py-0.5 bg-rose-600 text-white rounded-full text-[10px] font-black">
+                          {filteredListings.length}
+                        </span>
+                        <span className="md:hidden text-xs text-rose-400 font-bold ml-1">
+                          {isVehicleMobileFiltersOpen ? '▲ Gizle' : '▼ Filtreleri Aç'}
+                        </span>
+                      </h3>
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        Toplam {stats.vehicles} araç ilanından kriterlerinize uyan {filteredListings.length} ilan listelendi.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsVehicleMobileFiltersOpen(prev => !prev)}
+                      className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 rounded-xl text-xs font-black transition-all border border-rose-500/30 cursor-pointer"
+                    >
+                      <Filter className="w-3.5 h-3.5" />
+                      <span>{isVehicleMobileFiltersOpen ? 'Filtreleri Kapat' : 'Filtreleri Aç'}</span>
+                    </button>
+                    <button
+                      onClick={() => setIsFilterDrawerOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      <span>Gelişmiş Filtreler</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className={`${isVehicleMobileFiltersOpen ? 'block' : 'hidden md:block'} space-y-4`}>
+                {/* PRIMARY VEHICLE SELECT CONTROLS GRID */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-2.5">
+                  {/* 1. İLAN KATEGORİSİ */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Tag className="w-3 h-3 text-rose-400" /> İlan Kategorisi
+                    </label>
+                    <select
+                      value={activeVehicleCategory}
+                      onChange={(e) => {
+                        setActiveVehicleCategory(e.target.value);
+                        setActiveVehicleModel("all");
+                      }}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Kategoriler</option>
+                      <option value="otomobil">Otomobil</option>
+                      <option value="suv">SUV / Arazi Aracı</option>
+                      <option value="hafif ticari">Hafif Ticari</option>
+                      <option value="pick-up">Pick-up</option>
+                      {vehicleCategories.map(cat => (
+                        !['otomobil', 'suv', 'hafif ticari', 'pick-up'].includes(cat.toLowerCase()) && (
+                          <option key={cat} value={cat}>{cat}</option>
+                        )
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 2. MARKA */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Shield className="w-3 h-3 text-amber-400" /> Marka
+                    </label>
+                    <select
+                      value={activeVehicleBrand}
+                      onChange={(e) => {
+                        setActiveVehicleBrand(e.target.value);
+                        setActiveVehicleModel("all");
+                      }}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Markalar</option>
+                      {vehicleBrands.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 3. MODEL ADI */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Layers className="w-3 h-3 text-emerald-400" /> Model Adı
+                    </label>
+                    <select
+                      value={activeVehicleModel}
+                      onChange={(e) => setActiveVehicleModel(e.target.value)}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Modeller</option>
+                      {vehicleModels.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 4. ŞANZIMAN TİPİ */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Settings className="w-3 h-3 text-cyan-400" /> Şanzıman Tipi
+                    </label>
+                    <select
+                      value={activeVehicleTransmission}
+                      onChange={(e) => setActiveVehicleTransmission(e.target.value)}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Şanzımanlar</option>
+                      <option value="automatic">Otomatik</option>
+                      <option value="manual">Manuel</option>
+                      <option value="semi_automatic">Yarı Otomatik</option>
+                    </select>
+                  </div>
+
+                  {/* 5. YAKIT TÜRÜ */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Fuel className="w-3 h-3 text-amber-400" /> Yakıt Türü
+                    </label>
+                    <select
+                      value={activeVehicleFuel}
+                      onChange={(e) => setActiveVehicleFuel(e.target.value)}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Yakıt Türleri</option>
+                      <option value="gasoline">Benzin</option>
+                      <option value="diesel">Dizel</option>
+                      <option value="hybrid">Hibrit</option>
+                      <option value="electric">Elektrik</option>
+                      <option value="lpg">LPG</option>
+                    </select>
+                  </div>
+
+                  {/* 6. ÜRETİM YILI */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-purple-400" /> Üretim Yılı
+                    </label>
+                    <select
+                      value={activeVehicleYear}
+                      onChange={(e) => setActiveVehicleYear(e.target.value)}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Yıllar</option>
+                      {vehicleYears.map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 7. KASA TİPİ */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Car className="w-3 h-3 text-blue-400" /> Kasa Tipi
+                    </label>
+                    <select
+                      value={activeVehicleBodyType}
+                      onChange={(e) => setActiveVehicleBodyType(e.target.value)}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Kasa Tipleri</option>
+                      <option value="sedan">Sedan</option>
+                      <option value="hatchback">Hatchback</option>
+                      <option value="suv">SUV</option>
+                      <option value="coupe">Kupe</option>
+                      <option value="cabrio">Cabrio</option>
+                      <option value="pickup">Pick-up</option>
+                      <option value="station">Station Wagon</option>
+                    </select>
+                  </div>
+
+                  {/* 8. TAKAS KABUL EDİLİYOR */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Takas
+                    </label>
+                    <select
+                      value={activeVehicleTradeIn}
+                      onChange={(e) => setActiveVehicleTradeIn(e.target.value)}
+                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tümü</option>
+                      <option value="yes">Takas Kabul Edilir</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* ACTIVE FILTER TAGS & RESET BAR FOR VEHICLES */}
+                {(activeVehicleCategory !== "all" || activeVehicleBrand !== "all" || activeVehicleModel !== "all" || activeVehicleTransmission !== "all" || activeVehicleFuel !== "all" || activeVehicleYear !== "all" || activeVehicleBodyType !== "all" || activeVehicleTradeIn !== "all") && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
+                    <span className="text-[10px] font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
+                      <Filter className="w-3 h-3 text-rose-400" /> Aktif Araç Filtreleri:
+                    </span>
+
+                    {activeVehicleCategory !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-600/30 text-rose-300 rounded-lg text-[11px] font-bold border border-rose-500/40">
+                        Kategori: {activeVehicleCategory}
+                        <button onClick={() => setActiveVehicleCategory("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {activeVehicleBrand !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-lg text-[11px] font-bold border border-amber-500/30">
+                        Marka: {activeVehicleBrand}
+                        <button onClick={() => setActiveVehicleBrand("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {activeVehicleModel !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-lg text-[11px] font-bold border border-emerald-500/30">
+                        Model: {activeVehicleModel}
+                        <button onClick={() => setActiveVehicleModel("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {activeVehicleTransmission !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-lg text-[11px] font-bold border border-cyan-500/30">
+                        Şanzıman: {activeVehicleTransmission}
+                        <button onClick={() => setActiveVehicleTransmission("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {activeVehicleFuel !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-lg text-[11px] font-bold border border-purple-500/30">
+                        Yakıt: {activeVehicleFuel}
+                        <button onClick={() => setActiveVehicleFuel("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {activeVehicleYear !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-500/20 text-blue-300 rounded-lg text-[11px] font-bold border border-blue-500/30">
+                        Yıl: {activeVehicleYear}
+                        <button onClick={() => setActiveVehicleYear("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {activeVehicleBodyType !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-lg text-[11px] font-bold border border-indigo-500/30">
+                        Kasa: {activeVehicleBodyType}
+                        <button onClick={() => setActiveVehicleBodyType("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    {activeVehicleTradeIn !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-600/20 text-emerald-300 rounded-lg text-[11px] font-bold border border-emerald-500/30">
+                        Takas Kabul Edilir
+                        <button onClick={() => setActiveVehicleTradeIn("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                      </span>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setActiveVehicleCategory("all");
+                        setActiveVehicleBrand("all");
+                        setActiveVehicleModel("all");
+                        setActiveVehicleTransmission("all");
+                        setActiveVehicleFuel("all");
+                        setActiveVehicleYear("all");
+                        setActiveVehicleBodyType("all");
+                        setActiveVehicleTradeIn("all");
+                      }}
+                      className="ml-auto text-[10px] font-black text-rose-400 hover:text-rose-300 flex items-center gap-1 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20 transition-all cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Filtreleri Temizle</span>
+                    </button>
+                  </div>
+                )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -1427,17 +1764,6 @@ export const Marketplace = () => {
               {/* MODEL 1: RICH BENTO GRID (3 COLUMN) */}
               {viewMode === "rich" && (
                 <>
-                  <TagFilter 
-                    tags={aggregateTags(filteredListings)}
-                    selectedTags={activeTags}
-                    onToggleTag={(tag) => {
-                      if (activeTags.includes(tag)) {
-                        setActiveTags(activeTags.filter((t) => t !== tag));
-                      } else {
-                        setActiveTags([...activeTags, tag]);
-                      }
-                    }}
-                  />
                   <MarketplaceListingGrid 
                     listings={filteredListings}
                     visibleCount={visibleCount}
@@ -1506,27 +1832,10 @@ export const Marketplace = () => {
                           const brand = listing.brand || listing.sector_data?.brand || "-";
                           
                           const rawFuel = listing.fuel_type || listing.sector_data?.fuel_type || listing.sector_data?.fuel || listing.fuel;
-                          let fuelType = "-";
-                          if (rawFuel) {
-                            const f = String(rawFuel).toLowerCase();
-                            if (f === 'gasoline' || f === 'petrol' || f === 'benzin') fuelType = 'Benzin';
-                            else if (f === 'diesel' || f === 'dizel') fuelType = 'Dizel';
-                            else if (f === 'hybrid' || f === 'hibrit') fuelType = 'Hibrit';
-                            else if (f === 'electric' || f === 'elektrik' || f === 'elektrikli') fuelType = 'Elektrik';
-                            else if (f === 'lpg') fuelType = 'LPG';
-                            else fuelType = String(rawFuel);
-                          }
+                          const fuelType = formatFuelType(rawFuel);
 
                           const rawTrans = listing.transmission || listing.sector_data?.transmission || listing.sector_data?.vites || listing.vites;
-                          let transType = "-";
-                          if (rawTrans) {
-                            const t = String(rawTrans).toLowerCase();
-                            if (t === 'automatic' || t === 'otomatik' || t === 'oto') transType = 'Otomatik';
-                            else if (t === 'manual' || t === 'manuel') transType = 'Manuel';
-                            else if (t === 'semi_automatic' || t === 'yarı otomatik' || t === 'yari_otomatik' || t === 'yari otomatik') transType = 'Yarı Otomatik';
-                            else if (t === 'dual_clutch' || t === 'çift kavrama' || t === 'cift_kavrama') transType = 'Çift Kavrama';
-                            else transType = String(rawTrans);
-                          }
+                          const transType = formatTransmission(rawTrans);
 
                           const model = listing.sector_data?.model || listing.category || "-";
                           const year = listing.year || listing.sector_data?.year || listing.sector_data?.model_year || "-";
@@ -1712,7 +2021,7 @@ export const Marketplace = () => {
                 </div>
                 <div>
                   <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <span>Seçkin Mağaza Vitrin Ortaklarımız</span>
+                    <span>Ortaklarımız</span>
                     <span className="px-2 py-0.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full text-[10px] font-black border border-amber-500/30">
                       {featuredStores.length} Mağaza
                     </span>
@@ -1900,13 +2209,65 @@ export const Marketplace = () => {
           onMouseEnter={() => setIsFilterDrawerOpen(true)}
           onClick={() => setIsFilterDrawerOpen(true)}
         >
-          <div className="flex items-center gap-2 py-4 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-l-2xl shadow-2xl transition-all duration-300 border-l border-t border-b border-blue-400/50 group-hover:pl-4 group-hover:scale-105">
+          <div className={`flex items-center gap-2 py-4 px-2.5 ${mainTab === 'vehicle' ? 'bg-rose-600 hover:bg-rose-500 border-rose-400/50' : 'bg-blue-600 hover:bg-blue-500 border-blue-400/50'} text-white rounded-l-2xl shadow-2xl transition-all duration-300 border-l border-t border-b group-hover:pl-4 group-hover:scale-105`}>
             <Filter className="w-5 h-5 text-white shrink-0 animate-pulse" />
             <span className="text-xs font-black uppercase tracking-widest [writing-mode:vertical-lr] rotate-180 hidden sm:inline">
               DETAYLI FİLTRE
             </span>
           </div>
         </div>
+
+        {/* GLOBAL FILTER DRAWER FOR BOTH EMLAK AND ARAÇLAR */}
+        <FilterDrawer 
+          isOpen={isFilterDrawerOpen} 
+          onClose={() => setIsFilterDrawerOpen(false)}
+          activeSector={mainTab === 'vehicle' ? 'araclar' : 'emlak'}
+          reFihristTab={reFihristTab}
+          setReFihristTab={setReFihristTab}
+          rePropertyType={rePropertyType}
+          setRePropertyType={setRePropertyType}
+          reSubPropertyType={reSubPropertyType}
+          setReSubPropertyType={setReSubPropertyType}
+          reRegion={reRegion}
+          setReRegion={setReRegion}
+          reSubRegion={reSubRegion}
+          setReSubRegion={setReSubRegion}
+          reRooms={reRooms}
+          setReRooms={setReRooms}
+          priceRange={priceRange}
+          setPriceRange={setPriceRange}
+          minPrice={minPrice}
+          setMinPrice={setMinPrice}
+          maxPrice={maxPrice}
+          setMaxPrice={setMaxPrice}
+          reFurnished={reFurnished}
+          setReFurnished={setReFurnished}
+          reKocanType={reKocanType}
+          setReKocanType={setReKocanType}
+          activeTags={activeTags}
+          setActiveTags={setActiveTags}
+          EMLAK_TIPI_SUB_TIPLERI={EMLAK_TIPI_SUB_TIPLERI}
+          REAL_ESTATE_REGIONS={REAL_ESTATE_REGIONS}
+          activeVehicleCategory={activeVehicleCategory}
+          setActiveVehicleCategory={setActiveVehicleCategory}
+          activeVehicleBrand={activeVehicleBrand}
+          setActiveVehicleBrand={setActiveVehicleBrand}
+          activeVehicleModel={activeVehicleModel}
+          setActiveVehicleModel={setActiveVehicleModel}
+          activeVehicleTransmission={activeVehicleTransmission}
+          setActiveVehicleTransmission={setActiveVehicleTransmission}
+          activeVehicleFuel={activeVehicleFuel}
+          setActiveVehicleFuel={setActiveVehicleFuel}
+          activeVehicleYear={activeVehicleYear}
+          setActiveVehicleYear={setActiveVehicleYear}
+          activeVehicleBodyType={activeVehicleBodyType}
+          setActiveVehicleBodyType={setActiveVehicleBodyType}
+          activeVehicleTradeIn={activeVehicleTradeIn}
+          setActiveVehicleTradeIn={setActiveVehicleTradeIn}
+          vehicleBrands={vehicleBrands}
+          vehicleModels={vehicleModels}
+          vehicleYears={vehicleYears}
+        />
 
       </main>
 
@@ -2129,58 +2490,144 @@ export const Marketplace = () => {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {selectedListing.listing_type === 'real_estate' ? (
-                    <>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Mülk Tipi</span>
-                        <span className="text-xs font-black text-slate-900">{formatCategory(selectedListing)}</span>
-                      </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Oda Sayısı</span>
-                        <span className="text-xs font-black text-blue-700">{selectedListing.room_count || sec.rooms || sec.oda || 'Belirtilmedi'}</span>
-                      </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Metrekare (Net)</span>
-                        <span className="text-xs font-black text-emerald-700">
-                          {(() => {
-                            const sqVal = getSquareMeters(selectedListing);
-                            if (!sqVal) return 'Belirtilmedi';
-                            return selectedListing.listing_type === 'real_estate' && (sec.type === 'land' || sec.property_type === 'land' || selectedListing.type === 'land') 
-                              ? `${sqVal}` 
-                              : `${sqVal} m²`;
-                          })()}
-                        </span>
-                      </div>
-                      {(() => {
-                        const isRent = selectedListing.listing_intent === 'rent' || selectedListing.intent === 'rent' || sec.listing_intent === 'rent' || sec.intent === 'rent' || selectedListing.fihrist_type === 'kiralik' || reFihristTab === 'kiralik';
-                        if (isRent) return null;
-                        const titleType = selectedListing.kocan_type || selectedListing.kktc_title_type || sec.kocan_type || sec.kktc_title_type || sec.deed_type || sec.kocan;
-                        if (!titleType) return null;
+                    (() => {
+                      const isLand = sec.type === 'land' || 
+                        sec.property_type === 'land' || 
+                        selectedListing.type === 'land' || 
+                        (selectedListing.category || '').toLowerCase().includes('land') || 
+                        (selectedListing.category || '').toLowerCase().includes('arsa') || 
+                        (selectedListing.category || '').toLowerCase().includes('tarla') ||
+                        (selectedListing.title || '').toLowerCase().includes('arsa') ||
+                        (selectedListing.title || '').toLowerCase().includes('tarla');
+
+                      if (isLand) {
                         return (
-                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Koçan / Tapu</span>
-                            <span className="text-xs font-black text-amber-800">{titleType}</span>
-                          </div>
+                          <>
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block">Mülk Tipi</span>
+                              <span className="text-xs font-black text-slate-900">{formatCategory(selectedListing)}</span>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block">Arsa Alanı</span>
+                              <span className="text-xs font-black text-emerald-700">
+                                {(() => {
+                                  const sqVal = getSquareMeters(selectedListing);
+                                  if (!sqVal) return 'Belirtilmedi';
+                                  return `${sqVal} m²`;
+                                })()}
+                              </span>
+                            </div>
+                            {(() => {
+                              const isRent = selectedListing.listing_intent === 'rent' || selectedListing.intent === 'rent' || sec.listing_intent === 'rent' || sec.intent === 'rent' || selectedListing.fihrist_type === 'kiralik' || reFihristTab === 'kiralik';
+                              if (isRent) return null;
+                              const titleType = selectedListing.kocan_type || selectedListing.kktc_title_type || sec.kocan_type || sec.kktc_title_type || sec.deed_type || sec.kocan;
+                              if (!titleType) return null;
+                              return (
+                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Koçan / Tapu</span>
+                                  <span className="text-xs font-black text-amber-800">{formatTitleDeedType(titleType)}</span>
+                                </div>
+                              );
+                            })()}
+                            {(sec.island || sec.plot) && (
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Ada / Parsel</span>
+                                <span className="text-xs font-black text-slate-900">{sec.island || '---'} / {sec.plot || '---'}</span>
+                              </div>
+                            )}
+                            {sec.kaks && (
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Emsal / KAKS</span>
+                                <span className="text-xs font-black text-slate-900">{sec.kaks}</span>
+                              </div>
+                            )}
+                            {sec.gabari && (
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Gabari / Kat Sınırı</span>
+                                <span className="text-xs font-black text-slate-900">{sec.gabari}</span>
+                              </div>
+                            )}
+                            {sec.elektrik_var !== undefined && (
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Elektrik Altyapısı</span>
+                                <span className="text-xs font-black text-emerald-700">{sec.elektrik_var ? 'Altyapı Var' : 'Yok'}</span>
+                              </div>
+                            )}
+                            {sec.su_var !== undefined && (
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Su Altyapısı</span>
+                                <span className="text-xs font-black text-emerald-700">{sec.su_var ? 'Altyapı Var' : 'Yok'}</span>
+                              </div>
+                            )}
+                            {sec.yol_var !== undefined && (
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Kadastro Yolu</span>
+                                <span className="text-xs font-black text-emerald-700">{sec.yol_var ? 'Kadastro Yolu Var' : 'Yok'}</span>
+                              </div>
+                            )}
+                            {sec.trafo_bedeli !== undefined && (
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Trafo Bedeli</span>
+                                <span className="text-xs font-black text-slate-900">{sec.trafo_bedeli ? 'Ödendi' : 'Ödenmedi'}</span>
+                              </div>
+                            )}
+                          </>
                         );
-                      })()}
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Eşya Durumu</span>
-                        <span className="text-xs font-black text-slate-900">{sec.furnished ? 'Eşyalı' : 'Eşyasız'}</span>
-                      </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Bulunduğu Kat</span>
-                        <span className="text-xs font-black text-slate-900">{sec.floor || 'Giriş / Bahçe'}</span>
-                      </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Isınma / Soğutma</span>
-                        <span className="text-xs font-black text-slate-900">{sec.heating || 'Klima'}</span>
-                      </div>
-                      {sec.deposit && (
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Depozito</span>
-                          <span className="text-xs font-black text-purple-700">{sec.deposit}</span>
-                        </div>
-                      )}
-                    </>
+                      }
+
+                      return (
+                        <>
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Mülk Tipi</span>
+                            <span className="text-xs font-black text-slate-900">{formatCategory(selectedListing)}</span>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Oda Sayısı</span>
+                            <span className="text-xs font-black text-blue-700">{selectedListing.room_count || sec.rooms || sec.oda || 'Belirtilmedi'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Metrekare (Net)</span>
+                            <span className="text-xs font-black text-emerald-700">
+                              {(() => {
+                                const sqVal = getSquareMeters(selectedListing);
+                                if (!sqVal) return 'Belirtilmedi';
+                                return `${sqVal} m²`;
+                              })()}
+                            </span>
+                          </div>
+                          {(() => {
+                            const isRent = selectedListing.listing_intent === 'rent' || selectedListing.intent === 'rent' || sec.listing_intent === 'rent' || sec.intent === 'rent' || selectedListing.fihrist_type === 'kiralik' || reFihristTab === 'kiralik';
+                            if (isRent) return null;
+                            const titleType = selectedListing.kocan_type || selectedListing.kktc_title_type || sec.kocan_type || sec.kktc_title_type || sec.deed_type || sec.kocan;
+                            if (!titleType) return null;
+                            return (
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Koçan / Tapu</span>
+                                <span className="text-xs font-black text-amber-800">{formatTitleDeedType(titleType)}</span>
+                              </div>
+                            );
+                          })()}
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Eşya Durumu</span>
+                            <span className="text-xs font-black text-slate-900">{sec.furnished ? 'Eşyalı' : 'Eşyasız'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Bulunduğu Kat</span>
+                            <span className="text-xs font-black text-slate-900">{sec.floor || 'Giriş / Bahçe'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Isınma / Soğutma</span>
+                            <span className="text-xs font-black text-slate-900">{sec.heating || 'Klima'}</span>
+                          </div>
+                          {sec.deposit && (
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block">Depozito</span>
+                              <span className="text-xs font-black text-purple-700">{sec.deposit}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()
                   ) : (
                     <>
                       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
@@ -2199,11 +2646,27 @@ export const Marketplace = () => {
                       </div>
                       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                         <span className="text-[10px] font-bold text-slate-400 uppercase block">Yakıt Tipi</span>
-                        <span className="text-xs font-black text-amber-800">{sec.fuel_type || 'Benzin'}</span>
+                        <span className="text-xs font-black text-amber-800">
+                          {formatFuelType(
+                            selectedListing.fuel_type || 
+                            selectedListing.fuel || 
+                            sec.fuel_type || 
+                            sec.fuel || 
+                            sec.yakit
+                          )}
+                        </span>
                       </div>
                       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                         <span className="text-[10px] font-bold text-slate-400 uppercase block">Vites Tipi</span>
-                        <span className="text-xs font-black text-slate-900">{sec.transmission || 'Otomatik'}</span>
+                        <span className="text-xs font-black text-slate-900">
+                          {formatTransmission(
+                            selectedListing.transmission || 
+                            selectedListing.vites || 
+                            sec.transmission || 
+                            sec.vites || 
+                            'automatic'
+                          )}
+                        </span>
                       </div>
                     </>
                   )}

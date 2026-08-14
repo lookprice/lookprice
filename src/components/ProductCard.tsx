@@ -4,6 +4,7 @@ import { getExchangeRate } from "../services/currencyService";
 import { Eye, Package, Plus, Star, MapPin, Ruler, BedDouble, Car, Settings, Fuel, Home, Calendar, ArrowRight, FlaskConical, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Product, Store as StoreInfo } from "../types";
+import { formatTransmission, formatFuelType } from "../utils/formatUtils";
 
 interface ProductCardProps {
   product: Product;
@@ -210,21 +211,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Vites' : 'Trans.'}</span>
-            <span className="text-xs font-bold text-slate-700 truncate">{product.sector_data.transmission}</span>
+            <span className="text-xs font-bold text-slate-700 truncate">{formatTransmission(product.sector_data.transmission, lang)}</span>
           </div>
         </div>
       )}
-      {product.sector_data?.fuel_type && (
-        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-          <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <Fuel className="w-3.5 h-3.5" />
+      {(() => {
+        const rawFuel = product.sector_data?.fuel_type || product.sector_data?.fuel || (product as any).fuel_type || (product as any).fuel;
+        if (!rawFuel) return null;
+        return (
+          <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+            <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <Fuel className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Yakıt' : 'Fuel'}</span>
+              <span className="text-xs font-bold text-slate-700 truncate">{formatFuelType(rawFuel, lang)}</span>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{lang === 'tr' ? 'Yakıt' : 'Fuel'}</span>
-            <span className="text-xs font-bold text-slate-700 truncate">{product.sector_data.fuel_type}</span>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 

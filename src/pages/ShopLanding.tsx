@@ -57,13 +57,17 @@ export default function ShopLanding() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     api.getPublicVideos("shoplp")
       .then(res => {
-        if (res && Array.isArray(res) && res.length > 0) {
+        if (isMounted && res && Array.isArray(res) && res.length > 0) {
           setDbVideos(res);
         }
       })
-      .catch(err => console.error("Error fetching Shop videos:", err));
+      .catch(err => console.warn("Could not load Shop videos, using defaults:", err?.message || err));
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const videoTabs = useMemo(() => {

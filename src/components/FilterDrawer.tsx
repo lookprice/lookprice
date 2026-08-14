@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Filter, Tag, Key, Building2, Layers, MapPin, RotateCcw, Home, DollarSign, ShieldCheck, Check } from 'lucide-react';
+import { X, Filter, Tag, Key, Building2, Layers, MapPin, RotateCcw, Home, DollarSign, ShieldCheck, Check, Car, Gauge, Calendar, Fuel, Settings } from 'lucide-react';
 
 interface FilterDrawerProps {
   isOpen: boolean;
@@ -32,6 +32,29 @@ interface FilterDrawerProps {
   setActiveTags: (tags: (prev: string[]) => string[]) => void;
   EMLAK_TIPI_SUB_TIPLERI?: Record<string, string[]>;
   REAL_ESTATE_REGIONS?: Record<string, string[]>;
+  // Vehicle Filters
+  activeVehicleCategory?: string;
+  setActiveVehicleCategory?: (cat: string) => void;
+  activeVehicleBrand?: string;
+  setActiveVehicleBrand?: (brand: string) => void;
+  activeVehicleModel?: string;
+  setActiveVehicleModel?: (model: string) => void;
+  activeVehicleTransmission?: string;
+  setActiveVehicleTransmission?: (trans: string) => void;
+  activeVehicleFuel?: string;
+  setActiveVehicleFuel?: (fuel: string) => void;
+  activeVehicleYear?: string;
+  setActiveVehicleYear?: (year: string) => void;
+  activeVehicleBodyType?: string;
+  setActiveVehicleBodyType?: (body: string) => void;
+  activeVehicleTradeIn?: string;
+  setActiveVehicleTradeIn?: (trade: string) => void;
+  vehicleBrands?: string[];
+  vehicleModels?: string[];
+  vehicleFuels?: string[];
+  vehicleTransmissions?: string[];
+  vehicleYears?: string[];
+  vehicleBodyTypes?: string[];
 }
 
 export const FilterDrawer: React.FC<FilterDrawerProps> = ({ 
@@ -49,27 +72,52 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
   reKocanType = "all", setReKocanType,
   activeTags, setActiveTags,
   EMLAK_TIPI_SUB_TIPLERI = {},
-  REAL_ESTATE_REGIONS = {}
+  REAL_ESTATE_REGIONS = {},
+  activeVehicleCategory = "all", setActiveVehicleCategory,
+  activeVehicleBrand = "all", setActiveVehicleBrand,
+  activeVehicleModel = "all", setActiveVehicleModel,
+  activeVehicleTransmission = "all", setActiveVehicleTransmission,
+  activeVehicleFuel = "all", setActiveVehicleFuel,
+  activeVehicleYear = "all", setActiveVehicleYear,
+  activeVehicleBodyType = "all", setActiveVehicleBodyType,
+  activeVehicleTradeIn = "all", setActiveVehicleTradeIn,
+  vehicleBrands = [],
+  vehicleModels = [],
+  vehicleFuels = [],
+  vehicleTransmissions = [],
+  vehicleYears = [],
+  vehicleBodyTypes = []
 }) => {
   const resetFilters = () => {
-    setReFihristTab("all");
-    setRePropertyType("all");
-    setReSubPropertyType("all");
-    setReRegion("all");
-    if (setReSubRegion) setReSubRegion("all");
-    if (setReRooms) setReRooms("all");
-    if (setPriceRange) setPriceRange("all");
-    if (setMinPrice) setMinPrice("");
-    if (setMaxPrice) setMaxPrice("");
-    if (setReFurnished) setReFurnished("all");
-    if (setReKocanType) setReKocanType("all");
-    setActiveTags(() => []);
+    if (activeSector === 'emlak') {
+      setReFihristTab("all");
+      setRePropertyType("all");
+      setReSubPropertyType("all");
+      setReRegion("all");
+      if (setReSubRegion) setReSubRegion("all");
+      if (setReRooms) setReRooms("all");
+      if (setPriceRange) setPriceRange("all");
+      if (setMinPrice) setMinPrice("");
+      if (setMaxPrice) setMaxPrice("");
+      if (setReFurnished) setReFurnished("all");
+      if (setReKocanType) setReKocanType("all");
+      setActiveTags(() => []);
+    } else {
+      if (setActiveVehicleCategory) setActiveVehicleCategory("all");
+      if (setActiveVehicleBrand) setActiveVehicleBrand("all");
+      if (setActiveVehicleModel) setActiveVehicleModel("all");
+      if (setActiveVehicleTransmission) setActiveVehicleTransmission("all");
+      if (setActiveVehicleFuel) setActiveVehicleFuel("all");
+      if (setActiveVehicleYear) setActiveVehicleYear("all");
+      if (setActiveVehicleBodyType) setActiveVehicleBodyType("all");
+      if (setActiveVehicleTradeIn) setActiveVehicleTradeIn("all");
+    }
   };
 
   const getButtonClass = (isActive: boolean) => 
     `flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer ${
       isActive
-        ? "bg-blue-600 text-white border-blue-400 shadow-lg ring-2 ring-blue-500/30"
+        ? (activeSector === 'araclar' ? "bg-rose-600 text-white border-rose-400 shadow-lg ring-2 ring-rose-500/30" : "bg-blue-600 text-white border-blue-400 shadow-lg ring-2 ring-blue-500/30")
         : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:border-slate-700"
     }`;
 
@@ -101,15 +149,23 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
           >
             <div className="p-4 flex items-center justify-between border-b border-slate-800 sticky top-0 bg-slate-950/95 backdrop-blur-md z-10">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Filter className="w-5 h-5 text-blue-400" /> Emlak Portföy Filtreleri
+                {activeSector === 'emlak' ? (
+                  <>
+                    <Filter className="w-5 h-5 text-blue-400" /> Emlak Portföy Filtreleri
+                  </>
+                ) : (
+                  <>
+                    <Car className="w-5 h-5 text-rose-400" /> Araç Detay Filtreleri
+                  </>
+                )}
               </h2>
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition-colors">
+              <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition-colors cursor-pointer">
                 <X className="w-6 h-6" />
               </button>
             </div>
             
             <div className="p-5 space-y-6">
-              {activeSector === 'emlak' && (
+              {activeSector === 'emlak' ? (
                 <>
                   {/* 1. İLAN NİYETİ */}
                   <div className="space-y-2">
@@ -181,18 +237,18 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                     </div>
                   </div>
 
-                  {/* 5. SEMT / MAHALLE */}
-                  {availableSubRegions.length > 0 && setReSubRegion && (
+                  {/* 5. ALT BÖLGE / LOKASYON */}
+                  {availableSubRegions.length > 0 && (
                     <div className="space-y-2">
                       <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        📍 5. Semt / Mahalle ({reRegion.toUpperCase()})
+                        <MapPin className="w-3.5 h-3.5 text-purple-400" /> 5. İlçe / Bölge
                       </span>
                       <div className="flex flex-wrap items-center gap-1.5 max-h-32 overflow-y-auto p-1 bg-slate-900/50 rounded-xl border border-slate-800">
-                        <button onClick={() => setReSubRegion("all")} className={getButtonClass(reSubRegion === "all")}>
-                          Tüm Mahalleler
+                        <button onClick={() => { if (setReSubRegion) setReSubRegion("all"); }} className={getButtonClass(reSubRegion === "all")}>
+                          Tüm Bölgeler
                         </button>
                         {availableSubRegions.map((sub) => (
-                          <button key={sub} onClick={() => setReSubRegion(sub)} className={getButtonClass(reSubRegion === sub)}>
+                          <button key={sub} onClick={() => { if (setReSubRegion) setReSubRegion(sub); }} className={getButtonClass(reSubRegion === sub)}>
                             {sub}
                           </button>
                         ))}
@@ -201,83 +257,78 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                   )}
 
                   {/* 6. ODA SAYISI */}
-                  {setReRooms && (
-                    <div className="space-y-2">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <Home className="w-3.5 h-3.5 text-cyan-400" /> 6. Oda Sayısı
-                      </span>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {["all", "1+0", "1+1", "2+1", "3+1", "4+1", "5+", "Penthouse"].map((rm) => (
-                          <button key={rm} onClick={() => setReRooms(rm)} className={getButtonClass(reRooms === rm)}>
-                            {rm === "all" ? "TÜM ODALAR" : rm}
-                          </button>
-                        ))}
-                      </div>
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Home className="w-3.5 h-3.5 text-amber-500" /> 6. Oda Sayısı
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {["all", "1+1", "2+1", "3+1", "4+1", "villa", "stüdyo"].map((room) => (
+                        <button key={room} onClick={() => { if (setReRooms) setReRooms(room); }} className={getButtonClass(reRooms === room)}>
+                          {room === "all" ? "TÜMÜ" : room.toUpperCase()}
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
 
-                  {/* 7. FİYAT ARALIĞI */}
-                  {setPriceRange && (
-                    <div className="space-y-2">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <DollarSign className="w-3.5 h-3.5 text-emerald-400" /> 7. Fiyat Aralığı
-                      </span>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {[
-                          { id: "all", label: "TÜM FİYATLAR" },
-                          { id: "0-150000", label: "£150.000 Altı" },
-                          { id: "150000-300000", label: "£150k - £300k" },
-                          { id: "300000-500000", label: "£300k - £500k" },
-                          { id: "500000+", label: "£500.000 Üstü Lüks" }
-                        ].map((pr) => (
-                          <button key={pr.id} onClick={() => setPriceRange(pr.id)} className={getButtonClass(priceRange === pr.id)}>
-                            {pr.label}
-                          </button>
-                        ))}
-                      </div>
+                  {/* 7. EŞYA DURUMU */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      🛋️ 7. Eşya Durumu
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { id: "all", label: "TÜMÜ" },
+                        { id: "eşyalı", label: "🛋️ Eşyalı" },
+                        { id: "eşyasız", label: "🏠 Eşyasız" }
+                      ].map((f) => (
+                        <button key={f.id} onClick={() => { if (setReFurnished) setReFurnished(f.id); }} className={getButtonClass(reFurnished === f.id)}>
+                          {f.label}
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
 
-                  {/* 8. EŞYA DURUMU */}
-                  {setReFurnished && (
-                    <div className="space-y-2">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        🛋️ 8. Eşya Durumu
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {[
-                          { id: "all", label: "HEPSİ" },
-                          { id: "yes", label: "EŞYALI" },
-                          { id: "no", label: "BOŞ / EŞYASIZ" }
-                        ].map((f) => (
-                          <button key={f.id} onClick={() => setReFurnished(f.id)} className={getButtonClass(reFurnished === f.id)}>
-                            {f.label}
-                          </button>
-                        ))}
-                      </div>
+                  {/* 8. KOÇAN TİPİ */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      📜 8. Tapu / Koçan Tipi
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { id: "all", label: "TÜMÜ" },
+                        { id: "türk", label: "🇹🇷 Türk Koçan" },
+                        { id: "eşdeğer", label: "📜 Eşdeğer" },
+                        { id: "tahsis", label: "🏛️ Tahsis" }
+                      ].map((k) => (
+                        <button key={k.id} onClick={() => { if (setReKocanType) setReKocanType(k.id); }} className={getButtonClass(reKocanType === k.id)}>
+                          {k.label}
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
 
-                  {/* 9. KOÇAN / TAPU TÜRÜ (Sadece Satılık Portföyler İçin) */}
-                  {setReKocanType && reFihristTab !== "kiralik" && (
-                    <div className="space-y-2">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> 9. Tapu / Koçan Türü
-                      </span>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {[
-                          { id: "all", label: "TÜM KOÇANLAR" },
-                          { id: "Türk Koçanlı", label: "Türk Koçanlı" },
-                          { id: "Eşdeğer Koçan", label: "Eşdeğer Koçan" },
-                          { id: "Tahsis Koçan", label: "Tahsis Koçan" }
-                        ].map((k) => (
-                          <button key={k.id} onClick={() => setReKocanType(k.id)} className={getButtonClass(reKocanType === k.id)}>
-                            {k.label}
-                          </button>
-                        ))}
-                      </div>
+                  {/* 9. FİYAT ARALIĞI */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5 text-emerald-500" /> 9. Fiyat Aralığı
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="Min ₺" 
+                        value={minPrice} 
+                        onChange={(e) => { if (setMinPrice) setMinPrice(e.target.value); }}
+                        className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs font-bold focus:border-blue-500 focus:outline-none"
+                      />
+                      <input 
+                        type="number" 
+                        placeholder="Maks ₺" 
+                        value={maxPrice} 
+                        onChange={(e) => { if (setMaxPrice) setMaxPrice(e.target.value); }}
+                        className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs font-bold focus:border-blue-500 focus:outline-none"
+                      />
                     </div>
-                  )}
+                  </div>
 
                   {/* 10. ÖZELLİK ETİKETLERİ */}
                   <div className="space-y-2">
@@ -307,6 +358,177 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                           </button>
                         );
                       })}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* VEHICLE DETAIL FILTERS */}
+                  {/* 1. İLAN KATEGORİSİ */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-rose-400" /> 1. Araç Kategorisi
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { id: "all", label: "TÜMÜ" },
+                        { id: "otomobil", label: "🚗 Otomobil" },
+                        { id: "suv", label: "🚙 SUV" },
+                        { id: "hafif ticari", label: "🚐 Hafif Ticari" },
+                        { id: "pick-up", label: "🛻 Pick-up" }
+                      ].map((cat) => (
+                        <button 
+                          key={cat.id} 
+                          onClick={() => { if (setActiveVehicleCategory) setActiveVehicleCategory(cat.id); }} 
+                          className={getButtonClass(activeVehicleCategory === cat.id)}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 2. MARKA */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Car className="w-3.5 h-3.5 text-blue-400" /> 2. Marka
+                    </span>
+                    <select
+                      value={activeVehicleBrand}
+                      onChange={(e) => { if (setActiveVehicleBrand) setActiveVehicleBrand(e.target.value); }}
+                      className="w-full p-2.5 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Markalar</option>
+                      {vehicleBrands.map(b => (
+                        <option key={b} value={b}>{b.toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 3. MODEL */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Settings className="w-3.5 h-3.5 text-amber-400" /> 3. Model
+                    </span>
+                    <select
+                      value={activeVehicleModel}
+                      onChange={(e) => { if (setActiveVehicleModel) setActiveVehicleModel(e.target.value); }}
+                      className="w-full p-2.5 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Modeller</option>
+                      {vehicleModels.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 4. ŞANZIMAN */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Gauge className="w-3.5 h-3.5 text-emerald-400" /> 4. Şanzıman Tipi
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { id: "all", label: "TÜMÜ" },
+                        { id: "automatic", label: "Otomatik" },
+                        { id: "manual", label: "Manuel" },
+                        { id: "semi_automatic", label: "Yarı Otomatik" }
+                      ].map((trans) => (
+                        <button 
+                          key={trans.id} 
+                          onClick={() => { if (setActiveVehicleTransmission) setActiveVehicleTransmission(trans.id); }} 
+                          className={getButtonClass(activeVehicleTransmission === trans.id || (trans.id === 'automatic' && activeVehicleTransmission === 'otomatik') || (trans.id === 'manual' && activeVehicleTransmission === 'manuel') || (trans.id === 'semi_automatic' && (activeVehicleTransmission === 'yarı otomatik' || activeVehicleTransmission === 'semi-automatic')))}
+                        >
+                          {trans.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 5. YAKIT TÜRÜ */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Fuel className="w-3.5 h-3.5 text-purple-400" /> 5. Yakıt Türü
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { id: "all", label: "TÜMÜ" },
+                        { id: "gasoline", label: "Benzin" },
+                        { id: "diesel", label: "Dizel" },
+                        { id: "hybrid", label: "Hibrit" },
+                        { id: "electric", label: "Elektrik" },
+                        { id: "lpg", label: "LPG" }
+                      ].map((f) => (
+                        <button 
+                          key={f.id} 
+                          onClick={() => { if (setActiveVehicleFuel) setActiveVehicleFuel(f.id); }} 
+                          className={getButtonClass(activeVehicleFuel === f.id || (f.id === 'gasoline' && activeVehicleFuel === 'benzin') || (f.id === 'diesel' && activeVehicleFuel === 'dizel') || (f.id === 'hybrid' && activeVehicleFuel === 'hibrit') || (f.id === 'electric' && activeVehicleFuel === 'elektrik'))}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 6. YIL */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-cyan-400" /> 6. Üretim Yılı
+                    </span>
+                    <select
+                      value={activeVehicleYear}
+                      onChange={(e) => { if (setActiveVehicleYear) setActiveVehicleYear(e.target.value); }}
+                      className="w-full p-2.5 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Yıllar</option>
+                      {vehicleYears.map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 7. KASA TİPİ */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      🚗 7. Kasa Tipi
+                    </span>
+                    <select
+                      value={activeVehicleBodyType}
+                      onChange={(e) => { if (setActiveVehicleBodyType) setActiveVehicleBodyType(e.target.value); }}
+                      className="w-full p-2.5 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-rose-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">Tüm Kasa Tipleri</option>
+                      <option value="sedan">Sedan</option>
+                      <option value="hatchback">Hatchback</option>
+                      <option value="suv">SUV</option>
+                      <option value="coupe">Kupe</option>
+                      <option value="cabrio">Cabrio</option>
+                      <option value="pickup">Pick-up</option>
+                      <option value="station">Station Wagon</option>
+                      {vehicleBodyTypes.filter(bt => !['sedan', 'hatchback', 'suv', 'coupe', 'cabrio', 'pickup', 'station'].includes(bt.toLowerCase())).map(bt => (
+                        <option key={bt} value={bt}>{bt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 8. TAKAS */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      🔄 8. Takas Durumu
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { id: "all", label: "TÜMÜ" },
+                        { id: "yes", label: "Takaslı" }
+                      ].map((t) => (
+                        <button 
+                          key={t.id} 
+                          onClick={() => { if (setActiveVehicleTradeIn) setActiveVehicleTradeIn(t.id); }} 
+                          className={getButtonClass(activeVehicleTradeIn === t.id)}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </>

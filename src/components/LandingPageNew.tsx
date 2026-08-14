@@ -67,13 +67,19 @@ export const LandingPage = () => {
   const [dbVideos, setDbVideos] = useState<any[]>([]);
 
   useEffect(() => {
+    let isMounted = true;
     api.getPublicVideos("lookprice_net")
       .then(res => {
-        if (res && Array.isArray(res) && res.length > 0) {
+        if (isMounted && res && Array.isArray(res) && res.length > 0) {
           setDbVideos(res);
         }
       })
-      .catch(err => console.error("Error fetching db videos:", err));
+      .catch(err => {
+        console.warn("Could not load custom videos, using defaults:", err?.message || err);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const videoTabs = React.useMemo(() => {

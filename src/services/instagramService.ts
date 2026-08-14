@@ -1,5 +1,6 @@
 import axios from "axios";
 import { pool } from "../../models/db";
+import { formatFuelType, formatTransmission } from "../utils/formatUtils";
 
 export class InstagramService {
   private static GLOBAL_ACCESS_TOKEN = process.env.GLOBAL_INSTAGRAM_ACCESS_TOKEN;
@@ -314,8 +315,8 @@ export class InstagramService {
       : '';
 
     if (type === 'vehicle') {
-      const fuelText = item.fuel_type || "Belirtilmedi";
-      const transText = item.transmission || "Belirtilmedi";
+      const fuelText = formatFuelType(item.fuel_type);
+      const transText = formatTransmission(item.transmission);
       const priceText = item.selling_price ? `${item.selling_price} ${item.currency || 'TRY'}` : "Görüşülecek";
       const kmText = item.current_mileage !== undefined ? `${item.current_mileage} km` : "Belirtilmedi";
 

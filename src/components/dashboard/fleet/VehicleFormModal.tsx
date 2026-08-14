@@ -345,15 +345,27 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-gray-600">Yakıt Türü</label>
                   <select
-                    value={formData.fuel_type || 'gasoline'}
+                    value={(() => {
+                      const f = String(formData.fuel_type || 'gasoline').toLowerCase().trim();
+                      if (['diesel', 'dizel'].includes(f)) return 'diesel';
+                      if (['gasoline', 'benzin', 'petrol'].includes(f)) return 'gasoline';
+                      if (['lpg'].includes(f)) return 'lpg';
+                      if (['hybrid', 'hibrit'].includes(f)) return 'hybrid';
+                      if (['gasoline_hybrid'].includes(f)) return 'gasoline_hybrid';
+                      if (['diesel_hybrid'].includes(f)) return 'diesel_hybrid';
+                      if (['electric', 'elektrik', 'elektrikli'].includes(f)) return 'electric';
+                      return formData.fuel_type || 'gasoline';
+                    })()}
                     onChange={(e) => setFormData({ ...formData, fuel_type: e.target.value as any })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                    className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium"
                   >
                     <option value="gasoline">Benzin</option>
                     <option value="diesel">Dizel</option>
-                    <option value="lpg">LPG</option>
+                    <option value="gasoline_hybrid">Benzin / Hibrit</option>
+                    <option value="diesel_hybrid">Dizel / Hibrit</option>
                     <option value="hybrid">Hibrit</option>
                     <option value="electric">Elektrik</option>
+                    <option value="lpg">LPG</option>
                   </select>
                 </div>
                 <div className="space-y-1">

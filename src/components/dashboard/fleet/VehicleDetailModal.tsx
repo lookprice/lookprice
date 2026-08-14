@@ -31,6 +31,7 @@ import {
   VehicleMileage, 
   VehicleIncident 
 } from '../../../types';
+import { formatFuelType, formatTransmission } from '../../../utils/formatUtils';
 
 interface VehicleDetailModalProps {
   isOpen: boolean;
@@ -217,7 +218,9 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                       <Fuel className="w-3 h-3" />
                       {isTr ? 'YAKIT' : 'FUEL'}
                     </div>
-                    <span className="text-sm font-black text-gray-900 uppercase">{vehicle.fuel_type || '-'}</span>
+                    <span className="text-sm font-black text-gray-900 uppercase">
+                      {formatFuelType(vehicle.fuel_type, isTr ? 'tr' : 'en')}
+                    </span>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-2xl space-y-1">
                     <div className="flex items-center gap-1.5 text-[9px] font-black text-indigo-600 uppercase tracking-widest">
@@ -225,9 +228,7 @@ export const VehicleDetailModal: React.FC<VehicleDetailModalProps> = ({
                       {isTr ? 'VİTES' : 'TRANS'}
                     </div>
                     <span className="text-sm font-black text-gray-900 uppercase">
-                      {vehicle.transmission === 'automatic' ? (isTr ? 'OTOMATİK' : 'AUTO') : 
-                       vehicle.transmission === 'manual' ? (isTr ? 'MANUEL' : 'MANUAL') : 
-                       vehicle.transmission || '-'}
+                      {formatTransmission(vehicle.transmission, isTr ? 'tr' : 'en')}
                     </span>
                   </div>
                 </div>

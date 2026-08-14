@@ -27,13 +27,16 @@ export interface ThermalReceiptOptions {
 }
 
 export interface ThermalZReportOptions {
+  title?: string;
   storeName?: string;
   reportDate?: string;
+  isRange?: boolean;
   cashTotal?: number;
   cardTotal?: number;
   otherTotal?: number;
   grandTotal?: number;
   saleCount?: number;
+  totalItemsSold?: number;
   products?: Array<{ product_name: string; total_quantity: number; total_revenue: number }>;
   printTime?: string;
 }
@@ -227,20 +230,28 @@ export const printThermalReceipt = (options: ThermalReceiptOptions) => {
 };
 
 /**
- * Triggers 80mm Thermal Printer output for Daily Z-Report.
+ * Triggers 80mm Thermal Printer output for Daily Z-Report & Period Sales Report.
  */
 export const printThermalZReport = (options: ThermalZReportOptions) => {
   const {
+    title,
     storeName = "TELOCA CAFE",
     reportDate = new Date().toISOString().split('T')[0],
+    isRange = false,
     cashTotal = 0,
     cardTotal = 0,
     otherTotal = 0,
     grandTotal = 0,
     saleCount = 0,
+    totalItemsSold,
     products = [],
     printTime = new Date().toLocaleString('tr-TR')
   } = options;
+
+  const reportHeaderTitle = title || (isRange ? "SATIŞ & CİRO DÖNEM RAPORU" : "GÜN SONU Z RAPORU");
+  const calculatedItemsSold = totalItemsSold !== undefined 
+    ? totalItemsSold 
+    : products.reduce((sum, p) => sum + (Number(p.total_quantity) || 0), 0);
 
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
@@ -259,14 +270,14 @@ export const printThermalZReport = (options: ThermalZReportOptions) => {
       <td style="padding: 3px 0; text-align: center; font-size: 13px; font-weight: 900;">${p.total_quantity}</td>
       <td style="padding: 3px 0; text-align: right;">${(p.total_revenue || 0).toFixed(2)} ₺</td>
     </tr>
-  `).join('') : `<tr><td colSpan="3" style="text-align: center; padding: 6px; font-size: 11px;">Bugün satılan ürün yok.</td></tr>`;
+  `).join('') : `<tr><td colSpan="3" style="text-align: center; padding: 6px; font-size: 11px;">Belirtilen tarihte satılan ürün yok.</td></tr>`;
 
   const html = `
     <!DOCTYPE html>
     <html>
       <head>
         <meta charset="utf-8" />
-        <title>GÜN SONU Z RAPORU</title>
+        <title>${reportHeaderTitle}</title>
         <style>
           @media print {
             @page {
@@ -300,14 +311,14 @@ export const printThermalZReport = (options: ThermalZReportOptions) => {
           <div style="font-size: 18px; font-weight: 900; text-transform: uppercase;">
             ${storeName}
           </div>
-          <div style="font-size: 15px; font-weight: 900; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px 0; margin: 4px 0 8px 0;">
-            GÜN SONU Z RAPORU
+          <div style="font-size: 14px; font-weight: 900; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px 0; margin: 4px 0 8px 0;">
+            ${reportHeaderTitle}
           </div>
 
           <div style="text-align: left; font-size: 11px; font-weight: bold; border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 6px;">
             <div style="display: flex; justify-content: space-between;">
-              <span>RAPOR TARİHİ:</span>
-              <span>${reportDate}</span>
+              <span>${isRange ? 'TARİH ARALIĞI:' : 'RAPOR TARİHİ:'}</span>
+              <span style="font-weight: 900;">${reportDate}</span>
             </div>
             <div style="display: flex; justify-content: space-between; margin-top: 2px;">
               <span>YAZDIRMA ZAMANI:</span>
@@ -316,6 +327,10 @@ export const printThermalZReport = (options: ThermalZReportOptions) => {
             <div style="display: flex; justify-content: space-between; margin-top: 2px;">
               <span>TOPLAM İŞLEM:</span>
               <span>${saleCount} Adet Satış</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 2px;">
+              <span>TOPLAM SATILAN ÜRÜN:</span>
+              <span style="font-weight: 900;">${calculatedItemsSold} Adet</span>
             </div>
           </div>
 
@@ -337,7 +352,7 @@ export const printThermalZReport = (options: ThermalZReportOptions) => {
             </div>` : ''}
 
             <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px 0; margin-top: 6px; text-align: center;">
-              <div style="font-size: 12px; font-weight: 900;">GÜNLÜK TOPLAM CİRO</div>
+              <div style="font-size: 12px; font-weight: 900;">${isRange ? 'DÖNEM TOPLAM CİRO' : 'GÜNLÜK TOPLAM CİRO'}</div>
               <div style="font-size: 22px; font-weight: 900;">${grandTotal.toFixed(2)} ₺</div>
             </div>
           </div>
@@ -365,7 +380,7 @@ export const printThermalZReport = (options: ThermalZReportOptions) => {
               <span>Kasiyer / İmzası</span>
               <span>Yetkili / İmzası</span>
             </div>
-            <p style="margin: 0; font-weight: 900; font-size: 12px;">*** GÜN SONU Z RAPORU SONU ***</p>
+            <p style="margin: 0; font-weight: 900; font-size: 12px;">*** RAPOR SONU ***</p>
           </div>
         </div>
       </body>

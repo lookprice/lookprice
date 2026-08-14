@@ -45,13 +45,17 @@ export default function HoReCaLanding() {
   const [dbVideos, setDbVideos] = useState<any[]>([]);
 
   useEffect(() => {
+    let isMounted = true;
     api.getPublicVideos("horecalp")
       .then(res => {
-        if (res && Array.isArray(res) && res.length > 0) {
+        if (isMounted && res && Array.isArray(res) && res.length > 0) {
           setDbVideos(res);
         }
       })
-      .catch(err => console.error("Error fetching HoReCa videos:", err));
+      .catch(err => console.warn("Could not load HoReCa videos, using defaults:", err?.message || err));
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const videoTabs = useMemo(() => {

@@ -60,14 +60,16 @@ router.get("/daily-sales", async (req: any, res) => {
 
 router.get("/pos-daily", async (req: any, res) => {
   const storeId = req.user?.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user?.store_id;
-  const { date } = req.query;
+  const { date, startDate, endDate } = req.query;
   
   try {
     if (!req.user) {
         console.log("DEBUG: req.user is undefined!");
         return res.status(401).json({ error: "Unauthorized" });
     }
-    const targetDateStr = (date as string) || new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    const targetStart = (startDate as string) || (date as string) || today;
+    const targetEnd = (endDate as string) || (date as string) || targetStart;
 
     const paymentQuery = `
       SELECT 
@@ -78,13 +80,10 @@ router.get("/pos-daily", async (req: any, res) => {
       LEFT JOIN sale_payments sp ON sp.sale_id = s.id
       WHERE s.store_id = $1 
         AND s.status IN ('completed', 'paid')
-        AND (
-          s.created_at::date = $2::date
-          OR (s.created_at >= $2::timestamp AND s.created_at < ($2::timestamp + INTERVAL '1 day'))
-        )
+        AND (s.created_at::date >= $2::date AND s.created_at::date <= $3::date)
       GROUP BY COALESCE(sp.payment_method, s.payment_method, 'cash')
     `;
-    const paymentRes = await pool.query(paymentQuery, [storeId, targetDateStr]);
+    const paymentRes = await pool.query(paymentQuery, [storeId, targetStart, targetEnd]);
 
     const productQuery = `
       SELECT 
@@ -95,20 +94,33 @@ router.get("/pos-daily", async (req: any, res) => {
       JOIN sales s ON si.sale_id = s.id
       WHERE s.store_id = $1 
         AND s.status IN ('completed', 'paid')
-        AND (
-          s.created_at::date = $2::date
-          OR (s.created_at >= $2::timestamp AND s.created_at < ($2::timestamp + INTERVAL '1 day'))
-        )
+        AND (s.created_at::date >= $2::date AND s.created_at::date <= $3::date)
       GROUP BY si.product_name
       ORDER BY total_quantity DESC
     `;
-    const productRes = await pool.query(productQuery, [storeId, targetDateStr]);
+    const productRes = await pool.query(productQuery, [storeId, targetStart, targetEnd]);
+
+    const totalSalesQuery = `
+      SELECT 
+        COUNT(s.id)::INT as total_sales_count,
+        COALESCE(SUM(s.total_amount), 0)::FLOAT as grand_total
+      FROM sales s
+      WHERE s.store_id = $1
+        AND s.status IN ('completed', 'paid')
+        AND (s.created_at::date >= $2::date AND s.created_at::date <= $3::date)
+    `;
+    const totalSalesRes = await pool.query(totalSalesQuery, [storeId, targetStart, targetEnd]);
 
     res.json({
       success: true,
-      date: targetDateStr,
+      date: targetStart === targetEnd ? targetStart : `${targetStart} - ${targetEnd}`,
+      startDate: targetStart,
+      endDate: targetEnd,
+      isRange: targetStart !== targetEnd,
       payments: paymentRes.rows,
-      products: productRes.rows
+      products: productRes.rows,
+      total_sales: totalSalesRes.rows[0]?.total_sales_count || 0,
+      grand_total: totalSalesRes.rows[0]?.grand_total || 0
     });
   } catch (err: any) {
     console.error("DEBUG: pos-daily error:", err);

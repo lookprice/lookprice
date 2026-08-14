@@ -20,6 +20,7 @@ import {
   Gauge,
   Flame
 } from "lucide-react";
+import { formatFuelType, formatTransmission } from "../utils/formatUtils";
 
 interface AutomotiveSocialMediaShareModalProps {
   isOpen: boolean;
@@ -114,8 +115,8 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
   const priceText = `${formatNumberVal(vehicle.selling_price)} ${currencySymbol}`;
   const vehicleTitle = `${vehicle.brand} ${vehicle.model} (${vehicle.year})`;
   const mileageText = vehicle.current_mileage ? `${formatNumberVal(vehicle.current_mileage)} KM` : "";
-  const transmissionText = vehicle.transmission === 'automatic' ? 'Otomatik' : vehicle.transmission === 'semi_automatic' ? 'Yarı Otomatik' : 'Manuel';
-  const fuelText = vehicle.fuel_type === 'diesel' ? 'Dizel' : vehicle.fuel_type === 'gasoline' ? 'Benzin' : vehicle.fuel_type === 'hybrid' ? 'Hibrit' : vehicle.fuel_type === 'electric' ? 'Elektrik' : vehicle.fuel_type || 'Belirtilmedi';
+  const transmissionText = formatTransmission(vehicle.transmission);
+  const fuelText = formatFuelType(vehicle.fuel_type);
   const bodyText = vehicle.body_type || 'Binek';
   const colorText = vehicle.color || 'Belirtilmedi';
 

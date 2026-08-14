@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Store, Product } from "../types";
+import { formatTransmission, formatFuelType } from "../utils/formatUtils";
 import { useLanguage } from "../contexts/LanguageContext";
 import { api } from "../services/api";
 import { RadarShowcaseSlider } from "./RadarShowcaseSlider";
@@ -760,23 +761,10 @@ export const ModernAutomotiveLayout: React.FC<ModernAutomotiveLayoutProps> = ({
                               <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚙️ {p.sector_data?.model || (p as any).model}</span>
                             )}
                             {(p.sector_data?.transmission || (p as any).transmission) && (
-                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚡ {(() => {
-                                const trans = String(p.sector_data?.transmission || (p as any).transmission).toLowerCase();
-                                if (trans === 'automatic') return lang === 'tr' ? 'Otomatik' : 'Automatic';
-                                if (trans === 'manual') return lang === 'tr' ? 'Manuel' : 'Manual';
-                                if (trans === 'semi-automatic' || trans === 'triptonic') return lang === 'tr' ? 'Yarı-Otomatik' : 'Semi-Automatic';
-                                return trans.toUpperCase();
-                              })()}</span>
+                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⚡ {formatTransmission(p.sector_data?.transmission || (p as any).transmission, lang)}</span>
                             )}
                             {(p.sector_data?.fuel || p.sector_data?.fuel_type || (p as any).fuel) && (
-                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⛽ {(() => {
-                                const fuel = String(p.sector_data?.fuel || p.sector_data?.fuel_type || (p as any).fuel).toLowerCase();
-                                if (fuel === 'gasoline' || fuel === 'petrol') return lang === 'tr' ? 'Benzin' : 'Gasoline';
-                                if (fuel === 'diesel') return lang === 'tr' ? 'Dizel' : 'Diesel';
-                                if (fuel === 'hybrid') return lang === 'tr' ? 'Hibrit' : 'Hybrid';
-                                if (fuel === 'electric') return lang === 'tr' ? 'Elektrikli' : 'Electric';
-                                return fuel.toUpperCase();
-                              })()}</span>
+                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg">⛽ {formatFuelType(p.sector_data?.fuel || p.sector_data?.fuel_type || (p as any).fuel, lang)}</span>
                             )}
                           </div>
 

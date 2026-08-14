@@ -20,9 +20,14 @@ export const useMarketplaceLogic = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("rich");
   
   const [activeSubSector, setActiveSubSector] = useState<string>("all");
+  const [activeVehicleCategory, setActiveVehicleCategory] = useState<string>("all");
   const [activeVehicleBrand, setActiveVehicleBrand] = useState<string>("all");
+  const [activeVehicleModel, setActiveVehicleModel] = useState<string>("all");
   const [activeVehicleFuel, setActiveVehicleFuel] = useState<string>("all");
   const [activeVehicleTransmission, setActiveVehicleTransmission] = useState<string>("all");
+  const [activeVehicleYear, setActiveVehicleYear] = useState<string>("all");
+  const [activeVehicleBodyType, setActiveVehicleBodyType] = useState<string>("all");
+  const [activeVehicleTradeIn, setActiveVehicleTradeIn] = useState<string>("all");
   const [minPrice, setMinPrice] = useState<string>("");
   const [maxPrice, setMaxPrice] = useState<string>("");
   const [minYear, setMinYear] = useState<string>("");
@@ -48,9 +53,14 @@ export const useMarketplaceLogic = () => {
     activeTags, setActiveTags,
     viewMode, setViewMode,
     activeSubSector, setActiveSubSector,
+    activeVehicleCategory, setActiveVehicleCategory,
     activeVehicleBrand, setActiveVehicleBrand,
+    activeVehicleModel, setActiveVehicleModel,
     activeVehicleFuel, setActiveVehicleFuel,
     activeVehicleTransmission, setActiveVehicleTransmission,
+    activeVehicleYear, setActiveVehicleYear,
+    activeVehicleBodyType, setActiveVehicleBodyType,
+    activeVehicleTradeIn, setActiveVehicleTradeIn,
     minPrice, setMinPrice,
     maxPrice, setMaxPrice,
     minYear, setMinYear,
