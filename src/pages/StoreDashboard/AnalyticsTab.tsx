@@ -74,7 +74,6 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
             <BarChart3 className="h-6 w-6 text-indigo-600" />
             {lang === 'tr' ? 'Finansal Analiz ve Raporlar' : 'Financial Analytics & Reports'}
           </h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Real_Time_Data_Overview</p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="flex-1 md:flex-none flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/30 transition-all">
@@ -188,7 +187,6 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
           <div className="flex items-center justify-between mb-8">
             <div className="space-y-1">
               <h3 className="text-xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Gider Dağılımı' : 'Expense Breakdown'}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Expense_Categorization</p>
             </div>
             <div className="p-2.5 bg-rose-50 text-rose-500 rounded-xl">
               <PieChart className="h-5 w-5" />
@@ -239,7 +237,6 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
              <div className="flex items-center justify-between mb-6">
               <div className="space-y-1">
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Hızlı Etkileşim' : 'Quick Engagement'}</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">User_System_Interactions</p>
               </div>
               <div className="p-2.5 bg-orange-50 text-orange-500 rounded-xl">
                 <Scan className="h-5 w-5" />
@@ -271,7 +268,6 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
           <div className="flex items-center justify-between mb-8">
             <div className="space-y-1">
               <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.salesTrend || 'Sales Trend'}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Market_Volumetric_Analysis</p>
             </div>
             <div className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg uppercase tracking-widest">{t.analytics_tab?.realTimeStream || 'Real-time Stream'}</div>
           </div>
@@ -320,7 +316,6 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
           <div className="flex items-center justify-between mb-8">
             <div className="space-y-1">
               <h3 className="text-xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Gider Analizi' : 'Expense Analysis'}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Operational_Expenditure_Breakdown</p>
             </div>
             <div className="text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg uppercase tracking-widest">{lang === 'tr' ? 'BU AY' : 'THIS MONTH'}</div>
           </div>
@@ -387,7 +382,6 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
             <div className="flex items-center justify-between mb-8">
                <div className="space-y-1">
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.scanTrend || 'Scan Trend'}</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Customer_Interaction_Density</p>
               </div>
               <div className="text-[9px] font-black text-orange-600 bg-orange-50 border border-orange-100 px-3 py-1.5 rounded-lg uppercase tracking-widest">{t.analytics_tab?.optimalSignal || 'Optimal Signal'}</div>
             </div>
@@ -430,7 +424,9 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
         <div className="os-panel p-8">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.lowStockAlert || 'Low Stock Alert'}</h3>
-            <div className="text-[10px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">Critical_Status</div>
+            <div className="text-[10px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">
+              {lang === 'tr' ? 'KRİTİK' : 'CRITICAL'}
+            </div>
           </div>
           <div className="space-y-4">
             {analytics.low_stock_products?.length > 0 ? (
@@ -464,7 +460,9 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
         <div className="os-panel p-8">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.topAccountsReceivable || 'Top Accounts Receivable'}</h3>
-            <div className="text-[10px] font-black text-indigo-500 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">Liquidity_Control</div>
+            <div className="text-[10px] font-black text-indigo-500 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">
+              {lang === 'tr' ? 'CARİ HESAPLAR' : 'ACCOUNTS'}
+            </div>
           </div>
           <div className="space-y-4">
             {analytics.top_companies?.length > 0 ? (
@@ -501,7 +499,9 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
           <div className="os-panel p-8">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.topScannedProducts || 'Top Scanned Products'}</h3>
-              <div className="text-[10px] font-black text-slate-400 border border-slate-200 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">Top_Rankings</div>
+              <div className="text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">
+                {lang === 'tr' ? 'POPÜLER' : 'POPULAR'}
+              </div>
             </div>
             <div className="space-y-2">
               {analytics.top_products?.map((product: any, idx: number) => (
@@ -527,7 +527,9 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
           <div className="os-panel p-8">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-xl font-black text-slate-900 tracking-tight">{t.analytics_tab?.recentScans || 'Recent Scans'}</h3>
-              <div className="text-[10px] font-black text-slate-400 border border-slate-200 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">Live_Feed</div>
+              <div className="text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg uppercase tracking-widest leading-none">
+                {lang === 'tr' ? 'CANLI' : 'LIVE'}
+              </div>
             </div>
             <div className="space-y-4">
               {analytics.recent_scans?.map((scan: any, idx: number) => (
@@ -781,7 +783,6 @@ const AnalyticsTab = ({ analytics, branding, onDateChange, loading }: AnalyticsT
         <div className="flex items-center justify-between mb-8">
           <div className="space-y-1">
             <h3 className="text-xl font-black text-slate-900 tracking-tight">{lang === 'tr' ? 'Aylık Performans Geçmişi' : 'Monthly Performance History'}</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Historical_Data_Analysis</p>
           </div>
           <div className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg uppercase tracking-widest">
             {lang === 'tr' ? 'VERGİSEL ANALİZ' : 'TAX ANALYSIS'}

@@ -108,7 +108,7 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
               {loading ? (
                 <div className="flex flex-col items-center justify-center h-64">
                    <Loader2 className="h-12 w-12 text-indigo-600 animate-spin mb-4" />
-                   <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Synchronizing_Data...</p>
+                   <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">{lang === 'tr' ? 'Veriler Yükleniyor...' : 'Loading Data...'}</p>
                 </div>
               ) : children}
             </ErrorBoundary>

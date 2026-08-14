@@ -389,7 +389,7 @@ export const LandingPage = () => {
                       <Tag className="h-6 w-6 text-indigo-600" />
                     </div>
                     <div>
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instant_Price</div>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'Anlık Fiyat' : 'Instant Price'}</div>
                       <div className="text-2xl font-black text-slate-900 tracking-tighter">₺1.250,00</div>
                     </div>
                   </div>
@@ -409,7 +409,7 @@ export const LandingPage = () => {
                       <Barcode className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Product_ID</div>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'Ürün Barkodu' : 'Product ID'}</div>
                       <div className="text-lg font-black text-slate-900 tracking-tight">8690000001</div>
                     </div>
                   </div>
@@ -1340,7 +1340,7 @@ export const LandingPage = () => {
             </div>
 
             <div className="flex flex-col items-start lg:items-end">
-              <h4 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-8">Instagram_QR</h4>
+              <h4 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-8">Instagram QR</h4>
               <div className="bg-white p-2 rounded-2xl w-28 h-28 flex items-center justify-center shadow-2xl shadow-indigo-500/10">
                 <QRCodeSVG 
                   value="https://www.instagram.com/lookprice.me/" 
@@ -1358,7 +1358,7 @@ export const LandingPage = () => {
             <div className="flex items-center space-x-8">
               <div className="flex items-center space-x-2 text-xs font-black text-slate-500 uppercase tracking-[0.1em]">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                <span>System_Status: Operational</span>
+                <span>{lang === 'tr' ? 'Sistem Durumu: Aktif' : 'System Status: Operational'}</span>
               </div>
             </div>
           </div>

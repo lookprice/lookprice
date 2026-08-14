@@ -8,10 +8,9 @@ export const PortfolioNotificationsTab = ({ analytics }: { analytics: any }) => 
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <h2 className="text-xl font-black text-slate-900 tracking-tighter mb-1">
+        <h2 className="text-xl font-black text-slate-900 tracking-tighter">
           {lang === 'tr' ? 'Bildirim Merkezi' : 'Notification Center'}
         </h2>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Proactive_Portfolio_Updates</p>
       </div>
 
       {/* Notifications List */}

@@ -106,7 +106,6 @@ const PortfolioAnalyticsTab = ({ analytics, branding, loading, onDateChange, onN
             <BarChart3 className="h-6 w-6 text-indigo-600" />
             {lang === 'tr' ? 'Portföy Performans Analizi' : 'Portfolio Performance Analytics'}
           </h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Portfolio_Insights_Dashboard</p>
         </div>
         <div className="flex items-center gap-3">
           {onDateChange && (

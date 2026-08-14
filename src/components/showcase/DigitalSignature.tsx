@@ -33,7 +33,7 @@ export const DigitalSignature: React.FC<DigitalSignatureProps> = ({
       </div>
       <div className="relative z-10 text-right">
         <span className="text-[10px] font-semibold text-slate-900 tracking-wide block mb-1 opacity-20 underline decoration-slate-900/10 decoration-dotted">
-          SECURE_PASS_ID
+          {lang === "tr" ? "GÜVENLİ ONAY" : "VERIFIED ID"}
         </span>
         <div className="flex gap-0.5 justify-end">
           {[1, 2, 3, 4, 5, 6].map((i) => (

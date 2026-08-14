@@ -28,7 +28,7 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
             </div>
             <div className="ml-4 flex flex-col">
               <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">Look<span className="text-indigo-600">Price</span></span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">Retail_OS</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">{lang === 'tr' ? 'Bulut Yönetim' : 'Cloud OS'}</span>
             </div>
           </div>
           

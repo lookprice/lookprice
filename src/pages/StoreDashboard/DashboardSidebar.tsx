@@ -22,6 +22,7 @@ import { api } from "../../services/api";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import Logo from "../../components/Logo";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 interface SidebarProps {
   navItems: any[];
@@ -70,6 +71,7 @@ export const DashboardSidebar = ({
   translations: t,
   startTransition
 }: SidebarProps) => {
+  const { lang } = useLanguage();
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
     dashboard: true,
     sales: true,
@@ -124,7 +126,7 @@ export const DashboardSidebar = ({
                 </h1>
                 <div className="flex items-center space-x-1.5 mt-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Retail_OS v4.2</p>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{lang === 'tr' ? 'Bulut Panel' : 'Cloud POS'}</p>
                 </div>
               </div>
             </div>
@@ -230,7 +232,9 @@ export const DashboardSidebar = ({
 
 
             <div className="pt-6 mt-6 border-t border-white/5">
-              <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] px-4 py-3 mb-1">External_Access</div>
+              <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] px-4 py-3 mb-1">
+                {lang === 'tr' ? 'HARİCİ BAĞLANTILAR' : 'EXTERNAL ACCESS'}
+              </div>
               <a
                 href={publicUrl}
                 target="_blank"
