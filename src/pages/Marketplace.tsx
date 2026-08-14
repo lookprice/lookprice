@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { MarketplaceListingGrid } from "../components/marketplace/MarketplaceListingGrid";
 import { FilterDrawer } from "../components/FilterDrawer";
 import { TagFilter } from "../components/marketplace/TagFilter";
 import { aggregateTags, getListingIntent, isRentalListing } from "../utils/marketplace";
-import { formatFuelType, formatTransmission, formatTitleDeedType } from "../utils/formatUtils";
+import { formatFuelType, formatTransmission, formatTitleDeedType, normalizeVehicleCategory, getVehicleCategoryDisplayName } from "../utils/formatUtils";
 import { useMarketplaceLogic } from "../hooks/useMarketplaceLogic";
 import { 
   MoveRight, 
@@ -62,7 +63,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { RadarShowcaseSlider } from "../components/RadarShowcaseSlider";
-import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI } from "../data/realEstateConfig";
+import { REAL_ESTATE_REGIONS, EMLAK_TIPI_SUB_TIPLERI, getAvailableSubTypes, getAvailableSubRegions } from "../data/realEstateConfig";
 import { SectorSpecs } from "../components/SectorSpecs";
 import { IDXSplitMapView } from "../components/IDXSplitMapView";
 
@@ -423,6 +424,9 @@ export const Marketplace = () => {
     vehFihristTab, setVehFihristTab,
     rePropertyType, setRePropertyType,
     reSubPropertyType, setReSubPropertyType,
+    reSubPropertyTypes, setReSubPropertyTypes,
+    reSubRegions, setReSubRegions,
+    reRooms, setReRooms,
     activeTags, setActiveTags,
     viewMode, setViewMode,
     activeSubSector, setActiveSubSector,
@@ -443,11 +447,11 @@ export const Marketplace = () => {
     isDarkMode, setIsDarkMode
   } = useMarketplaceLogic();
   const navigate = useNavigate();
-  const [reRooms, setReRooms] = useState<string>("all");
   const [reFurnished, setReFurnished] = useState<string>("all");
-  const [reSubRegion, setReSubRegion] = useState<string>("all");
   const [priceRange, setPriceRange] = useState<string>("all");
   const [reKocanType, setReKocanType] = useState<string>("all");
+  const [isSubTypeDropdownOpen, setIsSubTypeDropdownOpen] = useState<boolean>(false);
+  const [isRoomsDropdownOpen, setIsRoomsDropdownOpen] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">("newest");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState<boolean>(false);
   const [isVehicleMobileFiltersOpen, setIsVehicleMobileFiltersOpen] = useState<boolean>(false);
@@ -455,21 +459,26 @@ export const Marketplace = () => {
   // Derived Vehicle Options from AutoLP stores portfolio
   const vehicleListings = React.useMemo(() => {
     return listings.filter(i => {
-      return i.listing_type === 'vehicle' || i.type === 'vehicle' || (i.category && (i.category.toLowerCase().includes('vasıta') || i.category.toLowerCase().includes('otomobil') || i.category.toLowerCase().includes('araç')));
+      return i.listing_type === 'vehicle' || i.type === 'vehicle' || (i.category && (i.category.toLowerCase().includes('vasıta') || i.category.toLowerCase().includes('otomobil') || i.category.toLowerCase().includes('araç') || i.category.toLowerCase().includes('suv') || i.category.toLowerCase().includes('pickup') || i.category.toLowerCase().includes('ticari')));
     });
   }, [listings]);
 
   const vehicleCategories = React.useMemo(() => {
-    const list = vehicleListings.map(p => p.category || p.sector_data?.category || p.sub_sector || "").filter(Boolean);
-    return Array.from(new Set(list));
+    const defaultCategories = ['otomobil', 'suv', 'hafif_ticari', 'pickup'];
+    const dynamicList = vehicleListings.map(p => {
+      const cat = p.category || p.sector_data?.category || p.sub_sector || p.vehicle_category || "";
+      return normalizeVehicleCategory(cat);
+    }).filter(c => c && !['vasıta', 'oto galeri', 'vehicle', 'all'].includes(c));
+    return Array.from(new Set([...defaultCategories, ...dynamicList]));
   }, [vehicleListings]);
 
   const vehicleBrands = React.useMemo(() => {
     let filtered = vehicleListings;
     if (activeVehicleCategory !== "all") {
+      const targetCat = normalizeVehicleCategory(activeVehicleCategory);
       filtered = filtered.filter(p => {
-        const c = (p.category || p.sector_data?.category || p.sub_sector || "").toLowerCase();
-        return c.includes(activeVehicleCategory.toLowerCase());
+        const c = normalizeVehicleCategory(p.category || p.sector_data?.category || p.sub_sector || p.vehicle_category || p.body_type || "");
+        return c === targetCat || c.includes(targetCat) || targetCat.includes(c);
       });
     }
     const list = filtered.map(p => p.brand || p.sector_data?.brand || p.sector_data?.brand_name).filter(Boolean);
@@ -479,9 +488,10 @@ export const Marketplace = () => {
   const vehicleModels = React.useMemo(() => {
     let filtered = vehicleListings;
     if (activeVehicleCategory !== "all") {
+      const targetCat = normalizeVehicleCategory(activeVehicleCategory);
       filtered = filtered.filter(p => {
-        const c = (p.category || p.sector_data?.category || p.sub_sector || "").toLowerCase();
-        return c.includes(activeVehicleCategory.toLowerCase());
+        const c = normalizeVehicleCategory(p.category || p.sector_data?.category || p.sub_sector || p.vehicle_category || p.body_type || "");
+        return c === targetCat || c.includes(targetCat) || targetCat.includes(c);
       });
     }
     if (activeVehicleBrand !== "all") {
@@ -505,7 +515,7 @@ export const Marketplace = () => {
   // Reset pagination on filter change
   useEffect(() => {
     setVisibleCount(12);
-  }, [mainTab, reFihristTab, vehFihristTab, searchQuery, viewMode, activeSubSector, activeVehicleCategory, activeVehicleBrand, activeVehicleModel, activeVehicleFuel, activeVehicleTransmission, activeVehicleYear, activeVehicleBodyType, activeVehicleTradeIn, minPrice, maxPrice, minYear, maxYear, reRegion, reSubRegion, reType, reRooms, reFurnished, priceRange, reKocanType, sortBy, rePropertyType, activeTags]);
+  }, [mainTab, reFihristTab, vehFihristTab, searchQuery, viewMode, activeSubSector, activeVehicleCategory, activeVehicleBrand, activeVehicleModel, activeVehicleFuel, activeVehicleTransmission, activeVehicleYear, activeVehicleBodyType, activeVehicleTradeIn, minPrice, maxPrice, minYear, maxYear, reRegion, reSubRegions, reType, reRooms, reFurnished, priceRange, reKocanType, sortBy, rePropertyType, activeTags]);
 
   // Modal / Detail / Video Story States
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
@@ -706,14 +716,22 @@ export const Marketplace = () => {
         }
       }
 
-      // Sub-Property Type Dynamic Filtering
-      if (reSubPropertyType !== "all") {
+      // Sub-Property Type Dynamic Filtering (Multi-Select & Single-Select compatibility)
+      const selectedSubTypes: string[] = Array.isArray(reSubPropertyTypes) && reSubPropertyTypes.length > 0
+        ? reSubPropertyTypes
+        : (reSubPropertyType && reSubPropertyType !== "all" ? [reSubPropertyType] : []);
+
+      if (selectedSubTypes.length > 0) {
         const itemSub = (item.subtype || secData.subtype || "").trim().toLowerCase();
         const titleLower = (item.title || item.name || "").toLowerCase();
         const descLower = (item.description || "").toLowerCase();
-        const subLower = reSubPropertyType.toLowerCase();
         
-        if (!itemSub.includes(subLower) && !titleLower.includes(subLower) && !descLower.includes(subLower)) {
+        const matchesAnySub = selectedSubTypes.some(st => {
+          const subLower = st.toLowerCase();
+          return itemSub.includes(subLower) || titleLower.includes(subLower) || descLower.includes(subLower);
+        });
+
+        if (!matchesAnySub) {
           return false;
         }
       }
@@ -797,10 +815,16 @@ export const Marketplace = () => {
         if (!reg.includes(reRegion.toLowerCase())) return false;
       }
 
-      if (reSubRegion !== "all") {
+      // Sub-Regions Multi-Select Filtering
+      const selectedSubs: string[] = Array.isArray(reSubRegions) ? reSubRegions : [];
+
+      if (selectedSubs.length > 0) {
         const subReg = (secData.kktc_sub_region || secData.district || secData.neighborhood || item.location || "").toLowerCase();
-        const target = reSubRegion.toLowerCase();
-        if (!subReg.includes(target) && !titleLower.includes(target) && !descLower.includes(target)) return false;
+        const matchesAnySubRegion = selectedSubs.some(sub => {
+          const target = sub.toLowerCase();
+          return subReg.includes(target) || titleLower.includes(target) || descLower.includes(target);
+        });
+        if (!matchesAnySubRegion) return false;
       }
 
       if (reType !== "all") {
@@ -808,17 +832,25 @@ export const Marketplace = () => {
         if (!t.includes(reType.toLowerCase())) return false;
       }
 
-      if (reRooms !== "all") {
-        const r = String(secData.rooms || secData.room_count || item.rooms || item.room_count || "");
-        if (reRooms === "5+") {
-          if (!r.includes("5") && !r.includes("6") && !r.includes("7") && !titleLower.includes("5+1") && !titleLower.includes("6+1")) return false;
-        } else if (reRooms === "Penthouse") {
-          if (!titleLower.includes("penthouse") && !String(secData.subtype || "").toLowerCase().includes("penthouse")) return false;
-        } else if (reRooms === "1+0") {
-          if (!r.includes("1+0") && !r.includes("stüdyo") && !titleLower.includes("1+0") && !titleLower.includes("stüdyo") && !titleLower.includes("studio")) return false;
-        } else {
-          if (!r.includes(reRooms) && !titleLower.includes(reRooms)) return false;
-        }
+      // Room Counts Multi-Select Filtering
+      const selectedRoomList: string[] = Array.isArray(reRooms)
+        ? reRooms
+        : (typeof reRooms === 'string' && reRooms !== "all" && reRooms !== "" ? [reRooms] : []);
+
+      if (selectedRoomList.length > 0) {
+        const r = String(secData.rooms || secData.room_count || item.rooms || item.room_count || "").toLowerCase();
+        const matchesAnyRoom = selectedRoomList.some(room => {
+          if (room === "5+") {
+            return r.includes("5") || r.includes("6") || r.includes("7") || titleLower.includes("5+1") || titleLower.includes("6+1");
+          } else if (room === "Penthouse") {
+            return titleLower.includes("penthouse") || String(secData.subtype || "").toLowerCase().includes("penthouse");
+          } else if (room === "1+0") {
+            return r.includes("1+0") || r.includes("stüdyo") || titleLower.includes("1+0") || titleLower.includes("stüdyo") || titleLower.includes("studio");
+          } else {
+            return r.includes(room.toLowerCase()) || titleLower.includes(room.toLowerCase());
+          }
+        });
+        if (!matchesAnyRoom) return false;
       }
 
       if (priceRange !== "all") {
@@ -851,8 +883,11 @@ export const Marketplace = () => {
       const descLower = (item.description || "").toLowerCase();
 
       if (activeVehicleCategory !== "all") {
-        const cat = (item.category || secData.category || item.sub_sector || "").toLowerCase();
-        if (!cat.includes(activeVehicleCategory.toLowerCase())) return false;
+        const targetCat = normalizeVehicleCategory(activeVehicleCategory);
+        const itemCat = normalizeVehicleCategory(item.category || secData.category || secData.vehicle_category || item.sub_sector || secData.sub_sector || item.vehicle_category || item.body_type || secData.body_type || "");
+        if (itemCat !== targetCat && !itemCat.includes(targetCat) && !targetCat.includes(itemCat)) {
+          return false;
+        }
       }
       if (activeVehicleBrand !== "all") {
         const b = (item.brand || secData.brand || secData.brand_name || "").toLowerCase();
@@ -1079,45 +1114,6 @@ export const Marketplace = () => {
             <div className="space-y-4 pb-4 border-b border-slate-800">
               {/* EMLAK PORTFÖY FİLTRE BAR (RESTATED MODEL) */}
               <div className="bg-slate-950/80 p-4 md:p-5 rounded-2xl border border-blue-500/20 shadow-xl space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-                  <div className="flex items-center gap-2 cursor-pointer md:cursor-default" onClick={() => setIsMobileFiltersOpen(prev => !prev)}>
-                    <div className="p-2 bg-blue-600/20 rounded-xl border border-blue-500/30 text-blue-400">
-                      <Filter className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        Emlak Portföy Filtreleme
-                        <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-[10px] font-black">
-                          {filteredListings.length}
-                        </span>
-                        <span className="md:hidden text-xs text-blue-400 font-bold ml-1">
-                          {isMobileFiltersOpen ? '▲ Gizle' : '▼ Filtreleri Aç'}
-                        </span>
-                      </h3>
-                      <p className="text-[11px] text-slate-400 font-medium">
-                        Toplam {stats.properties} ilan arasından kriterlerinize uyan {filteredListings.length} mülk listelendi.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setIsMobileFiltersOpen(prev => !prev)}
-                      className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-blue-300 rounded-xl text-xs font-black transition-all border border-blue-500/30 cursor-pointer"
-                    >
-                      <Filter className="w-3.5 h-3.5" />
-                      <span>{isMobileFiltersOpen ? 'Filtreleri Kapat' : 'Filtreleri Aç'}</span>
-                    </button>
-                    <button
-                      onClick={() => setIsFilterDrawerOpen(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
-                    >
-                      <SlidersHorizontal className="w-3.5 h-3.5" />
-                      <span>Gelişmiş Filtreler</span>
-                    </button>
-                  </div>
-                </div>
-
                 <div className={`${isMobileFiltersOpen ? 'block' : 'hidden md:block'} space-y-4`}>
                 {/* PRIMARY EMLAK SELECT CONTROLS GRID */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
@@ -1174,24 +1170,85 @@ export const Marketplace = () => {
                     </select>
                   </div>
 
-                  {/* 3. ALT MÜLK TİPİ */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
-                      <Layers className="w-3 h-3 text-emerald-400" /> Alt Tip
+                  {/* 3. ALT MÜLK TİPİ (MULTI-SELECT) */}
+                  <div className="space-y-1 relative">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Layers className="w-3 h-3 text-emerald-400" /> Alt Tip
+                      </span>
+                      {reSubPropertyTypes.length > 0 && (
+                        <span className="text-[9px] text-emerald-400 font-bold">
+                          {reSubPropertyTypes.length} Seçili
+                        </span>
+                      )}
                     </label>
-                    <select
-                      value={reSubPropertyType}
-                      onChange={(e) => setReSubPropertyType(e.target.value)}
-                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-blue-500 focus:outline-none cursor-pointer"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSubTypeDropdownOpen(!isSubTypeDropdownOpen);
+                        setIsRoomsDropdownOpen(false);
+                      }}
+                      className={`w-full p-2 bg-slate-900 rounded-xl border text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                        reSubPropertyTypes.length > 0 
+                          ? "border-emerald-500/80 text-emerald-300 ring-1 ring-emerald-500/30" 
+                          : "border-slate-800 text-white hover:border-slate-700"
+                      }`}
                     >
-                      <option value="all">Tüm Alt Tipler</option>
-                      {(rePropertyType !== "all" && EMLAK_TIPI_SUB_TIPLERI[rePropertyType]
-                        ? EMLAK_TIPI_SUB_TIPLERI[rePropertyType]
-                        : Object.values(EMLAK_TIPI_SUB_TIPLERI).flat()
-                      ).map((sub) => (
-                        <option key={sub} value={sub}>{sub}</option>
-                      ))}
-                    </select>
+                      <span className="truncate">
+                        {reSubPropertyTypes.length === 0 
+                          ? "Tüm Alt Tipler" 
+                          : reSubPropertyTypes.length === 1 
+                            ? reSubPropertyTypes[0] 
+                            : `${reSubPropertyTypes.length} Alt Tip Seçili`}
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isSubTypeDropdownOpen ? 'rotate-180 text-emerald-400' : 'text-slate-400'}`} />
+                    </button>
+
+                    {isSubTypeDropdownOpen && (
+                      <div className="absolute top-full left-0 mt-1 w-64 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-2 z-50 space-y-1.5 backdrop-blur-md">
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold">
+                          <span className="text-slate-400">Alt Mülk Tipleri</span>
+                          {reSubPropertyTypes.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setReSubPropertyTypes([])}
+                              className="text-rose-400 hover:text-rose-300 underline cursor-pointer"
+                            >
+                              Temizle
+                            </button>
+                          )}
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                          {getAvailableSubTypes(rePropertyType).map((sub) => {
+                            const isChecked = reSubPropertyTypes.includes(sub);
+                            return (
+                              <label
+                                key={sub}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setReSubPropertyTypes(prev =>
+                                    prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]
+                                  );
+                                }}
+                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                  isChecked
+                                    ? "bg-emerald-950/80 text-emerald-200 border border-emerald-800/80 font-bold"
+                                    : "text-slate-300 hover:bg-slate-900 border border-transparent"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {}}
+                                  className="w-3.5 h-3.5 rounded border-slate-700 text-emerald-600 focus:ring-0 bg-slate-900 cursor-pointer pointer-events-none"
+                                />
+                                <span className="truncate">{sub}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* 4. ŞEHİR */}
@@ -1203,7 +1260,7 @@ export const Marketplace = () => {
                       value={reRegion}
                       onChange={(e) => {
                         setReRegion(e.target.value);
-                        setReSubRegion("all");
+                        setReSubRegions([]);
                       }}
                       className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-blue-500 focus:outline-none cursor-pointer"
                     >
@@ -1217,25 +1274,85 @@ export const Marketplace = () => {
                     </select>
                   </div>
 
-                  {/* 5. ODA SAYISI */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1">
-                      <Home className="w-3 h-3 text-cyan-400" /> Oda Sayısı
+                  {/* 5. ODA SAYISI (MULTI-SELECT) */}
+                  <div className="space-y-1 relative">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Home className="w-3 h-3 text-cyan-400" /> Oda Sayısı
+                      </span>
+                      {reRooms.length > 0 && (
+                        <span className="text-[9px] text-cyan-400 font-bold">
+                          {reRooms.length} Seçili
+                        </span>
+                      )}
                     </label>
-                    <select
-                      value={reRooms}
-                      onChange={(e) => setReRooms(e.target.value)}
-                      className="w-full p-2 bg-slate-900 rounded-xl border border-slate-800 text-white text-xs font-bold focus:border-blue-500 focus:outline-none cursor-pointer"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRoomsDropdownOpen(!isRoomsDropdownOpen);
+                        setIsSubTypeDropdownOpen(false);
+                      }}
+                      className={`w-full p-2 bg-slate-900 rounded-xl border text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                        reRooms.length > 0 
+                          ? "border-cyan-500/80 text-cyan-300 ring-1 ring-cyan-500/30" 
+                          : "border-slate-800 text-white hover:border-slate-700"
+                      }`}
                     >
-                      <option value="all">Tüm Odalar</option>
-                      <option value="1+0">1+0 (Stüdyo)</option>
-                      <option value="1+1">1+1</option>
-                      <option value="2+1">2+1</option>
-                      <option value="3+1">3+1</option>
-                      <option value="4+1">4+1</option>
-                      <option value="5+">5+1 ve üzeri</option>
-                      <option value="Penthouse">Penthouse</option>
-                    </select>
+                      <span className="truncate">
+                        {reRooms.length === 0 
+                          ? "Tüm Odalar" 
+                          : reRooms.length === 1 
+                            ? reRooms[0] 
+                            : `${reRooms.length} Oda Seçili`}
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isRoomsDropdownOpen ? 'rotate-180 text-cyan-400' : 'text-slate-400'}`} />
+                    </button>
+
+                    {isRoomsDropdownOpen && (
+                      <div className="absolute top-full left-0 mt-1 w-56 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-2 z-50 space-y-1.5 backdrop-blur-md">
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold">
+                          <span className="text-slate-400">Oda Seçenekleri</span>
+                          {reRooms.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setReRooms([])}
+                              className="text-rose-400 hover:text-rose-300 underline cursor-pointer"
+                            >
+                              Temizle
+                            </button>
+                          )}
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                          {["1+0", "1+1", "2+1", "3+1", "4+1", "5+", "Penthouse"].map((room) => {
+                            const isChecked = reRooms.includes(room);
+                            return (
+                              <label
+                                key={room}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setReRooms(prev =>
+                                    prev.includes(room) ? prev.filter(r => r !== room) : [...prev, room]
+                                  );
+                                }}
+                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                  isChecked
+                                    ? "bg-cyan-950/80 text-cyan-200 border border-cyan-800/80 font-bold"
+                                    : "text-slate-300 hover:bg-slate-900 border border-transparent"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {}}
+                                  className="w-3.5 h-3.5 rounded border-slate-700 text-cyan-600 focus:ring-0 bg-slate-900 cursor-pointer pointer-events-none"
+                                />
+                                <span className="truncate">{room === "1+0" ? "1+0 (Stüdyo)" : room === "5+" ? "5+1 ve üzeri" : room}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* 6. FİYAT ARALIĞI */}
@@ -1257,52 +1374,69 @@ export const Marketplace = () => {
                   </div>
                 </div>
 
-                {/* SEMT VE MAHALLELERİ ROW (Only if city selected) */}
-                {reRegion !== "all" && REAL_ESTATE_REGIONS[reRegion] && (
-                  <div className="pt-2 space-y-2 border-t border-slate-800/80">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                        📍 {reRegion.toUpperCase()} SEMT VE MAHALLELERİ:
-                      </span>
-                      {reSubRegion !== "all" && (
-                        <button
-                          onClick={() => setReSubRegion("all")}
-                          className="text-[10px] text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 cursor-pointer"
-                        >
-                          <X className="w-3 h-3" /> Mahalle Seçimini Sıfırla
-                        </button>
-                      )}
+                {/* COMPACT 2 SÜTUNLU ALT İLÇE & BÖLGE SEÇ KUTULARI ROW (Only if city selected) */}
+                {reRegion !== "all" && (() => {
+                  const availableSubRegions = getAvailableSubRegions(reRegion);
+                  if (availableSubRegions.length === 0) return null;
+                  return (
+                    <div className="pt-3 space-y-2 border-t border-slate-800/80">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-purple-400" /> 📍 {reRegion.toUpperCase()} İLÇE VE BÖLGELERİ ({reSubRegions.length > 0 ? `${reSubRegions.length} Bölge Seçili` : 'Tümü'}):
+                        </span>
+                        <div className="flex items-center gap-2 text-[10px] font-bold">
+                          <button
+                            onClick={() => setReSubRegions(availableSubRegions)}
+                            className="text-purple-400 hover:text-purple-200 cursor-pointer"
+                          >
+                            Tümünü Seç
+                          </button>
+                          <span className="text-slate-600">•</span>
+                          <button
+                            onClick={() => setReSubRegions([])}
+                            className="text-slate-400 hover:text-rose-400 cursor-pointer"
+                          >
+                            Temizle
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Tek Satırda 2 Bölge Kompakt Seç Kutuları */}
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-1.5 max-h-48 overflow-y-auto p-2 bg-slate-950/70 rounded-xl border border-slate-800">
+                        {availableSubRegions.map((sub) => {
+                          const isSelected = reSubRegions.includes(sub);
+                          return (
+                            <label
+                              key={sub}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setReSubRegions(prev => 
+                                  prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]
+                                );
+                              }}
+                              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all select-none ${
+                                isSelected
+                                  ? "bg-purple-950/80 border-purple-500 text-purple-200 font-bold shadow-sm"
+                                  : "bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="w-3.5 h-3.5 rounded border-slate-700 text-purple-600 focus:ring-0 bg-slate-900 cursor-pointer pointer-events-none"
+                              />
+                              <span className="truncate">{sub}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-                      <button
-                        onClick={() => setReSubRegion("all")}
-                        className={`px-3 py-1 rounded-xl text-xs font-black shrink-0 transition-all cursor-pointer ${
-                          reSubRegion === "all"
-                            ? "bg-amber-500 text-slate-950 border border-amber-300 shadow-md"
-                            : "bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700"
-                        }`}
-                      >
-                        TÜM MAHALLELER
-                      </button>
-                      {REAL_ESTATE_REGIONS[reRegion].map((sub) => (
-                        <button
-                          key={sub}
-                          onClick={() => setReSubRegion(sub)}
-                          className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                            reSubRegion === sub
-                              ? "bg-blue-600 text-white border border-blue-400 shadow-md font-black"
-                              : "bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 hover:text-white"
-                          }`}
-                        >
-                          {sub}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* ACTIVE SELECTION TAGS & RESET BAR */}
-                {(reFihristTab !== "all" || rePropertyType !== "all" || reSubPropertyType !== "all" || reRegion !== "all" || reSubRegion !== "all" || reRooms !== "all" || priceRange !== "all" || reFurnished !== "all" || reKocanType !== "all" || activeTags.length > 0) && (
+                {(reFihristTab !== "all" || rePropertyType !== "all" || reSubPropertyTypes.length > 0 || (reSubPropertyType && reSubPropertyType !== "all") || reRegion !== "all" || reSubRegions.length > 0 || reRooms.length > 0 || priceRange !== "all" || reFurnished !== "all" || reKocanType !== "all" || activeTags.length > 0) && (
                   <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
                     <span className="text-[10px] font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
                       <Filter className="w-3 h-3 text-blue-400" /> Aktif Filtreler:
@@ -1318,37 +1452,37 @@ export const Marketplace = () => {
                     {rePropertyType !== "all" && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-lg text-[11px] font-bold border border-amber-500/30">
                         {rePropertyType === "residence" ? "Konut" : rePropertyType === "commercial" ? "Ticari" : "Arsa"}
-                        <button onClick={() => { setRePropertyType("all"); setReSubPropertyType("all"); }} className="hover:text-white cursor-pointer ml-1">✕</button>
+                        <button onClick={() => { setRePropertyType("all"); setReSubPropertyTypes([]); }} className="hover:text-white cursor-pointer ml-1">✕</button>
                       </span>
                     )}
 
-                    {reSubPropertyType !== "all" && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-lg text-[11px] font-bold border border-emerald-500/30">
-                        {reSubPropertyType}
-                        <button onClick={() => setReSubPropertyType("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                    {reSubPropertyTypes.map((st) => (
+                      <span key={st} className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-lg text-[11px] font-bold border border-emerald-500/30">
+                        {st}
+                        <button onClick={() => setReSubPropertyTypes(prev => prev.filter(s => s !== st))} className="hover:text-white cursor-pointer ml-1">✕</button>
                       </span>
-                    )}
+                    ))}
 
                     {reRegion !== "all" && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-500/20 text-rose-300 rounded-lg text-[11px] font-bold border border-rose-500/30">
                         📍 {reRegion.toUpperCase()}
-                        <button onClick={() => { setReRegion("all"); setReSubRegion("all"); }} className="hover:text-white cursor-pointer ml-1">✕</button>
+                        <button onClick={() => { setReRegion("all"); setReSubRegions([]); }} className="hover:text-white cursor-pointer ml-1">✕</button>
                       </span>
                     )}
 
-                    {reSubRegion !== "all" && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-lg text-[11px] font-bold border border-purple-500/30">
-                        {reSubRegion}
-                        <button onClick={() => setReSubRegion("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                    {reSubRegions.map((sub) => (
+                      <span key={sub} className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-lg text-[11px] font-bold border border-purple-500/30">
+                        {sub}
+                        <button onClick={() => setReSubRegions(prev => prev.filter(s => s !== sub))} className="hover:text-white cursor-pointer ml-1">✕</button>
                       </span>
-                    )}
+                    ))}
 
-                    {reRooms !== "all" && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-lg text-[11px] font-bold border border-cyan-500/30">
-                        {reRooms}
-                        <button onClick={() => setReRooms("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
+                    {reRooms.map((room) => (
+                      <span key={room} className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-lg text-[11px] font-bold border border-cyan-500/30">
+                        {room}
+                        <button onClick={() => setReRooms(prev => prev.filter(r => r !== room))} className="hover:text-white cursor-pointer ml-1">✕</button>
                       </span>
-                    )}
+                    ))}
 
                     {priceRange !== "all" && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-lg text-[11px] font-bold border border-emerald-500/30">
@@ -1368,10 +1502,10 @@ export const Marketplace = () => {
                       onClick={() => {
                         setReFihristTab("all");
                         setRePropertyType("all");
-                        setReSubPropertyType("all");
+                        setReSubPropertyTypes([]);
                         setReRegion("all");
-                        setReSubRegion("all");
-                        setReRooms("all");
+                        setReSubRegions([]);
+                        setReRooms([]);
                         setPriceRange("all");
                         setReFurnished("all");
                         setReKocanType("all");
@@ -1395,45 +1529,6 @@ export const Marketplace = () => {
             <div className="space-y-4 pb-4 border-b border-slate-800">
               {/* VEHICLE PORTFOLIO FILTER BAR */}
               <div className="bg-slate-950/80 p-4 md:p-5 rounded-2xl border border-rose-500/20 shadow-xl space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-                  <div className="flex items-center gap-2 cursor-pointer md:cursor-default" onClick={() => setIsVehicleMobileFiltersOpen(prev => !prev)}>
-                    <div className="p-2 bg-rose-600/20 rounded-xl border border-rose-500/30 text-rose-400">
-                      <Car className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        Araç Portföy Filtreleme (AutoLP)
-                        <span className="px-2 py-0.5 bg-rose-600 text-white rounded-full text-[10px] font-black">
-                          {filteredListings.length}
-                        </span>
-                        <span className="md:hidden text-xs text-rose-400 font-bold ml-1">
-                          {isVehicleMobileFiltersOpen ? '▲ Gizle' : '▼ Filtreleri Aç'}
-                        </span>
-                      </h3>
-                      <p className="text-[11px] text-slate-400 font-medium">
-                        Toplam {stats.vehicles} araç ilanından kriterlerinize uyan {filteredListings.length} ilan listelendi.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setIsVehicleMobileFiltersOpen(prev => !prev)}
-                      className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 rounded-xl text-xs font-black transition-all border border-rose-500/30 cursor-pointer"
-                    >
-                      <Filter className="w-3.5 h-3.5" />
-                      <span>{isVehicleMobileFiltersOpen ? 'Filtreleri Kapat' : 'Filtreleri Aç'}</span>
-                    </button>
-                    <button
-                      onClick={() => setIsFilterDrawerOpen(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
-                    >
-                      <SlidersHorizontal className="w-3.5 h-3.5" />
-                      <span>Gelişmiş Filtreler</span>
-                    </button>
-                  </div>
-                </div>
-
                 <div className={`${isVehicleMobileFiltersOpen ? 'block' : 'hidden md:block'} space-y-4`}>
                 {/* PRIMARY VEHICLE SELECT CONTROLS GRID */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-2.5">
@@ -1453,13 +1548,15 @@ export const Marketplace = () => {
                       <option value="all">Tüm Kategoriler</option>
                       <option value="otomobil">Otomobil</option>
                       <option value="suv">SUV / Arazi Aracı</option>
-                      <option value="hafif ticari">Hafif Ticari</option>
-                      <option value="pick-up">Pick-up</option>
-                      {vehicleCategories.map(cat => (
-                        !['otomobil', 'suv', 'hafif ticari', 'pick-up'].includes(cat.toLowerCase()) && (
-                          <option key={cat} value={cat}>{cat}</option>
-                        )
-                      ))}
+                      <option value="hafif_ticari">Hafif Ticari</option>
+                      <option value="pickup">Pick-up</option>
+                      {vehicleCategories.map(cat => {
+                        const norm = normalizeVehicleCategory(cat);
+                        if (['otomobil', 'suv', 'hafif_ticari', 'pickup', 'all', ''].includes(norm)) return null;
+                        return (
+                          <option key={cat} value={norm}>{getVehicleCategoryDisplayName(cat)}</option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -1599,7 +1696,7 @@ export const Marketplace = () => {
 
                     {activeVehicleCategory !== "all" && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-600/30 text-rose-300 rounded-lg text-[11px] font-bold border border-rose-500/40">
-                        Kategori: {activeVehicleCategory}
+                        Kategori: {getVehicleCategoryDisplayName(activeVehicleCategory)}
                         <button onClick={() => setActiveVehicleCategory("all")} className="hover:text-white cursor-pointer ml-1">✕</button>
                       </span>
                     )}
@@ -1679,7 +1776,7 @@ export const Marketplace = () => {
           {/* TOOLBAR BAR (4 VIEW SWITCHER + SORTING + COUNT) */}
           <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mb-6">
             
-            {/* View Mode Switcher (4 Farklı Görünüm Modeli) */}
+            {/* View Mode Switcher & Filter Icon Buttons */}
             <div className="flex items-center gap-2 bg-white dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
               {/* Model 1: Rich Cards */}
               <button
@@ -1709,7 +1806,35 @@ export const Marketplace = () => {
                 <span className="hidden md:inline">Detaylı Liste</span>
               </button>
 
+              <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
 
+              {/* Toggle Filters Icon Button */}
+              <button
+                onClick={() => {
+                  if (mainTab === "real_estate") {
+                    setIsMobileFiltersOpen(prev => !prev);
+                  } else {
+                    setIsVehicleMobileFiltersOpen(prev => !prev);
+                  }
+                }}
+                className={`p-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
+                  (mainTab === "real_estate" ? isMobileFiltersOpen : isVehicleMobileFiltersOpen)
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850"
+                }`}
+                title={(mainTab === "real_estate" ? isMobileFiltersOpen : isVehicleMobileFiltersOpen) ? "Filtreleri Gizle" : "Filtreleri Aç"}
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+
+              {/* Advanced Filters Icon Button */}
+              <button
+                onClick={() => setIsFilterDrawerOpen(true)}
+                className="p-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 transition-all cursor-pointer flex items-center justify-center"
+                title="Gelişmiş Filtreler"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Sort & Count */}
@@ -2226,12 +2351,12 @@ export const Marketplace = () => {
           setReFihristTab={setReFihristTab}
           rePropertyType={rePropertyType}
           setRePropertyType={setRePropertyType}
-          reSubPropertyType={reSubPropertyType}
-          setReSubPropertyType={setReSubPropertyType}
+          reSubPropertyTypes={reSubPropertyTypes}
+          setReSubPropertyTypes={setReSubPropertyTypes}
           reRegion={reRegion}
           setReRegion={setReRegion}
-          reSubRegion={reSubRegion}
-          setReSubRegion={setReSubRegion}
+          reSubRegions={reSubRegions}
+          setReSubRegions={setReSubRegions}
           reRooms={reRooms}
           setReRooms={setReRooms}
           priceRange={priceRange}
@@ -2407,34 +2532,63 @@ export const Marketplace = () => {
                 </h2>
               </div>
 
-              {/* Main Photo Canvas & Thumbnails */}
+              {/* Main Photo Canvas & Thumbnails (Mobile 80% Screen Height + Swipeable Finger Gestures) */}
               <div className="space-y-3 mb-6">
-                <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-inner group">
-                  <img 
-                    src={currentImg} 
-                    alt={selectedListing.title} 
-                    className="w-full h-full object-cover cursor-zoom-in"
-                    onClick={() => setZoomedImage(currentImg)}
-                    referrerPolicy="no-referrer"
-                  />
+                <div className="relative h-[80vh] min-h-[480px] max-h-[82vh] md:aspect-[16/9] md:h-auto md:min-h-0 w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200/90 shadow-inner group select-none touch-pan-y">
+                  <AnimatePresence initial={false} mode="wait">
+                    <motion.img 
+                      key={currentImg}
+                      src={currentImg} 
+                      alt={selectedListing.title} 
+                      className="w-full h-full object-cover md:object-cover cursor-grab active:cursor-grabbing pointer-events-auto"
+                      referrerPolicy="no-referrer"
+                      initial={{ opacity: 0.4, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0.4, scale: 0.98 }}
+                      transition={{ duration: 0.22, ease: "easeOut" }}
+                      drag="x"
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={0.2}
+                      onDragEnd={(_e, { offset, velocity }) => {
+                        const swipe = offset.x;
+                        const speed = velocity.x;
+                        if (Math.abs(swipe) > 40 || Math.abs(speed) > 400) {
+                          if (swipe > 0 || speed > 400) {
+                            setActiveDetailImageIndex(prev => prev === 0 ? modalImages.length - 1 : prev - 1);
+                          } else {
+                            setActiveDetailImageIndex(prev => prev === modalImages.length - 1 ? 0 : prev + 1);
+                          }
+                        }
+                      }}
+                    />
+                  </AnimatePresence>
                   
+                  {/* Subtle Swipe Guide & Image Counter Overlay */}
                   {modalImages.length > 1 && (
                     <>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setActiveDetailImageIndex(prev => prev === 0 ? modalImages.length - 1 : prev - 1); }}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 border border-slate-200 text-slate-800 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition shadow-lg cursor-pointer"
-                      >
-                        <ChevronLeft className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setActiveDetailImageIndex(prev => prev === modalImages.length - 1 ? 0 : prev + 1); }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 border border-slate-200 text-slate-800 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition shadow-lg cursor-pointer"
-                      >
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
-                      
-                      <div className="absolute bottom-3 right-3 px-3 py-1 bg-slate-900/80 text-white rounded-lg text-xs font-black border border-white/20 backdrop-blur-md shadow-md">
-                        {activeDetailImageIndex + 1} / {modalImages.length} Fotoğraf
+                      <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-950/75 text-white/90 rounded-full text-[10px] font-bold border border-white/10 backdrop-blur-md shadow-md flex items-center gap-1.5 pointer-events-none">
+                        <span>👈 Sağa / Sola Kaydırın 👉</span>
+                      </div>
+
+                      <div className="absolute bottom-3 right-3 px-3 py-1 bg-slate-950/80 text-white rounded-lg text-xs font-black border border-white/20 backdrop-blur-md shadow-md pointer-events-none">
+                        {activeDetailImageIndex + 1} / {modalImages.length}
+                      </div>
+
+                      {/* Dot Indicators on Mobile */}
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-950/60 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/10 pointer-events-none">
+                        {modalImages.slice(0, 10).map((_, idx) => (
+                          <div
+                            key={idx}
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                              idx === activeDetailImageIndex
+                                ? "w-5 bg-amber-400"
+                                : "w-1.5 bg-white/40"
+                            }`}
+                          />
+                        ))}
+                        {modalImages.length > 10 && (
+                          <span className="text-[9px] text-white/60 font-bold ml-0.5">+{modalImages.length - 10}</span>
+                        )}
                       </div>
                     </>
                   )}

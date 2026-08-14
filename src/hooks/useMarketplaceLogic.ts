@@ -15,7 +15,9 @@ export const useMarketplaceLogic = () => {
   const [reFihristTab, setReFihristTab] = useState<string>("satilik");
   const [vehFihristTab, setVehFihristTab] = useState<string>("latest");
   const [rePropertyType, setRePropertyType] = useState<string>("all");
-  const [reSubPropertyType, setReSubPropertyType] = useState<string>("all");
+  const [reSubPropertyTypes, setReSubPropertyTypes] = useState<string[]>([]);
+  const [reSubRegions, setReSubRegions] = useState<string[]>([]);
+  const [reRooms, setReRooms] = useState<string[]>([]);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("rich");
   
@@ -39,6 +41,18 @@ export const useMarketplaceLogic = () => {
     return saved ? saved === "dark" : true;
   });
 
+  const reSubPropertyType = reSubPropertyTypes.length > 0 ? reSubPropertyTypes[0] : "all";
+  const setReSubPropertyType = (val: string) => {
+    if (!val || val === "all") setReSubPropertyTypes([]);
+    else setReSubPropertyTypes([val]);
+  };
+
+  const reSubRegion = reSubRegions.length > 0 ? reSubRegions[0] : "all";
+  const setReSubRegion = (val: string) => {
+    if (!val || val === "all") setReSubRegions([]);
+    else setReSubRegions([val]);
+  };
+
   return {
     isFilterDrawerOpen, setIsFilterDrawerOpen,
     listings, setListings,
@@ -49,7 +63,11 @@ export const useMarketplaceLogic = () => {
     reFihristTab, setReFihristTab,
     vehFihristTab, setVehFihristTab,
     rePropertyType, setRePropertyType,
+    reSubPropertyTypes, setReSubPropertyTypes,
     reSubPropertyType, setReSubPropertyType,
+    reSubRegions, setReSubRegions,
+    reSubRegion, setReSubRegion,
+    reRooms, setReRooms,
     activeTags, setActiveTags,
     viewMode, setViewMode,
     activeSubSector, setActiveSubSector,

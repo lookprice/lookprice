@@ -348,11 +348,15 @@ router.get("/marketplace/listings", async (req, res) => {
       const fuel = fuelMap[v.fuel_type] || v.fuel_type || '';
       const generatedTitle = `${v.year || ''} Model ${trans} ${fuel} ${v.brand || ''} ${v.model || ''}`.replace(/\s+/g, ' ').trim();
       
+      const resolvedVehicleCat = ['hafif_ticari', 'suv', 'pickup', 'otomobil'].includes(v.category) ? v.category : (v.category || (v.store_sub_sector === 'car' ? 'otomobil' : (v.store_sub_sector || 'otomobil')));
+      
       allListings.push({
         id: `v_${v.db_id}`,
         db_id: v.db_id,
         listing_type: 'vehicle',
-        sub_sector: ['hafif_ticari', 'suv', 'pickup', 'otomobil'].includes(v.category) ? v.category : (v.store_sub_sector === 'car' ? 'otomobil' : (v.store_sub_sector || 'otomobil')),
+        sub_sector: resolvedVehicleCat,
+        category: resolvedVehicleCat,
+        vehicle_category: resolvedVehicleCat,
         title: generatedTitle,
         price: v.selling_price || 0,
         currency: v.currency,
@@ -368,7 +372,6 @@ router.get("/marketplace/listings", async (req, res) => {
         store_slug: v.store_slug,
         store_phone: v.store_phone,
         store_whatsapp: v.store_whatsapp,
-        category: 'Oto Galeri',
         brand: v.brand,
         model: v.model,
         description: v.description || '',
@@ -378,6 +381,9 @@ router.get("/marketplace/listings", async (req, res) => {
         market_story: v.market_story,
         technical_description: v.technical_description,
         sector_data: {
+          category: resolvedVehicleCat,
+          vehicle_category: resolvedVehicleCat,
+          sub_sector: resolvedVehicleCat,
           year: v.year,
           brand: v.brand,
           model: v.model,
@@ -990,6 +996,8 @@ router.get("/store/:slug/products", async (req, res) => {
 
     const generatedTitle = `${v.year || ''} Model ${trans} ${fuel} ${v.brand || ''} ${v.model || ''}`.replace(/\s+/g, ' ').trim();
 
+    const showcaseVehicleCat = ['hafif_ticari', 'suv', 'pickup', 'otomobil'].includes(v.category) ? v.category : (v.category || 'otomobil');
+
     allListings.push({
       id: `v_${v.id}`,
       db_id: v.id,
@@ -1000,7 +1008,9 @@ router.get("/store/:slug/products", async (req, res) => {
       price: v.selling_price || 0,
       currency: v.currency || 'TRY',
       stock_quantity: 1,
-      category: "Araç İlanları",
+      category: showcaseVehicleCat,
+      sub_sector: showcaseVehicleCat,
+      vehicle_category: showcaseVehicleCat,
       brand: v.brand,
       model: v.model,
       year: v.year,
@@ -1014,7 +1024,9 @@ router.get("/store/:slug/products", async (req, res) => {
       market_story: v.market_story,
       technical_description: v.technical_description,
       sector_data: { 
-        sub_sector: ['hafif_ticari', 'suv', 'pickup', 'otomobil'].includes(v.category) ? v.category : 'otomobil',
+        category: showcaseVehicleCat,
+        vehicle_category: showcaseVehicleCat,
+        sub_sector: showcaseVehicleCat,
         brand: v.brand,
         model: v.model,
         year: v.year,

@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Filter, Tag, Key, Building2, Layers, MapPin, RotateCcw, Home, DollarSign, ShieldCheck, Check, Car, Gauge, Calendar, Fuel, Settings } from 'lucide-react';
+import { normalizeVehicleCategory } from '../utils/formatUtils';
+import { getAvailableSubTypes, getAvailableSubRegions, REAL_ESTATE_REGIONS as DEFAULT_REGIONS, EMLAK_TIPI_SUB_TIPLERI as DEFAULT_SUB_TIPLERI } from '../data/realEstateConfig';
 
 interface FilterDrawerProps {
   isOpen: boolean;
@@ -10,14 +12,18 @@ interface FilterDrawerProps {
   setReFihristTab: (tab: string) => void;
   rePropertyType: string;
   setRePropertyType: (type: string) => void;
-  reSubPropertyType: string;
-  setReSubPropertyType: (type: string) => void;
+  reSubPropertyType?: string;
+  setReSubPropertyType?: (type: string) => void;
+  reSubPropertyTypes?: string[];
+  setReSubPropertyTypes?: React.Dispatch<React.SetStateAction<string[]>> | ((types: string[] | ((prev: string[]) => string[])) => void);
   reRegion: string;
   setReRegion: (region: string) => void;
   reSubRegion?: string;
   setReSubRegion?: (sub: string) => void;
-  reRooms?: string;
-  setReRooms?: (rooms: string) => void;
+  reSubRegions?: string[];
+  setReSubRegions?: React.Dispatch<React.SetStateAction<string[]>> | ((subs: string[] | ((prev: string[]) => string[])) => void);
+  reRooms?: string[] | string;
+  setReRooms?: (rooms: any) => void;
   priceRange?: string;
   setPriceRange?: (pr: string) => void;
   minPrice?: string;
@@ -62,17 +68,19 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
   reFihristTab, setReFihristTab,
   rePropertyType, setRePropertyType,
   reSubPropertyType, setReSubPropertyType,
+  reSubPropertyTypes = [], setReSubPropertyTypes,
   reRegion, setReRegion,
-  reSubRegion = "all", setReSubRegion,
-  reRooms = "all", setReRooms,
+  reSubRegion, setReSubRegion,
+  reSubRegions = [], setReSubRegions,
+  reRooms = [], setReRooms,
   priceRange = "all", setPriceRange,
   minPrice = "", setMinPrice,
   maxPrice = "", setMaxPrice,
   reFurnished = "all", setReFurnished,
   reKocanType = "all", setReKocanType,
   activeTags, setActiveTags,
-  EMLAK_TIPI_SUB_TIPLERI = {},
-  REAL_ESTATE_REGIONS = {},
+  EMLAK_TIPI_SUB_TIPLERI = DEFAULT_SUB_TIPLERI,
+  REAL_ESTATE_REGIONS = DEFAULT_REGIONS,
   activeVehicleCategory = "all", setActiveVehicleCategory,
   activeVehicleBrand = "all", setActiveVehicleBrand,
   activeVehicleModel = "all", setActiveVehicleModel,
@@ -88,14 +96,90 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
   vehicleYears = [],
   vehicleBodyTypes = []
 }) => {
+  // Normalize array states
+  const selectedSubTypes: string[] = Array.isArray(reSubPropertyTypes) && reSubPropertyTypes.length > 0
+    ? reSubPropertyTypes
+    : (reSubPropertyType && reSubPropertyType !== "all" ? [reSubPropertyType] : []);
+
+  const selectedSubRegions: string[] = Array.isArray(reSubRegions) && reSubRegions.length > 0
+    ? reSubRegions
+    : (reSubRegion && reSubRegion !== "all" ? [reSubRegion] : []);
+
+  const selectedRooms: string[] = Array.isArray(reRooms)
+    ? reRooms
+    : (typeof reRooms === 'string' && reRooms !== "all" && reRooms !== "" ? [reRooms] : []);
+
+  const toggleSubType = (sub: string) => {
+    let next: string[];
+    if (selectedSubTypes.includes(sub)) {
+      next = selectedSubTypes.filter(s => s !== sub);
+    } else {
+      next = [...selectedSubTypes, sub];
+    }
+    if (setReSubPropertyTypes) {
+      setReSubPropertyTypes(next);
+    }
+    if (setReSubPropertyType) {
+      setReSubPropertyType(next.length > 0 ? next[0] : "all");
+    }
+  };
+
+  const clearSubTypes = () => {
+    if (setReSubPropertyTypes) setReSubPropertyTypes([]);
+    if (setReSubPropertyType) setReSubPropertyType("all");
+  };
+
+  const toggleSubRegion = (sub: string) => {
+    let next: string[];
+    if (selectedSubRegions.includes(sub)) {
+      next = selectedSubRegions.filter(s => s !== sub);
+    } else {
+      next = [...selectedSubRegions, sub];
+    }
+    if (setReSubRegions) {
+      setReSubRegions(next);
+    }
+    if (setReSubRegion) {
+      setReSubRegion(next.length > 0 ? next[0] : "all");
+    }
+  };
+
+  const selectAllSubRegions = (available: string[]) => {
+    if (setReSubRegions) setReSubRegions(available);
+    if (setReSubRegion && available.length > 0) setReSubRegion(available[0]);
+  };
+
+  const clearSubRegions = () => {
+    if (setReSubRegions) setReSubRegions([]);
+    if (setReSubRegion) setReSubRegion("all");
+  };
+
+  const toggleRoom = (room: string) => {
+    let next: string[];
+    if (selectedRooms.includes(room)) {
+      next = selectedRooms.filter(r => r !== room);
+    } else {
+      next = [...selectedRooms, room];
+    }
+    if (setReRooms) {
+      setReRooms(next);
+    }
+  };
+
+  const clearRooms = () => {
+    if (setReRooms) {
+      setReRooms([]);
+    }
+  };
+
   const resetFilters = () => {
     if (activeSector === 'emlak') {
       setReFihristTab("all");
       setRePropertyType("all");
-      setReSubPropertyType("all");
+      clearSubTypes();
       setReRegion("all");
-      if (setReSubRegion) setReSubRegion("all");
-      if (setReRooms) setReRooms("all");
+      clearSubRegions();
+      clearRooms();
       if (setPriceRange) setPriceRange("all");
       if (setMinPrice) setMinPrice("");
       if (setMaxPrice) setMaxPrice("");
@@ -121,13 +205,11 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
         : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:border-slate-700"
     }`;
 
-  const availableSubTypes = rePropertyType !== "all" && EMLAK_TIPI_SUB_TIPLERI[rePropertyType]
-    ? EMLAK_TIPI_SUB_TIPLERI[rePropertyType]
-    : Object.values(EMLAK_TIPI_SUB_TIPLERI).flat();
+  // Get available sub-types strictly matching selected property type
+  const availableSubTypes = getAvailableSubTypes(rePropertyType);
 
-  const availableSubRegions = reRegion !== "all" && REAL_ESTATE_REGIONS[reRegion]
-    ? REAL_ESTATE_REGIONS[reRegion]
-    : [];
+  // Get available sub-regions for selected city
+  const availableSubRegions = getAvailableSubRegions(reRegion);
 
   return (
     <AnimatePresence>
@@ -197,28 +279,67 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                         { id: "commercial", label: "🏪 TİCARİ" },
                         { id: "land", label: "🏞️ ARSA" }
                       ].map((pt) => (
-                        <button key={pt.id} onClick={() => { setRePropertyType(pt.id); setReSubPropertyType("all"); }} className={getButtonClass(rePropertyType === pt.id)}>
+                        <button 
+                          key={pt.id} 
+                          onClick={() => { 
+                            setRePropertyType(pt.id); 
+                            clearSubTypes(); 
+                          }} 
+                          className={getButtonClass(rePropertyType === pt.id)}
+                        >
                           {pt.label}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* 3. ALT TİP */}
+                  {/* 3. ALT TİP (MULTI-SELECT) */}
                   {availableSubTypes.length > 0 && (
                     <div className="space-y-2">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-emerald-400" /> 3. Mülk Alt Tipi
-                      </span>
-                      <div className="flex flex-wrap items-center gap-1.5 max-h-36 overflow-y-auto p-1 bg-slate-900/50 rounded-xl border border-slate-800">
-                        <button onClick={() => setReSubPropertyType("all")} className={getButtonClass(reSubPropertyType === "all")}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-emerald-400" /> 3. Mülk Alt Tipi
+                          {selectedSubTypes.length > 0 && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-800">
+                              {selectedSubTypes.length} Seçili
+                            </span>
+                          )}
+                        </span>
+                        {selectedSubTypes.length > 0 && (
+                          <button 
+                            onClick={clearSubTypes}
+                            className="text-[10px] font-bold text-slate-400 hover:text-rose-400 underline cursor-pointer"
+                          >
+                            Seçimi Temizle
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 max-h-36 overflow-y-auto p-1.5 bg-slate-900/50 rounded-xl border border-slate-800">
+                        <button 
+                          onClick={clearSubTypes} 
+                          className={getButtonClass(selectedSubTypes.length === 0)}
+                        >
                           Tüm Alt Tipler
                         </button>
-                        {availableSubTypes.map((st) => (
-                          <button key={st} onClick={() => setReSubPropertyType(st)} className={getButtonClass(reSubPropertyType === st)}>
-                            {st}
-                          </button>
-                        ))}
+                        {availableSubTypes.map((st) => {
+                          const isSelected = selectedSubTypes.includes(st);
+                          return (
+                            <button 
+                              key={st} 
+                              onClick={() => toggleSubType(st)} 
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                                isSelected
+                                  ? "bg-emerald-600 text-white border-emerald-400 shadow-md"
+                                  : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:border-slate-700"
+                              }`}
+                            >
+                              <span className={`w-3 h-3 rounded flex items-center justify-center text-[9px] ${isSelected ? "bg-white text-emerald-700 font-black" : "border border-slate-600"}`}>
+                                {isSelected ? "✓" : ""}
+                              </span>
+                              {st}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -230,43 +351,126 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
                       {["all", "girne", "lefkoşa", "gazimağusa", "iskele", "lefke", "güzelyurt"].map((reg) => (
-                        <button key={reg} onClick={() => { setReRegion(reg); if (setReSubRegion) setReSubRegion("all"); }} className={getButtonClass(reRegion === reg)}>
+                        <button 
+                          key={reg} 
+                          onClick={() => { 
+                            setReRegion(reg); 
+                            clearSubRegions(); 
+                          }} 
+                          className={getButtonClass(reRegion.toLowerCase() === reg.toLowerCase())}
+                        >
                           {reg === "all" ? "TÜM ŞEHİRLER" : reg.toUpperCase()}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* 5. ALT BÖLGE / LOKASYON */}
+                  {/* 5. ALT BÖLGE / MAHALLELER (COMPACT 2 SÜTUN ÇOKLU SEÇİM) */}
                   {availableSubRegions.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-purple-400" /> 5. İlçe / Bölge
-                      </span>
-                      <div className="flex flex-wrap items-center gap-1.5 max-h-32 overflow-y-auto p-1 bg-slate-900/50 rounded-xl border border-slate-800">
-                        <button onClick={() => { if (setReSubRegion) setReSubRegion("all"); }} className={getButtonClass(reSubRegion === "all")}>
-                          Tüm Bölgeler
-                        </button>
-                        {availableSubRegions.map((sub) => (
-                          <button key={sub} onClick={() => { if (setReSubRegion) setReSubRegion(sub); }} className={getButtonClass(reSubRegion === sub)}>
-                            {sub}
+                    <div className="space-y-2 p-3 bg-purple-950/20 border border-purple-900/40 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-purple-400" /> 5. İlçe / Bölgeler ({reRegion.toUpperCase()})
+                          {selectedSubRegions.length > 0 && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-900/80 text-purple-200 border border-purple-700">
+                              {selectedSubRegions.length} Seçili
+                            </span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => selectAllSubRegions(availableSubRegions)}
+                            className="text-[10px] font-bold text-purple-400 hover:text-purple-200 cursor-pointer"
+                          >
+                            Tümünü Seç
                           </button>
-                        ))}
+                          <span className="text-slate-600">•</span>
+                          <button
+                            onClick={clearSubRegions}
+                            className="text-[10px] font-bold text-slate-400 hover:text-rose-400 cursor-pointer"
+                          >
+                            Temizle
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Tek Satırda 2 Bölge Kompakt Seç Kutuları */}
+                      <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto p-1.5 bg-slate-950/80 rounded-xl border border-slate-800">
+                        {availableSubRegions.map((sub) => {
+                          const isSelected = selectedSubRegions.includes(sub);
+                          return (
+                            <label
+                              key={sub}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleSubRegion(sub);
+                              }}
+                              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all select-none ${
+                                isSelected
+                                  ? "bg-purple-950/80 border-purple-500 text-purple-200 font-bold shadow-sm"
+                                  : "bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="w-3.5 h-3.5 rounded border-slate-700 text-purple-600 focus:ring-0 focus:ring-offset-0 bg-slate-900 cursor-pointer pointer-events-none"
+                              />
+                              <span className="truncate">{sub}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
 
-                  {/* 6. ODA SAYISI */}
+                  {/* 6. ODA SAYISI (MULTI-SELECT) */}
                   <div className="space-y-2">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                      <Home className="w-3.5 h-3.5 text-amber-500" /> 6. Oda Sayısı
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {["all", "1+1", "2+1", "3+1", "4+1", "villa", "stüdyo"].map((room) => (
-                        <button key={room} onClick={() => { if (setReRooms) setReRooms(room); }} className={getButtonClass(reRooms === room)}>
-                          {room === "all" ? "TÜMÜ" : room.toUpperCase()}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <Home className="w-3.5 h-3.5 text-cyan-400" /> 6. Oda Sayısı
+                        {selectedRooms.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-950/80 text-cyan-400 border border-cyan-800">
+                            {selectedRooms.length} Seçili
+                          </span>
+                        )}
+                      </span>
+                      {selectedRooms.length > 0 && (
+                        <button 
+                          onClick={clearRooms}
+                          className="text-[10px] font-bold text-slate-400 hover:text-rose-400 underline cursor-pointer"
+                        >
+                          Temizle
                         </button>
-                      ))}
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button 
+                        onClick={clearRooms} 
+                        className={getButtonClass(selectedRooms.length === 0)}
+                      >
+                        TÜMÜ
+                      </button>
+                      {["1+0", "1+1", "2+1", "3+1", "4+1", "5+", "Penthouse"].map((room) => {
+                        const isSelected = selectedRooms.includes(room);
+                        return (
+                          <button 
+                            key={room} 
+                            onClick={() => toggleRoom(room)} 
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer ${
+                              isSelected
+                                ? "bg-cyan-600 text-white border-cyan-400 shadow-lg ring-2 ring-cyan-500/30"
+                                : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:border-slate-700"
+                            }`}
+                          >
+                            <span className={`w-3 h-3 rounded flex items-center justify-center text-[9px] ${isSelected ? "bg-white text-cyan-700 font-black" : "border border-slate-600"}`}>
+                              {isSelected ? "✓" : ""}
+                            </span>
+                            {room}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -373,18 +577,22 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                       {[
                         { id: "all", label: "TÜMÜ" },
                         { id: "otomobil", label: "🚗 Otomobil" },
-                        { id: "suv", label: "🚙 SUV" },
-                        { id: "hafif ticari", label: "🚐 Hafif Ticari" },
-                        { id: "pick-up", label: "🛻 Pick-up" }
-                      ].map((cat) => (
-                        <button 
-                          key={cat.id} 
-                          onClick={() => { if (setActiveVehicleCategory) setActiveVehicleCategory(cat.id); }} 
-                          className={getButtonClass(activeVehicleCategory === cat.id)}
-                        >
-                          {cat.label}
-                        </button>
-                      ))}
+                        { id: "suv", label: "🚙 SUV / Arazi Aracı" },
+                        { id: "hafif_ticari", label: "🚐 Hafif Ticari" },
+                        { id: "pickup", label: "🛻 Pick-up" }
+                      ].map((cat) => {
+                        const isSelected = activeVehicleCategory === cat.id || 
+                          (cat.id !== "all" && normalizeVehicleCategory(activeVehicleCategory) === normalizeVehicleCategory(cat.id));
+                        return (
+                          <button 
+                            key={cat.id} 
+                            onClick={() => { if (setActiveVehicleCategory) setActiveVehicleCategory(cat.id); }} 
+                            className={getButtonClass(isSelected)}
+                          >
+                            {cat.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 

@@ -15,3 +15,27 @@ export const EMLAK_TIPI_SUB_TIPLERI: Record<string, string[]> = {
   "Ticari": ["Dükkan", "Ofis", "İş Yeri", "Komple Bina", "Plaza", "Depo"],
   "Arsa": ["Tarla", "İmarlı Arsa", "Bahçeli Arsa", "Turistik Arsa", "Zeytinlik"]
 };
+
+export const getAvailableSubTypes = (propertyType: string): string[] => {
+  if (!propertyType || propertyType === "all") {
+    const all = [
+      ...EMLAK_TIPI_SUB_TIPLERI["residence"],
+      ...EMLAK_TIPI_SUB_TIPLERI["commercial"],
+      ...EMLAK_TIPI_SUB_TIPLERI["land"]
+    ];
+    return Array.from(new Set(all));
+  }
+  const key = propertyType === "residence" || propertyType === "Konut" ? "residence" :
+              propertyType === "commercial" || propertyType === "Ticari" ? "commercial" :
+              propertyType === "land" || propertyType === "Arsa" ? "land" : propertyType;
+  return EMLAK_TIPI_SUB_TIPLERI[key] || [];
+};
+
+export const getAvailableSubRegions = (regionKey: string): string[] => {
+  if (!regionKey || regionKey === "all") return [];
+  const cleanKey = regionKey.toLowerCase().trim();
+  const foundKey = Object.keys(REAL_ESTATE_REGIONS).find(
+    k => k.toLowerCase().trim() === cleanKey
+  );
+  return foundKey ? (REAL_ESTATE_REGIONS as any)[foundKey] || [] : [];
+};

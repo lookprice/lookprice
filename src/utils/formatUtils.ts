@@ -233,3 +233,22 @@ export function formatBodyType(body?: string): string {
   return map[b] || body;
 }
 
+export function normalizeVehicleCategory(raw: any): string {
+  if (!raw) return '';
+  const s = String(raw).toLowerCase().trim().replace(/[-_]/g, ' ');
+  if (s.includes('otomobil') || s.includes('sedan') || s.includes('hatchback') || s === 'car' || s === 'binek') return 'otomobil';
+  if (s.includes('suv') || s.includes('arazi') || s.includes('crossover') || s.includes('4x4')) return 'suv';
+  if (s.includes('hafif ticari') || s.includes('ticari') || s.includes('commercial') || s.includes('minivan') || s.includes('panelvan')) return 'hafif_ticari';
+  if (s.includes('pickup') || s.includes('pick up') || s.includes('kamyonet')) return 'pickup';
+  return s;
+}
+
+export function getVehicleCategoryDisplayName(catKey: string, lang: string = 'tr'): string {
+  const norm = normalizeVehicleCategory(catKey);
+  if (norm === 'otomobil') return lang === 'tr' ? 'Otomobil' : 'Car';
+  if (norm === 'suv') return lang === 'tr' ? 'SUV / Arazi Aracı' : 'SUV / Off-Road';
+  if (norm === 'hafif_ticari') return lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial';
+  if (norm === 'pickup') return lang === 'tr' ? 'Pick-up' : 'Pick-up';
+  return catKey;
+}
+
