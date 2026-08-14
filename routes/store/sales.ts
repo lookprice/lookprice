@@ -38,12 +38,34 @@ router.get("/", async (req: any, res) => {
   try {
     const sales = await pool.query(query, params);
     
-    const salesWithDetails = [];
-    for (const sale of sales.rows) {
-      const items = await pool.query("SELECT * FROM sale_items WHERE sale_id = $1", [sale.id]);
-      const payments = await pool.query("SELECT * FROM sale_payments WHERE sale_id = $1", [sale.id]);
-      salesWithDetails.push({ ...sale, items: items.rows, payments: payments.rows });
+    const saleIds = sales.rows.map(s => s.id);
+    let allItems: any[] = [];
+    let allPayments: any[] = [];
+
+    if (saleIds.length > 0) {
+      const itemsRes = await pool.query("SELECT * FROM sale_items WHERE sale_id = ANY($1)", [saleIds]);
+      allItems = itemsRes.rows;
+      const paymentsRes = await pool.query("SELECT * FROM sale_payments WHERE sale_id = ANY($1)", [saleIds]);
+      allPayments = paymentsRes.rows;
     }
+
+    const itemsMap = new Map();
+    for (const item of allItems) {
+      if (!itemsMap.has(item.sale_id)) itemsMap.set(item.sale_id, []);
+      itemsMap.get(item.sale_id).push(item);
+    }
+
+    const paymentsMap = new Map();
+    for (const payment of allPayments) {
+      if (!paymentsMap.has(payment.sale_id)) paymentsMap.set(payment.sale_id, []);
+      paymentsMap.get(payment.sale_id).push(payment);
+    }
+
+    const salesWithDetails = sales.rows.map(sale => ({
+      ...sale,
+      items: itemsMap.get(sale.id) || [],
+      payments: paymentsMap.get(sale.id) || []
+    }));
     
     res.json(salesWithDetails);
   } catch (e: any) {

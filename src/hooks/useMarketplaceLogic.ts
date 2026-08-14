@@ -6,7 +6,7 @@ export type ViewMode = "rich" | "list";
 export const useMarketplaceLogic = () => {
   // State definitions extracted from Marketplace.tsx
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, _setListings] = useState<any[]>([]);
   const [portalNews, setPortalNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -15,10 +15,50 @@ export const useMarketplaceLogic = () => {
   const [reFihristTab, setReFihristTab] = useState<string>("satilik");
   const [vehFihristTab, setVehFihristTab] = useState<string>("latest");
   const [rePropertyType, setRePropertyType] = useState<string>("all");
-  const [reSubPropertyTypes, setReSubPropertyTypes] = useState<string[]>([]);
-  const [reSubRegions, setReSubRegions] = useState<string[]>([]);
-  const [reRooms, setReRooms] = useState<string[]>([]);
-  const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [reSubPropertyTypes, _setReSubPropertyTypes] = useState<string[]>([]);
+  const [reSubRegions, _setReSubRegions] = useState<string[]>([]);
+  const [reRooms, _setReRooms] = useState<string[]>([]);
+  const [activeTags, _setActiveTags] = useState<string[]>([]);
+
+  const setReSubPropertyTypes = (val: any) => {
+    if (typeof val === 'function') {
+      _setReSubPropertyTypes(val);
+    } else {
+      _setReSubPropertyTypes(Array.isArray(val) ? val : (val ? [val] : []));
+    }
+  };
+
+  const setReSubRegions = (val: any) => {
+    if (typeof val === 'function') {
+      _setReSubRegions(val);
+    } else {
+      _setReSubRegions(Array.isArray(val) ? val : (val ? [val] : []));
+    }
+  };
+
+  const setReRooms = (val: any) => {
+    if (typeof val === 'function') {
+      _setReRooms(val);
+    } else {
+      _setReRooms(Array.isArray(val) ? val : (val ? [val] : (typeof val === 'string' && val ? [val] : [])));
+    }
+  };
+
+  const setActiveTags = (val: any) => {
+    if (typeof val === 'function') {
+      _setActiveTags(val);
+    } else {
+      _setActiveTags(Array.isArray(val) ? val : (val ? [val] : []));
+    }
+  };
+
+  const setListings = (val: any) => {
+    if (typeof val === 'function') {
+      _setListings(val);
+    } else {
+      _setListings(Array.isArray(val) ? val : []);
+    }
+  };
   const [viewMode, setViewMode] = useState<ViewMode>("rich");
   
   const [activeSubSector, setActiveSubSector] = useState<string>("all");

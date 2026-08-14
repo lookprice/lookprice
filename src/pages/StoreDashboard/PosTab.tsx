@@ -57,9 +57,42 @@ const PosTab = ({
   );
   const totalPages = Math.ceil(sales.length / itemsPerPage);
 
+  const handleSetLast30Days = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 30);
+    onStartDateChange(start.toISOString().split('T')[0]);
+    onEndDateChange(end.toISOString().split('T')[0]);
+  };
+
+  const handleSetThisMonth = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    onStartDateChange(start.toISOString().split('T')[0]);
+    onEndDateChange(end.toISOString().split('T')[0]);
+  };
+
+  const handleClearDates = () => {
+    onStartDateChange('');
+    onEndDateChange('');
+  };
+
   return (
     <div className="space-y-10">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6 space-y-4">
+        <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-slate-100">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">{isTr ? 'Hızlı Tarih Filtreleri:' : 'Quick Filters:'}</span>
+          <button onClick={handleSetLast30Days} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all border border-indigo-100">
+            {isTr ? 'Son 30 Gün' : 'Last 30 Days'}
+          </button>
+          <button onClick={handleSetThisMonth} className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200">
+            {isTr ? 'Bu Ay' : 'This Month'}
+          </button>
+          <button onClick={handleClearDates} className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200">
+            {isTr ? 'Tüm Zamanlar' : 'All Time'}
+          </button>
+        </div>
         <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-6">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6 flex-1">
             <div className="flex flex-wrap items-center gap-3">

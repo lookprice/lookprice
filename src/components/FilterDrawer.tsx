@@ -540,17 +540,21 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                       ✨ 10. Hızlı Öne Çıkan Etiketler
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {[
+                      {([
                         "öğrenci", "eşyalı", "kampüs", "hemen", "deniz", "kredi", "koçan", "havuz", "manzara", "sıfır"
-                      ].map((tag) => {
-                        const isSel = activeTags.includes(tag);
+                      ] as string[]).map((tag) => {
+                        const safeActiveTags = Array.isArray(activeTags) ? activeTags : [];
+                        const isSel = safeActiveTags.includes(tag);
                         return (
                           <button
                             key={tag}
                             onClick={() => {
-                              setActiveTags((prev) => 
-                                isSel ? prev.filter((t) => t !== tag) : [...prev, tag]
-                              );
+                              if (setActiveTags) {
+                                setActiveTags((prev: any) => {
+                                  const arr = Array.isArray(prev) ? prev : [];
+                                  return isSel ? arr.filter((t: string) => t !== tag) : [...arr, tag];
+                                });
+                              }
                             }}
                             className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
                               isSel 

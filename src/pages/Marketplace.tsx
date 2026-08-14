@@ -458,7 +458,8 @@ export const Marketplace = () => {
 
   // Derived Vehicle Options from AutoLP stores portfolio
   const vehicleListings = React.useMemo(() => {
-    return listings.filter(i => {
+    const list = Array.isArray(listings) ? listings : [];
+    return list.filter(i => {
       return i.listing_type === 'vehicle' || i.type === 'vehicle' || (i.category && (i.category.toLowerCase().includes('vasıta') || i.category.toLowerCase().includes('otomobil') || i.category.toLowerCase().includes('araç') || i.category.toLowerCase().includes('suv') || i.category.toLowerCase().includes('pickup') || i.category.toLowerCase().includes('ticari')));
     });
   }, [listings]);
@@ -656,7 +657,7 @@ export const Marketplace = () => {
   }, [selectedListing?.id]);
 
   // Filter & Sort Logic
-  const filteredListings = listings.filter(item => {
+  const filteredListings = (Array.isArray(listings) ? listings : []).filter(item => {
     if (item.status && item.status !== 'active') return false;
     if (item.listing_type === "product") return false;
 
@@ -953,7 +954,8 @@ export const Marketplace = () => {
   });
 
   const stats = React.useMemo(() => {
-    const activeListings = listings.filter(i => (!i.status || i.status === 'active') && i.listing_type !== 'product');
+    const list = Array.isArray(listings) ? listings : [];
+    const activeListings = list.filter(i => (!i.status || i.status === 'active') && i.listing_type !== 'product');
     let reCount = 0;
     let vehCount = 0;
 
@@ -967,7 +969,7 @@ export const Marketplace = () => {
 
     return {
       total: activeListings.length,
-      properties: reCount || (listings.length > 0 ? listings.length - vehCount : 0),
+      properties: reCount || (list.length > 0 ? list.length - vehCount : 0),
       vehicles: vehCount,
     };
   }, [listings]);
