@@ -10,9 +10,10 @@ import {
   CloudUpload, 
   XCircle, 
   RefreshCw,
-  Truck
+  Truck,
+  CheckCircle,
+  Clock
 } from 'lucide-react';
-
 interface SalesInvoiceTableProps {
   invoices: any[];
   loading: boolean;
@@ -82,7 +83,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
               </th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Durum' : 'Status'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center w-[50px]">{isTr ? 'Durum' : 'Status'}</th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
@@ -149,18 +150,23 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                       )}
                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{inv.payment_method}</div>
                     </td>
-                    <td className="px-3 py-4 w-[120px]">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                        inv.status === 'draft' ? 'bg-amber-100 text-amber-700' :
-                        inv.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
-                        inv.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
-                        {inv.status === 'draft' ? (isTr ? 'Taslak' : 'Draft') :
-                         inv.status === 'approved' ? (isTr ? 'Onaylandı' : 'Approved') :
-                         inv.status === 'cancelled' ? (isTr ? 'İptal' : 'Cancelled') :
-                         inv.status}
-                      </span>
+                    <td className="px-3 py-4 text-center">
+                      <div className="flex justify-center" title={
+                        inv.status === 'draft' ? (isTr ? 'Taslak' : 'Draft') :
+                        inv.status === 'approved' ? (isTr ? 'Onaylandı' : 'Approved') :
+                        inv.status === 'cancelled' ? (isTr ? 'İptal' : 'Cancelled') :
+                        inv.status
+                      }>
+                        {inv.status === 'draft' ? (
+                          <Clock className="w-5 h-5 text-amber-500" />
+                        ) : inv.status === 'approved' ? (
+                          <CheckCircle className="w-5 h-5 text-emerald-500" />
+                        ) : inv.status === 'cancelled' ? (
+                          <XCircle className="w-5 h-5 text-rose-500" />
+                        ) : (
+                          <span className="text-[10px]">{inv.status}</span>
+                        )}
+                      </div>
                       {(() => {
                         let computedDocType = null;
                         const profile = (inv.invoice_profile || "").toUpperCase();
