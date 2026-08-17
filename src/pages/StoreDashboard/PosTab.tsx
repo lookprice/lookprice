@@ -82,74 +82,61 @@ const PosTab = ({
   };
 
   return (
-    <div className="space-y-10">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6 space-y-4">
-        <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-slate-100">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">{isTr ? 'Hızlı Tarih Filtreleri:' : 'Quick Filters:'}</span>
-          <button onClick={handleSetLast30Days} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all border border-indigo-100">
-            {isTr ? 'Son 30 Gün' : 'Last 30 Days'}
-          </button>
-          <button onClick={handleSetThisMonth} className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200">
-            {isTr ? 'Bu Ay' : 'This Month'}
-          </button>
-          <button onClick={handleClearDates} className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200">
-            {isTr ? 'Tüm Zamanlar' : 'All Time'}
-          </button>
-        </div>
-        <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-6">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{isTr ? 'Başlangıç' : 'Start Date'}</span>
-                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                  <Calendar className="h-4 w-4 text-slate-400 mr-2" />
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => onStartDateChange(e.target.value)}
-                    className="bg-transparent border-none p-0 text-xs font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{isTr ? 'Bitiş' : 'End Date'}</span>
-                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                  <Calendar className="h-4 w-4 text-slate-400 mr-2" />
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => onEndDateChange(e.target.value)}
-                    className="bg-transparent border-none p-0 text-xs font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col space-y-2 flex-1 sm:flex-none">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{isTr ? 'Durum Filtresi' : 'Status Filter'}</span>
-              <div className="relative group">
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-600 transition-colors pointer-events-none" />
-                <select 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-10 py-2.5 text-sm font-bold text-slate-900 hover:bg-slate-100 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 appearance-none shadow-sm cursor-pointer transition-all"
-                  value={statusFilter}
-                  onChange={(e) => onStatusFilterChange(e.target.value)}
-                >
-                  <option value="all">{t.all}</option>
-                  <option value="pending">{t.pending}</option>
-                  <option value="completed">{t.completed}</option>
-                  <option value="cancelled">{t.cancelled}</option>
-                </select>
-                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 rotate-90 pointer-events-none" />
-              </div>
-            </div>
+    <div className="space-y-6">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+            <button onClick={handleSetLast30Days} className="px-2.5 py-1 bg-white shadow-xs text-indigo-700 rounded-lg text-[11px] font-bold transition-all border border-slate-200">
+              {isTr ? 'Son 30 Gün' : '30D'}
+            </button>
+            <button onClick={handleSetThisMonth} className="px-2.5 py-1 hover:bg-white text-slate-700 rounded-lg text-[11px] font-bold transition-all">
+              {isTr ? 'Bu Ay' : 'Month'}
+            </button>
+            <button onClick={handleClearDates} className="px-2.5 py-1 hover:bg-white text-slate-700 rounded-lg text-[11px] font-bold transition-all">
+              {isTr ? 'Tümü' : 'All'}
+            </button>
           </div>
-          <button 
-            onClick={onExportReport}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95 group"
-          >
-            <Download className="h-4 w-4 group-hover:translate-y-0.5 transition-transform" /> 
-            <span>{t.cashReport}</span>
-          </button>
+
+          <div className="flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200">
+            <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-0.5" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => onStartDateChange(e.target.value)}
+              className="bg-transparent border-none p-0 text-[11px] font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer w-24"
+            />
+            <span className="text-slate-300">-</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => onEndDateChange(e.target.value)}
+              className="bg-transparent border-none p-0 text-[11px] font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer w-24"
+            />
+          </div>
+
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <select 
+              className="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-7 py-1.5 text-[11px] font-bold text-slate-900 hover:bg-slate-100 focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500/30 appearance-none shadow-xs cursor-pointer transition-all"
+              value={statusFilter}
+              onChange={(e) => onStatusFilterChange(e.target.value)}
+            >
+              <option value="all">{t.all}</option>
+              <option value="pending">{t.pending}</option>
+              <option value="completed">{t.completed}</option>
+              <option value="cancelled">{t.cancelled}</option>
+            </select>
+            <ChevronRight className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 rotate-90 pointer-events-none" />
+          </div>
         </div>
+
+        <button 
+          onClick={onExportReport}
+          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-sm active:scale-95 group"
+        >
+          <Download className="h-3.5 w-3.5 group-hover:translate-y-0.5 transition-transform" /> 
+          <span>{t.cashReport}</span>
+        </button>
       </div>
 
       <div className="os-panel overflow-hidden">
