@@ -12,7 +12,8 @@ import {
   Trash2,
   FileText,
   Calendar,
-  Truck
+  Truck,
+  UserCheck
 } from "lucide-react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -159,7 +160,7 @@ const PosTab = ({
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.orderCode}</th>
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.date}</th>
-                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.customer}</th>
+                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'Masa' : 'Table'}</th>
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.amount}</th>
                 <th className="px-2 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-center w-[50px]">{t.status}</th>
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'İptal Sebebi' : 'Cancel Reason'}</th>
@@ -196,8 +197,15 @@ const PosTab = ({
                         {new Date(s.created_at).toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </td>
-                    <td className="px-3.5 py-4 text-[12px] font-black text-slate-500 uppercase tracking-tight max-w-[120px] truncate">
-                      {s.customer_name || (lang === 'tr' ? 'Perakende' : 'Walk-in')}
+                    <td className="px-3.5 py-4 text-[12px] font-black text-slate-700 uppercase tracking-tight max-w-[120px] truncate">
+                      {s.customer_name?.toLowerCase().includes('garson') || s.customer_name === 'Masa Siparişi' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100 text-[10px]" title={s.customer_name}>
+                          <UserCheck className="w-3 h-3 text-indigo-500 shrink-0" />
+                          <span>{lang === 'tr' ? 'Garson' : 'Waiter'}</span>
+                        </span>
+                      ) : (
+                        s.customer_name || (lang === 'tr' ? 'Masa' : 'Table')
+                      )}
                     </td>
                     <td className="px-3.5 py-4 whitespace-nowrap">
                       <div className="text-[14px] font-black text-slate-900 mono-data tracking-tighter">
