@@ -664,7 +664,7 @@ export const ProductModal = ({
                       onClick={() => {
                         const newId = 'var_' + Date.now();
                         const newVar = isCafeRestaurant
-                          ? { id: newId, name: '', price: '', recipe_items: [] }
+                          ? { id: newId, name: '', price: '', recipe_items: [], stock_quantity: '0' }
                           : { id: newId, name: '', color_name: '', color_code: '#3b82f6', size: '', barcode: '', sku: '', stock_quantity: '10', price: '', image_url: '' };
                         setVariants((prev) => [...prev, newVar]);
                         scrollToLatestVariant(newId);
@@ -855,6 +855,22 @@ export const ProductModal = ({
                                 onChange={(e) => {
                                   const newVars = [...variants];
                                   newVars[vIdx].price = e.target.value;
+                                  setVariants(newVars);
+                                }}
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                                {isTr ? "Stok Adedi" : "Stock Quantity"}
+                              </label>
+                              <input
+                                type="number"
+                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                                value={v.stock_quantity !== undefined ? v.stock_quantity : "0"}
+                                onChange={(e) => {
+                                  const newVars = [...variants];
+                                  newVars[vIdx].stock_quantity = e.target.value;
                                   setVariants(newVars);
                                 }}
                               />
