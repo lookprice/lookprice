@@ -75,8 +75,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
+const lookdocuDir = path.join(uploadsDir, "lookdocu");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+}
+if (!fs.existsSync(lookdocuDir)) {
+  fs.mkdirSync(lookdocuDir, { recursive: true });
 }
 
 async function startServer() {
@@ -433,7 +437,7 @@ function sanitizeFilename(originalName: string): string {
   return clean || 'file';
 }
 
-  // File Upload Route (Supabase Storage)
+  // File Upload Route (Hybrid: Local Disk + Supabase Storage)
   const upload = multer({ storage: multer.memoryStorage() });
 
   app.post("/api/upload", authenticate, upload.single("file"), async (req: any, res) => {
@@ -446,48 +450,97 @@ function sanitizeFilename(originalName: string): string {
       return res.status(400).json({ error: "File size exceeds 2MB limit" });
     }
 
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const filename = uniqueSuffix + "-" + sanitizeFilename(req.file.originalname);
+    let localSaved = false;
+
+    // 1. Always save a copy to local disk first
+    try {
+      const localFilePath = path.join(lookdocuDir, filename);
+      await fs.promises.writeFile(localFilePath, req.file.buffer);
+      localSaved = true;
+    } catch (localErr) {
+      console.warn("Failed to write file locally:", localErr);
+    }
+
+    // 2. Try uploading to Supabase if configured
     try {
       const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
       const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
-      if (!supabaseUrl || !supabaseKey) {
-        return res.status(400).json({ 
-          error: "Supabase API anahtarları eksik! Lütfen AI Studio Secrets veya .env ayarlarından SUPABASE_URL ve SUPABASE_KEY tanımlayın." 
-        });
+      
+      if (supabaseUrl && supabaseKey) {
+        const { supabase } = await import("./src/services/supabaseService");
+        const { error } = await supabase.storage
+          .from("lookdocu")
+          .upload(filename, req.file.buffer, {
+            contentType: req.file.mimetype,
+            upsert: false,
+          });
+
+        if (error) {
+          console.warn("[Upload] Supabase upload failed (quota/paused?):", error.message || error);
+        }
       }
-
-      const { supabase } = await import("./src/services/supabaseService");
-      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      const filename = uniqueSuffix + "-" + sanitizeFilename(req.file.originalname);
-
-      const { data, error } = await supabase.storage
-        .from("lookdocu")
-        .upload(filename, req.file.buffer, {
-          contentType: req.file.mimetype,
-          upsert: false,
-        });
-
-      if (error) throw error;
-
-      // Instead of raw Supabase URL, return our proxy URL to enable CDN caching
-      res.json({ url: `/api/storage/${filename}` });
-    } catch (error: any) {
-      console.error("Supabase upload error:", error);
-      res.status(500).json({ error: "Failed to upload file to Supabase" });
+    } catch (sbErr: any) {
+      console.warn("[Upload] Supabase error during upload:", sbErr?.message || sbErr);
     }
+
+    if (localSaved) {
+      return res.json({ url: `/api/storage/${filename}` });
+    }
+
+    res.status(500).json({ error: "Failed to save uploaded file." });
   });
 
-  // Supabase Storage Proxy (Cache Optimization)
+  // Storage Proxy with Multi-Tier Local Cache & Resilient Fallback
   app.get("/api/storage/*", async (req, res) => {
+    const filePath = req.params[0];
+    const isImage = /\.(jpeg|jpg|png|webp|svg|gif|ico|bmp)$/i.test(filePath);
+
+    // 1. Check local file system first
+    const possibleLocalPaths = [
+      path.join(lookdocuDir, filePath),
+      path.join(uploadsDir, filePath),
+      path.join(uploadsDir, "stores", filePath),
+      path.join(uploadsDir, "consultants", filePath),
+    ];
+
+    for (const localPath of possibleLocalPaths) {
+      if (fs.existsSync(localPath)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        return res.sendFile(localPath);
+      }
+    }
+
+    // 2. Fetch from Supabase
     try {
       const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
-      if (!supabaseUrl) return res.status(404).end();
+      if (!supabaseUrl) {
+        if (isImage) {
+          res.setHeader("Content-Type", "image/svg+xml");
+          return res.status(200).send(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="#f1f5f9"/><circle cx="100" cy="80" r="30" fill="#cbd5e1"/><path d="M40 160 C50 120, 150 120, 160 160 Z" fill="#94a3b8"/><text x="100" y="185" font-family="system-ui,sans-serif" font-size="12" fill="#64748b" text-anchor="middle">Görsel Yok</text></svg>`);
+        }
+        return res.status(404).end();
+      }
       
-      const filePath = req.params[0];
       const url = `${supabaseUrl}/storage/v1/object/public/lookdocu/${filePath}`;
-      
       const response = await fetch(url);
+      
       if (!response.ok) {
-        return res.status(response.status).end();
+        console.warn(`[Storage Proxy] Supabase returned status ${response.status} (402 = Payment/Paused/Quota) for file: ${filePath}`);
+        
+        if (isImage) {
+          // Serve a clean SVG placeholder so the page layout and brand logo don't break with a broken image icon
+          res.setHeader("Content-Type", "image/svg+xml");
+          res.setHeader("Cache-Control", "public, max-age=300");
+          return res.status(200).send(`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" viewBox="0 0 240 80"><rect width="240" height="80" rx="8" fill="#1e293b"/><text x="120" y="46" font-family="system-ui,-apple-system,sans-serif" font-weight="600" font-size="18" fill="#ffffff" text-anchor="middle" letter-spacing="1">LOGO</text></svg>`);
+        }
+
+        return res.status(response.status).json({
+          error: "Storage item unavailable",
+          status: response.status,
+          note: response.status === 402 ? "Supabase Storage projesi uyku modunda veya kota aşımı nedeniyle durdurulmuş olabilir." : undefined
+        });
       }
 
       // Allow Cloudflare and browser to cache heavily (1 year)
@@ -499,17 +552,19 @@ function sanitizeFilename(originalName: string): string {
       const contentLength = response.headers.get("content-length");
       if (contentLength) res.setHeader("Content-Length", contentLength);
 
-      if (response.body) {
-        // Stream the response directly to client
-        // @ts-ignore
-        const { Readable } = await import('stream');
-        // @ts-ignore
-        Readable.fromWeb(response.body).pipe(res);
-      } else {
-        res.end();
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Asynchronously cache locally for all subsequent requests
+      fs.promises.writeFile(path.join(lookdocuDir, filePath), buffer).catch(() => {});
+
+      res.send(buffer);
+    } catch (err: any) {
+      console.error("Storage proxy error:", err?.message || err);
+      if (isImage) {
+        res.setHeader("Content-Type", "image/svg+xml");
+        return res.status(200).send(`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" viewBox="0 0 240 80"><rect width="240" height="80" rx="8" fill="#1e293b"/><text x="120" y="46" font-family="system-ui,-apple-system,sans-serif" font-weight="600" font-size="18" fill="#ffffff" text-anchor="middle">LOGO</text></svg>`);
       }
-    } catch (err) {
-      console.error("Storage proxy error:", err);
       res.status(500).end();
     }
   });
