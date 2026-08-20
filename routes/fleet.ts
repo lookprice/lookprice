@@ -1,4 +1,6 @@
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
 import { pool } from '../models/db';
 import { authenticate } from '../middleware/auth';
 import multer from 'multer';
@@ -57,26 +59,43 @@ function sanitizeFilename(originalName: string): string {
 
 async function uploadToSupabase(file: any) {
   try {
-    const { supabase } = await import('../src/services/supabaseService.ts');
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const filename = uniqueSuffix + '-' + sanitizeFilename(file.originalname);
 
-    const { data, error } = await supabase.storage
-      .from('lookdocu')
-      .upload(filename, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false,
-      });
+    // 1. Always save a copy to local disk first
+    const lookdocuDir = path.join(process.cwd(), 'uploads', 'lookdocu');
+    if (!fs.existsSync(lookdocuDir)) {
+      fs.mkdirSync(lookdocuDir, { recursive: true });
+    }
+    try {
+      await fs.promises.writeFile(path.join(lookdocuDir, filename), file.buffer);
+    } catch (localErr) {
+      console.warn('[Fleet Upload] Local disk write warning:', localErr);
+    }
 
-    if (error) throw error;
+    // 2. Upload to Supabase if configured
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
+      const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
+      if (supabaseUrl && supabaseKey) {
+        const { supabase } = await import('../src/services/supabaseService.ts');
+        const { error } = await supabase.storage
+          .from('lookdocu')
+          .upload(filename, file.buffer, {
+            contentType: file.mimetype,
+            upsert: false,
+          });
+        if (error) {
+          console.warn('[Fleet Upload] Supabase upload failed:', error.message || error);
+        }
+      }
+    } catch (sbErr) {
+      console.warn('[Fleet Upload] Supabase error during upload:', sbErr);
+    }
 
-    const { data: publicUrlData } = supabase.storage
-      .from('lookdocu')
-      .getPublicUrl(filename);
-
-    return publicUrlData.publicUrl;
+    return `/api/storage/${filename}`;
   } catch (error) {
-    console.error('Supabase upload error:', error);
+    console.error('Fleet upload error:', error);
     throw error;
   }
 }
