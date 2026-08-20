@@ -107,10 +107,12 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
               </tr>
             ) : (
               invoices.map((inv: any) => {
-                const isQueued = ['QUEUED', 'Kuyrukta', 'İşleniyor'].includes(inv.integration_status);
-                const isRejected = ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status);
-                const isApproved = ['APPROVED', 'Onaylandı', 'Başarılı', '1300'].includes(inv.integration_status) || 
-                                  (inv.document_number && /^(GIB|GEA|EFA)/i.test(inv.document_number) && !isRejected);
+                const intStatus = (inv.integration_status || '').toUpperCase();
+                const isQueued = ['QUEUED', 'KUYRUKTA', 'İŞLENİYOR', 'İLETİLİYOR'].includes(intStatus);
+                const isRejected = ['REJECTED', 'HATA', 'İPTAL', 'İPTAL EDİLDİ', 'HATALI', 'CANCELLED', 'ERROR'].includes(intStatus);
+                const isApproved = ['APPROVED', 'ONAYLANDI', 'BAŞARILI', '1300', 'SUCCESS'].includes(intStatus) || 
+                                  (inv.document_number && !isRejected);
+                const isUnknown = !intStatus || intStatus === 'UNKNOWN' || intStatus === 'BILINMIYOR';
 
                 return (
                   <tr 
@@ -194,16 +196,17 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             }`}>
                               {computedDocType}
                             </div>
-                            {(inv.integration_status || isApproved) && (
+                            {(inv.integration_status || isApproved || isUnknown) && (
                               <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
                                 isQueued ? 'border-amber-200 bg-amber-50 text-amber-700' :
                                 isApproved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
                                 isRejected ? 'border-rose-200 bg-rose-50 text-rose-700' :
-                                'border-slate-200 bg-slate-50 text-slate-700'
+                                'border-slate-200 bg-slate-100 text-slate-600'
                               }`}>
                                 {isQueued ? (isTr ? 'GİB KUYRUĞUNDA' : 'QUEUED') :
                                  isApproved ? (isTr ? 'GİB ONAYLI' : 'APPROVED') : 
                                  isRejected ? (isTr ? 'REDDEDİLDİ/İPTAL' : 'REJECTED/CANCELLED') :
+                                 isUnknown ? (inv.document_number ? (isTr ? 'GİB\'E İLETİLDİ' : 'SENT TO GIB') : (isTr ? 'GÖNDERİLMEDİ' : 'NOT SENT')) :
                                  inv.integration_status}
                               </div>
                             )}
