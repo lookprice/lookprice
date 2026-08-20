@@ -5,6 +5,16 @@ import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
 
 const router = express.Router();
 
+async function initPurchaseInvoiceSchema() {
+  try {
+    await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(255);`);
+    await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_name VARCHAR(255);`);
+  } catch (e) {
+    console.error("Failed to alter purchase_invoice_items schema:", e);
+  }
+}
+initPurchaseInvoiceSchema();
+
 // --- Sales Invoices ---
 
 router.get("/sales", async (req: any, res) => {
@@ -1102,11 +1112,12 @@ router.post("/purchase", async (req: any, res) => {
 
         await pool.query(
           `INSERT INTO purchase_invoice_items 
-           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
           [
             invoice.id, item.product_id || null, item.product_name || 'Bilinmeyen Ürün', item.barcode || null,
-            qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice
+            qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice,
+            item.variant_id || null, item.variant_name || null
           ]
         );
 
@@ -1116,10 +1127,40 @@ router.post("/purchase", async (req: any, res) => {
             "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
             [qtyToStock, item.unit_price || 0, currency || 'TRY', item.product_id]
           );
+
+          if (item.variant_id || item.variant_name) {
+            try {
+              const prodRes = await pool.query("SELECT variants FROM products WHERE id = $1", [item.product_id]);
+              if (prodRes.rows.length > 0) {
+                let vList = prodRes.rows[0].variants;
+                if (typeof vList === 'string') {
+                  try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+                }
+                if (Array.isArray(vList)) {
+                  let updated = false;
+                  const updatedVariants = vList.map((v: any) => {
+                    const matchId = item.variant_id && String(v.id) === String(item.variant_id);
+                    const matchName = item.variant_name && String(v.name).trim().toLowerCase() === String(item.variant_name).trim().toLowerCase();
+                    if (matchId || matchName) {
+                      updated = true;
+                      const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                      return { ...v, stock_quantity: String(currentStock + qtyToStock) };
+                    }
+                    return v;
+                  });
+                  if (updated) {
+                    await pool.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(updatedVariants), item.product_id]);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Error updating variant stock in purchase invoice:", err);
+            }
+          }
           
           await addStockMovement(
             pool, storeId, item.product_id, 'in', qtyToStock, 'purchase_invoice',
-            `Fatura Girişi: ${invoice.invoice_number}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
+            `Fatura Girişi: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
           );
         }
       }
@@ -1180,11 +1221,41 @@ router.put("/purchase/:id", async (req: any, res) => {
     }
 
     // Deduct old items stock before replacing them
-    const oldItems = await pool.query("SELECT product_id, quantity, system_quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    const oldItems = await pool.query("SELECT product_id, quantity, system_quantity, variant_id, variant_name FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     for (const oldItem of oldItems.rows) {
       if (oldItem.product_id) {
-        const qtyToRevert = oldItem.system_quantity != null ? oldItem.system_quantity : oldItem.quantity;
+        const qtyToRevert = oldItem.system_quantity != null ? Number(oldItem.system_quantity) : Number(oldItem.quantity || 1);
         await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [qtyToRevert, oldItem.product_id]);
+
+        if (oldItem.variant_id || oldItem.variant_name) {
+          try {
+            const prodRes = await pool.query("SELECT variants FROM products WHERE id = $1", [oldItem.product_id]);
+            if (prodRes.rows.length > 0) {
+              let vList = prodRes.rows[0].variants;
+              if (typeof vList === 'string') {
+                try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+              }
+              if (Array.isArray(vList)) {
+                let updated = false;
+                const revertedVariants = vList.map((v: any) => {
+                  const matchId = oldItem.variant_id && String(v.id) === String(oldItem.variant_id);
+                  const matchName = oldItem.variant_name && String(v.name).trim().toLowerCase() === String(oldItem.variant_name).trim().toLowerCase();
+                  if (matchId || matchName) {
+                    updated = true;
+                    const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                    return { ...v, stock_quantity: String(Math.max(0, currentStock - qtyToRevert)) };
+                  }
+                  return v;
+                });
+                if (updated) {
+                  await pool.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(revertedVariants), oldItem.product_id]);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error reverting variant stock in purchase invoice:", err);
+          }
+        }
       }
     }
 
@@ -1247,11 +1318,12 @@ router.put("/purchase/:id", async (req: any, res) => {
 
         await pool.query(
           `INSERT INTO purchase_invoice_items 
-           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
           [
             id, item.product_id || null, item.product_name || 'Bilinmeyen Ürün', item.barcode || null,
-            qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice
+            qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice,
+            item.variant_id || null, item.variant_name || null
           ]
         );
 
@@ -1261,10 +1333,40 @@ router.put("/purchase/:id", async (req: any, res) => {
             "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
             [qtyToStock, item.unit_price || 0, currency || 'TRY', item.product_id]
           );
+
+          if (item.variant_id || item.variant_name) {
+            try {
+              const prodRes = await pool.query("SELECT variants FROM products WHERE id = $1", [item.product_id]);
+              if (prodRes.rows.length > 0) {
+                let vList = prodRes.rows[0].variants;
+                if (typeof vList === 'string') {
+                  try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+                }
+                if (Array.isArray(vList)) {
+                  let updated = false;
+                  const updatedVariants = vList.map((v: any) => {
+                    const matchId = item.variant_id && String(v.id) === String(item.variant_id);
+                    const matchName = item.variant_name && String(v.name).trim().toLowerCase() === String(item.variant_name).trim().toLowerCase();
+                    if (matchId || matchName) {
+                      updated = true;
+                      const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                      return { ...v, stock_quantity: String(currentStock + qtyToStock) };
+                    }
+                    return v;
+                  });
+                  if (updated) {
+                    await pool.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(updatedVariants), item.product_id]);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Error updating variant stock in purchase invoice:", err);
+            }
+          }
           
           await addStockMovement(
             pool, storeId, item.product_id, 'in', qtyToStock, 'purchase_invoice',
-            `Fatura Güncelleme: ${invoice.invoice_number}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
+            `Fatura Güncelleme: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
           );
         }
       }
@@ -1321,11 +1423,41 @@ router.delete("/purchase/:id", async (req: any, res) => {
     const invoice = checkRes.rows[0];
 
     // Adjust stocks back
-    const oldItems = await pool.query("SELECT product_id, quantity, system_quantity FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    const oldItems = await pool.query("SELECT product_id, quantity, system_quantity, variant_id, variant_name FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     for (const oldItem of oldItems.rows) {
       if (oldItem.product_id) {
-        const qtyToRevert = oldItem.system_quantity != null ? oldItem.system_quantity : oldItem.quantity;
+        const qtyToRevert = oldItem.system_quantity != null ? Number(oldItem.system_quantity) : Number(oldItem.quantity || 1);
         await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [qtyToRevert, oldItem.product_id]);
+
+        if (oldItem.variant_id || oldItem.variant_name) {
+          try {
+            const prodRes = await pool.query("SELECT variants FROM products WHERE id = $1", [oldItem.product_id]);
+            if (prodRes.rows.length > 0) {
+              let vList = prodRes.rows[0].variants;
+              if (typeof vList === 'string') {
+                try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+              }
+              if (Array.isArray(vList)) {
+                let updated = false;
+                const revertedVariants = vList.map((v: any) => {
+                  const matchId = oldItem.variant_id && String(v.id) === String(oldItem.variant_id);
+                  const matchName = oldItem.variant_name && String(v.name).trim().toLowerCase() === String(oldItem.variant_name).trim().toLowerCase();
+                  if (matchId || matchName) {
+                    updated = true;
+                    const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                    return { ...v, stock_quantity: String(Math.max(0, currentStock - qtyToRevert)) };
+                  }
+                  return v;
+                });
+                if (updated) {
+                  await pool.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(revertedVariants), oldItem.product_id]);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error reverting variant stock on purchase invoice delete:", err);
+          }
+        }
       }
     }
 
