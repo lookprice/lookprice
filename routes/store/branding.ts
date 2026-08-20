@@ -20,7 +20,7 @@ router.post("/", async (req: any, res) => {
         name, logo_url, favicon_url, primary_color, background_image_url, about_text, description,
         phone, address, email, page_layout, menu_links, footer_links, store_type, sub_sector,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number,
-        branding, payment_settings, meta_settings
+        branding, payment_settings, meta_settings, einvoice_settings
       FROM stores 
       WHERE id = $1
     `, [targetStoreId]);
@@ -45,6 +45,11 @@ router.post("/", async (req: any, res) => {
       try { existingMetaSettings = JSON.parse(existingMetaSettings); } catch (e) { existingMetaSettings = {}; }
     }
 
+    let existingEinvoiceSettings = existingStore.einvoice_settings || {};
+    if (typeof existingEinvoiceSettings === 'string') {
+      try { existingEinvoiceSettings = JSON.parse(existingEinvoiceSettings); } catch (e) { existingEinvoiceSettings = {}; }
+    }
+
     // Clean base64 data in incoming body
     const cleanedBody = await cleanDeepBase64(req.body, `store_${targetStoreId}_branding`);
 
@@ -58,6 +63,10 @@ router.post("/", async (req: any, res) => {
     // Ensure meta_settings are merged and kept consistent across branding and meta_settings column
     const mergedMetaSettings = { ...existingMetaSettings, ...(existingBranding.meta_settings || {}), ...(updatedBranding.meta_settings || {}) };
     updatedBranding.meta_settings = mergedMetaSettings;
+
+    // Ensure einvoice_settings are merged and kept consistent across branding and einvoice_settings column
+    const mergedEinvoiceSettings = { ...existingEinvoiceSettings, ...(existingBranding.einvoice_settings || {}), ...(updatedBranding.einvoice_settings || {}) };
+    updatedBranding.einvoice_settings = mergedEinvoiceSettings;
 
     // Resolve column values (prefer cleanedBody, then existingStore)
     const name = cleanedBody.name !== undefined ? cleanedBody.name : existingStore.name;
@@ -114,7 +123,8 @@ router.post("/", async (req: any, res) => {
         whatsapp_number = $22,
         branding = $23,
         payment_settings = $25,
-        meta_settings = $26
+        meta_settings = $26,
+        einvoice_settings = $27
       WHERE id = $24
     `, [
       name,
@@ -142,7 +152,8 @@ router.post("/", async (req: any, res) => {
       JSON.stringify(updatedBranding),
       targetStoreId,
       JSON.stringify(mergedPaymentSettings),
-      JSON.stringify(mergedMetaSettings)
+      JSON.stringify(mergedMetaSettings),
+      JSON.stringify(mergedEinvoiceSettings)
     ]);
 
     // Sync team/consultants to consultants table if provided
