@@ -170,6 +170,20 @@ router.post("/sales", async (req: any, res) => {
 
     if (!storeId) throw new Error("Store ID is required");
 
+    if (invoice_number) {
+      const existing = await client.query(
+        "SELECT id FROM sales_invoices WHERE store_id = $1 AND LOWER(TRIM(invoice_number)) = LOWER(TRIM($2))",
+        [storeId, invoice_number]
+      );
+      if (existing.rows.length > 0) {
+        await client.query("ROLLBACK");
+        client.release();
+        return res.status(400).json({ 
+          error: `"${invoice_number}" seri/fatura numarası ile sistemde daha önce kayıtlı bir fatura bulunmaktadır. Mükerrer fatura numarası ile giriş yapılamaz.` 
+        });
+      }
+    }
+
     const finalIsTaxInclusive = is_tax_inclusive !== undefined ? is_tax_inclusive : true;
 
     const storeRes = await client.query("SELECT branding, einvoice_settings FROM stores WHERE id = $1", [storeId]);
@@ -460,6 +474,20 @@ router.put("/sales/:id", async (req: any, res) => {
     );
     
     if (oldInvoiceResult.rows.length === 0) throw new Error("Invoice not found");
+
+    if (invoice_number) {
+      const existing = await client.query(
+        "SELECT id FROM sales_invoices WHERE store_id = $1 AND id <> $2 AND LOWER(TRIM(invoice_number)) = LOWER(TRIM($3))",
+        [storeId, req.params.id, invoice_number]
+      );
+      if (existing.rows.length > 0) {
+        await client.query("ROLLBACK");
+        client.release();
+        return res.status(400).json({ 
+          error: `"${invoice_number}" seri/fatura numarası ile sistemde daha önce kayıtlı başka bir fatura bulunmaktadır. Mükerrer fatura numarası kullanılamaz.` 
+        });
+      }
+    }
     
     const oldInvoice = oldInvoiceResult.rows[0];
     const oldItemsResult = await client.query(
