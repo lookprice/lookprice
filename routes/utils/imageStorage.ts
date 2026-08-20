@@ -22,30 +22,40 @@ export async function saveBase64Image(base64Data: string, prefix: string): Promi
   const buffer = Buffer.from(cleanBase64, 'base64');
   if (buffer.length < 50) return base64Data; // Keep tiny SVGs or icons inline if negligible
   const filename = `${prefix}_${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
+  const localLookdocuDir = path.join(process.cwd(), 'uploads', 'lookdocu');
+  if (!fs.existsSync(localLookdocuDir)) {
+    fs.mkdirSync(localLookdocuDir, { recursive: true });
+  }
 
-  // Try to save to Supabase first if keys are available
+  // 1. Always write locally first to eliminate egress
+  try {
+    fs.writeFileSync(path.join(localLookdocuDir, filename), buffer);
+    fs.writeFileSync(path.join(uploadsStoresDir, filename), buffer);
+  } catch (localErr) {
+    console.warn("Failed to write base64 image locally:", localErr);
+  }
+
+  // 2. Try to save to Supabase as backup if keys are available
   try {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
     const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
     if (supabaseUrl && supabaseKey) {
       const mimeType = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from("lookdocu")
         .upload(filename, buffer, {
           contentType: mimeType,
           upsert: false,
         });
-      if (error) throw error;
-      console.log(`Successfully uploaded base64 image to Supabase: ${filename}`);
-      return `/api/storage/${filename}`;
+      if (error) {
+        console.warn("[Storage] Supabase base64 upload failed:", error.message || error);
+      }
     }
   } catch (err) {
-    console.error("Failed to upload base64 image to Supabase, falling back to local storage:", err);
+    console.warn("Supabase upload exception:", err);
   }
 
-  const filePath = path.join(uploadsStoresDir, filename);
-  fs.writeFileSync(filePath, buffer);
-  return `/uploads/stores/${filename}`;
+  return `/api/storage/${filename}`;
 }
 
 export async function replaceAllBase64InString(str: string, prefix: string): Promise<string> {
@@ -75,33 +85,40 @@ export async function replaceAllBase64InString(str: string, prefix: string): Pro
       if (buffer.length < 50) continue;
 
       const filename = `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}.${ext}`;
+      const localLookdocuDir = path.join(process.cwd(), 'uploads', 'lookdocu');
+      if (!fs.existsSync(localLookdocuDir)) {
+        fs.mkdirSync(localLookdocuDir, { recursive: true });
+      }
 
-      let url = "";
-      // Try to save to Supabase first if keys are available
+      // 1. Always write locally first to eliminate egress
+      try {
+        fs.writeFileSync(path.join(localLookdocuDir, filename), buffer);
+        fs.writeFileSync(path.join(uploadsStoresDir, filename), buffer);
+      } catch (localErr) {
+        console.warn("Failed to write base64 substring locally:", localErr);
+      }
+
+      // 2. Try to save to Supabase as backup if keys are available
       try {
         const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
         const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
         if (supabaseUrl && supabaseKey) {
           const mimeType = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-          const { data, error } = await supabase.storage
+          const { error } = await supabase.storage
             .from("lookdocu")
             .upload(filename, buffer, {
               contentType: mimeType,
               upsert: false,
             });
-          if (error) throw error;
-          console.log(`Successfully uploaded base64 substring to Supabase: ${filename}`);
-          url = `/api/storage/${filename}`;
+          if (error) {
+            console.warn("[Storage] Supabase base64 upload failed:", error.message || error);
+          }
         }
       } catch (err) {
-        console.error("Failed to upload base64 substring to Supabase, falling back to local storage:", err);
+        console.warn("Supabase upload exception:", err);
       }
 
-      if (!url) {
-        const filePath = path.join(uploadsStoresDir, filename);
-        fs.writeFileSync(filePath, buffer);
-        url = `/uploads/stores/${filename}`;
-      }
+      const url = `/api/storage/${filename}`;
 
       resultStr = resultStr.replace(item.fullMatch, url);
     } catch (e) {
