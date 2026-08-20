@@ -68,8 +68,14 @@ This file outlines strict engineering, performance, and naming directives that m
 ## 6. Core Financial & Integration Stability (e-Fatura / e-Arşiv)
 
 - **High-Risk Module Designation**:
-  - Files `/routes/einvoice.ts`, `/src/services/backend/mysoftService.ts`, and related invoice processing logic are designated as **CRITICAL FINANCIAL MODULES**. Any modification here is considered HIGH-RISK.
+  - Files `/routes/einvoice.ts`, `/src/services/backend/mysoftService.ts`, `/src/services/backend/gibSyncCron.ts` and related invoice processing logic are designated as **CRITICAL FINANCIAL MODULES**. Any modification here is considered HIGH-RISK.
   - Development agents must exercise extreme caution. **Refactoring is strictly forbidden** without an explicit, verifiable test plan that mimics production API responses for each invoice type (Purchase, Sales, E-Archive).
+
+- **GİB & Mükellef Etiket (Alias) Canlılık ve Dayanıklılık Kuralı (Zero-Stale Alias Protocol)**:
+  - GİB e-Fatura / e-İrsaliye sistemi yaşayan, mükelleflerin posta kutusu etiketlerinin (`pkAlias`) zamanla güncellenebildiği dinamik bir ekosistemdir.
+  - `official_taxpayer_cache` önbelleğinde bir mükellefin `alias` değeri `NULL`, boş (`""`) veya varsayılan `urn:mail:defaultpk` ise bu önbellek verisi ASLA güvenilir kabul edilmemeli, **anında MySoft API (`checkTaxpayer`) üzerinden canlı GİB sorgusu yapılarak** güncel posta kutusu çekilmeli ve önbellek güncellenmelidir.
+  - Fatura UBL paketinde alıcı posta kutusu adresi (`pkAlias`) ile satıcı/gönderici adresi (`gbAlias`, `senderAlias`) kesinlikle birbirine karıştırılmamalı, satıcının kendi posta kutusu alıcıya atanmamalıdır.
+  - **Arka Plan Cron Senkronizasyonu (`/src/services/backend/gibSyncCron.ts`)**: Sunucu arka planda periyodik olarak (her 30 dakikada bir) eski/geçersiz önbellek kayıtlarını onarmalı ve kuyrukta bekleyen faturaların GİB kabul/red durumlarını MySoft üzerinden tazelemelidir.
 
 - **Defensive Integration Policy**:
   - All external API integrations (e.g., HTML invoice retrieval) **MUST** implement robust defensive programming.
@@ -77,7 +83,7 @@ This file outlines strict engineering, performance, and naming directives that m
   - Logging **MUST** be verbose for HTML retrieval steps to allow immediate debugging in production without code modification.
 
 - **Mandatory Regression Verification**:
-  - Any change, no matter how small, affecting these modules **MUST** be verified by the developer agent by triggering the affected functionality (e.g., attempting to fetch a known invoice HTML) immediately after the change, before completing the turn. 
+  - Any change, no matter how small, affecting these modules **MUST** be verified by the developer agent by triggering the affected functionality (e.g., attempting to fetch a known invoice HTML or taxpayer check) immediately after the change, before completing the turn. 
   - If integration tests fail, the change MUST be rolled back immediately.
 
 ---
