@@ -193,8 +193,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       docType = invoice.e_document_type || 'E-ARSIV';
     }
 
-    if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "")) {
-      pkAlias = 'urn:mail:defaultpk'; // Fallback to standard GİB default mailbox to prevent empty tag validation error
+    if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "" || pkAlias === 'urn:mail:defaultpk')) {
+       return res.status(400).json({ 
+         error: `Bu mükellef E-Fatura kullanıcısı olarak görünüyor ancak GİB kayıtlarında aktif bir 'Etiket' (Alias) adresi bulunamadı. Lütfen müşterinizden GİB portalı üzerinden fatura gönderim etiketlerini kontrol etmesini ve aktif etmesini isteyiniz. (VKN: ${taxNumber})` 
+       });
     }
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
