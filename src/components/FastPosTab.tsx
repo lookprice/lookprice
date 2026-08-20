@@ -1139,7 +1139,11 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         price: convertedPrice,
         currency: branding?.default_currency || 'TRY',
         selectedVariant: selectedVariant || null,
-        selected_variant_name: selectedVariant ? selectedVariant.name : null
+        selected_variant_name: selectedVariant ? selectedVariant.name : null,
+        selected_variant_id: selectedVariant ? selectedVariant.id : null,
+        variant_id: selectedVariant ? (selectedVariant.id || selectedVariant.name) : null,
+        variant_name: selectedVariant ? selectedVariant.name : null,
+        variant_recipe_items: selectedVariant ? selectedVariant.recipe_items : null
       }];
     });
     setSearchTerm("");
@@ -4628,7 +4632,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                   {(variantModalProduct.variants || []).map((v: any, idx: number) => {
                     const varPrice = v.price && parseFloat(v.price) > 0 ? v.price : variantModalProduct.price;
                     const vStock = v.stock_quantity !== undefined && v.stock_quantity !== null && v.stock_quantity !== "" ? Number(v.stock_quantity) : undefined;
-                    const isOutOfStock = vStock !== undefined && vStock <= 0;
+                    const isOutOfStock = !isCafeRestaurant && vStock !== undefined && vStock <= 0;
 
                     return (
                       <button
