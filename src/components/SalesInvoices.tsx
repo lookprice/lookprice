@@ -25,7 +25,8 @@ import {
   RefreshCw, 
   Loader2, 
   XCircle,
-  Truck
+  Truck,
+  Clock
 } from "lucide-react";
 import { normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";
@@ -75,7 +76,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [showHtmlModal, setShowHtmlModal] = useState(false);
   const [htmlContent, setHtmlContent] = useState("");
   const [htmlLoading, setHtmlLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'rejected'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'rejected'>('all');
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
@@ -825,6 +826,17 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
             {isTr ? "Tüm Faturalar" : "All Invoices"}
           </button>
           <button
+            onClick={() => { setStatusFilter('draft'); setPage(1); }}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+              statusFilter === 'draft' 
+                ? 'bg-amber-600 text-white shadow-md' 
+                : 'bg-white text-amber-600 border border-amber-200 hover:bg-amber-50'
+            }`}
+          >
+            <Clock className="h-4 w-4" />
+            {isTr ? "Taslaklar" : "Drafts"}
+          </button>
+          <button
             onClick={() => { setStatusFilter('rejected'); setPage(1); }}
             className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
               statusFilter === 'rejected' 
@@ -841,9 +853,11 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       <SalesInvoiceTable 
         invoices={(() => {
           let filtered = invoices;
-          if (statusFilter === 'rejected') {
+          if (statusFilter === 'draft') {
+            filtered = filtered.filter((inv: any) => inv.status === 'draft');
+          } else if (statusFilter === 'rejected') {
             filtered = filtered.filter((inv: any) => 
-               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status)
+               ['REJECTED', 'Hata', 'İptal', 'İptal Edildi', 'Hatalı', 'CANCELLED'].includes(inv.integration_status) || inv.status === 'cancelled'
             );
           }
           return filtered;
