@@ -83,8 +83,8 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
               </th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center w-[50px]">{isTr ? 'Durum' : 'Status'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center w-[110px]">{isTr ? 'Durum' : 'Status'}</th>
+              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest max-w-[200px]">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
               <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
@@ -153,20 +153,24 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{inv.payment_method}</div>
                     </td>
                     <td className="px-3 py-4 text-center">
-                      <div className="flex justify-center" title={
-                        inv.status === 'draft' ? (isTr ? 'Taslak' : 'Draft') :
-                        inv.status === 'approved' ? (isTr ? 'Onaylandı' : 'Approved') :
-                        inv.status === 'cancelled' ? (isTr ? 'İptal' : 'Cancelled') :
-                        inv.status
-                      }>
+                      <div className="flex justify-center mb-1">
                         {inv.status === 'draft' ? (
-                          <Clock className="w-5 h-5 text-amber-500" />
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
+                            <Clock className="w-3 h-3 text-amber-500 shrink-0" />
+                            {isTr ? 'TASLAK' : 'DRAFT'}
+                          </div>
                         ) : inv.status === 'approved' ? (
-                          <CheckCircle className="w-5 h-5 text-emerald-500" />
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
+                            <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0" />
+                            {isTr ? 'ONAYLI' : 'APPROVED'}
+                          </div>
                         ) : inv.status === 'cancelled' ? (
-                          <XCircle className="w-5 h-5 text-rose-500" />
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black tracking-wider bg-rose-50 text-rose-700 border border-rose-200 shadow-xs">
+                            <XCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                            {isTr ? 'İPTAL' : 'CANCELLED'}
+                          </div>
                         ) : (
-                          <span className="text-[10px]">{inv.status}</span>
+                          <span className="text-[10px] font-bold text-slate-600">{inv.status}</span>
                         )}
                       </div>
                       {(() => {
