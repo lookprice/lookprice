@@ -62,12 +62,12 @@ router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
 
     const service = await getEInvoiceService(storeId);
     
-    // Check official taxpayer cache first
+    // Check official taxpayer cache first (ensure alias is valid and not null)
     const cacheRes = await pool.query("SELECT taxpayer_title, alias FROM official_taxpayer_cache WHERE vkn = $1", [vknTckn]);
     
     let result;
-    if (cacheRes.rows.length > 0) {
-      console.log(`[checkTaxpayer] VKN ${vknTckn} found in official cache.`);
+    if (cacheRes.rows.length > 0 && cacheRes.rows[0].alias && cacheRes.rows[0].alias.trim() !== '') {
+      console.log(`[checkTaxpayer] VKN ${vknTckn} found in official cache with valid alias.`);
       result = { isTaxpayer: true, documentType: 'E-FATURA', title: cacheRes.rows[0].taxpayer_title, alias: cacheRes.rows[0].alias };
     } else {
       result = await service.checkTaxpayer(vknTckn);
@@ -150,23 +150,22 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     let docType = invoice.e_document_type || 'E-ARSIV';
     let pkAlias = '';
     
-    // Fetch Store and Company settings to use for UBL Generation (need this for receiver_alias / mailboxes)
+    // Fetch Store settings for sender parameters
     const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
     if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları bulunamadı.");
     const row = storeRes.rows[0] || {};
     const settings = row.einvoice_settings || {};
     const branding = row.branding || {};
-    pkAlias = settings.receiver_alias || '';
 
     try {
       console.log(`[INVOICE-SEND] Querying registry for buyer VKN/TCKN: ${taxNumber}`);
       
-      // Check official taxpayer cache first
+      // Check official taxpayer cache first (require non-empty alias)
       const cacheRes = await pool.query("SELECT taxpayer_title, alias FROM official_taxpayer_cache WHERE vkn = $1", [taxNumber]);
       
       let taxpayerCheck;
-      if (cacheRes.rows.length > 0) {
-        console.log(`[checkTaxpayer (send)] VKN ${taxNumber} found in official cache.`);
+      if (cacheRes.rows.length > 0 && cacheRes.rows[0].alias && cacheRes.rows[0].alias.trim() !== '') {
+        console.log(`[checkTaxpayer (send)] VKN ${taxNumber} found in official cache with valid alias.`);
         taxpayerCheck = { isTaxpayer: true, documentType: 'E-FATURA', title: cacheRes.rows[0].taxpayer_title, alias: cacheRes.rows[0].alias };
       } else {
         taxpayerCheck = await service.checkTaxpayer(taxNumber);
@@ -175,14 +174,22 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         }
       }
       
-      if (taxpayerCheck.isTaxpayer) {
+      if (taxpayerCheck && taxpayerCheck.isTaxpayer) {
         docType = 'E-FATURA';
-        if (taxpayerCheck.alias) {
+        if (taxpayerCheck.alias && taxpayerCheck.alias.trim() !== '') {
           pkAlias = taxpayerCheck.alias;
           console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User! Correcting docType to E-FATURA and using alias: ${pkAlias}`);
         } else {
-          pkAlias = pkAlias || '';
-          console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User. No specific alias returned, letting MySoft auto-resolve.`);
+          // If taxpayer is registered but cache had no alias, do a fresh live lookup
+          const liveCheck = await service.checkTaxpayer(taxNumber);
+          if (liveCheck && liveCheck.alias) {
+            pkAlias = liveCheck.alias;
+            await pool.query("UPDATE official_taxpayer_cache SET alias = $1, last_updated = NOW() WHERE vkn = $2", [pkAlias, taxNumber]);
+            console.log(`[INVOICE-SEND] Fresh GİB lookup found alias: ${pkAlias}`);
+          } else {
+            pkAlias = '';
+            console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User. No specific alias returned.`);
+          }
         }
       } else {
         docType = 'E-ARSIV';
@@ -194,9 +201,22 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "" || pkAlias === 'urn:mail:defaultpk')) {
-       return res.status(400).json({ 
-         error: `Bu mükellef E-Fatura kullanıcısı olarak görünüyor ancak GİB kayıtlarında aktif bir 'Etiket' (Alias) adresi bulunamadı. Lütfen müşterinizden GİB portalı üzerinden fatura gönderim etiketlerini kontrol etmesini ve aktif etmesini isteyiniz. (VKN: ${taxNumber})` 
-       });
+       // Attempt one last direct lookup before rejecting
+       try {
+         const finalCheck = await service.checkTaxpayer(taxNumber);
+         if (finalCheck && finalCheck.alias) {
+           pkAlias = finalCheck.alias;
+           await pool.query("UPDATE official_taxpayer_cache SET alias = $1, taxpayer_title = $2, last_updated = NOW() WHERE vkn = $3", [pkAlias, finalCheck.title || '', taxNumber]);
+         }
+       } catch (e) {
+         console.warn("[INVOICE-SEND] Final fallback alias lookup failed:", e);
+       }
+
+       if (!pkAlias || pkAlias.trim() === "" || pkAlias === 'urn:mail:defaultpk') {
+         return res.status(400).json({ 
+           error: `Bu mükellef (${invoice.company_title || invoice.customer_name || taxNumber}) E-Fatura kullanıcısı olarak görünüyor ancak GİB kayıtlarında aktif bir 'Etiket' (Posta Kutusu / Alias) adresi bulunamadı. (VKN: ${taxNumber})` 
+         });
+       }
     }
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
@@ -347,8 +367,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     // Improved Address handling for GİB/MySoft
     let cityName = "İSTANBUL";
     let districtName = "MERKEZ";
-    if (address) {
-       const cleanAddr = address.replace(/, Türkiye/gi, '').replace(/,Turkey/gi, '').trim();
+    let cleanAddress = (address || "").replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
+    if (cleanAddress) {
+       const cleanAddr = cleanAddress.replace(/, Türkiye/gi, '').replace(/,Turkey/gi, '').trim();
        const parts = cleanAddr.split(/[,/]+/).map(p => p.trim()).filter(Boolean);
        if (parts.length >= 2) {
           cityName = parts[parts.length - 1].toUpperCase().substring(0, 30);
@@ -489,6 +510,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        tenantIdentifierNumber: storeTaxNumber,
        
        pkAlias: docType === 'E-FATURA' ? pkAlias : undefined,
+       gbAlias: settings.sender_alias || undefined,
+       senderAlias: settings.sender_alias || undefined,
        
        // Handle Billing Reference for Return (IADE) Invoices (Mandatory UBL fields)
        ...(giInvoiceType === 'IADE' && invoice.return_invoice_number ? (() => {
@@ -673,7 +696,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           countryName: "Türkiye",
           cityName: cityName || "İSTANBUL",
           citySubdivision: districtName || "MERKEZ",
-          streetName: (address || "Girilmemiş Adres").substring(0, 250)
+          streetName: (cleanAddress || "Girilmemiş Adres").substring(0, 250)
        },
 
        tax: [{
