@@ -127,26 +127,38 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     }
   };
 
-  const handleAddProduct = (product: any) => {
+  const handleAddProduct = (product: any, variant?: any) => {
     const productCurrency = product.currency || branding?.default_currency || 'TRY';
     const targetCurrency = items.length === 0 ? productCurrency : currency;
     if (items.length === 0 && productCurrency !== currency) {
       setCurrency(productCurrency);
       setExchangeRate("1");
     }
+
+    const varId = variant ? (variant.id || variant.name) : null;
+    const varName = variant ? variant.name : null;
+    const displayName = variant ? `${product.name} (${variant.name})` : product.name;
+    const barcodeToUse = variant?.barcode || product.barcode;
+    const costPriceRaw = variant?.cost_price && parseFloat(variant.cost_price) > 0 
+      ? Number(variant.cost_price) 
+      : (Number(product.cost_price || product.price) || 0);
+
     setItems((prevItems) => {
-      const existingItem = prevItems.find(item => item.product_id === product.id);
-      if (existingItem) {
-        return prevItems.map(item => 
-          item.product_id === product.id 
+      const existingIndex = prevItems.findIndex(item => 
+        item.product_id === product.id && 
+        (varId ? (item.variant_id === varId || item.variant_name === varName) : (!item.variant_id && !item.variant_name))
+      );
+
+      if (existingIndex > -1) {
+        return prevItems.map((item, idx) => 
+          idx === existingIndex 
             ? { ...item, quantity: String(Math.floor(Number(item.quantity) + 1)) }
             : item
         );
       } else {
         const taxRate = Math.floor(Number(product.tax_rate ?? branding?.default_tax_rate ?? 20));
         // cost_price is stored as EXCLUSIVE in DB.
-        const costPriceExcl = Number(product.cost_price || product.price) || 0;
-        let unitPrice = isTaxInclusive ? (costPriceExcl * (1 + taxRate / 100)) : costPriceExcl;
+        let unitPrice = isTaxInclusive ? (costPriceRaw * (1 + taxRate / 100)) : costPriceRaw;
 
         if (productCurrency !== targetCurrency) {
           const rates = branding?.currency_rates || {};
@@ -157,11 +169,13 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
 
         return [...prevItems, {
           product_id: product.id,
-          product_name: product.name,
-          barcode: product.barcode,
+          product_name: displayName,
+          barcode: barcodeToUse,
           quantity: "1",
           unit_price: unitPrice.toFixed(2),
-          tax_rate: String(taxRate)
+          tax_rate: String(taxRate),
+          variant_id: varId,
+          variant_name: varName
         }];
       }
     });
