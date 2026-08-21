@@ -4,7 +4,8 @@ import {
   LogOut,
   Activity,
   Megaphone,
-  Video
+  Video,
+  Server
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { translations } from "@/translations";
@@ -18,6 +19,7 @@ import { SuperAdminLeads } from "../components/superadmin/SuperAdminLeads";
 import { SuperAdminRegistrations } from "../components/superadmin/SuperAdminRegistrations";
 import { SuperAdminStoresTable } from "../components/superadmin/SuperAdminStoresTable";
 import { EnrakipsizPortalManager } from "../components/superadmin/EnrakipsizPortalManager";
+import { IntegratorHub } from "../components/IntegratorHub";
 import { SuperAdminVideosManager } from "../components/superadmin/SuperAdminVideosManager";
 import { 
   SlideModal, 
@@ -610,6 +612,16 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           >
             <Video className="h-4 w-4 text-emerald-500" /> 🎥 lookprice.net & Sektörel Video Yönetimi
           </button>
+          <button
+            onClick={() => setActiveTab('integrator')}
+            className={`pb-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'integrator'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Server className="h-4 w-4 text-indigo-500" /> ⚙️ Entegratör Hub
+          </button>
         </div>
 
         {activeTab === 'enrakipsiz' ? (
@@ -631,6 +643,8 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           />
         ) : activeTab === 'videos' ? (
           <SuperAdminVideosManager lang={lang} />
+        ) : activeTab === 'integrator' ? (
+          <IntegratorHub />
         ) : (
           <>
             <SuperAdminStats
