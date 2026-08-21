@@ -8,7 +8,16 @@ import {
   ExternalLink, 
   AlertTriangle,
   ShieldCheck,
-  Tag
+  Tag,
+  Copy,
+  Check,
+  Truck,
+  Zap,
+  Clock,
+  Layers,
+  FileText,
+  HelpCircle,
+  Info
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "@/translations";
@@ -52,6 +61,17 @@ export const SettingsEStoresTab = ({
   const [hbApiKey, setHbApiKey] = useState(branding.hepsiburada_settings?.apiKey || "");
   const [hbApiSecret, setHbApiSecret] = useState(branding.hepsiburada_settings?.apiSecret || "");
   const [hbMerchantId, setHbMerchantId] = useState(branding.hepsiburada_settings?.merchantId || "");
+  const [hbIsTestMode, setHbIsTestMode] = useState<boolean>(branding.hepsiburada_settings?.isTestMode || false);
+  const [hbDefaultDispatchTime, setHbDefaultDispatchTime] = useState<number>(branding.hepsiburada_settings?.defaultDispatchTime || 1);
+  const [hbDefaultCargoCompany, setHbDefaultCargoCompany] = useState<string>(branding.hepsiburada_settings?.defaultCargoCompany || "Hepsijet");
+  const [hbAutoSyncOrders, setHbAutoSyncOrders] = useState<boolean>(branding.hepsiburada_settings?.autoSyncOrders ?? true);
+  const [hbAutoStockSync, setHbAutoStockSync] = useState<boolean>(branding.hepsiburada_settings?.autoStockSync ?? true);
+  const [hbWebhookSecret, setHbWebhookSecret] = useState<string>(branding.hepsiburada_settings?.webhookSecret || "");
+  const [hbBulkSyncing, setHbBulkSyncing] = useState<boolean>(false);
+  const [hbCategories, setHbCategories] = useState<any[]>([]);
+  const [loadingHbCats, setLoadingHbCats] = useState<boolean>(false);
+  const [showHbCategoriesModal, setShowHbCategoriesModal] = useState<boolean>(false);
+  const [copiedWebhook, setCopiedWebhook] = useState<boolean>(false);
 
   const [tyApiKey, setTyApiKey] = useState(branding.trendyol_settings?.apiKey || "");
   const [tyApiSecret, setTyApiSecret] = useState(branding.trendyol_settings?.apiSecret || "");
@@ -87,6 +107,12 @@ export const SettingsEStoresTab = ({
     setHbApiKey(h.apiKey || "");
     setHbApiSecret(h.apiSecret || "");
     setHbMerchantId(h.merchantId || "");
+    setHbIsTestMode(h.isTestMode || false);
+    setHbDefaultDispatchTime(h.defaultDispatchTime || 1);
+    setHbDefaultCargoCompany(h.defaultCargoCompany || "Hepsijet");
+    setHbAutoSyncOrders(h.autoSyncOrders ?? true);
+    setHbAutoStockSync(h.autoStockSync ?? true);
+    setHbWebhookSecret(h.webhookSecret || "");
 
     const ty = branding.trendyol_settings || {};
     setTyApiKey(ty.apiKey || "");
@@ -196,11 +222,22 @@ export const SettingsEStoresTab = ({
 
   const handleSaveHbSettings = async () => {
     try {
-      await api.saveHepsiburadaSettings({ apiKey: hbApiKey, apiSecret: hbApiSecret, merchantId: hbMerchantId, storeId: currentStoreId });
-      alert(t.saveSuccess || "Kaydedildi");
+      await api.saveHepsiburadaSettings({ 
+        apiKey: hbApiKey, 
+        apiSecret: hbApiSecret, 
+        merchantId: hbMerchantId,
+        isTestMode: hbIsTestMode,
+        defaultDispatchTime: hbDefaultDispatchTime,
+        defaultCargoCompany: hbDefaultCargoCompany,
+        autoSyncOrders: hbAutoSyncOrders,
+        autoStockSync: hbAutoStockSync,
+        webhookSecret: hbWebhookSecret,
+        storeId: currentStoreId 
+      });
+      toast.success(t.saveSuccess || "Hepsiburada ayarları başarıyla kaydedildi");
       if (onRefresh) onRefresh();
-    } catch (error) {
-      alert(t.errorOccurred || "Bir hata oluştu");
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || t.errorOccurred || "Bir hata oluştu");
     }
   };
 
@@ -208,20 +245,50 @@ export const SettingsEStoresTab = ({
     await hbSync.runSync(
       () => api.syncHepsiburadaOrders(currentStoreId),
       (res) => {
-        alert(`${t.hepsiburadaSyncSuccess || "Hepsiburada siparişleri senkronize edildi"}: ${res.count} ${t.sales || "Satış"}`);
+        toast.success(`${t.hepsiburadaSyncSuccess || "Hepsiburada siparişleri senkronize edildi"}: ${res.count || 0} ${t.sales || "Sipariş"}`);
         if (onRefresh) onRefresh();
       }
     );
   };
 
+  const handleBulkSyncHbInventory = async () => {
+    try {
+      setHbBulkSyncing(true);
+      const res = await api.syncHepsiburadaInventory(currentStoreId);
+      toast.success(t.hepsiburadaBulkSyncSuccess || `Hepsiburada'ya ${res.data?.syncedCount || res.syncedCount || 0} ürün aktarıldı`);
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Toplu ürün senkronizasyonu başarısız");
+    } finally {
+      setHbBulkSyncing(false);
+    }
+  };
+
+  const handleFetchHbCategories = async () => {
+    try {
+      setLoadingHbCats(true);
+      setShowHbCategoriesModal(true);
+      const res = await api.getHepsiburadaCategories(currentStoreId);
+      if (res.data?.categories) {
+        setHbCategories(res.data.categories);
+      } else if (Array.isArray(res.categories)) {
+        setHbCategories(res.categories);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Kategoriler yüklenemedi");
+    } finally {
+      setLoadingHbCats(false);
+    }
+  };
+
   const handleDisconnectHb = async () => {
-    if (!confirm(t.confirmDelete || "Silmek istediğinize emin misiniz?")) return;
+    if (!confirm(t.confirmDelete || "Hepsiburada bağlantısını kesmek istediğinize emin misiniz?")) return;
     try {
       await api.disconnectHepsiburada(currentStoreId);
-      alert(t.hepsiburadaDisconnected || "Hepsiburada bağlantısı kesildi");
+      toast.success(t.hepsiburadaDisconnected || "Hepsiburada bağlantısı kesildi");
       if (onRefresh) onRefresh();
     } catch (error) {
-      alert(t.errorOccurred || "Bir hata oluştu");
+      toast.error(t.errorOccurred || "Bir hata oluştu");
     }
   };
 
@@ -268,9 +335,18 @@ export const SettingsEStoresTab = ({
   const handleTestHb = async () => {
     try {
       const res = await api.testHepsiburadaConnection(currentStoreId);
-      alert(res.success ? (lang === 'tr' ? 'Hepsiburada Bağlantısı Başarılı!' : 'Hepsiburada Connection Successful!') : `${lang === 'tr' ? 'Hepsiburada Bağlantı Hatası' : 'Hepsiburada Connection Error'}: ${res.error}`);
-    } catch (error) {
-      alert(t.errorOccurred || 'Bir hata oluştu');
+      const data = res.data || res;
+      if (data.success) {
+        toast.success(
+          lang === 'tr' 
+            ? `Hepsiburada API Bağlantısı Başarılı! (Ortam: ${data.environment || 'Production'}, Mağaza: ${data.merchantName || 'Onaylandı'})` 
+            : `Hepsiburada API Connected! (${data.environment || 'Production'})`
+        );
+      } else {
+        toast.error(`${lang === 'tr' ? 'Hepsiburada Bağlantı Hatası' : 'Hepsiburada Connection Error'}: ${data.error || 'Bilinmeyen hata'}`);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || t.errorOccurred || 'Bir hata oluştu');
     }
   };
 
@@ -671,120 +747,304 @@ export const SettingsEStoresTab = ({
 
           {/* Hepsiburada Integration Section */}
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm" id="hb-integration-card">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-rose-50 rounded-xl text-rose-600 border border-rose-100">
-                  <ShoppingBag className="h-5 w-5" />
+                <div className="p-2.5 bg-rose-50 rounded-xl text-rose-600 border border-rose-100">
+                  <ShoppingBag className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.hepsiburadaIntegration}</h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">{t.hepsiburadaIntegrationDesc}</p>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-lg font-bold text-slate-900 leading-tight">{t.hepsiburadaIntegration}</h3>
+                    <span className="text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+                      REST API v2
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    {lang === 'tr' 
+                      ? 'Hepsiburada OMS (Sipariş), Listing (Stok/Fiyat), Katalog ve Webhook otomatik entegrasyonu' 
+                      : 'Hepsiburada OMS (Orders), Listing (Stock/Price), Catalog & Webhook automated integration'}
+                  </p>
                 </div>
               </div>
-              {isHbConnected && (
-                <div className="flex items-center space-x-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">{t.hepsiburadaConnected}</span>
-                </div>
-              )}
+              <div className="flex items-center space-x-2">
+                <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider border ${
+                  hbIsTestMode 
+                    ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}>
+                  {hbIsTestMode ? (lang === 'tr' ? 'SIT (Sandbox)' : 'SIT (Sandbox)') : (lang === 'tr' ? 'Canlı (Production)' : 'Live (Production)')}
+                </span>
+                {isHbConnected && (
+                  <div className="flex items-center space-x-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t.hepsiburadaConnected}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-6">
+              {/* Environment Toggle */}
+              <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-800">{lang === 'tr' ? 'API Çalışma Ortamı' : 'API Environment'}</p>
+                  <p className="text-[11px] text-slate-500">{lang === 'tr' ? 'Hepsiburada test ortamında (SIT) veya canlı mağazanızda işlem yapın.' : 'Operate in Hepsiburada SIT sandbox or live production store.'}</p>
+                </div>
+                <div className="inline-flex p-1 bg-slate-200/70 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setHbIsTestMode(false)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                      !hbIsTestMode 
+                        ? 'bg-white text-slate-900 shadow-sm' 
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {t.hepsiburadaProductionMode || 'Canlı (Production)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHbIsTestMode(true)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                      hbIsTestMode 
+                        ? 'bg-amber-500 text-white shadow-sm' 
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {t.hepsiburadaTestMode || 'Test / SIT Modu'}
+                  </button>
+                </div>
+              </div>
+
+              {/* API Credentials */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.hepsiburadaApiKey}</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    value={hbApiKey}
-                    onChange={(e) => setHbApiKey(e.target.value)}
-                    placeholder="API Key"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.hepsiburadaApiSecret}</label>
-                  <input 
-                    type="password" 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                    value={hbApiSecret}
-                    onChange={(e) => setHbApiSecret(e.target.value)}
-                    placeholder="API Secret"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.hepsiburadaMerchantId}</label>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                    {t.hepsiburadaMerchantId || 'Merchant ID (Mağaza ID)'}
+                  </label>
                   <input 
                     type="text" 
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
                     value={hbMerchantId}
                     onChange={(e) => setHbMerchantId(e.target.value)}
-                    placeholder="Merchant ID"
+                    placeholder="Örn: 9a20... veya Mağaza Kodu"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                    {t.hepsiburadaApiKey || 'API Key (Username / Entegratör Adı)'}
+                  </label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                    value={hbApiKey}
+                    onChange={(e) => setHbApiKey(e.target.value)}
+                    placeholder="Entegratör Kullanıcı Adı"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                    {t.hepsiburadaApiSecret || 'API Secret (Password)'}
+                  </label>
+                  <input 
+                    type="password" 
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                    value={hbApiSecret}
+                    onChange={(e) => setHbApiSecret(e.target.value)}
+                    placeholder="••••••••••••"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {!isHbConnected ? (
-                  <button 
-                    onClick={handleSaveHbSettings}
-                    id="hb-connect-btn"
-                    className="col-span-1 sm:col-span-2 px-6 py-3 bg-rose-600 text-white rounded-xl font-bold text-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-100 flex items-center justify-center space-x-2 cursor-pointer"
+              {/* Logistics & Defaults */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50/60 rounded-xl border border-slate-200/70">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center space-x-1">
+                    <Truck className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{t.hepsiburadaCargoCompany || 'Varsayılan Kargo Firması'}</span>
+                  </label>
+                  <select
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                    value={hbDefaultCargoCompany}
+                    onChange={(e) => setHbDefaultCargoCompany(e.target.value)}
                   >
-                    <Save className="h-4 w-4" />
-                    <span>{t.connectHepsiburada}</span>
+                    <option value="Hepsijet">Hepsijet</option>
+                    <option value="Yurtiçi Kargo">Yurtiçi Kargo</option>
+                    <option value="Aras Kargo">Aras Kargo</option>
+                    <option value="MNG Kargo">MNG Kargo</option>
+                    <option value="Sürat Kargo">Sürat Kargo</option>
+                    <option value="Kolay Gelsin">Kolay Gelsin</option>
+                    <option value="PTT Kargo">PTT Kargo</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center space-x-1">
+                    <Clock className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{t.hepsiburadaDispatchTime || 'Kargo Hazırlık Süresi (Gün)'}</span>
+                  </label>
+                  <select
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                    value={hbDefaultDispatchTime}
+                    onChange={(e) => setHbDefaultDispatchTime(Number(e.target.value))}
+                  >
+                    <option value={1}>1 Gün (Aynı Gün / Ertesi Gün)</option>
+                    <option value={2}>2 Gün</option>
+                    <option value={3}>3 Gün</option>
+                    <option value={4}>4 Gün</option>
+                    <option value={5}>5 Gün</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Automation Toggles & Webhook Details */}
+              <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-200/70 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="flex items-center space-x-3 cursor-pointer p-2.5 bg-white rounded-lg border border-slate-200/80 hover:bg-slate-50/80 transition-colors">
+                    <input 
+                      type="checkbox"
+                      checked={hbAutoSyncOrders}
+                      onChange={(e) => setHbAutoSyncOrders(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">{t.hepsiburadaAutoSyncOrders || 'Otomatik Sipariş Senkronizasyonu'}</p>
+                      <p className="text-[10px] text-slate-500">{lang === 'tr' ? 'Yeni siparişleri arka planda otomatik içeri aktarır.' : 'Auto-pulls new orders in background.'}</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center space-x-3 cursor-pointer p-2.5 bg-white rounded-lg border border-slate-200/80 hover:bg-slate-50/80 transition-colors">
+                    <input 
+                      type="checkbox"
+                      checked={hbAutoStockSync}
+                      onChange={(e) => setHbAutoStockSync(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">{t.hepsiburadaAutoStockSync || 'Otomatik Stok & Fiyat Güncelleme'}</p>
+                      <p className="text-[10px] text-slate-500">{lang === 'tr' ? 'Satış yapıldığında stokları anında HB ile eşitler.' : 'Syncs stock to HB when sold.'}</p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Webhook URL preview */}
+                <div className="pt-2 border-t border-slate-200/60 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center space-x-1.5">
+                      <Zap className="h-3.5 w-3.5 text-amber-500" />
+                      <span>{t.hepsiburadaWebhookUrl || 'Hepsiburada Webhook URL'}</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">POST /api/integrations/hepsiburada/webhook</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="text" 
+                      readOnly 
+                      value={`${window.location.origin}/api/integrations/hepsiburada/webhook/${currentStoreId || 1}`}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-600 select-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/api/integrations/hepsiburada/webhook/${currentStoreId || 1}`);
+                        setCopiedWebhook(true);
+                        toast.success(lang === 'tr' ? 'Webhook URL kopyalandı!' : 'Webhook URL copied!');
+                        setTimeout(() => setCopiedWebhook(false), 2500);
+                      }}
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 flex items-center space-x-1 transition-colors cursor-pointer shrink-0"
+                    >
+                      {copiedWebhook ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-slate-500" />}
+                      <span>{copiedWebhook ? (lang === 'tr' ? 'Kopyalandı' : 'Copied') : (lang === 'tr' ? 'Kopyala' : 'Copy')}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <button 
+                  onClick={handleSaveHbSettings}
+                  id="hb-save-settings"
+                  className="px-5 py-3 bg-rose-600 text-white rounded-xl font-bold text-sm hover:bg-rose-700 transition-all shadow-md shadow-rose-100 flex items-center justify-center space-x-2 cursor-pointer"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>{isHbConnected ? (lang === 'tr' ? 'Ayarları Güncelle' : 'Update Settings') : t.connectHepsiburada}</span>
+                </button>
+
+                <button 
+                  onClick={handleTestHb}
+                  id="hb-test"
+                  className="px-5 py-3 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:border-rose-300 hover:text-rose-600 transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  <span>{lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test API'}</span>
+                </button>
+
+                <button 
+                  onClick={handleSyncHbOrders}
+                  id="hb-sync-orders"
+                  disabled={hbSync.isSyncing}
+                  className="px-5 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw className={`h-4 w-4 ${hbSync.isSyncing ? 'animate-spin' : ''}`} />
+                  <span>{hbSync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
+                </button>
+
+                <button 
+                  onClick={handleBulkSyncHbInventory}
+                  id="hb-bulk-sync"
+                  disabled={hbBulkSyncing}
+                  className="px-5 py-3 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 transition-all shadow-md shadow-amber-100 flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                >
+                  <Zap className={`h-4 w-4 ${hbBulkSyncing ? 'animate-spin' : ''}`} />
+                  <span>{hbBulkSyncing ? (lang === 'tr' ? 'Aktarılıyor...' : 'Syncing...') : (lang === 'tr' ? 'Tüm Ürünleri HB\'ye Aktar' : 'Bulk Sync Stock & Price')}</span>
+                </button>
+
+                <button 
+                  onClick={handleFetchHbCategories}
+                  id="hb-categories-btn"
+                  className="px-5 py-3 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:border-slate-300 transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
+                >
+                  <Layers className="h-4 w-4 text-slate-500" />
+                  <span>{t.hepsiburadaCategories || 'Kategori Rehberi'}</span>
+                </button>
+
+                {isHbConnected && (
+                  <button 
+                    onClick={handleDisconnectHb}
+                    id="hb-disconnect"
+                    className="px-5 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    <span>{t.disconnect}</span>
                   </button>
-                ) : (
-                  <>
-                    <button 
-                      onClick={handleSyncHbOrders}
-                      id="hb-sync-orders"
-                      disabled={hbSync.isSyncing}
-                      className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${hbSync.isSyncing ? 'animate-spin' : ''}`} />
-                      <span>{hbSync.isSyncing ? t.loading : t.syncOrders}</span>
-                    </button>
-                    <button 
-                      onClick={handleSaveHbSettings}
-                      id="hb-update-settings"
-                      className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-slate-300 transition-all flex items-center justify-center space-x-2 cursor-pointer"
-                    >
-                      <Save className="h-4 w-4" />
-                      <span>{t.update}</span>
-                    </button>
-                    <button 
-                      onClick={handleDisconnectHb}
-                      id="hb-disconnect"
-                      className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2 cursor-pointer"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      <span>{t.disconnect}</span>
-                    </button>
-                    <button 
-                      onClick={handleTestHb}
-                      id="hb-test"
-                      className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:border-rose-200 hover:text-rose-600 transition-all flex items-center justify-center space-x-2 cursor-pointer"
-                    >
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>{lang === 'tr' ? 'Test Et' : 'Test'}</span>
-                    </button>
-                  </>
                 )}
               </div>
 
+              {/* Sync Status Banner */}
               {isHbConnected && (
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.lastSync}</p>
-                  <p className="text-sm font-bold text-slate-900">
-                    {hbSync.lastSync ? hbSync.lastSync.toLocaleString() : (hbSettings.last_sync ? new Date(hbSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never'))}
-                  </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{t.lastSync}</p>
+                      <p className="text-sm font-bold text-slate-900">
+                        {hbSync.lastSync ? hbSync.lastSync.toLocaleString() : (hbSettings.last_sync ? new Date(hbSettings.last_sync).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') : (lang === 'tr' ? 'Henüz yapılmadı' : 'Never'))}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-slate-500 font-medium">
+                        {lang === 'tr' ? 'Otomatik senkronizasyon arka planda aktiftir.' : 'Background auto-sync is active.'}
+                      </span>
+                    </div>
+                  </div>
                   {hbSync.lastError && (
-                    <div className="mt-2 p-2 bg-rose-50 border border-rose-100 rounded-lg text-rose-600 text-xs flex flex-col gap-2">
+                    <div className="mt-3 p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                          <AlertTriangle className="h-4 w-4 shrink-0" />
-                         <span className="font-medium">{hbSync.lastError}</span>
+                         <span className="font-semibold">{hbSync.lastError}</span>
                       </div>
-                      <button onClick={handleSyncHbOrders} className="w-full text-xs font-bold bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded transition-colors text-rose-700">{lang === 'tr' ? 'Tekrar Dene' : 'Retry'}</button>
+                      <button onClick={handleSyncHbOrders} className="w-full text-xs font-bold bg-rose-100 hover:bg-rose-200 px-3 py-1.5 rounded-lg transition-colors text-rose-700">
+                        {lang === 'tr' ? 'Tekrar Dene' : 'Retry'}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1171,6 +1431,94 @@ export const SettingsEStoresTab = ({
 
         </div>
       </div>
+
+      {/* Hepsiburada Category Guide Modal */}
+      {showHbCategoriesModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-rose-500/20 text-rose-400 rounded-lg">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-white">Hepsiburada Kategori Rehberi</h4>
+                  <p className="text-[11px] text-slate-400">Canlı Hepsiburada API kategori ağacı ve ID referansları</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHbCategoriesModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {loadingHbCats ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-3">
+                  <RefreshCw className="h-8 w-8 text-rose-500 animate-spin" />
+                  <p className="text-sm font-semibold text-slate-600">Hepsiburada kategorileri yükleniyor...</p>
+                </div>
+              ) : hbCategories.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-sm">
+                  <Info className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                  Kategori listesi boş veya API'den veri alınamadı. Lütfen API ayarlarınızı kontrol edin.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-slate-500 mb-2">
+                    Toplam {hbCategories.length} kategori listelendi:
+                  </div>
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                    {hbCategories.map((cat: any, idx: number) => {
+                      const catId = cat.categoryId || cat.id || cat.CategoryId;
+                      const catName = cat.name || cat.categoryName || cat.Name;
+                      return (
+                        <div key={idx} className="p-3.5 bg-white hover:bg-slate-50 flex items-center justify-between gap-3 text-xs transition-colors">
+                          <div>
+                            <span className="font-bold text-slate-900">{catName}</span>
+                            {cat.parentName && (
+                              <span className="text-slate-400 ml-2 text-[11px]">({cat.parentName})</span>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">
+                              ID: {catId}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(String(catId));
+                                toast.success(`Kategori ID (${catId}) kopyalandı`);
+                              }}
+                              className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-900 cursor-pointer"
+                              title="Kopyala"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowHbCategoriesModal(false)}
+                className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
