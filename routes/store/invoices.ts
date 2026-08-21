@@ -23,15 +23,29 @@ router.get("/sales", async (req: any, res) => {
     const { startDate, endDate, status, search } = req.query;
 
     let query = `
-      SELECT DISTINCT si.*, 
+      SELECT si.*, 
              c.title as company_title,
              cust.full_name as customer_name,
-             s.customer_name as sale_customer_name
+             s.customer_name as sale_customer_name,
+             (
+               SELECT COALESCE(json_agg(json_build_object(
+                 'id', sii.id,
+                 'product_id', sii.product_id,
+                 'product_name', sii.product_name,
+                 'barcode', sii.barcode,
+                 'quantity', sii.quantity,
+                 'unit_price', sii.unit_price,
+                 'tax_rate', sii.tax_rate,
+                 'tax_amount', sii.tax_amount,
+                 'total_price', sii.total_price
+               ) ORDER BY sii.id), '[]'::json)
+               FROM sales_invoice_items sii 
+               WHERE sii.sales_invoice_id = si.id
+             ) as items
       FROM sales_invoices si 
       LEFT JOIN companies c ON si.company_id = c.id 
       LEFT JOIN customers cust ON si.customer_id = cust.id
       LEFT JOIN sales s ON si.sale_id = s.id
-      LEFT JOIN sales_invoice_items sii ON si.id = sii.sales_invoice_id
       WHERE si.store_id = $1
     `;
     const params: any[] = [storeId];
@@ -62,7 +76,11 @@ router.get("/sales", async (req: any, res) => {
           ${getTurkishSearchSnippet('c.title', pLen)} OR
           ${getTurkishSearchSnippet('cust.full_name', pLen)} OR
           ${getTurkishSearchSnippet('s.customer_name', pLen)} OR
-          ${getTurkishSearchSnippet('sii.product_name', pLen)}
+          EXISTS (
+            SELECT 1 FROM sales_invoice_items sub_sii 
+            WHERE sub_sii.sales_invoice_id = si.id 
+            AND ${getTurkishSearchSnippet('sub_sii.product_name', pLen)}
+          )
         )`;
         params.push(normalizeTurkishParam(term));
       });
@@ -839,10 +857,26 @@ router.get("/purchase", async (req: any, res) => {
     const { search, startDate, endDate } = req.query;
 
     let query = `
-      SELECT DISTINCT pi.*, c.title as company_name 
+      SELECT pi.*, c.title as company_name,
+             (
+               SELECT COALESCE(json_agg(json_build_object(
+                 'id', pii.id,
+                 'product_id', pii.product_id,
+                 'product_name', pii.product_name,
+                 'barcode', pii.barcode,
+                 'quantity', pii.quantity,
+                 'unit_price', pii.unit_price,
+                 'tax_rate', pii.tax_rate,
+                 'tax_amount', pii.tax_amount,
+                 'total_price', pii.total_price,
+                 'variant_id', pii.variant_id,
+                 'variant_name', pii.variant_name
+               ) ORDER BY pii.id), '[]'::json)
+               FROM purchase_invoice_items pii 
+               WHERE pii.purchase_invoice_id = pi.id
+             ) as items
       FROM purchase_invoices pi 
       LEFT JOIN companies c ON pi.company_id = c.id 
-      LEFT JOIN purchase_invoice_items pii ON pi.id = pii.purchase_invoice_id
       WHERE pi.store_id = $1
     `;
     const params: any[] = [storeId];
@@ -860,7 +894,11 @@ router.get("/purchase", async (req: any, res) => {
           ${getTurkishSearchSnippet('pi.waybill_number', pLen)} OR
           ${getTurkishSearchSnippet('pi.tax_number', pLen)} OR
           ${getTurkishSearchSnippet('c.title', pLen)} OR
-          ${getTurkishSearchSnippet('pii.product_name', pLen)}
+          EXISTS (
+            SELECT 1 FROM purchase_invoice_items sub_pii 
+            WHERE sub_pii.purchase_invoice_id = pi.id 
+            AND ${getTurkishSearchSnippet('sub_pii.product_name', pLen)}
+          )
         )`;
         params.push(normalizeTurkishParam(term));
       });
