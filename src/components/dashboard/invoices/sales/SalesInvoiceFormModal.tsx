@@ -315,44 +315,37 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     />
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'Fatura Gönderimi' : 'Invoice Sending'}</label>
-                    <div className="flex flex-col gap-2">
-                       {eDocumentType === 'E-FATURA' ? (
-                         <>
-                           <button
-                             type="submit"
-                             onClick={(e) => {
-                               setInvoiceProfile('TEMELFATURA');
-                               setEDocumentType('E-FATURA');
-                             }}
-                             className="w-full px-4 py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-xs hover:bg-indigo-700 transition-all uppercase tracking-widest"
-                           >
-                             {isTr ? "Temel Fatura Gönder" : "Send Basic Invoice"}
-                           </button>
-                           <button
-                             type="submit"
-                             onClick={(e) => {
-                               setInvoiceProfile('TICARIFATURA');
-                               setEDocumentType('E-FATURA');
-                             }}
-                             className="w-full px-4 py-3.5 bg-white text-indigo-600 border-2 border-indigo-600 rounded-2xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all uppercase tracking-widest"
-                           >
-                             {isTr ? "Ticari Fatura Gönder" : "Send Commercial Invoice"}
-                           </button>
-                         </>
-                       ) : (
-                         <button
-                           type="submit"
-                           onClick={(e) => {
-                             setInvoiceProfile('EARSIVFATURA');
-                             setEDocumentType('E-ARŞİV');
-                           }}
-                           className="w-full px-4 py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-xs hover:bg-indigo-700 transition-all uppercase tracking-widest"
-                         >
-                           {isTr ? "E-Arşiv Gönder" : "Send E-Archive"}
-                         </button>
-                       )}
+                    <div className="flex items-center justify-between px-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {isTr ? 'Fatura Senaryosu' : 'Invoice Scenario'}
+                      </label>
+                      {eDocumentType && (
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded tracking-wider ${
+                          eDocumentType === 'E-FATURA' 
+                            ? 'bg-indigo-100 text-indigo-700' 
+                            : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {eDocumentType}
+                        </span>
+                      )}
                     </div>
+                    <select 
+                      className="w-full px-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all font-bold text-slate-700"
+                      value={invoiceProfile || (eDocumentType === 'E-FATURA' ? 'TICARIFATURA' : 'EARSIVFATURA')}
+                      onChange={(e: any) => {
+                        const val = e.target.value;
+                        setInvoiceProfile(val);
+                        if (val === 'TICARIFATURA' || val === 'TEMELFATURA') {
+                          setEDocumentType('E-FATURA');
+                        } else if (val === 'EARSIVFATURA') {
+                          setEDocumentType('E-ARŞİV');
+                        }
+                      }}
+                    >
+                      <option value="TICARIFATURA">{isTr ? "Ticari Fatura (E-Fatura)" : "Commercial Invoice (E-Invoice)"}</option>
+                      <option value="TEMELFATURA">{isTr ? "Temel Fatura (E-Fatura)" : "Basic Invoice (E-Invoice)"}</option>
+                      <option value="EARSIVFATURA">{isTr ? "E-Arşiv Fatura" : "E-Archive Invoice"}</option>
+                    </select>
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{isTr ? 'GİB Tipi' : 'GİB Type'}</label>
