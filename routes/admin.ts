@@ -30,6 +30,28 @@ router.get("/stats", async (req: any, res) => {
   });
 });
 
+// SuperAdmin: Integrator Configs
+router.get("/integrator-configs", async (req, res) => {
+  const configs = (await pool.query("SELECT * FROM integrator_configs")).rows;
+  res.json({ data: configs });
+});
+
+router.post("/integrator-configs", async (req, res) => {
+  const { id, marketplace, env, client_id, client_secret } = req.body;
+  if (id) {
+    await pool.query(
+      "UPDATE integrator_configs SET marketplace=$1, env=$2, client_id=$3, client_secret=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5",
+      [marketplace, env, client_id, client_secret, id]
+    );
+  } else {
+    await pool.query(
+      "INSERT INTO integrator_configs (marketplace, env, client_id, client_secret) VALUES ($1, $2, $3, $4)",
+      [marketplace, env, client_id, client_secret]
+    );
+  }
+  res.json({ success: true });
+});
+
 // SuperAdmin: Supabase & Database Quota & Health Status
 router.get("/supabase-status", async (req: any, res) => {
   try {
