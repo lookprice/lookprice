@@ -855,6 +855,12 @@ export async function initDb() {
       ALTER TABLE amazon_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
       ALTER TABLE n11_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
       ALTER TABLE hepsiburada_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
+      ALTER TABLE hepsiburada_orders ADD COLUMN IF NOT EXISTS package_number TEXT;
+      ALTER TABLE hepsiburada_orders ADD COLUMN IF NOT EXISTS cargo_barcode TEXT;
+      ALTER TABLE hepsiburada_orders ADD COLUMN IF NOT EXISTS cargo_tracking_number TEXT;
+      ALTER TABLE hepsiburada_orders ADD COLUMN IF NOT EXISTS cargo_provider_name TEXT;
+      ALTER TABLE hepsiburada_orders ADD COLUMN IF NOT EXISTS invoice_sent BOOLEAN DEFAULT FALSE;
+      ALTER TABLE hepsiburada_orders ADD COLUMN IF NOT EXISTS invoice_sent_at TIMESTAMP;
       ALTER TABLE trendyol_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
       ALTER TABLE pazarama_orders ADD COLUMN IF NOT EXISTS sales_invoice_id INTEGER REFERENCES sales_invoices(id) ON DELETE SET NULL;
 
@@ -1341,8 +1347,24 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoice_items' AND column_name='system_quantity') THEN
           ALTER TABLE purchase_invoice_items ADD COLUMN system_quantity REAL;
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='purchase_invoice_items' AND column_name='system_unit_code') THEN
-          ALTER TABLE purchase_invoice_items ADD COLUMN system_unit_code TEXT;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='integrator_configs') THEN
+          CREATE TABLE integrator_configs (
+            id SERIAL PRIMARY KEY,
+            marketplace TEXT NOT NULL,
+            env TEXT DEFAULT 'sit',
+            client_id TEXT NOT NULL,
+            client_secret TEXT NOT NULL,
+            token JSONB,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(marketplace, env)
+          );
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='hepsiburada_orders' AND column_name='hepsiburada_order_id' AND data_type='text') THEN
+          -- Safely convert to BIGINT if possible
+          IF (SELECT count(*) FROM hepsiburada_orders WHERE hepsiburada_order_id !~ '^[0-9]+$') = 0 THEN
+             ALTER TABLE hepsiburada_orders ALTER COLUMN hepsiburada_order_id TYPE BIGINT USING hepsiburada_order_id::BIGINT;
+          END IF;
         END IF;
 
         -- Marketplace Columns
@@ -1355,6 +1377,8 @@ export async function initDb() {
         ALTER TABLE products ADD COLUMN IF NOT EXISTS hepsiburada_sku TEXT;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS is_hepsiburada_active BOOLEAN DEFAULT FALSE;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS hepsiburada_last_error TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS hepsiburada_category_id TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS hepsiburada_last_sync TIMESTAMP;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS n11_id TEXT;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS is_n11_active BOOLEAN DEFAULT FALSE;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS n11_last_error TEXT;
