@@ -123,16 +123,22 @@ export const IntegratorHub = () => {
             <h3 className="font-bold text-lg">Konfigürasyon Düzenle</h3>
             <input 
               className="w-full border p-2 rounded" 
-              placeholder="Client ID"
+              placeholder="Merchant ID"
               value={editingConfig.client_id}
               onChange={e => setEditingConfig({...editingConfig, client_id: e.target.value})}
             />
             <input 
               className="w-full border p-2 rounded" 
-              placeholder="Client Secret"
-              type="password"
+              placeholder="API Key"
               value={editingConfig.client_secret}
               onChange={e => setEditingConfig({...editingConfig, client_secret: e.target.value})}
+            />
+            <input 
+              className="w-full border p-2 rounded" 
+              placeholder="API Secret"
+              type="password"
+              value={editingConfig.config?.api_secret || ''}
+              onChange={e => setEditingConfig({...editingConfig, config: {...editingConfig.config, api_secret: e.target.value}})}
             />
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setEditingConfig(null)} className="px-4 py-2 text-sm font-bold">İptal</button>
