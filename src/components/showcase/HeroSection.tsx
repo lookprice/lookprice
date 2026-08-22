@@ -69,10 +69,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ store, isLuxury = true
           >
             <img
               src={slide.image_url || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80"}
-              className="absolute inset-0 w-full h-full object-cover brightness-[0.65]"
+              className="absolute inset-0 w-full h-full object-cover brightness-[0.85]"
               alt={slide.title || "Hero Banner"}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/40 to-transparent" />
+            {/* Subtle overlay only at the bottom for text readability */}
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/50 to-transparent" />
 
             {/* Slide Content with Text Alignment */}
             <div className={`absolute inset-0 flex items-end px-8 md:px-16 py-20 ${
