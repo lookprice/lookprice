@@ -1354,11 +1354,14 @@ export async function initDb() {
             env TEXT DEFAULT 'sit',
             client_id TEXT NOT NULL,
             client_secret TEXT NOT NULL,
+            config JSONB DEFAULT '{}',
             token JSONB,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(marketplace, env)
           );
         END IF;
+
+        ALTER TABLE integrator_configs ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}';
 
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='hepsiburada_orders' AND column_name='hepsiburada_order_id' AND data_type='text') THEN
           -- Safely convert to BIGINT if possible
