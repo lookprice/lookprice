@@ -70,12 +70,12 @@ export const ShowcaseSidebar: React.FC<ShowcaseSidebarProps> = ({
               }}
               className={`w-full text-left px-5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${
                 !selectedCategory
-                  ? "bg-slate-950 text-white"
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-slate-100 text-slate-950"
+                  : "text-slate-600 hover:bg-slate-50"
               }`}
             >
               <span className="flex items-center gap-3">
-                <div className={`w-1.5 h-1.5 rounded-full ${!selectedCategory ? "bg-white" : "bg-slate-300"}`}></div>
+                <div className={`w-1.5 h-1.5 rounded-full ${!selectedCategory ? "bg-slate-950" : "bg-slate-300"}`}></div>
                 {t.dashboard.all}
               </span>
               <span className="text-[10px] opacity-60">{products.length}</span>
