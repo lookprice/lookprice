@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, Key, Lock, RefreshCw, AlertCircle, Save, CheckCircle2 } from 'lucide-react';
 import { api } from '@/services/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export const IntegratorHub = () => {
   const [configs, setConfigs] = useState<any[]>([]);
