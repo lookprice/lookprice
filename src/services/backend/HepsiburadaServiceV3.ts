@@ -48,12 +48,20 @@ export class HepsiburadaServiceV3 {
     return newToken.access_token;
   }
 
+  async importListings(products: any[]) {
+    return this.authenticatedRequest('POST', '/listings/import', products);
+  }
+
+  async checkTaskStatus(trackingId: string) {
+    return this.authenticatedRequest('GET', `/listings/import/${trackingId}`);
+  }
+
   async authenticatedRequest(method: string, url: string, data?: any) {
     return this.queue.add(async () => {
       const token = await this.getAccessToken();
       const res = await this.axiosInstance.request({
         method,
-        url,
+        url: url.startsWith('/') ? url : `/${url}`, // Ensure absolute path
         data,
         headers: { Authorization: `Bearer ${token}` }
       });
