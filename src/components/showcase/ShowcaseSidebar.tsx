@@ -62,23 +62,23 @@ export const ShowcaseSidebar: React.FC<ShowcaseSidebarProps> = ({
           </h3>
 
           <div className="space-y-1">
-            <button
+              <button
               onClick={() => {
                 setSelectedCategory(null);
                 setSelectedSubCategory(null);
                 document.getElementById("products-grid")?.scrollIntoView({ behavior: "smooth" });
               }}
-              className={`w-full text-left px-5 py-3 rounded-xl text-xss font-bold transition-all flex items-center justify-between group ${
+              className={`w-full text-left px-5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${
                 !selectedCategory
-                  ? "bg-gray-900 text-white shadow-xl"
-                  : "text-gray-500 hover:bg-gray-50"
+                  ? "bg-slate-950 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
               }`}
             >
               <span className="flex items-center gap-3">
-                <div className={`w-1 h-1 rounded-lg ${!selectedCategory ? "bg-primary" : "bg-gray-300"}`}></div>
+                <div className={`w-1.5 h-1.5 rounded-full ${!selectedCategory ? "bg-white" : "bg-slate-300"}`}></div>
                 {t.dashboard.all}
               </span>
-              <span className="text-[9px] opacity-50">{products.length}</span>
+              <span className="text-[10px] opacity-60">{products.length}</span>
             </button>
 
             <div className="space-y-1">
@@ -87,7 +87,7 @@ export const ShowcaseSidebar: React.FC<ShowcaseSidebarProps> = ({
                 .sort()
                 .slice(0, showAllCategories ? undefined : 5)
                 .map((cat) => (
-                  <div key={cat} className="space-y-1">
+                  <div key={cat} className="space-y-0.5">
                     <button
                       onClick={() => {
                         if (selectedCategory === cat) {
@@ -99,16 +99,16 @@ export const ShowcaseSidebar: React.FC<ShowcaseSidebarProps> = ({
                           document.getElementById("products-grid")?.scrollIntoView({ behavior: "smooth" });
                         }
                       }}
-                      className={`w-full text-left px-5 py-3 rounded-xl text-xss font-bold transition-all flex items-center justify-between group ${
-                        selectedCategory === cat ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-50"
+                      className={`w-full text-left px-5 py-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-between group ${
+                        selectedCategory === cat ? "bg-slate-100 text-slate-950" : "text-slate-600 hover:bg-slate-50"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-1 h-1 rounded-lg transition-colors ${selectedCategory === cat ? "bg-primary" : "bg-gray-300 group-hover:bg-gray-400"}`}></div>
+                        <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedCategory === cat ? "bg-slate-950" : "bg-slate-300 group-hover:bg-slate-400"}`}></div>
                         <span className="truncate">{cat}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] opacity-50">{products.filter((p) => p.category === cat).length}</span>
+                        <span className="text-[10px] opacity-60">{products.filter((p) => p.category === cat).length}</span>
                         {categories.get(cat)!.size > 0 && (
                           <ChevronRight className={`w-3 h-3 transition-transform duration-300 ${expandedCategories.has(cat) ? "rotate-90" : ""}`} />
                         )}
