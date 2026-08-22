@@ -37,16 +37,16 @@ router.get("/integrator-configs", async (req, res) => {
 });
 
 router.post("/integrator-configs", async (req, res) => {
-  const { id, marketplace, env, client_id, client_secret } = req.body;
+  const { id, marketplace, env, client_id, client_secret, config } = req.body;
   if (id) {
     await pool.query(
-      "UPDATE integrator_configs SET marketplace=$1, env=$2, client_id=$3, client_secret=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5",
-      [marketplace, env, client_id, client_secret, id]
+      "UPDATE integrator_configs SET marketplace=$1, env=$2, client_id=$3, client_secret=$4, config=$5, updated_at=CURRENT_TIMESTAMP WHERE id=$6",
+      [marketplace, env, client_id, client_secret, config, id]
     );
   } else {
     await pool.query(
-      "INSERT INTO integrator_configs (marketplace, env, client_id, client_secret) VALUES ($1, $2, $3, $4)",
-      [marketplace, env, client_id, client_secret]
+      "INSERT INTO integrator_configs (marketplace, env, client_id, client_secret, config) VALUES ($1, $2, $3, $4, $5)",
+      [marketplace, env, client_id, client_secret, config]
     );
   }
   res.json({ success: true });
