@@ -243,7 +243,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       >
         {/* FRONT SIDE (Standard Product Card) */}
         <div 
-          className={`bg-white rounded-2xl border ${isLuxury ? "border-amber-200/50" : "border-gray-100"} overflow-hidden hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-500 group relative flex flex-col h-full w-full ${isLuxury ? "font-sans tracking-tight" : ""}`}
+          className={`bg-white rounded-3xl overflow-hidden hover:shadow-xl transition-all duration-300 group relative flex flex-col h-full w-full ${isLuxury ? "font-sans tracking-tight" : ""}`}
           style={{ 
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden"
@@ -254,7 +254,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <img
                 src={getAnnotatedImageUrl(product.image_url)}
                 alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                 referrerPolicy="no-referrer"
                 loading="lazy"
               />
@@ -264,91 +264,61 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             )}
             
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            {/* Minimalist Price Overlay for Luxury/Portfolio */}
+            {(isRealEstate || isAutomotive) && (
+              <div className="absolute top-4 right-4 z-10 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full text-xs font-bold text-slate-950 shadow-sm">
+                 {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
+              </div>
+            )}
 
-            {/* Recipe / Ratios Details Flip Trigger Button */}
+            {/* Recipe Flip Trigger */}
             {!isRealEstate && !isAutomotive && getRecipeItems(product).length > 0 && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsFlipped(true);
                 }}
-                className="absolute top-4 right-4 z-20 h-8 w-8 bg-slate-900/85 backdrop-blur-md hover:bg-amber-500 hover:text-slate-950 text-amber-400 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 border border-white/10 hover:border-amber-400"
+                className="absolute top-4 right-4 z-20 h-9 w-9 bg-white/90 backdrop-blur-sm hover:bg-slate-900 hover:text-white text-slate-900 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90"
                 title={lang === "tr" ? "Reçete ve İçerik Detayları" : "Recipe & Ratios"}
               >
                 <FlaskConical className="h-4 w-4" />
               </button>
             )}
-            
-            {/* Product Labels */}
-            {(getLabels(product.labels).length > 0 || product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
-              <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-                {getLabels(product.labels).map((label, idx) => (
-                  <span
-                    key={`${label}-${idx}`}
-                    className="px-3 py-1.5 bg-white/90 backdrop-blur-md text-[10px] font-black tracking-widest uppercase rounded shadow-lg"
-                    style={{ color: primaryColor }}
-                  >
-                    {label}
-                  </span>
-                ))}
-                {(product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
-                  <span className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black tracking-widest uppercase rounded shadow-lg border border-emerald-400/20">
-                    Takaslı
-                  </span>
-                )}
-              </div>
-            )}
           </div>
 
-          <div className="p-5 sm:p-6 flex flex-col flex-1 relative bg-white">
-            {/* Luxury Gold Trim */}
-            {isLuxury && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-300 via-amber-500 to-amber-300 opacity-50" />}
-
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex flex-col">
-                <span
-                  className="text-[10px] uppercase tracking-widest font-black"
-                  style={{ color: isLuxury ? '#d97706' : primaryColor }}
-                >
-                  {isRealEstate && lang === "tr"
-                    ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
-                    : (product.category || t.dashboard.uncategorized)}
-                </span>
-              </div>
+          <div className="p-6 flex flex-col flex-1 relative bg-white">
+            <div className="mb-3 flex items-center justify-between">
+              <span
+                className="text-[10px] uppercase tracking-widest font-bold text-slate-400"
+              >
+                {isRealEstate && lang === "tr"
+                  ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
+                  : (product.category || t.dashboard.uncategorized)}
+              </span>
             </div>
 
             <h3
-              className={`font-semibold text-slate-900 line-clamp-2 h-12 mb-1 transition-colors cursor-pointer hover:text-indigo-600 text-base leading-snug tracking-tight ${isLuxury ? "!font-display !font-medium" : ""}`}
+              className={`font-semibold text-slate-950 line-clamp-2 h-12 mb-3 cursor-pointer hover:text-sky-600 text-base leading-snug tracking-tight ${isLuxury ? "!font-display !font-medium" : ""}`}
               onClick={() => onView(product)}
             >
               {product.name}
             </h3>
             
-            {product.branch_name && product.branch_name !== store?.name && (
-              <div className="flex items-center gap-1.5 text-slate-400 mt-1 mb-2">
-                <MapPin className="w-3 h-3" />
-                <span className="text-[10px] font-bold tracking-tight">
-                  {product.branch_name}
-                </span>
-              </div>
-            )}
+            {/* Bento Grid Specs */}
+            <div className="mt-auto">
+                {isRealEstate ? renderBentoRealEstate() : isAutomotive ? renderBentoAutomotive() : (
+                   <div className="mb-4">
+                      <p className="text-sm text-slate-500 line-clamp-2">{product.description || t.dashboard.noDescription}</p>
+                   </div>
+                )}
+            </div>
 
-            {isRealEstate ? renderBentoRealEstate() : isAutomotive ? renderBentoAutomotive() : (
-               <div className="flex-1 my-4">
-                  <p className="text-sm text-slate-500 line-clamp-3">{product.description || t.dashboard.noDescription}</p>
-               </div>
-            )}
-
-            <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
-                  {isRealEstate || isAutomotive ? (lang === 'tr' ? 'Fiyat' : 'Price') : t.dashboard.price}
-                </span>
-                <span className={`text-lg font-bold text-slate-900 ${isLuxury ? 'font-display' : ''}`}>
-                  {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
-                </span>
-              </div>
+            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+              {!(isRealEstate || isAutomotive) && (
+                  <span className={`text-lg font-bold text-slate-950`}>
+                    {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
+                  </span>
+              )}
               <button
                 onClick={() => {
                   if (isRealEstate || isAutomotive || pHasVars || (product.available_branches && product.available_branches.length > 1)) {
@@ -357,22 +327,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     addToBasket(product);
                   }
                 }}
-                className={`px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2
-                  ${isLuxury ? 'bg-slate-900 text-amber-400 hover:bg-slate-800' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                className={`px-6 py-2.5 rounded-full text-xs font-bold transition-all active:scale-95 flex items-center gap-2
+                  ${isLuxury ? 'bg-amber-500 text-slate-950 hover:bg-amber-600' : 'bg-slate-950 text-white hover:bg-slate-800'}`}
               >
                 {isRealEstate || isAutomotive ? (
                   <>
-                    {lang === "tr" ? "İncele" : "View"} <ArrowRight className="w-4 h-4" />
-                  </>
-                ) : pHasVars || (product.available_branches && product.available_branches.length > 1) ? (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    {lang === "tr" ? "Seçenekler" : "Options"}
+                    {lang === "tr" ? "İncele" : "View"}
                   </>
                 ) : (
                   <>
-                    <Plus className="w-4 h-4" />
-                    {t.dashboard.addToBasket}
+                    {lang === "tr" ? "Sepete Ekle" : "Add to Cart"}
                   </>
                 )}
               </button>
