@@ -38,6 +38,12 @@ router.get("/integrator-configs", async (req, res) => {
 
 router.post("/integrator-configs", async (req, res) => {
   const { id, marketplace, env, client_id, client_secret, config } = req.body;
+  
+  // ZORUNLU ALAN KONTROLÜ
+  if (!marketplace || !client_id || !client_secret || !config?.api_secret) {
+    return res.status(400).json({ error: "Eksik parametre! Merchant ID, API Key ve API Secret zorunludur." });
+  }
+
   if (id) {
     await pool.query(
       "UPDATE integrator_configs SET marketplace=$1, env=$2, client_id=$3, client_secret=$4, config=$5, updated_at=CURRENT_TIMESTAMP WHERE id=$6",
