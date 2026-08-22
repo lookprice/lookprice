@@ -1,6 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800;900&family=Montserrat:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+@layer base {
+  body {
+    @apply font-sans text-slate-900 antialiased leading-relaxed;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tighter text-slate-950;
+  }
+}
+
 @theme {
   --font-sans: "Golos Text", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Montserrat", "Outfit", "Inter", sans-serif;
