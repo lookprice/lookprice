@@ -651,7 +651,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
             <ProductListHeader
               selectedCategory={selectedCategory} t={t} productCount={sortedAndFilteredProducts.length}
-              searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy}
+              sortBy={sortBy} setSortBy={setSortBy}
               lang={lang} isLuxury={isLuxury}
             />
 
