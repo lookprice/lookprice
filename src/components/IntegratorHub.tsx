@@ -53,6 +53,13 @@ export const IntegratorHub = () => {
 
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // ZORUNLU ALAN KONTROLÜ
+    if (!editingConfig.client_id || !editingConfig.client_secret || !editingConfig.config?.api_secret) {
+      toast.error("Lütfen Merchant ID, API Key ve API Secret alanlarının tamamını doldurun.");
+      return;
+    }
+    
     try {
       await api.saveIntegratorConfig(editingConfig);
       toast.success("Konfigürasyon kaydedildi");
