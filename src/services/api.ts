@@ -546,6 +546,10 @@ export const api = {
   // Integrator Hub
   getIntegratorConfigs: () => api.get("/api/admin/integrator-configs"),
   saveIntegratorConfig: (data: any) => api.post("/api/admin/integrator-configs", data),
+  
+  // Hepsiburada V3 Integration
+  hepsiburadaV3ImportListings: (env: 'sit' | 'production', products: any[]) => api.post("/api/hepsiburada/v3/listings/import", { env, products }),
+  hepsiburadaV3CheckTaskStatus: (env: 'sit' | 'production', trackingId: string) => api.get(`/api/hepsiburada/v3/listings/import/${trackingId}?env=${env}`),
 
   // E-Invoice Methods
   checkTaxpayer: (vknTckn: string, storeId?: number) => api.post(`/api/einvoice/check-taxpayer${storeId ? `?storeId=${storeId}` : ""}`, { vknTckn, storeId }),
