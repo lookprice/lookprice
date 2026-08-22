@@ -7,18 +7,43 @@ export const IntegratorHub = () => {
   const [configs, setConfigs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingConfig, setEditingConfig] = useState<any>(null);
+  const [trackingId, setTrackingId] = useState<string>('');
+  const [taskStatus, setTaskStatus] = useState<any>(null);
 
   const fetchConfigs = async () => {
     setLoading(true);
     try {
-      // Endpointi routes/admin.ts veya genel bir ayarlardan çekebiliriz, 
-      // şimdilik varsayılan api metodunu kullanıyoruz.
       const res = await api.getIntegratorConfigs();
       setConfigs(res.data || []);
     } catch (e) {
       toast.error("Konfigürasyonlar yüklenemedi");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const testProductImport = async (marketplace: string, env: 'sit' | 'production') => {
+    if (marketplace === 'hepsiburada') {
+      const res = await api.hepsiburadaV3ImportListings(env, [{
+        merchantSku: 'TEST-SKU-001',
+        productName: 'LookPrice Test Ürünü',
+        price: 100,
+        availableStock: 10
+      }]);
+      if (res.trackingId) {
+        setTrackingId(res.trackingId);
+        toast.success(`Ürün aktarımı başlatıldı. Tracking ID: ${res.trackingId}`);
+      } else {
+        toast.error("İşlem başlatılamadı: " + JSON.stringify(res));
+      }
+    }
+  };
+
+  const checkStatus = async (marketplace: string, env: 'sit' | 'production', id: string) => {
+    if (marketplace === 'hepsiburada') {
+      const res = await api.hepsiburadaV3CheckTaskStatus(env, id);
+      setTaskStatus(res);
+      toast.info("Durum sorgulandı.");
     }
   };
 
@@ -70,6 +95,27 @@ export const IntegratorHub = () => {
           ))}
         </div>
       )}
+
+      <div className="mt-8 pt-6 border-t">
+        <h3 className="font-bold text-lg mb-4">Hepsiburada Entegrasyon Test Paneli</h3>
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => testProductImport('hepsiburada', 'sit')} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold">
+            Test Ürünü Gönder (SIT)
+          </button>
+        </div>
+        
+        {trackingId && (
+          <div className="p-4 bg-slate-50 rounded-lg text-sm">
+            <p className="font-bold mb-2">Aktif Tracking ID: {trackingId}</p>
+            <button onClick={() => checkStatus('hepsiburada', 'sit', trackingId)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold">
+              Durumu Sorgula
+            </button>
+            {taskStatus && (
+              <pre className="mt-2 text-xs bg-slate-200 p-2 rounded">{JSON.stringify(taskStatus, null, 2)}</pre>
+            )}
+          </div>
+        )}
+      </div>
 
       {editingConfig && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
