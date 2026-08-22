@@ -106,7 +106,6 @@ router.get("/amazon/callback", async (req: any, res) => {
   }
 });
 
-// 3. Sync Amazon Orders
 router.post("/amazon/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
@@ -200,6 +199,30 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           const taxAmount = totalAmountFloat * 0.20; // Default 20% tax
           const grandTotal = totalAmountFloat;
           const subtotal = grandTotal - taxAmount;
+
+// Hepsiburada V3 Routes
+router.post("/hepsiburada/v3/listings/import", authenticate, async (req: any, res) => {
+  const { env, products } = req.body;
+  try {
+    const hbService = new HepsiburadaServiceV3(env || 'sit');
+    const result = await hbService.importListings(products);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/hepsiburada/v3/listings/import/:trackingId", authenticate, async (req: any, res) => {
+  const { trackingId } = req.params;
+  const { env } = req.query;
+  try {
+    const hbService = new HepsiburadaServiceV3(env || 'sit');
+    const result = await hbService.checkTaskStatus(trackingId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
