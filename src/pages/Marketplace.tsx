@@ -340,6 +340,7 @@ function ListingCardImage({
           className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500 cursor-pointer"
           onClick={onImageClick}
           referrerPolicy="no-referrer"
+          onError={(e: any) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"; }}
         />
       ) : (
         <div 
@@ -2544,6 +2545,7 @@ export const Marketplace = () => {
                       alt={selectedListing.title} 
                       className="w-full h-full object-cover md:object-cover cursor-grab active:cursor-grabbing pointer-events-auto"
                       referrerPolicy="no-referrer"
+                      onError={(e: any) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"; }}
                       initial={{ opacity: 0.4, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0.4, scale: 0.98 }}
@@ -2609,7 +2611,7 @@ export const Marketplace = () => {
                             : "border-slate-200 opacity-70 hover:opacity-100"
                         }`}
                       >
-                        <img src={img} alt={`Foto ${idx+1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img src={img} alt={`Foto ${idx+1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e: any) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"; }} />
                       </button>
                     ))}
                   </div>

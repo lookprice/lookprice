@@ -166,8 +166,8 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
             <Video className="h-5 w-5" />
             <span className="text-xs uppercase tracking-wider">MEDYA KONTROL ODASI</span>
           </div>
-          <h2 className="text-xl font-black">lookprice.net & Sektörel Video Yönetimi</h2>
-          <p className="text-xs text-slate-400 mt-1 max-w-xl">
+          <h2 className="text-xl font-black text-white">lookprice.net & Sektörel Video Yönetimi</h2>
+          <p className="text-xs text-slate-300 mt-1 max-w-xl">
             Ana sayfa (lookprice.net) ürün kartlarındaki tanıtım videolarını ve her bir sektörel ürün sayfasındaki (HoReCaLP, AutoLP vb.) detaylı video turlarını buradan güncelleyin.
           </p>
         </div>

@@ -16,6 +16,7 @@ import { translations } from "@/translations";
 import { ModernRealEstateLayout } from "../components/ModernRealEstateLayout";
 import { ModernAutomotiveLayout } from "../components/ModernAutomotiveLayout";
 import { ModernCafeRestaurantLayout } from "../components/ModernCafeRestaurantLayout";
+import { ModernShopRetailLayout } from "../components/ModernShopRetailLayout";
 import ErrorBoundary from "../components/ErrorBoundary";
 
 // Types
@@ -625,99 +626,47 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   return (
     <ErrorBoundary lang={lang}>
-      <div className="min-h-screen bg-white">
-        <StoreHeader
-          store={store} lang={lang} basketCount={basketCount}
-          setIsBasketOpen={setIsBasketOpen} isAccountMenuOpen={isAccountMenuOpen}
-          setIsAccountMenuOpen={setIsAccountMenuOpen} customer={customer}
-          handleLogout={() => { setCustomer(null); localStorage.removeItem("customer"); }}
-          getStorePath={getStorePath} setShowAuthModal={setShowAuthModal}
-          setAuthMode={setAuthMode} primaryColor={primaryColor}
-          t={t} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-          accountMenuRef={accountMenuRef} setShowBlog={setShowBlog}
-        />
-
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
         {!isProfileView && !isOrdersView && !isReturnView ? (
-          <main className="max-w-7xl mx-auto px-4 lg:px-8 py-12">
-            {isPortfolio && (
-              <PortfolioFilters
-                lang={lang} store={store} portfolioType={portfolioType} setPortfolioType={setPortfolioType}
-                portfolioMinPrice={portfolioMinPrice} setPortfolioMinPrice={setPortfolioMinPrice}
-                portfolioMaxPrice={portfolioMaxPrice} setPortfolioMaxPrice={setPortfolioMaxPrice}
-                portfolioRooms={portfolioRooms} setPortfolioRooms={setPortfolioRooms}
-                portfolioMinM2={portfolioMinM2} setPortfolioMinM2={setPortfolioMinM2}
-              />
-            )}
-
-            <ProductListHeader
-              selectedCategory={selectedCategory} t={t} productCount={sortedAndFilteredProducts.length}
-              searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy}
-              lang={lang} isLuxury={isLuxury}
-            />
-
-            <div className="flex flex-col lg:flex-row gap-16">
-              <ShowcaseSidebar
-                categories={categories} products={products} selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory} selectedSubCategory={selectedSubCategory}
-                setSelectedSubCategory={setSelectedSubCategory} expandedCategories={expandedCategories}
-                toggleCategory={(cat) => setExpandedCategories(prev => {
-                  const next = new Set(prev);
-                  if (next.has(cat)) next.delete(cat); else next.add(cat);
-                  return next;
-                })}
-                categorySearch={categorySearch} setCategorySearch={setCategorySearch}
-                showAllCategories={showAllCategories} setShowAllCategories={setShowAllCategories}
-                brands={brands} selectedBrand={selectedBrand} setSelectedBrand={setSelectedBrand}
-                brandSearch={brandSearch} setBrandSearch={setBrandSearch} lang={lang} t={t}
-                categoriesLabel={categoriesLabel} brandsLabel={translations[lang].stats.brands} brandLabel={brandLabel}
-              />
-
-              <div className="flex-1">
-                <StoreSections
-                  store={store} featuredProducts={products.slice(0, 8)} t={t} addToBasket={addToBasket}
-                  setSelectedProduct={setSelectedProduct} setSelectedBlogPost={setSelectedBlogPost}
-                  primaryColor={primaryColor} isLuxury={isLuxury} sector={sector} isTr={isTr}
-                  radarNews={radarNews} lang={lang}
-                />
-
-                {sortedAndFilteredProducts.length > 0 ? (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 md:gap-6 mt-12">
-                      <AnimatePresence mode="popLayout">
-                        {paginatedProducts.map((product) => (
-                          <ProductCard
-                            key={product.id} product={product} store={store} t={t}
-                            onView={setSelectedProduct} addToBasket={addToBasket}
-                            primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
-                          />
-                        ))}
-                      </AnimatePresence>
-                    </div>
-                    <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-                    <StoreBlogPosts blogPosts={store.blog_posts || []} lang={lang} setShowBlog={setShowBlog} setSelectedBlogPost={setSelectedBlogPost} />
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-32 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 mt-12">
-                    <Package className="w-12 h-12 text-gray-200 mb-8" />
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{t.dashboard.noProductsFound}</h3>
-                    <p className="text-gray-400 font-medium max-w-xs">{t.dashboard.noProductsDesc}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </main>
-        ) : (
-          <CustomerAccountView
-            isProfileView={isProfileView} isOrdersView={isOrdersView} isReturnView={isReturnView}
-            customerProfile={customerProfile} profileEditForm={profileEditForm} setProfileEditForm={setProfileEditForm}
-            isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile}
-            handleProfileUpdate={async () => {}} orders={orders} loadingOrders={loadingOrders}
-            lang={lang} t={t} navigate={navigate} handleLogout={() => {}} getStorePath={getStorePath}
+          <ModernShopRetailLayout
+            store={store}
+            products={products}
+            onViewProduct={setSelectedProduct}
+            addToBasket={addToBasket}
+            basket={basket}
+            setBasket={setBasket}
+            basketTotal={basketTotal}
+            basketSubtotal={basketSubtotal}
+            basketShippingTotal={basketShippingTotal}
+            onCheckout={() => setIsCheckoutModalOpen(true)}
+            lang={lang}
+            t={t}
+            setShowAboutModal={setShowAboutModal}
+            setShowStoreLocatorModal={setShowStoreLocatorModal}
+            setShowAuthModal={setShowAuthModal}
           />
+        ) : (
+          <>
+            <StoreHeader
+              store={store} lang={lang} basketCount={basketCount}
+              setIsBasketOpen={setIsBasketOpen} isAccountMenuOpen={isAccountMenuOpen}
+              setIsAccountMenuOpen={setIsAccountMenuOpen} customer={customer}
+              handleLogout={() => { setCustomer(null); localStorage.removeItem("customer"); }}
+              getStorePath={getStorePath} setShowAuthModal={setShowAuthModal}
+              setAuthMode={setAuthMode} primaryColor={primaryColor}
+              t={t} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+              accountMenuRef={accountMenuRef} setShowBlog={setShowBlog}
+            />
+            <CustomerAccountView
+              isProfileView={isProfileView} isOrdersView={isOrdersView} isReturnView={isReturnView}
+              customerProfile={customerProfile} profileEditForm={profileEditForm} setProfileEditForm={setProfileEditForm}
+              isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile}
+              handleProfileUpdate={async () => {}} orders={orders} loadingOrders={loadingOrders}
+              lang={lang} t={t} navigate={navigate} handleLogout={() => {}} getStorePath={getStorePath}
+            />
+            <StoreFooter store={store} lang={lang} setShowAboutModal={setShowAboutModal} setShowStoreLocatorModal={setShowStoreLocatorModal} />
+          </>
         )}
-
-        <NewsletterSection show={layoutSettings.show_newsletter || false} lang={lang} />
-        <StoreFooter store={store} lang={lang} setShowAboutModal={setShowAboutModal} setShowStoreLocatorModal={setShowStoreLocatorModal} />
 
         <AnimatePresence>
           {isBasketOpen && (

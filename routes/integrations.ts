@@ -3,6 +3,7 @@ import { pool } from "../models/db";
 import axios from "axios";
 import { authenticate } from "../middleware/auth";
 import { IntegrationService } from "../src/services/IntegrationService";
+import { HepsiburadaService, HepsiburadaServiceV3 } from "../src/services/backend/hepsiburadaService";
 import { 
   processMarketplaceOrderLines, 
   syncN11Orders, 
@@ -105,7 +106,6 @@ router.get("/amazon/callback", async (req: any, res) => {
   }
 });
 
-// 3. Sync Amazon Orders
 router.post("/amazon/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
@@ -199,6 +199,30 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           const taxAmount = totalAmountFloat * 0.20; // Default 20% tax
           const grandTotal = totalAmountFloat;
           const subtotal = grandTotal - taxAmount;
+
+// Hepsiburada V3 Routes
+router.post("/hepsiburada/v3/listings/import", authenticate, async (req: any, res) => {
+  const { env, products } = req.body;
+  try {
+    const hbService = new HepsiburadaServiceV3(env || 'sit');
+    const result = await hbService.importListings(products);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/hepsiburada/v3/listings/import/:trackingId", authenticate, async (req: any, res) => {
+  const { trackingId } = req.params;
+  const { env } = req.query;
+  try {
+    const hbService = new HepsiburadaServiceV3(env || 'sit');
+    const result = await hbService.checkTaskStatus(trackingId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
@@ -510,15 +534,36 @@ router.post("/n11/disconnect", authenticate, async (req: any, res) => {
 // 1. Save Hepsiburada Settings
 router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { apiKey, apiSecret, merchantId } = req.body;
+  const { 
+    apiKey, 
+    apiSecret, 
+    merchantId, 
+    isTestMode, 
+    userAgent, 
+    defaultDispatchTime, 
+    defaultCargoCompany, 
+    autoSyncOrders, 
+    autoStockSync,
+    webhookSecret
+  } = req.body;
 
   try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const prev = storeRes.rows[0]?.hepsiburada_settings || {};
+
     const settings = {
+      ...prev,
       connected: !!(apiKey && apiSecret && merchantId),
-      apiKey,
-      apiSecret,
-      merchantId,
-      last_sync: null
+      apiKey: apiKey?.trim() || "",
+      apiSecret: apiSecret?.trim() || "",
+      merchantId: merchantId?.trim() || "",
+      isTestMode: !!isTestMode,
+      userAgent: userAgent || `${merchantId} - LookPrice Marketplace Manager`,
+      defaultDispatchTime: Number(defaultDispatchTime) || 1,
+      defaultCargoCompany: defaultCargoCompany || "Hepsijet",
+      autoSyncOrders: autoSyncOrders ?? true,
+      autoStockSync: autoStockSync ?? true,
+      webhookSecret: webhookSecret || prev.webhookSecret || `hb_wh_${Math.random().toString(36).substring(2, 12)}`,
     };
 
     await pool.query("UPDATE stores SET hepsiburada_settings = $1 WHERE id = $2", [settings, storeId]);
@@ -539,7 +584,25 @@ router.get("/hepsiburada/settings", authenticate, async (req: any, res) => {
   }
 });
 
-    // Sync Hepsiburada Orders
+// 3. Test Hepsiburada Connection
+router.post("/hepsiburada/test", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (API Key, Secret veya Merchant ID)" });
+    }
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const testResult = await hbService.testConnection();
+    res.json(testResult);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4. Sync Hepsiburada Orders
 router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
 
@@ -547,105 +610,168 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
     if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-       return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
     }
-    const hbOrders = await syncHepsiburadaOrders(pool, storeId, settings);
 
-    let syncedCount = 0;
-    for (const order of hbOrders) {
-      const existing = await pool.query("SELECT id FROM hepsiburada_orders WHERE store_id = $1 AND hepsiburada_order_id = $2", [storeId, order.id]);
-      if (existing.rows.length === 0) {
-        const client = await pool.connect();
-        try {
-          await client.query("BEGIN");
+    const hbService = new HepsiburadaService(settings, storeId);
+    const { syncedCount, errors } = await hbService.syncOrdersToDatabase();
 
-          // Find or create customer
-          let customerId = null;
-          const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, order.email]);
-          if (custRes.rows.length > 0) {
-            customerId = custRes.rows[0].id;
-          } else {
-            const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
-              [storeId, order.email, 'marketplace_user', order.customer]
-            );
-            customerId = newCust.rows[0].id;
-          }
-
-          const saleRes = await client.query(
-            "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-            [storeId, order.total, 'TRY', 'completed', order.customer, customerId, 'Hepsiburada Satış', `Hepsiburada Siparişi: ${order.id}`]
-          );
-          const saleId = saleRes.rows[0].id;
-
-          // Create Sales Invoice
-          const invoiceNumber = `HB-${order.id}`;
-          const totalAmount = parseFloat(order.total);
-          const taxAmount = totalAmount * 0.20;
-          const grandTotal = totalAmount;
-          const subtotal = grandTotal - taxAmount;
-
-          const invoiceRes = await client.query(
-            "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
-            [storeId, saleId, customerId, invoiceNumber, new Date(), subtotal, taxAmount, grandTotal, 'TRY', 'Hepsiburada Satış', `Hepsiburada Siparişi: ${order.id}`, 'marketplace', 'completed']
-          );
-          const salesInvoiceId = invoiceRes.rows[0].id;
-
-          // Process order lines
-          const lines = order.items || [];
-          const mappedLines = lines.map((l: any) => ({
-            name: l.productName || `Hepsiburada Sipariş Kalemi (${order.id})`,
-            quantity: l.quantity || 1,
-            price: l.price || subtotal,
-            barcode: l.merchantSku, // Using merchantSku as barcode fallback
-            sku: l.merchantSku,
-            taxRate: 20
-          }));
-
-          if (mappedLines.length > 0) {
-            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Hepsiburada', order.id);
-          } else {
-            await client.query(
-              "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-              [salesInvoiceId, `Hepsiburada Sipariş Kalemi (${order.id})`, 1, subtotal, 20, taxAmount, grandTotal]
-            );
-          }
-
-          await client.query(
-            "INSERT INTO hepsiburada_orders (store_id, hepsiburada_order_id, sale_id, sales_invoice_id, status, order_data) VALUES ($1, $2, $3, $4, $5, $6)",
-            [storeId, order.id, saleId, salesInvoiceId, 'New', order]
-          );
-
-          await client.query("COMMIT");
-          syncedCount++;
-        } catch (e) {
-          await client.query("ROLLBACK");
-          console.error("Hepsiburada Order Sync Error:", e);
-        } finally {
-          client.release();
-        }
-      }
-    }
-    
-    const newSettings = { ...settings, last_sync: new Date().toISOString() };
-    await pool.query("UPDATE stores SET hepsiburada_settings = $1 WHERE id = $2", [newSettings, storeId]);
-    res.json({ success: true, count: syncedCount });
+    res.json({ success: true, count: syncedCount, errors });
   } catch (error: any) {
     await IntegrationService.logIntegrationError(storeId, 'Hepsiburada', 'Sync All Orders', error);
-    res.status(500).json({ error: "Hepsiburada siparişleri senkronize edilemedi." });
+    res.status(500).json({ error: error.message || "Hepsiburada siparişleri senkronize edilemedi." });
   }
 });
 
-router.post("/hepsiburada/test", authenticate, async (req: any, res) => {
+// 5. Bulk Sync Active Products Inventory (Price & Stock)
+router.post("/hepsiburada/sync-inventory", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
-    const success = await testHepsiburadaConnection(settings);
-    res.json({ success });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    }
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const result = await hbService.syncAllActiveProducts();
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    await IntegrationService.logIntegrationError(storeId, 'Hepsiburada', 'Bulk Inventory Sync', error);
+    res.status(500).json({ error: error.message || "Hepsiburada ürün envanteri güncellenemedi." });
+  }
 });
+
+// 6. Publish / Update Single Product to Hepsiburada
+router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productId = req.body.productId;
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    }
+
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    const p = prodRes.rows[0];
+    if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const result = await hbService.updatePriceAndStock([
+      {
+        HepsiburadaSku: p.hepsiburada_sku || "",
+        MerchantSku: p.barcode,
+        Price: parseFloat(p.price || "0"),
+        AvailableStock: parseInt(p.stock_quantity || "0", 10),
+        DispatchTime: settings.defaultDispatchTime || 1,
+      }
+    ]);
+
+    await pool.query(
+      "UPDATE products SET is_hepsiburada_active = true, hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL WHERE id = $1",
+      [productId]
+    );
+
+    res.json({ success: true, message: result.message, trackingId: result.trackingId });
+  } catch (e: any) {
+    const errMsg = e.message || "Hepsiburada ürün aktarımı başarısız.";
+    if (productId) {
+      await pool.query("UPDATE products SET hepsiburada_last_error = $1 WHERE id = $2", [errMsg, productId]);
+    }
+    res.status(400).json({ error: errMsg });
+  }
+});
+
+// 7. Get Catalog Categories
+router.get("/hepsiburada/categories", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    }
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const categories = await hbService.getAllCategories();
+    res.json({ success: true, categories });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 8. Get Category Attributes
+router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const categoryId = req.params.categoryId;
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    }
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const attributes = await hbService.getCategoryAttributes(categoryId);
+    res.json({ success: true, attributes });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 9. Check Asynchronous Task / Import Status
+router.get("/hepsiburada/task/:taskId", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const taskId = req.params.taskId;
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    }
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const status = await hbService.checkTaskStatus(taskId);
+    res.json({ success: true, status });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 10. Send Invoice Info to Hepsiburada
+router.post("/hepsiburada/orders/:orderId/invoice", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const orderId = req.params.orderId;
+  const { invoiceNumber, invoiceDate, invoiceUrl, totalAmount, taxAmount } = req.body;
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    }
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const result = await hbService.sendInvoice(orderId, {
+      invoiceNumber,
+      invoiceDate: invoiceDate || new Date().toISOString(),
+      invoiceUrl,
+      totalAmount: Number(totalAmount),
+      taxAmount: Number(taxAmount),
+    });
+
+    res.json({ success: true, result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 11. Disconnect Hepsiburada
 router.post("/hepsiburada/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
@@ -656,40 +782,56 @@ router.post("/hepsiburada/disconnect", authenticate, async (req: any, res) => {
   }
 });
 
-// 5. Publish Product to Hepsiburada
-router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const productId = req.body.productId;
-
+// 12. Hepsiburada Webhook Receiver (Public / Authenticated by Secret)
+router.post("/hepsiburada/webhook", async (req: any, res) => {
   try {
-    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const { storeId, event_type, payload, secret } = req.body;
+    const targetStoreId = Number(storeId || req.query.storeId || 1);
+
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [targetStoreId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey) return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
 
-    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
-    const p = prodRes.rows[0];
-    if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
-
-    const payload = [{
-      HepsiburadaSku: p.hepsiburada_sku || "",
-      MerchantSku: p.barcode,
-      Price: parseFloat(p.price),
-      AvailableStock: parseInt(p.stock_quantity),
-      DispatchTime: 1
-    }];
-
-    try {
-      const response = await axios.post(`https://listing-external-v2-gw-prod.hepsiburada.com/inventory/import/${settings.merchantId}`, payload, {
-        headers: { 'Authorization': `Basic ${Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64')}` }
-      });
-      await pool.query("UPDATE products SET is_hepsiburada_active = true WHERE id = $1", [productId]);
-      res.json({ success: true, data: response.data });
-    } catch (e: any) {
-       const errMsg = e.response?.data?.message || e.message;
-       await pool.query("UPDATE products SET hepsiburada_last_error = $1 WHERE id = $2", [errMsg, productId]);
-       res.status(400).json({ error: errMsg });
+    if (!settings || !settings.connected) {
+      return res.status(400).json({ error: "Store Hepsiburada entegrasyonu aktif değil" });
     }
+
+    // Verify webhook secret if configured
+    if (settings.webhookSecret && secret && settings.webhookSecret !== secret) {
+      return res.status(403).json({ error: "Geçersiz webhook secret" });
+    }
+
+    const hbService = new HepsiburadaService(settings, targetStoreId);
+    const result = await hbService.handleWebhook({
+      event_type: event_type || req.headers["x-hb-event"] || "order_created",
+      payload: payload || req.body,
+    });
+
+    res.json({ success: true, result });
   } catch (error: any) {
+    console.error("Hepsiburada Webhook error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/hepsiburada/webhook/:storeId", async (req: any, res) => {
+  try {
+    const targetStoreId = Number(req.params.storeId);
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [targetStoreId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+
+    if (!settings || !settings.connected) {
+      return res.status(400).json({ error: "Store Hepsiburada entegrasyonu aktif değil" });
+    }
+
+    const hbService = new HepsiburadaService(settings, targetStoreId);
+    const result = await hbService.handleWebhook({
+      event_type: req.body.event_type || req.headers["x-hb-event"] || "order_created",
+      payload: req.body.payload || req.body,
+    });
+
+    res.json({ success: true, result });
+  } catch (error: any) {
+    console.error("Hepsiburada Webhook error:", error);
     res.status(500).json({ error: error.message });
   }
 });

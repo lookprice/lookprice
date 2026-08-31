@@ -43,6 +43,7 @@ import { RecipeModal } from "./modals/RecipeModal";
 import ProductsFilterBar from "../../components/dashboard/ProductsFilterBar";
 import { api } from "../../services/api";
 import { toast } from "sonner";
+import { getLabels } from "../../utils/showcase";
 
 interface ProductsTabProps {
   products: any[];
@@ -60,6 +61,7 @@ interface ProductsTabProps {
   onBulkRecalculatePrice2?: () => void;
   onBulkAdd?: (products: any[]) => void;
   onBulkRename?: (renames: { id: number, name: string }[]) => void;
+  onReformatNames?: () => void;
   onShowQr: () => void;
   branding?: any;
   showStoreName?: boolean;
@@ -86,6 +88,7 @@ const ProductsTab = ({
   onBulkRecalculatePrice2,
   onBulkAdd,
   onBulkRename,
+  onReformatNames,
   onShowQr,
   branding,
   showStoreName,
@@ -114,7 +117,7 @@ const ProductsTab = ({
     localStorage.setItem('productsTabCategory', selectedCategory);
   }, [selectedCategory]);
   const [marketplaceFilter, setMarketplaceFilter] = useState("all"); // all, listed, not_listed
-  const [includeZeroStock, setIncludeZeroStock] = useState(false);
+  const [includeZeroStock, setIncludeZeroStock] = useState(true);
   const deferredSearch = useDeferredValue(search);
   const [page, setPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -293,31 +296,50 @@ const ProductsTab = ({
     };
   };
 
+  const getProductStock = (p: any) => {
+    if (p.variants) {
+      let vars: any[] = [];
+      if (typeof p.variants === 'string') {
+        try { vars = JSON.parse(p.variants); } catch (e) { vars = []; }
+      } else if (Array.isArray(p.variants)) {
+        vars = p.variants;
+      }
+      if (vars.length > 0) {
+        return vars.reduce((sum: number, v: any) => sum + (Number(v.stock_quantity) || Number(v.stock) || 0), 0);
+      }
+    }
+    return Number(p.stock_quantity) || 0;
+  };
+
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+  const isSelectedCategoryValid = selectedCategory === "all" || selectedCategory === "bestsellers" || categories.includes(selectedCategory);
+  const effectiveCategory = isSelectedCategoryValid ? selectedCategory : "all";
 
   const filteredProducts = products.filter(p => {
-    const searchTerms = normalizeSearch(deferredSearch).split(/\s+/).filter(Boolean);
+    const searchTerms = normalizeSearch(deferredSearch || "").split(/\s+/).filter(Boolean);
     const matchesSearch = searchTerms.length === 0 ? true : searchTerms.every(term => 
-      normalizeSearch(p.name).includes(term) || (p.barcode && p.barcode.toString().includes(term))
+      normalizeSearch(p.name || "").includes(term) || (p.barcode && p.barcode.toString().includes(term))
     );
-    const matchesCategory = selectedCategory === "bestsellers" 
+    const matchesCategory = effectiveCategory === "bestsellers" 
       ? getIsBestseller(p) 
-      : (selectedCategory === "all" || p.category === selectedCategory);
+      : (effectiveCategory === "all" || p.category === effectiveCategory);
     const matchesMarketplace = marketplaceFilter === "all" || 
                               (marketplaceFilter === "listed" && p.is_pazarama_active) ||
                               (marketplaceFilter === "not_listed" && !p.is_pazarama_active);
     
-    // Stok adetleri 0 ve altı olanları gizle, ancak arama yapılıyorsa göster
+    // Stok adetleri 0 ve altı olanları gizle, ancak arama yapılıyorsa veya includeZeroStock aktifse göster
     if (!includeZeroStock && searchTerms.length === 0) {
-      if (Number(p.stock_quantity) <= 0) {
+      if (getProductStock(p) <= 0) {
         return false;
       }
     }
     
     return matchesSearch && matchesCategory && matchesMarketplace;
   }).sort((a, b) => {
-    const aIsNewLabel = Array.isArray(a.labels) && a.labels.includes('yeni_fatura_urunu') ? 1 : 0;
-    const bIsNewLabel = Array.isArray(b.labels) && b.labels.includes('yeni_fatura_urunu') ? 1 : 0;
+    const aLabels = getLabels(a.labels);
+    const bLabels = getLabels(b.labels);
+    const aIsNewLabel = aLabels.includes('yeni_fatura_urunu') ? 1 : 0;
+    const bIsNewLabel = bLabels.includes('yeni_fatura_urunu') ? 1 : 0;
     
     if (aIsNewLabel && !bIsNewLabel) return -1;
     if (!aIsNewLabel && bIsNewLabel) return 1;
@@ -337,7 +359,7 @@ const ProductsTab = ({
     if (aIsRecent && !bIsRecent) return -1;
     if (!aIsRecent && bIsRecent) return 1;
 
-    return b.id - a.id;
+    return (Number(b.id) || 0) - (Number(a.id) || 0);
   });
   
   const paginatedProducts = filteredProducts.slice(
@@ -469,9 +491,9 @@ const ProductsTab = ({
                       <Plus className="h-4.5 w-4.5" />
                     </button>
                     <button 
-                      onClick={() => onBulkRename?.(products.map(p => ({ id: p.id, name: p.name })))} // Placeholder for bulk rename
+                      onClick={() => onReformatNames?.()}
                       className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95"
-                      title={lang === 'tr' ? "Ürün İsimlerini Revize Et" : "Revise Product Names"}
+                      title={lang === 'tr' ? "Ürün İsimlerini Revize Et (Yapay Zeka)" : "Revise Product Names (AI)"}
                     >
                       <Edit2 className="h-4.5 w-4.5" />
                     </button>
@@ -678,7 +700,7 @@ const ProductsTab = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {loading ? (
+              {(loading && products.length === 0) ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-20 text-center">
                     <div className="animate-spin h-10 w-10 border-4 border-slate-900 border-t-transparent rounded-full mx-auto mb-5 shadow-2xl shadow-slate-200"></div>
@@ -855,18 +877,41 @@ const ProductsTab = ({
                     <td className="px-6 py-4">
                       {p.product_type === 'service' ? (
                         <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-2 py-1.5 rounded-xl uppercase tracking-widest leading-none">{lang === 'tr' ? 'DİJİTAL / HİZMET' : 'VIRTUAL / SERVICE'}</span>
-                      ) : (
-                        <div className="flex items-center space-x-3">
-                          <span className={`text-[15px] font-black mono-data ${Number(p.stock_quantity) <= Number(p.min_stock_level) ? 'text-rose-600' : 'text-slate-900'}`}>
-                            {Math.floor(Number(p.stock_quantity))}
-                          </span>
-                          {Number(p.stock_quantity) <= Number(p.min_stock_level) && (
-                            <div className="flex items-center px-2 py-1 bg-rose-50 text-[8px] font-black text-rose-600 border border-rose-100 rounded-lg uppercase tracking-[0.15em] animate-pulse">
-                              {lang === 'tr' ? 'DÜŞÜK STOK' : 'LOW STOCK'}
+                      ) : (() => {
+                        let vars: any[] = [];
+                        if (p.variants) {
+                          if (typeof p.variants === 'string') {
+                            try { vars = JSON.parse(p.variants); } catch (e) { vars = []; }
+                          } else if (Array.isArray(p.variants)) {
+                            vars = p.variants;
+                          }
+                        }
+                        const hasVariants = vars.length > 0;
+                        const effectiveStock = hasVariants 
+                          ? vars.reduce((sum, v) => sum + (Number(v.stock_quantity) || Number(v.stock) || 0), 0)
+                          : Number(p.stock_quantity) || 0;
+                        const isLowStock = effectiveStock <= Number(p.min_stock_level || 0);
+
+                        return (
+                          <div className="flex flex-col">
+                            <div className="flex items-center space-x-3">
+                              <span className={`text-[15px] font-black mono-data ${isLowStock ? 'text-rose-600' : 'text-slate-900'}`}>
+                                {Math.floor(effectiveStock)}
+                              </span>
+                              {isLowStock && (
+                                <div className="flex items-center px-2 py-1 bg-rose-50 text-[8px] font-black text-rose-600 border border-rose-100 rounded-lg uppercase tracking-[0.15em] animate-pulse">
+                                  {lang === 'tr' ? 'DÜŞÜK STOK' : 'LOW STOCK'}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      )}
+                            {hasVariants && (
+                              <span className="text-[9px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-md mt-1 inline-block w-fit">
+                                {vars.length} {lang === 'tr' ? 'Varyant' : 'Variants'}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-right">
                       {!isViewer && (

@@ -30,9 +30,44 @@ router.get("/stats", async (req: any, res) => {
   });
 });
 
+// SuperAdmin: Integrator Configs
+router.get("/integrator-configs", async (req, res) => {
+  const configs = (await pool.query("SELECT * FROM integrator_configs")).rows;
+  res.json({ data: configs });
+});
+
+router.post("/integrator-configs", async (req, res) => {
+  const { id, marketplace, env, client_id, client_secret, config } = req.body;
+  
+  // ZORUNLU ALAN KONTROLÜ
+  if (!marketplace || !client_id || !client_secret || !config?.api_secret) {
+    return res.status(400).json({ error: "Eksik parametre! Merchant ID, API Key ve API Secret zorunludur." });
+  }
+
+  if (id) {
+    await pool.query(
+      "UPDATE integrator_configs SET marketplace=$1, env=$2, client_id=$3, client_secret=$4, config=$5, updated_at=CURRENT_TIMESTAMP WHERE id=$6",
+      [marketplace, env, client_id, client_secret, config, id]
+    );
+  } else {
+    await pool.query(
+      "INSERT INTO integrator_configs (marketplace, env, client_id, client_secret, config) VALUES ($1, $2, $3, $4, $5)",
+      [marketplace, env, client_id, client_secret, config]
+    );
+  }
+  res.json({ success: true });
+});
+
 // SuperAdmin: Supabase & Database Quota & Health Status
+let cachedSupabaseStatus: any = null;
+let cachedSupabaseStatusTime = 0;
+
 router.get("/supabase-status", async (req: any, res) => {
   try {
+    if (cachedSupabaseStatus && Date.now() - cachedSupabaseStatusTime < 5 * 60 * 1000) {
+      return res.json(cachedSupabaseStatus);
+    }
+
     // 1. Get DB Size from PostgreSQL
     let dbSizeBytes = 0;
     try {
@@ -86,7 +121,7 @@ router.get("/supabase-status", async (req: any, res) => {
       overallStatus = "warning";
     }
 
-    res.json({
+    cachedSupabaseStatus = {
       success: true,
       overallStatus,
       database: {
@@ -107,7 +142,10 @@ router.get("/supabase-status", async (req: any, res) => {
         description: "Görsel istekleri /api/storage/* CDN önbelleği üzerinden sunularak Supabase bant genişliği (egress) kotalarından tasarruf sağlar."
       },
       checkedAt: new Date().toISOString()
-    });
+    };
+    cachedSupabaseStatusTime = Date.now();
+
+    res.json(cachedSupabaseStatus);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

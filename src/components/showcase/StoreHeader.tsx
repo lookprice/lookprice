@@ -88,32 +88,31 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
               <img 
                 src={store.logo_url}
                 alt={displayName}
-                className="h-8 md:h-10 w-auto object-contain group-hover:scale-105 transition-transform"
+                className="h-8 md:h-10 w-auto object-contain"
                 referrerPolicy="no-referrer"
               />
             ) : (
               <div
-                className="h-9 w-9 md:h-11 md:w-11 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform"
+                className="h-9 w-9 md:h-11 md:w-11 rounded-xl flex items-center justify-center text-white"
                 style={{
                   backgroundColor: primaryColor,
-                  boxShadow: `0 10px 25px -5px ${primaryColor}40`,
                 }}
               >
                 <StoreIcon className="w-5 h-5 md:w-6 md:h-6" />
               </div>
             )}
-            <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight hidden sm:block">
+            <h1 className="text-lg font-semibold text-slate-950 tracking-tight hidden sm:block">
               {displayName}
             </h1>
           </div>
 
           {/* Menu Links */}
-          <div className="hidden lg:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-6">
             {(store?.menu_links || []).map((link: any, index: number) => (
               <a
                 key={index}
                 href={link.url}
-                className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-gray-900 after:transition-all hover:after:w-full"
+                className="text-sm font-medium text-slate-600 hover:text-slate-950 transition-colors"
                 style={{ color: link.active ? primaryColor : undefined }}
               >
                 {link.label}
@@ -122,7 +121,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
             {store?.blog_posts && store.blog_posts.length > 0 && (
               <button
                 onClick={() => setShowBlog(true)}
-                className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-gray-900 after:transition-all hover:after:w-full"
+                className="text-sm font-medium text-slate-600 hover:text-slate-950 transition-colors"
               >
                 {lang === "tr" ? "Blog" : "Blog"}
               </button>
@@ -130,14 +129,13 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
           </div>
 
           <div className="flex-1 max-w-sm relative hidden md:block">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
               type="text"
               placeholder={t.dashboard.searchProducts}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-2 bg-gray-50/50 border border-gray-200/50 focus:bg-white focus:ring-2 focus:border-transparent rounded-full transition-all outline-none text-sm font-medium"
-              style={{ '--tw-ring-color': primaryColor } as any}
+              className="w-full pl-11 pr-4 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:ring-1 focus:ring-slate-300 rounded-full transition-all outline-none text-sm font-medium"
             />
           </div>
 

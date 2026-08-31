@@ -17,6 +17,22 @@ export interface ProductVariantItem {
   ingredient_unit: string;
 }
 
+export type VariantBehaviorType = 'standard' | 'price_only' | 'addon_option';
+
+export interface VariantAttributeValue {
+  label: string;
+  value: string;
+  color_code?: string;
+  image_url?: string;
+}
+
+export interface VariantAttributeDef {
+  id: string;
+  name: string;
+  display_type?: 'swatch' | 'button' | 'dropdown';
+  values: string[];
+}
+
 export interface ProductVariant {
   id: string;
   name: string;
@@ -25,10 +41,16 @@ export interface ProductVariant {
   barcode?: string;
   sku?: string;
   stock_quantity?: number | string;
+  min_stock_level?: number | string;
+  weight_kg?: number | string;
   color_name?: string;
   color_code?: string;
   size?: string;
   image_url?: string;
+  attributes?: Record<string, string>; // Dynamic EAV: { "Renk": "Kırmızı", "Beden": "M", "Hafıza": "256GB", ... }
+  variant_type?: VariantBehaviorType;
+  item_group_id?: string; // Parent SKU or Group ID for Google Merchant & ERP feeds
+  is_active?: boolean;
   recipe_items?: ProductVariantItem[];
 }
 
@@ -50,6 +72,7 @@ export interface Product {
   recipe_items?: any[];
   tax_rate: number;
   image_url: string;
+  images?: string[] | string;
   category: string;
   sub_category?: string;
   category_2?: string;
@@ -157,6 +180,8 @@ export interface Store {
   };
   page_layout?: any[];
   page_layout_full?: any;
+  branding?: any;
+  theme_config?: any;
   page_layout_settings?: {
     show_announcement?: boolean;
     show_stories?: boolean;

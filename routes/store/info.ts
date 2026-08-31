@@ -70,10 +70,15 @@ router.get("/", async (req: any, res) => {
       const psFromBr = store.branding.payment_settings || {};
       const msFromCol = store.meta_settings || {};
       const msFromBr = store.branding.meta_settings || {};
+      const esFromCol = store.einvoice_settings || {};
+      const esFromBr = store.branding.einvoice_settings || {};
+
       Object.assign(store, store.branding);
       store.payment_settings = { ...psFromCol, ...psFromBr };
       store.meta_settings = { ...msFromCol, ...msFromBr };
+      store.einvoice_settings = { ...esFromCol, ...esFromBr };
       store.branding.meta_settings = store.meta_settings;
+      store.branding.einvoice_settings = store.einvoice_settings;
     }
 
     // Fetch branches if this is a main store

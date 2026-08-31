@@ -68,8 +68,14 @@ This file outlines strict engineering, performance, and naming directives that m
 ## 6. Core Financial & Integration Stability (e-Fatura / e-Arşiv)
 
 - **High-Risk Module Designation**:
-  - Files `/routes/einvoice.ts`, `/src/services/backend/mysoftService.ts`, and related invoice processing logic are designated as **CRITICAL FINANCIAL MODULES**. Any modification here is considered HIGH-RISK.
+  - Files `/routes/einvoice.ts`, `/src/services/backend/mysoftService.ts`, `/src/services/backend/gibSyncCron.ts` and related invoice processing logic are designated as **CRITICAL FINANCIAL MODULES**. Any modification here is considered HIGH-RISK.
   - Development agents must exercise extreme caution. **Refactoring is strictly forbidden** without an explicit, verifiable test plan that mimics production API responses for each invoice type (Purchase, Sales, E-Archive).
+
+- **GİB & Mükellef Etiket (Alias) Canlılık ve Dayanıklılık Kuralı (Zero-Stale Alias Protocol)**:
+  - GİB e-Fatura / e-İrsaliye sistemi yaşayan, mükelleflerin posta kutusu etiketlerinin (`pkAlias`) zamanla güncellenebildiği dinamik bir ekosistemdir.
+  - `official_taxpayer_cache` önbelleğinde bir mükellefin `alias` değeri `NULL`, boş (`""`) veya varsayılan `urn:mail:defaultpk` ise bu önbellek verisi ASLA güvenilir kabul edilmemeli, **anında MySoft API (`checkTaxpayer`) üzerinden canlı GİB sorgusu yapılarak** güncel posta kutusu çekilmeli ve önbellek güncellenmelidir.
+  - Fatura UBL paketinde alıcı posta kutusu adresi (`pkAlias`) ile satıcı/gönderici adresi (`gbAlias`, `senderAlias`) kesinlikle birbirine karıştırılmamalı, satıcının kendi posta kutusu alıcıya atanmamalıdır.
+  - **Arka Plan Cron Senkronizasyonu (`/src/services/backend/gibSyncCron.ts`)**: Sunucu arka planda periyodik olarak (her 30 dakikada bir) eski/geçersiz önbellek kayıtlarını onarmalı ve kuyrukta bekleyen faturaların GİB kabul/red durumlarını MySoft üzerinden tazelemelidir.
 
 - **Defensive Integration Policy**:
   - All external API integrations (e.g., HTML invoice retrieval) **MUST** implement robust defensive programming.
@@ -77,7 +83,7 @@ This file outlines strict engineering, performance, and naming directives that m
   - Logging **MUST** be verbose for HTML retrieval steps to allow immediate debugging in production without code modification.
 
 - **Mandatory Regression Verification**:
-  - Any change, no matter how small, affecting these modules **MUST** be verified by the developer agent by triggering the affected functionality (e.g., attempting to fetch a known invoice HTML) immediately after the change, before completing the turn. 
+  - Any change, no matter how small, affecting these modules **MUST** be verified by the developer agent by triggering the affected functionality (e.g., attempting to fetch a known invoice HTML or taxpayer check) immediately after the change, before completing the turn. 
   - If integration tests fail, the change MUST be rolled back immediately.
 
 ---
@@ -125,5 +131,24 @@ This file outlines strict engineering, performance, and naming directives that m
     - **POST**: Execute the manual test path to verify no regression.
 - **Mandatory Reporting**: Every turn summary MUST explicitly state: "Regression check for [Module Name] passed."
 - **Failure Policy**: If regression tests fail post-change, the modification MUST be immediately rolled back.
+
+---
+
+## 10. TCMB Döviz Kurları ve Çapraz Kur (Forex Buying / Önceki İş Günü) Kuralı
+
+- **Döviz Alış (ForexBuying) Esası**:
+  - Faturalarda, cari hesaplarda ve çapraz kur hesaplamalarında TCMB tarafından deklare edilen **"Döviz Alış" (`ForexBuying`)** kuru kesin kural olarak esas alınmalıdır. Satış veya efektif kurları fatura değerlemesinde kullanılmamalıdır.
+- **Önceki İş Günü / Tatil Günü Kuralı**:
+  - TCMB kurları her iş günü öğleden sonra (~15:30 - 16:00) açıklanır. Örneğin 24.08.2026 Pazartesi günü için geçerli olan kur, bir önceki iş günü olan 21.08.2026 Cuma tarihli TCMB bülteninde yayınlanan kurlardır. Hafta sonu ve resmi tatillerde de bir önceki son iş gününün kurları geçerlidir.
+- **Otomatik Güncelleme (Cron) Garantisi**:
+  - Mağazaların `Ayarlar > Mağaza ayarları > Para Birimi & Dil Yerelleştirme Ayarları` altında yer alan `currency_rates` alanları, arka plandaki cron job (`syncTCMBRates`) vasıtasıyla düzenli olarak TCMB `today.xml` verisinden güncellenmeli, her mağazanın ana para birimine (TRY vb.) göre çapraz kurlar güncel ve doğru tarihli tutulmalıdır.
+
+---
+
+## 11. Renk Kontrastı ve Zıtlık Standardı (Koyu/Açık Arka Plan Kuralı)
+
+- **Zıtlık ve Okunabilirlik Kuralı**:
+  - Herhangi bir bileşen, modal başlığı, kart veya panelde **koyu renk bir arka plan** (`bg-slate-900`, `bg-slate-950`, `bg-blue-900`, vb.) tercih ediliyorsa, üzerindeki tüm yazılar, rakamlar ve ikonlar muhakkak **ters renk, yani açık renk (`text-white`, `text-slate-100`, `text-slate-200`)** olarak set edilmelidir. Hem arka planın hem de metin renginin koyu olması durumunda metinler okunmaz hale gelir (Kritik UI hatası).
+  - Benzer şekilde, **açık renk bir arka plan** (`bg-white`, `bg-slate-50`, vb.) üzerinde de yazıların ve rakamların **koyu renkli (`text-slate-900`, `text-slate-950`)** seçilmesi şarttır.
 
 

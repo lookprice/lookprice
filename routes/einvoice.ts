@@ -33,13 +33,23 @@ const router = express.Router();
 // Get the E-Invoice service instance based on Store Settings
 export const getEInvoiceService = async (storeId: number) => {
   console.log(`[getEInvoiceService] Fetching settings for storeId: ${storeId}`);
-  const storeRes = await pool.query("SELECT einvoice_settings FROM stores WHERE id = $1", [storeId]);
+  const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
   if (storeRes.rows.length === 0) {
     console.error(`[getEInvoiceService] Store not found: ${storeId}`);
     throw new Error("Mağaza bulunamadı");
   }
   
-  const settings = storeRes.rows[0].einvoice_settings;
+  let settings = storeRes.rows[0].einvoice_settings || {};
+  if (typeof settings === 'string') {
+    try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+  }
+  let branding = storeRes.rows[0].branding || {};
+  if (typeof branding === 'string') {
+    try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+  }
+  const brandingSettings = branding.einvoice_settings || {};
+  settings = { ...brandingSettings, ...settings };
+  
   console.log(`[getEInvoiceService] Settings found:`, settings ? JSON.stringify(settings).substring(0, 50) + "..." : 'No');
   if (!settings || !settings.is_active) {
     throw new Error("E-Fatura sistemi bu mağaza için aktif değil");
@@ -52,6 +62,150 @@ export const getEInvoiceService = async (storeId: number) => {
   }
 };
 
+// Helper to get series status with last used number and next sequence for each prefix
+export const getSeriesStatusList = async (storeId: number) => {
+  const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+  if (storeRes.rows.length === 0) return [];
+  
+  let settings = storeRes.rows[0].einvoice_settings || {};
+  if (typeof settings === 'string') {
+    try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+  }
+  let branding = storeRes.rows[0].branding || {};
+  if (typeof branding === 'string') {
+    try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+  }
+  const merged = { ...(branding.einvoice_settings || {}), ...settings };
+  
+  let seriesList = merged.series_list;
+  if (!Array.isArray(seriesList) || seriesList.length === 0) {
+    const efPrefix = (merged.einvoice_prefix || 'GEF').toUpperCase().substring(0, 3);
+    const eaPrefix = (merged.earchive_prefix || 'GEA').toUpperCase().substring(0, 3);
+    seriesList = [
+      { id: 'series_ef_default', prefix: efPrefix, type: 'E-FATURA', description: 'Ana E-Fatura Serisi', is_default: true },
+      { id: 'series_ea_default', prefix: eaPrefix, type: 'E-ARSIV', description: 'Ana E-Arşiv Serisi', is_default: true }
+    ];
+  }
+
+  const currentYear = new Date().getFullYear().toString();
+  const results = [];
+
+  for (const s of seriesList) {
+    const cleanPrefix = (s.prefix || 'GAP').toUpperCase().substring(0, 3).padEnd(3, 'X');
+    const prefixWithYear = `${cleanPrefix}${currentYear}`;
+
+    const seqRes = await pool.query(
+      `SELECT COALESCE(document_number, invoice_number) as doc_num 
+       FROM sales_invoices 
+       WHERE store_id = $1 
+         AND (document_number LIKE $2 OR invoice_number LIKE $2) 
+         AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16)
+       ORDER BY COALESCE(document_number, invoice_number) DESC 
+       LIMIT 1`,
+      [storeId, `${prefixWithYear}%`]
+    );
+
+    let lastDocNum = null;
+    let nextSeq = 1;
+    if (seqRes.rows.length > 0) {
+      lastDocNum = seqRes.rows[0].doc_num;
+      const lastSeqPart = lastDocNum.substring(7);
+      const parsed = parseInt(lastSeqPart, 10);
+      if (!isNaN(parsed)) {
+        nextSeq = parsed + 1;
+      }
+    }
+
+    const nextDocNum = `${prefixWithYear}${nextSeq.toString().padStart(9, '0')}`;
+
+    results.push({
+      id: s.id || `series_${cleanPrefix}_${s.type}`,
+      prefix: cleanPrefix,
+      type: s.type || 'E-FATURA',
+      description: s.description || `${cleanPrefix} Serisi`,
+      is_default: !!s.is_default,
+      year: currentYear,
+      last_document_number: lastDocNum,
+      next_sequence: nextSeq,
+      next_document_number: nextDocNum
+    });
+  }
+
+  return results;
+};
+
+// 0. GET Invoice Series Status
+router.get("/einvoice/series", authenticate, async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+    const series = await getSeriesStatusList(storeId);
+    res.json(series);
+  } catch (error: any) {
+    console.error("Error fetching invoice series status:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 0.1 POST Invoice Series (Save/Add/Update Series)
+router.post("/einvoice/series", authenticate, async (req: any, res) => {
+  try {
+    const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+    const { series_list } = req.body;
+    if (!Array.isArray(series_list)) {
+      return res.status(400).json({ error: "series_list bir dizi olmalıdır" });
+    }
+
+    // Fetch existing settings
+    const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let settings = storeRes.rows[0].einvoice_settings || {};
+    if (typeof settings === 'string') {
+      try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+    }
+    let branding = storeRes.rows[0].branding || {};
+    if (typeof branding === 'string') {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+    }
+
+    // Sanitize series list
+    const sanitizedList = series_list.map((s: any, idx: number) => {
+      const cleanPrefix = (s.prefix || 'GAP').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 3).padEnd(3, 'X');
+      return {
+        id: s.id || `series_${cleanPrefix}_${Date.now()}_${idx}`,
+        prefix: cleanPrefix,
+        type: s.type === 'E-ARSIV' ? 'E-ARSIV' : 'E-FATURA',
+        description: s.description || `${cleanPrefix} Serisi`,
+        is_default: !!s.is_default
+      };
+    });
+
+    // Determine active defaults for einvoice_prefix and earchive_prefix
+    const defaultEF = sanitizedList.find(s => s.is_default && s.type === 'E-FATURA') || sanitizedList.find(s => s.type === 'E-FATURA');
+    const defaultEA = sanitizedList.find(s => s.is_default && s.type === 'E-ARSIV') || sanitizedList.find(s => s.type === 'E-ARSIV');
+
+    settings.series_list = sanitizedList;
+    if (defaultEF) settings.einvoice_prefix = defaultEF.prefix;
+    if (defaultEA) settings.earchive_prefix = defaultEA.prefix;
+
+    if (!branding.einvoice_settings) branding.einvoice_settings = {};
+    branding.einvoice_settings.series_list = sanitizedList;
+    if (defaultEF) branding.einvoice_settings.einvoice_prefix = defaultEF.prefix;
+    if (defaultEA) branding.einvoice_settings.earchive_prefix = defaultEA.prefix;
+
+    await pool.query(
+      "UPDATE stores SET einvoice_settings = $1, branding = $2 WHERE id = $3",
+      [JSON.stringify(settings), JSON.stringify(branding), storeId]
+    );
+
+    const updatedSeries = await getSeriesStatusList(storeId);
+    res.json({ success: true, series: updatedSeries, einvoice_prefix: settings.einvoice_prefix, earchive_prefix: settings.earchive_prefix });
+  } catch (error: any) {
+    console.error("Error saving invoice series:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 1. Check Taxpayer endpoint
 router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
   try {
@@ -62,12 +216,12 @@ router.post("/einvoice/check-taxpayer", authenticate, async (req: any, res) => {
 
     const service = await getEInvoiceService(storeId);
     
-    // Check official taxpayer cache first
+    // Check official taxpayer cache first (ensure alias is valid and not null)
     const cacheRes = await pool.query("SELECT taxpayer_title, alias FROM official_taxpayer_cache WHERE vkn = $1", [vknTckn]);
     
     let result;
-    if (cacheRes.rows.length > 0) {
-      console.log(`[checkTaxpayer] VKN ${vknTckn} found in official cache.`);
+    if (cacheRes.rows.length > 0 && cacheRes.rows[0].alias && cacheRes.rows[0].alias.trim() !== '') {
+      console.log(`[checkTaxpayer] VKN ${vknTckn} found in official cache with valid alias.`);
       result = { isTaxpayer: true, documentType: 'E-FATURA', title: cacheRes.rows[0].taxpayer_title, alias: cacheRes.rows[0].alias };
     } else {
       result = await service.checkTaxpayer(vknTckn);
@@ -150,23 +304,22 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     let docType = invoice.e_document_type || 'E-ARSIV';
     let pkAlias = '';
     
-    // Fetch Store and Company settings to use for UBL Generation (need this for receiver_alias / mailboxes)
+    // Fetch Store settings for sender parameters
     const storeRes = await pool.query("SELECT einvoice_settings, branding FROM stores WHERE id = $1", [storeId]);
     if (storeRes.rows.length === 0) throw new Error("Mağaza ayarları bulunamadı.");
     const row = storeRes.rows[0] || {};
     const settings = row.einvoice_settings || {};
     const branding = row.branding || {};
-    pkAlias = settings.receiver_alias || '';
 
     try {
       console.log(`[INVOICE-SEND] Querying registry for buyer VKN/TCKN: ${taxNumber}`);
       
-      // Check official taxpayer cache first
+      // Check official taxpayer cache first (require non-empty alias)
       const cacheRes = await pool.query("SELECT taxpayer_title, alias FROM official_taxpayer_cache WHERE vkn = $1", [taxNumber]);
       
       let taxpayerCheck;
-      if (cacheRes.rows.length > 0) {
-        console.log(`[checkTaxpayer (send)] VKN ${taxNumber} found in official cache.`);
+      if (cacheRes.rows.length > 0 && cacheRes.rows[0].alias && cacheRes.rows[0].alias.trim() !== '') {
+        console.log(`[checkTaxpayer (send)] VKN ${taxNumber} found in official cache with valid alias.`);
         taxpayerCheck = { isTaxpayer: true, documentType: 'E-FATURA', title: cacheRes.rows[0].taxpayer_title, alias: cacheRes.rows[0].alias };
       } else {
         taxpayerCheck = await service.checkTaxpayer(taxNumber);
@@ -175,14 +328,22 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         }
       }
       
-      if (taxpayerCheck.isTaxpayer) {
+      if (taxpayerCheck && taxpayerCheck.isTaxpayer) {
         docType = 'E-FATURA';
-        if (taxpayerCheck.alias) {
+        if (taxpayerCheck.alias && taxpayerCheck.alias.trim() !== '') {
           pkAlias = taxpayerCheck.alias;
           console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User! Correcting docType to E-FATURA and using alias: ${pkAlias}`);
         } else {
-          pkAlias = pkAlias || '';
-          console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User. No specific alias returned, letting MySoft auto-resolve.`);
+          // If taxpayer is registered but cache had no alias, do a fresh live lookup
+          const liveCheck = await service.checkTaxpayer(taxNumber);
+          if (liveCheck && liveCheck.alias) {
+            pkAlias = liveCheck.alias;
+            await pool.query("UPDATE official_taxpayer_cache SET alias = $1, last_updated = NOW() WHERE vkn = $2", [pkAlias, taxNumber]);
+            console.log(`[INVOICE-SEND] Fresh GİB lookup found alias: ${pkAlias}`);
+          } else {
+            pkAlias = '';
+            console.log(`[INVOICE-SEND] GİB Check: Registered e-Invoice User. No specific alias returned.`);
+          }
         }
       } else {
         docType = 'E-ARSIV';
@@ -193,8 +354,23 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       docType = invoice.e_document_type || 'E-ARSIV';
     }
 
-    if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "")) {
-      pkAlias = 'urn:mail:defaultpk'; // Fallback to standard GİB default mailbox to prevent empty tag validation error
+    if (docType === 'E-FATURA' && (!pkAlias || pkAlias.trim() === "" || pkAlias === 'urn:mail:defaultpk')) {
+       // Attempt one last direct lookup before rejecting
+       try {
+         const finalCheck = await service.checkTaxpayer(taxNumber);
+         if (finalCheck && finalCheck.alias) {
+           pkAlias = finalCheck.alias;
+           await pool.query("UPDATE official_taxpayer_cache SET alias = $1, taxpayer_title = $2, last_updated = NOW() WHERE vkn = $3", [pkAlias, finalCheck.title || '', taxNumber]);
+         }
+       } catch (e) {
+         console.warn("[INVOICE-SEND] Final fallback alias lookup failed:", e);
+       }
+
+       if (!pkAlias || pkAlias.trim() === "" || pkAlias === 'urn:mail:defaultpk') {
+         return res.status(400).json({ 
+           error: `Bu mükellef (${invoice.company_title || invoice.customer_name || taxNumber}) E-Fatura kullanıcısı olarak görünüyor ancak GİB kayıtlarında aktif bir 'Etiket' (Posta Kutusu / Alias) adresi bulunamadı. (VKN: ${taxNumber})` 
+         });
+       }
     }
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
@@ -254,11 +430,32 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     let documentNumber = invoice.document_number;
     ettn = invoice.ettn;
     
-    // Determine expected prefix based on CORRECTED docType
-    const expectedPrefix = docType === 'E-FATURA' ? (settings.einvoice_prefix || 'GAP') : (settings.earchive_prefix || 'GEA');
+    // Determine expected prefix based on CORRECTED docType and defined series
+    const seriesList: any[] = Array.isArray(settings.series_list) ? settings.series_list : [];
+    const requestedPrefix = (req.body?.prefix || invoice.prefix || '').toUpperCase().substring(0, 3);
+    const existingDocPrefix = (documentNumber || '').toUpperCase().substring(0, 3);
+    const existingInvPrefix = (invoice.invoice_number || '').toUpperCase().substring(0, 3);
+
+    let expectedPrefix = '';
+    const matchingSeries = seriesList.find((s: any) => 
+      s.prefix && (s.prefix.toUpperCase() === requestedPrefix || s.prefix.toUpperCase() === existingDocPrefix || s.prefix.toUpperCase() === existingInvPrefix) &&
+      (s.type === docType || s.type === 'ALL')
+    );
+
+    if (matchingSeries) {
+      expectedPrefix = matchingSeries.prefix.toUpperCase();
+    } else {
+      const defaultSeries = seriesList.find((s: any) => s.is_default && (s.type === docType || s.type === 'ALL'));
+      if (defaultSeries && defaultSeries.prefix) {
+        expectedPrefix = defaultSeries.prefix.toUpperCase();
+      } else {
+        expectedPrefix = docType === 'E-FATURA' ? (settings.einvoice_prefix || 'GEF') : (settings.earchive_prefix || 'GEA');
+      }
+    }
+    expectedPrefix = expectedPrefix.substring(0, 3).padEnd(3, 'X');
     const actualPrefix = documentNumber ? documentNumber.substring(0, 3) : '';
     
-    // If the docType changed, we MUST regenerate the invoice number to keep sequences matching!
+    // If the docType changed or prefix doesn't match the designated series, regenerate document number!
     const docTypeMismatch = invoice.e_document_type && invoice.e_document_type !== docType;
     const isIncorrectPrefix = actualPrefix && actualPrefix.toUpperCase() !== expectedPrefix.toUpperCase();
     
@@ -270,19 +467,25 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       try {
         await client.query("BEGIN");
         
-        // Regenerate doc number
+        // Regenerate doc number using prefix with invoice date year
         let prefix = expectedPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
-        const currentYear = new Date().getFullYear().toString();
+        const currentYear = (invoice.invoice_date ? new Date(invoice.invoice_date).getFullYear() : new Date().getFullYear()).toString();
         const prefixWithYear = `${prefix}${currentYear}`;
         
         const seqRes = await client.query(
-           "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 AND LENGTH(document_number) = 16 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+           `SELECT COALESCE(document_number, invoice_number) as doc_num 
+            FROM sales_invoices 
+            WHERE store_id = $1 
+              AND (document_number LIKE $2 OR invoice_number LIKE $2) 
+              AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16) 
+            ORDER BY COALESCE(document_number, invoice_number) DESC 
+            LIMIT 1 FOR UPDATE`,
            [storeId, `${prefixWithYear}%`]
         );
         
         let nextSequenceNumber = 1;
         if (seqRes.rows.length > 0) {
-            const lastDocNum = seqRes.rows[0].document_number;
+            const lastDocNum = seqRes.rows[0].doc_num;
             const lastSequencePart = lastDocNum.substring(7);
             const parsedSeq = parseInt(lastSequencePart, 10);
             if (!isNaN(parsedSeq)) {
@@ -345,8 +548,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     // Improved Address handling for GİB/MySoft
     let cityName = "İSTANBUL";
     let districtName = "MERKEZ";
-    if (address) {
-       const cleanAddr = address.replace(/, Türkiye/gi, '').replace(/,Turkey/gi, '').trim();
+    let cleanAddress = (address || "").replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
+    if (cleanAddress) {
+       const cleanAddr = cleanAddress.replace(/, Türkiye/gi, '').replace(/,Turkey/gi, '').trim();
        const parts = cleanAddr.split(/[,/]+/).map(p => p.trim()).filter(Boolean);
        if (parts.length >= 2) {
           cityName = parts[parts.length - 1].toUpperCase().substring(0, 30);
@@ -487,6 +691,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        tenantIdentifierNumber: storeTaxNumber,
        
        pkAlias: docType === 'E-FATURA' ? pkAlias : undefined,
+       gbAlias: settings.sender_alias || undefined,
+       senderAlias: settings.sender_alias || undefined,
        
        // Handle Billing Reference for Return (IADE) Invoices (Mandatory UBL fields)
        ...(giInvoiceType === 'IADE' && invoice.return_invoice_number ? (() => {
@@ -671,7 +877,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           countryName: "Türkiye",
           cityName: cityName || "İSTANBUL",
           citySubdivision: districtName || "MERKEZ",
-          streetName: (address || "Girilmemiş Adres").substring(0, 250)
+          streetName: (cleanAddress || "Girilmemiş Adres").substring(0, 250)
        },
 
        tax: [{
@@ -741,22 +947,29 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         docType = 'E-FATURA';
         pkAlias = 'urn:mail:defaultpk';
         
-        const expectedPrefix = settings.einvoice_prefix || 'GAP';
+        const defaultEF = seriesList.find((s: any) => s.is_default && s.type === 'E-FATURA');
+        const expectedPrefix = defaultEF?.prefix || settings.einvoice_prefix || 'GEF';
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
           let prefix = expectedPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
-          const currentYear = new Date().getFullYear().toString();
+          const currentYear = (invoice.invoice_date ? new Date(invoice.invoice_date).getFullYear() : new Date().getFullYear()).toString();
           const prefixWithYear = `${prefix}${currentYear}`;
           
           const seqRes = await client.query(
-             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 AND LENGTH(document_number) = 16 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+             `SELECT COALESCE(document_number, invoice_number) as doc_num 
+              FROM sales_invoices 
+              WHERE store_id = $1 
+                AND (document_number LIKE $2 OR invoice_number LIKE $2) 
+                AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16) 
+              ORDER BY COALESCE(document_number, invoice_number) DESC 
+              LIMIT 1 FOR UPDATE`,
              [storeId, `${prefixWithYear}%`]
           );
           
           let nextSequenceNumber = 1;
           if (seqRes.rows.length > 0) {
-              const lastDocNum = seqRes.rows[0].document_number;
+              const lastDocNum = seqRes.rows[0].doc_num;
               const lastSequencePart = lastDocNum.substring(7);
               const parsedSeq = parseInt(lastSequencePart, 10);
               if (!isNaN(parsedSeq)) {
@@ -798,22 +1011,29 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         docType = 'E-ARSIV';
         pkAlias = '';
 
-        const expectedPrefix = settings.earchive_prefix || 'GEA';
+        const defaultEA = seriesList.find((s: any) => s.is_default && s.type === 'E-ARSIV');
+        const expectedPrefix = defaultEA?.prefix || settings.earchive_prefix || 'GEA';
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
           let prefix = expectedPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
-          const currentYear = new Date().getFullYear().toString();
+          const currentYear = (invoice.invoice_date ? new Date(invoice.invoice_date).getFullYear() : new Date().getFullYear()).toString();
           const prefixWithYear = `${prefix}${currentYear}`;
 
           const seqRes = await client.query(
-             "SELECT document_number FROM sales_invoices WHERE store_id = $1 AND document_number LIKE $2 AND LENGTH(document_number) = 16 ORDER BY document_number DESC LIMIT 1 FOR UPDATE",
+             `SELECT COALESCE(document_number, invoice_number) as doc_num 
+              FROM sales_invoices 
+              WHERE store_id = $1 
+                AND (document_number LIKE $2 OR invoice_number LIKE $2) 
+                AND (LENGTH(document_number) = 16 OR LENGTH(invoice_number) = 16) 
+              ORDER BY COALESCE(document_number, invoice_number) DESC 
+              LIMIT 1 FOR UPDATE`,
              [storeId, `${prefixWithYear}%`]
           );
 
           let nextSequenceNumber = 1;
           if (seqRes.rows.length > 0) {
-              const lastDocNum = seqRes.rows[0].document_number;
+              const lastDocNum = seqRes.rows[0].doc_num;
               const lastSequencePart = lastDocNum.substring(7);
               const parsedSeq = parseInt(lastSequencePart, 10);
               if (!isNaN(parsedSeq)) {

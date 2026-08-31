@@ -565,6 +565,7 @@ const SettingsTab = ({
         <SettingsLayoutTab 
           branding={branding} 
           onBrandingChange={onBrandingChange} 
+          storeSlug={branding?.slug}
         />
       )}
 

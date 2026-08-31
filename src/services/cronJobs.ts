@@ -43,6 +43,9 @@ export async function syncTCMBRates() {
           return resolve();
         }
 
+        const tcmbDate = result?.Tarih_Date?.['$']?.Tarih;
+        console.log(`[CRON] TCMB exchange rates date from XML: ${tcmbDate || 'Unknown'}`);
+
         const currencies = result?.Tarih_Date?.Currency;
         if (!currencies || !Array.isArray(currencies)) {
           console.error("[CRON] TCMB sync failed: Invalid XML structure.");
@@ -53,7 +56,8 @@ export async function syncTCMBRates() {
         for (const c of currencies) {
           const code = c['$']?.CurrencyCode || c['$']?.Kod;
           if (['USD', 'EUR', 'GBP'].includes(code)) {
-            const rateStr = (c.BanknoteSelling && c.BanknoteSelling[0]) || (c.ForexSelling && c.ForexSelling[0]);
+            // Kara Kaplı Kitap Kuralı: Çapraz kurlar ve faturalandırma için Döviz Alış (ForexBuying) esastır.
+            const rateStr = (c.ForexBuying && c.ForexBuying[0]) || (c.ForexSelling && c.ForexSelling[0]) || (c.BanknoteSelling && c.BanknoteSelling[0]);
             if (rateStr) {
               const rate = parseFloat(rateStr);
               if (!isNaN(rate)) {
@@ -64,7 +68,7 @@ export async function syncTCMBRates() {
         }
 
         if (Object.keys(rates).length > 0) {
-          console.log(`[CRON] Extracted TCMB rates:`, rates);
+          console.log(`[CRON] Extracted TCMB ForexBuying rates for date ${tcmbDate}:`, rates);
           
           try {
             // Update all stores
@@ -91,7 +95,7 @@ export async function syncTCMBRates() {
                 [JSON.stringify(newRates), store.id]
               );
             }
-            console.log(`[CRON] TCMB rates synced successfully for ${storesRes.rowCount} stores.`);
+            console.log(`[CRON] TCMB ForexBuying rates synced successfully for ${storesRes.rowCount} stores.`);
           } catch (e: any) {
             console.error("[CRON] TCMB sync db update failed:", e);
           }

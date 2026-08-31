@@ -56,14 +56,14 @@ export const EnrakipsizPortalManager: React.FC<EnrakipsizPortalManagerProps> = (
             <Sparkles className="h-5 w-5" />
             <span className="text-xs uppercase tracking-wider">KAPTAN KÖŞKÜ YÖNETİMİ</span>
           </div>
-          <h2 className="text-xl font-black">enrakipsiz.com Portal Yönetim Paneli</h2>
-          <p className="text-xs text-slate-400 mt-1 max-w-xl">
+          <h2 className="text-xl font-black text-white">enrakipsiz.com Portal Yönetim Paneli</h2>
+          <p className="text-xs text-slate-300 mt-1 max-w-xl">
             enrakipsiz.com portalınızın logosunu, favicon ikonu, SEO meta etiketlerini ve sponsor mağaza vitrinini buradan yönetebilirsiniz.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <a 
-            href="/marketplace" 
+            href="https://enrakipsiz.com" 
             target="_blank" 
             referrerPolicy="no-referrer"
             className="bg-slate-800 text-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition-all border border-slate-700 flex items-center gap-2 shadow-sm"

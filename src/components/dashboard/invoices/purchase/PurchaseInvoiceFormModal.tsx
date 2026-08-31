@@ -50,7 +50,7 @@ interface PurchaseInvoiceFormModalProps {
   showProductDropdown: boolean;
   setShowProductDropdown: (val: boolean) => void;
   filteredProducts: any[];
-  handleAddProduct: (product: any) => void;
+  handleAddProduct: (product: any, variant?: any) => void;
   setShowQuickProductModal: (val: boolean) => void;
   paymentMethod: 'term' | 'cash' | 'credit_card' | 'bank';
   setPaymentMethod: (val: any) => void;
@@ -342,28 +342,84 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                         {isTr ? `Hızlı Ürün Ekle: "${productSearch}"` : `Quick Add Product: "${productSearch}"`}
                       </button>
                     </div>
-                    {filteredProducts.map((p: any) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => handleAddProduct(p)}
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-all border-b border-slate-50 last:border-0 rounded-xl"
-                      >
-                        <div className="text-left flex items-center gap-3">
-                          <div className="p-2 bg-slate-100 rounded-lg">
-                            <Package className="h-4 w-4 text-slate-500" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-black text-slate-900 tracking-tight">{p.name}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">{p.barcode || '-'}</p>
-                          </div>
+                    {filteredProducts.map((p: any) => {
+                      const pHasVariants = !!p.has_variants || (Array.isArray(p.variants) && p.variants.length > 0);
+                      const variantsList = Array.isArray(p.variants) ? p.variants : [];
+
+                      return (
+                        <div key={p.id} className="border-b border-slate-100 last:border-0 rounded-xl overflow-hidden mb-1">
+                          <button
+                            type="button"
+                            onClick={() => handleAddProduct(p)}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-all text-left"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-slate-100 rounded-lg">
+                                <Package className="h-4 w-4 text-slate-500" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                  <span>{p.name}</span>
+                                  {pHasVariants && (
+                                    <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
+                                      {variantsList.length} {isTr ? "Varyant" : "Variants"}
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">{p.barcode || '-'}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-black text-emerald-600">{Number(p.cost_price || p.price).toLocaleString()} {p.currency}</p>
+                              <p className="text-[10px] font-bold text-slate-400 tracking-widest text-right">STOK: {p.stock_quantity}</p>
+                            </div>
+                          </button>
+
+                          {pHasVariants && variantsList.length > 0 && (
+                            <div className="bg-slate-50/90 px-4 py-2 border-t border-slate-100 space-y-1.5">
+                              <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">
+                                {isTr ? "Varyant / Çeşit Doğrudan Ekle:" : "Select Variant:"}
+                              </p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                {variantsList.map((v: any, vIdx: number) => {
+                                  const vCost = v.cost_price && parseFloat(v.cost_price) > 0 
+                                    ? v.cost_price 
+                                    : (v.price && parseFloat(v.price) > 0 ? v.price : (p.cost_price || p.price));
+                                  const vStock = v.stock_quantity !== undefined && v.stock_quantity !== null && v.stock_quantity !== "" ? v.stock_quantity : 0;
+                                  return (
+                                    <button
+                                      key={v.id || vIdx}
+                                      type="button"
+                                      onClick={() => handleAddProduct(p, v)}
+                                      className="flex items-center justify-between p-2 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-left transition-all text-xs group"
+                                    >
+                                      <div className="min-w-0 pr-2">
+                                        <span className="font-bold text-slate-800 group-hover:text-indigo-700 block truncate">
+                                          {v.name}
+                                        </span>
+                                        {v.barcode && (
+                                          <span className="text-[9px] font-mono text-slate-400 block truncate">
+                                            {v.barcode}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-right shrink-0">
+                                        <span className="text-[10px] font-black text-emerald-600 block">
+                                          {Number(vCost).toLocaleString()} {p.currency}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-slate-400 block">
+                                          {isTr ? `Stok: ${vStock}` : `Stock: ${vStock}`}
+                                        </span>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-black text-emerald-600">{Number(p.cost_price || p.price).toLocaleString()} {p.currency}</p>
-                          <p className="text-[10px] font-bold text-slate-400 tracking-widest text-right">STOK: {p.stock_quantity}</p>
-                        </div>
-                      </button>
-                    ))}
+                      );
+                    })}
                     {filteredProducts.length === 0 && (
                       <div className="p-4 text-center">
                         <p className="text-sm text-slate-500 mb-1">{isTr ? "Eşleşen başka ürün bulunamadı." : "No other matching products found."}</p>
@@ -403,7 +459,14 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                      return (
                        <tr key={index} className="bg-white shadow-sm ring-1 ring-slate-200 rounded-xl">
                          <td className="py-4 pl-4 rounded-l-xl">
-                           <p className="text-sm font-black text-slate-900 tracking-tight">{item.product_name}</p>
+                           <div className="flex items-center gap-1.5 flex-wrap">
+                             <p className="text-sm font-black text-slate-900 tracking-tight">{item.product_name}</p>
+                             {item.variant_name && (
+                               <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">
+                                 {item.variant_name}
+                               </span>
+                             )}
+                           </div>
                            <p className="text-[10px] font-bold text-slate-400 uppercase">{item.barcode || '-'}</p>
                          </td>
                          {isCafeRestaurant ? (

@@ -6,11 +6,14 @@ import {
   CheckCircle2, 
   XCircle, 
   ChevronRight, 
+  ChevronLeft,
   Download,
   CreditCard,
   Trash2,
   FileText,
-  Calendar
+  Calendar,
+  Truck,
+  UserCheck
 } from "lucide-react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -79,74 +82,61 @@ const PosTab = ({
   };
 
   return (
-    <div className="space-y-10">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6 space-y-4">
-        <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-slate-100">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">{isTr ? 'Hızlı Tarih Filtreleri:' : 'Quick Filters:'}</span>
-          <button onClick={handleSetLast30Days} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all border border-indigo-100">
-            {isTr ? 'Son 30 Gün' : 'Last 30 Days'}
-          </button>
-          <button onClick={handleSetThisMonth} className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200">
-            {isTr ? 'Bu Ay' : 'This Month'}
-          </button>
-          <button onClick={handleClearDates} className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200">
-            {isTr ? 'Tüm Zamanlar' : 'All Time'}
-          </button>
-        </div>
-        <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-6">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{isTr ? 'Başlangıç' : 'Start Date'}</span>
-                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                  <Calendar className="h-4 w-4 text-slate-400 mr-2" />
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => onStartDateChange(e.target.value)}
-                    className="bg-transparent border-none p-0 text-xs font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{isTr ? 'Bitiş' : 'End Date'}</span>
-                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                  <Calendar className="h-4 w-4 text-slate-400 mr-2" />
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => onEndDateChange(e.target.value)}
-                    className="bg-transparent border-none p-0 text-xs font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col space-y-2 flex-1 sm:flex-none">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{isTr ? 'Durum Filtresi' : 'Status Filter'}</span>
-              <div className="relative group">
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-600 transition-colors pointer-events-none" />
-                <select 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-10 py-2.5 text-sm font-bold text-slate-900 hover:bg-slate-100 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 appearance-none shadow-sm cursor-pointer transition-all"
-                  value={statusFilter}
-                  onChange={(e) => onStatusFilterChange(e.target.value)}
-                >
-                  <option value="all">{t.all}</option>
-                  <option value="pending">{t.pending}</option>
-                  <option value="completed">{t.completed}</option>
-                  <option value="cancelled">{t.cancelled}</option>
-                </select>
-                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 rotate-90 pointer-events-none" />
-              </div>
-            </div>
+    <div className="space-y-6">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+            <button onClick={handleSetLast30Days} className="px-2.5 py-1 bg-white shadow-xs text-indigo-700 rounded-lg text-[11px] font-bold transition-all border border-slate-200">
+              {isTr ? 'Son 30 Gün' : '30D'}
+            </button>
+            <button onClick={handleSetThisMonth} className="px-2.5 py-1 hover:bg-white text-slate-700 rounded-lg text-[11px] font-bold transition-all">
+              {isTr ? 'Bu Ay' : 'Month'}
+            </button>
+            <button onClick={handleClearDates} className="px-2.5 py-1 hover:bg-white text-slate-700 rounded-lg text-[11px] font-bold transition-all">
+              {isTr ? 'Tümü' : 'All'}
+            </button>
           </div>
-          <button 
-            onClick={onExportReport}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95 group"
-          >
-            <Download className="h-4 w-4 group-hover:translate-y-0.5 transition-transform" /> 
-            <span>{t.cashReport}</span>
-          </button>
+
+          <div className="flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200">
+            <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-0.5" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => onStartDateChange(e.target.value)}
+              className="bg-transparent border-none p-0 text-[11px] font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer w-24"
+            />
+            <span className="text-slate-300">-</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => onEndDateChange(e.target.value)}
+              className="bg-transparent border-none p-0 text-[11px] font-bold text-slate-900 focus:ring-0 outline-none cursor-pointer w-24"
+            />
+          </div>
+
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <select 
+              className="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-7 py-1.5 text-[11px] font-bold text-slate-900 hover:bg-slate-100 focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500/30 appearance-none shadow-xs cursor-pointer transition-all"
+              value={statusFilter}
+              onChange={(e) => onStatusFilterChange(e.target.value)}
+            >
+              <option value="all">{t.all}</option>
+              <option value="pending">{t.pending}</option>
+              <option value="completed">{t.completed}</option>
+              <option value="cancelled">{t.cancelled}</option>
+            </select>
+            <ChevronRight className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 rotate-90 pointer-events-none" />
+          </div>
         </div>
+
+        <button 
+          onClick={onExportReport}
+          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-sm active:scale-95 group"
+        >
+          <Download className="h-3.5 w-3.5 group-hover:translate-y-0.5 transition-transform" /> 
+          <span>{t.cashReport}</span>
+        </button>
       </div>
 
       <div className="os-panel overflow-hidden">
@@ -155,13 +145,13 @@ const PosTab = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.orderCode}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.date}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.customer}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.amount}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.status}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'İptal Sebebi' : 'Cancel Reason'}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-right">{t.actions}</th>
+                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.orderCode}</th>
+                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.date}</th>
+                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'Masa' : 'Table'}</th>
+                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.amount}</th>
+                <th className="px-2 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-center w-[50px]">{t.status}</th>
+                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'İptal Sebebi' : 'Cancel Reason'}</th>
+                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-right">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -184,58 +174,63 @@ const PosTab = ({
                     key={s.id} 
                     className="hover:bg-slate-50/50 transition-colors group cursor-default"
                   >
-                    <td className="px-6 py-5">
-                      <span className="font-mono text-[10px] font-black text-slate-900 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm tracking-widest">#{s.id}</span>
+                    <td className="px-3.5 py-4">
+                      <span className="font-mono text-[10px] font-black text-slate-900 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-sm tracking-widest">#{s.id}</span>
                     </td>
-                    <td className="px-6 py-5">
-                      <div className="text-[13px] font-black text-slate-900 leading-none">{new Date(s.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
-                      <div className="text-[10px] text-slate-400 font-black mt-1.5 uppercase tracking-tighter tabular-nums flex items-center gap-1.5">
-                        <Clock className="h-3 w-3" />
+                    <td className="px-3.5 py-4">
+                      <div className="text-[12px] font-black text-slate-900 leading-none">{new Date(s.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+                      <div className="text-[9px] text-slate-400 font-black mt-1 uppercase tracking-tighter tabular-nums flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5" />
                         {new Date(s.created_at).toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-[13px] font-black text-slate-500 uppercase tracking-tight">
-                      {s.customer_name || (lang === 'tr' ? 'Perakende Müşteri' : 'Walk-in Customer')}
+                    <td className="px-3.5 py-4 text-[12px] font-black text-slate-700 uppercase tracking-tight max-w-[120px] truncate">
+                      {s.customer_name?.toLowerCase().includes('garson') || s.customer_name === 'Masa Siparişi' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100 text-[10px]" title={s.customer_name}>
+                          <UserCheck className="w-3 h-3 text-indigo-500 shrink-0" />
+                          <span>{lang === 'tr' ? 'Garson' : 'Waiter'}</span>
+                        </span>
+                      ) : (
+                        s.customer_name || (lang === 'tr' ? 'Masa' : 'Table')
+                      )}
                     </td>
-                    <td className="px-6 py-5">
-                      <div className="text-[15px] font-black text-slate-900 mono-data tracking-tighter">
-                        {Number(s.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[11px] text-slate-400 font-bold tracking-normal ml-1">{(s.currency || 'TRY').substring(0, 3)}</span>
+                    <td className="px-3.5 py-4 whitespace-nowrap">
+                      <div className="text-[14px] font-black text-slate-900 mono-data tracking-tighter">
+                        {Number(s.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 font-bold tracking-normal ml-0.5">{(s.currency || 'TRY').substring(0, 3)}</span>
                       </div>
-                      <div className="text-[9px] text-indigo-500 uppercase font-black tracking-[0.15em] flex items-center mt-1.5">
-                        <div className="w-3 h-3 bg-indigo-50 border border-indigo-100 rounded flex items-center justify-center mr-1.5">
+                      <div className="text-[8px] text-indigo-500 uppercase font-black tracking-[0.1em] flex items-center mt-1">
+                        <div className="w-2.5 h-2.5 bg-indigo-50 border border-indigo-100 rounded flex items-center justify-center mr-1">
                           <CreditCard className="h-2 w-2" />
                         </div>
                         {t[s.payment_method] || s.payment_method}
                       </div>
                     </td>
-                    <td className="px-6 py-5">
-                      <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border ${
-                        s.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                        s.status === 'cancelled' ? 'bg-rose-50 text-rose-600 border-rose-100' : 
-                        s.status === 'processing' ? 'bg-blue-50 text-blue-600 border-blue-100 shadow-[0_0_12px_rgba(37,99,235,0.1)]' :
-                        s.status === 'shipped' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
-                        'bg-amber-50 text-amber-600 border-amber-100'
-                      }`}>
-                        <div className={`w-1 h-1 rounded-full mr-2 ${
-                            s.status === 'completed' ? 'bg-emerald-500' : 
-                            s.status === 'cancelled' ? 'bg-rose-500' : 
-                            'bg-indigo-500 animate-pulse'
-                          }`} />
-                        {t[s.status] || s.status}
-                      </span>
+                    <td className="px-2 py-4 text-center">
+                      <div className="flex justify-center" title={t[s.status] || s.status}>
+                        {s.status === 'completed' ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                        ) : s.status === 'cancelled' ? (
+                          <XCircle className="w-5 h-5 text-rose-500" />
+                        ) : s.status === 'processing' ? (
+                          <Clock className="w-5 h-5 text-blue-500 animate-pulse" />
+                        ) : s.status === 'shipped' ? (
+                          <Truck className="w-5 h-5 text-indigo-500" />
+                        ) : (
+                          <Clock className="w-5 h-5 text-amber-500" />
+                        )}
+                      </div>
                       {s.sales_invoice_id && (
-                        <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1 bg-white border border-emerald-100 rounded-lg shadow-sm">
-                          <FileText className="h-3 w-3 text-emerald-500" />
-                          <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">
-                            {lang === 'tr' ? 'Faturalandı' : 'Invoiced'}: {s.sales_invoice_number}
+                        <div className="mt-1 flex items-center justify-center">
+                          <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-100" title={`${lang === 'tr' ? 'Faturalandı' : 'Invoiced'}: ${s.sales_invoice_number}`}>
+                            #{s.sales_invoice_number}
                           </span>
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-5">
+                    <td className="px-3.5 py-4 max-w-[200px]">
                       {s.status === 'cancelled' ? (
-                        <div className="max-w-[220px]" title={s.cancellation_reason || s.cancel_reason || s.notes || ''}>
-                          <p className="text-xs font-bold text-rose-600 truncate bg-rose-50/80 px-2.5 py-1 rounded-lg border border-rose-100 inline-block">
+                        <div title={s.cancellation_reason || s.cancel_reason || s.notes || ''}>
+                          <p className="text-[11px] font-bold text-rose-600 truncate bg-rose-50/80 px-2.5 py-1.5 rounded-lg border border-rose-100">
                             {s.cancellation_reason || s.cancel_reason || s.notes || (lang === 'tr' ? 'Belirtilmedi' : 'N/A')}
                           </p>
                         </div>
@@ -243,14 +238,14 @@ const PosTab = ({
                         <span className="text-xs text-slate-300 font-medium ml-2">-</span>
                       )}
                     </td>
-                    <td className="px-6 py-5 text-right">
-                      <div className="flex justify-end items-center space-x-2">
+                    <td className="px-3.5 py-4 text-right">
+                      <div className="flex justify-end items-center space-x-1.5">
                         <button 
                           onClick={() => onViewDetails(s)}
-                          className="p-3 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-2xl transition-all border border-transparent hover:border-slate-200 active:scale-90"
+                          className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200 active:scale-90"
                           title={t.viewDetails}
                         >
-                          <ChevronRight className="h-5 w-5" />
+                          <ChevronRight className="h-4 w-4" />
                         </button>
                         {!isViewer && (
                           <button 
@@ -258,10 +253,10 @@ const PosTab = ({
                               e.stopPropagation();
                               onDeleteSale(s.id);
                             }}
-                            className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all border border-transparent hover:border-rose-100 active:scale-90"
+                            className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100 active:scale-90"
                             title={t.delete}
                           >
-                            <Trash2 className="h-5 w-5" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         )}
                       </div>
@@ -274,28 +269,30 @@ const PosTab = ({
         </div>
 
         {totalPages > 1 && (
-          <div className="px-8 py-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-              {sales.length} {lang === 'tr' ? 'SATIŞ KAYDI' : 'RECORDS FOUND'}
+          <div className="px-4 py-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">
+              {sales.length} {lang === 'tr' ? 'SATIŞ KAYDI' : 'RECORDS'}
             </p>
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-2">
               <button 
                 disabled={page === 1}
                 onClick={() => setPage(p => p - 1)}
-                className="os-btn-secondary px-6 py-2.5 text-[11px] disabled:opacity-30"
+                className="p-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-100 disabled:opacity-30 transition-all shadow-sm"
+                title={t.prev}
               >
-                <span>{t.prev}</span>
+                <ChevronLeft className="h-4 w-4" />
               </button>
-              <div className="text-[11px] font-black text-slate-900 tabular-nums tracking-widest flex items-center">
-                <span>INDEX</span>
-                <span className="mx-2 px-3 py-1 bg-white border border-slate-200 rounded-xl shadow-inner font-mono">{page} <span className="text-slate-300 mx-1">/</span> {totalPages}</span>
+              <div className="text-[10px] font-black text-slate-900 tabular-nums tracking-widest flex items-center bg-white px-3 py-2 border border-slate-200 rounded-xl shadow-inner">
+                <span className="text-slate-400 mr-1.5">INDEX</span>
+                <span className="font-mono font-black">{page} <span className="text-slate-300 mx-0.5">/</span> {totalPages}</span>
               </div>
               <button 
                 disabled={page === totalPages}
                 onClick={() => setPage(p => p + 1)}
-                className="os-btn-secondary px-6 py-2.5 text-[11px] disabled:opacity-30"
+                className="p-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-100 disabled:opacity-30 transition-all shadow-sm"
+                title={t.next}
               >
-                <span>{t.next}</span>
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>

@@ -22,6 +22,8 @@ initProductSchema();
 router.get("/", async (req: any, res) => {
   const currentStoreId = req.user.store_id;
   const requestedStoreId = req.query.storeId || currentStoreId;
+  console.log("Fetching products. req.user.store_id:", currentStoreId, "req.query.storeId:", req.query.storeId, "requestedStoreId:", requestedStoreId);
+
   const includeBranches = req.query.includeBranches === 'true';
   const sellableOnly = req.query.sellableOnly === 'true';
   

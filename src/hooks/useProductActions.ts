@@ -215,5 +215,21 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     });
   };
 
-  return { handleAddProduct, handleDeleteProduct, handleDeleteAllProducts, handleBulkDelete, handleBulkAdd, handleBulkRename, editingProduct, setEditingProduct };
+  const handleReformatProductNames = async () => {
+    const targetStoreId = (user.role === 'superadmin' || user.store_id !== currentStoreId) ? currentStoreId : undefined;
+    
+    const reformatPromise = (async () => {
+      const res = await api.reformatProductNames(targetStoreId);
+      fetchData(true);
+      return res;
+    })();
+
+    toast.promise(reformatPromise, {
+      loading: lang === 'tr' ? "Ürün isimleri yapay zeka ile akıllıca düzeltiliyor..." : "Reformatting product names with AI...",
+      success: (res: any) => res?.message || (lang === 'tr' ? "Ürün isimleri başarıyla revize edildi" : "Product names successfully revised"),
+      error: lang === 'tr' ? "Ürün isimleri revize edilemedi" : "Failed to revise product names"
+    });
+  };
+
+  return { handleAddProduct, handleDeleteProduct, handleDeleteAllProducts, handleBulkDelete, handleBulkAdd, handleBulkRename, handleReformatProductNames, editingProduct, setEditingProduct };
 };

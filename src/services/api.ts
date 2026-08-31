@@ -161,7 +161,7 @@ export const api = {
   bulkRenameProducts: (renames: { id: number, name: string }[], storeId?: number) => api.put(`/api/store/products/bulk-rename${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { renames }),
   getProductRecipe: (id: number, storeId?: number) => api.get(`/api/store/products/${id}/recipe${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   saveProductRecipe: (id: number, items: any[], storeId?: number) => api.post(`/api/store/products/${id}/recipe${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { items }),
-  reformatProductNames: (storeId?: number) => api.post(`/api/store/products/reformat-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  reformatProductNames: (storeId?: number) => api.post(`/api/store/ai/reformat-product-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   deleteAllProducts: (storeId?: number) => api.delete(`/api/store/products/all${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   autoFindImage: (data: { productIds?: number[], allMissing?: boolean, id?: number }, storeId?: number, includeBranches?: boolean) => api.post(`/api/store/products/auto-image${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ...data, includeBranches }),
   importProducts: (formData: FormData, storeId?: number) => api.upload(`/api/store/import${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, formData),
@@ -465,8 +465,25 @@ export const api = {
 
   // Hepsiburada Integration
   getHepsiburadaSettings: (storeId?: number) => api.get(`/api/integrations/hepsiburada/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  saveHepsiburadaSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, storeId?: number }) => api.post("/api/integrations/hepsiburada/settings", data),
+  saveHepsiburadaSettings: (data: { 
+    apiKey: string; 
+    apiSecret: string; 
+    merchantId: string; 
+    isTestMode?: boolean;
+    userAgent?: string;
+    defaultDispatchTime?: number;
+    defaultCargoCompany?: string;
+    autoSyncOrders?: boolean;
+    autoStockSync?: boolean;
+    webhookSecret?: string;
+    storeId?: number; 
+  }) => api.post("/api/integrations/hepsiburada/settings", data),
   syncHepsiburadaOrders: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync", { storeId }),
+  syncHepsiburadaInventory: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync-inventory", { storeId }),
+  getHepsiburadaCategories: (storeId?: number) => api.get(`/api/integrations/hepsiburada/categories${storeId ? `?storeId=${storeId}` : ""}`),
+  getHepsiburadaCategoryAttributes: (categoryId: string | number, storeId?: number) => api.get(`/api/integrations/hepsiburada/categories/${categoryId}/attributes${storeId ? `?storeId=${storeId}` : ""}`),
+  getHepsiburadaTaskStatus: (taskId: string, storeId?: number) => api.get(`/api/integrations/hepsiburada/task/${taskId}${storeId ? `?storeId=${storeId}` : ""}`),
+  sendHepsiburadaInvoice: (orderId: string, data: any, storeId?: number) => api.post(`/api/integrations/hepsiburada/orders/${orderId}/invoice${storeId ? `?storeId=${storeId}` : ""}`, data),
   disconnectHepsiburada: (storeId?: number) => api.post("/api/integrations/hepsiburada/disconnect", { storeId }),
 
   // Trendyol Integration
@@ -525,6 +542,14 @@ export const api = {
   testHepsiburadaConnection: (storeId?: number) => api.post("/api/integrations/hepsiburada/test", { storeId }),
   testTrendyolConnection: (storeId?: number) => api.post("/api/integrations/trendyol/test", { storeId }),
   testPazaramaConnection: (storeId?: number) => api.post("/api/integrations/pazarama/test", { storeId }),
+  
+  // Integrator Hub
+  getIntegratorConfigs: () => api.get("/api/admin/integrator-configs"),
+  saveIntegratorConfig: (data: any) => api.post("/api/admin/integrator-configs", data),
+  
+  // Hepsiburada V3 Integration
+  hepsiburadaV3ImportListings: (env: 'sit' | 'production', products: any[]) => api.post("/api/hepsiburada/v3/listings/import", { env, products }),
+  hepsiburadaV3CheckTaskStatus: (env: 'sit' | 'production', trackingId: string) => api.get(`/api/hepsiburada/v3/listings/import/${trackingId}?env=${env}`),
 
   // E-Invoice Methods
   checkTaxpayer: (vknTckn: string, storeId?: number) => api.post(`/api/einvoice/check-taxpayer${storeId ? `?storeId=${storeId}` : ""}`, { vknTckn, storeId }),

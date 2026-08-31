@@ -212,6 +212,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     handleBulkRecalculatePrice2,
     handleBulkAdd,
     handleBulkRename,
+    handleReformatProductNames,
     fetchData: fetchProductsData,
     currentStoreId
   } = useProducts(user, slug, includeBranches, branding, planLimits, lang);
@@ -410,20 +411,19 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     try {
       if (!isSilent) setLoading(true);
       
-      let targetStoreId = user.store_id;
+      let targetStoreId = currentStoreId || user.store_id;
       
-      if (user.role === 'superadmin') {
-        if (slug) {
-          const storeInfo = await api.getBranding(undefined, slug);
-          if (storeInfo && storeInfo.id) {
-            targetStoreId = storeInfo.id;
-          } else if (storeInfo && storeInfo.error) {
-            return;
-          }
-        } else {
-          window.location.href = "/admin";
+      if (slug) {
+        const storeInfo = await api.getBranding(undefined, slug);
+        if (storeInfo && storeInfo.id) {
+          targetStoreId = storeInfo.id;
+        } else if (storeInfo && storeInfo.error) {
+          if (!isSilent) setLoading(false);
           return;
         }
+      } else if (user.role === 'superadmin' && !targetStoreId) {
+        window.location.href = "/admin";
+        return;
       }
       
       if (targetStoreId === undefined || targetStoreId === null) {
@@ -438,28 +438,21 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         api.getBranches(targetStoreId)
       ];
 
-      // Only fetch analytics on initial load if we're actually starting on analytics-heavy tabs
-      if (activeTab === 'analytics' || activeTab === 'notifications') {
-        requests.push(api.getAnalytics(targetStoreId));
-      }
-
       const results = await Promise.all(requests);
-      const [productsRes, brandingRes, usersRes, branchesRes, analyticsRes] = results;
+      const [productsRes, brandingRes, usersRes, branchesRes] = results;
 
-      setProducts(Array.isArray(productsRes) ? productsRes : []);
+      if (Array.isArray(productsRes)) {
+        setProducts(productsRes);
+      }
       if (brandingRes && !brandingRes.error) setBranding(brandingRes);
       setUsers(Array.isArray(usersRes) ? usersRes : []);
       setBranches(Array.isArray(branchesRes) ? branchesRes : []);
-      
-      if (analyticsRes && !analyticsRes.error) {
-        setAnalytics(analyticsRes);
-      }
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("Fetch error in StoreDashboard:", error);
     } finally {
       if (!isSilent) setLoading(false);
     }
-  }, [includeBranches, user.role, user.store_id, slug]);
+  }, [includeBranches, user.role, user.store_id, slug, currentStoreId, setProducts, setBranding, setLoading]);
 
   const fetchDailySalesReport = async () => {
     if (!currentStoreId) return;
@@ -902,6 +895,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onBulkRecalculatePrice2={handleBulkRecalculatePrice2}
                   onBulkAdd={handleBulkAdd}
                   onBulkRename={handleBulkRename}
+                  onReformatNames={handleReformatProductNames}
                   onShowQr={() => setShowQrModal(true)}
                   branding={branding}
                   isCafeRestaurant={isCafeRestaurant}

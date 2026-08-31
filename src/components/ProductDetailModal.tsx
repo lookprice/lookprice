@@ -28,6 +28,8 @@ import { ListingFinancingCalculator } from "./ListingFinancingCalculator";
 import { PropertyMapTour } from "./PropertyMapTour";
 import SEO from "./SEO";
 import { Product, Store as StoreInfo } from "../types";
+import { getColorHex } from "../utils/variantPresets";
+import { getLabels } from "../utils/showcase";
 
 const MAP_KEY = import.meta.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || "";
 
@@ -44,19 +46,6 @@ interface ProductDetailModalProps {
   showAboutModal: boolean;
   setShowAboutModal: (show: boolean) => void;
 }
-
-const getLabels = (labels: any): string[] => {
-  if (Array.isArray(labels)) return labels;
-  if (typeof labels === "string") {
-    try {
-      const parsed = JSON.parse(labels);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      return [];
-    }
-  }
-  return [];
-};
 
 const formatPrice = (price: number, currency: string, sector: string, storeType?: string) => {
   const isPortfolio = storeType === "portfolio" || storeType === "real_estate" || storeType === "motor_vehicle" || sector === "real_estate" || sector === "automotive";
@@ -211,127 +200,152 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const [variantViewMode, setVariantViewMode] = useState<"attributes" | "list">("attributes");
-  const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
 
-  const variantAttributes = React.useMemo(() => {
-    if (!productVariants.length) return { colors: [], sizes: [], hasStructuredAttrs: false };
+  // Dynamic Attribute Groups (EAV + Legacy fallback)
+  const dynamicAttributeGroups = React.useMemo(() => {
+    if (!productVariants.length) return [];
 
-    const colorMap = new Map<string, { color_name: string; color_code?: string; image_url?: string }>();
-    const sizeSet = new Set<string>();
+    const groupMap = new Map<string, Set<string>>();
+    const colorCodeMap = new Map<string, string>();
+    const imageMap = new Map<string, string>();
 
     productVariants.forEach((v: any) => {
-      let cName = v.color_name;
-      let sVal = v.size;
+      // 1. Check EAV attributes record
+      if (v.attributes && typeof v.attributes === "object" && Object.keys(v.attributes).length > 0) {
+        Object.entries(v.attributes).forEach(([attrName, attrVal]) => {
+          if (attrVal) {
+            const strVal = String(attrVal).trim();
+            if (!groupMap.has(attrName)) groupMap.set(attrName, new Set());
+            groupMap.get(attrName)!.add(strVal);
 
-      if (!cName && !sVal && v.name && typeof v.name === 'string') {
-        const cleanName = v.name.replace(/^.*\((.*)\)$/, '$1');
-        const parts = cleanName.split(/\s*[\/\-\|]\s*/);
-        if (parts.length >= 2) {
-          cName = parts[0].trim();
-          sVal = parts[1].trim();
-        } else if (parts.length === 1) {
-          cName = parts[0].trim();
-        }
-      }
+            const isColorKey = attrName.toLowerCase().includes("renk") || attrName.toLowerCase().includes("color");
+            if (isColorKey) {
+              if (v.color_code) colorCodeMap.set(strVal, v.color_code);
+              if (v.image_url) imageMap.set(strVal, v.image_url);
+            }
+          }
+        });
+      } else {
+        // Legacy fields fallback
+        let cName = v.color_name;
+        let sVal = v.size;
 
-      if (cName) {
-        if (!colorMap.has(cName)) {
-          colorMap.set(cName, {
-            color_name: cName,
-            color_code: v.color_code,
-            image_url: v.image_url
-          });
+        if (!cName && !sVal && v.name && typeof v.name === "string") {
+          const cleanName = v.name.replace(/^.*\((.*)\)$/, "$1");
+          const parts = cleanName.split(/\s*[\/\-\|]\s*/);
+          if (parts.length >= 2) {
+            cName = parts[0].trim();
+            sVal = parts[1].trim();
+          } else if (parts.length === 1) {
+            cName = parts[0].trim();
+          }
         }
-      }
-      if (sVal) {
-        sizeSet.add(sVal);
+
+        if (cName) {
+          const attrKey = lang === "tr" ? "Renk" : "Color";
+          if (!groupMap.has(attrKey)) groupMap.set(attrKey, new Set());
+          groupMap.get(attrKey)!.add(cName);
+          if (v.color_code) colorCodeMap.set(cName, v.color_code);
+          if (v.image_url) imageMap.set(cName, v.image_url);
+        }
+        if (sVal) {
+          const attrKey = lang === "tr" ? "Beden / Seçenek" : "Size / Option";
+          if (!groupMap.has(attrKey)) groupMap.set(attrKey, new Set());
+          groupMap.get(attrKey)!.add(sVal);
+        }
       }
     });
 
-    const colors = Array.from(colorMap.values());
-    const sizes = Array.from(sizeSet);
-    const hasStructuredAttrs = colors.length > 0 || sizes.length > 0;
-
-    return { colors, sizes, hasStructuredAttrs };
-  }, [productVariants]);
-
-  useEffect(() => {
-    if (selectedVariant) {
-      let cName = selectedVariant.color_name;
-      let sVal = selectedVariant.size;
-      if (!cName && !sVal && selectedVariant.name) {
-        const cleanName = selectedVariant.name.replace(/^.*\((.*)\)$/, '$1');
-        const parts = cleanName.split(/\s*[\/\-\|]\s*/);
-        if (parts.length >= 2) {
-          cName = parts[0].trim();
-          sVal = parts[1].trim();
-        } else if (parts.length === 1) {
-          cName = parts[0].trim();
-        }
-      }
-      if (cName) setSelectedColor(cName);
-      if (sVal) setSelectedSize(sVal);
-    }
-  }, [selectedVariant]);
-
-  const handleSelectColor = (colorName: string) => {
-    setSelectedColor(colorName);
-    const match = productVariants.find((v: any) => {
-      let c = v.color_name;
-      let s = v.size;
-      if (!c && !s && v.name) {
-        const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
-        const parts = clean.split(/\s*[\/\-\|]\s*/);
-        c = parts[0]?.trim();
-        s = parts[1]?.trim();
-      }
-      return c === colorName && (!selectedSize || s === selectedSize);
-    }) || productVariants.find((v: any) => {
-      let c = v.color_name;
-      if (!c && v.name) {
-        const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
-        const parts = clean.split(/\s*[\/\-\|]\s*/);
-        c = parts[0]?.trim();
-      }
-      return c === colorName;
+    return Array.from(groupMap.entries()).map(([name, valuesSet]) => {
+      const isColorType = name.toLowerCase().includes("renk") || name.toLowerCase().includes("color");
+      return {
+        name,
+        isColorType,
+        values: Array.from(valuesSet).map((val) => ({
+          value: val,
+          colorCode: colorCodeMap.get(val) || (isColorType ? getColorHex(val) : undefined),
+          imageUrl: imageMap.get(val),
+        })),
+      };
     });
+  }, [productVariants, lang]);
 
-    if (match) setSelectedVariant(match);
-  };
+  const hasStructuredAttrs = dynamicAttributeGroups.length > 0;
 
-  const handleSelectSize = (sizeVal: string) => {
-    setSelectedSize(sizeVal);
-    const match = productVariants.find((v: any) => {
-      let c = v.color_name;
-      let s = v.size;
-      if (!c && !s && v.name) {
-        const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
-        const parts = clean.split(/\s*[\/\-\|]\s*/);
-        c = parts[0]?.trim();
-        s = parts[1]?.trim();
-      }
-      return (!selectedColor || c === selectedColor) && s === sizeVal;
-    }) || productVariants.find((v: any) => {
-      let s = v.size;
-      if (!s && v.name) {
-        const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
-        const parts = clean.split(/\s*[\/\-\|]\s*/);
-        s = parts[1]?.trim();
-      }
-      return s === sizeVal;
-    });
-
-    if (match) setSelectedVariant(match);
-  };
-
+  // Initialize selected variant and default attributes
   useEffect(() => {
     if (hasVariants && productVariants.length > 0) {
-      setSelectedVariant(productVariants[0]);
+      const initial = productVariants[0];
+      setSelectedVariant(initial);
+
+      // Populate selected attributes from initial variant
+      const initialAttrs: Record<string, string> = {};
+      if (initial.attributes && typeof initial.attributes === "object") {
+        Object.assign(initialAttrs, initial.attributes);
+      } else {
+        let cName = initial.color_name;
+        let sVal = initial.size;
+        if (!cName && !sVal && initial.name) {
+          const clean = initial.name.replace(/^.*\((.*)\)$/, "$1");
+          const parts = clean.split(/\s*[\/\-\|]\s*/);
+          if (parts.length >= 2) {
+            cName = parts[0].trim();
+            sVal = parts[1].trim();
+          } else if (parts.length === 1) {
+            cName = parts[0].trim();
+          }
+        }
+        if (cName) initialAttrs[lang === "tr" ? "Renk" : "Color"] = cName;
+        if (sVal) initialAttrs[lang === "tr" ? "Beden / Seçenek" : "Size / Option"] = sVal;
+      }
+      setSelectedAttributes(initialAttrs);
     } else {
       setSelectedVariant(null);
+      setSelectedAttributes({});
     }
-  }, [product?.id, hasVariants, productVariants]);
+  }, [product?.id, hasVariants, productVariants, lang]);
+
+  // Handle selecting an attribute in the dynamic matrix
+  const handleSelectAttribute = (attrName: string, value: string) => {
+    const nextAttrs = { ...selectedAttributes, [attrName]: value };
+    setSelectedAttributes(nextAttrs);
+
+    // Find best match in variants
+    const match = productVariants.find((v: any) => {
+      if (v.attributes && typeof v.attributes === "object" && Object.keys(v.attributes).length > 0) {
+        return Object.entries(nextAttrs).every(([k, vVal]) => v.attributes[k] === vVal);
+      }
+      const vAttrs: Record<string, string> = {};
+      let c = v.color_name;
+      let s = v.size;
+      if (!c && !s && v.name) {
+        const clean = v.name.replace(/^.*\((.*)\)$/, "$1");
+        const parts = clean.split(/\s*[\/\-\|]\s*/);
+        if (parts.length >= 2) {
+          c = parts[0].trim();
+          s = parts[1].trim();
+        } else if (parts.length === 1) {
+          c = parts[0].trim();
+        }
+      }
+      if (c) vAttrs[lang === "tr" ? "Renk" : "Color"] = c;
+      if (s) vAttrs[lang === "tr" ? "Beden / Seçenek" : "Size / Option"] = s;
+
+      return Object.entries(nextAttrs).every(([k, vVal]) => vAttrs[k] === vVal);
+    }) || productVariants.find((v: any) => {
+      if (v.attributes && v.attributes[attrName] === value) return true;
+      return v.name && v.name.includes(value);
+    });
+
+    if (match) {
+      setSelectedVariant(match);
+      if (match.image_url && productImages.length > 0) {
+        const imgIdx = productImages.findIndex((img) => img === match.image_url);
+        if (imgIdx !== -1) setActiveImageIdx(imgIdx);
+      }
+    }
+  };
 
   useEffect(() => {
     if (selectedVariant?.image_url && productImages.length > 0) {
@@ -872,7 +886,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </span>
                 </div>
 
-                {variantAttributes.hasStructuredAttrs && (
+                {hasStructuredAttrs && (
                   <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200/60">
                     <button
                       type="button"
@@ -900,109 +914,125 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 )}
               </div>
 
-              {/* Attribute Selection View (E-Commerce Standard: Color Swatches + Size Pills) */}
-              {variantViewMode === "attributes" && variantAttributes.hasStructuredAttrs ? (
+              {/* Attribute Selection View (E-Commerce Dynamic Multi-Sector Attribute Matrix) */}
+              {variantViewMode === "attributes" && hasStructuredAttrs ? (
                 <div className="space-y-4">
-                  {/* Color Swatch Row */}
-                  {variantAttributes.colors.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                          {lang === "tr" ? "Renk Seçimi:" : "Color:"} <strong className="text-slate-900 font-extrabold">{selectedColor || "-"}</strong>
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {variantAttributes.colors.map((c, idx) => {
-                          const isSelected = selectedColor === c.color_name;
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => handleSelectColor(c.color_name)}
-                              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                                isSelected
-                                  ? "bg-indigo-50 border-indigo-600 text-indigo-900 shadow-xs ring-2 ring-indigo-500/20"
-                                  : "bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-100"
-                              }`}
-                            >
-                              {c.color_code ? (
-                                <span
-                                  className="w-4 h-4 rounded-full border border-black/15 shadow-2xs shrink-0"
-                                  style={{ backgroundColor: c.color_code }}
-                                />
-                              ) : c.image_url ? (
-                                <img src={c.image_url} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
-                              ) : (
-                                <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
-                              )}
-                              <span>{c.color_name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  {dynamicAttributeGroups.map((group, gIdx) => {
+                    const isSelectedVal = selectedAttributes[group.name];
 
-                  {/* Size Pills Row */}
-                  {variantAttributes.sizes.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                          {lang === "tr" ? "Beden / Ölçü Seçimi:" : "Size:"} <strong className="text-slate-900 font-extrabold">{selectedSize || "-"}</strong>
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {variantAttributes.sizes.map((sVal, idx) => {
-                          const isSelected = selectedSize === sVal;
-                          const matchingVar = productVariants.find((v: any) => {
-                            let c = v.color_name;
-                            let s = v.size;
-                            if (!c && !s && v.name) {
-                              const clean = v.name.replace(/^.*\((.*)\)$/, '$1');
-                              const parts = clean.split(/\s*[\/\-\|]\s*/);
-                              c = parts[0]?.trim();
-                              s = parts[1]?.trim();
-                            }
-                            return (!selectedColor || c === selectedColor) && s === sVal;
-                          });
+                    return (
+                      <div key={gIdx} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                            {group.name}: <strong className="text-slate-900 font-extrabold">{isSelectedVal || "-"}</strong>
+                          </span>
+                        </div>
 
-                          const isStockOut = matchingVar && (matchingVar as any).stock_quantity !== undefined && Number((matchingVar as any).stock_quantity) <= 0;
+                        {/* If color type: Color Swatches */}
+                        {group.isColorType ? (
+                          <div className="flex flex-wrap gap-2">
+                            {group.values.map((vItem, vIdx) => {
+                              const isSelected = isSelectedVal === vItem.value;
+                              return (
+                                <button
+                                  key={vIdx}
+                                  type="button"
+                                  onClick={() => handleSelectAttribute(group.name, vItem.value)}
+                                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-indigo-50 border-indigo-600 text-indigo-900 shadow-xs ring-2 ring-indigo-500/20"
+                                      : "bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {vItem.colorCode ? (
+                                    <span
+                                      className="w-4 h-4 rounded-full border border-black/15 shadow-2xs shrink-0"
+                                      style={{ backgroundColor: vItem.colorCode }}
+                                    />
+                                  ) : vItem.imageUrl ? (
+                                    <img src={vItem.imageUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                  ) : (
+                                    <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                                  )}
+                                  <span>{vItem.value}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : group.values.length > 8 ? (
+                          /* Large set: Dropdown Select */
+                          <select
+                            value={isSelectedVal || ""}
+                            onChange={(e) => handleSelectAttribute(group.name, e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:bg-white"
+                          >
+                            {group.values.map((vItem, vIdx) => (
+                              <option key={vIdx} value={vItem.value}>
+                                {vItem.value}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          /* Standard set: Option Pills */
+                          <div className="flex flex-wrap gap-2">
+                            {group.values.map((vItem, vIdx) => {
+                              const isSelected = isSelectedVal === vItem.value;
 
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              disabled={isStockOut}
-                              onClick={() => handleSelectSize(sVal)}
-                              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-[44px] text-center ${
-                                isStockOut
-                                  ? "bg-slate-100 text-slate-400 border border-slate-200 line-through opacity-50 cursor-not-allowed"
-                                  : isSelected
-                                  ? "bg-slate-900 text-white border border-slate-900 shadow-md scale-105"
-                                  : "bg-white border border-slate-200 text-slate-800 hover:border-indigo-400 hover:bg-indigo-50/40"
-                              }`}
-                            >
-                              {sVal}
-                            </button>
-                          );
-                        })}
+                              // Check if combination exists
+                              const hypotheticalAttrs = { ...selectedAttributes, [group.name]: vItem.value };
+                              const matchingVar = productVariants.find((v: any) => {
+                                if (v.attributes && typeof v.attributes === "object") {
+                                  return Object.entries(hypotheticalAttrs).every(([k, val]) => v.attributes[k] === val);
+                                }
+                                return v.name && v.name.includes(vItem.value);
+                              });
+
+                              const isStockOut = matchingVar && matchingVar.stock_quantity !== undefined && Number(matchingVar.stock_quantity) <= 0;
+
+                              return (
+                                <button
+                                  key={vIdx}
+                                  type="button"
+                                  disabled={isStockOut}
+                                  onClick={() => handleSelectAttribute(group.name, vItem.value)}
+                                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-[44px] text-center ${
+                                    isStockOut
+                                      ? "bg-slate-100 text-slate-400 border border-slate-200 line-through opacity-50 cursor-not-allowed"
+                                      : isSelected
+                                      ? "bg-slate-900 text-white border border-slate-900 shadow-md scale-105"
+                                      : "bg-white border border-slate-200 text-slate-800 hover:border-indigo-400 hover:bg-indigo-50/40"
+                                  }`}
+                                >
+                                  {vItem.value}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
 
                   {/* Active Selected Variant Highlight Banner */}
                   {selectedVariant && (
-                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         {selectedVariant.color_code && (
                           <span
                             className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0"
                             style={{ backgroundColor: selectedVariant.color_code }}
                           />
                         )}
-                        <span className="font-bold text-slate-800 truncate">
-                          {selectedVariant.name}
-                        </span>
+                        <div className="min-w-0">
+                          <span className="font-extrabold text-slate-900 block truncate">
+                            {selectedVariant.name}
+                          </span>
+                          {selectedVariant.sku && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              SKU: {selectedVariant.sku}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {selectedVariant.stock_quantity !== undefined && (

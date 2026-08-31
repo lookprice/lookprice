@@ -1022,6 +1022,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               src={selectedProperty.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"}
                               alt={selectedProperty.name}
                               className="w-full h-24 object-cover rounded-xl mb-2 shadow-xs"
+                              onError={(e: any) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"; }}
                             />
                             <p className="font-extrabold text-xs uppercase leading-tight text-slate-900 line-clamp-1">
                               {selectedProperty.name}
@@ -1252,6 +1253,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                               alt={p.name}
                               referrerPolicy="no-referrer"
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                              onError={(e: any) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"; }}
                             />
                             <div className="absolute top-2 left-2 flex flex-col gap-1">
                               {(() => {
@@ -1360,6 +1362,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                         alt={p.name}
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        onError={(e: any) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"; }}
                       />
                       <div className="absolute top-3 left-3 flex gap-1.5">
                         {(() => {
@@ -1457,6 +1460,7 @@ export const IDXSplitMapView: React.FC<IDXSplitMapViewProps> = ({
                           src={selectedProperty.image_url || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"}
                           alt={selectedProperty.name}
                           className="w-full h-24 object-cover rounded-xl mb-2 shadow-xs"
+                          onError={(e: any) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000"; }}
                         />
                         <p className="font-extrabold text-xs uppercase leading-tight text-slate-900 line-clamp-1">
                           {selectedProperty.name}

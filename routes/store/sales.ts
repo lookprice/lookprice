@@ -547,6 +547,36 @@ router.post("/:id/complete", async (req: any, res) => {
               [item.quantity, item.product_id]
             );
             await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`, item.unit_price, sale.customer_name, sale.currency || 'TRY', id);
+
+            // Deduct variant stock if item has variant
+            try {
+              const pDataRes = await client.query("SELECT variants, has_variants FROM products WHERE id = $1", [item.product_id]);
+              if (pDataRes.rows.length > 0) {
+                let vList = pDataRes.rows[0].variants;
+                if (typeof vList === 'string') {
+                  try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+                }
+                if (Array.isArray(vList) && vList.length > 0) {
+                  let updated = false;
+                  const updatedVars = vList.map((v: any) => {
+                    const vName = String(v.name || '').trim().toLowerCase();
+                    const itemName = String(item.product_name || '').toLowerCase();
+                    const matchName = vName && (itemName.includes(`(${vName})`) || itemName.endsWith(vName));
+                    if (matchName) {
+                      updated = true;
+                      const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                      return { ...v, stock_quantity: Math.max(0, currentStock - Number(item.quantity)) };
+                    }
+                    return v;
+                  });
+                  if (updated) {
+                    await client.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(updatedVars), item.product_id]);
+                  }
+                }
+              }
+            } catch (vErr) {
+              console.error("Error updating variant stock on table sale completion:", vErr);
+            }
           }
         }
       }

@@ -10,7 +10,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
   const [showProductModal, setShowProductModal] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   
-  const { handleAddProduct, handleDeleteProduct, handleDeleteAllProducts, handleBulkDelete, handleBulkAdd, handleBulkRename, editingProduct, setEditingProduct } = useProductActions(user, currentStoreId, products, lang, fetchData);
+  const { handleAddProduct, handleDeleteProduct, handleDeleteAllProducts, handleBulkDelete, handleBulkAdd, handleBulkRename, handleReformatProductNames, editingProduct, setEditingProduct } = useProductActions(user, currentStoreId, products, lang, fetchData);
   const { showBulkPriceModal, setShowBulkPriceModal, bulkPriceForm, setBulkPriceForm, handleApplyTaxRule, handleBulkPriceSubmit, handleBulkRecalculatePrice2, handleExportProducts } = useProductUtils(user, currentStoreId, includeBranches, products, lang, fetchData);
   const importHooks = useProductImport(user, currentStoreId, products.length, branding, planLimits, lang, fetchData);
 
@@ -43,6 +43,7 @@ export const useProducts = (user: any, slug: string | undefined, includeBranches
     handleBulkDelete,
     handleBulkAdd,
     handleBulkRename,
+    handleReformatProductNames,
     handleApplyTaxRule: (cat: string, tax: number) => handleApplyTaxRule(cat, tax, setLoading),
     handleBulkPriceSubmit: (e: React.FormEvent) => handleBulkPriceSubmit(e, setLoading),
     handleBulkRecalculatePrice2: () => handleBulkRecalculatePrice2(setLoading),

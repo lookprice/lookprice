@@ -1,12 +1,26 @@
 export const getLabels = (labels: any): string[] => {
-  if (Array.isArray(labels)) return labels;
+  if (!labels) return [];
+  if (Array.isArray(labels)) {
+    return labels.map(l => String(l || "").trim()).filter(Boolean);
+  }
   if (typeof labels === "string") {
-    try {
-      const parsed = JSON.parse(labels);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      return [];
+    const trimmed = labels.trim();
+    if (!trimmed) return [];
+    if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map(l => String(l || "").trim()).filter(Boolean);
+        }
+      } catch (e) {
+        // Fallback below
+      }
     }
+    return trimmed
+      .replace(/[\[\]"]/g, "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
   }
   return [];
 };
