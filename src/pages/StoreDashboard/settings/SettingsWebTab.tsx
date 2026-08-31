@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "motion/react";
 import TeamAccessManagement from "../../../components/TeamAccessManagement";
 import { ShopThemeStudio } from "../../../components/dashboard/ShopThemeStudio";
+import { HorecaThemeStudio } from "../../../components/dashboard/HorecaThemeStudio";
 import {
   Palette,
   RefreshCw,
@@ -210,8 +211,20 @@ export const SettingsWebTab = ({
       animate={{ opacity: 1, y: 0 }}
       className="max-w-5xl mx-auto space-y-6 pb-20"
     >
-      {/* 1. ShopLP Comprehensive Theme & Showcase Studio (Exclusively for Retail / ShopLP) */}
-      {!isPortfolio && (
+      {/* 1. HorecaLP Theme & Digital QR Menu Studio (Exclusively for Cafe & Restaurant) */}
+      {isCafeRestaurant && (
+        <HorecaThemeStudio
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          lang={lang}
+          onSave={onSaveBranding}
+          saving={savingBranding}
+          storeId={branding?.id || branding?.slug}
+        />
+      )}
+
+      {/* 2. ShopLP Comprehensive Theme & Showcase Studio (Exclusively for Retail / ShopLP) */}
+      {!isPortfolio && !isCafeRestaurant && (
         <ShopThemeStudio
           branding={branding}
           onBrandingChange={onBrandingChange}
@@ -221,8 +234,8 @@ export const SettingsWebTab = ({
         />
       )}
 
-      {/* Label & About Section (For Non-Portfolios only) */}
-      {!isPortfolio && (
+      {/* Label & About Section (For Retail ShopLP Non-Portfolios only) */}
+      {!isPortfolio && !isCafeRestaurant && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Label Customization */}
           <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
@@ -244,22 +257,6 @@ export const SettingsWebTab = ({
                 >
                   {lang === "tr" ? "Kitapçı Konsepti Uygula" : "Apply Bookstore Concept"}
                 </button>
-                {isCafeRestaurant && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onBrandingChange("brand_label", lang === "tr" ? "Şefler" : "Chefs");
-                      onBrandingChange("category_label", lang === "tr" ? "Menü Kategorileri" : "Menu Categories");
-                      onBrandingChange("product_label", lang === "tr" ? "Lezzet / Yemek" : "Dish / Delicacy");
-                      onBrandingChange("stock_label", lang === "tr" ? "Masa Servis Durumu" : "Table Service Status");
-                      onBrandingChange("hero_title", lang === "tr" ? "Gurme Lezzetler & Keyifli Anlar" : "Gourmet Flavors & Cozy Moments");
-                      onBrandingChange("hero_subtitle", lang === "tr" ? "Usta şeflerimizin özenle hazırladığı taze lezzetler ve kaliteli ürünlerimizle günün her anına keyif katıyoruz." : "We elevate every moment of your day with fresh dishes masterfully crafted by our chefs and premium ingredients.");
-                    }}
-                    className="px-3 py-1.5 bg-amber-50 text-amber-600 rounded-lg text-[10px] font-black uppercase tracking-tight hover:bg-amber-100 transition-colors"
-                  >
-                    {lang === "tr" ? "Kafe Konsepti Uygula" : "Apply Cafe Concept"}
-                  </button>
-                )}
               </div>
             </div>
             <div className="space-y-4">

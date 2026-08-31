@@ -929,6 +929,7 @@ router.get("/digital-menu/:storeIdentifier/products", async (req, res) => {
              p.tax_rate, p.description, p.stock_quantity, p.unit, p.category, 
              p.sub_category, p.image_url, p.is_bestseller, p.product_type, p.is_web_sale,
              p.has_variants, p.variants, p.category_2, p.sub_category_2, p.is_sellable,
+             p.allergens, p.calories, p.prep_time_min, p.portion_size,
              (
                SELECT COALESCE(json_agg(json_build_object(
                  'id', pr.id,

@@ -12,6 +12,10 @@ async function initProductSchema() {
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sub_category_2 VARCHAR(255) DEFAULT '';`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS has_variants BOOLEAN DEFAULT FALSE;`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'::jsonb;`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS allergens JSONB DEFAULT '[]'::jsonb;`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS calories NUMERIC DEFAULT 0;`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS prep_time_min NUMERIC DEFAULT 0;`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS portion_size VARCHAR(100) DEFAULT '';`);
   } catch (e) {
     console.error("Failed to alter products table schema for variants and 2nd categories:", e);
   }
@@ -107,7 +111,7 @@ router.post("/", async (req: any, res) => {
     stock_quantity, min_stock_level, unit, category, sub_category, 
     category_2, sub_category_2, has_variants, variants,
     brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
-    price_2, price_2_currency, tax_rate, volume_ml 
+    price_2, price_2_currency, tax_rate, volume_ml, allergens, calories, prep_time_min, portion_size
   } = req.body;
   
   if (!barcode || !name || !price) return res.status(400).json({ error: "Missing fields" });
@@ -130,15 +134,17 @@ router.post("/", async (req: any, res) => {
     const isBestsellerVal = is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on';
     const hasVariantsVal = has_variants === true || has_variants === 'true' || has_variants === 'on';
     const variantsVal = JSON.stringify(Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []));
+    const allergensVal = JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : []));
 
     const result = await pool.query(`
       INSERT INTO products (
         store_id, barcode, name, price, currency, cost_price, cost_currency, description, 
         stock_quantity, min_stock_level, unit, category, sub_category, category_2, sub_category_2,
         has_variants, variants, brand, author, labels, image_url, is_web_sale, is_bestseller, 
-        product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, is_sellable, updated_at
+        product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, is_sellable,
+        allergens, calories, prep_time_min, portion_size, updated_at
       ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31::jsonb, $32, $33, $34, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
       storeId, String(barcode), name, parseFloat(price), currency || 'TRY', 
@@ -155,7 +161,11 @@ router.post("/", async (req: any, res) => {
       (tax_rate !== undefined && tax_rate !== null && tax_rate !== "") ? parseFloat(tax_rate) : defaultTaxRate,
       req.body.shipping_profile_id || null,
       parseFloat(volume_ml) || 0,
-      req.body.is_sellable !== undefined ? req.body.is_sellable : true
+      req.body.is_sellable !== undefined ? req.body.is_sellable : true,
+      allergensVal,
+      parseFloat(calories) || 0,
+      parseFloat(prep_time_min) || 0,
+      portion_size || ''
     ]);
 
     if (req.body.sync_group && barcode) {
@@ -346,11 +356,12 @@ router.put("/:id", async (req: any, res) => {
     stock_quantity, min_stock_level, unit, category, sub_category, 
     category_2, sub_category_2, has_variants, variants,
     brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
-    price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group, volume_ml, is_sellable 
+    price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group, volume_ml, is_sellable,
+    allergens, calories, prep_time_min, portion_size
   } = req.body;
 
   try {
-    const existingProductRes = await pool.query("SELECT labels, barcode, is_sellable, is_bestseller FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const existingProductRes = await pool.query("SELECT labels, barcode, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (existingProductRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
     let existingLabels = existingProductRes.rows[0]?.labels || [];
     let existingIsSellable = existingProductRes.rows[0]?.is_sellable;
@@ -369,6 +380,7 @@ router.put("/:id", async (req: any, res) => {
     const finalIsBestseller = is_bestseller !== undefined ? (is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on') : existingIsBestseller;
     const finalHasVariants = has_variants !== undefined ? (has_variants === true || has_variants === 'true' || has_variants === 'on') : false;
     const finalVariants = JSON.stringify(Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []));
+    const finalAllergens = allergens !== undefined ? JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : [])) : JSON.stringify(existingProductRes.rows[0]?.allergens || []);
 
     await pool.query(`
       UPDATE products SET 
@@ -378,8 +390,10 @@ router.put("/:id", async (req: any, res) => {
         category = $11, sub_category = $12, category_2 = $13, sub_category_2 = $14,
         has_variants = $15, variants = $16::jsonb, brand = $17, author = $18, 
         labels = $19, image_url = $20, is_web_sale = $21, is_bestseller = $22, product_type = $23,
-        price_2 = $24, price_2_currency = $25, tax_rate = $26, shipping_profile_id = $27, volume_ml = $28, is_sellable = $29, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $30 AND store_id = $31
+        price_2 = $24, price_2_currency = $25, tax_rate = $26, shipping_profile_id = $27, volume_ml = $28, is_sellable = $29,
+        allergens = $30::jsonb, calories = $31, prep_time_min = $32, portion_size = $33,
+        updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $34 AND store_id = $35
     `, [
       String(barcode), name, parseFloat(price), currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
@@ -396,6 +410,10 @@ router.put("/:id", async (req: any, res) => {
       shipping_profile_id || null,
       parseFloat(volume_ml) || 0,
       finalIsSellable,
+      finalAllergens,
+      calories !== undefined ? (parseFloat(calories) || 0) : (existingProductRes.rows[0]?.calories || 0),
+      prep_time_min !== undefined ? (parseFloat(prep_time_min) || 0) : (existingProductRes.rows[0]?.prep_time_min || 0),
+      portion_size !== undefined ? String(portion_size) : (existingProductRes.rows[0]?.portion_size || ''),
       id, storeId
     ]);
 

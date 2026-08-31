@@ -233,14 +233,17 @@ const SettingsTab = ({
 
   const isPortfolio = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
   const isAutomotive = branding?.store_type === 'motor_vehicle' || branding?.page_layout_settings?.sector === 'automotive';
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
   React.useEffect(() => {
     if (isPortfolio && (activeSubTab === 'pos' || activeSubTab === 'e-stores' || activeSubTab === 'e-invoice')) {
       setActiveSubTab('financing');
     } else if (isPortfolio && activeSubTab === 'web') {
       setActiveSubTab('store-ops');
+    } else if (isCafeRestaurant && activeSubTab === 'e-stores') {
+      setActiveSubTab('store-ops');
     }
-  }, [isPortfolio, activeSubTab]);
+  }, [isPortfolio, isCafeRestaurant, activeSubTab]);
 
   const fetchLogs = async () => {
     setLoadingLogs(true);
@@ -434,7 +437,7 @@ const SettingsTab = ({
               className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'web' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
             >
               <Palette className="h-4 w-4" />
-              <span>{t.settingsCategories?.webSettings}</span>
+              <span>{isCafeRestaurant ? (lang === 'tr' ? 'QR Menü & Web' : 'QR Menu & Web') : t.settingsCategories?.webSettings}</span>
             </button>
           )}
           <button 
@@ -442,7 +445,7 @@ const SettingsTab = ({
             className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
           >
             <Wrench className="h-4 w-4" />
-            <span>{lang === 'tr' ? 'Mağaza Ayarları' : 'Store Settings'}</span>
+            <span>{isCafeRestaurant ? (lang === 'tr' ? 'İşletme Ayarları' : 'Ops Settings') : (lang === 'tr' ? 'Mağaza Ayarları' : 'Store Settings')}</span>
           </button>
           {!isPortfolio && (
             <button 
@@ -450,10 +453,10 @@ const SettingsTab = ({
               className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'pos' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
             >
               <CreditCard className="h-4 w-4" />
-              <span>{t.settingsCategories?.posSettings}</span>
+              <span>{isCafeRestaurant ? (lang === 'tr' ? 'Adisyon & POS' : 'Restaurant POS') : t.settingsCategories?.posSettings}</span>
             </button>
           )}
-          {!isPortfolio && (
+          {!isPortfolio && !isCafeRestaurant && (
             <button 
               onClick={() => setActiveSubTab('e-stores')}
               className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}

@@ -46,6 +46,12 @@ export const ProductModal = ({
   const [ingredientSearch, setIngredientSearch] = useState("");
   const [showIngredientSelector, setShowIngredientSelector] = useState(false);
 
+  // HoReCaLP Allergen and Nutrition States
+  const [selectedAllergens, setSelectedAllergens] = useState<string[]>([]);
+  const [calories, setCalories] = useState<number | string>("");
+  const [prepTimeMin, setPrepTimeMin] = useState<number | string>("");
+  const [portionSize, setPortionSize] = useState<string>("");
+
   // ShopLP Retail Variant Matrix States
   const [variantBarcodeMode, setVariantBarcodeMode] = useState<'individual' | 'shared'>('individual');
   const [showMatrixGenerator, setShowMatrixGenerator] = useState(false);
@@ -156,6 +162,22 @@ export const ProductModal = ({
       setHasVariants(pHasVariants);
       setVariants(Array.isArray(editingProduct?.variants) ? editingProduct.variants : []);
 
+      // Parse and set Allergens & Nutrition
+      let initialAllergens: string[] = [];
+      if (Array.isArray(editingProduct?.allergens)) {
+        initialAllergens = editingProduct.allergens;
+      } else if (typeof editingProduct?.allergens === 'string') {
+        try {
+          initialAllergens = JSON.parse(editingProduct.allergens);
+        } catch {
+          initialAllergens = [];
+        }
+      }
+      setSelectedAllergens(initialAllergens);
+      setCalories(editingProduct?.calories || "");
+      setPrepTimeMin(editingProduct?.prep_time_min || "");
+      setPortionSize(editingProduct?.portion_size || "");
+
       const hasCategories = categoriesList.length > 0;
       const warrantsNewCat = cat ? !categoriesList.includes(cat) : !hasCategories;
       setIsNewCategoryMode(warrantsNewCat);
@@ -171,6 +193,10 @@ export const ProductModal = ({
       setSelectedSubCategory2("");
       setHasVariants(false);
       setVariants([]);
+      setSelectedAllergens([]);
+      setCalories("");
+      setPrepTimeMin("");
+      setPortionSize("");
       setIsNewCategoryMode(false);
       setIsNewSubCategoryMode(false);
       setRecipeItems([]);
@@ -947,6 +973,127 @@ export const ProductModal = ({
                 ))}
               </div>
               <input type="hidden" name="recipe_data" value={JSON.stringify(recipeItems)} />
+            </div>
+          )}
+
+          {/* SECTION: HoReCaLP Besin Değeri, Alerjen ve Hazırlık Bilgileri */}
+          {isCafeRestaurant && (
+            <div className="p-5 bg-emerald-50/40 rounded-3xl border border-emerald-200/80 space-y-4">
+              <div className="border-b border-emerald-200 pb-3 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                    {isTr ? "Besin Değeri, Kalori & Alerjen Bilgileri" : "Nutrition, Calories & Allergens"}
+                  </h4>
+                  <p className="text-[10px] text-emerald-900 font-bold mt-0.5">
+                    {isTr ? "QR Dijital Menüde misafirlerinize gösterilecek sağlık ve porsiyon detayları." : "Health, calories, and portion details displayed in QR Digital Menu."}
+                  </p>
+                </div>
+                <span className="text-[9px] font-black uppercase px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
+                  {isTr ? "HoReCa Menü" : "HoReCa Menu"}
+                </span>
+              </div>
+
+              {/* Kalori, Porsiyon, Hazırlık Süresi */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-white p-3 rounded-2xl border border-emerald-150">
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase tracking-wider">
+                    {isTr ? "Enerji (Kalori - kcal)" : "Calories (kcal)"}
+                  </label>
+                  <input
+                    type="number"
+                    name="calories"
+                    value={calories}
+                    onChange={(e) => setCalories(e.target.value)}
+                    placeholder="örn: 320"
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                <div className="bg-white p-3 rounded-2xl border border-emerald-150">
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase tracking-wider">
+                    {isTr ? "Porsiyon Gramaj / Hacim" : "Portion Size / Weight"}
+                  </label>
+                  <input
+                    type="text"
+                    name="portion_size"
+                    value={portionSize}
+                    onChange={(e) => setPortionSize(e.target.value)}
+                    placeholder={isTr ? "örn: 180 gr / 330 ml" : "e.g. 180 g / 330 ml"}
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                <div className="bg-white p-3 rounded-2xl border border-emerald-150">
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase tracking-wider">
+                    {isTr ? "Ortalama Hazırlık (Dk)" : "Prep Time (Min)"}
+                  </label>
+                  <input
+                    type="number"
+                    name="prep_time_min"
+                    value={prepTimeMin}
+                    onChange={(e) => setPrepTimeMin(e.target.value)}
+                    placeholder="örn: 15"
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Alerjen Seçim Rozetleri */}
+              <div className="bg-white p-3.5 rounded-2xl border border-emerald-150 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                    {isTr ? "Alerjen ve Özel Tercih Etiketleri" : "Allergen & Dietary Badges"}
+                  </span>
+                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    {selectedAllergens.length} {isTr ? "Seçili" : "Selected"}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {[
+                    { id: "gluten", labelTr: "Gluten", labelEn: "Gluten", icon: "🌾" },
+                    { id: "lactose", labelTr: "Laktoz / Süt", labelEn: "Dairy / Lactose", icon: "🥛" },
+                    { id: "nuts", labelTr: "Kuruyemiş / Fıstık", labelEn: "Nuts / Peanuts", icon: "🥜" },
+                    { id: "egg", labelTr: "Yumurta", labelEn: "Egg", icon: "🥚" },
+                    { id: "soy", labelTr: "Soya", labelEn: "Soy", icon: "🌱" },
+                    { id: "seafood", labelTr: "Deniz Ürünü / Kabuklu", labelEn: "Seafood / Shellfish", icon: "🦐" },
+                    { id: "fish", labelTr: "Balık", labelEn: "Fish", icon: "🐟" },
+                    { id: "mustard", labelTr: "Hardal", labelEn: "Mustard", icon: "🌭" },
+                    { id: "sesame", labelTr: "Susam", labelEn: "Sesame", icon: "🥯" },
+                    { id: "spicy", labelTr: "Acı / Baharatlı", labelEn: "Spicy", icon: "🌶️" },
+                    { id: "vegan", labelTr: "Vegan", labelEn: "Vegan", icon: "🥬" },
+                    { id: "vegetarian", labelTr: "Vejetaryen", labelEn: "Vegetarian", icon: "🥗" },
+                    { id: "sugar_free", labelTr: "Şekersiz", labelEn: "Sugar Free", icon: "🍃" },
+                    { id: "pork_free", labelTr: "Domuz Ürünü İçermez (Helal)", labelEn: "No Pork (Halal)", icon: "✨" },
+                  ].map((item) => {
+                    const isSelected = selectedAllergens.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedAllergens(selectedAllergens.filter(x => x !== item.id));
+                          } else {
+                            setSelectedAllergens([...selectedAllergens, item.id]);
+                          }
+                        }}
+                        className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <span>{item.icon}</span>
+                        <span>{isTr ? item.labelTr : item.labelEn}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <input type="hidden" name="allergens_data" value={JSON.stringify(selectedAllergens)} />
             </div>
           )}
 

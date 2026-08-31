@@ -32,6 +32,27 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       }
     });
 
+    const hasVariantsRaw: any = rawData.has_variants;
+    const isExplicitlyVariantsOff = hasVariantsRaw === undefined || hasVariantsRaw === false || hasVariantsRaw === 'false';
+    
+    // Parse allergens list from rawData
+    let parsedAllergens: string[] = [];
+    if (rawData.allergens_data) {
+      try {
+        parsedAllergens = JSON.parse(rawData.allergens_data as string);
+      } catch (e) {
+        parsedAllergens = [];
+      }
+    } else if (typeof rawData.allergens === 'string') {
+      try {
+        parsedAllergens = JSON.parse(rawData.allergens);
+      } catch (e) {
+        parsedAllergens = rawData.allergens.split(',').map(s => s.trim()).filter(Boolean);
+      }
+    } else if (Array.isArray(rawData.allergens)) {
+      parsedAllergens = rawData.allergens;
+    }
+
     const data: any = { 
       ...rawData,
       sector_data,
@@ -41,23 +62,36 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       is_web_sale: rawData.is_web_sale === 'on' || rawData.is_web_sale === 'true',
       is_bestseller: rawData.is_bestseller === 'on' || rawData.is_bestseller === 'true',
       is_sellable: rawData.is_sellable === 'on' || rawData.is_sellable === 'true',
-      has_variants: rawData.has_variants === 'on' || rawData.has_variants === 'true',
+      has_variants: !isExplicitlyVariantsOff && (hasVariantsRaw === 'on' || hasVariantsRaw === 'true' || hasVariantsRaw === true),
+      variants: [],
+      allergens: parsedAllergens,
+      calories: Number(rawData.calories) || 0,
+      prep_time_min: Number(rawData.prep_time_min) || 0,
+      portion_size: String(rawData.portion_size || '').trim(),
       product_type: rawData.product_type || 'product',
       sync_group: rawData.sync_group === 'on'
     };
 
-    if (rawData.variants_data) {
+    if (data.has_variants && rawData.variants_data) {
       try {
-        data.variants = JSON.parse(rawData.variants_data as string);
-        if (Array.isArray(data.variants) && data.variants.length > 0) {
+        const parsedVariants = JSON.parse(rawData.variants_data as string);
+        if (Array.isArray(parsedVariants) && parsedVariants.length > 0) {
+          data.variants = parsedVariants;
           data.has_variants = true;
           // Automatically sum variant stocks so stock_quantity is correctly set and recognized by filters and website publishing
           const totalVariantStock = data.variants.reduce((acc: number, curr: any) => acc + (Number(curr.stock_quantity) || 0), 0);
           data.stock_quantity = totalVariantStock;
+        } else {
+          data.has_variants = false;
+          data.variants = [];
         }
       } catch (e) {
         console.error("Variants data parse error:", e);
+        data.variants = [];
       }
+    } else {
+      data.has_variants = false;
+      data.variants = [];
     }
     ['price', 'price_2', 'old_price', 'cost_price', 'tax_rate', 'volume_ml'].forEach(field => {
       if (data[field]) {

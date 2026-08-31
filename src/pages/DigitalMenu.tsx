@@ -2,8 +2,25 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { motion, AnimatePresence } from "motion/react";
-import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles, UserCheck, FlaskConical, RotateCcw } from "lucide-react";
+import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles, UserCheck, FlaskConical, RotateCcw, Clock, Utensils, Zap, Info } from "lucide-react";
 import { translateText } from "../utils/translator";
+
+const ALLERGEN_MAP: Record<string, { labelTr: string; labelEn: string; icon: string }> = {
+  gluten: { labelTr: "Gluten", labelEn: "Gluten", icon: "🌾" },
+  lactose: { labelTr: "Laktoz", labelEn: "Dairy", icon: "🥛" },
+  nuts: { labelTr: "Kuruyemiş", labelEn: "Nuts", icon: "🥜" },
+  egg: { labelTr: "Yumurta", labelEn: "Egg", icon: "🥚" },
+  soy: { labelTr: "Soya", labelEn: "Soy", icon: "🌱" },
+  seafood: { labelTr: "Deniz Ürünü", labelEn: "Seafood", icon: "🦐" },
+  fish: { labelTr: "Balık", labelEn: "Fish", icon: "🐟" },
+  mustard: { labelTr: "Hardal", labelEn: "Mustard", icon: "🌭" },
+  sesame: { labelTr: "Susam", labelEn: "Sesame", icon: "🥯" },
+  spicy: { labelTr: "Acı", labelEn: "Spicy", icon: "🌶️" },
+  vegan: { labelTr: "Vegan", labelEn: "Vegan", icon: "🥬" },
+  vegetarian: { labelTr: "Vejetaryen", labelEn: "Vegetarian", icon: "🥗" },
+  sugar_free: { labelTr: "Şekersiz", labelEn: "Sugar-Free", icon: "🍃" },
+  pork_free: { labelTr: "Helal / No Pork", labelEn: "Halal", icon: "✨" },
+};
 
 export default function DigitalMenuPage() {
   const { storeId, tableId } = useParams();
@@ -636,13 +653,28 @@ export default function DigitalMenuPage() {
             const vars = Array.isArray(product.variants) ? product.variants : (typeof product.variants === 'string' ? JSON.parse(product.variants || '[]') : []);
             const pHasVars = product.has_variants === true || product.has_variants === 'true' || (Array.isArray(vars) && vars.length > 0);
             const cartItem = cart.find((item) => item.id === product.id);
-            const hasRecipe = getRecipeItems(product).length > 0;
+            const recipeList = getRecipeItems(product);
+            const hasRecipe = recipeList.length > 0;
+
+            // Parse allergens
+            let pAllergens: string[] = [];
+            if (Array.isArray(product.allergens)) {
+              pAllergens = product.allergens;
+            } else if (typeof product.allergens === 'string') {
+              try {
+                pAllergens = JSON.parse(product.allergens);
+              } catch {
+                pAllergens = [];
+              }
+            }
+            const hasNutritionsOrAllergens = (pAllergens.length > 0) || (Number(product.calories) > 0) || !!product.portion_size || (Number(product.prep_time_min) > 0);
+            const hasDetailsToFlip = hasRecipe || hasNutritionsOrAllergens;
             const isFlipped = flippedProductId === product.id;
 
             return (
               <div 
                 key={product.id} 
-                className="w-full relative h-[270px]"
+                className="w-full relative h-[285px]"
                 style={{ perspective: "1000px" }}
               >
                 <motion.div
@@ -667,38 +699,69 @@ export default function DigitalMenuPage() {
                       </span>
                     )}
 
-                    {/* Recipe Flask Button */}
-                    {hasRecipe && (
+                    {/* Recipe / Nutrition Flask Button */}
+                    {hasDetailsToFlip && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setFlippedProductId(product.id);
                         }}
                         className="absolute top-2 right-2 z-20 h-7 w-7 bg-slate-900/80 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90 border border-white/10"
-                        title={t("Reçeteyi Gör", "See Recipe", "Δείτε τη Συνταγή")}
+                        title={t("İçerik, Kalori ve Alerjen Bilgileri", "Recipe, Calories & Allergens", "Συστατικά & Αλλεργιογόνα")}
                       >
-                        <FlaskConical className="h-3.5 w-3.5 animate-pulse" />
+                        {hasRecipe ? (
+                          <FlaskConical className="h-3.5 w-3.5 animate-pulse" />
+                        ) : (
+                          <Info className="h-3.5 w-3.5 text-emerald-400" />
+                        )}
                       </button>
                     )}
 
-                    <img 
-                      src={getProductImage(product)} 
-                      alt={product.name} 
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80';
-                      }}
-                      className="w-full h-[120px] object-cover rounded-xl mb-2 shadow-xs" 
-                    />
-                    <h3 className="font-bold text-slate-800 text-sm line-clamp-2 leading-snug">{translateText(product.name, lang)}</h3>
+                    <div className="relative mb-2">
+                      <img 
+                        src={getProductImage(product)} 
+                        alt={product.name} 
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80';
+                        }}
+                        className="w-full h-[115px] object-cover rounded-xl shadow-xs" 
+                      />
+                      
+                      {Number(product.calories) > 0 && (
+                        <span className="absolute bottom-1.5 right-1.5 bg-black/70 backdrop-blur-xs text-amber-300 font-black text-[9px] px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                          <Zap className="w-2.5 h-2.5" />
+                          {product.calories} kcal
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="font-bold text-slate-800 text-sm line-clamp-1 leading-snug">{translateText(product.name, lang)}</h3>
                     
-                    {product.description && (
+                    {product.description ? (
                       <p className="text-[10px] text-slate-400 font-medium line-clamp-1 mt-0.5 leading-tight">
                         {translateText(product.description, lang)}
                       </p>
+                    ) : (
+                      <div className="h-3 mt-0.5">
+                        {pAllergens.length > 0 && (
+                          <div className="flex gap-1 overflow-hidden">
+                            {pAllergens.slice(0, 3).map((alg) => (
+                              <span key={alg} className="text-[9px] text-slate-500 font-bold bg-slate-100 px-1 py-0.2 rounded" title={ALLERGEN_MAP[alg]?.labelTr || alg}>
+                                {ALLERGEN_MAP[alg]?.icon || "⚠️"} {ALLERGEN_MAP[alg]?.labelTr || alg}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     <div className="flex justify-between items-center mt-auto pt-1.5 border-t border-slate-100/70">
-                      <p className="text-indigo-600 font-black text-sm">{product.price} ₺</p>
+                      <div>
+                        <p className="text-indigo-600 font-black text-sm leading-tight">{product.price} ₺</p>
+                        {product.portion_size && (
+                          <p className="text-[9px] text-slate-400 font-bold leading-none mt-0.5">{product.portion_size}</p>
+                        )}
+                      </div>
                       
                       {/* Dynamic Quantity Selector for fast cart updates */}
                       {cartItem && !pHasVars ? (
@@ -745,7 +808,7 @@ export default function DigitalMenuPage() {
                     </div>
                   </div>
 
-                  {/* BACK SIDE (Secret Recipe Details Flip Card) */}
+                  {/* BACK SIDE (Secret Recipe, Nutrition & Allergen Details Flip Card) */}
                   <div
                     className="absolute inset-0 w-full h-full bg-slate-900 rounded-2xl p-3 flex flex-col justify-between text-white border border-slate-800"
                     style={{
@@ -755,12 +818,12 @@ export default function DigitalMenuPage() {
                       boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
                     }}
                   >
-                    <div className="space-y-2 shrink-0">
-                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div className="space-y-1.5 shrink-0">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <FlaskConical className="h-3.5 w-3.5 text-amber-400 animate-pulse shrink-0" />
                           <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 truncate">
-                            {t("REÇETE", "RECIPE", "ΣΥΝΤΑΓΗ")}
+                            {t("İÇERİK & BESİN DEĞERİ", "RECIPE & NUTRITION", "ΣΥΝΤΑΓΗ & ΔΙΑΤΡΟΦΗ")}
                           </span>
                         </div>
                         <button
@@ -776,35 +839,82 @@ export default function DigitalMenuPage() {
                       <h4 className="font-extrabold text-white text-xs truncate leading-tight">
                         {product.name}
                       </h4>
+
+                      {/* Quick Nutrition Chips */}
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {Number(product.calories) > 0 && (
+                          <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                            <Zap className="w-2.5 h-2.5 text-amber-400" />
+                            {product.calories} kcal
+                          </span>
+                        )}
+                        {product.portion_size && (
+                          <span className="bg-slate-800 text-slate-300 border border-slate-700 text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                            <Utensils className="w-2.5 h-2.5 text-slate-400" />
+                            {product.portion_size}
+                          </span>
+                        )}
+                        {Number(product.prep_time_min) > 0 && (
+                          <span className="bg-slate-800 text-slate-300 border border-slate-700 text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                            <Clock className="w-2.5 h-2.5 text-slate-400" />
+                            ~{product.prep_time_min} dk
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Recipe lists with interactive dynamic bars */}
-                    <div className="flex-1 my-2 space-y-2 overflow-y-auto pr-1 select-none scrollbar-none">
-                      {getRecipeItems(product).map((item: any, itemIdx: number) => {
-                        const itemsList = getRecipeItems(product);
-                        const totalAmount = itemsList.reduce((sum: number, i: any) => sum + (parseFloat(i.amount) || 0), 0);
-                        const percent = totalAmount > 0 ? ((parseFloat(item.amount) || 0) / totalAmount * 100).toFixed(0) : "35";
-                        return (
-                          <div key={itemIdx} className="space-y-0.5">
-                            <div className="flex justify-between items-center text-[10px] font-bold">
-                              <span className="text-slate-300 truncate max-w-[70%]">{item.ingredient_name}</span>
-                              <span className="text-amber-400 font-mono text-[9px] shrink-0">{item.amount} {item.ingredient_unit}</span>
-                            </div>
-                            <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden flex">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: isFlipped ? `${percent}%` : 0 }}
-                                transition={{ duration: 0.6, delay: itemIdx * 0.08 }}
-                                className="bg-gradient-to-r from-amber-500 to-rose-500 h-full rounded-full"
-                              />
-                            </div>
+                    {/* Scrollable Middle: Recipe bars and Allergen badges */}
+                    <div className="flex-1 my-1.5 space-y-2 overflow-y-auto pr-1 select-none scrollbar-none">
+                      {/* Recipe Items (if any) */}
+                      {recipeList.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[8px] font-black uppercase text-slate-400 tracking-wider">
+                            {t("Reçete Malzemeleri", "Recipe Ingredients", "Συστατικά")}
+                          </p>
+                          {recipeList.map((item: any, itemIdx: number) => {
+                            const totalAmount = recipeList.reduce((sum: number, i: any) => sum + (parseFloat(i.amount) || 0), 0);
+                            const percent = totalAmount > 0 ? ((parseFloat(item.amount) || 0) / totalAmount * 100).toFixed(0) : "35";
+                            return (
+                              <div key={itemIdx} className="space-y-0.5">
+                                <div className="flex justify-between items-center text-[10px] font-bold">
+                                  <span className="text-slate-300 truncate max-w-[70%]">{item.ingredient_name}</span>
+                                  <span className="text-amber-400 font-mono text-[9px] shrink-0">{item.amount} {item.ingredient_unit}</span>
+                                </div>
+                                <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden flex">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: isFlipped ? `${percent}%` : 0 }}
+                                    transition={{ duration: 0.6, delay: itemIdx * 0.08 }}
+                                    className="bg-gradient-to-r from-amber-500 to-rose-500 h-full rounded-full"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Allergens badges */}
+                      {pAllergens.length > 0 && (
+                        <div className="space-y-1 pt-1 border-t border-slate-800/80">
+                          <p className="text-[8px] font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            {t("Alerjen & Diyet Uyarıları", "Allergens & Dietary", "Αλλεργιογόνα")}
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {pAllergens.map((alg) => (
+                              <span key={alg} className="text-[9px] font-bold bg-slate-800 text-slate-200 border border-slate-700 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                                <span>{ALLERGEN_MAP[alg]?.icon || "⚠️"}</span>
+                                <span>{ALLERGEN_MAP[alg]?.labelTr || alg}</span>
+                              </span>
+                            ))}
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
                     </div>
 
                     <div className="pt-1.5 border-t border-slate-800 flex justify-between items-center shrink-0">
-                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Lookprice Blend</span>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">HoReCaLP</span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

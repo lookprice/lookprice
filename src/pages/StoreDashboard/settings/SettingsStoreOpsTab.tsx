@@ -44,6 +44,7 @@ export const SettingsStoreOpsTab = ({
   currentStoreId
 }: SettingsStoreOpsTabProps) => {
   const [syncingTcmb, setSyncingTcmb] = useState(false);
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const t = translations || {};
   const txt = (tr: string, en: string, el: string) => {
     if (lang === 'tr') return tr;
@@ -406,7 +407,7 @@ export const SettingsStoreOpsTab = ({
       )}
 
       {/* Shipping Profiles */}
-      {!isPortfolio && (
+      {!isPortfolio && !isCafeRestaurant && (
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-3">

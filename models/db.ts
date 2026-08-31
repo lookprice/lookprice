@@ -230,6 +230,15 @@ export async function initDb() {
       );
       CREATE INDEX IF NOT EXISTS idx_official_taxpayer_cache_vkn ON official_taxpayer_cache(vkn);
       
+      CREATE TABLE IF NOT EXISTS app_storage_files (
+        filename TEXT PRIMARY KEY,
+        mimetype TEXT,
+        data BYTEA,
+        size INTEGER,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_app_storage_files_created ON app_storage_files(created_at);
+
       DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='official_taxpayer_cache' AND column_name='alias') THEN

@@ -70,6 +70,10 @@ export interface Product {
   unit: string;
   volume_ml?: number;
   recipe_items?: any[];
+  allergens?: string[];
+  calories?: number;
+  prep_time_min?: number;
+  portion_size?: string;
   tax_rate: number;
   image_url: string;
   images?: string[] | string;

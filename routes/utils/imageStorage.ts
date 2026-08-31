@@ -1,10 +1,47 @@
 import fs from 'fs';
 import path from 'path';
 import { supabase } from '../../src/services/supabaseService';
+import { pool } from '../../models/db';
 
 const uploadsStoresDir = path.join(process.cwd(), 'uploads', 'stores');
 if (!fs.existsSync(uploadsStoresDir)) {
   fs.mkdirSync(uploadsStoresDir, { recursive: true });
+}
+
+export async function saveBufferToDatabase(filename: string, mimetype: string, buffer: Buffer): Promise<boolean> {
+  try {
+    await pool.query(`
+      INSERT INTO app_storage_files (filename, mimetype, data, size, created_at)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+      ON CONFLICT (filename) DO UPDATE 
+      SET mimetype = EXCLUDED.mimetype, data = EXCLUDED.data, size = EXCLUDED.size, created_at = CURRENT_TIMESTAMP
+    `, [filename, mimetype, buffer, buffer.length]);
+    return true;
+  } catch (err: any) {
+    console.warn(`[Storage DB] Failed to save ${filename} to PostgreSQL:`, err?.message || err);
+    return false;
+  }
+}
+
+export async function getFileFromDatabase(filename: string): Promise<{ buffer: Buffer; mimetype: string } | null> {
+  try {
+    const res = await pool.query(`
+      SELECT mimetype, data 
+      FROM app_storage_files 
+      WHERE filename = $1 
+      LIMIT 1
+    `, [filename]);
+    if (res.rows.length > 0 && res.rows[0].data) {
+      return {
+        buffer: Buffer.isBuffer(res.rows[0].data) ? res.rows[0].data : Buffer.from(res.rows[0].data),
+        mimetype: res.rows[0].mimetype || 'image/png'
+      };
+    }
+    return null;
+  } catch (err: any) {
+    console.warn(`[Storage DB] Error fetching ${filename} from PostgreSQL:`, err?.message || err);
+    return null;
+  }
 }
 
 export async function saveBase64Image(base64Data: string, prefix: string): Promise<string> {
@@ -27,6 +64,8 @@ export async function saveBase64Image(base64Data: string, prefix: string): Promi
     fs.mkdirSync(localLookdocuDir, { recursive: true });
   }
 
+  const mimeType = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+
   // 1. Always write locally first to eliminate egress
   try {
     fs.writeFileSync(path.join(localLookdocuDir, filename), buffer);
@@ -35,12 +74,14 @@ export async function saveBase64Image(base64Data: string, prefix: string): Promi
     console.warn("Failed to write base64 image locally:", localErr);
   }
 
-  // 2. Try to save to Supabase as backup if keys are available
+  // 2. Persist directly in PostgreSQL database (never lost on container reboot, independent of Supabase)
+  await saveBufferToDatabase(filename, mimeType, buffer);
+
+  // 3. Try to save to Supabase as backup if keys are available
   try {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
     const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
     if (supabaseUrl && supabaseKey) {
-      const mimeType = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
       const { error } = await supabase.storage
         .from("lookdocu")
         .upload(filename, buffer, {
@@ -90,6 +131,8 @@ export async function replaceAllBase64InString(str: string, prefix: string): Pro
         fs.mkdirSync(localLookdocuDir, { recursive: true });
       }
 
+      const mimeType = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+
       // 1. Always write locally first to eliminate egress
       try {
         fs.writeFileSync(path.join(localLookdocuDir, filename), buffer);
@@ -98,12 +141,14 @@ export async function replaceAllBase64InString(str: string, prefix: string): Pro
         console.warn("Failed to write base64 substring locally:", localErr);
       }
 
-      // 2. Try to save to Supabase as backup if keys are available
+      // 2. Persist in PostgreSQL database
+      await saveBufferToDatabase(filename, mimeType, buffer);
+
+      // 3. Try to save to Supabase as backup if keys are available
       try {
         const supabaseUrl = process.env.SUPABASE_URL || process.env.project_url;
         const supabaseKey = process.env.SUPABASE_KEY || process.env.service_role;
         if (supabaseUrl && supabaseKey) {
-          const mimeType = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
           const { error } = await supabase.storage
             .from("lookdocu")
             .upload(filename, buffer, {
