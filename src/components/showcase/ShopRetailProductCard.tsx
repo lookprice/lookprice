@@ -140,6 +140,27 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
     ? "rounded-3xl"
     : "rounded-2xl";
 
+  // Card Style Variants
+  const cardStyleClass = React.useMemo(() => {
+    const style = themeConfig?.card_style || "minimal";
+    switch (style) {
+      case "borderless":
+        return "bg-slate-50/70 dark:bg-slate-900/60 border-0 shadow-none hover:shadow-md hover:bg-white dark:hover:bg-slate-900";
+      case "elevated":
+        return "bg-white dark:bg-slate-900 border-0 shadow-md hover:shadow-2xl hover:-translate-y-1";
+      case "glass":
+        return "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-white/50 dark:border-white/10 shadow-xs hover:shadow-xl";
+      case "neo":
+        return "bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]";
+      case "minimal":
+      default:
+        return "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-xs hover:shadow-xl";
+    }
+  }, [themeConfig?.card_style]);
+
+  // Glow effect on hover
+  const glowHoverClass = themeConfig?.card_hover_effect === "glow" ? "hover:ring-2 hover:ring-indigo-500/50" : "";
+
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isOutOfStock) return;
@@ -157,6 +178,8 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
   };
 
   const currencySymbol = store?.currency || product.currency || "TRY";
+  const primaryColor = themeConfig?.primary_color || "#0f172a";
+  const accentColor = themeConfig?.accent_color || "#e11d48";
 
   return (
     <motion.div
@@ -167,7 +190,7 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
       transition={{ duration: 0.3 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`group relative flex flex-col bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 ${radiusClass} overflow-hidden shadow-xs hover:shadow-xl transition-all duration-500 cursor-pointer`}
+      className={`group relative flex flex-col ${cardStyleClass} ${radiusClass} ${glowHoverClass} overflow-hidden transition-all duration-500 cursor-pointer`}
       onClick={() => onView(product)}
     >
       {/* 1. Image Canvas & Overlay Actions */}
@@ -181,7 +204,7 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
             className={`w-full h-full object-cover object-center ${
-              themeConfig?.card_hover_effect === "zoom" ? "group-hover:scale-108" : "group-hover:scale-104"
+              themeConfig?.card_hover_effect === "zoom" ? "group-hover:scale-110" : "group-hover:scale-105"
             } transition-transform duration-700 ease-out`}
             referrerPolicy="no-referrer"
             loading="lazy"
@@ -201,7 +224,10 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
           ) : (
             <>
               {isNew && (
-                <span className="px-2.5 py-1 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm">
+                <span
+                  style={{ backgroundColor: accentColor }}
+                  className="px-2.5 py-1 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm"
+                >
                   {lang === "tr" ? "Yeni" : "New"}
                 </span>
               )}
@@ -212,7 +238,10 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
                 </span>
               )}
               {discountLabel && (
-                <span className="px-2.5 py-1 bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm">
+                <span
+                  style={{ backgroundColor: accentColor }}
+                  className="px-2.5 py-1 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm"
+                >
                   {discountLabel}
                 </span>
               )}
@@ -240,27 +269,29 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
 
         {/* Hover Action Bar (Slide up from bottom of image) */}
         <div className="absolute inset-x-3 bottom-3 z-10 hidden sm:flex items-center gap-2 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onView(product);
-            }}
-            className="flex-1 py-2.5 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white rounded-xl text-xs font-bold shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-slate-200/60 dark:border-slate-700/60"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>{lang === "tr" ? "Hızlı İncele" : "Quick View"}</span>
-          </button>
+          {themeConfig?.show_quick_view !== false && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onView(product);
+              }}
+              className="flex-1 py-2.5 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white rounded-xl text-xs font-bold shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-slate-200/60 dark:border-slate-700/60"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>{lang === "tr" ? "Hızlı İncele" : "Quick View"}</span>
+            </button>
+          )}
 
           {!isOutOfStock && (
             <button
               type="button"
               onClick={handleQuickAdd}
-              className={`p-2.5 rounded-xl shadow-lg transition-all active:scale-95 ${
-                addedAnimation
-                  ? "bg-emerald-600 text-white"
-                  : "bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-100"
-              }`}
+              style={{
+                backgroundColor: addedAnimation ? "#059669" : primaryColor,
+                color: "#ffffff"
+              }}
+              className="p-2.5 rounded-xl shadow-lg transition-all active:scale-95"
               title={lang === "tr" ? "Hızlı Sepete Ekle" : "Quick Add"}
             >
               {addedAnimation ? <Check className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
@@ -344,12 +375,14 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
             type="button"
             disabled={isOutOfStock}
             onClick={handleQuickAdd}
+            style={{
+              backgroundColor: isOutOfStock ? undefined : addedAnimation ? "#059669" : primaryColor,
+              color: isOutOfStock ? undefined : "#ffffff"
+            }}
             className={`sm:hidden p-2.5 rounded-xl transition-all active:scale-95 ${
               isOutOfStock
                 ? "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
-                : addedAnimation
-                ? "bg-emerald-600 text-white"
-                : "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
+                : ""
             }`}
           >
             {addedAnimation ? <Check className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}

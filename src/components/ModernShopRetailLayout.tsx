@@ -70,14 +70,104 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
 }) => {
   // 1. Theme Configuration
   const themeConfig: ShopThemeConfig = useMemo(() => {
-    const rawConfig = (store.branding as any)?.theme_config || (store.branding as any)?.page_layout_settings?.theme_config;
+    const brandingObj = (store.branding as any) || {};
+    const layoutObj = brandingObj.page_layout_settings || (store as any).page_layout_settings || {};
+    const rawConfig = brandingObj.theme_config || layoutObj.theme_config || (store as any).theme_config || {};
+
+    let base: ShopThemeConfig = { ...DEFAULT_SHOP_THEME };
     if (typeof rawConfig === "string") {
-      try { return { ...DEFAULT_SHOP_THEME, ...JSON.parse(rawConfig) }; } catch (e) { return DEFAULT_SHOP_THEME; }
+      try {
+        const parsed = JSON.parse(rawConfig);
+        base = { ...DEFAULT_SHOP_THEME, ...parsed };
+      } catch (e) {}
     } else if (rawConfig && typeof rawConfig === "object") {
-      return { ...DEFAULT_SHOP_THEME, ...rawConfig };
+      base = { ...DEFAULT_SHOP_THEME, ...rawConfig };
     }
-    return DEFAULT_SHOP_THEME;
-  }, [store.branding]);
+
+    // Hero Banner visibility
+    if (brandingObj.show_hero_banner !== undefined) base.show_hero_banner = Boolean(brandingObj.show_hero_banner);
+    else if (layoutObj.show_hero_banner !== undefined) base.show_hero_banner = Boolean(layoutObj.show_hero_banner);
+    else if ((store as any).show_hero_banner !== undefined) base.show_hero_banner = Boolean((store as any).show_hero_banner);
+    else if (rawConfig?.show_hero_banner !== undefined) base.show_hero_banner = Boolean(rawConfig.show_hero_banner);
+
+    // Story Ribbon visibility
+    if (brandingObj.show_story_ribbon !== undefined) base.show_story_ribbon = Boolean(brandingObj.show_story_ribbon);
+    else if (layoutObj.show_story_ribbon !== undefined) base.show_story_ribbon = Boolean(layoutObj.show_story_ribbon);
+    else if ((store as any).show_story_ribbon !== undefined) base.show_story_ribbon = Boolean((store as any).show_story_ribbon);
+    else if (rawConfig?.show_story_ribbon !== undefined) base.show_story_ribbon = Boolean(rawConfig.show_story_ribbon);
+
+    // Bento Grid visibility
+    if (brandingObj.show_bento_grid !== undefined) base.show_bento_grid = Boolean(brandingObj.show_bento_grid);
+    else if (layoutObj.show_bento_grid !== undefined) base.show_bento_grid = Boolean(layoutObj.show_bento_grid);
+    else if ((store as any).show_bento_grid !== undefined) base.show_bento_grid = Boolean((store as any).show_bento_grid);
+    else if (rawConfig?.show_bento_grid !== undefined) base.show_bento_grid = Boolean(rawConfig.show_bento_grid);
+
+    // Announcement Bar visibility
+    if (brandingObj.show_announcement_bar !== undefined) base.show_announcement_bar = Boolean(brandingObj.show_announcement_bar);
+    else if (layoutObj.show_announcement_bar !== undefined) base.show_announcement_bar = Boolean(layoutObj.show_announcement_bar);
+    else if (layoutObj.announcement_bar !== undefined) base.show_announcement_bar = Boolean(layoutObj.announcement_bar);
+    else if ((store as any).show_announcement_bar !== undefined) base.show_announcement_bar = Boolean((store as any).show_announcement_bar);
+    else if (rawConfig?.show_announcement_bar !== undefined) base.show_announcement_bar = Boolean(rawConfig.show_announcement_bar);
+
+    // Announcement Text
+    if (brandingObj.announcement_text !== undefined) base.announcement_text = brandingObj.announcement_text;
+    else if (layoutObj.announcement_text !== undefined) base.announcement_text = layoutObj.announcement_text;
+    else if (rawConfig?.announcement_text !== undefined) base.announcement_text = rawConfig.announcement_text;
+    else if ((store as any).announcement_text !== undefined) base.announcement_text = (store as any).announcement_text;
+
+    // Colors & Atmosphere
+    if (brandingObj.primary_color) base.primary_color = brandingObj.primary_color;
+    else if (layoutObj.primary_color) base.primary_color = layoutObj.primary_color;
+    else if ((store as any).primary_color) base.primary_color = (store as any).primary_color;
+
+    if (brandingObj.accent_color) base.accent_color = brandingObj.accent_color;
+    else if (layoutObj.accent_color) base.accent_color = layoutObj.accent_color;
+    else if ((store as any).accent_color) base.accent_color = (store as any).accent_color;
+
+    if (brandingObj.background_mode) base.background_mode = brandingObj.background_mode;
+    else if (layoutObj.background_mode) base.background_mode = layoutObj.background_mode;
+
+    // Product Card Design Properties
+    if (brandingObj.card_style) base.card_style = brandingObj.card_style;
+    else if (layoutObj.card_style) base.card_style = layoutObj.card_style;
+
+    if (brandingObj.card_radius) base.card_radius = brandingObj.card_radius;
+    else if (layoutObj.card_radius) base.card_radius = layoutObj.card_radius;
+
+    if (brandingObj.card_aspect_ratio) base.card_aspect_ratio = brandingObj.card_aspect_ratio;
+    else if (layoutObj.card_aspect_ratio) base.card_aspect_ratio = layoutObj.card_aspect_ratio;
+
+    if (brandingObj.card_hover_effect) base.card_hover_effect = brandingObj.card_hover_effect;
+    else if (layoutObj.card_hover_effect) base.card_hover_effect = layoutObj.card_hover_effect;
+
+    // Content Arrays
+    if (brandingObj.stories && Array.isArray(brandingObj.stories)) base.stories = brandingObj.stories;
+    else if (layoutObj.stories && Array.isArray(layoutObj.stories)) base.stories = layoutObj.stories;
+    else if (rawConfig?.stories && Array.isArray(rawConfig.stories)) base.stories = rawConfig.stories;
+
+    if (brandingObj.bento_blocks !== undefined && Array.isArray(brandingObj.bento_blocks)) {
+      base.bento_blocks = brandingObj.bento_blocks;
+    } else if (layoutObj.bento_blocks !== undefined && Array.isArray(layoutObj.bento_blocks)) {
+      base.bento_blocks = layoutObj.bento_blocks;
+    } else if (rawConfig?.bento_blocks !== undefined && Array.isArray(rawConfig.bento_blocks)) {
+      base.bento_blocks = rawConfig.bento_blocks;
+    }
+
+    if (brandingObj.trust_badges && Array.isArray(brandingObj.trust_badges)) base.trust_badges = brandingObj.trust_badges;
+    else if (layoutObj.trust_badges && Array.isArray(layoutObj.trust_badges)) base.trust_badges = layoutObj.trust_badges;
+    else if (rawConfig?.trust_badges && Array.isArray(rawConfig.trust_badges)) base.trust_badges = rawConfig.trust_badges;
+
+    if (brandingObj.show_trust_badges !== undefined) base.show_trust_badges = Boolean(brandingObj.show_trust_badges);
+    else if (layoutObj.show_trust_badges !== undefined) base.show_trust_badges = Boolean(layoutObj.show_trust_badges);
+
+    if (brandingObj.featured_capsules_title) base.featured_capsules_title = brandingObj.featured_capsules_title;
+    else if (layoutObj.featured_capsules_title) base.featured_capsules_title = layoutObj.featured_capsules_title;
+
+    if (brandingObj.featured_capsules_subtitle) base.featured_capsules_subtitle = brandingObj.featured_capsules_subtitle;
+    else if (layoutObj.featured_capsules_subtitle) base.featured_capsules_subtitle = layoutObj.featured_capsules_subtitle;
+
+    return base;
+  }, [store.branding, (store as any).page_layout_settings, (store as any).theme_config, (store as any).announcement_text, (store as any).primary_color, (store as any).accent_color]);
 
   // 2. State Management
   const [isDrawerCartOpen, setIsDrawerCartOpen] = useState(false);
@@ -301,16 +391,21 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
 
   // Active Banners List
   const activeBanners = useMemo(() => {
-    const bList = (store.branding as any)?.banners || [];
-    if (Array.isArray(bList) && bList.length > 0) {
+    const brandingObj = (store.branding as any) || {};
+    const bList = brandingObj.banners;
+    if (Array.isArray(bList)) {
       return bList;
+    }
+    const storeBanners = (store as any).banners;
+    if (Array.isArray(storeBanners)) {
+      return storeBanners;
     }
     return [
       {
         id: "default-1",
-        image_url: (store.branding as any)?.hero_image_url || store.hero_image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1600&q=85",
-        title: (store.branding as any)?.hero_title || store.hero_title || store.name,
-        subtitle: (store.branding as any)?.hero_subtitle || store.hero_subtitle || (lang === "tr" ? "Özenle seçilmiş en yeni koleksiyonlar ve özel tasarım ürünler." : "Carefully curated collections and iconic designs."),
+        image_url: brandingObj.hero_image_url || store.hero_image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1600&q=85",
+        title: brandingObj.hero_title || store.hero_title || store.name,
+        subtitle: brandingObj.hero_subtitle || store.hero_subtitle || (lang === "tr" ? "Özenle seçilmiş en yeni koleksiyonlar ve özel tasarım ürünler." : "Carefully curated collections and iconic designs."),
         button_text: lang === "tr" ? "Koleksiyonu İncele" : "Explore Collection",
         button_link: "#catalog",
         text_position: "center",
@@ -344,25 +439,34 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
     <div className={`min-h-screen ${bgModeClass} font-sans selection:bg-indigo-500 selection:text-white pb-24 md:pb-12`}>
       {/* 1. Announcement Bar */}
       {themeConfig.show_announcement_bar && (
-        <div className="bg-slate-950 text-white text-xs py-2.5 px-4 overflow-hidden border-b border-slate-800">
+        <div 
+          style={{ backgroundColor: themeConfig.primary_color || "#0f172a" }}
+          className="text-white text-xs py-2.5 px-4 overflow-hidden border-b border-white/10 shadow-xs"
+        >
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="flex-1 overflow-hidden">
-              <div className="whitespace-nowrap animate-marquee flex items-center gap-8 text-[11px] font-extrabold tracking-wide uppercase">
-                <span>{themeConfig.announcement_text || "✨ 1.500 TL Üzeri Ücretsiz Kargo & 24 Saatte Hızlı Teslimat"}</span>
-                <span>•</span>
-                <span>%100 Orijinallik Garantisi</span>
-                <span>•</span>
-                <span>Koşulsuz 14 Gün İade</span>
-                <span>•</span>
-                <span>{store.name} Güvencesiyle</span>
-              </div>
+              {themeConfig.announcement_marquee !== false ? (
+                <div className="whitespace-nowrap animate-marquee flex items-center gap-8 text-[11px] font-extrabold tracking-wide uppercase">
+                  <span>{themeConfig.announcement_text || "✨ 1.500 TL Üzeri Ücretsiz Kargo & 24 Saatte Hızlı Teslimat"}</span>
+                  <span>•</span>
+                  <span>%100 Orijinallik Garantisi</span>
+                  <span>•</span>
+                  <span>Koşulsuz 14 Gün İade</span>
+                  <span>•</span>
+                  <span>{store.name} Güvencesiyle</span>
+                </div>
+              ) : (
+                <div className="text-center text-[11px] font-extrabold tracking-wide uppercase truncate">
+                  {themeConfig.announcement_text || "✨ 1.500 TL Üzeri Ücretsiz Kargo & 24 Saatte Hızlı Teslimat"}
+                </div>
+              )}
             </div>
 
-            <div className="hidden md:flex items-center gap-4 text-[11px] font-bold text-slate-400 shrink-0">
+            <div className="hidden md:flex items-center gap-4 text-[11px] font-bold text-white/80 shrink-0">
               {setShowStoreLocatorModal && (
                 <button
                   onClick={() => setShowStoreLocatorModal(true)}
-                  className="hover:text-white transition-colors flex items-center gap-1"
+                  className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <StoreIcon className="w-3.5 h-3.5" />
                   <span>{lang === "tr" ? "Mağazalarımız" : "Stores"}</span>
@@ -546,7 +650,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
       )}
 
       {/* 4. High-Impact Hero Showcase */}
-      {themeConfig.show_hero_banner && (
+      {themeConfig.show_hero_banner && activeBanners.length > 0 && (
         themeConfig.hero_layout === "split" ? (
           <section className="relative bg-slate-900 text-white overflow-hidden py-12 lg:py-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -746,10 +850,10 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
 
       {/* 6. Main Catalog & Dynamic Facet Filter Section */}
       <section id="catalog" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Desktop Filter Sidebar */}
-          <div className="hidden lg:block w-64 shrink-0">
-            <div className="sticky top-28 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+          <div className="hidden lg:block w-64 shrink-0 sticky top-28 z-10">
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
               <ShopFilterSidebar
                 products={products}
                 filterState={filters}

@@ -6,6 +6,11 @@ import xml2js from 'xml2js';
 export function startCronJobs() {
   console.log("Starting cron jobs...");
 
+  // Run TCMB sync immediately on startup
+  syncTCMBRates().catch(err => {
+    console.warn("[CRON] Initial TCMB sync on startup failed:", err.message);
+  });
+
   // Example: Sync Amazon orders every 15 minutes
   cron.schedule('*/15 * * * *', async () => {
     console.log("[CRON] Running Amazon order sync...");

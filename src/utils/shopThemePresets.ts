@@ -3,6 +3,7 @@ export interface ShopThemeConfig {
   primary_color: string;
   accent_color: string;
   background_mode: "light" | "dark" | "warm";
+  card_style?: "minimal" | "borderless" | "elevated" | "glass" | "neo";
   card_radius: "none" | "subtle" | "rounded" | "pill"; // 0px, 8px, 16px, 24px
   card_aspect_ratio: "square" | "portrait" | "wide"; // 1:1, 3:4, 16:9
   card_hover_effect: "zoom" | "secondary_image" | "glow";
@@ -48,6 +49,7 @@ export const DEFAULT_SHOP_THEME: ShopThemeConfig = {
   primary_color: "#0f172a",
   accent_color: "#e11d48",
   background_mode: "light",
+  card_style: "minimal",
   card_radius: "rounded",
   card_aspect_ratio: "portrait",
   card_hover_effect: "secondary_image",
@@ -154,6 +156,7 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
     primary_color: "#0f172a",
     accent_color: "#e11d48",
     background_mode: "light",
+    card_style: "minimal",
     card_radius: "rounded",
     card_aspect_ratio: "portrait",
     card_hover_effect: "secondary_image"
@@ -163,6 +166,7 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
     primary_color: "#f59e0b",
     accent_color: "#d97706",
     background_mode: "dark",
+    card_style: "elevated",
     card_radius: "subtle",
     card_aspect_ratio: "portrait",
     card_hover_effect: "zoom"
@@ -172,6 +176,7 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
     primary_color: "#475569",
     accent_color: "#0d9488",
     background_mode: "warm",
+    card_style: "borderless",
     card_radius: "pill",
     card_aspect_ratio: "square",
     card_hover_effect: "secondary_image"
@@ -181,6 +186,7 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
     primary_color: "#000000",
     accent_color: "#6366f1",
     background_mode: "light",
+    card_style: "neo",
     card_radius: "none",
     card_aspect_ratio: "portrait",
     card_hover_effect: "glow"

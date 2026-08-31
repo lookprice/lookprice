@@ -180,6 +180,7 @@ export const api = {
   getAuditLogs: (storeId?: number) => api.get(`/api/store/audit-logs${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getBranding: (storeId?: number, slug?: string) => api.get(`/api/store/info${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : (slug ? `?slug=${slug}` : "")}`),
   updateBranding: (data: any, storeId?: number) => api.post(`/api/store/branding${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  syncTcmbRates: (storeId?: number) => api.post(`/api/store/sync-tcmb${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   verifyDomain: (domain: string) => api.post("/api/store/verify-domain", { domain }),
   addCustomDomain: (domain: string, storeId?: number, config?: any) => api.post(`/api/store/domain${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { domain, ...config }),
   saveCustomDomainManual: (domain: string, storeId?: number) => api.post(`/api/store/domain/manual${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { domain }),

@@ -54,7 +54,7 @@ export class MySoftService {
       
       const config: any = {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: 10000
+        timeout: 30000
       };
 
       const response = await axios.post(authUrl, params, config);

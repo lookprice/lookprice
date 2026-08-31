@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { 
   Globe, 
   CreditCard, 
@@ -12,6 +12,7 @@ import {
   Save 
 } from "lucide-react";
 import { motion } from "motion/react";
+import { api } from "../../../services/api";
 
 interface SettingsStoreOpsTabProps {
   branding: any;
@@ -25,6 +26,7 @@ interface SettingsStoreOpsTabProps {
   handleBulkPriceSubmit: (e: React.FormEvent) => void;
   products?: any[];
   savingBranding?: boolean;
+  currentStoreId?: number;
 }
 
 export const SettingsStoreOpsTab = ({
@@ -38,13 +40,31 @@ export const SettingsStoreOpsTab = ({
   setBulkPriceForm,
   handleBulkPriceSubmit,
   products = [],
-  savingBranding
+  savingBranding,
+  currentStoreId
 }: SettingsStoreOpsTabProps) => {
+  const [syncingTcmb, setSyncingTcmb] = useState(false);
   const t = translations || {};
   const txt = (tr: string, en: string, el: string) => {
     if (lang === 'tr') return tr;
     if (lang === 'el') return el;
     return en;
+  };
+
+  const handleSyncTcmb = async () => {
+    try {
+      setSyncingTcmb(true);
+      const res = await api.syncTcmbRates(currentStoreId);
+      if (res && res.rates) {
+        onBrandingChange('currency_rates', res.rates);
+        alert(txt("TCMB kurları başarıyla güncellendi!", "TCMB rates updated successfully!", "Οι τιμές TCMB ενημερώθηκαν επιτυχώς!"));
+      }
+    } catch (err: any) {
+      console.error("Failed to sync TCMB rates:", err);
+      alert(txt("Kur güncellenemedi: ", "Failed to update rates: ", "Αποτυχία ενημέρωσης τιμών: ") + (err.message || ''));
+    } finally {
+      setSyncingTcmb(false);
+    }
   };
 
   const allStoreCategories = React.useMemo(() => {
@@ -141,7 +161,18 @@ export const SettingsStoreOpsTab = ({
           </div>
 
           <div className="md:col-span-2">
-            <h4 className="text-sm font-bold text-slate-900 mb-4">{txt('Çapraz Kurlar', 'Cross Exchange Rates', 'Συναλλαγματικές Ισοτιμίες')}</h4>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-bold text-slate-900">{txt('Çapraz Kurlar', 'Cross Exchange Rates', 'Συναλλαγματικές Ισοτιμίες')}</h4>
+              <button
+                type="button"
+                onClick={handleSyncTcmb}
+                disabled={syncingTcmb}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncingTcmb ? 'animate-spin' : ''}`} />
+                {txt("TCMB'den Canlı Çek", "Sync from TCMB", "Συγχρονισμός TCMB")}
+              </button>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {['USD', 'EUR', 'GBP'].map(curr => (
                 <div key={curr} className="space-y-2">

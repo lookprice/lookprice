@@ -26,7 +26,8 @@ import {
   MessageCircle,
   Truck,
   Lock,
-  Star
+  Star,
+  Save
 } from "lucide-react";
 import { DEFAULT_SHOP_THEME, ShopThemeConfig, THEME_PRESETS } from "../../utils/shopThemePresets";
 
@@ -34,12 +35,16 @@ interface ShopThemeStudioProps {
   branding: any;
   onBrandingChange: (field: string, value: any) => void;
   lang: string;
+  onSave?: () => Promise<void> | void;
+  saving?: boolean;
 }
 
 export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
   branding,
   onBrandingChange,
-  lang
+  lang,
+  onSave,
+  saving = false
 }) => {
   const [activeTab, setActiveTab] = useState<"presets" | "hero" | "stories" | "bento" | "badges">("presets");
 
@@ -59,13 +64,63 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
     const updated = { ...themeConfig, ...updates };
     onBrandingChange("theme_config", updated);
     
+    if (updates.show_hero_banner !== undefined) {
+      onBrandingChange("show_hero_banner", updates.show_hero_banner);
+    }
+    if (updates.show_story_ribbon !== undefined) {
+      onBrandingChange("show_story_ribbon", updates.show_story_ribbon);
+    }
+    if (updates.show_bento_grid !== undefined) {
+      onBrandingChange("show_bento_grid", updates.show_bento_grid);
+    }
+    if (updates.show_announcement_bar !== undefined) {
+      onBrandingChange("show_announcement_bar", updates.show_announcement_bar);
+    }
+    if (updates.announcement_text !== undefined) {
+      onBrandingChange("announcement_text", updates.announcement_text);
+    }
+    if (updates.primary_color !== undefined) {
+      onBrandingChange("primary_color", updates.primary_color);
+    }
+    if (updates.accent_color !== undefined) {
+      onBrandingChange("accent_color", updates.accent_color);
+    }
+    if (updates.background_mode !== undefined) {
+      onBrandingChange("background_mode", updates.background_mode);
+    }
+    if (updates.bento_blocks !== undefined) {
+      onBrandingChange("bento_blocks", updates.bento_blocks);
+    }
+    if (updates.stories !== undefined) {
+      onBrandingChange("stories", updates.stories);
+    }
+    if (updates.trust_badges !== undefined) {
+      onBrandingChange("trust_badges", updates.trust_badges);
+    }
+    if (updates.show_trust_badges !== undefined) {
+      onBrandingChange("show_trust_badges", updates.show_trust_badges);
+    }
+
     // Also sync backwards compatibility fields if present
     const curLayout = branding?.page_layout_settings || {};
     onBrandingChange("page_layout_settings", {
       ...curLayout,
       theme_config: updated,
+      show_hero_banner: updated.show_hero_banner,
+      show_story_ribbon: updated.show_story_ribbon,
+      show_bento_grid: updated.show_bento_grid,
       announcement_bar: updated.show_announcement_bar,
-      announcement_text: updated.announcement_text
+      show_announcement_bar: updated.show_announcement_bar,
+      announcement_text: updated.announcement_text,
+      primary_color: updated.primary_color,
+      accent_color: updated.accent_color,
+      background_mode: updated.background_mode,
+      card_style: updated.card_style,
+      card_radius: updated.card_radius,
+      card_aspect_ratio: updated.card_aspect_ratio,
+      card_hover_effect: updated.card_hover_effect,
+      bento_blocks: updated.bento_blocks,
+      stories: updated.stories
     });
   };
 
@@ -279,6 +334,17 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onSave && (
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={saving}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-xl cursor-pointer disabled:opacity-50"
+              >
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                <span>{lang === "tr" ? "Tema Ayarlarını Kaydet" : "Save Theme Settings"}</span>
+              </button>
+            )}
             <a
               href={`/s/${branding?.slug || ""}`}
               target="_blank"
@@ -500,6 +566,34 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
               </h3>
 
               <div className="space-y-4">
+                <div>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block mb-2">
+                    {lang === "tr" ? "Kart Yapısı & Teması" : "Card Surface Style"}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {[
+                      { id: "minimal", label: lang === "tr" ? "Klasik Minimal" : "Minimal" },
+                      { id: "borderless", label: lang === "tr" ? "Çerçevesiz Ferah" : "Borderless" },
+                      { id: "elevated", label: lang === "tr" ? "Yükseltilmiş Gölge" : "Elevated" },
+                      { id: "glass", label: lang === "tr" ? "Cam Efekti (Glass)" : "Glass" },
+                      { id: "neo", label: lang === "tr" ? "Retro Neomorfik" : "Neo" }
+                    ].map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => updateThemeConfig({ card_style: st.id as any })}
+                        className={`py-2 px-2 text-center rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                          (themeConfig.card_style || "minimal") === st.id
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                            : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        {st.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block mb-2">
                     {lang === "tr" ? "Köşe Yuvarlaklığı" : "Corner Radius"}

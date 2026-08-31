@@ -49,6 +49,8 @@ interface SettingsWebTabProps {
   users: any[];
   onAddUser: () => void;
   onDeleteUser: (id: number) => void;
+  onSaveBranding?: () => void;
+  savingBranding?: boolean;
 }
 
 export const SettingsWebTab = ({
@@ -73,6 +75,8 @@ export const SettingsWebTab = ({
   users,
   onAddUser,
   onDeleteUser,
+  onSaveBranding,
+  savingBranding,
 }: SettingsWebTabProps) => {
   const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
@@ -212,6 +216,8 @@ export const SettingsWebTab = ({
           branding={branding}
           onBrandingChange={onBrandingChange}
           lang={lang}
+          onSave={onSaveBranding}
+          saving={savingBranding}
         />
       )}
 

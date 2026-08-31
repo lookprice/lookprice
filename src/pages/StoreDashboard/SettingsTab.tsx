@@ -542,6 +542,7 @@ const SettingsTab = ({
           handleBulkPriceSubmit={handleBulkPriceSubmit} 
           products={products}
           savingBranding={savingBranding}
+          currentStoreId={currentStoreId}
         />
       )}
 
@@ -639,6 +640,8 @@ const SettingsTab = ({
           users={users}
           onAddUser={onAddUser}
           onDeleteUser={onDeleteUser}
+          onSaveBranding={onSaveBranding}
+          savingBranding={savingBranding}
         />
       )}
 

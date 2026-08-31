@@ -2,6 +2,7 @@ import express from "express";
 import { pool } from "../../models/db";
 import { getAuthorizedStoreId } from "./utils";
 import { cleanDeepBase64, replaceAllBase64InString } from "../utils/imageStorage";
+import { publicApiCache } from "../public";
 
 const router = express.Router();
 
@@ -193,9 +194,96 @@ router.post("/", async (req: any, res) => {
       }
     }
 
+    try {
+      const storeInfoRes = await pool.query("SELECT slug, custom_domain FROM stores WHERE id = $1", [targetStoreId]);
+      if (storeInfoRes.rows.length > 0) {
+        const sSlug = storeInfoRes.rows[0].slug;
+        const sCustomDomain = storeInfoRes.rows[0].custom_domain;
+        publicApiCache.del(`store_${targetStoreId}`);
+        if (sSlug) {
+          publicApiCache.del(`store_${sSlug.toLowerCase()}`);
+          publicApiCache.del(`products_${sSlug.toLowerCase()}`);
+        }
+        if (sCustomDomain) {
+          publicApiCache.del(`domain_${sCustomDomain.toLowerCase()}`);
+        }
+      }
+      publicApiCache.del("enrakipsiz_portal");
+      publicApiCache.del("marketplace_listings");
+    } catch (cacheErr) {
+      console.warn("Failed to invalidate public API cache on branding update:", cacheErr);
+    }
+
     res.json({ success: true, message: "Branding updated successfully" });
   } catch (error: any) {
     console.error("Error in POST /api/store/branding:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/store/sync-tcmb - Manual TCMB ForexBuying sync
+router.post("/sync-tcmb", async (req: any, res) => {
+  try {
+    const reqStoreId = req.query.storeId ? parseInt(req.query.storeId as string) : undefined;
+    const targetStoreId = await getAuthorizedStoreId(req, reqStoreId);
+    const { default: axios } = await import("axios");
+    const xml2js = await import("xml2js");
+
+    const { data } = await axios.get("https://www.tcmb.gov.tr/kurlar/today.xml");
+    const parser = new xml2js.Parser();
+    
+    const rates: Record<string, number> = await new Promise((resolve, reject) => {
+      parser.parseString(data, (err: any, result: any) => {
+        if (err) return reject(err);
+        const currencies = result?.Tarih_Date?.Currency;
+        if (!currencies || !Array.isArray(currencies)) {
+          return reject(new Error("Invalid TCMB XML structure"));
+        }
+        const extracted: Record<string, number> = {};
+        for (const c of currencies) {
+          const code = c['$']?.CurrencyCode || c['$']?.Kod;
+          if (['USD', 'EUR', 'GBP'].includes(code)) {
+            const rateStr = (c.ForexBuying && c.ForexBuying[0]) || (c.ForexSelling && c.ForexSelling[0]);
+            if (rateStr) {
+              const val = parseFloat(rateStr);
+              if (!isNaN(val)) extracted[code] = val;
+            }
+          }
+        }
+        resolve(extracted);
+      });
+    });
+
+    if (Object.keys(rates).length === 0) {
+      return res.status(400).json({ error: "Could not extract rates from TCMB XML" });
+    }
+
+    // Get current store branding / currency_rates
+    const storeRes = await pool.query("SELECT branding, currency_rates FROM stores WHERE id = $1", [targetStoreId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    let currentRates = {};
+    const curStore = storeRes.rows[0];
+    try {
+      if (typeof curStore.currency_rates === 'string') {
+        currentRates = JSON.parse(curStore.currency_rates);
+      } else if (typeof curStore.currency_rates === 'object' && curStore.currency_rates !== null) {
+        currentRates = curStore.currency_rates;
+      }
+    } catch (e) {}
+
+    const newRates = { ...currentRates, ...rates };
+
+    await pool.query(
+      "UPDATE stores SET currency_rates = $1 WHERE id = $2",
+      [JSON.stringify(newRates), targetStoreId]
+    );
+
+    res.json({ success: true, rates: newRates, message: "TCMB kurları başarıyla güncellendi." });
+  } catch (error: any) {
+    console.error("Error in POST /api/store/sync-tcmb:", error);
     res.status(500).json({ error: error.message });
   }
 });

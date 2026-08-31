@@ -123,6 +123,71 @@ router.post("/log-error", (req: any, res) => {
   res.json({ success: true });
 });
 
+router.post("/sync-tcmb", async (req: any, res) => {
+  try {
+    const targetStoreId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
+    const { default: axios } = await import("axios");
+    const xml2js = await import("xml2js");
+    const { pool } = await import("../models/db");
+
+    const { data } = await axios.get("https://www.tcmb.gov.tr/kurlar/today.xml");
+    const parser = new xml2js.Parser();
+    
+    const rates: Record<string, number> = await new Promise((resolve, reject) => {
+      parser.parseString(data, (err: any, result: any) => {
+        if (err) return reject(err);
+        const currencies = result?.Tarih_Date?.Currency;
+        if (!currencies || !Array.isArray(currencies)) {
+          return reject(new Error("Invalid TCMB XML structure"));
+        }
+        const extracted: Record<string, number> = {};
+        for (const c of currencies) {
+          const code = c['$']?.CurrencyCode || c['$']?.Kod;
+          if (['USD', 'EUR', 'GBP'].includes(code)) {
+            const rateStr = (c.ForexBuying && c.ForexBuying[0]) || (c.ForexSelling && c.ForexSelling[0]);
+            if (rateStr) {
+              const val = parseFloat(rateStr);
+              if (!isNaN(val)) extracted[code] = val;
+            }
+          }
+        }
+        resolve(extracted);
+      });
+    });
+
+    if (Object.keys(rates).length === 0) {
+      return res.status(400).json({ error: "Could not extract rates from TCMB XML" });
+    }
+
+    const storeRes = await pool.query("SELECT branding, currency_rates FROM stores WHERE id = $1", [targetStoreId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    let currentRates = {};
+    const curStore = storeRes.rows[0];
+    try {
+      if (typeof curStore.currency_rates === 'string') {
+        currentRates = JSON.parse(curStore.currency_rates);
+      } else if (typeof curStore.currency_rates === 'object' && curStore.currency_rates !== null) {
+        currentRates = curStore.currency_rates;
+      }
+    } catch (e) {}
+
+    const newRates = { ...currentRates, ...rates };
+
+    await pool.query(
+      "UPDATE stores SET currency_rates = $1 WHERE id = $2",
+      [JSON.stringify(newRates), targetStoreId]
+    );
+
+    res.json({ success: true, rates: newRates, message: "TCMB kurları başarıyla güncellendi." });
+  } catch (error: any) {
+    console.error("Error in POST /api/store/sync-tcmb:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Fallback for direct restaurant tables access if still used by old UI
 router.use("/restaurant-tables", restaurantRouter);
 router.use("/blog-posts", blogRouter);
