@@ -39,21 +39,31 @@ export async function processMarketplaceOrderLines(
     let productId = null;
     let currentStock = 0;
     
-    if (line.barcode) {
-      const cleanBarcode = (line.barcode || "").trim();
-      const prodRes = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND (barcode = $2 OR sku = $2)", [storeId, cleanBarcode]);
-      if (prodRes.rows.length > 0) {
-        productId = prodRes.rows[0].id;
-        currentStock = prodRes.rows[0].stock_quantity;
-      }
-    }
-    
-    if (!productId && line.sku) {
-      const cleanSku = (line.sku || "").trim();
-      const prodRes = await client.query("SELECT id, stock_quantity FROM products WHERE store_id = $1 AND (sku = $2 OR barcode = $2)", [storeId, cleanSku]);
-      if (prodRes.rows.length > 0) {
-        productId = prodRes.rows[0].id;
-        currentStock = prodRes.rows[0].stock_quantity;
+    const searchCode = (line.barcode || line.sku || "").trim();
+    if (searchCode) {
+      try {
+        const prodRes = await client.query(
+          "SELECT id, stock_quantity FROM products WHERE store_id = $1 AND (barcode = $2 OR sku = $2 OR hepsiburada_sku = $2) LIMIT 1", 
+          [storeId, searchCode]
+        );
+        if (prodRes.rows.length > 0) {
+          productId = prodRes.rows[0].id;
+          currentStock = prodRes.rows[0].stock_quantity;
+        }
+      } catch (findErr) {
+        // Fallback to barcode only if sku column is not present yet
+        try {
+          const prodRes2 = await client.query(
+            "SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2 LIMIT 1", 
+            [storeId, searchCode]
+          );
+          if (prodRes2.rows.length > 0) {
+            productId = prodRes2.rows[0].id;
+            currentStock = prodRes2.rows[0].stock_quantity;
+          }
+        } catch (e) {
+          // Continue without productId
+        }
       }
     }
 

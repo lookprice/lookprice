@@ -636,6 +636,18 @@ export async function initDb() {
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
       );
 
+      CREATE TABLE IF NOT EXISTS supplier_product_mappings (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        supplier_vkn TEXT NOT NULL,
+        supplier_product_name TEXT NOT NULL,
+        product_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(store_id, supplier_vkn, supplier_product_name),
+        FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      );
+
       ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS unit_code TEXT DEFAULT 'Adet';
 
       CREATE TABLE IF NOT EXISTS sales_invoices (
@@ -1394,6 +1406,7 @@ export async function initDb() {
         ALTER TABLE products ADD COLUMN IF NOT EXISTS n11_id TEXT;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS is_n11_active BOOLEAN DEFAULT FALSE;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS n11_last_error TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='labels') THEN
           ALTER TABLE products ADD COLUMN labels JSONB DEFAULT '[]';
         END IF;

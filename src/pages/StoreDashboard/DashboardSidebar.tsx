@@ -82,6 +82,11 @@ export const DashboardSidebar = ({
   });
 
   const storeLogoUrl = branding?.logo_url || branding?.logo;
+  const displayName = (branding?.store_name && !/^lookprice$/i.test(branding.store_name.trim()))
+    ? branding.store_name.trim()
+    : (branding?.name && !/^lookprice$/i.test(branding.name.trim()))
+    ? branding.name.trim()
+    : "Seçkin Mağaza";
 
   return (
     <>
@@ -110,7 +115,7 @@ export const DashboardSidebar = ({
                 <div className="w-12 h-12 bg-white/95 rounded-2xl shadow-xl shadow-indigo-500/20 p-1 flex items-center justify-center shrink-0 border border-white/15 overflow-hidden">
                   <img 
                     src={storeLogoUrl} 
-                    alt={branding.store_name || branding.name || "Logo"} 
+                    alt={displayName} 
                     className="w-full h-full object-contain rounded-xl"
                     referrerPolicy="no-referrer"
                   />
@@ -121,8 +126,8 @@ export const DashboardSidebar = ({
                 </div>
               )}
               <div className="min-w-0">
-                <h1 className="text-lg font-black text-white tracking-tighter leading-none truncate max-w-[120px]">
-                  {branding.store_name || branding.name || "LookPrice"}
+                <h1 className="text-lg font-black text-white tracking-tighter leading-none truncate max-w-[120px]" title={displayName}>
+                  {displayName}
                 </h1>
                 <div className="flex items-center space-x-1.5 mt-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

@@ -651,16 +651,3 @@ export class HepsiburadaService {
   }
 }
 
-export class HepsiburadaServiceV3 {
-  private env: string;
-  constructor(env: string = 'sit') {
-    this.env = env;
-  }
-  async importListings(products: any[]) {
-    return { success: true, trackingId: "HB-TRACK-" + Date.now(), total: products.length };
-  }
-  async checkTaskStatus(trackingId: string) {
-    return { success: true, trackingId, status: "COMPLETED", message: "Listings imported successfully" };
-  }
-}
-

@@ -1329,10 +1329,43 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           const taxAmt = Number(invoiceDetails.taxAmount) || 0;
           const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
 
+          let isExpense = false;
+          let expenseCategory = null;
+          const sTitle = (invoiceDetails.senderTitle || '').toLowerCase();
+          
+          if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
+            isExpense = true;
+            expenseCategory = 'ELEKTRIK';
+          } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
+            isExpense = true;
+            expenseCategory = 'SU';
+          } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
+            isExpense = true;
+            expenseCategory = 'DOGALGAZ';
+          } else if (sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
+            isExpense = true;
+            expenseCategory = 'TELEKOM';
+          } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
+            isExpense = true;
+            expenseCategory = 'AKARYAKIT';
+          } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
+            isExpense = true;
+            expenseCategory = 'KARGO';
+          } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
+            isExpense = true;
+            expenseCategory = 'KIRA';
+          } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
+            isExpense = true;
+            expenseCategory = 'PERSONEL_YEMEK';
+          } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
+            isExpense = true;
+            expenseCategory = 'SIGORTA';
+          }
+
           const invInsertRes = await pool.query(
             `INSERT INTO purchase_invoices 
-            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
+            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_expense, expense_category)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
             [
               storeId, 
               companyId,
@@ -1367,7 +1400,9 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               'RECEIVED',
               'term',
               'unpaid',
-              false // E-invoices are imported as Exclusive (KDV Hariç) by default
+              false, // E-invoices are imported as Exclusive (KDV Hariç) by default
+              isExpense,
+              expenseCategory
             ]
           );
           
@@ -1404,39 +1439,39 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               const taxAmount = (lineTotal * tr) / 100;
 
               // Try to find matching product by name or barcode
-              let prodMatch;
-              if (productBarcodeCode) {
-                 prodMatch = await pool.query(
-                   "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3 OR barcode = $4)",
-                   [storeId, productName, productName, productBarcodeCode]
-                 );
-              } else {
-                 prodMatch = await pool.query(
-                   "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3)",
-                   [storeId, productName, productName]
-                 );
+              let productId = null;
+              let finalBarcode = productBarcodeCode;
+
+              // 1. Check Supplier Product Mappings
+              if (invoiceDetails.senderVkn) {
+                const mappingRes = await pool.query(
+                  "SELECT product_id FROM supplier_product_mappings WHERE store_id = $1 AND supplier_vkn = $2 AND supplier_product_name = $3",
+                  [storeId, invoiceDetails.senderVkn, productName]
+                );
+                if (mappingRes.rows.length > 0) {
+                  productId = mappingRes.rows[0].product_id;
+                }
               }
-              
-              let productId = prodMatch.rows.length > 0 ? prodMatch.rows[0].id : null;
-              let finalBarcode = prodMatch.rows.length > 0 ? prodMatch.rows[0].barcode : productBarcodeCode;
 
               if (!productId) {
-                // Determine a safe barcode
-                finalBarcode = productBarcodeCode ? productBarcodeCode : `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-                
-                // Check if barcode already exists for this store before creating
-                const existingProd = await pool.query("SELECT id FROM products WHERE barcode = $1 AND store_id = $2", [finalBarcode, storeId]);
-                if (existingProd.rows.length > 0) {
-                  productId = existingProd.rows[0].id;
+                let prodMatch;
+                const normalizedItemName = productName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+                if (productBarcodeCode) {
+                   prodMatch = await pool.query(
+                     "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR REPLACE(LOWER(name), ' ', '') = $5 OR barcode = $3 OR barcode = $4)",
+                     [storeId, productName, productName, productBarcodeCode, normalizedItemName]
+                   );
                 } else {
-                  // Create product with "yeni_fatura_urunu" label to highlight it
-                  const newProdRes = await pool.query(
-                    `INSERT INTO products 
-                     (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-                    [storeId, productName, finalBarcode, 0, up, tr, 0, invoiceDetails.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
-                  );
-                  productId = newProdRes.rows[0].id;
+                   prodMatch = await pool.query(
+                     "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR REPLACE(LOWER(name), ' ', '') = $3)",
+                     [storeId, productName, normalizedItemName]
+                   );
+                }
+                
+                if (prodMatch.rows.length > 0) {
+                  productId = prodMatch.rows[0].id;
+                  finalBarcode = prodMatch.rows[0].barcode || finalBarcode;
                 }
               }
 
@@ -1764,10 +1799,43 @@ export const runGlobalEInvoiceSync = async () => {
            const taxAmt = Number(invoiceDetails.taxAmount) || 0;
            const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
 
+          let isExpense = false;
+          let expenseCategory = null;
+          const sTitle = (invoiceDetails.senderTitle || '').toLowerCase();
+          
+          if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
+            isExpense = true;
+            expenseCategory = 'ELEKTRIK';
+          } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
+            isExpense = true;
+            expenseCategory = 'SU';
+          } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
+            isExpense = true;
+            expenseCategory = 'DOGALGAZ';
+          } else if (sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
+            isExpense = true;
+            expenseCategory = 'TELEKOM';
+          } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
+            isExpense = true;
+            expenseCategory = 'AKARYAKIT';
+          } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
+            isExpense = true;
+            expenseCategory = 'KARGO';
+          } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
+            isExpense = true;
+            expenseCategory = 'KIRA';
+          } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
+            isExpense = true;
+            expenseCategory = 'PERSONEL_YEMEK';
+          } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
+            isExpense = true;
+            expenseCategory = 'SIGORTA';
+          }
+
            await pool.query(
              `INSERT INTO purchase_invoices 
-             (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_read)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, false) RETURNING id`,
+             (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_read, is_expense, expense_category)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, false, $20, $21) RETURNING id`,
              [
                storeId, 
                companyId,
@@ -1800,7 +1868,9 @@ export const runGlobalEInvoiceSync = async () => {
                'RECEIVED',
                'term',
                'unpaid',
-               false
+               false,
+               isExpense,
+               expenseCategory
              ]
            );
            

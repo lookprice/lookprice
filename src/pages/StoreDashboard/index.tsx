@@ -138,6 +138,26 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [activeStaffRole]);
 
   useEffect(() => {
+    const rawStoreName = (branding?.store_name || "").trim();
+    const rawName = (branding?.name || "").trim();
+    const storeName = (rawStoreName && !/^lookprice$/i.test(rawStoreName))
+      ? rawStoreName
+      : (rawName && !/^lookprice$/i.test(rawName))
+      ? rawName
+      : "Seçkin Mağaza";
+      
+    document.title = `${storeName} - Bulut Panel`;
+
+    const faviconUrl = branding?.favicon_url || branding?.logo_url || branding?.logo;
+    if (faviconUrl) {
+      const link = (document.querySelector("link[rel~='icon']") as HTMLLinkElement) || document.createElement("link");
+      link.rel = "icon";
+      link.href = faviconUrl;
+      document.head.appendChild(link);
+    }
+  }, [branding]);
+
+  useEffect(() => {
     localStorage.setItem('lookprice_manager_pin', managerPin);
   }, [managerPin]);
 
@@ -996,7 +1016,24 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   lang={lang} 
                   api={api} 
                   branding={branding} 
-                  onFetchDetails={handleFetchSalesInvoiceDetails} 
+                  onFetchDetails={handleFetchSalesInvoiceDetails}
+                  products={products}
+                  onEditProduct={(item: any) => {
+                    const found = products.find((p: any) => p.id === item.product_id || p.barcode === item.barcode || (p.name && item.product_name && p.name.toLowerCase() === item.product_name.toLowerCase()));
+                    if (found) {
+                      setEditingProduct(found);
+                    } else {
+                      setEditingProduct({
+                        name: item.product_name || item.name || '',
+                        barcode: item.barcode || '',
+                        price: Number(item.unit_price) || 0,
+                        cost_price: Number(item.unit_price) * 0.8 || 0,
+                        tax_rate: Number(item.tax_rate) || 20,
+                        stock_quantity: Number(item.quantity) || 0
+                      } as any);
+                    }
+                    setShowProductModal(true);
+                  }}
                 />
               )}
               {activeTab === "e_waybills" && !isPortfolio && (
@@ -1048,7 +1085,24 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   lang={lang} 
                   api={api} 
                   branding={branding} 
-                  onFetchDetails={handleFetchPurchaseInvoiceDetails} 
+                  onFetchDetails={handleFetchPurchaseInvoiceDetails}
+                  products={products}
+                  onEditProduct={(item: any) => {
+                    const found = products.find((p: any) => p.id === item.product_id || p.barcode === item.barcode || (p.name && item.product_name && p.name.toLowerCase() === item.product_name.toLowerCase()));
+                    if (found) {
+                      setEditingProduct(found);
+                    } else {
+                      setEditingProduct({
+                        name: item.product_name || item.name || '',
+                        barcode: item.barcode || '',
+                        cost_price: Number(item.unit_price) || 0,
+                        price: Number(item.unit_price) * 1.2 || 0,
+                        tax_rate: Number(item.tax_rate) || 20,
+                        stock_quantity: Number(item.quantity) || 0
+                      } as any);
+                    }
+                    setShowProductModal(true);
+                  }}
                 />
               )}
               {activeTab === "stock_transfer" && (

@@ -226,37 +226,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
     });
   };
 
-  // 3. Computed Available Categories & Subcategories
-  const availableCategories = useMemo(() => {
-    if (!Array.isArray(products)) return [];
-    const map = new Map<string, number>();
-    products.forEach((p) => {
-      if (p.is_web_sale === false) return;
-      const cat = p.category;
-      if (cat && cat.trim()) {
-        map.set(cat.trim(), (map.get(cat.trim()) || 0) + 1);
-      }
-    });
-    return Array.from(map.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  }, [products]);
-
-  const availableSubCategories = useMemo(() => {
-    if (!Array.isArray(products)) return [];
-    const map = new Map<string, number>();
-    products.forEach((p) => {
-      if (p.is_web_sale === false) return;
-      if (filters.category && p.category !== filters.category && p.category_2 !== filters.category) {
-        return;
-      }
-      const sub = p.sub_category || p.sub_category_2;
-      if (sub && sub.trim()) {
-        map.set(sub.trim(), (map.get(sub.trim()) || 0) + 1);
-      }
-    });
-    return Array.from(map.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  }, [products, filters.category]);
-
-  // 4. Computed Products Filter
+  // 3. Computed Products Filter
   const filteredProducts = useMemo(() => {
     if (!Array.isArray(products)) return [];
 
@@ -389,6 +359,25 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
 
   const basketCount = basket.reduce((sum, item) => sum + item.quantity, 0);
 
+  const resolvedStoreName = useMemo(() => {
+    const brandingObj = (store.branding as any) || {};
+    const sName = (brandingObj.store_name || "").trim();
+    const bName = (brandingObj.name || "").trim();
+    const stName = (store.name || "").trim();
+
+    if (sName && !/^lookprice$/i.test(sName)) return sName;
+    if (bName && !/^lookprice$/i.test(bName)) return bName;
+    if (stName && !/^lookprice$/i.test(stName)) return stName;
+    if (stName) return stName;
+    if (sName) return sName;
+    return "Seçkin Mağaza";
+  }, [store]);
+
+  const resolvedStoreLogo = useMemo(() => {
+    const brandingObj = (store.branding as any) || {};
+    return store.logo_url || brandingObj.logo_url || brandingObj.logo || "";
+  }, [store]);
+
   // Active Banners List
   const activeBanners = useMemo(() => {
     const brandingObj = (store.branding as any) || {};
@@ -497,19 +486,20 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
 
             {/* Brand Logo or Name */}
             <a href="#top" className="flex items-center gap-3 group">
-              {store.logo_url ? (
+              {resolvedStoreLogo ? (
                 <img
-                  src={store.logo_url}
-                  alt={store.name}
+                  src={resolvedStoreLogo}
+                  alt={resolvedStoreName}
                   className="h-10 sm:h-12 w-auto object-contain"
+                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 flex items-center justify-center font-black text-base shadow-sm">
-                    {store.name.slice(0, 1)}
+                    {resolvedStoreName.slice(0, 1)}
                   </div>
                   <span className="text-lg sm:text-xl font-black tracking-tight text-slate-950 dark:text-white group-hover:text-indigo-600 transition-colors">
-                    {store.name}
+                    {resolvedStoreName}
                   </span>
                 </div>
               )}
@@ -657,7 +647,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
               <div className="lg:col-span-7 space-y-6">
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-black tracking-widest uppercase text-white border border-white/15">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{lang === "tr" ? "LOOKPRICE ÖZEL SEÇKİ" : "EXCLUSIVE CAPSULE"}</span>
+                  <span>{lang === "tr" ? `${resolvedStoreName.toUpperCase()} ÖZEL SEÇKİ` : "EXCLUSIVE CAPSULE"}</span>
                 </div>
                 <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
                   {heroTitle}
@@ -750,7 +740,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
               <div className={`max-w-2xl space-y-6 ${currentBanner?.text_position === "right" ? "ml-auto text-right" : currentBanner?.text_position === "center" ? "mx-auto text-center" : ""}`}>
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-black tracking-widest uppercase text-white border border-white/15">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{lang === "tr" ? "LOOKPRICE ÖZEL SEÇKİ" : "EXCLUSIVE CAPSULE"}</span>
+                  <span>{lang === "tr" ? `${resolvedStoreName.toUpperCase()} ÖZEL SEÇKİ` : "EXCLUSIVE CAPSULE"}</span>
                 </div>
 
                 <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-none">
@@ -917,84 +907,6 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* Quick Category & Sub-Category Horizontal Selector */}
-            {availableCategories.length > 1 && (
-              <div className="hidden md:block mb-6 space-y-3">
-                {/* Main Category Bar */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleFilterChange("category", null);
-                      handleFilterChange("subCategory", null);
-                    }}
-                    className={`px-4 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
-                      filters.category === null
-                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-sm"
-                        : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800 hover:border-slate-400"
-                    }`}
-                  >
-                    {lang === "tr" ? "Tüm Kategoriler" : "All Categories"}
-                  </button>
-
-                  {availableCategories.map((cat) => (
-                    <button
-                      key={cat.name}
-                      type="button"
-                      onClick={() => {
-                        handleFilterChange("category", cat.name === filters.category ? null : cat.name);
-                        handleFilterChange("subCategory", null);
-                      }}
-                      className={`px-4 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-                        filters.category === cat.name
-                          ? "bg-indigo-600 text-white shadow-sm"
-                          : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800 hover:border-slate-400"
-                      }`}
-                    >
-                      <span>{cat.name}</span>
-                      <span className="text-[10px] opacity-75 font-mono">({cat.count})</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Subcategory Pills Bar (When Subcategories exist) */}
-                {availableSubCategories.length > 0 && (
-                  <div className="flex items-center gap-2 overflow-x-auto py-1 pl-1 no-scrollbar bg-slate-50 dark:bg-slate-800/50 p-2 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-2 shrink-0">
-                      {lang === "tr" ? "Alt Kategori:" : "Subcategory:"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleFilterChange("subCategory", null)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                        filters.subCategory === null
-                          ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 font-black shadow-xs"
-                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                      }`}
-                    >
-                      {lang === "tr" ? "Tümü" : "All"}
-                    </button>
-
-                    {availableSubCategories.map((sub) => (
-                      <button
-                        key={sub.name}
-                        type="button"
-                        onClick={() => handleFilterChange("subCategory", sub.name === filters.subCategory ? null : sub.name)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-                          filters.subCategory === sub.name
-                            ? "bg-indigo-600 text-white font-black shadow-xs"
-                            : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 hover:border-slate-400"
-                        }`}
-                      >
-                        <span>{sub.name}</span>
-                        <span className="text-[10px] opacity-70 font-mono">({sub.count})</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Active Filter Tags */}
             {(filters.category || filters.subCategory || filters.brand || filters.color || filters.size || (filters.selectedAttributes && Object.keys(filters.selectedAttributes).length > 0) || filters.inStockOnly || filters.onSaleOnly || filters.bestsellerOnly) && (

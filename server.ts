@@ -769,6 +769,7 @@ function sanitizeFilename(originalName: string): string {
   app.use("/api/google-drive", googleDriveRoutes);
   app.use("/api/payment", paymentRoutes);
   app.use("/api/integrations", integrationRoutes);
+  app.use("/api/hepsiburada", integrationRoutes);
   app.use("/api/instagram", instagramRoutes);
   app.use("/api", einvoiceRoutes);
 

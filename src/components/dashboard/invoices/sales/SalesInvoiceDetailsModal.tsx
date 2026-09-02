@@ -10,6 +10,7 @@ interface SalesInvoiceDetailsModalProps {
   isTr: boolean;
   invoiceRef: React.RefObject<HTMLDivElement>;
   handlePrint: () => void;
+  onEditProduct?: (item: any) => void;
 }
 
 export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> = ({
@@ -18,7 +19,8 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
   invoice,
   isTr,
   invoiceRef,
-  handlePrint
+  handlePrint,
+  onEditProduct
 }) => {
   if (!isOpen || !invoice) return null;
 
@@ -84,7 +86,15 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
                   {(invoice.items || []).map((item: any, idx: number) => (
                     <tr key={idx}>
                       <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-slate-900">{item.product_name}</div>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            if (onEditProduct) onEditProduct(item);
+                          }}
+                          className={`text-left text-sm font-medium text-slate-900 hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                        >
+                          {item.product_name}
+                        </button>
                         <div className="text-xs text-slate-400">{item.barcode}</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>

@@ -532,12 +532,12 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
     let storeRes;
     if (storeSlug) {
       storeRes = await pool.query(
-        "SELECT id, name, slug, default_currency, currency_rates, meta_settings, custom_domain, description, logo_url, address, hero_title FROM stores WHERE slug ILIKE $1",
+        "SELECT id, name, slug, default_currency, currency_rates, meta_settings, custom_domain, description, logo_url, address, hero_title, branding FROM stores WHERE slug ILIKE $1",
         [storeSlug]
       );
     } else {
       storeRes = await pool.query(
-        "SELECT id, name, slug, default_currency, currency_rates, meta_settings, custom_domain, description, logo_url, address, hero_title FROM stores WHERE custom_domain = $1 OR custom_domain = $2 LIMIT 1",
+        "SELECT id, name, slug, default_currency, currency_rates, meta_settings, custom_domain, description, logo_url, address, hero_title, branding FROM stores WHERE custom_domain = $1 OR custom_domain = $2 LIMIT 1",
         [host, normalizedHost]
       );
     }
@@ -574,41 +574,50 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
 
     // B. Custom Storefront
     const store = storeRes.rows[0];
+    const brandingObj = typeof store.branding === 'string' ? JSON.parse(store.branding) : (store.branding || {});
     const metaSettings = typeof store.meta_settings === 'string' ? JSON.parse(store.meta_settings) : (store.meta_settings || {});
     const gaId = metaSettings.ga_measurement_id;
     const gtmId = metaSettings.gtm_id;
 
+    const resolvedName = (brandingObj.store_name && !/^lookprice$/i.test(brandingObj.store_name.trim()))
+      ? brandingObj.store_name.trim()
+      : (brandingObj.name && !/^lookprice$/i.test(brandingObj.name.trim()))
+      ? brandingObj.name.trim()
+      : (store.name && !/^lookprice$/i.test(store.name.trim()))
+      ? store.name.trim()
+      : "Seçkin Mağaza";
+
     const sector = metaSettings.sector || 'general';
-    const isRealEstate = store.name.toLowerCase().includes("emlak") || 
-                         store.name.toLowerCase().includes("investment") || 
-                         store.name.toLowerCase().includes("gayrimenkul") || 
-                         store.name.toLowerCase().includes("portfolio") || 
+    const isRealEstate = resolvedName.toLowerCase().includes("emlak") || 
+                         resolvedName.toLowerCase().includes("investment") || 
+                         resolvedName.toLowerCase().includes("gayrimenkul") || 
+                         resolvedName.toLowerCase().includes("portfolio") || 
                          sector === "real_estate";
     
-    const isAutomotive = store.name.toLowerCase().includes("oto") || 
-                         store.name.toLowerCase().includes("galeri") ||
+    const isAutomotive = resolvedName.toLowerCase().includes("oto") || 
+                         resolvedName.toLowerCase().includes("galeri") ||
                          sector === "automotive";
 
-    let defaultTitle = `${store.name}`;
-    let defaultDesc = store.description || `${store.name} hizmetleri.`;
-    let defaultKeywords = `${store.name}, online store, kıbrıs mağaza`;
-    const storeLogo = store.logo_url || "";
+    let defaultTitle = `${resolvedName}`;
+    let defaultDesc = store.description || `${resolvedName} hizmetleri.`;
+    let defaultKeywords = `${resolvedName}, online store, kıbrıs mağaza`;
+    const storeLogo = store.logo_url || brandingObj.logo_url || brandingObj.logo || "";
     const storeUrl = store.custom_domain 
       ? `${protocol}://${store.custom_domain}` 
       : `${protocol}://${host}/s/${store.slug}`;
 
     if (isRealEstate) {
       defaultTitle += ` | ${store.hero_title || 'Seçkin Gayrimenkul & Yatırım Portföyü'}`;
-      defaultDesc = store.description || `${store.name} - Doğrulanmış gayrimenkul portföyleri, lüks konut projeleri, nitelikli arsa ve ticari mülk yatırımları. Profesyonel danışmanlık hizmetiyle güvenli gayrimenkul çözümleri.`;
-      defaultKeywords = `${store.name}, gayrimenkul portföyü, satılık villa, satılık daire, arsa yatırımı, emlak ilanları, konut projeleri`;
+      defaultDesc = store.description || `${resolvedName} - Doğrulanmış gayrimenkul portföyleri, lüks konut projeleri, nitelikli arsa ve ticari mülk yatırımları. Profesyonel danışmanlık hizmetiyle güvenli gayrimenkul çözümleri.`;
+      defaultKeywords = `${resolvedName}, gayrimenkul portföyü, satılık villa, satılık daire, arsa yatırımı, emlak ilanları, konut projeleri`;
     } else if (isAutomotive) {
       defaultTitle += ` | ${store.hero_title || 'Güvenilir Otomotiv & Araç Portföyü'}`;
-      defaultDesc = store.description || `${store.name} - Ekspertiz garantili ikinci el araçlar, sıfır kilometre otomobiller ve ticari araç filosu. Detaylı teknik özellikler ve şeffaf araç geçmişiyle güvenli alım satım.`;
-      defaultKeywords = `${store.name}, satılık araba, oto galeri, ikinci el oto, araç portföyü, ekspertizli araçlar`;
+      defaultDesc = store.description || `${resolvedName} - Ekspertiz garantili ikinci el araçlar, sıfır kilometre otomobiller ve ticari araç filosu. Detaylı teknik özellikler ve şeffaf araç geçmişiyle güvenli alım satım.`;
+      defaultKeywords = `${resolvedName}, satılık araba, oto galeri, ikinci el oto, araç portföyü, ekspertizli araçlar`;
     } else {
       defaultTitle += ` | ${store.hero_title || 'Online Katalog & Alışveriş'}`;
-      defaultDesc = store.description || `${store.name} - En kaliteli ürünler ve seçkin katalog seçenekleri. Geniş ürün yelpazemiz ve güvenilir alışveriş kalitemizle hizmetinizdeyiz.`;
-      defaultKeywords = `${store.name}, online katalog, barkodlu satış, mağaza alışverişi`;
+      defaultDesc = store.description || `${resolvedName} - En kaliteli ürünler ve seçkin katalog seçenekleri. Geniş ürün yelpazemiz ve güvenilir alışveriş kalitemizle hizmetinizdeyiz.`;
+      defaultKeywords = `${resolvedName}, online katalog, barkodlu satış, mağaza alışverişi`;
     }
 
     const storeSchema = {

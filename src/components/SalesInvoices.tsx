@@ -43,7 +43,7 @@ import { SalesInvoiceFormModal } from "./dashboard/invoices/sales/SalesInvoiceFo
 import { SalesInvoiceWaybillModal } from "./dashboard/invoices/sales/SalesInvoiceWaybillModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
-export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, initialData, onCloseInitialData }: any) {
+export default function SalesInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, initialData, onCloseInitialData, products: propProducts, onEditProduct }: any) {
   const storeId = initialStoreId || currentStoreId;
   const isTr = lang === 'tr';
   const isTrBoolean = isTr;
@@ -462,6 +462,15 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       }
     }
 
+    const isEArchive = eDocumentType === 'E-ARSIV' || eDocumentType === 'E-ARŞİV' || invoiceProfile === 'EARSIVFATURA';
+    if (isEArchive && (!customerEmail || !customerEmail.trim())) {
+      toast.error(isTr 
+        ? "E-Arşiv faturalarında alıcı e-posta adresi zorunludur. Lütfen geçerli bir e-posta adresi giriniz." 
+        : "Customer email is mandatory for E-Archive invoices."
+      );
+      return;
+    }
+
     const payload = {
       storeId: role === 'superadmin' ? (storeId || undefined) : undefined,
       sale_id: saleId,
@@ -641,12 +650,52 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   };
 
   const handleSendToGIB = async (id: number) => {
-    if (!window.confirm(isTr ? "GİB'e göndermek istediğinize emin misiniz?" : "Confirm send to integrator?")) return;
+    const targetInvoice = invoices.find((inv: any) => inv.id === id);
+    const docType = targetInvoice?.e_document_type || (targetInvoice?.invoice_profile === 'EARSIVFATURA' ? 'E-ARSIV' : 'E-FATURA');
+    let customerEmail = (targetInvoice?.customer_email || targetInvoice?.email || "").trim();
+
+    if (!customerEmail) {
+      if (targetInvoice?.company_id) {
+        const comp = companies.find((c: any) => c.id === targetInvoice.company_id);
+        if (comp?.email) customerEmail = comp.email.trim();
+      } else if (targetInvoice?.customer_id) {
+        const cust = customers.find((c: any) => c.id === targetInvoice.customer_id);
+        if (cust?.email) customerEmail = cust.email.trim();
+      }
+    }
+
+    const isEArchive = docType === 'E-ARSIV' || docType === 'E-ARŞİV' || targetInvoice?.invoice_profile === 'EARSIVFATURA';
+
+    if (isEArchive && !customerEmail) {
+      const enteredEmail = window.prompt(
+        isTr 
+          ? "E-Arşiv faturalarında alıcıya ait e-posta (e-mail) bilgisi zorunludur!\nLütfen müşterinin e-posta adresini giriniz:"
+          : "Customer email is mandatory for E-Archive invoices!\nPlease enter the customer's email address:"
+      );
+      if (!enteredEmail || !enteredEmail.trim()) {
+        toast.error(
+          isTr 
+            ? "E-posta adresi girilmediği için fatura GİB'e gönderilemedi. Lütfen faturayı düzenleyip veya buraya geçerli bir e-posta adresi giriniz."
+            : "Invoice could not be sent to GİB because customer email was not provided."
+        );
+        return;
+      }
+      try {
+        await api.updateSalesInvoice(id, { customer_email: enteredEmail.trim() }, role === 'superadmin' ? storeId : undefined);
+        customerEmail = enteredEmail.trim();
+        toast.success(isTr ? "E-posta adresi faturaya kaydedildi." : "Email saved to invoice.");
+      } catch (err: any) {
+        toast.error(err.message || (isTr ? "E-posta güncellenemedi" : "Failed to update email"));
+        return;
+      }
+    }
+
+    if (!window.confirm(isTr ? "Faturayı GİB / Entegratöre iletmek istediğinize emin misiniz?" : "Confirm send to integrator?")) return;
     try {
-      toast.info(isTr ? "Gönderiliyor..." : "Sending...");
+      toast.info(isTr ? "GİB'e gönderiliyor..." : "Sending to GİB...");
       const res = await api.sendEInvoice(id);
       if (res.error) throw new Error(res.error);
-      toast.success(isTr ? "Başarıyla iletildi!" : "Successfully pushed!");
+      toast.success(isTr ? "Fatura başarıyla GİB'e iletildi!" : "Successfully pushed to GİB!");
       await fetchInvoicesData();
     } catch (error: any) {
       toast.error(error.message);
@@ -887,6 +936,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           return filtered.length;
         })() / itemsPerPage)}
         setPage={setPage}
+        products={propProducts || products}
+        onEditProduct={onEditProduct}
       />
 
       <SalesInvoiceFormModal 
@@ -970,6 +1021,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           setShowQuickCariModal(true);
         }}
         setQuickProductForm={setQuickProductForm}
+        onEditProduct={onEditProduct}
       />
 
       <SalesInvoiceDetailsModal 
@@ -979,6 +1031,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         isTr={isTr}
         invoiceRef={invoiceRef}
         handlePrint={handlePrint}
+        onEditProduct={onEditProduct}
       />
 
       <SalesInvoiceWaybillModal 

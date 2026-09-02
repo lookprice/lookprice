@@ -43,6 +43,8 @@ interface SalesInvoiceTableProps {
   page: number;
   totalPages: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
+  products?: any[];
+  onEditProduct?: (item: any) => void;
 }
 
 export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
@@ -63,7 +65,9 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   handleOpenWaybillModal,
   page,
   totalPages,
-  setPage
+  setPage,
+  products = [],
+  onEditProduct
 }) => {
   const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
   const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
@@ -519,7 +523,16 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                           </td>
                                           <td className="py-2.5 px-3">
                                             <div className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
-                                              <span>{item.product_name || item.name || '-'}</span>
+                                              <button 
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  if(onEditProduct) onEditProduct(item);
+                                                }}
+                                                className={`text-left hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                              >
+                                                {item.product_name || item.name || '-'}
+                                              </button>
                                               {item.barcode && (
                                                 <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
                                                   <Barcode className="w-3 h-3 text-slate-400" />

@@ -379,20 +379,29 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
 
       if (imgElement) {
         try {
+          // Fill with white background as requested
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(imgX, imgY, imgWidth, imgHeight);
+
           const imgAspect = imgElement.width / imgElement.height;
           const targetAspect = imgWidth / imgHeight;
 
-          let sx = 0, sy = 0, sWidth = imgElement.width, sHeight = imgElement.height;
+          let drawWidth = imgWidth;
+          let drawHeight = imgHeight;
+          let drawX = imgX;
+          let drawY = imgY;
 
           if (imgAspect > targetAspect) {
-            sWidth = imgElement.height * targetAspect;
-            sx = (imgElement.width - sWidth) / 2;
+             drawHeight = imgWidth / imgAspect;
+             drawY = imgY + (imgHeight - drawHeight) / 2;
           } else {
-            sHeight = imgElement.width / targetAspect;
-            sy = (imgElement.height - sHeight) / 2;
+             drawWidth = imgHeight * imgAspect;
+             drawX = imgX + (imgWidth - drawWidth) / 2;
           }
 
-          ctx.drawImage(imgElement, sx, sy, sWidth, sHeight, imgX, imgY, imgWidth, imgHeight);
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.drawImage(imgElement, 0, 0, imgElement.width, imgElement.height, drawX, drawY, drawWidth, drawHeight);
+          ctx.globalCompositeOperation = 'source-over';
         } catch (err) {
           drawFallback(imgX, imgY, imgWidth, imgHeight);
         }
@@ -725,13 +734,13 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 </div>
 
                 {/* Main Visual Image centerpiece (Occupies 100% of rest of card height) */}
-                <div className="relative flex-1 w-full bg-slate-900 overflow-hidden flex flex-col justify-end">
+                <div className="relative flex-1 w-full bg-white overflow-hidden flex flex-col justify-end">
                   {/* Image full bleed background */}
                   {productImages[0] ? (
                     <img 
                       src={productImages[0]} 
                       alt={productTitle} 
-                      className="absolute inset-0 w-full h-full object-cover select-none"
+                      className="absolute inset-0 w-full h-full object-contain p-4 mix-blend-multiply select-none"
                       referrerPolicy="no-referrer"
                     />
                   ) : (

@@ -237,12 +237,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             WebkitBackfaceVisibility: "hidden"
           }}
         >
-          <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden cursor-pointer" onClick={() => onView(product)}>
+          <div className="aspect-[4/3] bg-white relative overflow-hidden cursor-pointer flex items-center justify-center p-4" onClick={() => onView(product)}>
             {product.image_url ? (
               <img
                 src={getAnnotatedImageUrl(product.image_url)}
                 alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ease-out mix-blend-multiply"
                 referrerPolicy="no-referrer"
                 loading="lazy"
               />

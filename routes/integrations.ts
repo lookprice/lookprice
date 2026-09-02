@@ -3,7 +3,8 @@ import { pool } from "../models/db";
 import axios from "axios";
 import { authenticate } from "../middleware/auth";
 import { IntegrationService } from "../src/services/IntegrationService";
-import { HepsiburadaService, HepsiburadaServiceV3 } from "../src/services/backend/hepsiburadaService";
+import { HepsiburadaService } from "../src/services/backend/hepsiburadaService";
+import { HepsiburadaServiceV3 } from "../src/services/backend/HepsiburadaServiceV3";
 import { 
   processMarketplaceOrderLines, 
   syncN11Orders, 
@@ -199,30 +200,6 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           const taxAmount = totalAmountFloat * 0.20; // Default 20% tax
           const grandTotal = totalAmountFloat;
           const subtotal = grandTotal - taxAmount;
-
-// Hepsiburada V3 Routes
-router.post("/hepsiburada/v3/listings/import", authenticate, async (req: any, res) => {
-  const { env, products } = req.body;
-  try {
-    const hbService = new HepsiburadaServiceV3(env || 'sit');
-    const result = await hbService.importListings(products);
-    res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get("/hepsiburada/v3/listings/import/:trackingId", authenticate, async (req: any, res) => {
-  const { trackingId } = req.params;
-  const { env } = req.query;
-  try {
-    const hbService = new HepsiburadaServiceV3(env || 'sit');
-    const result = await hbService.checkTaskStatus(trackingId);
-    res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
           const invoiceRes = await client.query(
             "INSERT INTO sales_invoices (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
@@ -777,6 +754,113 @@ router.post("/hepsiburada/disconnect", authenticate, async (req: any, res) => {
   try {
     await pool.query("UPDATE stores SET hepsiburada_settings = '{}' WHERE id = $1", [storeId]);
     res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Hepsiburada V3 / Hub Listing & OMS Routes
+router.post("/hepsiburada/v3/listings/import", authenticate, async (req: any, res) => {
+  const { env, products } = req.body;
+  try {
+    const hbService = new HepsiburadaServiceV3(env || 'sit');
+    const result = await hbService.importListings(products || []);
+    res.json(result);
+  } catch (error: any) {
+    console.error("[HB V3 Route Error]:", error);
+    res.status(400).json({ error: error.message || "İşlem başarısız" });
+  }
+});
+
+router.get("/hepsiburada/v3/listings/import/:trackingId", authenticate, async (req: any, res) => {
+  const { trackingId } = req.params;
+  const { env } = req.query;
+  try {
+    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const result = await hbService.checkTaskStatus(trackingId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Catalog routes
+router.get("/hepsiburada/v3/categories", authenticate, async (req: any, res) => {
+  const { env, page, size } = req.query;
+  try {
+    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const result = await hbService.getCategories(page ? Number(page) : 0, size ? Number(size) : 50);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get("/hepsiburada/v3/categories/:categoryId/attributes", authenticate, async (req: any, res) => {
+  const { categoryId } = req.params;
+  const { env } = req.query;
+  try {
+    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const result = await hbService.getCategoryAttributes(categoryId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post("/hepsiburada/v3/catalog/import", authenticate, async (req: any, res) => {
+  const { env, products } = req.body;
+  try {
+    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const result = await hbService.importCatalogProducts(products || []);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get("/hepsiburada/v3/catalog/status/:trackingId", authenticate, async (req: any, res) => {
+  const { trackingId } = req.params;
+  const { env } = req.query;
+  try {
+    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const result = await hbService.checkCatalogTaskStatus(trackingId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get("/hepsiburada/v3/orders", authenticate, async (req: any, res) => {
+  const { env, status, limit, offset } = req.query;
+  try {
+    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const result = await hbService.fetchOrders({
+      status: status as string,
+      limit: limit ? Number(limit) : 20,
+      offset: offset ? Number(offset) : 0,
+    });
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/hepsiburada/v3/orders/simulate", authenticate, async (req: any, res) => {
+  const { env, storeId, customerName, customerEmail, customerPhone, sku, productName, quantity, price } = req.body;
+  try {
+    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const result = await hbService.simulateTestOrder({
+      storeId: storeId ? Number(storeId) : undefined,
+      customerName,
+      customerEmail,
+      customerPhone,
+      sku,
+      productName,
+      quantity,
+      price,
+    });
+    res.json(result);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

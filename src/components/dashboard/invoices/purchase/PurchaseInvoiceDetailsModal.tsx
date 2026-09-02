@@ -22,6 +22,7 @@ interface PurchaseInvoiceDetailsModalProps {
   invoice: any;
   isTr: boolean;
   handleViewHtml?: (id: number) => void;
+  onEditProduct?: (item: any) => void;
 }
 
 export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalProps> = ({
@@ -29,7 +30,8 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
   onClose,
   invoice,
   isTr,
-  handleViewHtml
+  handleViewHtml,
+  onEditProduct
 }) => {
   if (!isOpen || !invoice) return null;
 
@@ -158,7 +160,15 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                         return (
                           <tr key={idx} className="hover:bg-slate-50 transition-colors">
                              <td className="p-4">
-                                <p className="text-sm font-black text-slate-900 tracking-tight">{item.product_name}</p>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    if (onEditProduct) onEditProduct(item);
+                                  }}
+                                  className={`text-left text-sm font-black text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                >
+                                  {item.product_name}
+                                </button>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase">{item.barcode || '-'}</p>
                              </td>
                              <td className="p-4 text-center font-medium text-slate-700 text-sm">

@@ -13,6 +13,14 @@ interface DashboardLayoutProps {
 export const DashboardLayout = ({ children, sidebarProps, loading, lang }: DashboardLayoutProps) => {
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
 
+  const branding = sidebarProps?.branding || {};
+  const headerLogoUrl = branding.logo_url || branding.logo;
+  const headerStoreName = (branding.store_name && !/^lookprice$/i.test(branding.store_name.trim()))
+    ? branding.store_name.trim()
+    : (branding.name && !/^lookprice$/i.test(branding.name.trim()))
+    ? branding.name.trim()
+    : "Seçkin Mağaza";
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -61,16 +69,16 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
             <Menu className="w-6 h-6" />
           </button>
           <div className="ml-4 flex items-center gap-2.5 min-w-0">
-            {(sidebarProps.branding?.logo_url || sidebarProps.branding?.logo) ? (
+            {headerLogoUrl ? (
               <img 
-                src={sidebarProps.branding.logo_url || sidebarProps.branding.logo} 
-                alt="" 
+                src={headerLogoUrl} 
+                alt={headerStoreName} 
                 className="h-7 w-7 object-contain rounded-lg border border-slate-200 p-0.5 bg-white shrink-0" 
                 referrerPolicy="no-referrer"
               />
             ) : null}
             <div className="font-bold text-slate-900 truncate tracking-tight uppercase text-sm">
-              {sidebarProps.branding?.store_name || sidebarProps.branding?.name || "LookPrice"}
+              {headerStoreName}
             </div>
           </div>
         </div>
@@ -87,16 +95,16 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
               <span>{lang === 'tr' ? 'Menüyü Aç' : 'Open Menu'}</span>
             </button>
             <div className="ml-4 flex items-center gap-2.5 min-w-0">
-              {(sidebarProps.branding?.logo_url || sidebarProps.branding?.logo) ? (
+              {headerLogoUrl ? (
                 <img 
-                  src={sidebarProps.branding.logo_url || sidebarProps.branding.logo} 
-                  alt="" 
+                  src={headerLogoUrl} 
+                  alt={headerStoreName} 
                   className="h-7 w-7 object-contain rounded-lg border border-slate-200 p-0.5 bg-white shrink-0" 
                   referrerPolicy="no-referrer"
                 />
               ) : null}
               <div className="font-black text-slate-900 truncate tracking-tight uppercase text-xs">
-                {sidebarProps.branding?.store_name || sidebarProps.branding?.name || "LookPrice"}
+                {headerStoreName}
               </div>
             </div>
           </div>

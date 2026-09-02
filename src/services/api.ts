@@ -10,7 +10,11 @@ const getToken = (url: string) => {
 const handleResponse = async (res: Response) => {
   const contentType = res.headers.get("content-type");
   if (contentType && contentType.includes("application/json")) {
-    return res.json();
+    const data = await res.json();
+    if (!res.ok && !data.error) {
+      data.error = `Sunucu hatası (${res.status})`;
+    }
+    return data;
   }
   const text = await res.text();
   if (res.ok) {
@@ -21,7 +25,7 @@ const handleResponse = async (res: Response) => {
     }
   }
   console.warn("Non-JSON response received:", text);
-  return { error: `Sunucu yanıtı (${res.status})` };
+  return { error: text || `Sunucu yanıtı (${res.status})` };
 };
 
 export const api = {
@@ -549,8 +553,14 @@ export const api = {
   saveIntegratorConfig: (data: any) => api.post("/api/admin/integrator-configs", data),
   
   // Hepsiburada V3 Integration
-  hepsiburadaV3ImportListings: (env: 'sit' | 'production', products: any[]) => api.post("/api/hepsiburada/v3/listings/import", { env, products }),
-  hepsiburadaV3CheckTaskStatus: (env: 'sit' | 'production', trackingId: string) => api.get(`/api/hepsiburada/v3/listings/import/${trackingId}?env=${env}`),
+  hepsiburadaV3ImportListings: (env: 'sit' | 'production', products: any[]) => api.post("/api/integrations/hepsiburada/v3/listings/import", { env, products }),
+  hepsiburadaV3CheckTaskStatus: (env: 'sit' | 'production', trackingId: string) => api.get(`/api/integrations/hepsiburada/v3/listings/import/${trackingId}?env=${env}`),
+  hepsiburadaV3GetCategories: (env: 'sit' | 'production', page: number = 0, size: number = 50) => api.get(`/api/integrations/hepsiburada/v3/categories?env=${env}&page=${page}&size=${size}`),
+  hepsiburadaV3GetCategoryAttributes: (env: 'sit' | 'production', categoryId: string | number) => api.get(`/api/integrations/hepsiburada/v3/categories/${categoryId}/attributes?env=${env}`),
+  hepsiburadaV3ImportCatalog: (env: 'sit' | 'production', products: any[]) => api.post("/api/integrations/hepsiburada/v3/catalog/import", { env, products }),
+  hepsiburadaV3CheckCatalogStatus: (env: 'sit' | 'production', trackingId: string) => api.get(`/api/integrations/hepsiburada/v3/catalog/status/${trackingId}?env=${env}`),
+  hepsiburadaV3FetchOrders: (env: 'sit' | 'production', params?: { status?: string; limit?: number }) => api.get(`/api/integrations/hepsiburada/v3/orders?env=${env}${params?.status ? `&status=${params.status}` : ''}${params?.limit ? `&limit=${params.limit}` : ''}`),
+  hepsiburadaV3SimulateOrder: (data: any) => api.post("/api/integrations/hepsiburada/v3/orders/simulate", data),
 
   // E-Invoice Methods
   checkTaxpayer: (vknTckn: string, storeId?: number) => api.post(`/api/einvoice/check-taxpayer${storeId ? `?storeId=${storeId}` : ""}`, { vknTckn, storeId }),

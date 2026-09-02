@@ -490,24 +490,6 @@ const ProductsTab = ({
                     >
                       <Plus className="h-4.5 w-4.5" />
                     </button>
-                    <button 
-                      onClick={() => onReformatNames?.()}
-                      className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-100 active:scale-95"
-                      title={lang === 'tr' ? "Ürün İsimlerini Revize Et (Yapay Zeka)" : "Revise Product Names (AI)"}
-                    >
-                      <Edit2 className="h-4.5 w-4.5" />
-                    </button>
-                    <button 
-                      onClick={() => {
-                        if (window.confirm(lang === 'tr' ? "DİKKAT! Bu İşlem Listenizdeki TÜM ÜRÜNLERİ SİLECEKTİR! EMİN MİSİNİZ?" : "ATTENTION! This will delete ALL PRODUCTS in your list! ARE YOU SURE?")) {
-                          onDeleteAll();
-                        }
-                      }}
-                      className="p-3 text-slate-400 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-transparent hover:border-rose-700 active:scale-95 text-rose-600 font-black hover:text-white group"
-                      title={t.deleteAll}
-                    >
-                      <Trash2 className="h-4.5 w-4.5" />
-                    </button>
 
                     {selectedIds.length > 0 && (
                       <button 
@@ -517,19 +499,6 @@ const ProductsTab = ({
                       >
                         <Trash2 className="h-4.5 w-4.5" />
                         <span className="text-[10px] tracking-tight uppercase">{lang === 'tr' ? `SEÇİLENLERİ SİL (${selectedIds.length})` : `DELETE SELECTED (${selectedIds.length})`}</span>
-                      </button>
-                    )}
-
-                    {!isViewer && (selectedCategory !== 'all' || search !== '') && filteredProducts.length > 0 && selectedIds.length === 0 && (
-                      <button 
-                        onClick={handleBulkDeleteFiltered}
-                        className="p-3 bg-amber-50 text-amber-700 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-amber-200 hover:border-rose-700 active:scale-95 font-black flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300 shadow-sm"
-                        title={lang === 'tr' ? "Filtrelenmiş Ürünleri Sil" : "Delete Filtered Products"}
-                      >
-                        <Trash2 className="h-4.5 w-4.5" />
-                        <span className="text-[10px] tracking-tight uppercase">
-                          {lang === 'tr' ? `LİSTEYİ SİL (${filteredProducts.length})` : `DELETE LIST (${filteredProducts.length})`}
-                        </span>
                       </button>
                     )}
                   </div>
@@ -561,11 +530,10 @@ const ProductsTab = ({
                       }
                     }}
                     disabled={isBackupLoading}
-                    className="flex items-center gap-1.5 p-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 border border-emerald-200 hover:border-emerald-300 rounded-[1rem] transition-all active:scale-95 text-xs font-black shrink-0 shadow-sm shadow-emerald-50"
-                    title="Google Drive'a Doğrudan Excel Yedekle"
+                    className="os-btn-secondary p-3 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-[1rem] transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95"
+                    title={lang === 'tr' ? "Google Drive'a Yedekle" : "Backup to Google Drive"}
                   >
-                    <Cloud className="h-4 w-4 text-emerald-600 animate-pulse" />
-                    <span className="hidden sm:inline uppercase text-[10px] tracking-wider font-extrabold">Drive'a Yedekle</span>
+                    <Cloud className="h-4.5 w-4.5 text-emerald-600" />
                   </button>
                 )}
             </div>
@@ -637,25 +605,7 @@ const ProductsTab = ({
                   </span>
                 </button>
               )}
-              {/* Marketplace Status Filter */}
-              {!isCafeRestaurant && (
-                <div className="relative w-36 sm:w-44 shrink-0 group">
-                  <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
-                  <select 
-                    className="os-input w-full pr-8 py-2.5 text-[13px] font-bold appearance-none cursor-pointer truncate"
-                    style={{ paddingLeft: '2.75rem' }}
-                    value={marketplaceFilter}
-                    onChange={(e) => {
-                      setMarketplaceFilter(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="all">{lang === 'tr' ? 'Tüm İlanlar' : 'All Listings'}</option>
-                    <option value="listed">{lang === 'tr' ? 'Pazarama: İlanda' : 'Pazarama: Listed'}</option>
-                    <option value="not_listed">{lang === 'tr' ? 'Pazarama: İlanda Değil' : 'Pazarama: Not Listed'}</option>
-                  </select>
-                </div>
-              )}
+
             </div>
             <label className="flex items-center cursor-pointer group shrink-0 ml-1">
               <div className="relative flex items-center">
@@ -916,176 +866,7 @@ const ProductsTab = ({
                     <td className="px-6 py-4 text-right">
                       {!isViewer && (
                         <div className="flex justify-end items-center gap-1">
-                          {/* Marketplace / Channels Hub */}
-                          {!isCafeRestaurant && (
-                            <div className="relative">
-                              <button 
-                                onClick={() => setOpenMarketMenu(openMarketMenu === p.id ? null : p.id)}
-                                className={`p-2.5 rounded-xl transition-all border active:scale-90 flex items-center justify-center ${openMarketMenu === p.id ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border-transparent hover:border-indigo-100'}`}
-                                title={lang === 'tr' ? "Pazaryeri İşlemleri" : "Marketplace Channels"}
-                              >
-                                <Globe className="h-4.5 w-4.5" />
-                              </button>
 
-                            {openMarketMenu === p.id && (
-                              <>
-                                <div 
-                                  className="fixed inset-0 z-40" 
-                                  onClick={() => setOpenMarketMenu(null)}
-                                />
-                                <motion.div 
-                                  initial={{ opacity: 0, scale: 0.95, y: isNearBottom ? 10 : -10 }}
-                                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                                  className={`absolute right-0 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden ${isNearBottom ? 'bottom-full mb-2' : 'mt-2'}`}
-                                >
-                                  <div className="p-3 border-b border-slate-50 bg-slate-50/50">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lang === 'tr' ? 'PAZARYERLERİ' : 'CHANNELS'}</p>
-                                  </div>
-                                  <div className="p-2 space-y-1">
-                            {!isCafeRestaurant && (
-                                <button
-                                  disabled={publishingId === p.id}
-                                  onClick={() => {
-                                    handlePublishToPazarama(p);
-                                    setOpenMarketMenu(null);
-                                  }}
-                                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className={`p-1.5 rounded-lg transition-colors ${p.is_pazarama_active ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white' : 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white'}`}>
-                                      <Store className="h-4 w-4" />
-                                    </div>
-                                    <div className="text-left">
-                                      <p className="text-xs font-bold text-slate-700">Pazarama</p>
-                                      <p className={`text-[10px] ${p.pazarama_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
-                                        {p.pazarama_last_error 
-                                          ? (lang === 'tr' ? `HATA: ${p.pazarama_last_error.substring(0, 30)}...` : `ERROR: ${p.pazarama_last_error.substring(0, 30)}...`)
-                                          : (p.is_pazarama_active 
-                                            ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
-                                            : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {p.pazarama_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
-                                    {p.is_pazarama_active && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                                    {publishingId === p.id && <div className="h-2 w-2 bg-orange-500 rounded-full animate-ping" />}
-                                  </div>
-                                </button>
-                              )}
-
-                              {!isCafeRestaurant && (
-                                <button
-                                  disabled={publishingId === p.id}
-                                  onClick={() => {
-                                    handlePublishToTrendyol(p);
-                                    setOpenMarketMenu(null);
-                                  }}
-                                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className={`p-1.5 rounded-lg transition-colors ${p.trendyol_id ? 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
-                                      <Package className="h-4 w-4" />
-                                    </div>
-                                    <div className="text-left">
-                                      <p className="text-xs font-bold text-slate-700">Trendyol</p>
-                                      <p className={`text-[10px] ${p.trendyol_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
-                                        {p.trendyol_last_error 
-                                          ? (lang === 'tr' ? `HATA: ${p.trendyol_last_error.substring(0, 30)}...` : `ERROR: ${p.trendyol_last_error.substring(0, 30)}...`)
-                                          : (p.trendyol_id 
-                                            ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
-                                            : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {p.trendyol_id && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                                  </div>
-                                </button>
-                              )}
-
-                              {!isCafeRestaurant && (
-                                <button
-                                  disabled={publishingId === p.id}
-                                  onClick={() => {
-                                    handlePublishToN11(p);
-                                    setOpenMarketMenu(null);
-                                  }}
-                                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className={`p-1.5 rounded-lg transition-colors ${p.n11_id ? 'bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
-                                      <CircleDot className="h-4 w-4" />
-                                    </div>
-                                    <div className="text-left">
-                                      <p className="text-xs font-bold text-slate-700">N11</p>
-                                      <p className={`text-[10px] ${p.n11_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
-                                        {p.n11_last_error 
-                                          ? (lang === 'tr' ? `HATA: ${p.n11_last_error.substring(0, 30)}...` : `ERROR: ${p.n11_last_error.substring(0, 30)}...`)
-                                          : (p.n11_id 
-                                            ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
-                                            : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {p.n11_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
-                                    {p.n11_id && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                                  </div>
-                                </button>
-                              )}
-
-                              {!isCafeRestaurant && (
-                                <button
-                                  disabled={publishingId === p.id}
-                                  onClick={() => {
-                                    handlePublishToHepsiburada(p);
-                                    setOpenMarketMenu(null);
-                                  }}
-                                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group group-disabled:opacity-50"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className={`p-1.5 rounded-lg transition-colors ${p.is_hepsiburada_active ? 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
-                                      <Zap className="h-4 w-4" />
-                                    </div>
-                                    <div className="text-left">
-                                      <p className="text-xs font-bold text-slate-700">Hepsiburada</p>
-                                      <p className={`text-[10px] ${p.hepsiburada_last_error ? 'text-rose-500 font-medium' : 'text-slate-400'}`}>
-                                        {p.hepsiburada_last_error 
-                                          ? (lang === 'tr' ? `HATA: ${p.hepsiburada_last_error.substring(0, 30)}...` : `ERROR: ${p.hepsiburada_last_error.substring(0, 30)}...`)
-                                          : (p.is_hepsiburada_active 
-                                            ? (lang === 'tr' ? 'Yayında / Güncelle' : 'Live / Update') 
-                                            : (lang === 'tr' ? 'İlana Çık' : 'Publish Product'))}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {p.hepsiburada_last_error && !publishingId && <AlertCircle className="h-3 w-3 text-rose-500 animate-pulse" />}
-                                    {p.is_hepsiburada_active && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                                  </div>
-                                </button>
-                              )}
-
-                                    {/* Amazon */}
-                                    <button
-                                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-all group opacity-50 cursor-not-allowed"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <div className="p-1.5 bg-yellow-50 text-yellow-700 rounded-lg">
-                                          <ExternalLink className="h-4 w-4" />
-                                        </div>
-                                        <div className="text-left">
-                                          <p className="text-xs font-bold text-slate-700">Amazon</p>
-                                          <p className="text-[10px] text-slate-400">{lang === 'tr' ? 'Çok Yakında' : 'Coming Soon'}</p>
-                                        </div>
-                                      </div>
-                                    </button>
-                                  </div>
-                                </motion.div>
-                              </>
-                            )}
-                          </div>
-                          )}
 
                           <button 
                             onClick={() => setSelectedProduct(p)}

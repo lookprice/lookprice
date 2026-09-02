@@ -5,6 +5,7 @@ import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 import { compressImageToWebP } from "../../../utils/imageUtils";
 import { VariantMatrixManager } from "../../../components/dashboard/VariantMatrixManager";
+import { MarketplaceProductFields } from "../../../components/marketplace/MarketplaceProductFields";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -40,6 +41,9 @@ export const ProductModal = ({
   const [isNewSubCategoryMode, setIsNewSubCategoryMode] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [variants, setVariants] = useState<any[]>([]);
+  const [hbCategories, setHbCategories] = useState<any[]>([]);
+  const [loadingHbCategories, setLoadingHbCategories] = useState(false);
+  
   const [activeVariantIngredientSelector, setActiveVariantIngredientSelector] = useState<string | null>(null);
   const [variantIngredientSearch, setVariantIngredientSearch] = useState("");
   const [recipeItems, setRecipeItems] = useState<any[]>([]);
@@ -59,6 +63,20 @@ export const ProductModal = ({
   const [matrixSizes, setMatrixSizes] = useState("");
 
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+  const isHbEnabled = !!branding?.hepsiburada_settings?.connected;
+
+  useEffect(() => {
+    if (showProductModal && isHbEnabled) {
+      setLoadingHbCategories(true);
+      api.getHepsiburadaCategories(branding.id)
+        .then(res => {
+          if (res.data?.categories) setHbCategories(res.data.categories);
+          else if (Array.isArray(res.categories)) setHbCategories(res.categories);
+        })
+        .catch(err => console.error("HB Cat Fetch Error:", err))
+        .finally(() => setLoadingHbCategories(false));
+    }
+  }, [showProductModal, isHbEnabled]);
 
   const handleVariantImageUpload = async (vIdx: number, file: File) => {
     try {
@@ -436,6 +454,15 @@ export const ProductModal = ({
                   </div>
                 )}
               </div>
+
+              {isHbEnabled && (
+                <MarketplaceProductFields
+                  product={editingProduct}
+                  onUpdate={(data) => setEditingProduct(data)}
+                  isTr={isTr}
+                  categories={hbCategories}
+                />
+              )}
 
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">

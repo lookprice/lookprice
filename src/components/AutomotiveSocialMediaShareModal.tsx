@@ -681,7 +681,7 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                               <img 
                                 src={vehicle.images[0]} 
                                 alt={vehicleTitle} 
-                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
+                                className="w-full h-full object-contain filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
                                 referrerPolicy="no-referrer"
                               />
                             ) : (

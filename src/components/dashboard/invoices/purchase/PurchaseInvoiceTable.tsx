@@ -32,6 +32,7 @@ interface PurchaseInvoiceTableProps {
   page: number;
   totalPages: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
+  onEditProduct?: (item: any) => void;
 }
 
 export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
@@ -49,7 +50,8 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   handleUpdatePaymentStatus,
   page,
   totalPages,
-  setPage
+  setPage,
+  onEditProduct
 }) => {
   const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
   const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
@@ -390,7 +392,16 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                           </td>
                                           <td className="py-2.5 px-3">
                                             <div className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
-                                              <span>{item.product_name || item.name || '-'}</span>
+                                              <button 
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  if(onEditProduct) onEditProduct(item);
+                                                }}
+                                                className={`text-left hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                                              >
+                                                {item.product_name || item.name || '-'}
+                                              </button>
                                               {item.variant_name && (
                                                 <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-100 font-semibold">
                                                   {item.variant_name}

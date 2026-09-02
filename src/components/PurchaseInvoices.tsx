@@ -26,7 +26,7 @@ import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal"
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
-export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave }: any) {
+export default function PurchaseInvoices({ storeId: initialStoreId, currentStoreId, role, lang, api, branding, onSave, onEditProduct }: any) {
   const storeId = initialStoreId || currentStoreId;
   const isTr = lang === 'tr';
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
@@ -220,6 +220,37 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     setExpenseCategory("");
     setExpenseCenter("");
   };
+
+  React.useEffect(() => {
+    if (companyId) {
+      const selectedCompanyObj = (companies as any[]).find(c => String(c.id) === String(companyId));
+      if (selectedCompanyObj) {
+        const name = (selectedCompanyObj.title || selectedCompanyObj.name || '').toLowerCase();
+        if (name.includes('enerjisa') || name.includes('elektrik')) {
+          setIsExpense(true);
+          setExpenseCategory('ELEKTRIK');
+        } else if (name.includes('iski') || name.includes('aski') || name.includes('su')) {
+          setIsExpense(true);
+          setExpenseCategory('SU');
+        } else if (name.includes('botaş') || name.includes('gaz')) {
+          setIsExpense(true);
+          setExpenseCategory('DOGALGAZ');
+        } else if (name.includes('turkcell') || name.includes('vodafone') || name.includes('telekom')) {
+          setIsExpense(true);
+          setExpenseCategory('TELEKOM');
+        } else if (name.includes('shell') || name.includes('opet') || name.includes('petrol')) {
+          setIsExpense(true);
+          setExpenseCategory('AKARYAKIT');
+        } else if (name.includes('aras') || name.includes('yurtiçi') || name.includes('mng') || name.includes('kargo')) {
+          setIsExpense(true);
+          setExpenseCategory('KARGO');
+        } else if (name.includes('kira') || name.includes('kiralık')) {
+          setIsExpense(true);
+          setExpenseCategory('KIRA');
+        }
+      }
+    }
+  }, [companyId, companies]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -598,6 +629,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         page={page}
         totalPages={Math.ceil(invoices.length / itemsPerPage)}
         setPage={setPage}
+        onEditProduct={onEditProduct}
       />
 
       <PurchaseInvoiceFormModal 
@@ -650,6 +682,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
           setQuickCariSearchInitial(searchStr);
           setShowQuickCariModal(true);
         }}
+        onEditProduct={onEditProduct}
       />
 
       <PurchaseInvoiceDetailsModal 
@@ -658,6 +691,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         invoice={selectedInvoice}
         isTr={isTr}
         handleViewHtml={handleViewHtml}
+        onEditProduct={onEditProduct}
       />
 
       {showHtmlModal && (

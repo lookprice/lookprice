@@ -109,6 +109,7 @@ interface SalesInvoiceFormModalProps {
   onQuickCariAdd?: (searchStr: string) => void;
   status: 'draft' | 'approved' | 'cancelled';
   setStatus: (val: 'draft' | 'approved' | 'cancelled') => void;
+  onEditProduct?: (item: any) => void;
 }
 
 export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
@@ -188,7 +189,8 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   totals,
   onQuickCariAdd,
   status,
-  setStatus
+  setStatus,
+  onEditProduct
 }) => {
   if (!isOpen) return null;
 
@@ -333,13 +335,18 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     </div>
 
                     <div className="space-y-1 col-span-2 sm:col-span-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{isTr ? 'E-Posta' : 'Email'}</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                        <span>{isTr ? 'E-Posta' : 'Email'}</span>
+                        {(invoiceProfile === 'EARSIVFATURA' || eDocumentType === 'E-ARSIV' || eDocumentType === 'E-ARŞİV') && (
+                          <span className="text-[9px] text-amber-600 font-black">({isTr ? 'E-Arşivde Zorunlu' : 'Required'})</span>
+                        )}
+                      </label>
                       <input 
                         type="email"
                         className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:bg-white focus:border-indigo-500 transition-all"
                         value={customerEmail}
                         onChange={(e) => setCustomerEmail(e.target.value)}
-                        placeholder="ornek@firma.com"
+                        placeholder={isTr ? "ornek@firma.com (E-Arşiv için zorunlu)" : "example@company.com"}
                       />
                     </div>
 
@@ -742,7 +749,16 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                         items.map((item, idx) => (
                           <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-2 px-3">
-                              <div className="font-bold text-slate-800">{item.product_name}</div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (onEditProduct) onEditProduct(item);
+                                }}
+                                className={`text-left font-bold text-slate-800 hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                              >
+                                {item.product_name || item.name || '-'}
+                              </button>
                               <div className="text-[10px] text-slate-400 font-normal">{item.barcode || item.sku || ''}</div>
                             </td>
                             <td className="py-2 px-2">

@@ -63,6 +63,7 @@ interface PurchaseInvoiceFormModalProps {
   totals: any;
   branding: any;
   onQuickCariAdd?: (searchStr: string) => void;
+  onEditProduct?: (item: any) => void;
 }
 
 export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> = ({
@@ -111,7 +112,8 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
   setNotes,
   totals,
   branding,
-  onQuickCariAdd
+  onQuickCariAdd,
+  onEditProduct
 }) => {
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
@@ -460,7 +462,16 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                        <tr key={index} className="bg-white shadow-sm ring-1 ring-slate-200 rounded-xl">
                          <td className="py-4 pl-4 rounded-l-xl">
                            <div className="flex items-center gap-1.5 flex-wrap">
-                             <p className="text-sm font-black text-slate-900 tracking-tight">{item.product_name}</p>
+                             <button
+                               type="button"
+                               onClick={(e) => {
+                                 e.preventDefault();
+                                 if (onEditProduct) onEditProduct(item);
+                               }}
+                               className={`text-left text-sm font-black text-slate-900 tracking-tight hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                             >
+                               {item.product_name || item.name || '-'}
+                             </button>
                              {item.variant_name && (
                                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md">
                                  {item.variant_name}
