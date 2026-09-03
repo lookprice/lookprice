@@ -8,7 +8,7 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Self-Healing database schema updates for real estate properties
-(async () => {
+export async function initRealEstateSchema() {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS real_estate_properties (
@@ -147,7 +147,7 @@ const upload = multer({ storage: multer.memoryStorage() });
   } catch (error) {
     console.error("Real estate table error:", error);
   }
-})();
+}
 
 // Analyze Portfolio route
 router.post('/properties/analyze', authenticate, async (req: any, res) => {

@@ -28,6 +28,7 @@ import {
 
 // Modular Components
 import { AuthModal } from '../components/showcase/AuthModal';
+import { CustomerProfileModal } from '../components/showcase/CustomerProfileModal';
 import { CheckoutModal } from '../components/showcase/CheckoutModal';
 import { BasketSidebar } from '../components/showcase/BasketSidebar';
 import { DiscoverModal } from '../components/showcase/DiscoverModal';
@@ -140,6 +141,8 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState<string | null>(null);
   const [customer, setCustomer] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileModalTab, setProfileModalTab] = useState<'profile' | 'orders'>('profile');
   const [showDiscoverModal, setShowDiscoverModal] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [showFaq, setShowFaq] = useState(false);
@@ -172,8 +175,128 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
 
   useEffect(() => {
     const savedCustomer = localStorage.getItem("customer");
-    if (savedCustomer) setCustomer(JSON.parse(savedCustomer));
-  }, []);
+    if (savedCustomer) {
+      try {
+        const parsed = JSON.parse(savedCustomer);
+        setCustomer(parsed);
+        setCustomerInfo(prev => ({
+          ...prev,
+          name: parsed.name || parsed.full_name || '',
+          surname: parsed.surname || '',
+          email: parsed.email || '',
+          phone: parsed.phone || '',
+          address: parsed.address || '',
+          city: parsed.city || '',
+          country: parsed.country || '',
+          tc_id: parsed.tc_id || '',
+        }));
+      } catch (e) {}
+    }
+    if (slug) {
+      const savedBasket = localStorage.getItem(`basket_${slug}`);
+      if (savedBasket) {
+        try { setBasket(JSON.parse(savedBasket)); } catch (e) {}
+      }
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    if (slug) {
+      localStorage.setItem(`basket_${slug}`, JSON.stringify(basket));
+    }
+  }, [basket, slug]);
+
+  // Sync cart with DB on change
+  useEffect(() => {
+    if (customer && store && basket.length > 0) {
+      api.saveCustomerCart({
+        customerId: customer.id,
+        storeId: store.id,
+        items: basket
+      });
+    }
+  }, [basket, customer, store]);
+
+  // Fetch cart on login
+  useEffect(() => {
+    const fetchCart = async () => {
+      if (customer && store) {
+        const res = await api.getCustomerCart(customer.id);
+        if (res.items && res.items.length > 0) {
+          setBasket(res.items);
+        }
+      }
+    };
+    fetchCart();
+  }, [customer, store]);
+
+  const handleCustomerLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!store) return;
+    try {
+      const res = await api.customerLogin({
+        storeId: store.id,
+        email: customerInfo.email,
+        password: customerInfo.password,
+      });
+      if (res.error) throw new Error(res.error);
+      if (res.token) {
+        localStorage.setItem("customerToken", res.token);
+        localStorage.setItem("customer", JSON.stringify(res.customer));
+        setCustomerToken(res.token);
+        setCustomer(res.customer);
+        setShowAuthModal(false);
+        
+        // Fetch cart after successful login
+        const cartRes = await api.getCustomerCart(res.customer.id);
+        if (cartRes.items && cartRes.items.length > 0) {
+          setBasket(cartRes.items);
+        }
+
+        setCustomerInfo(prev => ({
+          ...prev,
+          name: res.customer.name || res.customer.full_name || '',
+          surname: res.customer.surname || '',
+          email: res.customer.email || '',
+          phone: res.customer.phone || '',
+          address: res.customer.address || '',
+          city: res.customer.city || '',
+          country: res.customer.country || '',
+          tc_id: res.customer.tc_id || '',
+          is_corporate: res.customer.is_corporate || false,
+        }));
+      }
+    } catch (err: any) {
+      alert(err.message || "Giriş başarısız.");
+    }
+  };
+
+  const handleCustomerRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!store) return;
+    try {
+      const res = await api.customerRegister({
+        storeId: store.id,
+        name: customerInfo.name,
+        surname: customerInfo.surname,
+        email: customerInfo.email,
+        password: customerInfo.password,
+        phone: customerInfo.phone,
+        address: customerInfo.address,
+        city: customerInfo.city,
+        country: customerInfo.country,
+        tc_id: customerInfo.tc_id,
+        is_corporate: customerInfo.is_corporate,
+        marketing_email: customerInfo.marketing_email,
+        marketing_sms: customerInfo.marketing_sms,
+      });
+      if (res.error) throw new Error(res.error);
+      alert(lang === "tr" ? "Kayıt başarılı! Şimdi giriş yapabilirsiniz." : "Registration successful! You can now log in.");
+      setAuthMode("login");
+    } catch (err: any) {
+      alert(err.message || "Kayıt başarısız.");
+    }
+  };
 
   useEffect(() => {
     if (!store) return;
@@ -449,6 +572,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         });
       }
 
+      console.log("Creating sale with items:", itemsWithConvertedPrices);
       const res = await api.createPublicSale({
         storeId: store.id, items: itemsWithConvertedPrices,
         customerName: `${customerInfo.name} ${customerInfo.surname}`.trim(),
@@ -459,6 +583,9 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         createAccount: customerInfo.createAccount, customerId: customer?.id,
       });
 
+      console.log("API response:", res);
+      console.log("Check payment provider:", res.paymentProvider, "Initialize URL:", res.initializeUrl);
+
       if (res.error) throw new Error(res.error);
       if (res.paymentProvider === "iyzico" && res.initializeUrl) {
         const initRes = await fetch(res.initializeUrl, {
@@ -468,8 +595,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
         });
         const initData = await initRes.json();
         if (initData.paymentPageUrl) {
-          setIyzicoPaymentUrl(initData.paymentPageUrl + "&iframe=true");
-          setCheckoutStatus("idle");
+          window.location.href = initData.paymentPageUrl;
           return;
         } else throw new Error(initData.error || "Ödeme başlatılamadı.");
       }
@@ -480,7 +606,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       setTimeout(() => { setIsCheckoutModalOpen(false); setCheckoutStatus("idle"); }, 3000);
     } catch (err: any) {
       setCheckoutStatus("error");
-      setError(err.message);
+      console.error("Checkout error:", err);
+      // Explanatory messages for the user
+      let userMessage = err.message || (lang === "tr" ? "Ödeme işlemi sırasında bir hata oluştu." : "An error occurred during payment.");
+      if (err.message?.includes("iyzico") || err.message?.includes("payment")) {
+        userMessage = lang === "tr" 
+          ? "Ödeme sağlayıcısı ile ilgili bir sorun oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin veya farklı bir ödeme yöntemi seçin."
+          : "An issue occurred with the payment provider. Please check your details and try again, or select a different payment method.";
+      }
+      setError(userMessage);
     }
   };
 
@@ -641,6 +775,15 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             onCheckout={() => setIsCheckoutModalOpen(true)}
             lang={lang}
             t={t}
+            customer={customer}
+            onOpenProfile={(tab) => {
+              setProfileModalTab(tab || 'profile');
+              setShowProfileModal(true);
+            }}
+            onLogout={() => {
+              setCustomer(null);
+              localStorage.removeItem("customer");
+            }}
             setShowAboutModal={setShowAboutModal}
             setShowStoreLocatorModal={setShowStoreLocatorModal}
             setShowAuthModal={setShowAuthModal}
@@ -656,6 +799,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               setAuthMode={setAuthMode} primaryColor={primaryColor}
               t={t} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
               accountMenuRef={accountMenuRef} setShowBlog={setShowBlog}
+              onOpenProfile={(tab) => {
+                setProfileModalTab(tab);
+                setShowProfileModal(true);
+              }}
             />
             <CustomerAccountView
               isProfileView={isProfileView} isOrdersView={isOrdersView} isReturnView={isReturnView}
@@ -667,6 +814,19 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <StoreFooter store={store} lang={lang} setShowAboutModal={setShowAboutModal} setShowStoreLocatorModal={setShowStoreLocatorModal} />
           </>
         )}
+
+        <CustomerProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          customer={customer}
+          lang={lang}
+          initialTab={profileModalTab}
+          onLogout={() => {
+            setCustomer(null);
+            localStorage.removeItem("customer");
+            setShowProfileModal(false);
+          }}
+        />
 
         <AnimatePresence>
           {isBasketOpen && (
@@ -692,7 +852,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <AuthModal
               isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} authMode={authMode}
               setAuthMode={setAuthMode} lang={lang} customerInfo={customerInfo} setCustomerInfo={setCustomerInfo}
-              onLogin={async () => {}} onRegister={async () => {}} theme={{}}
+              onLogin={handleCustomerLogin} onRegister={handleCustomerRegister} theme={{}}
             />
           )}
         </AnimatePresence>

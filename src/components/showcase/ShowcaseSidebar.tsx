@@ -86,8 +86,8 @@ export const ShowcaseSidebar: React.FC<ShowcaseSidebarProps> = ({
                 .filter((cat) => cat.toLowerCase().includes(categorySearch.toLowerCase()))
                 .sort()
                 .slice(0, showAllCategories ? undefined : 5)
-                .map((cat) => (
-                  <div key={cat} className="space-y-0.5">
+                .map((cat, idx) => (
+                  <div key={`sidebar-cat-${cat || 'empty'}-${idx}`} className="space-y-0.5">
                     <button
                       onClick={() => {
                         if (selectedCategory === cat) {
@@ -124,9 +124,9 @@ export const ShowcaseSidebar: React.FC<ShowcaseSidebarProps> = ({
                         >
                           {Array.from(categories.get(cat)!)
                             .sort()
-                            .map((sub) => (
+                            .map((sub, idx) => (
                               <button
-                                key={sub}
+                                key={`sidebar-sub-${sub || 'empty'}-${idx}`}
                                 onClick={() => {
                                   setSelectedSubCategory(sub);
                                   document.getElementById("products-grid")?.scrollIntoView({ behavior: "smooth" });
@@ -183,9 +183,9 @@ export const ShowcaseSidebar: React.FC<ShowcaseSidebarProps> = ({
                 <div className="flex flex-wrap gap-2">
                   {brands
                     .filter((brand) => brand.toLowerCase().includes(brandSearch.toLowerCase()))
-                    .map((brand) => (
+                    .map((brand, idx) => (
                       <button
-                        key={brand}
+                        key={`sidebar-brand-${brand || 'empty'}-${idx}`}
                         onClick={() => {
                           setSelectedBrand(brand === selectedBrand ? null : brand);
                           document.getElementById("products-grid")?.scrollIntoView({ behavior: "smooth" });

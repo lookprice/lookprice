@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   ShoppingBag, 
@@ -12,6 +12,8 @@ import {
   RefreshCw, 
   Lock, 
   ChevronRight, 
+  ChevronDown,
+  LogOut,
   Menu, 
   X, 
   ArrowRight,
@@ -46,6 +48,9 @@ interface ModernShopRetailLayoutProps {
   onCheckout: () => void;
   lang: string;
   t: any;
+  customer?: any;
+  onOpenProfile?: (tab?: 'profile' | 'orders') => void;
+  onLogout?: () => void;
   setShowAboutModal?: (val: boolean) => void;
   setShowStoreLocatorModal?: (val: boolean) => void;
   setShowAuthModal?: (val: boolean) => void;
@@ -64,6 +69,9 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
   onCheckout,
   lang,
   t,
+  customer,
+  onOpenProfile,
+  onLogout,
   setShowAboutModal,
   setShowStoreLocatorModal,
   setShowAuthModal
@@ -177,6 +185,22 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
   const [selectedStoryIndex, setSelectedStoryIndex] = useState<number | null>(null);
   const [gridColumns, setGridColumns] = useState<3 | 4>(4);
   const [wishlist, setWishlist] = useState<Set<string | number>>(new Set());
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+    if (isAccountMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isAccountMenuOpen]);
 
   // Filter State
   const [filters, setFilters] = useState<ShopFilterState>({
@@ -196,7 +220,28 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
   });
 
   const handleFilterChange = (key: keyof ShopFilterState, value: any) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value };
+
+      if (key === "category") {
+        if (value === null || value !== prev.category) {
+          next.subCategory = null;
+          next.color = null;
+          next.size = null;
+          next.selectedAttributes = {};
+        }
+      }
+
+      if (key === "subCategory") {
+        if (value !== prev.subCategory) {
+          next.color = null;
+          next.size = null;
+          next.selectedAttributes = {};
+        }
+      }
+
+      return next;
+    });
   };
 
   const handleResetFilters = () => {
@@ -560,15 +605,98 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
             </button>
 
             {/* Auth / Account */}
-            {setShowAuthModal && (
+            {customer ? (
+              <div className="relative" ref={accountMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group"
+                >
+                  <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                    {(customer.name || "M").slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="text-left hidden sm:block">
+                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider leading-none">
+                      {lang === "tr" ? "Hoş Geldiniz" : "Welcome"}
+                    </span>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100 block truncate max-w-[130px] leading-tight">
+                      Sn. {customer.name} {customer.surname || ""}
+                    </span>
+                  </div>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isAccountMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* Account Dropdown Menu */}
+                <AnimatePresence>
+                  {isAccountMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-60 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-150 dark:border-slate-800 p-2 z-50 overflow-hidden"
+                    >
+                      <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl mb-1 border border-slate-100 dark:border-slate-800">
+                        <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                          Sn. {customer.name} {customer.surname || ""}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                          {customer.email || customer.phone || ""}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountMenuOpen(false);
+                          onOpenProfile?.("profile");
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-left cursor-pointer"
+                      >
+                        <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <span>{lang === "tr" ? "Hesap ve Profil Bilgilerim" : "My Profile"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountMenuOpen(false);
+                          onOpenProfile?.("orders");
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-left cursor-pointer"
+                      >
+                        <Package className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <span>{lang === "tr" ? "Sipariş Takibi & Geçmişi" : "My Orders"}</span>
+                      </button>
+
+                      <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountMenuOpen(false);
+                          onLogout?.();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors text-left cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <span>{lang === "tr" ? "Çıkış Yap" : "Log Out"}</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : setShowAuthModal ? (
               <button
+                type="button"
                 onClick={() => setShowAuthModal(true)}
-                className="p-2.5 rounded-full text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-xs font-bold"
                 title={lang === "tr" ? "Giriş Yap / Üye Ol" : "Account"}
               >
-                <User className="w-5 h-5" />
+                <User className="w-4 h-4 text-slate-500" />
+                <span className="hidden sm:inline">{lang === "tr" ? "Giriş Yap" : "Login"}</span>
               </button>
-            )}
+            ) : null}
 
             {/* Drawer Cart Trigger */}
             <button
@@ -616,7 +744,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
             <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-2 scrollbar-none">
               {themeConfig.stories.map((story, idx) => (
                 <div
-                  key={story.id}
+                  key={`shop-story-${story.id || idx}-${idx}`}
                   onClick={() => setSelectedStoryIndex(idx)}
                   className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group select-none"
                 >
@@ -725,7 +853,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
               <div className="absolute bottom-6 right-8 z-20 flex items-center gap-2 bg-slate-900/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
                 {activeBanners.map((_, sIdx) => (
                   <button
-                    key={sIdx}
+                    key={`banner-dot-${sIdx}`}
                     onClick={() => setActiveSlide(sIdx)}
                     className={`w-2.5 h-2.5 rounded-full transition-all ${
                       sIdx === activeSlide ? "w-6 bg-white" : "bg-white/40 hover:bg-white/70"
@@ -797,7 +925,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
               const isLarge = idx === 0 || bento.size === "large";
               return (
                 <div
-                  key={bento.id}
+                  key={`shop-bento-${bento.id || idx}-${idx}`}
                   className={`group relative rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 dark:border-slate-800 min-h-[320px] ${
                     isLarge ? "md:col-span-2" : "md:col-span-1"
                   } flex flex-col justify-end p-8`}
@@ -941,8 +1069,8 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
                     <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => handleFilterChange("size", null)} />
                   </span>
                 )}
-                {filters.selectedAttributes && Object.entries(filters.selectedAttributes).map(([attrKey, attrVal]) => (
-                  <span key={attrKey} className="px-3 py-1 bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-full text-xs font-bold flex items-center gap-1.5">
+                {filters.selectedAttributes && Object.entries(filters.selectedAttributes).map(([attrKey, attrVal], aIdx) => (
+                  <span key={`shop-attr-pill-${attrKey}-${aIdx}`} className="px-3 py-1 bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-full text-xs font-bold flex items-center gap-1.5">
                     <span>{attrKey}: {attrVal}</span>
                     <X
                       className="w-3.5 h-3.5 cursor-pointer"
@@ -1001,9 +1129,9 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
                   gridColumns === 3 ? "lg:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4"
                 } gap-4 sm:gap-6`}
               >
-                {filteredProducts.map((prod) => (
+                {filteredProducts.map((prod, pIdx) => (
                   <ShopRetailProductCard
-                    key={prod.id}
+                    key={`shop-prod-${prod.id || pIdx}-${pIdx}`}
                     product={prod}
                     store={store}
                     themeConfig={themeConfig}
@@ -1030,7 +1158,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {themeConfig.trust_badges.map((badge, idx) => (
-                <div key={idx} className="flex items-start gap-4">
+                <div key={`trust-badge-${badge.title || idx}-${idx}`} className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-900">
                     {idx === 0 && <ShieldCheck className="w-6 h-6" />}
                     {idx === 1 && <Truck className="w-6 h-6" />}
@@ -1153,16 +1281,29 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
             <span className="text-[10px] font-black uppercase tracking-wider">{lang === "tr" ? "Sepetim" : "Cart"}</span>
           </button>
 
-          {setShowAuthModal && (
+          {customer ? (
+            <button
+              type="button"
+              onClick={() => onOpenProfile?.("profile")}
+              className="flex flex-col items-center gap-1 text-indigo-600 dark:text-indigo-400 p-1"
+            >
+              <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-[10px]">
+                {(customer.name || "M").slice(0, 1).toUpperCase()}
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider truncate max-w-[55px]">
+                {customer.name || (lang === "tr" ? "Hesap" : "Account")}
+              </span>
+            </button>
+          ) : setShowAuthModal ? (
             <button
               type="button"
               onClick={() => setShowAuthModal(true)}
               className="flex flex-col items-center gap-1 text-slate-700 dark:text-slate-300 hover:text-indigo-600 transition-colors p-1"
             >
               <User className="w-5 h-5" />
-              <span className="text-[10px] font-black uppercase tracking-wider">{lang === "tr" ? "Hesap" : "Account"}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">{lang === "tr" ? "Giriş" : "Login"}</span>
             </button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

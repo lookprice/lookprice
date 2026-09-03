@@ -844,11 +844,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   : sector
             }
             data={{
-              ...product,
-              ...product.sector_data,
-              ...((product?.type === "vehicle" || product?.type === "real_estate" || store?.store_type === "motor_vehicle" || store?.store_type === "real_estate") ? {
-                mileage: (product as any).current_mileage || (product.sector_data as any)?.current_mileage,
+              ...(product.sector_data || {}),
+              ...(product?.type === "vehicle" || store?.store_type === "motor_vehicle" ? {
+                hp: (product as any).hp || (product.sector_data as any)?.hp,
+                engine: (product as any).engine || (product.sector_data as any)?.engine,
+                transmission: (product as any).transmission || (product.sector_data as any)?.transmission,
+                fuel: (product as any).fuel || (product as any).fuel_type || (product.sector_data as any)?.fuel,
+                mileage: (product as any).current_mileage || (product.sector_data as any)?.current_mileage || (product as any).mileage,
                 paint_report: (product as any).paint_report || (product.sector_data as any)?.paint_report,
+                is_trade_in_available: (product as any).is_trade_in_available !== undefined ? (product as any).is_trade_in_available : (product.sector_data as any)?.is_trade_in_available,
+              } : {}),
+              ...(product?.type === "real_estate" || store?.store_type === "real_estate" ? {
+                square_meters: (product as any).square_meters || (product.sector_data as any)?.square_meters,
+                rooms: (product as any).rooms || (product.sector_data as any)?.rooms,
+                building_age: (product as any).building_age || (product.sector_data as any)?.building_age,
+                floor: (product as any).floor || (product.sector_data as any)?.floor,
+                heating: (product as any).heating || (product.sector_data as any)?.heating,
+                furnished: (product as any).furnished !== undefined ? (product as any).furnished : (product.sector_data as any)?.furnished,
                 is_trade_in_available: (product as any).is_trade_in_available !== undefined ? (product as any).is_trade_in_available : (product.sector_data as any)?.is_trade_in_available,
               } : {})
             }}

@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import html2canvas from "html2canvas";
+import { sanitizeClonedDocForHtml2Canvas } from "../utils/html2canvasFix";
 import { 
   X, 
   Copy, 
@@ -285,326 +287,101 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
     setIsRendering(true);
     setRenderError(null);
 
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      setRenderError("Tuval bileşeni yüklenemedi.");
+    const element = previewContainerRef.current;
+    if (!element) {
+      setRenderError("Afiş önizleme alanı yüklenemedi.");
       setIsRendering(false);
       return;
     }
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      setRenderError("Grafik motoru başlatılamadı.");
-      setIsRendering(false);
-      return;
-    }
-
-    // Set canvas sizing based on aspect ratio chosen
-    const width = 1080;
-    const height = selectedRatio === 'square' ? 1080 : 1920;
-    canvas.width = width;
-    canvas.height = height;
-
-    const themeColors = {
-      luxury_dark: { bg: '#0b111e', accent: '#d97706', textAccent: '#f59e0b', textLight: '#ffffff', textMuted: '#cbd5e1' },
-      cyprus_warm: { bg: '#1c0c05', accent: '#ea580c', textAccent: '#f97316', textLight: '#ffffff', textMuted: '#fed7aa' },
-      modern_indigo: { bg: '#060c1d', accent: '#0284c7', textAccent: '#38bdf8', textLight: '#ffffff', textMuted: '#bae6fd' },
-      minimal_carbon: { bg: '#18181b', accent: '#a1a1aa', textAccent: '#e4e4e7', textLight: '#ffffff', textMuted: '#d4d4d8' },
-      premium_gold: { bg: '#0f172a', accent: '#ca8a04', textAccent: '#facc15', textLight: '#ffffff', textMuted: '#fef08a' }
-    };
-    
-    const colors = themeColors[selectedTheme] || themeColors.luxury_dark;
-
-    const isStory = selectedRatio === 'story';
-    const photoTop = 140;
-    const photoHeight = isStory ? 1200 : 640;
-    const photoWidth = 980;
-    const photoLeft = 50;
-
-    // Background base fill
-    ctx.fillStyle = colors.bg;
-    ctx.fillRect(0, 0, width, height);
-
-    // Double Outer Borders
-    ctx.strokeStyle = colors.accent;
-    ctx.lineWidth = 14;
-    ctx.strokeRect(18, 18, width - 36, height - 36);
-
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(25, 25, width - 50, height - 50);
-
-    // Bounded photo frame outline/border
-    ctx.strokeStyle = colors.accent;
-    ctx.lineWidth = 4;
-    ctx.strokeRect(48, photoTop - 2, 984, photoHeight + 4);
-
-    // Image URL loading list
-    const imageUrls: string[] = [];
-    if (property.images && property.images[0]) imageUrls.push(property.images[0]);
-    if (isCollage && property.images && property.images[1]) imageUrls.push(property.images[1]);
-    if (isCollage && property.images && property.images[2]) imageUrls.push(property.images[2]);
-
-    const agent = agents.find(a => a.id === selectedAgentId);
-    if (agent && agent.image_url) imageUrls.push(agent.image_url);
-
-    const loadImg = (url: string): Promise<HTMLImageElement | null> => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
-        const cacheBustSep = url.includes('?') ? '&' : '?';
-        img.src = url + cacheBustSep + "lookprice_export_ts=" + Date.now();
-      });
-    };
-
-    const loadedImages = await Promise.all(imageUrls.map(loadImg));
-    const imgElement = loadedImages[0];
-    const sideImg1 = loadedImages[1];
-    const sideImg2 = loadedImages[2];
-    const agentImg = agent && agent.image_url ? loadedImages[imageUrls.indexOf(agent.image_url)] : null;
-
-    const drawSingleImageCover = (imgPtr: HTMLImageElement | null, x: number, y: number, w: number, h: number) => {
-      if (imgPtr) {
-        try {
-          const imgAspect = imgPtr.width / imgPtr.height;
-          const targetAspect = w / h;
-          let sx = 0, sy = 0, sWidth = imgPtr.width, sHeight = imgPtr.height;
-          if (imgAspect > targetAspect) {
-            sWidth = imgPtr.height * targetAspect;
-            sx = (imgPtr.width - sWidth) / 2;
-          } else {
-            sHeight = imgPtr.width / targetAspect;
-            sy = (imgPtr.height - sHeight) / 2;
-          }
-          ctx.save();
-          // Polish & Shine filter: Increase brightness, contrast and saturation dynamically
-          ctx.filter = "brightness(1.12) contrast(1.05) saturate(1.12)";
-          ctx.drawImage(imgPtr, sx, sy, sWidth, sHeight, x, y, w, h);
-          ctx.restore();
-        } catch (err) {
-          ctx.fillStyle = '#1e293b';
-          ctx.fillRect(x, y, w, h);
-        }
-      } else {
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(x, y, w, h);
-      }
-    };
-
-    // Draw images inside the bounded frame
-    if (isCollage && (sideImg1 || sideImg2)) {
-      const mainW = Math.round(photoWidth * 0.67);
-      const gapSize = 10;
-      const sideXWidth = photoWidth - mainW - gapSize;
-      const sideH = Math.round((photoHeight - gapSize) / 2);
-      
-      drawSingleImageCover(imgElement, photoLeft, photoTop, mainW, photoHeight);
-      drawSingleImageCover(sideImg1, photoLeft + mainW + gapSize, photoTop, sideXWidth, sideH);
-      drawSingleImageCover(sideImg2, photoLeft + mainW + gapSize, photoTop + sideH + gapSize, sideXWidth, sideH);
-    } else {
-      drawSingleImageCover(imgElement, photoLeft, photoTop, photoWidth, photoHeight);
-    }
-
-    ctx.save();
-    // 1. TOP CONSULTANT LINE
-    const brokerName = (agent?.name || storeNameDisplay || "Seçkin Danışman").toUpperCase();
-    const brokerPhone = agent?.phone || branding?.phone || branding?.whatsapp_number || "+90 548 890 23 09";
-    const refNoText = (property.reference_no || 'EMLAK-PORTFOY').toUpperCase();
-
-    if (agentImg) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(70 + 28, 80, 28, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(agentImg, 70, 52, 56, 56);
-      ctx.restore();
-      
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 22px system-ui, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(brokerName, 140, 88);
-    } else {
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 22px system-ui, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText("👤 " + brokerName, 70, 88);
-    }
-
-    // Phone (Right)
-    ctx.textAlign = 'right';
-    ctx.fillStyle = colors.textAccent;
-    ctx.font = '900 22px system-ui, sans-serif';
-    ctx.fillText("📞 " + brokerPhone, 1010, 88);
-
-    // Reference Pill (Center)
-    ctx.textAlign = 'center';
-    ctx.fillStyle = colors.accent;
-    ctx.font = '900 18px system-ui, sans-serif';
-    ctx.fillText("REF: " + refNoText, width / 2, 88);
-    ctx.restore();
-
-    // 2. LOCATION BADGE & SPECS ROW Below Frame
-    const locationY = photoTop + photoHeight + (isStory ? 45 : 35);
-    const specsY = photoTop + photoHeight + (isStory ? 115 : 105);
-
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 24px system-ui, sans-serif';
-    ctx.fillText("📍 " + propertyLocation.toUpperCase() + "  •  " + regionText.toUpperCase(), width / 2, locationY);
-
-    const spec1 = property.type === 'land' ? 'Arsa' : (roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul'));
-    const spec2 = sqmText ? `${sqmText}` : 'Belirtilmedi';
-    const spec3 = isFurnishedVal ? 'Eşyalı' : 'Eşyasız';
-    const spec4 = isRent 
-      ? (depositVal !== undefined && depositVal !== null && depositVal !== '' ? `Depozito: ${depositFormatted}` : 'Depozitosuz')
-      : `Koçan: ${titleType}`;
-
-    ctx.font = '900 20px system-ui, sans-serif';
-    ctx.fillStyle = colors.textMuted;
-    
-    let specsTextLine = "";
-    if (property.type === 'land') {
-      specsTextLine = `🏠 ${spec1}   •   📐 ${spec2}   •   🔑 ${spec4}`;
-    } else {
-      specsTextLine = `🏠 ${spec1}   •   📐 ${spec2}   •   📦 ${spec3}   •   🔑 ${spec4}`;
-    }
-    ctx.fillText(specsTextLine, width / 2, specsY);
-    ctx.restore();
-
-    // 3. BOTTOM SOLID BAR
-    const barY = height - 145;
-    const barHeight = 110;
-
-    ctx.save();
-    const barGradient = ctx.createLinearGradient(50, barY, 1030, barY);
-    barGradient.addColorStop(0, colors.accent);
-    barGradient.addColorStop(1, colors.accent + 'cc');
-    ctx.fillStyle = barGradient;
-    
-    ctx.beginPath();
-    // Use manual rectangle fallback if roundRect is not supported
-    ctx.rect(48, barY, 984, barHeight);
-    ctx.fill();
-
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#0f172a';
-    ctx.font = '900 13px system-ui, sans-serif';
-    ctx.fillText((isRent ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'), 83, barY + 28);
-
-    ctx.font = '950 40px system-ui, sans-serif';
-    ctx.fillText(priceText, 83, barY + 70);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 18px system-ui, sans-serif';
-    ctx.fillText(storeNameDisplay.toUpperCase(), 83, barY + 100);
-
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#0f172a';
-    ctx.font = '950 28px system-ui, sans-serif';
-    ctx.fillText("ENRAKİPSİZ", 1010 - 64, barY + 66);
-    
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(".COM", 1010, barY + 66);
-    ctx.restore();
-
-    // 4. CENTER DIAGONAL BANNER FOR SOLD/RENTED (STAMP EFFECT) OR CORNER RIBBON FOR DEAL
-    if (forcedStatus) {
-      if (forcedStatus === 'deal') {
-        ctx.save();
-        ctx.globalAlpha = 0.98;
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-        ctx.shadowBlur = 18;
-        ctx.shadowOffsetX = 4;
-        ctx.shadowOffsetY = 4;
-        
-        const gradient = ctx.createLinearGradient(50, 140, 50 + 175, 140 + 175);
-        gradient.addColorStop(0, '#f97316'); // orange-500
-        gradient.addColorStop(0.5, '#ea580c'); // orange-600
-        gradient.addColorStop(1, '#dc2626'); // red-600
-        ctx.fillStyle = gradient;
-        
-        ctx.beginPath();
-        ctx.moveTo(50, 140 + 55);
-        ctx.lineTo(50, 140 + 165);
-        ctx.lineTo(50 + 165, 140);
-        ctx.lineTo(50 + 55, 140);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Reset shadow for text and outline
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-
-        // Elegant border lines
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(50, 140 + 55);
-        ctx.lineTo(50 + 55, 140);
-        ctx.moveTo(50, 140 + 165);
-        ctx.lineTo(50 + 165, 140);
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '950 25px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        ctx.save();
-        ctx.translate(50 + 110 / 2, 140 + 110 / 2);
-        ctx.rotate(-Math.PI / 4);
-        if ('letterSpacing' in ctx) {
-          (ctx as any).letterSpacing = '5px';
-        }
-        ctx.fillText('FIRSAT', 0, 0);
-        ctx.restore();
-        ctx.restore();
-      } else {
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-        ctx.shadowBlur = 40;
-        ctx.fillStyle = forcedStatus === 'sold' ? '#e11d48' : '#0369a1'; // rose-600 or sky-700
-        
-        const bannerWidth = width * 1.6;
-        const bannerHeight = 180; 
-        
-        ctx.translate(width / 2, height / 2);
-        ctx.rotate(-Math.PI / 6);
-        
-        ctx.fillRect(-bannerWidth / 2, -bannerHeight / 2, bannerWidth, bannerHeight);
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 140px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        if ('letterSpacing' in ctx) {
-          (ctx as any).letterSpacing = '12px';
-        }
-        ctx.fillText(forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI', 0, 0);
-        ctx.restore();
-      }
-    }
-
-    // Save and download
     try {
-      const link = document.createElement('a');
-      let sanitizedTitle = (property.title || 'ilan').toLowerCase().replace(/\s+/g, '-').substring(0, 20);
-      link.download = 'afis-' + sanitizedTitle + '-' + selectedTheme + '-' + selectedRatio + '.png';
-      link.href = canvas.toDataURL("image/png");
+      // 0. Wait a bit for layout to settle
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 1. Prepare and convert all images inside preview element to Data URLs for 100% CORS safety
+      const imgs = Array.from(element.querySelectorAll('img'));
+      await Promise.all(imgs.map(async (img) => {
+        if (!img.src || img.src.startsWith('data:')) return;
+        try {
+          const res = await fetch(img.src, { mode: 'cors' });
+          if (res.ok) {
+            const blob = await res.blob();
+            await new Promise<void>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                if (typeof reader.result === 'string') {
+                  img.src = reader.result;
+                }
+                resolve();
+              };
+              reader.onerror = () => resolve();
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch (e) {
+          // Fallback: draw image to a temporary canvas using crossOrigin
+          await new Promise<void>((resolve) => {
+            const tempImg = new Image();
+            tempImg.crossOrigin = 'anonymous';
+            tempImg.onload = () => {
+              try {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = tempImg.naturalWidth || tempImg.width;
+                tempCanvas.height = tempImg.naturalHeight || tempImg.height;
+                const ctx = tempCanvas.getContext('2d');
+                if (ctx) {
+                  ctx.drawImage(tempImg, 0, 0);
+                  img.src = tempCanvas.toDataURL('image/png');
+                }
+              } catch (err) {}
+              resolve();
+            };
+            tempImg.onerror = () => resolve();
+            tempImg.src = img.src + (img.src.includes('?') ? '&' : '?') + 'cors_ts=' + Date.now();
+          });
+        }
+      }));
+
+      // 2. Calculate render scale for 1080px resolution (HD Social Media standard)
+      const currentWidth = element.clientWidth || 340;
+      const targetWidth = 1080;
+      const renderScale = Math.max(3.2, targetWidth / currentWidth);
+
+      // 3. Render DOM element to high-resolution canvas
+      const canvas = await html2canvas(element, {
+        scale: renderScale,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
+        imageTimeout: 10000,
+        onclone: (clonedDoc, clonedElement) => {
+          sanitizeClonedDocForHtml2Canvas(clonedDoc, clonedElement, element);
+        },
+      });
+
+      // 4. Download generated PNG
+      const sanitizedTitle = (property?.title || 'emlak-ilan')
+        .toLowerCase()
+        .replace(/[^a-z0-9ğüşıöç]/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 25);
+
+      const link = document.createElement("a");
+      link.download = `afis-emlak-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
+      link.href = canvas.toDataURL("image/png", 1.0);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (err) {
-      setRenderError("Kaydetme işlemi sırasında tarayıcı güvenlik kısıtlaması nedeniyle hata oluştu.");
+    } catch (err: any) {
+      console.error("Real estate poster export error:", err);
+      setRenderError("Afiş görseli indirilirken bir hata oluştu: " + (err?.message || "Lütfen tekrar deneyiniz."));
+    } finally {
+      setIsRendering(false);
     }
-    setIsRendering(false);
   };
+
+
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 overflow-y-auto font-sans" id="social-share-wizard-modal">
@@ -666,31 +443,31 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                 return (
                   <div 
                     ref={previewContainerRef}
-                    className={`relative w-full max-w-[340px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans p-3 ${previewColors.bg}`}
+                    className={`relative w-[340px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans p-4 ${previewColors.bg}`}
                     style={{ 
-                      aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16'
+                      height: selectedRatio === 'square' ? '340px' : '604px'
                     }}
                   >
-                    {/* Double Borders */}
-                    <div className={`absolute inset-1.5 border-[3px] rounded-2xl pointer-events-none z-10 ${previewColors.border}`} />
-                    <div className="absolute inset-2 border border-white/20 rounded-2xl pointer-events-none z-10" />
+                    {/* Double Borders (Padded safely away from content) */}
+                    <div className={`absolute inset-2 border-[3px] rounded-2xl pointer-events-none z-10 ${previewColors.border}`} />
+                    <div className="absolute inset-3 border border-white/20 rounded-2xl pointer-events-none z-10" />
 
                     {/* TOP CONSULTANT BAR */}
-                    <div className="relative z-20 flex justify-between items-center px-2 py-1.5 mb-1 text-[8px] font-black tracking-wider text-white">
-                      <div className="flex items-center gap-1">
+                    <div className="relative z-20 flex justify-between items-center px-2 py-1 mb-1 text-[8.5px] font-black tracking-wider text-white shrink-0">
+                      <div className="flex items-center gap-1.5 min-w-0 max-w-[48%]">
                         {activeAgent?.image_url ? (
-                          <img src={activeAgent.image_url} alt={activeBrokerName} className="w-4 h-4 rounded-full object-cover border border-white/40" />
+                          <img src={activeAgent.image_url} alt={activeBrokerName} className="w-4 h-4 rounded-full object-cover border border-white/40 shrink-0" />
                         ) : (
-                          <span>👤</span>
+                          <span className="shrink-0 text-[9px]">👤</span>
                         )}
-                        <span className="truncate max-w-[80px]">{activeBrokerName}</span>
+                        <span className="truncate leading-none text-[8.5px] font-black">{activeBrokerName}</span>
                       </div>
-                      <div className={previewColors.textAccent}>REF: {activeRefNoText}</div>
-                      <div className={previewColors.textAccent}>📞 {activeBrokerPhone}</div>
+                      <div className={`truncate ${previewColors.textAccent} leading-none text-[8.5px] font-black`}>REF: {activeRefNoText}</div>
+                      <div className={`shrink-0 ${previewColors.textAccent} leading-none text-[8.5px] font-black ml-1`}>📞 {activeBrokerPhone}</div>
                     </div>
 
                     {/* FRAMED IMAGE AREA */}
-                    <div className={`relative flex-1 rounded-xl overflow-hidden border-2 z-20 ${previewColors.border}`}>
+                    <div className={`relative flex-1 min-h-0 rounded-xl overflow-hidden border-2 z-20 ${previewColors.border} my-1`}>
                       {isCollage && property.images && (property.images[1] || property.images[2]) ? (
                         <div className="w-full h-full flex flex-row bg-slate-900">
                           {/* Left Main (67%) */}
@@ -771,32 +548,32 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                     </div>
 
                     {/* LOCATION AND SPECS AREA BELOW FRAME */}
-                    <div className="relative z-20 flex flex-col items-center justify-center py-2 text-center text-white">
-                      <div className="text-[9px] font-black truncate max-w-full">
+                    <div className="relative z-20 flex flex-col items-center justify-center py-1.5 text-center text-white shrink-0">
+                      <div className="text-[9.5px] font-black truncate max-w-full leading-tight">
                         📍 {propertyLocation.toUpperCase()}  •  {regionText.toUpperCase()}
                       </div>
                       
-                      <div className={`text-[7px] font-extrabold mt-0.5 truncate max-w-full ${previewColors.textMuted}`}>
+                      <div className={`text-[8px] font-extrabold mt-0.5 truncate max-w-full leading-tight ${previewColors.textMuted}`}>
                         🏠 {property.type === 'land' ? 'Arsa' : (roomsText ? `${roomsText} Daire` : (property.property_type || 'Gayrimenkul'))}  •  📐 {sqmText || 'Belirtilmedi'}{property.type !== 'land' && `  •  📦 ${isFurnishedVal ? 'Eşyalı' : 'Eşyasız'}`}  •  🔑 {isRent ? (depositVal !== undefined && depositVal !== null && depositVal !== '' ? `Depozito: ${depositFormatted}` : 'Depozitosuz') : titleType}
                       </div>
                     </div>
 
                     {/* SOLID BOTTOM BAR */}
-                    <div className={`relative z-20 rounded-lg p-2 flex justify-between items-center text-slate-900 ${previewColors.barBg}`}>
-                      <div className="flex flex-col text-left leading-tight">
-                        <span className="text-[6px] font-black tracking-wider text-[#0f172a] uppercase">
+                    <div className={`relative z-20 rounded-xl p-2.5 flex justify-between items-center text-slate-900 ${previewColors.barBg} shrink-0 mt-1`}>
+                      <div className="flex flex-col text-left justify-center min-w-0 pr-2">
+                        <span className="text-[6.5px] font-black tracking-widest text-[#0f172a]/90 uppercase leading-none mb-0.5">
                           {isRent ? 'AYLIK KİRA BEDELİ' : 'SATIŞ BEDELİ'}
                         </span>
-                        <span className="text-[13px] font-black text-[#0f172a] tracking-tight">
+                        <span className="text-[13px] font-black text-[#0f172a] tracking-tight leading-none mb-1">
                           {priceText}
                         </span>
-                        <span className="text-[7px] font-black text-white uppercase tracking-wider truncate max-w-[120px]">
+                        <span className="text-[8px] font-black text-[#0f172a] uppercase tracking-wider truncate leading-none">
                           {storeNameDisplay}
                         </span>
                       </div>
                       
-                      <div className="text-right flex items-center text-[9px] font-black text-[#0f172a]">
-                        ENRAKİPSİZ<span className="text-white">.COM</span>
+                      <div className="text-right flex items-center shrink-0 text-[9.5px] font-black text-[#0f172a] tracking-wider leading-none">
+                        ENRAKİPSİZ<span className="text-[#0f172a] font-extrabold">.COM</span>
                       </div>
                     </div>
 

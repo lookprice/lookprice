@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import html2canvas from "html2canvas";
+import { sanitizeClonedDocForHtml2Canvas } from "../utils/html2canvasFix";
 import { useParams } from "react-router-dom";
 import { 
   X, 
@@ -150,48 +152,76 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     return 0;
   }, [product.price, product.old_price]);
 
+  const rawStoreName = storeName || branding?.store_name || branding?.name || "";
+  const storeNameDisplay = (!rawStoreName || rawStoreName.toLowerCase().includes("lookprice")) ? "Seçkin Mağaza" : rawStoreName;
+
   // Determine theme colors for HTML Preview
   const getThemeClasses = () => {
     switch (selectedTheme) {
       case 'luxury_dark':
         return {
-          bg: 'bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950',
-          textTitle: 'text-amber-400 font-extrabold',
-          textBody: 'text-zinc-300',
-          accentBorder: 'border-amber-500/30',
-          pillBg: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
-          priceBg: 'bg-gradient-to-r from-amber-650 to-amber-505 text-white',
-          footerBg: 'bg-slate-950/60 border-t border-slate-800'
+          canvasBg: 'bg-gradient-to-b from-[#111625] via-[#0b0e17] to-[#040609]',
+          ambientGlow: 'from-amber-500/25 via-amber-600/10 to-transparent',
+          accentBorder: 'border-amber-500/40',
+          innerBorder: 'border-white/15',
+          headerBg: 'bg-black/60 border border-white/10 text-white',
+          infoCardBg: 'bg-black/85 border border-white/15 text-white shadow-2xl',
+          textTitle: 'text-amber-400 font-black',
+          priceColor: 'text-amber-300 font-black',
+          oldPriceColor: 'text-rose-400 line-through font-bold',
+          priceLabel: 'text-amber-200/90 font-extrabold',
+          badgeBorder: 'border-amber-500/40',
+          badgeText: 'text-amber-300',
+          discountBg: 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black'
         };
       case 'sunset_orange':
         return {
-          bg: 'bg-gradient-to-br from-orange-500 via-rose-600 to-amber-650',
-          textTitle: 'text-white font-black',
-          textBody: 'text-orange-100',
-          accentBorder: 'border-white/20',
-          pillBg: 'bg-white/15 text-white border-white/20',
-          priceBg: 'bg-white text-orange-650',
-          footerBg: 'bg-black/20 border-t border-white/10'
+          canvasBg: 'bg-gradient-to-b from-[#1c0a02] via-[#0f0501] to-[#050200]',
+          ambientGlow: 'from-orange-500/30 via-orange-600/10 to-transparent',
+          accentBorder: 'border-orange-500/40',
+          innerBorder: 'border-white/15',
+          headerBg: 'bg-black/60 border border-white/10 text-white',
+          infoCardBg: 'bg-black/85 border border-white/15 text-white shadow-2xl',
+          textTitle: 'text-orange-400 font-black',
+          priceColor: 'text-amber-300 font-black',
+          oldPriceColor: 'text-rose-400 line-through font-bold',
+          priceLabel: 'text-orange-200/90 font-extrabold',
+          badgeBorder: 'border-orange-500/40',
+          badgeText: 'text-orange-300',
+          discountBg: 'bg-gradient-to-r from-orange-500 to-rose-600 text-white font-black'
         };
       case 'neon_cyber':
         return {
-          bg: 'bg-gradient-to-br from-zinc-950 via-indigo-950 to-purple-950',
-          textTitle: 'text-cyan-400 font-extrabold',
-          textBody: 'text-cyan-100',
-          accentBorder: 'border-cyan-500/30',
-          pillBg: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
-          priceBg: 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white',
-          footerBg: 'bg-purple-950/60 border-t border-purple-900/30'
+          canvasBg: 'bg-gradient-to-b from-[#051124] via-[#030914] to-[#010307]',
+          ambientGlow: 'from-cyan-500/25 via-blue-600/10 to-transparent',
+          accentBorder: 'border-cyan-500/40',
+          innerBorder: 'border-white/15',
+          headerBg: 'bg-black/60 border border-white/10 text-white',
+          infoCardBg: 'bg-black/85 border border-white/15 text-white shadow-2xl',
+          textTitle: 'text-cyan-400 font-black',
+          priceColor: 'text-cyan-300 font-black',
+          oldPriceColor: 'text-rose-400 line-through font-bold',
+          priceLabel: 'text-cyan-200/90 font-extrabold',
+          badgeBorder: 'border-cyan-500/40',
+          badgeText: 'text-cyan-300',
+          discountBg: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black'
         };
       case 'minimal_carbon':
+      default:
         return {
-          bg: 'bg-gradient-to-br from-zinc-900 via-neutral-900 to-zinc-950',
-          textTitle: 'text-white font-extrabold',
-          textBody: 'text-zinc-300',
-          accentBorder: 'border-zinc-700',
-          pillBg: 'bg-zinc-800 text-zinc-100 border-zinc-700',
-          priceBg: 'bg-white text-zinc-900',
-          footerBg: 'bg-zinc-950/80 border-t border-zinc-800'
+          canvasBg: 'bg-gradient-to-b from-[#1c1c1f] via-[#121214] to-[#0a0a0c]',
+          ambientGlow: 'from-emerald-500/20 via-zinc-600/10 to-transparent',
+          accentBorder: 'border-zinc-600/50',
+          innerBorder: 'border-white/15',
+          headerBg: 'bg-black/60 border border-white/10 text-white',
+          infoCardBg: 'bg-black/85 border border-white/15 text-white shadow-2xl',
+          textTitle: 'text-white font-black',
+          priceColor: 'text-emerald-400 font-black',
+          oldPriceColor: 'text-rose-400 line-through font-bold',
+          priceLabel: 'text-zinc-300 font-extrabold',
+          badgeBorder: 'border-zinc-700',
+          badgeText: 'text-emerald-400',
+          discountBg: 'bg-emerald-500 text-slate-950 font-black'
         };
     }
   };
@@ -266,417 +296,102 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     setCopySuccess(true);
   };
 
-  // HTML5 Canvas Graphics Export Creator for General Product
-  const handleDownloadImage = () => {
+  // High-Resolution HTML5 Canvas Exporter for General Product Share Poster
+  const handleDownloadImage = async () => {
     setIsRendering(true);
     setRenderError(null);
 
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      setRenderError("Tuval bileşeni yüklenemedi.");
+    const element = previewContainerRef.current;
+    if (!element) {
+      setRenderError("Afiş önizleme alanı yüklenemedi.");
       setIsRendering(false);
       return;
     }
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      setRenderError("Grafik motoru başlatılamadı.");
-      setIsRendering(false);
-      return;
-    }
+    try {
+      // Allow fonts, images, and layout engine to fully settle
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Canvas size depending on aspect ratio chosen
-    const width = 1080;
-    const height = selectedRatio === 'square' ? 1080 : 1920;
-    canvas.width = width;
-    canvas.height = height;
-
-    // Draw background gradients
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    if (selectedTheme === 'luxury_dark') {
-      gradient.addColorStop(0, '#020617'); // slate-950
-      gradient.addColorStop(0.5, '#0f172a'); // slate-900
-      gradient.addColorStop(1, '#090d16');
-    } else if (selectedTheme === 'sunset_orange') {
-      gradient.addColorStop(0, '#ea580c'); // orange-600
-      gradient.addColorStop(0.5, '#e11d48'); // rose-600
-      gradient.addColorStop(1, '#ca8a04'); // amber-600
-    } else if (selectedTheme === 'neon_cyber') {
-      gradient.addColorStop(0, '#030712'); // gray-950
-      gradient.addColorStop(0.5, '#1e1b4b'); // indigo-950
-      gradient.addColorStop(1, '#080a15');
-    } else {
-      gradient.addColorStop(0, '#18181b'); // zinc-900
-      gradient.addColorStop(0.5, '#09090b'); // zinc-950
-      gradient.addColorStop(1, '#1c1c1f');
-    }
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-
-    // Dynamic geometric background mesh
-    ctx.strokeStyle = selectedTheme === 'luxury_dark' ? 'rgba(245, 158, 11, 0.12)' :
-                      selectedTheme === 'sunset_orange' ? 'rgba(255, 255, 255, 0.15)' :
-                      selectedTheme === 'neon_cyber' ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < 5; i++) {
-      ctx.arc(width / 2, height / 2, 150 + i * 160, 0, Math.PI * 2);
-    }
-    ctx.stroke();
-
-    // Draw stylish outer border
-    ctx.strokeStyle = selectedTheme === 'luxury_dark' ? '#d97706' : // amber-650
-                      selectedTheme === 'sunset_orange' ? '#ffffff' : // white
-                      selectedTheme === 'neon_cyber' ? '#06b6d4' : '#e4e4e7'; // cyan
-    ctx.lineWidth = 12;
-    ctx.strokeRect(30, 30, width - 60, height - 60);
-
-    // Draw Store Branding Header inside the Canvas directly with text shadows, no blocking background
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 3;
-
-    ctx.textAlign = 'left';
-    ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#f59e0b' :
-                    selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
-    ctx.font = '900 28px system-ui, sans-serif';
-    ctx.letterSpacing = '5px';
-    const brandName = storeName.toUpperCase();
-    ctx.fillText(brandName, 80, 80);
-
-    ctx.fillStyle = '#a1a1aa';
-    if (selectedTheme === 'sunset_orange') ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.font = '800 13px system-ui, sans-serif';
-    ctx.letterSpacing = '2px';
-    ctx.fillText("PREMIUM PRODUCT SHOWCASE", 80, 112);
-
-    // Draw phone top-right text
-    ctx.textAlign = 'right';
-    ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#fbbf24' :
-                    selectedTheme === 'neon_cyber' ? '#22d3ee' : '#ffffff';
-    ctx.font = 'bold 20px monospace';
-    const contactPhoneText = branding?.phone || branding?.whatsapp_number || 'PREMIUM MAĞAZA';
-    ctx.fillText(contactPhoneText, width - 80, 95);
-    ctx.textAlign = 'left'; // Reset
-    ctx.restore();
-
-    // Main image loading
-    const mainImageUrl = productImages[0] || null;
-
-    const finalizeDrawAndDownload = (imgElement: HTMLImageElement | null) => {
-      // Image occupies the whole core region of the card
-      const imgX = 30;
-      const imgY = 140;
-      const imgWidth = width - 60;
-      const imgHeight = selectedRatio === 'square' ? height - 170 : 1210; // story reaches up to 1350
-
-      ctx.save();
-      // Clip image to outer border limits
-      ctx.rect(imgX, imgY, imgWidth, imgHeight);
-      ctx.clip();
-
-      if (imgElement) {
+      // 1. Prepare and convert all images inside preview element to Data URLs for 100% CORS safety
+      const imgs = Array.from(element.querySelectorAll('img'));
+      await Promise.all(imgs.map(async (img) => {
+        if (!img.src || img.src.startsWith('data:')) return;
         try {
-          // Fill with white background as requested
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(imgX, imgY, imgWidth, imgHeight);
-
-          const imgAspect = imgElement.width / imgElement.height;
-          const targetAspect = imgWidth / imgHeight;
-
-          let drawWidth = imgWidth;
-          let drawHeight = imgHeight;
-          let drawX = imgX;
-          let drawY = imgY;
-
-          if (imgAspect > targetAspect) {
-             drawHeight = imgWidth / imgAspect;
-             drawY = imgY + (imgHeight - drawHeight) / 2;
-          } else {
-             drawWidth = imgHeight * imgAspect;
-             drawX = imgX + (imgWidth - drawWidth) / 2;
+          const res = await fetch(img.src, { mode: 'cors' });
+          if (res.ok) {
+            const blob = await res.blob();
+            await new Promise<void>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                if (typeof reader.result === 'string') {
+                  img.src = reader.result;
+                }
+                resolve();
+              };
+              reader.onerror = () => resolve();
+              reader.readAsDataURL(blob);
+            });
           }
-
-          ctx.globalCompositeOperation = 'multiply';
-          ctx.drawImage(imgElement, 0, 0, imgElement.width, imgElement.height, drawX, drawY, drawWidth, drawHeight);
-          ctx.globalCompositeOperation = 'source-over';
-        } catch (err) {
-          drawFallback(imgX, imgY, imgWidth, imgHeight);
+        } catch (e) {
+          // Fallback: draw image to a temporary canvas using crossOrigin
+          await new Promise<void>((resolve) => {
+            const tempImg = new Image();
+            tempImg.crossOrigin = 'anonymous';
+            tempImg.onload = () => {
+              try {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = tempImg.naturalWidth || tempImg.width;
+                tempCanvas.height = tempImg.naturalHeight || tempImg.height;
+                const ctx = tempCanvas.getContext('2d');
+                if (ctx) {
+                  ctx.drawImage(tempImg, 0, 0);
+                  img.src = tempCanvas.toDataURL('image/png');
+                }
+              } catch (err) {}
+              resolve();
+            };
+            tempImg.onerror = () => resolve();
+            tempImg.src = img.src + (img.src.includes('?') ? '&' : '?') + 'cors_ts=' + Date.now();
+          });
         }
-      } else {
-        drawFallback(imgX, imgY, imgWidth, imgHeight);
-      }
+      }));
 
-      ctx.restore();
+      // 2. Calculate render scale for 1080px resolution (HD Social Media standard)
+      const currentWidth = element.clientWidth || 340;
+      const targetWidth = 1080;
+      const renderScale = Math.max(3.2, targetWidth / currentWidth);
 
-      // Subtle black gradient overlay on the bottom portion of image - made very subtle
-      const imgGrad = ctx.createLinearGradient(30, imgY + imgHeight - 200, 30, imgY + imgHeight);
-      imgGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      imgGrad.addColorStop(1, 'rgba(0,0,0,0.5)');
-      ctx.fillStyle = imgGrad;
-      ctx.fillRect(30, imgY + imgHeight - 200, imgWidth, 200);
-
-      // Draw floating discount sticker top right if discountPercentage exists
-      if (discountPercentage > 0) {
-        const stickerX = width - 130;
-        const stickerY = 240;
-        
-        ctx.fillStyle = '#e11d48'; // red-650
-        ctx.beginPath();
-        ctx.arc(stickerX, stickerY, 65, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 16px system-ui, sans-serif';
-        ctx.fillText("İNDİRİM", stickerX, stickerY - 14);
-        ctx.font = '950 38px system-ui, sans-serif';
-        ctx.fillText(`%${discountPercentage}`, stickerX, stickerY + 20);
-        ctx.textAlign = 'left';
-      }
-
-      // --- TEXT CONTENT OVERLAY DIRECTLY ON IMAGE WITH SHADOWS ---
-      const glassX = 70;
-      const glassY = selectedRatio === 'square' ? 730 : 1085;
-      const glassW = width - 140;
-      const glassH = 290;
-
-      // Enable text shadow globally for this layer
-      ctx.save();
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-      ctx.shadowBlur = 12;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 3;
-
-      // Pills starts at X = glassX + 40, Y = glassY + 30
-      const pillY = glassY + 30;
-      ctx.font = 'bold 15px system-ui, sans-serif';
-      const catText = productCategory.toUpperCase().substring(0, 20);
-      const catWidth = ctx.measureText(catText).width + 30;
-
-      // Category Pill
-      ctx.save();
-      ctx.shadowColor = 'transparent'; // no shadow for solid background pills
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = selectedTheme === 'luxury_dark' ? '#d97706' :
-                      selectedTheme === 'neon_cyber' ? '#06b6d4' : '#ffffff';
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(glassX + 35, pillY, catWidth, 34, 8) : ctx.rect(glassX + 35, pillY, catWidth, 34);
-      ctx.fill();
-      ctx.restore();
-
-      ctx.fillStyle = '#010510';
-      ctx.font = '900 13px system-ui, sans-serif';
-      ctx.fillText(catText, glassX + 50, pillY + 22);
-
-      let nextPillX = glassX + 35 + catWidth + 15;
-
-      // Brand Pill (if exists)
-      if (productBrand) {
-        const brandText = productBrand.toUpperCase();
-        ctx.font = 'bold 13px system-ui, sans-serif';
-        const brandWidth = ctx.measureText(brandText).width + 30;
-
-        ctx.fillStyle = 'rgba(79, 70, 229, 0.15)';
-        ctx.strokeStyle = 'rgba(79, 70, 229, 0.45)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect ? ctx.roundRect(nextPillX, pillY, brandWidth, 34, 8) : ctx.rect(nextPillX, pillY, brandWidth, 34);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#818cf8';
-        ctx.fillText(brandText, nextPillX + 15, pillY + 22);
-        nextPillX += brandWidth + 15;
-      }
-
-      // Barcode Pill (replaces stocks)
-      if (product.barcode) {
-        const barText = `KOD: ${product.barcode.toUpperCase()}`;
-        ctx.font = 'bold 13px system-ui, sans-serif';
-        const barWidth = ctx.measureText(barText).width + 30;
-
-        ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.45)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect ? ctx.roundRect(nextPillX, pillY, barWidth, 34, 8) : ctx.rect(nextPillX, pillY, barWidth, 34);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#22d3ee';
-        ctx.fillText(barText, nextPillX + 15, pillY + 22);
-      }
-
-      // Product Title drawing
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '950 30px system-ui, sans-serif';
-      const titleLines = wrapText(productTitle, glassW - 70);
-      let titleYLine = glassY + 98;
-      titleLines.forEach((line, idx) => {
-        if (idx < 2) {
-          ctx.fillText(line, glassX + 35, titleYLine);
-          titleYLine += 42;
-        }
+      // 3. Render DOM element to high-resolution canvas
+      const canvas = await html2canvas(element, {
+        scale: renderScale,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
+        imageTimeout: 10000,
+        onclone: (clonedDoc, clonedElement) => {
+          sanitizeClonedDocForHtml2Canvas(clonedDoc, clonedElement, element);
+        },
       });
 
-      // Price block at bottom of glass block
-      const priceRowY = glassY + 225;
+      // 4. Download generated PNG
+      const sanitizedTitle = (productTitle || 'afis')
+        .toLowerCase()
+        .replace(/[^a-z0-9ğüşıöç]/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 25);
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(glassX + 35, priceRowY - 35);
-      ctx.lineTo(glassX + glassW - 35, priceRowY - 35);
-      ctx.stroke();
-
-      ctx.fillStyle = '#a1a1aa';
-      ctx.font = 'bold 12px system-ui, sans-serif';
-      ctx.fillText(discountPercentage > 0 ? "KAMPANYALI FİYAT SEÇENEĞİ" : "AVANTAJLI LİSTE FİYATI", glassX + 35, priceRowY - 12);
-
-      ctx.fillStyle = '#10b981'; // emerald-450
-      ctx.font = '900 36px system-ui, sans-serif';
-      ctx.fillText(priceText, glassX + 35, priceRowY + 28);
-
-      if (oldPriceText) {
-        ctx.font = 'bold 22px system-ui, sans-serif';
-        ctx.fillStyle = '#ef4444';
-        const prLabelWidth = ctx.measureText(priceText).width;
-        const oldXLoc = glassX + 35 + prLabelWidth + 30;
-        ctx.fillText(oldPriceText, oldXLoc, priceRowY + 22);
-
-        const oldW = ctx.measureText(oldPriceText).width;
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(oldXLoc - 4, priceRowY + 14);
-        ctx.lineTo(oldXLoc + oldW + 4, priceRowY + 14);
-        ctx.stroke();
-      }
-
-      // Guarantee badge on right alignment
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#f59e0b'; // amber-500
-      ctx.font = 'bold 15px system-ui, sans-serif';
-      ctx.fillText("⭐ %100 SATICI GÜVENCESİ", glassX + glassW - 35, priceRowY + 18);
-      ctx.textAlign = 'left'; // Restore alignment
-
-      // Story Special Callout Box below the visual frame
-      if (selectedRatio === 'story') {
-        const calloutY = 1420;
-        const calloutH = 340;
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-        ctx.beginPath();
-        ctx.roundRect ? ctx.roundRect(80, calloutY, width - 160, calloutH, 20) : ctx.rect(80, calloutY, width - 160, calloutH);
-        ctx.fill();
-
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#f59e0b';
-        ctx.font = '900 24px system-ui, sans-serif';
-        ctx.fillText("⭐ %100 ORİJİNAL ÜRÜN GARANTİSİ", width / 2, calloutY + 70);
-
-        ctx.fillStyle = '#e4e4e7';
-        ctx.font = 'semibold 18px system-ui, sans-serif';
-        const strLinesText = [
-          `Bu yüksek tescilli tasarım, orijinal faturası ve ambalajı`,
-          `ile mağazamız güvencesinde kapınıza kadar ulaştırılıyor!`,
-          `Hızlı destek, sipariş ve randevu için bize hemen ulaşın.`
-        ];
-        strLinesText.forEach((lnText, lnIdx) => {
-          ctx.fillText(lnText, width / 2, calloutY + 130 + (lnIdx * 45));
-        });
-        ctx.textAlign = 'left'; // restore
-      }
-
-      ctx.restore(); // Restore global shadow state
-
-      // Trigger actual download of canvas
-      try {
-        const link = document.createElement("a");
-        const sanitizedTitle = productTitle.toLowerCase().replace(/\s+/g, '-').substring(0, 20);
-        link.download = `afis-product-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
-        link.href = canvas.toDataURL("image/png");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch (err) {
-        setRenderError("Kaydetme işlemi sırasında tarayıcı güvenlik kısıtlaması nedeniyle hata oluştu.");
-      }
+      const link = document.createElement("a");
+      link.download = `afis-product-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
+      link.href = canvas.toDataURL("image/png", 1.0);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err: any) {
+      console.error("Poster export error:", err);
+      setRenderError("Afiş görseli indirilirken bir hata oluştu: " + (err?.message || "Lütfen tekrar deneyiniz."));
+    } finally {
       setIsRendering(false);
-    };
-
-    const drawFallback = (x: number, y: number, w: number, h: number) => {
-      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-      grad.addColorStop(0, '#1e293b');
-      grad.addColorStop(1, '#334155');
-      ctx.fillStyle = grad;
-      ctx.fillRect(x, y, w, h);
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-      ctx.lineWidth = 3;
-      for (let offset = 0; offset < w + h; offset += 50) {
-        ctx.beginPath();
-        ctx.moveTo(x + offset, y);
-        ctx.lineTo(x, y + offset);
-        ctx.stroke();
-      }
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.font = 'bold 100px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText("🎁", x + w/2, y + h/2 + 20);
-
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '800 13px system-ui, sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.fillText("PREMIUM PRODUCT GALLERY", x + w/2, y + h/2 + 70);
-      ctx.textAlign = 'left';
-    };
-
-    const wrapText = (text: string, maxWidth: number) => {
-      const words = text.split(" ");
-      const lines = [];
-      let currentLine = words[0];
-
-      for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const widthCheck = ctx.measureText(currentLine + " " + word).width;
-        if (widthCheck < maxWidth) {
-          currentLine += " " + word;
-        } else {
-          lines.push(currentLine);
-          currentLine = word;
-        }
-      }
-      lines.push(currentLine);
-      return lines;
-    };
-
-    if (mainImageUrl) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        finalizeDrawAndDownload(img);
-      };
-      img.onerror = () => {
-        console.error("Image loading error for:", mainImageUrl);
-        finalizeDrawAndDownload(null);
-      };
-      const cacheBustSep = mainImageUrl.includes('?') ? '&' : '?';
-      img.src = mainImageUrl + cacheBustSep + "lookprice_export_ts=" + Date.now();
-    } else {
-      finalizeDrawAndDownload(null);
     }
   };
 
@@ -713,110 +428,92 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
             <div className="flex justify-center items-center py-4">
               <div 
                 ref={previewContainerRef}
-                className={`relative w-full max-w-[340px] rounded-2xl overflow-hidden shadow-2xl border-4 ${themeConfig.accentBorder} ${themeConfig.bg} transition-all duration-300 flex flex-col`}
-                style={{ aspectRatio: selectedRatio === 'square' ? '1/1' : '9/16' }}
+                className={`relative w-[340px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 flex flex-col font-sans select-none ${themeConfig.canvasBg}`}
+                style={{ height: selectedRatio === 'square' ? '340px' : '604px' }}
               >
-                {/* Brand Header directly over image with drop shadow, no blocking background */}
-                <div className="p-3 bg-transparent flex justify-between items-center z-10 drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.95)]">
-                  <div className="truncate pr-2">
-                    <h3 className={`text-[11px] font-black tracking-wider uppercase leading-none select-none ${themeConfig.textTitle}`}>
-                      {storeName}
-                    </h3>
-                    <span className="text-[7.5px] font-black tracking-widest text-zinc-400 uppercase mt-0.5 block select-none">
-                      PREMIUM VİTRİN
+                {/* Double Luxury Borders */}
+                <div className={`absolute inset-2 border-[2px] rounded-2xl pointer-events-none z-30 ${themeConfig.accentBorder}`} />
+                <div className={`absolute inset-3 border rounded-2xl pointer-events-none z-30 ${themeConfig.innerBorder}`} />
+
+                {/* Top Glassmorphic Store & Contact Bar */}
+                <div className={`relative z-20 flex justify-between items-center px-3 py-1.5 mx-3 mt-3 rounded-xl backdrop-blur-md ${themeConfig.headerBg} shrink-0`}>
+                  <div className="flex items-center gap-2 min-w-0 pr-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-sm" />
+                    <span className="text-[10px] font-black uppercase tracking-wider truncate leading-none">
+                      {storeNameDisplay}
                     </span>
                   </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] font-mono font-black text-rose-400 bg-black/40 border border-rose-500/25 px-1.5 py-0.5 rounded select-none">
-                      {branding?.phone || branding?.whatsapp_number || 'YETKİLİ MAĞAZA'}
-                    </span>
+                  <div className={`shrink-0 text-[9px] font-mono font-black ${themeConfig.textTitle} leading-none flex items-center gap-1`}>
+                    <span>📞</span>
+                    <span>{branding?.whatsapp_number || branding?.phone || '+90 212 8812442'}</span>
                   </div>
                 </div>
 
-                {/* Main Visual Image centerpiece (Occupies 100% of rest of card height) */}
-                <div className="relative flex-1 w-full bg-white overflow-hidden flex flex-col justify-end">
-                  {/* Image full bleed background */}
+                {/* Main Visual Image centerpiece with ambient glow */}
+                <div className="relative flex-1 min-h-0 w-full flex items-center justify-center p-3 z-10 overflow-hidden">
+                  {/* Soft Radial Backlight */}
+                  <div className={`absolute inset-0 bg-radial ${themeConfig.ambientGlow} pointer-events-none`} />
+
                   {productImages[0] ? (
                     <img 
                       src={productImages[0]} 
                       alt={productTitle} 
-                      className="absolute inset-0 w-full h-full object-contain p-4 mix-blend-multiply select-none"
+                      className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.7)] select-none z-10"
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-slate-500 bg-slate-800">
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 z-10">
                       <span className="text-4xl mb-1">🎁</span>
-                      <span className="text-[10px] font-bold">Görsel Eklenmemiş</span>
+                      <span className="text-[11px] font-bold">Görsel Eklenmemiş</span>
                     </div>
                   )}
 
-                  {/* Subtle bottom gradient to keep the product fully visible */}
-                  <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/50 via-black/15 to-transparent pointer-events-none" />
-
-                  {/* Floating Discount Sticker */}
+                  {/* Floating Discount Badge */}
                   {discountPercentage > 0 && (
-                    <span className="absolute top-3 right-3 bg-gradient-to-r from-red-600 to-rose-600 text-white font-mono text-[9px] font-black px-2.5 py-1 rounded-full select-none uppercase shadow-lg animate-pulse z-20">
-                      %{discountPercentage} Dev İndirim!
-                    </span>
+                    <div className={`absolute top-2 right-3 ${themeConfig.discountBg} font-mono text-[9px] font-black px-2.5 py-1 rounded-full uppercase shadow-xl z-20 border border-white/20`}>
+                      %{discountPercentage} İNDİRİM
+                    </div>
                   )}
-
-                  {/* PREMIUM OVERLAY INFO BLOC directly on image with shadow, no slate background card */}
-                  <div className="relative z-10 p-2.5 m-2.5 flex flex-col gap-1.5 drop-shadow-[0_2px_5px_rgba(0,0,0,0.95)]">
-                    
-                    {/* Pills row (Category, Brand, Barcode) - NO STOCKS! */}
-                    <div className="flex gap-1 flex-wrap select-none drop-shadow-none">
-                      <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded-md border uppercase ${themeConfig.pillBg}`}>
-                        {productCategory}
-                      </span>
-                      {productBrand && (
-                        <span className="text-[7.5px] font-bold px-1.5 py-0.5 rounded-md border border-indigo-500/25 bg-indigo-500/10 text-indigo-300 uppercase">
-                          {productBrand}
-                        </span>
-                      )}
-                      {product.barcode && (
-                        <span className="text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded-md border border-cyan-500/25 bg-cyan-500/10 text-cyan-300 uppercase">
-                          KOD: {product.barcode}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Product Title */}
-                    <h4 className={`text-[11.5px] leading-snug font-extrabold uppercase line-clamp-2 select-text ${themeConfig.textTitle}`}>
-                      {productTitle}
-                    </h4>
-
-                    {/* Price and Action Section */}
-                    <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/10">
-                      <div>
-                        <span className="block text-[6.5px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
-                          {discountPercentage > 0 ? "KAMPANYALI SEÇENEK" : "AVANTAJLI LİSTE"}
-                        </span>
-                        <div className="flex items-baseline gap-1.5 leading-none">
-                          <span className="text-xs font-black text-emerald-400">{priceText}</span>
-                          {oldPriceText && (
-                            <span className="line-through text-[8.5px] text-red-500 font-extrabold">{oldPriceText}</span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Premium Assurance Tag */}
-                      <span className="text-[7.5px] font-extrabold text-[#fbbf24] bg-amber-400/15 border border-amber-400/20 px-1.5 py-0.5 rounded select-none uppercase shrink-0">
-                        %100 ORİJİNAL
-                      </span>
-                    </div>
-
-                  </div>
                 </div>
 
-                {/* Callout box for Vertical Ratio Story - sits beautifully below the centerpiece with drop shadow */}
-                {selectedRatio === 'story' && (
-                  <div className="p-3 mx-2.5 mb-2.5 rounded-xl text-center flex flex-col justify-center items-center drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.95)]">
-                    <span className="text-[8.5px] font-black tracking-wider text-[#fbbf24] mb-0.5 uppercase">⭐ %100 SATICI GÜVENCESİ</span>
-                    <p className="text-[8.5px] text-slate-300 leading-normal">
-                      Orijinal kutusundaki bu parçaya <strong>{storeName}</strong> ayrıcalığı ve hızlı kargo desteği ile sahip olabilirsiniz!
-                    </p>
+                {/* Translucent Overlay Info Card - 100% visible, elegant, NO line-clamp cut-off */}
+                <div className={`relative z-20 mx-3 mb-3 p-3 rounded-2xl backdrop-blur-md ${themeConfig.infoCardBg} flex flex-col gap-1.5 shrink-0`}>
+                  {/* Product Title */}
+                  <h4 
+                    className={`text-[12px] font-black uppercase tracking-wide leading-snug ${themeConfig.textTitle}`}
+                    style={{ lineHeight: '1.35', overflowWrap: 'break-word' }}
+                  >
+                    {productTitle}
+                  </h4>
+
+                  {/* Price and Guarantee Section */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
+                    <div className="flex flex-col">
+                      <span className={`block text-[7px] uppercase tracking-wider leading-none ${themeConfig.priceLabel}`}>
+                        {discountPercentage > 0 ? "KAMPANYALI LİSTE FİYATI" : "AVANTAJLI LİSTE FİYATI"}
+                      </span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className={`text-base font-black tracking-tight leading-none ${themeConfig.priceColor}`}>
+                          {priceText}
+                        </span>
+                        {oldPriceText && (
+                          <span className={`text-[9px] ${themeConfig.oldPriceColor} leading-none`}>
+                            {oldPriceText}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right flex flex-col items-end shrink-0">
+                      <span className="text-[6.5px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">
+                        GÜVENLİ MAĞAZA
+                      </span>
+                      <span className={`text-[8px] font-black tracking-wider uppercase px-2 py-0.5 rounded border ${themeConfig.badgeBorder} ${themeConfig.badgeText} bg-white/5 leading-none`}>
+                        ENRAKİPSİZ.COM
+                      </span>
+                    </div>
                   </div>
-                )}
+                </div>
 
               </div>
             </div>

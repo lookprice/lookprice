@@ -124,8 +124,12 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
     return Array.from(map.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   }, [products]);
 
-  // Filter products matching current category/subcategory scope to calculate relevant variants
+  // Filter products matching current category/subcategory scope to calculate relevant variants.
+  // CRITICAL: Variant filters (Renk, Beden, Attributes) should ONLY be computed and shown when a specific category or subcategory is selected!
   const relevantProducts = React.useMemo(() => {
+    if (!filterState.category && !filterState.subCategory) {
+      return [];
+    }
     return products.filter((p) => {
       if (filterState.category && p.category !== filterState.category && p.category_2 !== filterState.category) {
         return false;
@@ -317,6 +321,9 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
               onClick={() => {
                 onFilterChange("category", null);
                 onFilterChange("subCategory", null);
+                onFilterChange("color", null);
+                onFilterChange("size", null);
+                onFilterChange("selectedAttributes", {});
               }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 filterState.category === null && filterState.subCategory === null
@@ -328,13 +335,13 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
               <span className="text-[10px] opacity-75 font-mono">{products.length}</span>
             </button>
 
-            {categoryTree.map((cat) => {
+            {categoryTree.map((cat, catIdx) => {
               const isSelected = filterState.category === cat.name;
               const isExpanded = expandedCategories[cat.name] !== undefined ? expandedCategories[cat.name] : isSelected;
               const hasSubs = cat.subCategories && cat.subCategories.length > 0;
 
               return (
-                <div key={cat.name} className="space-y-1">
+                <div key={`filter-cat-${cat.name || 'cat'}-${catIdx}`} className="space-y-1">
                   <div
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       isSelected && filterState.subCategory === null
@@ -347,9 +354,15 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
                       if (isSelected && filterState.subCategory === null) {
                         onFilterChange("category", null);
                         onFilterChange("subCategory", null);
+                        onFilterChange("color", null);
+                        onFilterChange("size", null);
+                        onFilterChange("selectedAttributes", {});
                       } else {
                         onFilterChange("category", cat.name);
                         onFilterChange("subCategory", null);
+                        onFilterChange("color", null);
+                        onFilterChange("size", null);
+                        onFilterChange("selectedAttributes", {});
                         setExpandedCategories(prev => ({ ...prev, [cat.name]: true }));
                       }
                     }}
@@ -372,15 +385,18 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
                   {/* Sub-categories dropdown items */}
                   {hasSubs && isExpanded && (
                     <div className="pl-4 pr-1 space-y-1 border-l-2 border-indigo-200 dark:border-indigo-900 ml-3 my-1">
-                      {cat.subCategories.map((sub) => {
+                      {cat.subCategories.map((sub, subIdx) => {
                         const isSubSelected = isSelected && filterState.subCategory === sub.name;
                         return (
                           <button
-                            key={sub.name}
+                            key={`filter-sub-${sub.name || 'sub'}-${subIdx}`}
                             type="button"
                             onClick={() => {
                               onFilterChange("category", cat.name);
                               onFilterChange("subCategory", isSubSelected ? null : sub.name);
+                              onFilterChange("color", null);
+                              onFilterChange("size", null);
+                              onFilterChange("selectedAttributes", {});
                             }}
                             className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                               isSubSelected
@@ -412,11 +428,11 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
             {lang === "tr" ? "RENK SEÇENEKLERİ" : "COLOR OPTIONS"}
           </span>
           <div className="flex flex-wrap gap-2">
-            {colorsMap.map((c) => {
+            {colorsMap.map((c, cIdx) => {
               const isSelected = filterState.color === c.name;
               return (
                 <button
-                  key={c.name}
+                  key={`filter-color-${c.name || 'color'}-${cIdx}`}
                   type="button"
                   onClick={() => onFilterChange("color", isSelected ? null : c.name)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
@@ -449,11 +465,11 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
             {lang === "tr" ? "BEDEN & NUMARA" : "SIZE & FIT"}
           </span>
           <div className="flex flex-wrap gap-2">
-            {sizesMap.map((s) => {
+            {sizesMap.map((s, sIdx) => {
               const isSelected = filterState.size === s.name;
               return (
                 <button
-                  key={s.name}
+                  key={`filter-size-${s.name || 'size'}-${sIdx}`}
                   type="button"
                   onClick={() => onFilterChange("size", isSelected ? null : s.name)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer min-w-[40px] text-center flex items-center justify-center gap-1 ${
@@ -472,17 +488,17 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
       )}
 
       {/* 4. Dynamic Variant Attributes (Hafıza, Materyal, Kalıp, etc.) */}
-      {dynamicAttributeFacets.map((facet) => (
-        <div key={facet.key} className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+      {dynamicAttributeFacets.map((facet, fIdx) => (
+        <div key={`filter-facet-${facet.key || 'facet'}-${fIdx}`} className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
           <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">
             {facet.key.toUpperCase()}
           </span>
           <div className="flex flex-wrap gap-2">
-            {facet.values.map((v) => {
+            {facet.values.map((v, vIdx) => {
               const isSelected = filterState.selectedAttributes?.[facet.key] === v.name;
               return (
                 <button
-                  key={v.name}
+                  key={`filter-attrval-${facet.key}-${v.name || 'val'}-${vIdx}`}
                   type="button"
                   onClick={() => handleToggleAttribute(facet.key, v.name)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -507,11 +523,11 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
             {lang === "tr" ? "MARKALAR" : "BRANDS"}
           </span>
           <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-            {brandsWithCounts.map((b) => {
+            {brandsWithCounts.map((b, bIdx) => {
               const isSelected = filterState.brand === b.name;
               return (
                 <button
-                  key={b.name}
+                  key={`filter-brand-${b.name || 'brand'}-${bIdx}`}
                   type="button"
                   onClick={() => onFilterChange("brand", isSelected ? null : b.name)}
                   className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${

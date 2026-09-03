@@ -463,54 +463,54 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
 
       {/* BULK ACTIONS & SEARCH BAR */}
       {variants.length > 0 && (
-        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 placeholder={isTr ? 'Varyant adı, SKU veya barkod ara...' : 'Filter variants...'}
                 value={filterQuery}
                 onChange={e => setFilterQuery(e.target.value)}
-                className="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none w-52 sm:w-64"
+                className="px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none w-full md:w-64 shadow-2xs"
               />
-              <span className="text-[11px] font-bold text-slate-500">
+              <span className="text-[11px] font-bold text-slate-500 shrink-0">
                 {displayedVariants.length} / {variants.length}
               </span>
             </div>
 
             {/* Bulk Controls */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               {/* Bulk Price */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
                 <input
                   type="number"
                   placeholder={isTr ? 'Toplu Fiyat' : 'Bulk Price'}
                   value={bulkPrice}
                   onChange={e => setBulkPrice(e.target.value)}
-                  className="w-24 px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                  className="w-full sm:w-28 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none shadow-2xs"
                 />
                 <button
                   type="button"
                   onClick={handleApplyBulkPrice}
-                  className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs"
                 >
                   {isTr ? 'Fiyat Ata' : 'Set Price'}
                 </button>
               </div>
 
               {/* Bulk Stock */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
                 <input
                   type="number"
                   placeholder={isTr ? 'Toplu Stok' : 'Bulk Stock'}
                   value={bulkStock}
                   onChange={e => setBulkStock(e.target.value)}
-                  className="w-24 px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                  className="w-full sm:w-28 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none shadow-2xs"
                 />
                 <button
                   type="button"
                   onClick={handleApplyBulkStock}
-                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs"
                 >
                   {isTr ? 'Stok Ata' : 'Set Stock'}
                 </button>
@@ -522,7 +522,7 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
 
       {/* VARIANTS LIST TABLE */}
       {variants.length > 0 ? (
-        <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
           {displayedVariants.map((variant, index) => {
             const isExpanded = expandedVariantId === variant.id;
             const hex = variant.color_code || getColorHex(variant.color_name || '') || (variant.attributes ? getColorHex(variant.attributes['Renk'] || variant.attributes['Color'] || '') : undefined);
@@ -530,16 +530,15 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
             return (
               <div
                 key={variant.id || index}
-                className={`p-3.5 bg-white rounded-2xl border transition-all ${
+                className={`p-4 bg-white rounded-2xl border transition-all space-y-3 ${
                   variant.is_active === false 
                     ? 'border-slate-200 opacity-60 bg-slate-50' 
                     : 'border-slate-200 hover:border-indigo-300 shadow-2xs'
                 }`}
               >
-                {/* Main Row */}
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-                  {/* Left: Badge + Name + Color Swatch */}
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                {/* Header Row: Index + Image/Swatch + Title Input + Badges + Actions */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1 w-full sm:w-auto">
                     <span className="w-6 h-6 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-900 text-[10px] font-black flex items-center justify-center shrink-0">
                       {index + 1}
                     </span>
@@ -562,20 +561,20 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
                       <span className="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0" />
                     )}
 
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <input
                         type="text"
                         value={variant.name || ''}
                         onChange={e => handleUpdateVariant(index, 'name', e.target.value)}
                         placeholder={isTr ? 'Varyant Adı' : 'Variant Name'}
-                        className="font-extrabold text-xs text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-600 focus:bg-slate-50 px-1 py-0.5 rounded outline-none w-full truncate"
+                        className="font-extrabold text-xs text-slate-900 bg-slate-50 border border-slate-200 focus:border-indigo-600 focus:bg-white px-2.5 py-1 rounded-lg outline-none w-full"
                       />
 
                       {/* Attributes Tags Summary */}
                       {variant.attributes && Object.keys(variant.attributes).length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-0.5">
+                        <div className="flex flex-wrap gap-1">
                           {Object.entries(variant.attributes).map(([k, v]) => (
-                            <span key={k} className="text-[9px] font-bold px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded border border-slate-200">
+                            <span key={k} className="text-[9px] font-bold px-2 py-0.5 bg-indigo-50/80 text-indigo-900 rounded-md border border-indigo-100">
                               {k}: <strong>{v}</strong>
                             </span>
                           ))}
@@ -584,85 +583,88 @@ export const VariantMatrixManager: React.FC<VariantMatrixManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Center/Right: Pricing, Stock, SKU, Barcode Controls */}
-                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
-                    {/* Price Input */}
-                    <div className="w-24">
-                      <label className="text-[9px] font-bold text-slate-400 uppercase block leading-tight">
-                        {isTr ? 'Fiyat' : 'Price'}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={variant.price !== undefined ? variant.price : ''}
-                        onChange={e => handleUpdateVariant(index, 'price', parseFloat(e.target.value) || 0)}
-                        placeholder="0.00"
-                        className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-emerald-700 focus:border-indigo-600 focus:outline-none"
-                      />
-                    </div>
+                  {/* Top Actions: Details & Delete */}
+                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedVariantId(isExpanded ? null : variant.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer ${
+                        isExpanded ? 'bg-indigo-100 text-indigo-900' : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                      title={isTr ? 'Detaylı Ayarlar' : 'Details'}
+                    >
+                      <span className="text-[10px] uppercase">{isTr ? 'Detay' : 'More'}</span>
+                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
 
-                    {/* Stock Input */}
-                    <div className="w-20">
-                      <label className="text-[9px] font-bold text-slate-400 uppercase block leading-tight">
-                        {isTr ? 'Stok' : 'Stock'}
-                      </label>
-                      <input
-                        type="number"
-                        value={variant.stock_quantity !== undefined ? variant.stock_quantity : ''}
-                        onChange={e => handleUpdateVariant(index, 'stock_quantity', parseInt(e.target.value, 10) || 0)}
-                        placeholder="0"
-                        className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteVariant(index)}
+                      className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      title={isTr ? 'Varyantı Sil' : 'Delete'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
 
-                    {/* SKU Input */}
-                    <div className="w-28 hidden sm:block">
-                      <label className="text-[9px] font-bold text-slate-400 uppercase block leading-tight">
-                        SKU
-                      </label>
-                      <input
-                        type="text"
-                        value={variant.sku || ''}
-                        onChange={e => handleUpdateVariant(index, 'sku', e.target.value)}
-                        placeholder="SKU-123"
-                        className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-mono text-slate-700 focus:border-indigo-600 focus:outline-none"
-                      />
-                    </div>
+                {/* Input Fields Grid: Price, Stock, SKU, Barcode */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {/* Price Input */}
+                  <div>
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase block mb-1 tracking-wider">
+                      {isTr ? 'Fiyat' : 'Price'}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={variant.price !== undefined ? variant.price : ''}
+                      onChange={e => handleUpdateVariant(index, 'price', parseFloat(e.target.value) || 0)}
+                      placeholder="0.00"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-emerald-700 focus:border-indigo-600 focus:bg-white focus:outline-none transition-all"
+                    />
+                  </div>
 
-                    {/* Barcode Input */}
-                    <div className="w-28 hidden md:block">
-                      <label className="text-[9px] font-bold text-slate-400 uppercase block leading-tight">
-                        {isTr ? 'Barkod' : 'Barcode'}
-                      </label>
-                      <input
-                        type="text"
-                        value={variant.barcode || ''}
-                        onChange={e => handleUpdateVariant(index, 'barcode', e.target.value)}
-                        placeholder="869000..."
-                        className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-mono text-slate-700 focus:border-indigo-600 focus:outline-none"
-                      />
-                    </div>
+                  {/* Stock Input */}
+                  <div>
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase block mb-1 tracking-wider">
+                      {isTr ? 'Stok' : 'Stock'}
+                    </label>
+                    <input
+                      type="number"
+                      value={variant.stock_quantity !== undefined ? variant.stock_quantity : ''}
+                      onChange={e => handleUpdateVariant(index, 'stock_quantity', parseInt(e.target.value, 10) || 0)}
+                      placeholder="0"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:border-indigo-600 focus:bg-white focus:outline-none transition-all"
+                    />
+                  </div>
 
-                    {/* Expand Details & Delete */}
-                    <div className="flex items-center gap-1 pt-3 lg:pt-0">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedVariantId(isExpanded ? null : variant.id)}
-                        className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                        title={isTr ? 'Detaylı Ayarlar' : 'Details'}
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
+                  {/* SKU Input */}
+                  <div>
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase block mb-1 tracking-wider">
+                      SKU
+                    </label>
+                    <input
+                      type="text"
+                      value={variant.sku || ''}
+                      onChange={e => handleUpdateVariant(index, 'sku', e.target.value)}
+                      placeholder="SKU-123"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-mono text-slate-700 focus:border-indigo-600 focus:bg-white focus:outline-none transition-all"
+                    />
+                  </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteVariant(index)}
-                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title={isTr ? 'Varyantı Sil' : 'Delete'}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                  {/* Barcode Input */}
+                  <div>
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase block mb-1 tracking-wider">
+                      {isTr ? 'Barkod' : 'Barcode'}
+                    </label>
+                    <input
+                      type="text"
+                      value={variant.barcode || ''}
+                      onChange={e => handleUpdateVariant(index, 'barcode', e.target.value)}
+                      placeholder="869000..."
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-mono text-slate-700 focus:border-indigo-600 focus:bg-white focus:outline-none transition-all"
+                    />
                   </div>
                 </div>
 

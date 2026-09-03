@@ -29,6 +29,7 @@ interface StoreHeaderProps {
   setIsBasketOpen: (open: boolean) => void;
   basketCount: number;
   setShowBlog: (show: boolean) => void;
+  onOpenProfile: (tab: 'profile' | 'orders') => void;
 }
 
 const getDisplayStoreName = (store: any) => {
@@ -62,7 +63,8 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
   setShowAuthModal,
   setIsBasketOpen,
   basketCount,
-  setShowBlog
+  setShowBlog,
+  onOpenProfile
 }) => {
   const navigate = useNavigate();
   const displayName = getDisplayStoreName(store);
@@ -110,7 +112,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
           <div className="hidden lg:flex items-center gap-6">
             {(store?.menu_links || []).map((link: any, index: number) => (
               <a
-                key={index}
+                key={`menu-link-${link.url || link.label || index}-${index}`}
                 href={link.url}
                 className="text-sm font-medium text-slate-600 hover:text-slate-950 transition-colors"
                 style={{ color: link.active ? primaryColor : undefined }}
@@ -167,7 +169,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
                     >
                       <button
                         onClick={() => {
-                          navigate(getStorePath("/profile"));
+                          onOpenProfile('profile');
                           setIsAccountMenuOpen(false);
                         }}
                         className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-bold flex items-center gap-2 group transition-colors"
@@ -177,7 +179,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
                       </button>
                       <button
                         onClick={() => {
-                          navigate(getStorePath("/orders"));
+                          onOpenProfile('orders');
                           setIsAccountMenuOpen(false);
                         }}
                         className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-bold flex items-center gap-2 group transition-colors"

@@ -237,12 +237,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             WebkitBackfaceVisibility: "hidden"
           }}
         >
-          <div className="aspect-[4/3] bg-white relative overflow-hidden cursor-pointer flex items-center justify-center p-4" onClick={() => onView(product)}>
+          <div className={`aspect-[4/3] bg-white relative overflow-hidden cursor-pointer flex items-center justify-center ${isRealEstate || isAutomotive ? 'p-0' : 'p-3 sm:p-4'}`} onClick={() => onView(product)}>
             {product.image_url ? (
               <img
                 src={getAnnotatedImageUrl(product.image_url)}
                 alt={product.name}
-                className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ease-out mix-blend-multiply"
+                className={`w-full h-full ${
+                  isRealEstate || isAutomotive
+                    ? "object-cover group-hover:scale-105"
+                    : "object-contain mix-blend-multiply group-hover:scale-105"
+                } transition-transform duration-500 ease-out`}
                 referrerPolicy="no-referrer"
                 loading="lazy"
               />

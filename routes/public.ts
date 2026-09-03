@@ -1560,6 +1560,32 @@ router.get("/store/:slug/about-us", async (req, res) => {
   }
 });
 
+// Cart synchronization for registered customers
+router.post("/customers/cart/save", async (req, res) => {
+  const { customerId, storeId, items } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO carts (customer_id, store_id, items, updated_at) 
+       VALUES ($1, $2, $3, NOW()) 
+       ON CONFLICT (customer_id) DO UPDATE SET items = $3, updated_at = NOW()`,
+      [customerId, storeId, JSON.stringify(items)]
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get("/customers/cart/:customerId", async (req, res) => {
+  const { customerId } = req.params;
+  try {
+    const result = await pool.query("SELECT items FROM carts WHERE customer_id = $1", [customerId]);
+    res.json({ items: result.rows[0]?.items || [] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Public: Store Return Policy HTML for Google Merchant Center
 router.get("/store/:slug/return-policy", async (req, res) => {
   const { slug } = req.params;
@@ -2060,7 +2086,8 @@ router.post("/sales", async (req, res) => {
     // Handle Payment Gateways
     const storeRes = await client.query("SELECT payment_settings, default_currency FROM stores WHERE id = $1", [storeId]);
     const storeData = storeRes.rows[0];
-    const paymentSettings = storeData?.payment_settings || {};
+    const settingsRaw = storeData?.payment_settings;
+    const paymentSettings = typeof settingsRaw === 'string' ? JSON.parse(settingsRaw) : (settingsRaw || {});
 
     // 1. Payoneer Integration
     if (paymentMethod === 'payoneer' && paymentSettings.payoneer_enabled) {
@@ -2874,41 +2901,46 @@ router.post("/property-submission", async (req, res) => {
 
     console.log(`[Property Lead] Store ID: ${storeId || 'N/A'}, Store Type: ${storeType || 'N/A'}, Name: ${ownerName}, Phone: ${ownerPhone}, Type: ${propertyType}, Location: ${location}, Price: ${expectedPrice}`);
 
-    // Try inserting into leads, customers, or real_estate_contacts table if possible
+    // Try inserting into customers and real_estate_contacts
     try {
       if (storeId) {
-        // Always insert to customers as a general backup
-        await pool.query(
-          "INSERT INTO customers (store_id, name, phone, email, notes, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT DO NOTHING",
-          [
-            storeId, 
-            ownerName, 
-            ownerPhone, 
-            ownerEmail || null, 
-            `Mülk Değerleme Başvurusu: ${propertyType || ''} - ${location || ''} - Beklenen Fiyat: ${expectedPrice || ''}. Not: ${notes || ''}`
-          ]
-        );
-
-        // For real_estate stores, also insert into real_estate_contacts so they appear directly in the dashboard CRM
-        if (storeType === 'real_estate') {
+        // 1. Insert into customers table safely (columns: store_id, name, phone, email, address, password)
+        try {
           await pool.query(
-            `INSERT INTO real_estate_contacts (store_id, name, phone, email, type, notes, address, id_number, created_at) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) ON CONFLICT DO NOTHING`,
+            "INSERT INTO customers (store_id, name, phone, email, address, password, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) ON CONFLICT DO NOTHING",
             [
-              storeId,
-              ownerName,
-              ownerPhone,
-              ownerEmail || '',
-              'owner', // It's a property owner submitting a property valuation request!
-              `[MÜLK SAHİBİ BAŞVURUSU] Tip: ${propertyType || ''} | Konum: ${location || ''} | Beklenen Fiyat: ${expectedPrice || ''} | Not: ${notes || ''}`,
+              storeId, 
+              ownerName, 
+              ownerPhone, 
+              ownerEmail || null, 
               location || '',
-              ''
+              'no_password_guest'
             ]
           );
+        } catch (cErr) {
+          console.warn("Customers insert warning:", cErr);
         }
+
+        // 2. Insert into real_estate_contacts table so it appears directly in the portfolio / CRM panel
+        const leadNote = `[MÜLK SAHİBİ BAŞVURUSU] Tip: ${propertyType || ''} | Konum: ${location || ''} | Beklenen Fiyat: ${expectedPrice || ''} | Not: ${notes || ''}`;
+        await pool.query(
+          `INSERT INTO real_estate_contacts (store_id, name, phone, email, type, notes, address, id_number, created_at) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+          [
+            storeId,
+            ownerName,
+            ownerPhone,
+            ownerEmail || '',
+            'owner', // It's a property owner submitting a property valuation request!
+            leadNote,
+            location || '',
+            ''
+          ]
+        );
+        console.log(`[Property Lead Success] Saved contact for store ${storeId}: ${ownerName} (${ownerPhone})`);
       }
     } catch (dbErr) {
-      console.warn("Db insert lead warning:", dbErr);
+      console.error("Db insert lead error:", dbErr);
     }
 
     res.json({ success: true, message: "Property lead received successfully" });

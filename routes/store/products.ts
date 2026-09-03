@@ -6,7 +6,7 @@ import XLSX from "xlsx";
 const router = express.Router();
 
 // Ensure new schema columns exist
-async function initProductSchema() {
+export async function initProductSchema() {
   try {
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS category_2 VARCHAR(255) DEFAULT '';`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sub_category_2 VARCHAR(255) DEFAULT '';`);
@@ -20,7 +20,6 @@ async function initProductSchema() {
     console.error("Failed to alter products table schema for variants and 2nd categories:", e);
   }
 }
-initProductSchema();
 
 // GET /products
 router.get("/", async (req: any, res) => {

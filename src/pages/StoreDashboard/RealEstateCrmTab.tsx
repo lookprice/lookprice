@@ -1,8 +1,46 @@
 import React, { useState, useDeferredValue } from "react";
-import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info } from "lucide-react";
+import { Search, UserPlus, Users, Trash2, Edit2, Phone, Mail, X, Plus, Info, CheckCircle2, PhoneCall, Building } from "lucide-react";
 import { RealEstateContact } from "../../types";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
+
+export type LeadStage = 'new' | 'contacted' | 'converted' | 'reviewed' | 'cancelled' | 'none';
+
+export const getLeadStage = (notes?: string): LeadStage => {
+  if (!notes) return 'none';
+  if (notes.includes('[MÜLK SAHİBİ BAŞVURUSU]')) return 'new';
+  if (notes.includes('[MÜLK SAHİBİ - İLETİŞİME GEÇİLDİ]')) return 'contacted';
+  if (notes.includes('[MÜLK SAHİBİ - PORTFÖYE ALINDI]')) return 'converted';
+  if (notes.includes('[MÜLK SAHİBİ - İNCELENDİ]')) return 'reviewed';
+  if (notes.includes('[MÜLK SAHİBİ - İPTAL]')) return 'cancelled';
+  if (notes.includes('[MÜLK SAHİBİ')) return 'reviewed';
+  return 'none';
+};
+
+export const updateLeadStageInNotes = (existingNotes: string = "", newStage: LeadStage): string => {
+  let cleanNotes = existingNotes
+    .replace('[MÜLK SAHİBİ BAŞVURUSU]', '')
+    .replace('[MÜLK SAHİBİ - İLETİŞİME GEÇİLDİ]', '')
+    .replace('[MÜLK SAHİBİ - PORTFÖYE ALINDI]', '')
+    .replace('[MÜLK SAHİBİ - İNCELENDİ]', '')
+    .replace('[MÜLK SAHİBİ - İPTAL]', '')
+    .trim();
+
+  switch (newStage) {
+    case 'new':
+      return `[MÜLK SAHİBİ BAŞVURUSU] ${cleanNotes}`.trim();
+    case 'contacted':
+      return `[MÜLK SAHİBİ - İLETİŞİME GEÇİLDİ] ${cleanNotes}`.trim();
+    case 'converted':
+      return `[MÜLK SAHİBİ - PORTFÖYE ALINDI] ${cleanNotes}`.trim();
+    case 'reviewed':
+      return `[MÜLK SAHİBİ - İNCELENDİ] ${cleanNotes}`.trim();
+    case 'cancelled':
+      return `[MÜLK SAHİBİ - İPTAL] ${cleanNotes}`.trim();
+    default:
+      return cleanNotes;
+  }
+};
 
 interface RealEstateCrmTabProps {
   contacts: RealEstateContact[];
@@ -60,6 +98,18 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
     );
   });
 
+  const handleQuickStatusChange = async (contact: RealEstateContact, newStage: LeadStage) => {
+    const updatedNotes = updateLeadStageInNotes(contact.notes, newStage);
+    try {
+      await onSaveContact({
+        ...contact,
+        notes: updatedNotes
+      });
+    } catch (err: any) {
+      console.error("Failed to update status", err);
+    }
+  };
+
   const openAddModal = () => {
     setEditingContact(null);
     setFormData({
@@ -94,9 +144,15 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
     setSaveLoading(true);
     setErrorMsg(null);
     try {
-      // Standardize phone right before saving
+      let finalNotes = formData.notes || "";
+      // If editing an unreviewed new lead, saving the edit form automatically marks it as reviewed if stage wasn't changed
+      if (editingContact && getLeadStage(editingContact.notes) === 'new' && getLeadStage(finalNotes) === 'new') {
+        finalNotes = updateLeadStageInNotes(finalNotes, 'reviewed');
+      }
+
       const finalizedData = {
         ...formData,
+        notes: finalNotes,
         phone: standardizeOwnerPhone(formData.phone || "")
       };
       await onSaveContact(finalizedData);
@@ -139,62 +195,155 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredContacts.map(contact => (
-            <div key={contact.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-50 rounded-full border border-slate-100">
-                      <Users size={18} className="text-slate-600" />
+          {filteredContacts.map(contact => {
+            const stage = getLeadStage(contact.notes);
+            return (
+              <div key={contact.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                <div>
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-full border ${
+                        stage === 'new' ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' :
+                        stage === 'contacted' ? 'bg-blue-500/10 border-blue-500/30 text-blue-600' :
+                        stage === 'converted' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' :
+                        'bg-slate-50 border-slate-100 text-slate-600'
+                      }`}>
+                        {stage === 'new' ? '🏡' : stage === 'contacted' ? '📞' : stage === 'converted' ? '🔑' : <Users size={18} />}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-sm">{contact.name}</h3>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <span className={`inline-block text-[9px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full ${contact.type === 'owner' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
+                            {contact.type === 'owner' ? (isTr ? 'Mülk Sahibi' : 'Owner') : (isTr ? 'Yatırımcı' : 'Investor')}
+                          </span>
+                          {stage === 'new' && (
+                            <span className="inline-block text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 border border-amber-600 shadow-xs animate-pulse">
+                              🌐 Yeni Başvuru (Bekliyor)
+                            </span>
+                          )}
+                          {stage === 'contacted' && (
+                            <span className="inline-block text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-blue-500 text-white border border-blue-600 shadow-xs">
+                              📞 İletişime Geçildi
+                            </span>
+                          )}
+                          {stage === 'converted' && (
+                            <span className="inline-block text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-700 shadow-xs">
+                              🏡 Portföye Alındı
+                            </span>
+                          )}
+                          {stage === 'reviewed' && (
+                            <span className="inline-block text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
+                              ✓ İncelendi / Arşiv
+                            </span>
+                          )}
+                          {stage === 'cancelled' && (
+                            <span className="inline-block text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                              ✕ İptal Edildi
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900 text-sm">{contact.name}</h3>
-                      <span className={`inline-block mt-1 text-[9px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full ${contact.type === 'owner' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
-                        {contact.type === 'owner' ? (isTr ? 'Mülk Sahibi' : 'Owner') : (isTr ? 'Yatırımcı' : 'Investor')}
+                    {contact.created_at && (
+                      <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                        {new Date(contact.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </span>
-                    </div>
+                    )}
                   </div>
-                </div>
-                <div className="space-y-1.5 text-xs text-slate-600 mt-2">
-                  <div className="flex items-center gap-2">
-                    <Phone size={13} className="text-slate-400" />
-                    <span className="font-medium text-slate-800">{contact.phone}</span>
-                  </div>
-                  {contact.email && (
+                  <div className="space-y-1.5 text-xs text-slate-600 mt-2">
                     <div className="flex items-center gap-2">
-                      <Mail size={13} className="text-slate-400" />
-                      <span className="text-slate-600">{contact.email}</span>
+                      <Phone size={13} className="text-slate-400" />
+                      <span className="font-bold text-slate-800">{contact.phone}</span>
                     </div>
-                  )}
-                  {contact.notes && (
-                    <div className="mt-2 text-[11px] bg-slate-50 p-2 rounded border border-slate-100 text-slate-500 italic">
-                      {contact.notes}
+                    {contact.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail size={13} className="text-slate-400" />
+                        <span className="text-slate-600">{contact.email}</span>
+                      </div>
+                    )}
+                    {contact.notes && (
+                      <div className={`mt-2.5 text-[11px] p-2.5 rounded-xl border leading-relaxed ${
+                        stage === 'new' ? 'bg-amber-50/80 border-amber-200/80 text-slate-800 font-medium' :
+                        stage === 'contacted' ? 'bg-blue-50/80 border-blue-200/80 text-slate-800 font-medium' :
+                        stage === 'converted' ? 'bg-emerald-50/80 border-emerald-200/80 text-slate-800 font-medium' :
+                        'bg-slate-50 border-slate-100 text-slate-600 italic'
+                      }`}>
+                        {contact.notes}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Lead Stage Bar */}
+                {stage !== 'none' && (
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-1.5 bg-slate-50/80 p-2 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-500">
+                      {isTr ? "Aşama Güncelle:" : "Change Stage:"}
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {stage !== 'contacted' && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusChange(contact, 'contacted')}
+                          className="px-2 py-1 text-[10px] font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-1"
+                          title={isTr ? "İletişime geçildi olarak işaretle (Uyarıyı kaldırır)" : "Mark as contacted"}
+                        >
+                          📞 İletişime Geçildi
+                        </button>
+                      )}
+                      {stage !== 'converted' && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusChange(contact, 'converted')}
+                          className="px-2 py-1 text-[10px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-1"
+                          title={isTr ? "Portföye dahil edildi olarak işaretle" : "Mark as converted to portfolio"}
+                        >
+                          🏡 Portföye Alındı
+                        </button>
+                      )}
+                      {stage !== 'reviewed' && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusChange(contact, 'reviewed')}
+                          className="px-2 py-1 text-[10px] font-semibold rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 transition-all active:scale-95 flex items-center gap-1"
+                          title={isTr ? "İncelendi olarak arşivle" : "Mark as reviewed"}
+                        >
+                          ✓ İncelendi
+                        </button>
+                      )}
                     </div>
-                  )}
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center gap-1.5 mt-3 pt-2 border-t border-slate-100">
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    ID: #{contact.id}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => openEditModal(contact)}
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1"
+                      title={isTr ? "Düzenle ve Durum Değiştir" : "Edit and Change Status"}
+                    >
+                      <Edit2 size={12} />
+                      <span>{isTr ? "Düzenle / İncele" : "Edit / Review"}</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (window.confirm(isTr ? "Bu kişiyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this contact?")) {
+                          onDeleteContact(contact.id!);
+                        }
+                      }} 
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      title={isTr ? "Sil" : "Delete"}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-1.5 mt-4 pt-3 border-t border-slate-100">
-                <button 
-                  onClick={() => openEditModal(contact)}
-                  className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded transition-colors"
-                  title={isTr ? "Düzenle" : "Edit"}
-                >
-                  <Edit2 size={14} />
-                </button>
-                <button 
-                  onClick={() => {
-                    if (window.confirm(isTr ? "Bu kişiyi silmek istediğinizden emin misiniz?" : "Are you sure you want to delete this contact?")) {
-                      onDeleteContact(contact.id!);
-                    }
-                  }} 
-                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                  title={isTr ? "Sil" : "Delete"}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -205,7 +354,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-150 bg-slate-50">
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <Users size={18} className="text-slate-600" />
-                {editingContact ? (isTr ? "Kişiyi Düzenle" : "Edit Contact") : (isTr ? "Yeni Kişi Ekle" : "Add New Contact")}
+                {editingContact ? (isTr ? "Kişiyi Düzenle & İncele" : "Edit & Review Contact") : (isTr ? "Yeni Kişi Ekle" : "Add New Contact")}
               </h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -219,6 +368,46 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
               {errorMsg && (
                 <div className="bg-rose-50 border border-rose-100 text-rose-700 p-3 rounded-lg text-xs font-semibold">
                   {errorMsg}
+                </div>
+              )}
+
+              {/* Lead Stage Selector if contact is a web lead or has lead stage */}
+              {(editingContact || getLeadStage(formData.notes) !== 'none') && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                    <span>{isTr ? "Başvuru Aşama Statüsü *" : "Lead Stage Status *"}</span>
+                    <span className="text-[10px] text-amber-600 font-medium">{isTr ? "(Değiştirildiğinde ekran uyarısı temizlenir)" : "(Clears dashboard alert)"}</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'new') })}
+                      className={`p-2 text-left text-[11px] font-bold rounded-lg border transition-all ${getLeadStage(formData.notes) === 'new' ? 'bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      🟡 Yeni Başvuru (Bekliyor)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'contacted') })}
+                      className={`p-2 text-left text-[11px] font-bold rounded-lg border transition-all ${getLeadStage(formData.notes) === 'contacted' ? 'bg-blue-600 text-white border-blue-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      📞 İletişime Geçildi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'converted') })}
+                      className={`p-2 text-left text-[11px] font-bold rounded-lg border transition-all ${getLeadStage(formData.notes) === 'converted' ? 'bg-emerald-600 text-white border-emerald-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      🏡 Portföye Alındı
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'reviewed') })}
+                      className={`p-2 text-left text-[11px] font-bold rounded-lg border transition-all ${getLeadStage(formData.notes) === 'reviewed' ? 'bg-slate-800 text-white border-slate-900 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      ✓ İncelendi & Arşiv
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -294,7 +483,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isTr ? "Özel Notlar" : "Notes"}
+                  {isTr ? "Özel Notlar & Başvuru İçeriği" : "Notes & Submission Content"}
                 </label>
                 <textarea
                   rows={3}
@@ -319,7 +508,7 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                   className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors flex items-center gap-1.5"
                 >
                   {saveLoading && <span className="animate-spin mr-1">⌛</span>}
-                  {editingContact ? (isTr ? "Güncelle" : "Update") : (isTr ? "Kaydet" : "Save")}
+                  {editingContact ? (isTr ? "Kaydet & İncelemeyi Tamamla" : "Save & Complete Review") : (isTr ? "Kaydet" : "Save")}
                 </button>
               </div>
             </form>

@@ -9,7 +9,7 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Self-Healing database schema updates for vehicle AI & showcase elements
-(async () => {
+export async function initFleetSchema() {
   try {
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS description TEXT;`);
     await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS market_story TEXT;`);
@@ -33,7 +33,7 @@ const upload = multer({ storage: multer.memoryStorage() });
   } catch (error) {
     console.error("Self-healing schema error for tables:", error);
   }
-})();
+}
 
 function sanitizeFilename(originalName: string): string {
   const turkishMap: { [key: string]: string } = {

@@ -540,7 +540,7 @@ export async function initDb() {
       DO $$ 
       BEGIN 
         ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_status_check;
-        ALTER TABLE sales ADD CONSTRAINT sales_status_check CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'returned'));
+        ALTER TABLE sales ADD CONSTRAINT sales_status_check CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'returned', 'checkout_initiated'));
       END $$;
 
       CREATE TABLE IF NOT EXISTS service_items (
@@ -1592,7 +1592,15 @@ export async function initDb() {
         ALTER TABLE tickets ADD CONSTRAINT tickets_store_id_fkey FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
 
         -- customers table
-        CREATE TABLE IF NOT EXISTS customers (
+        CREATE TABLE IF NOT EXISTS carts (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL,
+        customer_id INTEGER UNIQUE REFERENCES customers(id),
+        items JSONB DEFAULT '[]',
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS customers (
           id SERIAL PRIMARY KEY,
           store_id INTEGER NOT NULL,
           email TEXT NOT NULL,

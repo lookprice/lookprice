@@ -11,12 +11,14 @@ import authRoutes from "./routes/auth";
 import publicRoutes from "./routes/public";
 import adminRoutes from "./routes/admin";
 import storeRoutes from "./routes/store";
-import fleetRoutes from "./routes/fleet";
+import fleetRoutes, { initFleetSchema } from "./routes/fleet";
 import paymentRoutes from "./routes/payment";
 import integrationRoutes from "./routes/integrations";
 import instagramRoutes from "./routes/instagram";
-import einvoiceRoutes, { runGlobalEInvoiceSync } from "./routes/einvoice";
-import realEstateRoutes from "./routes/real_estate";
+import einvoiceRoutes, { runGlobalEInvoiceSync, initCargoSchema } from "./routes/einvoice";
+import realEstateRoutes, { initRealEstateSchema } from "./routes/real_estate";
+import { initProductSchema } from "./routes/store/products";
+import { initPurchaseInvoiceSchema } from "./routes/store/invoices";
 import aiJobsRoutes from "./routes/ai_jobs.js";
 import googleDriveRoutes from "./routes/googleDrive.js";
 import { authenticate } from "./middleware/auth";
@@ -179,6 +181,15 @@ async function startServer() {
   console.log("Calling initDb...");
   await initDb();
   console.log("initDb finished.");
+
+  console.log("Running self-healing module schemas sequentially...");
+  try { await initProductSchema(); } catch (e) { console.error("Error in initProductSchema:", e); }
+  try { await initPurchaseInvoiceSchema(); } catch (e) { console.error("Error in initPurchaseInvoiceSchema:", e); }
+  try { await initCargoSchema(); } catch (e) { console.error("Error in initCargoSchema:", e); }
+  try { await initRealEstateSchema(); } catch (e) { console.error("Error in initRealEstateSchema:", e); }
+  try { await initFleetSchema(); } catch (e) { console.error("Error in initFleetSchema:", e); }
+  console.log("Self-healing module schemas completed.");
+
   startCronJobs();
   aiWorkerService.startWorker();
 

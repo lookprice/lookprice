@@ -39,14 +39,15 @@ export const StoreSections: React.FC<StoreSectionsProps> = ({
 
   return (
     <div className="space-y-24">
-      {store.page_layout.map((section: any) => {
+      {store.page_layout.map((section: any, idx: number) => {
+        const sKey = `store-section-${section.id || section.type || idx}-${idx}`;
         switch (section.type) {
           case "hero":
-            return <HeroSection key={section.id} store={store} />;
+            return <HeroSection key={sKey} store={store} />;
           case "featured":
             return (
               <FeaturedSection
-                key={section.id}
+                key={sKey}
                 store={store}
                 featuredProducts={featuredProducts}
                 t={t}
@@ -60,7 +61,7 @@ export const StoreSections: React.FC<StoreSectionsProps> = ({
           case "blog":
             return (
               <BlogSection
-                key={section.id}
+                key={sKey}
                 store={store}
                 isTr={isTr}
                 onSelectPost={setSelectedBlogPost}
@@ -69,14 +70,14 @@ export const StoreSections: React.FC<StoreSectionsProps> = ({
           case "news":
             if (!radarNews || radarNews.length === 0) return null;
             return (
-              <section key={section.id} className="py-6 border-t border-slate-150 bg-slate-50/50 px-4">
+              <section key={sKey} className="py-6 border-t border-slate-150 bg-slate-50/50 px-4">
                 <RadarShowcaseSlider radarNews={radarNews} lang={lang} theme="light" />
               </section>
             );
           case "about":
             return (
               <AboutSection
-                key={section.id}
+                key={sKey}
                 store={store}
                 isTr={isTr}
               />
@@ -84,7 +85,7 @@ export const StoreSections: React.FC<StoreSectionsProps> = ({
           case "contact":
             return (
               <ContactSection
-                key={section.id}
+                key={sKey}
                 store={store}
                 isTr={isTr}
               />

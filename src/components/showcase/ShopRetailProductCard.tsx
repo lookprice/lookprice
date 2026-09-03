@@ -194,7 +194,7 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
       onClick={() => onView(product)}
     >
       {/* 1. Image Canvas & Overlay Actions */}
-      <div className={`relative w-full ${aspectRatioClass} bg-slate-100 dark:bg-slate-800/50 overflow-hidden`}>
+      <div className={`relative w-full ${aspectRatioClass} bg-white dark:bg-slate-900/50 overflow-hidden flex items-center justify-center p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800/80`}>
         {displayImage ? (
           <motion.img
             key={displayImage}
@@ -203,9 +203,9 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
             initial={{ opacity: 0.85 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
-            className={`w-full h-full object-cover object-center ${
-              themeConfig?.card_hover_effect === "zoom" ? "group-hover:scale-110" : "group-hover:scale-105"
-            } transition-transform duration-700 ease-out`}
+            className={`w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal ${
+              themeConfig?.card_hover_effect === "zoom" ? "group-hover:scale-105" : "group-hover:scale-102"
+            } transition-transform duration-500 ease-out`}
             referrerPolicy="no-referrer"
             loading="lazy"
           />
@@ -326,7 +326,7 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
               const isSelected = selectedVariant?.name === swatch.variant.name;
               return (
                 <button
-                  key={idx}
+                  key={`swatch-${product.id}-${swatch.variant?.id || swatch.name || idx}-${idx}`}
                   type="button"
                   onClick={() => setSelectedVariant(isSelected ? null : swatch.variant)}
                   onMouseEnter={() => setSelectedVariant(swatch.variant)}

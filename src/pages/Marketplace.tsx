@@ -1948,7 +1948,7 @@ export const Marketplace = () => {
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${isDarkMode ? "divide-slate-800/60" : "divide-slate-200"}`}>
-                      {filteredListings.slice(0, visibleCount).map((listing: any) => {
+                      {filteredListings.slice(0, visibleCount).map((listing: any, idx: number) => {
                         const price = Math.round(Number(listing.price) || 0).toLocaleString('tr-TR');
                         const currency = listing.currency || 'TL';
                         const dateStr = listing.created_at 
@@ -1973,7 +1973,7 @@ export const Marketplace = () => {
 
                           return (
                             <tr 
-                              key={listing.id} 
+                              key={`marketplace-vehicle-${listing.id || idx}-${idx}`} 
                               className={`transition-colors border-b ${isDarkMode ? "hover:bg-blue-950/30 border-slate-800/50" : "hover:bg-slate-50 border-slate-200"} group`}
                             >
                               <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60 bg-slate-950 group-hover:bg-blue-950/40" : "border-slate-200 bg-white group-hover:bg-slate-50"} sticky left-0 z-10 shadow-md align-middle whitespace-nowrap`}>
@@ -2045,7 +2045,7 @@ export const Marketplace = () => {
 
                           return (
                             <tr 
-                              key={listing.id} 
+                              key={`marketplace-re-${listing.id || idx}-${idx}`} 
                               className={`transition-colors border-b ${isDarkMode ? "hover:bg-blue-950/30 border-slate-800/50" : "hover:bg-slate-50 border-slate-200"} group`}
                             >
                               <td className={`p-3 text-right font-black text-rose-600 dark:text-rose-500 text-sm md:text-base border-r ${isDarkMode ? "border-slate-800/60 bg-slate-950 group-hover:bg-blue-950/40" : "border-slate-200 bg-white group-hover:bg-slate-50"} sticky left-0 z-10 shadow-md align-middle whitespace-nowrap`}>

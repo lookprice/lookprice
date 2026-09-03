@@ -10,7 +10,7 @@ import { numberToTurkishWords } from "../src/utils/formatUtils";
 const router = express.Router();
 
 // Self-Healing database schema updates for e_waybills and sales_invoices cargo fields
-(async () => {
+export async function initCargoSchema() {
   try {
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS delivery_term TEXT;`);
     await pool.query(`ALTER TABLE e_waybills ADD COLUMN IF NOT EXISTS transport_mode TEXT;`);
@@ -28,7 +28,7 @@ const router = express.Router();
   } catch (error) {
     console.error("Self-healing schema error for cargo columns:", error);
   }
-})();
+}
 
 // Get the E-Invoice service instance based on Store Settings
 export const getEInvoiceService = async (storeId: number) => {

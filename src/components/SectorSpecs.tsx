@@ -10,6 +10,48 @@ interface SectorSpecsProps {
   description?: string;
 }
 
+const INTERNAL_SYSTEM_KEYS = new Set([
+  'id', 'store_id', 'barcode', 'name', 'title', 'price', 'currency', 'description', 
+  'details', 'updated_at', 'created_at', 'stock_quantity', 'min_stock_level', 'unit', 
+  'category', 'subcategory', 'sub_category_2', 'category_2', 'image_url', 'images', 
+  'cost_price', 'cost_currency', 'tax_rate', 'brand', 'is_ecom_sync', 'product_type', 
+  'price_2', 'price_2_currency', 'is_yemeksepeti_active', 'is_getir_active', 
+  'is_trendyol_active', 'is_n11_active', 'website_vis', 'is_website', 'is_favorited', 
+  'has_variants', 'variants', 'variants_data', 'website_order', 'pay_tr_link_min', 
+  'branch_name', 'branch_slug', 'type', 'original_price', 'original_currency', 
+  'seller_guarantee', 'is_active', 'sector_data', 'technical_description', 'market_story', 
+  'recipe', 'materials', 'ingredients', 'allergens', 'allergens_data', 'calories', 
+  'prep_time_min', 'portion_size', 'sync_group', 'labels', 'is_web_sale', 
+  'is_bestseller', 'is_sellable', 'listing_intent', 'intent', 'fihrist_type', 
+  'sub_sector', 'status', 'location', 'price_drop', 'price_dropped', 'seller_name', 
+  'address', 'phone', 'whatsapp_number', 'store_name', 'store_type', 'store_logo', 
+  'meta_title', 'meta_description', 'slug', 'current_mileage', 'paint_report', 
+  'is_trade_in_available', 'hp', 'engine', 'transmission', 'fuel', 'fuel_type', 
+  'mileage', 'km', 'square_meters', 'rooms', 'building_age', 'floor', 'heating', 
+  'furnished', 'in_gated_community', 'dues', 'dues_currency', 'zoning_status', 
+  'deed_type', 'kocan_type', 'cpu', 'ram', 'storage', 'care', 'room_count', 'sqm_gross',
+  'city', 'district', 'kktc_region', 'kktc_sub_region', 'island', 'plot', 'kktc_title_type',
+  'kocan', 'title_deed', 'kaks', 'gabari', 'elektrik_var', 'su_var', 'yol_var',
+  'trafo_bedeli', 'kdv_status', 'is_main_road_frontage', 'commercial_devir_status',
+  'monthly_rent_income', 'frontage_width', 'ceiling_height', 'water_tank_capacity',
+  'subtype', 'material', 'fit', 'collection', 'acceleration'
+]);
+
+const formatSpecKey = (key: string) => {
+  const cleanKey = key.replace(/^sector_spec_/, '').replace(/_/g, ' ').replace(/-/g, ' ').trim();
+  return cleanKey.toUpperCase();
+};
+
+const formatSpecValue = (value: any, lang: string) => {
+  if (typeof value === 'boolean') {
+    return value ? (lang === 'tr' ? 'EVET' : 'YES') : (lang === 'tr' ? 'HAYIR' : 'NO');
+  }
+  if (Array.isArray(value)) {
+    return value.map(v => typeof v === 'object' ? '' : String(v)).filter(Boolean).join(', ');
+  }
+  return String(value);
+};
+
 export const SectorSpecs: React.FC<SectorSpecsProps> = ({
   sector,
   data,
@@ -21,12 +63,32 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
   if (!data || typeof data !== "object") return null;
   const { lang } = useLanguage();
 
-  // Sanitize data: remove any entries with undefined, null, "undefined", "null", or empty values
-  const cleanEntries = Object.entries(data).filter(([_, value]) => {
+  // Sanitize data: remove any entries matching internal system keys, undefined, null, or raw object strings
+  const cleanEntries = Object.entries(data).filter(([key, value]) => {
+    if (INTERNAL_SYSTEM_KEYS.has(key) && !key.startsWith('sector_spec_')) return false;
     if (value === undefined || value === null) return false;
+    if (typeof value === "function") return false;
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) return false;
+      if (typeof value[0] === 'object' && value[0] !== null) return false;
+    } else if (typeof value === "object") {
+      return false;
+    }
+
     const strVal = String(value).trim().toLowerCase();
-    if (strVal === "" || strVal === "undefined" || strVal === "null" || strVal === "{}") return false;
-    if (typeof value === "object" && Object.keys(value).length === 0) return false;
+    if (
+      strVal === "" || 
+      strVal === "undefined" || 
+      strVal === "null" || 
+      strVal === "{}" || 
+      strVal === "[]" || 
+      strVal === "[object object]" ||
+      strVal === "false"
+    ) {
+      return false;
+    }
+
     return true;
   });
 
@@ -776,6 +838,19 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
     </div>
   );
 
+  const isSpecialSector = sector === "automotive" || sector === "fashion" || sector === "tech" || sector === "real_estate";
+  
+  const hasAutomotiveData = sector === "automotive" && (data.hp || data.engine || data.transmission || data.fuel || data.is_trade_in_available !== undefined || data.mileage !== undefined || data.paint_report);
+  const hasFashionData = sector === "fashion" && (data.material || data.fit || data.collection);
+  const hasTechData = sector === "tech" && (data.cpu || data.ram || data.storage);
+  const hasRealEstateData = sector === "real_estate" && (data.square_meters || data.rooms || data.building_age || data.floor || data.heating || data.furnished !== undefined || data.in_gated_community !== undefined || data.dues || data.zoning_status || data.deed_type || data.kocan_type || data.sqm_gross || data.kaks || data.gabari || data.commercial_devir_status || data.monthly_rent_income || data.frontage_width || data.ceiling_height || data.water_tank_capacity || data.is_main_road_frontage);
+
+  const hasSpecialContent = hasAutomotiveData || hasFashionData || hasTechData || hasRealEstateData;
+
+  if (!hasSpecialContent && cleanEntries.length === 0) {
+    return null;
+  }
+
   return (
     <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
@@ -786,18 +861,20 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
       {sector === "fashion" && renderFashion()}
       {sector === "tech" && renderTech()}
       {sector === "real_estate" && renderRealEstate()}
-      {sector === "general" && (
+      
+      {/* Custom spec key-values for general products or custom additions */}
+      {(cleanEntries.length > 0 && (!isSpecialSector || !hasSpecialContent)) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {cleanEntries.map(([key, value]: [string, any]) => (
             <div
               key={key}
-              className="p-4 bg-slate-50 rounded-2xl border border-slate-100"
+              className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors"
             >
-              <p className="text-[8px] font-semibold text-slate-400 tracking-wide mb-1">
-                {key.replace(/_/g, " ")}
+              <p className="text-[8px] font-bold text-slate-400 tracking-wider mb-1 uppercase">
+                {formatSpecKey(key)}
               </p>
               <p className="text-sm font-semibold text-slate-900 uppercase">
-                {String(value)}
+                {formatSpecValue(value, lang)}
               </p>
             </div>
           ))}

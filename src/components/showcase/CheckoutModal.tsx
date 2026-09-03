@@ -16,6 +16,8 @@ interface CheckoutModalProps {
   setCustomerInfo: (info: any) => void;
   basketByBranch: Record<string, any[]>;
   basketTotal: number;
+  basketSubtotal?: number;
+  basketShippingTotal?: number;
   paymentMethod: string;
   setPaymentMethod: (method: any) => void;
   checkoutStatus: 'idle' | 'loading' | 'success' | 'error';
@@ -39,6 +41,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   setCustomerInfo,
   basketByBranch,
   basketTotal,
+  basketSubtotal,
+  basketShippingTotal,
   paymentMethod,
   setPaymentMethod,
   checkoutStatus,
@@ -49,6 +53,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   theme
 }) => {
   if (!isOpen) return null;
+
+  const subtotal = basketSubtotal !== undefined ? basketSubtotal : basketTotal;
+  const shipping = basketShippingTotal !== undefined ? basketShippingTotal : 0;
 
   return (
     <AnimatePresence>
@@ -111,7 +118,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-3">{lang === 'tr' ? 'SİPARİŞ ÖZETİ' : 'ORDER SUMMARY'}</p>
                    <div className="space-y-2">
                      {orderSummary?.items?.map((item: any, idx: number) => (
-                       <div key={idx} className="flex justify-between items-center text-sm font-semibold text-slate-700">
+                       <div key={`order-sum-${item.id || idx}-${idx}`} className="flex justify-between items-center text-sm font-semibold text-slate-700">
                          <span className="truncate pr-4">{item.quantity}x {item.title || item.name}</span>
                          <span className="whitespace-nowrap">{currency} {(item.price * item.quantity).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
                        </div>
@@ -499,7 +506,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                  </label>
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                    {store.branding.locations.filter((l:any) => l.active).map((loc: any, idx: number) => (
-                                     <label key={idx} className={`relative p-3 border rounded-xl cursor-pointer transition-all ${customerInfo.selected_store_location === loc.name ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300'}`}>
+                                     <label key={`pickup-loc-${loc.id || loc.name || idx}-${idx}`} className={`relative p-3 border rounded-xl cursor-pointer transition-all ${customerInfo.selected_store_location === loc.name ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300'}`}>
                                        <input 
                                          type="radio" name="store_location" value={loc.name}
                                          checked={customerInfo.selected_store_location === loc.name}
@@ -536,10 +543,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                          </h3>
                          
                          <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-4 max-h-[300px] scrollbar-none">
-                            {Object.entries(basketByBranch).map(([branchName, items]: [string, any]) => (
-                               <div key={branchName}>
+                            {Object.entries(basketByBranch).map(([branchName, items]: [string, any], bIdx: number) => (
+                               <div key={`checkout-branch-${branchName}-${bIdx}`}>
                                   {items.map((item: any, idx: number) => (
-                                     <div key={`${branchName}-${idx}`} className="flex gap-4 py-2">
+                                     <div key={`checkout-item-${branchName}-${item.id || idx}-${idx}`} className="flex gap-4 py-2">
                                        <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden shrink-0">
                                          {item.images?.[0] ? (
                                            <img src={item.images[0]} alt={item.title || item.name} className="w-full h-full object-cover" />
@@ -565,11 +572,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                          <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
                            <div className="flex justify-between text-sm font-semibold text-slate-500">
                              <span>{lang === 'tr' ? 'Ara Toplam' : 'Subtotal'}</span>
-                             <span>{currency} {basketTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                             <span>{currency} {subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
                            </div>
                            <div className="flex justify-between text-sm font-semibold text-slate-500">
                              <span>{lang === 'tr' ? 'Kargo' : 'Shipping'}</span>
-                             <span className="text-green-600">{lang === 'tr' ? 'Ücretsiz' : 'Free'}</span>
+                             {shipping > 0 ? (
+                               <span className="font-bold text-slate-900">{currency} {shipping.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                             ) : (
+                               <span className="text-green-600 font-bold">{lang === 'tr' ? 'Ücretsiz' : 'Free'}</span>
+                             )}
                            </div>
                            <div className="flex justify-between items-end pt-3 text-lg font-black text-slate-900">
                              <span className="text-sm uppercase tracking-widest">{lang === 'tr' ? 'Genel Toplam' : 'Total'}</span>

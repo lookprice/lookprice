@@ -5,11 +5,15 @@ import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
 
 const router = express.Router();
 
-async function initPurchaseInvoiceSchema() {
+export async function initPurchaseInvoiceSchema() {
   try {
     await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(255);`);
     await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_name VARCHAR(255);`);
+  } catch (e) {
+    console.error("Failed to alter purchase_invoice_items table columns:", e);
+  }
 
+  try {
     // 1. Auto-repair sales_invoice_items missing product_id where barcode exists
     await pool.query(`
       UPDATE sales_invoice_items sii
@@ -96,7 +100,6 @@ async function initPurchaseInvoiceSchema() {
     console.error("Failed to alter purchase_invoice_items schema / stock sync:", e);
   }
 }
-initPurchaseInvoiceSchema();
 
 async function resolveProductInfo(clientOrPool: any, storeId: number, productId: any, barcode: any) {
   let resolvedId = productId ? Number(productId) : null;

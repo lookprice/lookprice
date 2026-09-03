@@ -243,7 +243,7 @@ export const ProductModal = ({
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in"
+        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl xl:max-w-6xl max-h-[92vh] flex flex-col overflow-hidden animate-fade-in"
       >
         <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
           <div>
@@ -305,7 +305,7 @@ export const ProductModal = ({
                   required={!hasVariants}
                   disabled={hasVariants}
                   placeholder={hasVariants ? (isTr ? "Varyantlar altındaki kendi barkod/SKU'su geçerlidir" : "Tracked via individual variants") : (isTr ? "Barkod girin veya okutun..." : "SKU code...")}
-                  className={`w-48 max-w-[190px] px-4 py-2.5 border-2 rounded-2xl transition-all font-bold text-xs ${
+                  className={`w-full px-4 py-2.5 border-2 rounded-2xl transition-all font-bold text-xs ${
                     hasVariants 
                       ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-80" 
                       : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 focus:ring-0 shadow-2xs"
@@ -550,7 +550,7 @@ export const ProductModal = ({
                 </label>
                 <select
                   name="cost_currency"
-                  className="w-32 max-w-[120px] px-3 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
+                  className="w-full px-3 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
                   defaultValue={editingProduct?.cost_currency || branding?.default_currency || "TRY"}
                 >
                   <option value="TRY">TRY (₺)</option>
@@ -606,7 +606,7 @@ export const ProductModal = ({
                 </label>
                 <select
                   name="currency"
-                  className="w-32 max-w-[120px] px-3 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
+                  className="w-full px-3 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
                   defaultValue={editingProduct?.currency || branding?.default_currency || "TRY"}
                 >
                   <option value="TRY">TRY (₺)</option>
@@ -622,7 +622,7 @@ export const ProductModal = ({
                 </label>
                 <select
                   name="tax_rate"
-                  className="w-32 max-w-[120px] px-3 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
+                  className="w-full px-3 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
                   defaultValue={editingProduct?.tax_rate !== undefined ? String(editingProduct.tax_rate) : "20"}
                 >
                   <option value="20">%20</option>

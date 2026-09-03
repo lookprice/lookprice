@@ -673,7 +673,7 @@ export default function DigitalMenuPage() {
 
             return (
               <div 
-                key={product.id} 
+                key={`menu-prod-${product.id || idx}-${idx}`} 
                 className="w-full relative h-[285px]"
                 style={{ perspective: "1000px" }}
               >

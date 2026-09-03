@@ -469,154 +469,164 @@ const ProductsTab = ({
           branding={branding}
         />
       )}
-      <div className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-slate-50/90 backdrop-blur-xl border-b border-slate-200 flex flex-col gap-4">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="flex items-center justify-between w-full lg:w-auto">
-            <h2 className="text-xl font-black text-slate-900 tracking-tighter uppercase">{t.productTitle}</h2>
-            <div className="flex items-center gap-2">
-                {!isViewer && (
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={onImport}
-                      className="os-btn-secondary p-3 text-slate-400 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-200 active:scale-95"
-                      title={t.importBtn}
-                    >
-                      <Upload className="h-4.5 w-4.5" />
-                    </button>
-                    <button 
-                      onClick={onAddNew}
-                      className="os-btn-primary p-3 text-white rounded-[1rem] transition-all border border-indigo-600 hover:bg-indigo-700 active:scale-95"
-                      title={t.addEntry}
-                    >
-                      <Plus className="h-4.5 w-4.5" />
-                    </button>
-
-                    {selectedIds.length > 0 && (
-                      <button 
-                        onClick={handleBulkDeleteSelected}
-                        className="p-3 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-rose-200 hover:border-rose-700 active:scale-95 font-black flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300"
-                        title={lang === 'tr' ? "Seçilenleri Sil" : "Delete Selected"}
-                      >
-                        <Trash2 className="h-4.5 w-4.5" />
-                        <span className="text-[10px] tracking-tight uppercase">{lang === 'tr' ? `SEÇİLENLERİ SİL (${selectedIds.length})` : `DELETE SELECTED (${selectedIds.length})`}</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-                <button 
-                  onClick={onExportReport}
-                  className="os-btn-secondary p-3 text-slate-400 hover:text-indigo-600 rounded-[1rem] transition-all border border-slate-200 hover:border-indigo-200 active:scale-95"
-                  title={t.report}
-                >
-                  <Download className="h-4.5 w-4.5" />
-                </button>
-
-                {driveConnected && (
-                  <button 
-                    onClick={async () => {
-                      setIsBackupLoading(true);
-                      const promise = api.exportToGoogleDrive({ targetType: 'products', format: 'xls' });
-                      toast.promise(promise, {
-                        loading: 'Ürün şeması Google Drive\'a yedekleniyor...',
-                        success: 'Ürün şeması Excel formatında Google Drive\'a başarıyla kaydoldu!',
-                        error: 'Google Drive yedeklemesi başarısız oldu.'
-                      });
-                      try {
-                        await promise;
-                      } catch (e) {
-                        console.error(e);
-                      } finally {
-                        setIsBackupLoading(false);
-                      }
-                    }}
-                    disabled={isBackupLoading}
-                    className="os-btn-secondary p-3 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-[1rem] transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95"
-                    title={lang === 'tr' ? "Google Drive'a Yedekle" : "Backup to Google Drive"}
-                  >
-                    <Cloud className="h-4.5 w-4.5 text-emerald-600" />
-                  </button>
-                )}
-            </div>
+      <div className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3.5 md:py-4 bg-slate-50/95 backdrop-blur-xl border-b border-slate-200 flex flex-col gap-3 shadow-xs">
+        {/* Row 1: Header ("| ÜRÜNLER") on left, Action Icons on right */}
+        <div className="flex items-center justify-between gap-3 w-full">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="bg-indigo-600 rounded-full h-8 sm:h-9 w-1 shrink-0" />
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase truncate">
+              {t.products || "ÜRÜNLER"}
+            </h2>
           </div>
 
-          <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-3 w-full sm:w-auto sm:max-w-2xl ml-auto">
-            <div className="relative w-full sm:w-auto flex-1 group">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
-              <input 
-                type="text" 
-                placeholder={t.searchProduct}
-                className="os-input w-full pr-10 py-2.5 text-[13px] font-bold truncate"
-                style={{ paddingLeft: '2.75rem' }}
-                value={search}
-                onChange={(e) => { 
-                  setSearch(e.target.value);
-                  setPage(1); 
-                }}
-              />
-              {search && (
+          {/* Action icons sitting right next to the title on the right */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {!isViewer && (
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <button 
-                  onClick={() => { setSearch(''); setPage(1); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-slate-200 transition-colors"
-                  title="Temizle"
+                  onClick={onImport}
+                  className="os-btn-secondary p-2.5 sm:p-3 text-slate-500 hover:text-indigo-600 rounded-xl transition-all border border-slate-200 hover:border-indigo-200 active:scale-95 shadow-xs"
+                  title={t.importBtn}
                 >
-                  <X className="h-3.5 w-3.5 text-slate-400" />
+                  <Upload className="h-4.5 w-4.5" />
                 </button>
-              )}
-            </div>
-            <div className="flex items-center gap-3 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
-              <div className="relative w-36 sm:w-44 shrink-0 group">
-                <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
-                <select 
-                  className="os-input w-full pr-8 py-2.5 text-[13px] font-bold appearance-none cursor-pointer truncate"
-                  style={{ paddingLeft: '2.75rem' }}
-                  value={selectedCategory}
-                  onChange={(e) => {
-                    setSelectedCategory(e.target.value);
-                    setPage(1);
-                  }}
+                <button 
+                  onClick={onAddNew}
+                  className="os-btn-primary p-2.5 sm:p-3 text-white rounded-xl transition-all border border-indigo-600 hover:bg-indigo-700 active:scale-95 shadow-xs"
+                  title={t.addEntry}
                 >
-                  <option value="all">{t.allCategories}</option>
-                  {isCafe && <option value="bestsellers">🔥 {lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</option>}
-                  {categories.map((cat: any) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Quick Bestseller Filter Toggle */}
-              {isCafe && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategory(selectedCategory === 'bestsellers' ? 'all' : 'bestsellers');
-                    setPage(1);
-                  }}
-                  className={`px-3 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shrink-0 border cursor-pointer select-none active:scale-95 ${
-                    selectedCategory === 'bestsellers'
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
-                      : 'bg-orange-50/80 text-orange-800 hover:bg-orange-100 border-orange-200/80'
-                  }`}
-                  title={lang === 'tr' ? 'En Çok Satan Ürünleri Filtrele' : 'Filter Bestsellers'}
-                >
-                  <Flame className={`w-4 h-4 ${selectedCategory === 'bestsellers' ? 'fill-white text-white animate-bounce' : 'text-orange-500 fill-orange-500'}`} />
-                  <span className="hidden sm:inline">{lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</span>
-                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${selectedCategory === 'bestsellers' ? 'bg-white/20 text-white' : 'bg-orange-200/60 text-orange-900'}`}>
-                    {products.filter(p => getIsBestseller(p)).length}
-                  </span>
+                  <Plus className="h-4.5 w-4.5" />
                 </button>
-              )}
 
-            </div>
-            <label className="flex items-center cursor-pointer group shrink-0 ml-1">
-              <div className="relative flex items-center">
-                <input 
-                  type="checkbox" 
-                  className="peer h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/10 transition-all cursor-pointer"
-                  checked={includeZeroStock}
-                  onChange={(e) => setIncludeZeroStock(e.target.checked)}
-                />
+                {selectedIds.length > 0 && (
+                  <button 
+                    onClick={handleBulkDeleteSelected}
+                    className="p-2.5 sm:p-3 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl transition-all border border-rose-200 hover:border-rose-700 active:scale-95 font-black flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300 shadow-xs"
+                    title={lang === 'tr' ? "Seçilenleri Sil" : "Delete Selected"}
+                  >
+                    <Trash2 className="h-4.5 w-4.5" />
+                    <span className="text-[10px] tracking-tight uppercase hidden xs:inline sm:inline">
+                      {lang === 'tr' ? `SİL (${selectedIds.length})` : `DEL (${selectedIds.length})`}
+                    </span>
+                  </button>
+                )}
               </div>
-              <span className="ml-2 text-xs font-medium text-slate-600 group-hover:text-slate-800 transition-colors whitespace-nowrap">
+            )}
+            <button 
+              onClick={onExportReport}
+              className="os-btn-secondary p-2.5 sm:p-3 text-slate-500 hover:text-indigo-600 rounded-xl transition-all border border-slate-200 hover:border-indigo-200 active:scale-95 shadow-xs"
+              title={t.report}
+            >
+              <Download className="h-4.5 w-4.5" />
+            </button>
+
+            {driveConnected && (
+              <button 
+                onClick={async () => {
+                  setIsBackupLoading(true);
+                  const promise = api.exportToGoogleDrive({ targetType: 'products', format: 'xls' });
+                  toast.promise(promise, {
+                    loading: 'Ürün şeması Google Drive\'a yedekleniyor...',
+                    success: 'Ürün şeması Excel formatında Google Drive\'a başarıyla kaydoldu!',
+                    error: 'Google Drive yedeklemesi başarısız oldu.'
+                  });
+                  try {
+                    await promise;
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setIsBackupLoading(false);
+                  }
+                }}
+                disabled={isBackupLoading}
+                className="os-btn-secondary p-2.5 sm:p-3 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95 shadow-xs"
+                title={lang === 'tr' ? "Google Drive'a Yedekle" : "Backup to Google Drive"}
+              >
+                <Cloud className="h-4.5 w-4.5 text-emerald-600" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Search Bar & Filters */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full">
+          {/* Search Input: FULL WIDTH on mobile, flex-1 on desktop - no squishing! */}
+          <div className="relative w-full sm:flex-1 group min-w-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
+            <input 
+              type="text" 
+              placeholder={lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode...")}
+              className="os-input w-full pr-10 py-2.5 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 shadow-xs"
+              style={{ paddingLeft: '2.75rem' }}
+              value={search}
+              onChange={(e) => { 
+                setSearch(e.target.value);
+                setPage(1); 
+              }}
+            />
+            {search && (
+              <button 
+                onClick={() => { setSearch(''); setPage(1); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                title="Temizle"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Filters: Category & 0 Stock Checkbox */}
+          <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-start">
+            <div className="relative flex-1 sm:w-48 sm:flex-initial shrink-0 group min-w-[130px]">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
+              <select 
+                className="os-input w-full pr-8 py-2.5 text-xs font-bold appearance-none cursor-pointer truncate shadow-xs"
+                style={{ paddingLeft: '2.25rem' }}
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="all">{t.allCategories}</option>
+                {isCafe && <option value="bestsellers">🔥 {lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</option>}
+                {categories.map((cat: any) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Quick Bestseller Filter Toggle */}
+            {isCafe && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategory(selectedCategory === 'bestsellers' ? 'all' : 'bestsellers');
+                  setPage(1);
+                }}
+                className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shrink-0 border cursor-pointer select-none active:scale-95 ${
+                  selectedCategory === 'bestsellers'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
+                    : 'bg-orange-50/80 text-orange-800 hover:bg-orange-100 border-orange-200/80'
+                }`}
+                title={lang === 'tr' ? 'En Çok Satan Ürünleri Filtrele' : 'Filter Bestsellers'}
+              >
+                <Flame className={`w-4 h-4 ${selectedCategory === 'bestsellers' ? 'fill-white text-white animate-bounce' : 'text-orange-500 fill-orange-500'}`} />
+                <span className="hidden md:inline">{lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</span>
+                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${selectedCategory === 'bestsellers' ? 'bg-white/20 text-white' : 'bg-orange-200/60 text-orange-900'}`}>
+                  {products.filter(p => getIsBestseller(p)).length}
+                </span>
+              </button>
+            )}
+
+            <label className="flex items-center cursor-pointer group shrink-0 select-none px-2 py-1.5 rounded-xl hover:bg-slate-200/60 transition-colors">
+              <input 
+                type="checkbox" 
+                className="peer h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                checked={includeZeroStock}
+                onChange={(e) => setIncludeZeroStock(e.target.checked)}
+              />
+              <span className="ml-2 text-xs font-bold text-slate-600 group-hover:text-slate-800 transition-colors whitespace-nowrap">
                 {lang === 'tr' ? '0 Stokları Göster' : 'Show Zero Stock'}
               </span>
             </label>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useTransition, useDeferredValue, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef, useTransition, useDeferredValue, Suspense } from "react";
 import { useParams } from "react-router-dom";
 import { 
   Activity,
@@ -333,6 +333,11 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   } = useCompanies(user, currentStoreId, lang, branding);
 
   const { properties, contacts, loading: realEstateLoading, saveProperty, saveContact, deleteProperty, deleteContact } = useRealEstate(currentStoreId);
+
+  const webOwnerLeadsCount = useMemo(() => {
+    if (!Array.isArray(contacts)) return 0;
+    return contacts.filter(c => c.notes && c.notes.includes('[MÜLK SAHİBİ BAŞVURUSU]')).length;
+  }, [contacts]);
 
   useEffect(() => {
     localStorage.setItem(`storeDashboardTab_${user.store_id || 'admin'}`, activeTab);
@@ -724,7 +729,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     ]},
     { type: 'category', key: "team", title: txt('Personel & Şube', 'Staff & Branches', 'Προσωπικό & Υποκαταστήματα'), items: [
       { id: "team-crm", label: txt('Personel & Şube Yönetimi', 'Staff & Branch CRM', 'Διαχείριση Προσωπικού & Υποκαταστημάτων'), icon: Users },
-      { id: "real_estate_crm", label: txt('Mülk Sahibi & Yatırımcı CRM', 'Property Owner & Investor CRM', 'CRM Ιδιοκτητών & Επενδυτών'), icon: Users },
+      { id: "real_estate_crm", label: txt('Mülk Sahibi & Yatırımcı CRM', 'Property Owner & Investor CRM', 'CRM Ιδιοκτητών & Επενδυτών'), icon: Users, badge: webOwnerLeadsCount > 0 ? webOwnerLeadsCount : undefined, badgeType: 'error' },
       ...(isRealEstate ? [{ id: "authority_transfer", label: txt('Yetki Devri (Tapu)', 'Authority Transfer', 'Μεταβίβαση Εξουσιοδότησης'), icon: Briefcase }] : []),
     ]},
     { type: 'category', key: "integrations", title: txt('Yedekleme & Kanallar', 'Backup & Channels', 'Δημιουργία Αντιγράφων & Κανάλια'), items: [
@@ -849,7 +854,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }}
     >
       <div className={activeTab === 'fast-pos' ? "space-y-0" : "space-y-8"}>
-        {activeTab !== 'fast-pos' && (
+        {activeTab !== 'fast-pos' && activeTab !== 'products' && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
@@ -867,7 +872,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </div>
         )}
 
-        {['products', 'quotations', 'companies'].includes(activeTab) && (
+        {['quotations', 'companies'].includes(activeTab) && (
           <div className="flex justify-end gap-3 mb-6">
             {activeTab === 'quotations' && (
               <button 
@@ -884,6 +889,38 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <span>{t.registerCompany}</span>
               </button>
             )}
+          </div>
+        )}
+
+        {webOwnerLeadsCount > 0 && (
+          <div className="mb-6 bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl font-black shrink-0 shadow">
+                🏡
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    {isTr ? `YENİ MÜLK SAHİBİ BAŞVURUSU (${webOwnerLeadsCount} Talep)` : `NEW PROPERTY OWNER LEAD (${webOwnerLeadsCount})`}
+                  </span>
+                  <span className="animate-pulse px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-[10px] rounded-full uppercase">
+                    {isTr ? 'Aksiyon Bekliyor' : 'Action Required'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                  {isTr 
+                    ? 'Web sitenizdeki "Mülk Sahibi Başvuru Formu" üzerinden yeni mülk değerleme ve portföye ekleme talepleri alındı.' 
+                    : 'New property valuation & portfolio listing requests received from website owner application forms.'}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab("real_estate_crm")}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center gap-1.5 border border-amber-500/30"
+            >
+              <span>{isTr ? 'Mülk Sahibi CRM Taleplerini Aç' : 'View Owner Leads'}</span>
+              <span>→</span>
+            </button>
           </div>
         )}
 

@@ -96,9 +96,9 @@ export const MobileFiltersModal: React.FC<MobileFiltersModalProps> = ({
                       </button>
                       {Array.from(categories.get(selectedCategory)!)
                         .sort()
-                        .map((sub) => (
+                        .map((sub, idx) => (
                           <button
-                            key={sub}
+                            key={`mobile-sub-${sub || 'empty'}-${idx}`}
                             onClick={() => setSelectedSubCategory(sub)}
                             className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
                               selectedSubCategory === sub
@@ -145,9 +145,9 @@ export const MobileFiltersModal: React.FC<MobileFiltersModalProps> = ({
                         .toLowerCase()
                         .includes(brandSearch.toLowerCase()),
                     )
-                    .map((brand) => (
+                    .map((brand, idx) => (
                       <button
-                        key={brand}
+                        key={`mobile-brand-${brand || 'empty'}-${idx}`}
                         onClick={() => setSelectedBrand(brand)}
                         className={`px-4 py-1.5 rounded-xl text-xss font-bold border transition-all ${
                           selectedBrand === brand
