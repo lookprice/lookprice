@@ -429,6 +429,15 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='sale_id') THEN
           ALTER TABLE stock_movements ADD COLUMN sale_id INTEGER;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='invoice_id') THEN
+          ALTER TABLE stock_movements ADD COLUMN invoice_id INTEGER;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='invoice_type') THEN
+          ALTER TABLE stock_movements ADD COLUMN invoice_type VARCHAR(20);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='stock_movements' AND column_name='invoice_number') THEN
+          ALTER TABLE stock_movements ADD COLUMN invoice_number VARCHAR(100);
+        END IF;
       END $$;
 
       CREATE TABLE IF NOT EXISTS sales (
@@ -603,6 +612,7 @@ export async function initDb() {
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS tax_number TEXT;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS is_expense BOOLEAN DEFAULT FALSE;
       ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS expense_category TEXT;
+      ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS expense_center TEXT;
       
       -- Update foreign key to SET NULL
       DO $$ 
@@ -1789,14 +1799,17 @@ export async function logAction(
   }
 }
 
-export async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null, currency: any = 'TRY', saleId: any = null) {
+export async function addStockMovement(client: any, storeId: number, productId: number, type: 'in' | 'out', quantity: number, source: string, description: string, unitPrice: any = null, customerInfo: any = null, currency: any = 'TRY', saleId: any = null, invoiceId: any = null, invoiceType: any = null, invoiceNumber: any = null) {
   const price = unitPrice !== null && unitPrice !== undefined ? Number(unitPrice) : null;
   const info = customerInfo !== null && customerInfo !== undefined ? String(customerInfo) : null;
   const curr = currency !== null && currency !== undefined ? String(currency) : 'TRY';
   const sId = saleId !== null && saleId !== undefined ? Number(saleId) : null;
+  const invId = invoiceId !== null && invoiceId !== undefined ? Number(invoiceId) : null;
+  const invType = invoiceType !== null && invoiceType !== undefined ? String(invoiceType) : null;
+  const invNum = invoiceNumber !== null && invoiceNumber !== undefined ? String(invoiceNumber) : null;
   await client.query(
-    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, sale_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-    [storeId, productId, type, quantity, source, description, price, info, curr, sId]
+    "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, sale_id, invoice_id, invoice_type, invoice_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+    [storeId, productId, type, quantity, source, description, price, info, curr, sId, invId, invType, invNum]
   );
 }
 

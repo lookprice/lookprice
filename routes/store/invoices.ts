@@ -36,11 +36,12 @@ export async function initPurchaseInvoiceSchema() {
         AND p.barcode = pii.barcode
         AND (pii.product_id IS NULL OR pii.product_id = 0)
         AND pii.barcode IS NOT NULL AND pii.barcode != ''
+        AND COALESCE(pi.is_expense, FALSE) = FALSE
     `);
 
     // 3. Auto-repair missing sales_invoice stock_movements
     await pool.query(`
-      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at)
+      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
       SELECT 
         si.store_id,
         sii.product_id,
@@ -51,7 +52,10 @@ export async function initPurchaseInvoiceSchema() {
         sii.unit_price,
         COALESCE(c.title, cust.full_name, 'Müşteri'),
         COALESCE(si.currency, 'TRY'),
-        COALESCE(si.invoice_date::timestamp, si.created_at)
+        COALESCE(si.invoice_date::timestamp, si.created_at),
+        si.id,
+        'sales',
+        COALESCE(NULLIF(si.document_number, ''), si.invoice_number)
       FROM sales_invoice_items sii
       JOIN sales_invoices si ON sii.sales_invoice_id = si.id
       LEFT JOIN companies c ON si.company_id = c.id
@@ -68,9 +72,9 @@ export async function initPurchaseInvoiceSchema() {
         )
     `);
 
-    // 4. Auto-repair missing purchase_invoice stock_movements
+    // 4. Auto-repair missing purchase_invoice stock_movements (strictly non-expense invoices)
     await pool.query(`
-      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at)
+      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
       SELECT 
         pi.store_id,
         pii.product_id,
@@ -81,11 +85,15 @@ export async function initPurchaseInvoiceSchema() {
         pii.unit_price,
         COALESCE(pi.supplier_name, c.title, 'Tedarikçi'),
         COALESCE(pi.currency, 'TRY'),
-        COALESCE(pi.invoice_date::timestamp, pi.created_at)
+        COALESCE(pi.invoice_date::timestamp, pi.created_at),
+        pi.id,
+        'purchase',
+        COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number)
       FROM purchase_invoice_items pii
       JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
       LEFT JOIN companies c ON pi.company_id = c.id
       WHERE pii.product_id IS NOT NULL
+        AND COALESCE(pi.is_expense, FALSE) = FALSE
         AND NOT EXISTS (
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = pii.product_id
@@ -543,7 +551,7 @@ router.post("/sales", async (req: any, res) => {
             [item.quantity, resolvedProductId, storeId]
           );
           
-          await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName, currency);
+          await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası: ${invoice_number}`, item.unit_price, displayName, currency, null, invoiceId, 'sales', invoice_number);
         }
       }
     }
@@ -855,7 +863,7 @@ router.put("/sales/:id", async (req: any, res) => {
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, resolvedProductId, storeId]
         );
-        await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası (Güncellendi): ${invoice_number}`, item.unit_price, displayName, currency);
+        await addStockMovement(client, storeId, resolvedProductId, 'out', item.quantity, 'sales_invoice', `Satış Faturası (Güncellendi): ${invoice_number}`, item.unit_price, displayName, currency, null, req.params.id, 'sales', invoice_number);
       }
     }
 
@@ -1167,18 +1175,22 @@ router.get("/purchase/:id", async (req: any, res) => {
                        [effectiveQty, up, invoice.currency || 'TRY', productId]
                      );
                      
-                     await addStockMovement(
-                       pool, 
-                       invoice.store_id, 
-                       productId, 
-                       'in', 
-                       effectiveQty, 
-                       'purchase_invoice', 
-                       `E-Fatura Detay Sorgulama: ${invoice.invoice_number}${descExtra}`, 
-                       up, 
-                       invoice.supplier_name || invoice.company_name, 
-                       invoice.currency
-                     );
+                      await addStockMovement(
+                        pool,
+                        invoice.store_id,
+                        productId,
+                        'in',
+                        effectiveQty,
+                        'purchase_invoice',
+                        `E-Fatura Detay Sorgulama: ${invoice.invoice_number}${descExtra}`,
+                        up,
+                        invoice.supplier_name || invoice.company_name,
+                        invoice.currency,
+                        null,
+                        invoice.id,
+                        'purchase',
+                        invoice.invoice_number
+                      );
                    }
                  }
 
@@ -1208,9 +1220,54 @@ router.post("/purchase", async (req: any, res) => {
     const {
       invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
       address, total_amount, tax_amount, grand_total, currency, exchange_rate, notes,
-      supplier_name, is_expense, expense_category, items, status, is_tax_inclusive,
+      supplier_name, is_expense, expense_category, expense_center, items, status, is_tax_inclusive,
       payment_method, payment_status
     } = req.body;
+
+    let finalIsExpense = is_expense === true || is_expense === 'true';
+    let finalExpenseCategory = expense_category || null;
+    let finalExpenseCenter = expense_center || null;
+
+    const sTitle = (supplier_name || '').toLowerCase();
+    if (!finalIsExpense) {
+      if (sTitle.includes('ttnet') || sTitle.includes('tt net') || sTitle.includes('türk telekom') || sTitle.includes('turk telekom') || sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'TELEKOM';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      } else if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'ELEKTRIK';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'SU';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'DOGALGAZ';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'AKARYAKIT';
+        finalExpenseCenter = finalExpenseCenter || 'logistics';
+      } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'KARGO';
+        finalExpenseCenter = finalExpenseCenter || 'logistics';
+      } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'KIRA';
+        finalExpenseCenter = finalExpenseCenter || 'management';
+      } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'PERSONEL_YEMEK';
+        finalExpenseCenter = finalExpenseCenter || 'hr';
+      } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'SIGORTA';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      }
+    }
 
     const finalIsTaxInclusive = is_tax_inclusive === true || is_tax_inclusive === 'true';
 
@@ -1249,13 +1306,13 @@ router.post("/purchase", async (req: any, res) => {
       `INSERT INTO purchase_invoices 
        (store_id, company_id, invoice_number, waybill_number, tax_number, tax_office, address, 
         invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, 
-        supplier_name, is_expense, expense_category, status, is_tax_inclusive, payment_method, payment_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
+        supplier_name, is_expense, expense_category, expense_center, status, is_tax_inclusive, payment_method, payment_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
       [
         storeId, company_id || null, invoice_number || `P-${Date.now()}`, waybill_number || null,
         tax_number || null, tax_office || null, address || null, invoice_date || new Date(),
         calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, currency || 'TRY', exchange_rate || 1,
-        notes || null, supplier_name || null, is_expense || false, expense_category || null, status || 'pending',
+        notes || null, supplier_name || null, finalIsExpense, finalExpenseCategory, finalExpenseCenter, status || 'pending',
         finalIsTaxInclusive, payment_method || null, payment_status || 'unpaid'
       ]
     );
@@ -1298,7 +1355,14 @@ router.post("/purchase", async (req: any, res) => {
           itemTotalPrice = itemTotalExcl;
         }
 
-        const { productId: resolvedProductId, barcode: resolvedBarcode } = await resolveProductInfo(pool, storeId, item.product_id, item.barcode);
+        // For expense invoices, do NOT link to products, do NOT track stock!
+        let resolvedProductId = null;
+        let resolvedBarcode = null;
+        if (!finalIsExpense) {
+          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode);
+          resolvedProductId = resProd.productId;
+          resolvedBarcode = resProd.barcode;
+        }
 
         await pool.query(
           `INSERT INTO purchase_invoice_items 
@@ -1311,7 +1375,7 @@ router.post("/purchase", async (req: any, res) => {
           ]
         );
 
-        if (resolvedProductId) {
+        if (resolvedProductId && !finalIsExpense) {
           if (tax_number && item.product_name) {
             try {
               await pool.query(
@@ -1364,7 +1428,8 @@ router.post("/purchase", async (req: any, res) => {
           
           await addStockMovement(
             pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
-            `Fatura Girişi: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
+            `Fatura Girişi: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
+            null, invoice.id, 'purchase', invoice.invoice_number
           );
         }
       }
@@ -1384,12 +1449,57 @@ router.put("/purchase/:id", async (req: any, res) => {
     const {
       invoice_number, invoice_date, company_id, waybill_number, tax_number, tax_office,
       address, total_amount, tax_amount, grand_total, currency, exchange_rate, notes,
-      supplier_name, is_expense, expense_category, items, status, is_tax_inclusive,
+      supplier_name, is_expense, expense_category, expense_center, items, status, is_tax_inclusive,
       payment_method, payment_status
     } = req.body;
 
     const checkRes = await pool.query("SELECT id FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+
+    let finalIsExpense = is_expense === true || is_expense === 'true';
+    let finalExpenseCategory = expense_category || null;
+    let finalExpenseCenter = expense_center || null;
+
+    const sTitle = (supplier_name || '').toLowerCase();
+    if (!finalIsExpense) {
+      if (sTitle.includes('ttnet') || sTitle.includes('tt net') || sTitle.includes('türk telekom') || sTitle.includes('turk telekom') || sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'TELEKOM';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      } else if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'ELEKTRIK';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'SU';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'DOGALGAZ';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'AKARYAKIT';
+        finalExpenseCenter = finalExpenseCenter || 'logistics';
+      } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'KARGO';
+        finalExpenseCenter = finalExpenseCenter || 'logistics';
+      } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'KIRA';
+        finalExpenseCenter = finalExpenseCenter || 'management';
+      } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'PERSONEL_YEMEK';
+        finalExpenseCenter = finalExpenseCenter || 'hr';
+      } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
+        finalIsExpense = true;
+        finalExpenseCategory = finalExpenseCategory || 'SIGORTA';
+        finalExpenseCenter = finalExpenseCenter || 'office';
+      }
+    }
 
     const finalIsTaxInclusive = is_tax_inclusive === true || is_tax_inclusive === 'true';
 
@@ -1465,19 +1575,19 @@ router.put("/purchase/:id", async (req: any, res) => {
     }
 
     await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
-    await pool.query("DELETE FROM stock_movements WHERE source = 'purchase_invoice' AND (description LIKE $1 OR description LIKE $2)", [`%${invoice_number}%`, `%${id}%`]);
+    await pool.query("DELETE FROM stock_movements WHERE (source = 'purchase_invoice' OR invoice_type = 'purchase') AND (invoice_id = $1 OR description LIKE $2 OR description LIKE $3)", [id, `%${invoice_number}%`, `%${id}%`]);
 
     const invoiceRes = await pool.query(
       `UPDATE purchase_invoices 
        SET company_id = $1, invoice_number = $2, waybill_number = $3, tax_number = $4, tax_office = $5, address = $6, 
            invoice_date = $7, total_amount = $8, tax_amount = $9, grand_total = $10, currency = $11, exchange_rate = $12, 
-           notes = $13, supplier_name = $14, is_expense = $15, expense_category = $16, status = $17, is_tax_inclusive = $18,
-           payment_method = $19, payment_status = $20
-       WHERE id = $21 AND store_id = $22 RETURNING *`,
+           notes = $13, supplier_name = $14, is_expense = $15, expense_category = $16, expense_center = $17, status = $18, is_tax_inclusive = $19,
+           payment_method = $20, payment_status = $21
+       WHERE id = $22 AND store_id = $23 RETURNING *`,
       [
         company_id || null, invoice_number, waybill_number || null, tax_number || null, tax_office || null, address || null,
         invoice_date, calculatedTotalAmount, calculatedTaxAmount, calculatedGrandTotal, currency || 'TRY', exchange_rate || 1,
-        notes || null, supplier_name || null, is_expense || false, expense_category || null, status || 'pending',
+        notes || null, supplier_name || null, finalIsExpense, finalExpenseCategory, finalExpenseCenter, status || 'pending',
         finalIsTaxInclusive, payment_method || null, payment_status || 'unpaid',
         id, storeId
       ]
@@ -1522,7 +1632,14 @@ router.put("/purchase/:id", async (req: any, res) => {
           itemTotalPrice = itemTotalExcl;
         }
 
-        const { productId: resolvedProductId, barcode: resolvedBarcode } = await resolveProductInfo(pool, storeId, item.product_id, item.barcode);
+        // For expense invoices, do NOT link to products, do NOT track stock!
+        let resolvedProductId = null;
+        let resolvedBarcode = null;
+        if (!finalIsExpense) {
+          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode);
+          resolvedProductId = resProd.productId;
+          resolvedBarcode = resProd.barcode;
+        }
 
         await pool.query(
           `INSERT INTO purchase_invoice_items 
@@ -1535,7 +1652,7 @@ router.put("/purchase/:id", async (req: any, res) => {
           ]
         );
 
-        if (resolvedProductId) {
+        if (resolvedProductId && !finalIsExpense) {
           if (tax_number && item.product_name) {
             try {
               await pool.query(
@@ -1588,7 +1705,8 @@ router.put("/purchase/:id", async (req: any, res) => {
           
           await addStockMovement(
             pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
-            `Fatura Güncelleme: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency
+            `Fatura Güncelleme: ${invoice.invoice_number}${item.variant_name ? ` (${item.variant_name})` : ''}`, item.unit_price || 0, supplier_name || 'Tedarikçi', currency,
+            null, invoice.id, 'purchase', invoice.invoice_number
           );
         }
       }

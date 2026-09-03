@@ -1331,41 +1331,51 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
 
           let isExpense = false;
           let expenseCategory = null;
+          let expenseCenter = null;
           const sTitle = (invoiceDetails.senderTitle || '').toLowerCase();
           
           if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
             isExpense = true;
             expenseCategory = 'ELEKTRIK';
+            expenseCenter = 'office';
           } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
             isExpense = true;
             expenseCategory = 'SU';
+            expenseCenter = 'office';
           } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
             isExpense = true;
             expenseCategory = 'DOGALGAZ';
-          } else if (sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
+            expenseCenter = 'office';
+          } else if (sTitle.includes('ttnet') || sTitle.includes('tt net') || sTitle.includes('türk telekom') || sTitle.includes('turk telekom') || sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
             isExpense = true;
             expenseCategory = 'TELEKOM';
+            expenseCenter = 'office';
           } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
             isExpense = true;
             expenseCategory = 'AKARYAKIT';
+            expenseCenter = 'logistics';
           } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
             isExpense = true;
             expenseCategory = 'KARGO';
+            expenseCenter = 'logistics';
           } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
             isExpense = true;
             expenseCategory = 'KIRA';
+            expenseCenter = 'management';
           } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
             isExpense = true;
             expenseCategory = 'PERSONEL_YEMEK';
+            expenseCenter = 'hr';
           } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
             isExpense = true;
             expenseCategory = 'SIGORTA';
+            expenseCenter = 'office';
           }
 
           const invInsertRes = await pool.query(
             `INSERT INTO purchase_invoices 
-            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_expense, expense_category)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
+            (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_expense, expense_category, expense_center)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
             [
               storeId, 
               companyId,
@@ -1402,7 +1412,8 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               'unpaid',
               false, // E-invoices are imported as Exclusive (KDV Hariç) by default
               isExpense,
-              expenseCategory
+              expenseCategory,
+              expenseCenter
             ]
           );
           
@@ -1437,6 +1448,18 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               
               const lineTotal = qty * up;
               const taxAmount = (lineTotal * tr) / 100;
+
+              // If it's an expense invoice (e.g. TTNET, Telekom, Elektrik, Su, etc.):
+              // NEVER link to products or create stock or stock movements!
+              if (isExpense) {
+                await pool.query(
+                  `INSERT INTO purchase_invoice_items 
+                   (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                  [newInvoiceId, null, productName, null, qty, up, tr, taxAmount, lineTotal, unitCode]
+                );
+                continue;
+              }
 
               // Try to find matching product by name or barcode
               let productId = null;
@@ -1497,7 +1520,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                 
                 if (volMl > 0 && isBulkUnit && isMlGrBase) {
                   effectiveQty = qty * volMl;
-                  descExtra = ` (\${qty} \${unitCode} x \${volMl}ml)`;
+                  descExtra = ` (${qty} ${unitCode} x ${volMl}ml)`;
                 }
 
                 await pool.query(
@@ -1505,7 +1528,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                   [effectiveQty, up, invoiceDetails.currency || 'TRY', productId]
                 );
                 
-                // Log stock movement
+                // Log stock movement with direct invoice link
                 await addStockMovement(
                   pool, 
                   storeId, 
@@ -1513,10 +1536,14 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                   'in', 
                   effectiveQty, 
                   'purchase_invoice', 
-                  `E-Fatura İçe Aktarma: \${invoiceDetails.documentNumber}\${descExtra}`, 
+                  `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}${descExtra}`, 
                   up, 
                   invoiceDetails.senderTitle, 
-                  invoiceDetails.currency
+                  invoiceDetails.currency,
+                  null,
+                  newInvoiceId,
+                  'purchase',
+                  invoiceDetails.documentNumber
                 );
               }
             }
@@ -1799,80 +1826,91 @@ export const runGlobalEInvoiceSync = async () => {
            const taxAmt = Number(invoiceDetails.taxAmount) || 0;
            const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
 
-          let isExpense = false;
-          let expenseCategory = null;
-          const sTitle = (invoiceDetails.senderTitle || '').toLowerCase();
-          
-          if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
-            isExpense = true;
-            expenseCategory = 'ELEKTRIK';
-          } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
-            isExpense = true;
-            expenseCategory = 'SU';
-          } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
-            isExpense = true;
-            expenseCategory = 'DOGALGAZ';
-          } else if (sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
-            isExpense = true;
-            expenseCategory = 'TELEKOM';
-          } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
-            isExpense = true;
-            expenseCategory = 'AKARYAKIT';
-          } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
-            isExpense = true;
-            expenseCategory = 'KARGO';
-          } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
-            isExpense = true;
-            expenseCategory = 'KIRA';
-          } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
-            isExpense = true;
-            expenseCategory = 'PERSONEL_YEMEK';
-          } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
-            isExpense = true;
-            expenseCategory = 'SIGORTA';
-          }
+           let isExpense = false;
+           let expenseCategory = null;
+           let expenseCenter = null;
+           const sTitle = (invoiceDetails.senderTitle || '').toLowerCase();
+           
+           if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
+             isExpense = true;
+             expenseCategory = 'ELEKTRIK';
+             expenseCenter = 'office';
+           } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
+             isExpense = true;
+             expenseCategory = 'SU';
+             expenseCenter = 'office';
+           } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
+             isExpense = true;
+             expenseCategory = 'DOGALGAZ';
+             expenseCenter = 'office';
+           } else if (sTitle.includes('ttnet') || sTitle.includes('tt net') || sTitle.includes('türk telekom') || sTitle.includes('turk telekom') || sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
+             isExpense = true;
+             expenseCategory = 'TELEKOM';
+             expenseCenter = 'office';
+           } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
+             isExpense = true;
+             expenseCategory = 'AKARYAKIT';
+             expenseCenter = 'logistics';
+           } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
+             isExpense = true;
+             expenseCategory = 'KARGO';
+             expenseCenter = 'logistics';
+           } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
+             isExpense = true;
+             expenseCategory = 'KIRA';
+             expenseCenter = 'management';
+           } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
+             isExpense = true;
+             expenseCategory = 'PERSONEL_YEMEK';
+             expenseCenter = 'hr';
+           } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
+             isExpense = true;
+             expenseCategory = 'SIGORTA';
+             expenseCenter = 'office';
+           }
 
-           await pool.query(
-             `INSERT INTO purchase_invoices 
-             (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_read, is_expense, expense_category)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, false, $20, $21) RETURNING id`,
-             [
-               storeId, 
-               companyId,
-               invoiceDetails.documentNumber, 
-               invoiceDetails.documentNumber, 
-               invoiceDetails.ettn, 
-               invoiceDetails.documentType, 
-               invoiceDetails.senderTitle,
-               invoiceDetails.senderVkn,
-               (() => {
-                 const d = invoiceDetails.issueDate;
-                 if (!d) return new Date().toISOString();
-                 if (typeof d !== 'string') return d;
-                 if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
-                   const [day, month, year] = d.split('.');
-                   return `${year}-${month}-${day}`;
-                 }
-                 try {
-                   const parsed = new Date(d);
-                   if (!isNaN(parsed.getTime())) return parsed.toISOString();
-                 } catch (e) {}
-                 return new Date().toISOString();
-               })(),
-               baseAmt,
-               taxAmt,
-               grandAmt,
-               invoiceDetails.currency || 'TRY',
-               invoiceDetails.exchangeRate || 1,
-               'pending',
-               'RECEIVED',
-               'term',
-               'unpaid',
-               false,
-               isExpense,
-               expenseCategory
-             ]
-           );
+            await pool.query(
+              `INSERT INTO purchase_invoices 
+              (store_id, company_id, invoice_number, document_number, ettn, e_document_type, supplier_name, tax_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, status, integration_status, payment_method, payment_status, is_tax_inclusive, is_read, is_expense, expense_category, expense_center)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, false, $20, $21, $22) RETURNING id`,
+              [
+                storeId, 
+                companyId,
+                invoiceDetails.documentNumber, 
+                invoiceDetails.documentNumber, 
+                invoiceDetails.ettn, 
+                invoiceDetails.documentType, 
+                invoiceDetails.senderTitle,
+                invoiceDetails.senderVkn,
+                (() => {
+                  const d = invoiceDetails.issueDate;
+                  if (!d) return new Date().toISOString();
+                  if (typeof d !== 'string') return d;
+                  if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
+                    const [day, month, year] = d.split('.');
+                    return `${year}-${month}-${day}`;
+                  }
+                  try {
+                    const parsed = new Date(d);
+                    if (!isNaN(parsed.getTime())) return parsed.toISOString();
+                  } catch (e) {}
+                  return new Date().toISOString();
+                })(),
+                baseAmt,
+                taxAmt,
+                grandAmt,
+                invoiceDetails.currency || 'TRY',
+                invoiceDetails.exchangeRate || 1,
+                'pending',
+                'RECEIVED',
+                'term',
+                'unpaid',
+                false,
+                isExpense,
+                expenseCategory,
+                expenseCenter
+              ]
+            );
            
            importedCount++;
         }

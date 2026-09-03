@@ -681,7 +681,55 @@ router.get("/:id/movements", async (req: any, res) => {
     }
 
     const movementsRes = await pool.query(
-      "SELECT * FROM stock_movements WHERE product_id = $1 ORDER BY created_at DESC",
+      `SELECT sm.*,
+        COALESCE(sm.invoice_id, 
+          CASE 
+            WHEN sm.source = 'sales_invoice' OR sm.description ILIKE '%satış faturası%' THEN (
+              SELECT si.id FROM sales_invoices si 
+              WHERE si.store_id = sm.store_id 
+                AND ((si.invoice_number IS NOT NULL AND si.invoice_number != '' AND sm.description LIKE '%' || si.invoice_number || '%')
+                     OR (si.document_number IS NOT NULL AND si.document_number != '' AND sm.description LIKE '%' || si.document_number || '%'))
+              LIMIT 1
+            )
+            WHEN sm.source = 'purchase_invoice' OR sm.description ILIKE '%alış faturası%' OR sm.description ILIKE '%fatura girişi%' THEN (
+              SELECT pi.id FROM purchase_invoices pi 
+              WHERE pi.store_id = sm.store_id 
+                AND ((pi.invoice_number IS NOT NULL AND pi.invoice_number != '' AND sm.description LIKE '%' || pi.invoice_number || '%')
+                     OR (pi.document_number IS NOT NULL AND pi.document_number != '' AND sm.description LIKE '%' || pi.document_number || '%'))
+              LIMIT 1
+            )
+            ELSE NULL
+          END
+        ) as invoice_id,
+        COALESCE(sm.invoice_type,
+          CASE 
+            WHEN sm.source = 'sales_invoice' OR sm.description ILIKE '%satış faturası%' THEN 'sales'
+            WHEN sm.source = 'purchase_invoice' OR sm.description ILIKE '%alış faturası%' OR sm.description ILIKE '%fatura girişi%' THEN 'purchase'
+            ELSE NULL
+          END
+        ) as invoice_type,
+        COALESCE(sm.invoice_number,
+          CASE 
+            WHEN sm.source = 'sales_invoice' OR sm.description ILIKE '%satış faturası%' THEN (
+              SELECT COALESCE(NULLIF(si.document_number, ''), si.invoice_number) FROM sales_invoices si 
+              WHERE si.store_id = sm.store_id 
+                AND ((si.invoice_number IS NOT NULL AND si.invoice_number != '' AND sm.description LIKE '%' || si.invoice_number || '%')
+                     OR (si.document_number IS NOT NULL AND si.document_number != '' AND sm.description LIKE '%' || si.document_number || '%'))
+              LIMIT 1
+            )
+            WHEN sm.source = 'purchase_invoice' OR sm.description ILIKE '%alış faturası%' OR sm.description ILIKE '%fatura girişi%' THEN (
+              SELECT COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number) FROM purchase_invoices pi 
+              WHERE pi.store_id = sm.store_id 
+                AND ((pi.invoice_number IS NOT NULL AND pi.invoice_number != '' AND sm.description LIKE '%' || pi.invoice_number || '%')
+                     OR (pi.document_number IS NOT NULL AND pi.document_number != '' AND sm.description LIKE '%' || pi.document_number || '%'))
+              LIMIT 1
+            )
+            ELSE NULL
+          END
+        ) as invoice_number
+      FROM stock_movements sm 
+      WHERE sm.product_id = $1 
+      ORDER BY sm.created_at DESC`,
       [id]
     );
 
