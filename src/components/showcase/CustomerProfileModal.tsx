@@ -162,11 +162,28 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                         <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase mt-1 ${
                           order.status === 'completed' || order.status === 'delivered' 
                             ? 'bg-emerald-100 text-emerald-800' 
-                            : order.status === 'cancelled'
+                            : order.status === 'shipped' || order.status === 'processing'
+                            ? 'bg-blue-100 text-blue-800'
+                            : order.status === 'cancelled' || order.status === 'payment_failed'
                             ? 'bg-rose-100 text-rose-800'
                             : 'bg-amber-100 text-amber-800'
                         }`}>
-                          {order.status || 'Beklemede'}
+                          {order.status === "checkout_initiated" || order.status === "pending_payment" || order.status === "awaiting_payment"
+                            ? (lang === "tr" ? "Ödeme Bekleniyor" : "Awaiting Payment") :
+                           order.status === "payment_failed"
+                            ? (lang === "tr" ? "Ödeme Alınamadı" : "Payment Failed") :
+                           order.status === "pending"
+                            ? (lang === "tr" ? "Sipariş Alındı" : "Pending Approval") :
+                           order.status === "processing"
+                            ? (lang === "tr" ? "Hazırlanıyor" : "Preparing") :
+                           order.status === "shipped"
+                            ? (lang === "tr" ? "Kargoda" : "Shipped") :
+                           order.status === "delivered"
+                            ? (lang === "tr" ? "Teslim Edildi" : "Delivered") :
+                           order.status === "completed"
+                            ? (lang === "tr" ? "Tamamlandı" : "Completed") :
+                           order.status === "cancelled"
+                            ? (lang === "tr" ? "İptal Edildi" : "Cancelled") : (order.status || (lang === 'tr' ? 'Beklemede' : 'Pending'))}
                         </span>
                       </div>
                     </div>

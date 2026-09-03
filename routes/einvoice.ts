@@ -6,6 +6,7 @@ import { MySoftService } from "../src/services/backend/mysoftService";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
 import { numberToTurkishWords } from "../src/utils/formatUtils";
+import { findMatchingProduct, saveSupplierMapping } from "./store/invoiceMatching";
 
 const router = express.Router();
 
@@ -1430,13 +1431,17 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
             for (const line of rawLines) {
               const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || line.InvoicedQuantity?.['@_unitCode'] || 'Bilinmeyen Ürün';
               
-              // Extract potential barcode or product code from the e-invoice line
-              let extractedCodeObj = line.detailItem?.buyersItemIdentification || line.detailItem?.sellersItemIdentification || line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.sellersItemIdentification || line.buyersItemIdentification;
-              let productBarcodeCode = typeof extractedCodeObj === 'string' ? extractedCodeObj.trim() : (typeof extractedCodeObj === 'number' ? String(extractedCodeObj) : null);
-              if (productBarcodeCode === '') productBarcodeCode = null;
+              const sellerCodeRaw = line.detailItem?.sellersItemIdentificationId || line.detailItem?.sellersItemIdentification || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.sellersItemIdentification;
+              const sellerCode = typeof sellerCodeRaw === 'string' ? sellerCodeRaw.trim() : (typeof sellerCodeRaw === 'number' ? String(sellerCodeRaw) : null);
+
+              const buyerCodeRaw = line.detailItem?.buyersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.buyersItemIdentification;
+              const buyerCode = typeof buyerCodeRaw === 'string' ? buyerCodeRaw.trim() : (typeof buyerCodeRaw === 'number' ? String(buyerCodeRaw) : null);
+
+              const barcodeRaw = line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.ItemInstance?.ProductTraceID;
+              const barcode = typeof barcodeRaw === 'string' ? barcodeRaw.trim() : (typeof barcodeRaw === 'number' ? String(barcodeRaw) : null);
 
               const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 0;
-              const unitCode = line.unitCode || line.UnitCode || line.unitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62'; // C62 is Piece
+              const unitCode = line.unitCode || line.UnitCode || line.InvoicedQuantity?.['@_unitCode'] || 'C62'; // C62 is Piece
               
               const qty = Number(String(qtyRaw).replace(',', '.')) || 0;
               
@@ -1454,55 +1459,61 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               if (isExpense) {
                 await pool.query(
                   `INSERT INTO purchase_invoice_items 
-                   (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                  [newInvoiceId, null, productName, null, qty, up, tr, taxAmount, lineTotal, unitCode]
+                   (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                  [newInvoiceId, null, productName, null, null, qty, up, tr, taxAmount, lineTotal, unitCode]
                 );
                 continue;
               }
 
-              // Try to find matching product by name or barcode
-              let productId = null;
-              let finalBarcode = productBarcodeCode;
+              // 5-Tier Intelligent product matching
+              const match = await findMatchingProduct(pool, storeId, {
+                supplierVkn: invoiceDetails.senderVkn,
+                productName,
+                barcode,
+                productCode: sellerCode || buyerCode,
+                sellerCode,
+                buyerCode
+              });
 
-              // 1. Check Supplier Product Mappings
-              if (invoiceDetails.senderVkn) {
-                const mappingRes = await pool.query(
-                  "SELECT product_id FROM supplier_product_mappings WHERE store_id = $1 AND supplier_vkn = $2 AND supplier_product_name = $3",
-                  [storeId, invoiceDetails.senderVkn, productName]
+              let productId = match ? match.productId : null;
+              let finalBarcode = match ? match.barcode : barcode;
+              let finalProductCode = match ? match.productCode : (sellerCode || buyerCode || null);
+
+              if (!productId) {
+                finalBarcode = barcode || (sellerCode && /^[0-9]{8,14}$/.test(sellerCode) ? sellerCode : null);
+                if (!finalBarcode) {
+                  finalBarcode = `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+                }
+                const existingProd = await pool.query(
+                  "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
+                  [storeId, finalBarcode, finalProductCode || '__NONE__']
                 );
-                if (mappingRes.rows.length > 0) {
-                  productId = mappingRes.rows[0].product_id;
+                if (existingProd.rows.length > 0) {
+                  productId = existingProd.rows[0].id;
+                  finalBarcode = existingProd.rows[0].barcode;
+                  finalProductCode = existingProd.rows[0].product_code || finalProductCode;
+                } else {
+                  const newProdRes = await pool.query(
+                    `INSERT INTO products 
+                     (store_id, name, barcode, product_code, sku, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
+                     VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+                    [storeId, productName, finalBarcode, finalProductCode, 0, up, tr, 0, invoiceDetails.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
+                  );
+                  productId = newProdRes.rows[0].id;
                 }
               }
 
-              if (!productId) {
-                let prodMatch;
-                const normalizedItemName = productName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-
-                if (productBarcodeCode) {
-                   prodMatch = await pool.query(
-                     "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR REPLACE(LOWER(name), ' ', '') = $5 OR barcode = $3 OR barcode = $4)",
-                     [storeId, productName, productName, productBarcodeCode, normalizedItemName]
-                   );
-                } else {
-                   prodMatch = await pool.query(
-                     "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR REPLACE(LOWER(name), ' ', '') = $3)",
-                     [storeId, productName, normalizedItemName]
-                   );
-                }
-                
-                if (prodMatch.rows.length > 0) {
-                  productId = prodMatch.rows[0].id;
-                  finalBarcode = prodMatch.rows[0].barcode || finalBarcode;
-                }
+              // Save supplier mapping for recurring supplier items
+              if (invoiceDetails.senderVkn && productName && productId) {
+                await saveSupplierMapping(pool, storeId, invoiceDetails.senderVkn, productName, productId, finalProductCode);
               }
 
               await pool.query(
                 `INSERT INTO purchase_invoice_items 
-                 (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                [newInvoiceId, productId, productName, finalBarcode, qty, up, tr, taxAmount, lineTotal, unitCode]
+                 (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price, unit_code) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                [newInvoiceId, productId, productName, finalBarcode, finalProductCode, qty, up, tr, taxAmount, lineTotal, unitCode]
               );
               
               // If product exists, update its stock automatically

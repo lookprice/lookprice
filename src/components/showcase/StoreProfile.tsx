@@ -472,17 +472,31 @@ export const StoreProfile: React.FC<StoreProfileProps> = ({
                               ? "bg-green-50 text-green-600 border-green-100"
                               : order.status === "shipped" || order.status === "processing"
                                 ? "bg-blue-50 text-blue-600 border-blue-100"
-                                : order.status === "cancelled" || order.status === "returned"
+                                : order.status === "cancelled" || order.status === "returned" || order.status === "payment_failed"
                                   ? "bg-red-50 text-red-600 border-red-100"
-                                  : "bg-orange-50 text-orange-600 border-orange-100"
+                                  : order.status === "checkout_initiated" || order.status === "pending_payment" || order.status === "awaiting_payment"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-orange-50 text-orange-600 border-orange-100"
                           }`}
                         >
-                          {order.status === "pending" ? (lang === "tr" ? "Bekliyor" : "Pending") :
-                           order.status === "processing" ? (lang === "tr" ? "Hazırlanıyor" : "Preparing") :
-                           order.status === "shipped" ? (lang === "tr" ? "Kargoda" : "Shipped") :
-                           order.status === "delivered" ? (lang === "tr" ? "Teslim Edildi" : "Delivered") :
-                           order.status === "completed" ? (lang === "tr" ? "Tamamlandı" : "Completed") :
-                           order.status === "cancelled" ? (lang === "tr" ? "İptal Edildi" : "Cancelled") : order.status}
+                          {order.status === "checkout_initiated" || order.status === "pending_payment" || order.status === "awaiting_payment"
+                            ? (lang === "tr" ? "Ödeme Bekleniyor" : "Awaiting Payment") :
+                           order.status === "payment_failed"
+                            ? (lang === "tr" ? "Ödeme Alınamadı" : "Payment Failed") :
+                           order.status === "pending"
+                            ? (lang === "tr" ? "Sipariş Alındı" : "Pending Approval") :
+                           order.status === "processing"
+                            ? (lang === "tr" ? "Hazırlanıyor" : "Preparing") :
+                           order.status === "shipped"
+                            ? (lang === "tr" ? "Kargoda" : "Shipped") :
+                           order.status === "delivered"
+                            ? (lang === "tr" ? "Teslim Edildi" : "Delivered") :
+                           order.status === "completed"
+                            ? (lang === "tr" ? "Tamamlandı" : "Completed") :
+                           order.status === "cancelled"
+                            ? (lang === "tr" ? "İptal Edildi" : "Cancelled") :
+                           order.status === "returned"
+                            ? (lang === "tr" ? "İade Edildi" : "Returned") : order.status}
                         </span>
                       </div>
                     </div>

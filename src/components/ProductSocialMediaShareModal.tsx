@@ -364,7 +364,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
       const canvas = await safeHtml2Canvas(element, {
         scale: renderScale,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: null,
         logging: false,
         imageTimeout: 10000,
@@ -377,9 +377,16 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
         .replace(/-+/g, '-')
         .substring(0, 25);
 
+      let dataUrl = '';
+      try {
+        dataUrl = canvas.toDataURL("image/png", 1.0);
+      } catch (e) {
+        dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+      }
+
       const link = document.createElement("a");
       link.download = `afis-product-${sanitizedTitle}-${selectedTheme}-${selectedRatio}.png`;
-      link.href = canvas.toDataURL("image/png", 1.0);
+      link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

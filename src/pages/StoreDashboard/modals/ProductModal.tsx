@@ -295,22 +295,35 @@ export const ProductModal = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1 sm:col-span-2">
+              <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? (hasVariants ? "Barkod / Ürün Kodu (Varyantlı Ürün)" : "Barkod / Ürün Kodu *") : (hasVariants ? "Barcode / SKU (Has Variants)" : "Barcode / SKU *")}
+                  {isTr ? (hasVariants ? "Barkod (Varyantlı)" : "Barkod *") : (hasVariants ? "Barcode (Variants)" : "Barcode *")}
                 </label>
                 <input
                   type="text"
                   name="barcode"
                   required={!hasVariants}
                   disabled={hasVariants}
-                  placeholder={hasVariants ? (isTr ? "Varyantlar altındaki kendi barkod/SKU'su geçerlidir" : "Tracked via individual variants") : (isTr ? "Barkod girin veya okutun..." : "SKU code...")}
+                  placeholder={hasVariants ? (isTr ? "Varyant barkodları geçerlidir" : "Tracked via variants") : (isTr ? "Barkod girin veya okutun..." : "EAN / Barcode...")}
                   className={`w-full px-4 py-2.5 border-2 rounded-2xl transition-all font-bold text-xs ${
                     hasVariants 
                       ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-80" 
                       : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 focus:ring-0 shadow-2xs"
                   }`}
                   defaultValue={editingProduct?.barcode || ""}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
+                  {isTr ? "Ürün Kodu / Model / SKU" : "Product Code / Model / SKU"}
+                </label>
+                <input
+                  type="text"
+                  name="product_code"
+                  placeholder={isTr ? "örn: MZ-V9P1T0BW, TRU16977..." : "e.g. SKU-12345, MODEL-X"}
+                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+                  defaultValue={editingProduct?.product_code || editingProduct?.sku || ""}
                 />
               </div>
 
@@ -322,7 +335,7 @@ export const ProductModal = ({
                   type="text"
                   name="name"
                   required
-                  placeholder={isTr ? "örn: Alçıpan Profili" : "Product name"}
+                  placeholder={isTr ? "örn: Samsung 990 Pro 1TB SSD" : "Product name"}
                   className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-extrabold text-slate-900 text-sm shadow-2xs"
                   defaultValue={editingProduct?.name || ""}
                 />

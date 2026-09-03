@@ -291,9 +291,11 @@ export function sanitizeClonedDocForHtml2Canvas(
 
 /**
  * Bulletproof html2canvas wrapper:
- * 1. Monkey-patches getComputedStyle so modern colors are safely converted to rgb/rgba
- * 2. Injects sanitization into onclone
- * 3. Restores original getComputedStyle after capture
+ * 1. Monkey-patches getComputedStyle so modern colors (oklch, oklab, color()) are safely converted to rgb/rgba
+ * 2. WebIDL compliance: Prevents "Illegal invocation" by never passing Proxy receiver to native getters
+ * 3. Injects sanitization into onclone
+ * 4. Ensures allowTaint is disabled so canvas.toDataURL() never throws SecurityError
+ * 5. Restores original getComputedStyle after capture
  */
 export async function safeHtml2Canvas(
   element: HTMLElement,
@@ -301,23 +303,139 @@ export async function safeHtml2Canvas(
 ): Promise<HTMLCanvasElement> {
   const originalGetComputedStyle = window.getComputedStyle;
 
-  const createStyleProxy = (origComputed: CSSStyleDeclaration) => {
+  const createStyleProxy = (origComputed: CSSStyleDeclaration): CSSStyleDeclaration => {
+    if (!origComputed) return origComputed;
+
     return new Proxy(origComputed, {
-      get(target, prop, receiver) {
+      get(target, prop, _receiver) {
+        // 1. Explicit fast-paths for methods called by html2canvas
         if (prop === 'getPropertyValue') {
           return (propertyName: string) => {
-            const val = target.getPropertyValue(propertyName);
-            return parseAndConvertColorToRgb(val);
+            try {
+              const val = target.getPropertyValue(propertyName);
+              return parseAndConvertColorToRgb(val);
+            } catch (e) {
+              return '';
+            }
           };
         }
-        const val = Reflect.get(target, prop, receiver);
-        if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('color('))) {
-          return parseAndConvertColorToRgb(val);
+
+        if (prop === 'item') {
+          return (index: number) => {
+            try {
+              return target.item(index);
+            } catch (e) {
+              return '';
+            }
+          };
         }
+
+        if (prop === 'getPropertyPriority') {
+          return (propertyName: string) => {
+            try {
+              return target.getPropertyPriority(propertyName);
+            } catch (e) {
+              return '';
+            }
+          };
+        }
+
+        if (prop === 'setProperty') {
+          return (propertyName: string, value: string, priority?: string) => {
+            try {
+              target.setProperty(propertyName, value, priority);
+            } catch (e) {}
+          };
+        }
+
+        if (prop === 'removeProperty') {
+          return (propertyName: string) => {
+            try {
+              return target.removeProperty(propertyName);
+            } catch (e) {
+              return '';
+            }
+          };
+        }
+
+        // 2. Explicit properties on CSSStyleDeclaration
+        if (prop === 'length') {
+          try {
+            return target.length;
+          } catch (e) {
+            return 0;
+          }
+        }
+
+        if (prop === 'cssText') {
+          try {
+            return parseAndConvertColorToRgb(target.cssText);
+          } catch (e) {
+            return '';
+          }
+        }
+
+        if (typeof prop === 'string' && /^\d+$/.test(prop)) {
+          try {
+            return target.item(Number(prop));
+          } catch (e) {
+            return '';
+          }
+        }
+
+        // 3. Fallback for all other properties (e.g. style.color, style.display, etc.)
+        // CRITICAL WebIDL Guard:
+        // NEVER pass `receiver` (the Proxy) as the 3rd argument to Reflect.get!
+        // In browser WebIDL, getters throw "TypeError: Illegal invocation" if `this` is a Proxy.
+        // We ALWAYS invoke getters with `target` as `this`.
+        let val: any;
+        try {
+          val = Reflect.get(target, prop, target);
+        } catch (e) {
+          try {
+            val = (target as any)[prop];
+          } catch (e2) {
+            val = undefined;
+          }
+        }
+
         if (typeof val === 'function') {
           return val.bind(target);
         }
+
+        if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('color('))) {
+          return parseAndConvertColorToRgb(val);
+        }
+
         return val;
+      },
+      has(target, prop) {
+        try {
+          return Reflect.has(target, prop);
+        } catch (e) {
+          return prop in target;
+        }
+      },
+      ownKeys(target) {
+        try {
+          return Reflect.ownKeys(target);
+        } catch (e) {
+          return [];
+        }
+      },
+      getOwnPropertyDescriptor(target, prop) {
+        try {
+          const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+          if (desc) {
+            return {
+              ...desc,
+              configurable: true
+            };
+          }
+          return desc;
+        } catch (e) {
+          return undefined;
+        }
       }
     });
   };
@@ -325,28 +443,49 @@ export async function safeHtml2Canvas(
   try {
     // Intercept host window getComputedStyle
     window.getComputedStyle = function (el: Element, pseudoElt?: string | null) {
-      const computed = originalGetComputedStyle.call(window, el, pseudoElt);
-      return createStyleProxy(computed);
+      if (!el) return originalGetComputedStyle.call(window, el as any, pseudoElt);
+      try {
+        const computed = originalGetComputedStyle.call(window, el, pseudoElt);
+        if (!computed) return computed;
+        return createStyleProxy(computed);
+      } catch (e) {
+        return originalGetComputedStyle.call(window, el, pseudoElt);
+      }
     };
 
     const userOnClone = options.onclone;
 
     const mergedOptions: Partial<Options> = {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: null,
+      logging: false,
       ...options,
+      allowTaint: false, // CRITICAL: NEVER allow taint when exporting toDataURL!
       onclone: (clonedDoc: Document, clonedElement: HTMLElement) => {
         // Intercept cloned iframe defaultView getComputedStyle
         if (clonedDoc.defaultView && clonedDoc.defaultView.getComputedStyle) {
           const iframeOrigGetComputed = clonedDoc.defaultView.getComputedStyle;
           clonedDoc.defaultView.getComputedStyle = function (el: Element, pseudoElt?: string | null) {
-            const computed = iframeOrigGetComputed.call(clonedDoc.defaultView, el, pseudoElt);
-            return createStyleProxy(computed);
+            if (!el) return iframeOrigGetComputed.call(clonedDoc.defaultView, el as any, pseudoElt);
+            try {
+              const computed = iframeOrigGetComputed.call(clonedDoc.defaultView, el, pseudoElt);
+              if (!computed) return computed;
+              return createStyleProxy(computed);
+            } catch (e) {
+              return iframeOrigGetComputed.call(clonedDoc.defaultView, el, pseudoElt);
+            }
           };
         }
 
         sanitizeClonedDocForHtml2Canvas(clonedDoc, clonedElement, element);
 
         if (userOnClone) {
-          userOnClone(clonedDoc, clonedElement);
+          try {
+            userOnClone(clonedDoc, clonedElement);
+          } catch (e) {
+            console.warn("User onclone hook error:", e);
+          }
         }
       }
     };

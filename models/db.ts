@@ -1417,6 +1417,9 @@ export async function initDb() {
         ALTER TABLE products ADD COLUMN IF NOT EXISTS is_n11_active BOOLEAN DEFAULT FALSE;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS n11_last_error TEXT;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS product_code TEXT;
+        ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS product_code TEXT;
+        ALTER TABLE supplier_product_mappings ADD COLUMN IF NOT EXISTS supplier_product_code TEXT;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='labels') THEN
           ALTER TABLE products ADD COLUMN labels JSONB DEFAULT '[]';
         END IF;

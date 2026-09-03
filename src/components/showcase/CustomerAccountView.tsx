@@ -266,11 +266,28 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({
                           <div className="flex items-center gap-3 mb-1">
                             <h4 className="text-lg font-bold text-gray-900">#{order.order_number || order.id}</h4>
                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                              order.status === 'completed' ? 'bg-emerald-50 text-emerald-600' :
-                              order.status === 'pending' ? 'bg-amber-50 text-amber-600' :
-                              'bg-gray-100 text-gray-600'
+                              order.status === 'completed' || order.status === 'delivered' ? 'bg-emerald-50 text-emerald-600' :
+                              order.status === 'shipped' || order.status === 'processing' ? 'bg-blue-50 text-blue-600' :
+                              order.status === 'checkout_initiated' || order.status === 'pending_payment' || order.status === 'awaiting_payment' ? 'bg-amber-50 text-amber-700' :
+                              order.status === 'payment_failed' || order.status === 'cancelled' ? 'bg-rose-50 text-rose-600' :
+                              'bg-amber-50 text-amber-600'
                             }`}>
-                              {order.status}
+                              {order.status === "checkout_initiated" || order.status === "pending_payment" || order.status === "awaiting_payment"
+                                ? (lang === "tr" ? "Ödeme Bekleniyor" : "Awaiting Payment") :
+                               order.status === "payment_failed"
+                                ? (lang === "tr" ? "Ödeme Alınamadı" : "Payment Failed") :
+                               order.status === "pending"
+                                ? (lang === "tr" ? "Sipariş Alındı" : "Pending Approval") :
+                               order.status === "processing"
+                                ? (lang === "tr" ? "Hazırlanıyor" : "Preparing") :
+                               order.status === "shipped"
+                                ? (lang === "tr" ? "Kargoda" : "Shipped") :
+                               order.status === "delivered"
+                                ? (lang === "tr" ? "Teslim Edildi" : "Delivered") :
+                               order.status === "completed"
+                                ? (lang === "tr" ? "Tamamlandı" : "Completed") :
+                               order.status === "cancelled"
+                                ? (lang === "tr" ? "İptal Edildi" : "Cancelled") : order.status}
                             </span>
                           </div>
                           <p className="text-gray-400 text-xss font-bold uppercase tracking-widest">

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
-import { CheckCircle2, XCircle, Loader2, ArrowLeft } from "lucide-react";
-import { api } from "../services/api";
+import { CheckCircle2, XCircle, Loader2, ArrowLeft, ShoppingBag } from "lucide-react";
 
 const CheckoutStatus: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -12,6 +11,8 @@ const CheckoutStatus: React.FC = () => {
   const PayerID = searchParams.get("PayerID");
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState("");
+  const [storeSlug, setStoreSlug] = useState<string>(slug || "");
+  const [orderDetails, setOrderDetails] = useState<any>(null);
 
   useEffect(() => {
     // If we are in an iframe (e.g. Iyzico 3D secure or embedded form), redirect the parent window
@@ -25,6 +26,15 @@ const CheckoutStatus: React.FC = () => {
       if (window.location.pathname.includes('/checkout/cancel')) {
         setStatus('error');
         setMessage(searchParams.get("error") || "Ödeme işlemi iptal edildi veya bir hata oluştu.");
+        if (saleId) {
+          fetch(`/api/public/sales/${saleId}/status`)
+            .then(res => res.json())
+            .then(data => {
+              if (data?.store_slug) setStoreSlug(data.store_slug);
+              setOrderDetails(data);
+            })
+            .catch(() => {});
+        }
         return;
       }
 
@@ -32,6 +42,18 @@ const CheckoutStatus: React.FC = () => {
         setStatus('error');
         setMessage("Sipariş numarası bulunamadı.");
         return;
+      }
+
+      // Fetch sale details for store slug and receipt info
+      try {
+        const saleInfoRes = await fetch(`/api/public/sales/${saleId}/status`);
+        const saleInfo = await saleInfoRes.json();
+        if (saleInfo?.store_slug) {
+          setStoreSlug(saleInfo.store_slug);
+        }
+        setOrderDetails(saleInfo);
+      } catch (err) {
+        console.warn("Could not fetch sale status info:", err);
       }
 
       // If it's a PayPal return
@@ -61,16 +83,24 @@ const CheckoutStatus: React.FC = () => {
     };
 
     processPayment();
-  }, [saleId, token, PayerID, searchParams]);
+  }, [saleId, token, PayerID, searchParams, slug]);
+
+  const handleReturnToStore = () => {
+    if (storeSlug) {
+      navigate(`/s/${storeSlug}`);
+    } else {
+      window.history.length > 1 ? navigate(-1) : navigate("/");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center border border-gray-100">
         {status === 'loading' && (
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-4 py-8">
             <Loader2 className="w-16 h-16 text-blue-600 animate-spin" />
             <h2 className="text-2xl font-bold text-gray-900">Ödeme İşleniyor</h2>
-            <p className="text-gray-500">Lütfen bekleyiniz, ödemeniz doğrulanıyor...</p>
+            <p className="text-gray-500 text-sm">Lütfen bekleyiniz, ödemeniz doğrulanıyor...</p>
           </div>
         )}
 
@@ -79,13 +109,27 @@ const CheckoutStatus: React.FC = () => {
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
               <CheckCircle2 className="w-12 h-12" />
             </div>
-            <h2 className="text-3xl font-black text-gray-900">Sipariş Başarılı!</h2>
-            <p className="text-gray-500">Siparişiniz başarıyla alındı ve işleme konuldu. Teşekkür ederiz!</p>
+            <h2 className="text-2xl font-black text-gray-900">Sipariş Başarılı!</h2>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              Ödemeniz ve siparişiniz başarıyla alındı. Sipariş sürecinizi üye profilinizden veya sipariş takip sayfasından takip edebilirsiniz.
+            </p>
+            {orderDetails && (
+              <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left my-2">
+                <div className="flex justify-between items-center text-xs text-slate-500 mb-1">
+                  <span>Sipariş No:</span>
+                  <span className="font-bold text-slate-900">#{orderDetails.id}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs text-slate-500">
+                  <span>Toplam Tutar:</span>
+                  <span className="font-bold text-slate-900">{orderDetails.total_amount} {orderDetails.currency || 'TL'}</span>
+                </div>
+              </div>
+            )}
             <button 
-              onClick={() => navigate(`/s/${slug}`)}
-              className="mt-6 w-full py-4 bg-gray-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2"
+              onClick={handleReturnToStore}
+              className="mt-4 w-full py-4 bg-gray-900 hover:bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ShoppingBag className="w-5 h-5" />
               Mağazaya Dön
             </button>
           </div>
@@ -96,12 +140,13 @@ const CheckoutStatus: React.FC = () => {
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-red-600 mb-2">
               <XCircle className="w-12 h-12" />
             </div>
-            <h2 className="text-3xl font-black text-gray-900">Ödeme Başarısız</h2>
-            <p className="text-gray-500">{message || "Ödeme işlemi sırasında bir sorun oluştu. Lütfen tekrar deneyiniz."}</p>
+            <h2 className="text-2xl font-black text-gray-900">Ödeme Alınamadı</h2>
+            <p className="text-gray-500 text-sm leading-relaxed">{message || "Ödeme işlemi sırasında bir sorun oluştu. Lütfen tekrar deneyiniz."}</p>
             <button 
-              onClick={() => navigate(`/s/${slug}`)}
-              className="mt-6 w-full py-4 bg-gray-900 text-white rounded-2xl font-bold"
+              onClick={handleReturnToStore}
+              className="mt-4 w-full py-4 bg-gray-900 hover:bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
             >
+              <ArrowLeft className="w-5 h-5" />
               Mağazaya Dön ve Tekrar Dene
             </button>
           </div>

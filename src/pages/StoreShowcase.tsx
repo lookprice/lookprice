@@ -609,10 +609,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
       console.error("Checkout error:", err);
       // Explanatory messages for the user
       let userMessage = err.message || (lang === "tr" ? "Ödeme işlemi sırasında bir hata oluştu." : "An error occurred during payment.");
-      if (err.message?.includes("iyzico") || err.message?.includes("payment")) {
+      if (!userMessage || userMessage.toLowerCase().includes("failed to fetch")) {
         userMessage = lang === "tr" 
-          ? "Ödeme sağlayıcısı ile ilgili bir sorun oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin veya farklı bir ödeme yöntemi seçin."
-          : "An issue occurred with the payment provider. Please check your details and try again, or select a different payment method.";
+          ? "İyzico Sanal POS hizmetimiz şu anda bakım / güncelleme aşamasındadır. Lütfen Banka Havalesi veya Kapıda Ödeme gibi alternatif ödeme yöntemlerimizi tercih ediniz."
+          : "Our virtual POS payment service is currently under maintenance. Please choose an alternative payment method such as Bank Transfer or Cash on Delivery.";
       }
       setError(userMessage);
     }

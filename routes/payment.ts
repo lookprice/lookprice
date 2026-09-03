@@ -13,24 +13,104 @@ const getIyzipay = (s: any) => new Iyzipay({
 router.post("/initialize", async (req, res) => {
   const { saleId } = req.body;
   try {
+    if (!saleId) {
+      return res.status(400).json({ error: "Sipariş ID (saleId) gereklidir." });
+    }
+
     const saleRes = await pool.query("SELECT * FROM sales WHERE id = $1", [saleId]);
-    if (saleRes.rows.length === 0) return res.status(404).json({ error: "Sale not found" });
+    if (saleRes.rows.length === 0) return res.status(404).json({ error: "Sipariş bulunamadı." });
     const sale = saleRes.rows[0];
     const { store_id, total_amount } = sale;
     
-    const storeRes = await pool.query("SELECT payment_settings FROM stores WHERE id = $1", [store_id]);
-    const settingsRaw = storeRes.rows[0].payment_settings;
-    let s = typeof settingsRaw === 'string' ? JSON.parse(settingsRaw) : settingsRaw;
+    const storeRes = await pool.query("SELECT id, name, slug, payment_settings, branding FROM stores WHERE id = $1", [store_id]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı." });
+    const storeRow = storeRes.rows[0];
+
+    const settingsRaw = storeRow?.branding?.payment_settings || storeRow?.payment_settings;
+    let s = typeof settingsRaw === 'string' ? JSON.parse(settingsRaw) : (settingsRaw || {});
     
+    const apiKey = s.apiKey || s.api_key || s.iyzico_api_key;
+    const secretKey = s.secretKey || s.secret_key || s.iyzico_secret_key;
+
+    if (!apiKey || !secretKey) {
+      console.error(`Iyzico initialization failed for store #${store_id}: API keys missing.`);
+      await pool.query(
+        "UPDATE sales SET status = 'payment_failed', notes = COALESCE(notes, '') || ' [İyzico API anahtarları tanımlanmamış]' WHERE id = $1",
+        [saleId]
+      );
+      return res.status(400).json({ 
+        success: false, 
+        error: "İyzico Sanal POS hizmetimiz şu anda bakım / güncelleme aşamasındadır. Lütfen diğer ödeme alternatiflerini (Banka Havalesi / Kapıda Ödeme) kullanınız.",
+        isMaintenance: true
+      });
+    }
+
     const iyzipay = getIyzipay(s);
-    const formattedPrice = Number(total_amount).toFixed(2);
+    const formattedPrice = Number(total_amount || 0).toFixed(2);
     const uniqueOrderId = `${saleId}-${Date.now()}`;
     
-    // Split customer name
-    const fullName = (sale.customer_name || "Guest User").trim();
-    const nameParts = fullName.split(" ");
-    const firstName = nameParts[0] || "Guest";
-    const lastName = nameParts.slice(1).join(" ") || "User";
+    // Split & sanitize customer name
+    const rawFullName = (sale.customer_name || "Müşteri").trim();
+    const nameParts = rawFullName.split(/\s+/).filter(Boolean);
+    const firstName = (nameParts[0] || "Musteri").replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ\s]/g, '') || "Musteri";
+    const lastName = (nameParts.slice(1).join(" ") || "Kullanici").replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ\s]/g, '') || "Kullanici";
+
+    // Clean email
+    const rawEmail = (sale.customer_email || "").trim();
+    const email = (rawEmail.includes("@") && rawEmail.includes(".")) ? rawEmail : "musteri@lookprice.net";
+
+    // Clean address & city
+    const rawAddress = (sale.customer_address || "").trim();
+    const address = rawAddress.length >= 3 ? rawAddress.substring(0, 200) : "Merkez Adres";
+    const city = "Istanbul";
+
+    // Clean TC/Identity
+    const rawTc = (sale.customer_tc_id || sale.customer_phone || "").replace(/\D/g, '');
+    const identityNumber = rawTc.length === 11 ? rawTc : "11111111111";
+
+    // Clean IP
+    const rawIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || '127.0.0.1';
+    const ip = rawIp.includes(':') ? '127.0.0.1' : rawIp;
+
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers.host;
+    const callbackUrl = `${protocol}://${host}/api/payment/webhook?saleId=${saleId}`;
+
+    // Prepare basket items
+    const itemsRes = await pool.query("SELECT * FROM sale_items WHERE sale_id = $1", [saleId]);
+    let basketItems: any[] = [];
+    if (itemsRes.rows.length > 0) {
+      basketItems = itemsRes.rows.map((it: any, idx: number) => {
+        const itemPrice = Number(it.total_price || (Number(it.unit_price || 0) * Number(it.quantity || 1)) || 0).toFixed(2);
+        return {
+          id: String(it.product_id || it.id || (idx + 1)),
+          name: (it.product_name || `Ürün ${idx + 1}`).replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ\s\-_.,]/g, '').substring(0, 80) || `Urun ${idx + 1}`,
+          category1: 'Genel',
+          itemType: Iyzipay.BASKET_ITEM_TYPE.PHYSICAL,
+          price: itemPrice
+        };
+      });
+
+      // Verify that the sum of basket items exactly equals formattedPrice (Iyzico constraint)
+      const sumItems = basketItems.reduce((acc: number, cur: any) => acc + Number(cur.price), 0);
+      if (Math.abs(sumItems - Number(formattedPrice)) > 0.05 || Number(formattedPrice) <= 0) {
+        basketItems = [{
+          id: String(saleId),
+          name: `Sipariş #${saleId}`,
+          category1: 'Genel',
+          itemType: Iyzipay.BASKET_ITEM_TYPE.PHYSICAL,
+          price: formattedPrice
+        }];
+      }
+    } else {
+      basketItems = [{
+        id: String(saleId),
+        name: `Sipariş #${saleId}`,
+        category1: 'Genel',
+        itemType: Iyzipay.BASKET_ITEM_TYPE.PHYSICAL,
+        price: formattedPrice
+      }];
+    }
 
     const request = {
       locale: Iyzipay.LOCALE.TR,
@@ -40,29 +120,68 @@ router.post("/initialize", async (req, res) => {
       currency: Iyzipay.CURRENCY.TRY,
       basketId: uniqueOrderId,
       paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
-      callbackUrl: `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/payment/webhook?saleId=${saleId}`,
+      callbackUrl: callbackUrl,
       buyer: { 
         id: (sale.customer_id || '1').toString(), 
         name: firstName, 
         surname: lastName, 
-        email: sale.customer_email || 'guest@example.com', 
-        identityNumber: '11111111111', 
-        registrationAddress: sale.customer_address || 'Address', 
-        city: 'Istanbul', 
+        email: email, 
+        identityNumber: identityNumber, 
+        registrationAddress: address, 
+        city: city, 
         country: 'Turkey',
-        ip: req.ip || '127.0.0.1'
+        ip: ip
       },
-      shippingAddress: { contactName: fullName, city: 'Istanbul', country: 'Turkey', address: sale.customer_address || 'Address' },
-      billingAddress: { contactName: fullName, city: 'Istanbul', country: 'Turkey', address: sale.customer_address || 'Address' },
-      basketItems: [{ id: '1', name: `Order #${saleId}`, category1: 'General', itemType: Iyzipay.BASKET_ITEM_TYPE.PHYSICAL, price: formattedPrice }]
+      shippingAddress: { contactName: `${firstName} ${lastName}`, city: city, country: 'Turkey', address: address },
+      billingAddress: { contactName: `${firstName} ${lastName}`, city: city, country: 'Turkey', address: address },
+      basketItems: basketItems
     };
-    iyzipay.checkoutFormInitialize.create(request, (err, result: any) => {
-      if (err) return res.status(500).json({ error: "Ödeme başlatılamadı (Teknik Hata)." });
-      if (result.status !== 'success') return res.status(500).json({ error: result.errorMessage || "Iyzico başlatma hatası." });
-      res.json({ success: true, paymentPageUrl: result.paymentPageUrl });
+
+    console.log(`[Iyzico] Initializing checkout form for Sale #${saleId} (Total: ${formattedPrice} TRY)...`);
+
+    iyzipay.checkoutFormInitialize.create(request, async (err, result: any) => {
+      if (err) {
+        console.error("[Iyzico] Error creating checkout form:", err);
+        await pool.query(
+          "UPDATE sales SET status = 'payment_failed', notes = COALESCE(notes, '') || ' [İyzico Hatası: ' || $1 || ']' WHERE id = $2",
+          [err.message || 'Teknik Hata', saleId]
+        );
+        return res.status(500).json({ 
+          success: false, 
+          error: "İyzico Sanal POS hizmetimiz şu anda bakım / güncelleme aşamasındadır. Lütfen diğer ödeme alternatiflerini (Banka Havalesi / Kapıda Ödeme) kullanınız.",
+          isMaintenance: true 
+        });
+      }
+
+      if (result.status !== 'success') {
+        console.error("[Iyzico] API Rejected Initialization:", result.errorMessage, result.errorCode);
+        await pool.query(
+          "UPDATE sales SET status = 'payment_failed', notes = COALESCE(notes, '') || ' [İyzico: ' || $1 || ']' WHERE id = $2",
+          [result.errorMessage || 'Iyzico başlatılamadı', saleId]
+        );
+        return res.status(400).json({ 
+          success: false, 
+          error: "İyzico Sanal POS hizmetimiz şu anda bakım / güncelleme aşamasındadır. Lütfen diğer ödeme alternatiflerini (Banka Havalesi / Kapıda Ödeme) kullanınız.",
+          details: result.errorMessage,
+          isMaintenance: true 
+        });
+      }
+
+      console.log(`[Iyzico] Checkout form created successfully for Sale #${saleId}. Payment URL generated.`);
+      res.json({ 
+        success: true, 
+        paymentPageUrl: result.paymentPageUrl,
+        payWithIyzicoPageUrl: result.payWithIyzicoPageUrl,
+        token: result.token
+      });
     });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("[Iyzico] Initialization Exception:", e);
+    res.status(500).json({ 
+      success: false, 
+      error: "İyzico Sanal POS hizmetimiz şu anda bakım / güncelleme aşamasındadır. Lütfen diğer ödeme alternatiflerini kullanınız.",
+      details: e.message 
+    });
   }
 });
 

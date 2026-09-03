@@ -2,6 +2,7 @@ import express from "express";
 import { pool, addStockMovement } from "../../models/db";
 import { getEInvoiceService } from "../einvoice";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
+import { findMatchingProduct, saveSupplierMapping } from "./invoiceMatching";
 
 const router = express.Router();
 
@@ -9,6 +10,10 @@ export async function initPurchaseInvoiceSchema() {
   try {
     await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(255);`);
     await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_name VARCHAR(255);`);
+    await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS product_code VARCHAR(255);`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_code VARCHAR(255);`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku VARCHAR(255);`);
+    await pool.query(`ALTER TABLE supplier_product_mappings ADD COLUMN IF NOT EXISTS supplier_product_code VARCHAR(255);`);
   } catch (e) {
     console.error("Failed to alter purchase_invoice_items table columns:", e);
   }
@@ -109,28 +114,47 @@ export async function initPurchaseInvoiceSchema() {
   }
 }
 
-async function resolveProductInfo(clientOrPool: any, storeId: number, productId: any, barcode: any) {
+async function resolveProductInfo(clientOrPool: any, storeId: number, productId: any, barcode: any, productCode?: any) {
   let resolvedId = productId ? Number(productId) : null;
   let resolvedBarcode = barcode ? String(barcode).trim() : '';
+  let resolvedCode = productCode ? String(productCode).trim() : '';
 
-  if ((!resolvedId || isNaN(resolvedId)) && resolvedBarcode) {
-    const pRes = await clientOrPool.query(
-      "SELECT id, barcode FROM products WHERE store_id = $1 AND barcode = $2 LIMIT 1",
-      [storeId, resolvedBarcode]
-    );
-    if (pRes.rows.length > 0) {
-      resolvedId = pRes.rows[0].id;
+  if ((!resolvedId || isNaN(resolvedId))) {
+    // 1. Try matching barcode or product_code by barcode
+    if (resolvedBarcode) {
+      const pRes = await clientOrPool.query(
+        "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR product_code = $2 OR sku = $2) LIMIT 1",
+        [storeId, resolvedBarcode]
+      );
+      if (pRes.rows.length > 0) {
+        resolvedId = pRes.rows[0].id;
+        if (!resolvedBarcode) resolvedBarcode = pRes.rows[0].barcode || '';
+        if (!resolvedCode) resolvedCode = pRes.rows[0].product_code || '';
+      }
     }
-  } else if (resolvedId && !resolvedBarcode) {
+    // 2. Try matching by productCode / SKU if still unresolved
+    if ((!resolvedId || isNaN(resolvedId)) && resolvedCode) {
+      const pRes = await clientOrPool.query(
+        "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE store_id = $1 AND (LOWER(product_code) = LOWER($2) OR LOWER(sku) = LOWER($2) OR barcode = $2) LIMIT 1",
+        [storeId, resolvedCode]
+      );
+      if (pRes.rows.length > 0) {
+        resolvedId = pRes.rows[0].id;
+        if (!resolvedBarcode) resolvedBarcode = pRes.rows[0].barcode || '';
+        if (!resolvedCode) resolvedCode = pRes.rows[0].product_code || '';
+      }
+    }
+  } else if (resolvedId && (!resolvedBarcode || !resolvedCode)) {
     const pRes = await clientOrPool.query(
-      "SELECT barcode FROM products WHERE id = $1 LIMIT 1",
+      "SELECT barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE id = $1 LIMIT 1",
       [resolvedId]
     );
     if (pRes.rows.length > 0) {
-      resolvedBarcode = pRes.rows[0].barcode || '';
+      if (!resolvedBarcode) resolvedBarcode = pRes.rows[0].barcode || '';
+      if (!resolvedCode) resolvedCode = pRes.rows[0].product_code || '';
     }
   }
-  return { productId: resolvedId, barcode: resolvedBarcode };
+  return { productId: resolvedId, barcode: resolvedBarcode, productCode: resolvedCode };
 }
 
 // --- Sales Invoices ---
@@ -1076,13 +1100,18 @@ router.get("/purchase/:id", async (req: any, res) => {
     const invoice = invoiceResult.rows[0];
     
     let itemsResult = await pool.query(
-      "SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1",
+      `SELECT pii.*, p.product_code as system_product_code, p.sku as system_sku
+       FROM purchase_invoice_items pii
+       LEFT JOIN products p ON pii.product_id = p.id
+       WHERE pii.purchase_invoice_id = $1
+       ORDER BY pii.id ASC`,
       [req.params.id]
     );
     
     let items = itemsResult.rows;
 
-    if (invoice.ettn && (!items || items.length === 0 || (items.length === 1 && (items[0].product_name === 'Bilinmeyen Ürün' || items[0].product_name === 'Bilinmeyen' || items[0].barcode?.startsWith('AUTO-') || items[0].product_name?.includes('ZZ-KUR') || items[0].product_name?.includes('FARKI'))))) {
+    // Only fetch from e-invoice service if there are NO items yet recorded for this invoice!
+    if (invoice.ettn && (!items || items.length === 0)) {
        try {
          const service = await getEInvoiceService(invoice.store_id);
          if (service) {
@@ -1093,14 +1122,17 @@ router.get("/purchase/:id", async (req: any, res) => {
                 rawLines = [rawLines];
               }
               if (Array.isArray(rawLines) && rawLines.length > 0) {
-                 await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [invoice.id]);
-                 
                  for (const line of rawLines) {
                    const productName = line.detailItem?.itemName || line.itemName || line.Item?.Name?.['#text'] || line.Item?.Name || line.Name || line.name || 'Bilinmeyen Ürün';
                    
-                   let extractedCodeObj = line.detailItem?.buyersItemIdentificationId || line.detailItem?.sellersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.detailItem?.sellersItemIdentification || line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.sellersItemIdentification || line.buyersItemIdentification;
-                   let productBarcodeCode = typeof extractedCodeObj === 'string' ? extractedCodeObj.trim() : (typeof extractedCodeObj === 'number' ? String(extractedCodeObj) : null);
-                   if (productBarcodeCode === '') productBarcodeCode = null;
+                   const sellerCodeRaw = line.detailItem?.sellersItemIdentificationId || line.detailItem?.sellersItemIdentification || line.Item?.SellersItemIdentification?.ID?.['#text'] || line.Item?.SellersItemIdentification?.ID || line.sellersItemIdentification;
+                   const sellerCode = typeof sellerCodeRaw === 'string' ? sellerCodeRaw.trim() : (typeof sellerCodeRaw === 'number' ? String(sellerCodeRaw) : null);
+
+                   const buyerCodeRaw = line.detailItem?.buyersItemIdentificationId || line.detailItem?.buyersItemIdentification || line.Item?.BuyersItemIdentification?.ID?.['#text'] || line.Item?.BuyersItemIdentification?.ID || line.buyersItemIdentification;
+                   const buyerCode = typeof buyerCodeRaw === 'string' ? buyerCodeRaw.trim() : (typeof buyerCodeRaw === 'number' ? String(buyerCodeRaw) : null);
+
+                   const barcodeRaw = line.Item?.StandardItemIdentification?.ID?.['#text'] || line.Item?.StandardItemIdentification?.ID || line.Item?.ItemInstance?.ProductTraceID;
+                   const barcode = typeof barcodeRaw === 'string' ? barcodeRaw.trim() : (typeof barcodeRaw === 'number' ? String(barcodeRaw) : null);
 
                    const qtyRaw = line.invoicedQuantity || line.Quantity || line.quantity || line.InvoicedQuantity?.['#text'] || line.InvoicedQuantity || 1;
                    const qty = Number(String(qtyRaw).replace(',', '.')) || 1;
@@ -1114,88 +1146,91 @@ router.get("/purchase/:id", async (req: any, res) => {
                    const lineTotal = qty * up;
                    const taxAmount = (lineTotal * tr) / 100;
 
-                   let prodMatch;
-                   if (productBarcodeCode) {
-                      prodMatch = await pool.query(
-                        "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3 OR barcode = $4)",
-                        [invoice.store_id, productName, productName, productBarcodeCode]
-                      );
-                   } else {
-                      prodMatch = await pool.query(
-                        "SELECT id, barcode FROM products WHERE store_id = $1 AND (LOWER(name) = LOWER($2) OR barcode = $3)",
-                        [invoice.store_id, productName, productName]
-                      );
-                   }
-                   
-                   let productId = prodMatch.rows.length > 0 ? prodMatch.rows[0].id : null;
-                   let finalBarcode = prodMatch.rows.length > 0 ? prodMatch.rows[0].barcode : productBarcodeCode;
+                   // 5-Tier Intelligent matching:
+                   const match = await findMatchingProduct(pool, invoice.store_id, {
+                     supplierVkn: invoice.tax_number,
+                     productName,
+                     barcode,
+                     productCode: sellerCode || buyerCode,
+                     sellerCode,
+                     buyerCode
+                   });
+
+                   let productId = match ? match.productId : null;
+                   let finalBarcode = match ? match.barcode : barcode;
+                   let finalProductCode = match ? match.productCode : (sellerCode || buyerCode || null);
 
                    if (!productId) {
-                     finalBarcode = productBarcodeCode ? productBarcodeCode : `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-                     const existingProd = await pool.query("SELECT id FROM products WHERE barcode = $1 AND store_id = $2", [finalBarcode, invoice.store_id]);
+                     finalBarcode = barcode || (sellerCode && /^[0-9]{8,14}$/.test(sellerCode) ? sellerCode : null);
+                     if (!finalBarcode) {
+                       finalBarcode = `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+                     }
+                     const existingProd = await pool.query(
+                       "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
+                       [invoice.store_id, finalBarcode, finalProductCode || '__NONE__']
+                     );
                      if (existingProd.rows.length > 0) {
                        productId = existingProd.rows[0].id;
+                       finalBarcode = existingProd.rows[0].barcode;
+                       finalProductCode = existingProd.rows[0].product_code || finalProductCode;
                      } else {
                        const newProdRes = await pool.query(
                          `INSERT INTO products 
-                          (store_id, name, barcode, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
-                          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-                         [invoice.store_id, productName, finalBarcode, 0, up, tr, 0, invoice.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
+                          (store_id, name, barcode, product_code, sku, price, cost_price, tax_rate, stock_quantity, currency, product_type, labels) 
+                          VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+                         [invoice.store_id, productName, finalBarcode, finalProductCode, 0, up, tr, 0, invoice.currency || 'TRY', 'product', JSON.stringify(["yeni_fatura_urunu"])]
                        );
                        productId = newProdRes.rows[0].id;
                      }
                    }
 
+                   // Auto save supplier mapping
+                   if (invoice.tax_number && productName && productId) {
+                     await saveSupplierMapping(pool, invoice.store_id, invoice.tax_number, productName, productId, finalProductCode);
+                   }
+
                    await pool.query(
                      `INSERT INTO purchase_invoice_items 
-                      (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) 
-                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                     [invoice.id, productId, productName, finalBarcode, qty, up, tr, taxAmount, lineTotal]
+                      (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price) 
+                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                     [invoice.id, productId, productName, finalBarcode, finalProductCode, qty, up, tr, taxAmount, lineTotal]
                    );
 
-                   // Update stock if product exists
-                   if (productId) {
-                     const prodInfo = await pool.query("SELECT volume_ml, unit FROM products WHERE id = $1", [productId]);
-                     const volMl = Number(prodInfo.rows[0]?.volume_ml) || 0;
-                     const baseUnit = String(prodInfo.rows[0]?.unit || '').toLowerCase();
-                     
-                     let effectiveQty = qty;
-                     let descExtra = "";
-                     
-                     if (volMl > 0 && ['ml', 'gr', 'g', 'cc'].includes(baseUnit)) {
-                       const isLikelyBulk = /şişe|kasa|paket|bottle|case|pack|cl/i.test(productName);
-                       if (isLikelyBulk) {
-                         effectiveQty = qty * volMl;
-                         descExtra = ` (${qty} x ${volMl}ml)`;
-                       }
-                     }
-
+                   // Check if stock movement already recorded for this invoice to prevent double addition
+                   const existingMov = await pool.query(
+                     "SELECT 1 FROM stock_movements WHERE store_id = $1 AND related_id = $2 AND movement_type = 'purchase_invoice' LIMIT 1",
+                     [invoice.store_id, invoice.id]
+                   );
+                   if (productId && existingMov.rows.length === 0) {
                      await pool.query(
                        "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4",
-                       [effectiveQty, up, invoice.currency || 'TRY', productId]
+                       [qty, up, invoice.currency || 'TRY', productId]
                      );
-                     
-                      await addStockMovement(
-                        pool,
-                        invoice.store_id,
-                        productId,
-                        'in',
-                        effectiveQty,
-                        'purchase_invoice',
-                        `E-Fatura Detay Sorgulama: ${invoice.invoice_number}${descExtra}`,
-                        up,
-                        invoice.supplier_name || invoice.company_name,
-                        invoice.currency,
-                        null,
-                        invoice.id,
-                        'purchase',
-                        invoice.invoice_number
-                      );
+                     await addStockMovement(
+                       pool,
+                       invoice.store_id,
+                       productId,
+                       'in',
+                       qty,
+                       'purchase_invoice',
+                       `E-Fatura İlk İçe Aktarma: ${invoice.invoice_number}`,
+                       up,
+                       invoice.supplier_name || invoice.company_name,
+                       invoice.currency,
+                       null,
+                       invoice.id,
+                       'purchase',
+                       invoice.invoice_number
+                     );
                    }
                  }
 
                  const refetched = await pool.query(
-                   "SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1",
+                   `SELECT pii.*, p.product_code as system_product_code, p.sku as system_sku
+                    FROM purchase_invoice_items pii
+                    LEFT JOIN products p ON pii.product_id = p.id
+                    WHERE pii.purchase_invoice_id = $1
+                    ORDER BY pii.id ASC`,
                    [invoice.id]
                  );
                  items = refetched.rows;
@@ -1358,18 +1393,20 @@ router.post("/purchase", async (req: any, res) => {
         // For expense invoices, do NOT link to products, do NOT track stock!
         let resolvedProductId = null;
         let resolvedBarcode = null;
+        let resolvedProductCode = null;
         if (!finalIsExpense) {
-          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode);
+          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode, item.product_code);
           resolvedProductId = resProd.productId;
           resolvedBarcode = resProd.barcode;
+          resolvedProductCode = resProd.productCode || item.product_code || null;
         }
 
         await pool.query(
           `INSERT INTO purchase_invoice_items 
-           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+           (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
           [
-            invoice.id, resolvedProductId, item.product_name || 'Bilinmeyen Ürün', resolvedBarcode || null,
+            invoice.id, resolvedProductId, item.product_name || 'Bilinmeyen Ürün', resolvedBarcode || null, resolvedProductCode,
             qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice,
             item.variant_id || null, item.variant_name || null
           ]
@@ -1377,17 +1414,7 @@ router.post("/purchase", async (req: any, res) => {
 
         if (resolvedProductId && !finalIsExpense) {
           if (tax_number && item.product_name) {
-            try {
-              await pool.query(
-                `INSERT INTO supplier_product_mappings (store_id, supplier_vkn, supplier_product_name, product_id) 
-                 VALUES ($1, $2, $3, $4) 
-                 ON CONFLICT (store_id, supplier_vkn, supplier_product_name) 
-                 DO UPDATE SET product_id = EXCLUDED.product_id`,
-                [storeId, tax_number, item.product_name, resolvedProductId]
-              );
-            } catch(err) {
-              console.error("Failed to save supplier mapping:", err);
-            }
+            await saveSupplierMapping(pool, storeId, tax_number, item.product_name, resolvedProductId, resolvedProductCode);
           }
 
           const qtyToStock = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
@@ -1535,9 +1562,13 @@ router.put("/purchase/:id", async (req: any, res) => {
     }
 
     // Deduct old items stock before replacing them
-    const oldItems = await pool.query("SELECT product_id, barcode, quantity, system_quantity, variant_id, variant_name FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
+    const oldItems = await pool.query("SELECT product_id, barcode, product_code, quantity, system_quantity, variant_id, variant_name FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     for (const oldItem of oldItems.rows) {
-      const { productId: oldResolvedId } = await resolveProductInfo(pool, storeId, oldItem.product_id, oldItem.barcode);
+      let oldResolvedId = oldItem.product_id;
+      if (!oldResolvedId) {
+        const { productId } = await resolveProductInfo(pool, storeId, null, oldItem.barcode, oldItem.product_code);
+        oldResolvedId = productId;
+      }
       if (oldResolvedId) {
         const qtyToRevert = oldItem.system_quantity != null ? Number(oldItem.system_quantity) : Number(oldItem.quantity || 1);
         await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [qtyToRevert, oldResolvedId]);
@@ -1635,18 +1666,20 @@ router.put("/purchase/:id", async (req: any, res) => {
         // For expense invoices, do NOT link to products, do NOT track stock!
         let resolvedProductId = null;
         let resolvedBarcode = null;
+        let resolvedProductCode = null;
         if (!finalIsExpense) {
-          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode);
+          const resProd = await resolveProductInfo(pool, storeId, item.product_id, item.barcode, item.product_code);
           resolvedProductId = resProd.productId;
           resolvedBarcode = resProd.barcode;
+          resolvedProductCode = resProd.productCode || item.product_code || null;
         }
 
         await pool.query(
           `INSERT INTO purchase_invoice_items 
-           (purchase_invoice_id, product_id, product_name, barcode, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+           (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_code, system_quantity, system_unit_code, unit_price, tax_rate, tax_amount, total_price, variant_id, variant_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
           [
-            id, resolvedProductId, item.product_name || 'Bilinmeyen Ürün', resolvedBarcode || null,
+            id, resolvedProductId, item.product_name || 'Bilinmeyen Ürün', resolvedBarcode || null, resolvedProductCode,
             qty, item.unit_code || 'Adet', item.system_quantity || null, item.system_unit_code || null, price, taxRate, itemTaxAmount, itemTotalPrice,
             item.variant_id || null, item.variant_name || null
           ]
@@ -1654,17 +1687,7 @@ router.put("/purchase/:id", async (req: any, res) => {
 
         if (resolvedProductId && !finalIsExpense) {
           if (tax_number && item.product_name) {
-            try {
-              await pool.query(
-                `INSERT INTO supplier_product_mappings (store_id, supplier_vkn, supplier_product_name, product_id) 
-                 VALUES ($1, $2, $3, $4) 
-                 ON CONFLICT (store_id, supplier_vkn, supplier_product_name) 
-                 DO UPDATE SET product_id = EXCLUDED.product_id`,
-                [storeId, tax_number, item.product_name, resolvedProductId]
-              );
-            } catch(err) {
-              console.error("Failed to save supplier mapping:", err);
-            }
+            await saveSupplierMapping(pool, storeId, tax_number, item.product_name, resolvedProductId, resolvedProductCode);
           }
 
           const qtyToStock = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);

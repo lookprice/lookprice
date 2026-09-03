@@ -84,7 +84,7 @@ router.get("/", async (req: any, res) => {
       const searchTerms = search.split(/\s+/).filter(Boolean);
       searchTerms.forEach(term => {
         const pIdx = params.length + 1;
-        query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)})`;
+        query += ` AND (${getTurkishSearchSnippet('p.name', pIdx)} OR ${getTurkishSearchSnippet('p.barcode', pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.product_code, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sku, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.sub_category, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.description, '')", pIdx)} OR ${getTurkishSearchSnippet("COALESCE(p.brand, '')", pIdx)})`;
         params.push(normalizeTurkishParam(term));
       });
     }
@@ -106,7 +106,7 @@ router.post("/", async (req: any, res) => {
   if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
 
   const { 
-    barcode, name, price, currency, cost_price, cost_currency, description, 
+    barcode, product_code, sku, name, price, currency, cost_price, cost_currency, description, 
     stock_quantity, min_stock_level, unit, category, sub_category, 
     category_2, sub_category_2, has_variants, variants,
     brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
@@ -134,19 +134,20 @@ router.post("/", async (req: any, res) => {
     const hasVariantsVal = has_variants === true || has_variants === 'true' || has_variants === 'on';
     const variantsVal = JSON.stringify(Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []));
     const allergensVal = JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : []));
+    const finalProductCode = (product_code || sku || '').trim() || null;
 
     const result = await pool.query(`
       INSERT INTO products (
-        store_id, barcode, name, price, currency, cost_price, cost_currency, description, 
+        store_id, barcode, product_code, sku, name, price, currency, cost_price, cost_currency, description, 
         stock_quantity, min_stock_level, unit, category, sub_category, category_2, sub_category_2,
         has_variants, variants, brand, author, labels, image_url, is_web_sale, is_bestseller, 
         product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, is_sellable,
         allergens, calories, prep_time_min, portion_size, updated_at
       ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31::jsonb, $32, $33, $34, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb, $34, $35, $36, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
-      storeId, String(barcode), name, parseFloat(price), currency || 'TRY', 
+      storeId, String(barcode), finalProductCode, finalProductCode, name, parseFloat(price), currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
       category || '', sub_category || '', category_2 || '', sub_category_2 || '',
@@ -351,7 +352,7 @@ router.put("/:id", async (req: any, res) => {
 
   const { id } = req.params;
   const { 
-    barcode, name, price, currency, cost_price, cost_currency, description, 
+    barcode, product_code, sku, name, price, currency, cost_price, cost_currency, description, 
     stock_quantity, min_stock_level, unit, category, sub_category, 
     category_2, sub_category_2, has_variants, variants,
     brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
@@ -360,7 +361,7 @@ router.put("/:id", async (req: any, res) => {
   } = req.body;
 
   try {
-    const existingProductRes = await pool.query("SELECT labels, barcode, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const existingProductRes = await pool.query("SELECT labels, barcode, product_code, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (existingProductRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
     let existingLabels = existingProductRes.rows[0]?.labels || [];
     let existingIsSellable = existingProductRes.rows[0]?.is_sellable;
@@ -380,21 +381,22 @@ router.put("/:id", async (req: any, res) => {
     const finalHasVariants = has_variants !== undefined ? (has_variants === true || has_variants === 'true' || has_variants === 'on') : false;
     const finalVariants = JSON.stringify(Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []));
     const finalAllergens = allergens !== undefined ? JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : [])) : JSON.stringify(existingProductRes.rows[0]?.allergens || []);
+    const finalProductCode = (product_code !== undefined ? product_code : (sku !== undefined ? sku : existingProductRes.rows[0]?.product_code)) || null;
 
     await pool.query(`
       UPDATE products SET 
-        barcode = $1, name = $2, price = $3, currency = $4, 
-        cost_price = $5, cost_currency = $6, description = $7, 
-        stock_quantity = $8, min_stock_level = $9, unit = $10, 
-        category = $11, sub_category = $12, category_2 = $13, sub_category_2 = $14,
-        has_variants = $15, variants = $16::jsonb, brand = $17, author = $18, 
-        labels = $19, image_url = $20, is_web_sale = $21, is_bestseller = $22, product_type = $23,
-        price_2 = $24, price_2_currency = $25, tax_rate = $26, shipping_profile_id = $27, volume_ml = $28, is_sellable = $29,
-        allergens = $30::jsonb, calories = $31, prep_time_min = $32, portion_size = $33,
+        barcode = $1, product_code = $2, sku = $2, name = $3, price = $4, currency = $5, 
+        cost_price = $6, cost_currency = $7, description = $8, 
+        stock_quantity = $9, min_stock_level = $10, unit = $11, 
+        category = $12, sub_category = $13, category_2 = $14, sub_category_2 = $15,
+        has_variants = $16, variants = $17::jsonb, brand = $18, author = $19, 
+        labels = $20, image_url = $21, is_web_sale = $22, is_bestseller = $23, product_type = $24,
+        price_2 = $25, price_2_currency = $26, tax_rate = $27, shipping_profile_id = $28, volume_ml = $29, is_sellable = $30,
+        allergens = $31::jsonb, calories = $32, prep_time_min = $33, portion_size = $34,
         updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $34 AND store_id = $35
+      WHERE id = $35 AND store_id = $36
     `, [
-      String(barcode), name, parseFloat(price), currency || 'TRY', 
+      String(barcode), finalProductCode, name, parseFloat(price), currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
       category || '', sub_category || '', category_2 || '', sub_category_2 || '',

@@ -312,7 +312,7 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                 <Package className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                 <input
                   type="text"
-                  placeholder={isTr ? "Ürün adı veya barkod ile ara..." : "Search by product name or barcode..."}
+                  placeholder={isTr ? "Ürün adı, barkod veya ürün kodu ile ara..." : "Search by product name, barcode or product code..."}
                   value={productSearch}
                   onChange={(e) => {
                     setProductSearch(e.target.value);
@@ -368,7 +368,10 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                                     </span>
                                   )}
                                 </p>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">{p.barcode || '-'}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                  {p.barcode || '-'}
+                                  {p.product_code ? ` • Kod: ${p.product_code}` : ''}
+                                </p>
                               </div>
                             </div>
                             <div className="text-right">
