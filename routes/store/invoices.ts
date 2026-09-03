@@ -935,6 +935,39 @@ router.post("/sales/:id/create-from-sale", async (req: any, res) => {
     if (saleRes.rows.length === 0) throw new Error("Sale not found");
     const sale = saleRes.rows[0];
 
+    // Check if invoice already exists for this sale
+    const existingInv = await client.query("SELECT id, invoice_number FROM sales_invoices WHERE sale_id = $1 AND store_id = $2", [id, storeId]);
+    if (existingInv.rows.length > 0) {
+      await client.query("COMMIT");
+      return res.json({ success: true, invoiceId: existingInv.rows[0].id, invoiceNumber: existingInv.rows[0].invoice_number, alreadyExists: true });
+    }
+
+    let customerEmail = sale.customer_email || '';
+    let customerTaxNumber = '';
+    let customerTaxOffice = '';
+    let customerAddress = sale.customer_address || '';
+
+    // Extract details from notes if formatted
+    if (sale.notes) {
+      const emailMatch = sale.notes.match(/E-posta:\s*([^\s|]+)/i);
+      if (emailMatch && !customerEmail) customerEmail = emailMatch[1].trim();
+      const tcMatch = sale.notes.match(/TC\/VKN:\s*([^\s|]+)/i);
+      if (tcMatch) customerTaxNumber = tcMatch[1].trim();
+      const taxOfficeMatch = sale.notes.match(/Vergi Dairesi:\s*([^|]+)/i);
+      if (taxOfficeMatch) customerTaxOffice = taxOfficeMatch[1].trim();
+    }
+
+    if (sale.customer_id) {
+      const custRes = await client.query("SELECT * FROM customers WHERE id = $1", [sale.customer_id]);
+      if (custRes.rows.length > 0) {
+        const c = custRes.rows[0];
+        if (!customerEmail) customerEmail = c.email || '';
+        if (!customerTaxNumber) customerTaxNumber = c.tax_number || c.tc_id || '';
+        if (!customerTaxOffice) customerTaxOffice = c.tax_office || '';
+        if (!customerAddress) customerAddress = c.address || '';
+      }
+    }
+
     const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
     
     let total_amount = 0;
@@ -946,7 +979,11 @@ router.post("/sales/:id/create-from-sale", async (req: any, res) => {
       let taxRate = 20; 
       if (item.product_id) {
         const prodRes = await client.query("SELECT tax_rate FROM products WHERE id = $1", [item.product_id]);
-        if (prodRes.rows.length > 0) taxRate = Number(prodRes.rows[0].tax_rate || 20);
+        if (prodRes.rows.length > 0 && prodRes.rows[0].tax_rate != null) {
+          taxRate = Number(prodRes.rows[0].tax_rate);
+        }
+      } else if (item.tax_rate != null) {
+        taxRate = Number(item.tax_rate);
       }
 
       const kdvDahilTotal = Number(item.quantity) * Number(item.unit_price);
@@ -971,11 +1008,18 @@ router.post("/sales/:id/create-from-sale", async (req: any, res) => {
       });
     }
 
+    const invoiceNumber = `INV-${new Date().getFullYear()}${String(sale.id).padStart(6, '0')}`;
+
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, is_tax_inclusive, payment_method, payment_status) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
-      [storeId, id, sale.company_id || null, sale.customer_id || null, `INV-${Date.now()}`, new Date(), total_amount, tax_amount, grand_total, sale.currency || 'TRY', sale.exchange_rate || 1, `Satış #${id} üzerinden oluşturuldu.`, 'manual', 'draft', sale.payment_method || 'cash', true]
+        (store_id, sale_id, company_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, is_tax_inclusive, customer_email, tax_number, tax_office, address) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id, invoice_number`,
+      [
+        storeId, id, sale.company_id || null, sale.customer_id || null, invoiceNumber, new Date(),
+        total_amount, tax_amount, grand_total, sale.currency || 'TRY', sale.exchange_rate || 1,
+        `Web Satışı #${id} üzerinden otomatik oluşturuldu.`, 'manual', 'draft', sale.payment_method || 'credit_card',
+        true, customerEmail, customerTaxNumber, customerTaxOffice, customerAddress
+      ]
     );
 
     const invoiceId = invoiceResult.rows[0].id;
@@ -989,8 +1033,14 @@ router.post("/sales/:id/create-from-sale", async (req: any, res) => {
       );
     }
 
+    // Link back to sales record
+    await client.query(
+      "UPDATE sales SET sales_invoice_id = $1, sales_invoice_number = $2 WHERE id = $3",
+      [invoiceId, invoiceNumber, id]
+    );
+
     await client.query("COMMIT");
-    res.json({ success: true, invoiceId });
+    res.json({ success: true, invoiceId, invoiceNumber });
   } catch (e: any) {
     await client.query("ROLLBACK");
     res.status(400).json({ error: e.message });

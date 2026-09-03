@@ -29,7 +29,8 @@ import {
   GitBranch,
   Play,
   Tv,
-  Youtube
+  Youtube,
+  MessageCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -156,9 +157,10 @@ export const LandingPage = () => {
   }, [dbVideos, lang]);
 
   useEffect(() => {
-    if (location.state?.openDemo) {
+    const searchParams = new URLSearchParams(location.search);
+    if (location.state?.openDemo || searchParams.get('openDemo') === 'true') {
       setShowDemoModal(true);
-      window.history.replaceState({}, document.title);
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [location]);
 
@@ -166,7 +168,7 @@ export const LandingPage = () => {
     if (isHovered) return;
     const interval = setInterval(() => {
       setActiveSlide((prev) => (prev + 1) % 4);
-    }, 8000);
+    }, 4000);
     return () => clearInterval(interval);
   }, [isHovered]);
 
@@ -1037,13 +1039,27 @@ export const LandingPage = () => {
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={demoStatus.type === 'loading'}
-                    className="w-full py-4 bg-white hover:bg-indigo-600 hover:text-white text-black rounded-xl font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 mt-4"
-                  >
-                    {demoStatus.type === 'loading' ? txt('Gönderiliyor...', 'Sending...', 'Στέλνεται...') : txt('Talebi Gönder', 'Send Request', 'Υποβολή Αιτήματος')}
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={demoStatus.type === 'loading'}
+                      className="flex-1 py-4 bg-white hover:bg-indigo-600 hover:text-white text-black rounded-xl font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                    >
+                      {demoStatus.type === 'loading' ? txt('Gönderiliyor...', 'Sending...', 'Στέλνεται...') : txt('Talebi Gönder', 'Send Request', 'Υποβολή Αιτήματος')}
+                    </button>
+
+                    <a
+                      href={`https://wa.me/905488902309?text=${encodeURIComponent(
+                        `Merhaba, LookPrice demo randevusu ve bilgi almak istiyorum.${demoForm.name ? `\nAd Soyad: ${demoForm.name}` : ''}${demoForm.storeName ? `\nİşletme: ${demoForm.storeName}` : ''}${demoForm.storeType ? `\nSektör: ${demoForm.storeType}` : ''}`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-500/20 cursor-pointer"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      {txt('WhatsApp', 'WhatsApp', 'WhatsApp')}
+                    </a>
+                  </div>
                 </form>
               )}
             </motion.div>

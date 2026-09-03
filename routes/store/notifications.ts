@@ -28,7 +28,17 @@ router.get("/", async (req: any, res) => {
     );
 
     const salesCount = await pool.query(
-      "SELECT COUNT(*) FROM sales WHERE store_id = $1 AND status = 'pending' AND status != 'checkout_initiated'",
+      `SELECT COUNT(*) FROM sales 
+       WHERE store_id = $1 
+         AND status IN ('pending', 'processing', 'preparing')`,
+      [storeId]
+    );
+
+    const webSalesCount = await pool.query(
+      `SELECT COUNT(*) FROM sales 
+       WHERE store_id = $1 
+         AND status IN ('pending', 'processing', 'preparing') 
+         AND (payment_method IN ('iyzico', 'credit_card', 'bank_transfer', 'cash_on_delivery', 'paypal', 'payoneer', 'store_reservation') OR notes LIKE '%E-posta:%' OR notes LIKE '%Web Siparişi%')`,
       [storeId]
     );
 
@@ -65,6 +75,7 @@ router.get("/", async (req: any, res) => {
       service: parseInt(serviceCount.rows[0].count),
       quotations: parseInt(quotationsCount.rows[0].count),
       sales: parseInt(salesCount.rows[0].count),
+      web_sales: parseInt(webSalesCount.rows[0].count),
       fleet: parseInt(expiringDocsCount.rows[0].count) + parseInt(maintenanceDueCount.rows[0].count),
       sales_invoices: parseInt(salesInvoicesCount.rows[0].count),
       purchase_invoices: parseInt(purchaseInvoicesCount.rows[0].count)

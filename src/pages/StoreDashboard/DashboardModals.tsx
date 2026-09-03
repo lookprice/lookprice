@@ -42,6 +42,7 @@ interface DashboardModalsProps {
   selectedSale: any;
   handlePrint: () => void;
   shippingSlipRef: React.RefObject<HTMLDivElement | null>;
+  handleSaleSuccess?: (id?: number) => void;
 
   // Quotation Details Modal
   showQuotationDetailsModal: boolean;
@@ -174,7 +175,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
     branding, translations: t, lang,
     showQrModal, setShowQrModal, scanUrl, publicUrl, isPortfolio, handlePrintQR, qrPrintRef,
     showPurchaseInvoiceDetailsModal, setShowPurchaseInvoiceDetailsModal, selectedPurchaseInvoice,
-    showSaleDetailsModal, setShowSaleDetailsModal, selectedSale, handlePrint, shippingSlipRef,
+    showSaleDetailsModal, setShowSaleDetailsModal, selectedSale, handlePrint, shippingSlipRef, handleSaleSuccess,
     showQuotationDetailsModal, setShowQuotationDetailsModal, selectedQuotationDetails, onDownloadQuotationPDF, numberToTurkishWords, quotationPrintRef,
     showDailyReportModal, setShowDailyReportModal, dailyReportData, reportStartDate, setReportStartDate, reportEndDate, setReportEndDate, fetchDailySalesReport, reportLoading, handleDownloadDailyReportExcel,
     showTransactionModal, setShowTransactionModal, selectedCompany, companyTransactions, selectedCurrency, setSelectedCurrency, transactionStartDate, setTransactionStartDate, transactionEndDate, setTransactionEndDate, handleFetchTransactions, transactionLoading, handleExportTransactionsPDF, openingBalances, companies, setShowAddTransactionModal, handleEditTransaction, handleDeleteTransaction,
@@ -342,10 +343,74 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                   </button>
                 </div>
               </div>
+
+              {/* Status Update Actions for Web Sales */}
+              {selectedSale.status !== 'cancelled' && (
+                <div className="pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                  {selectedSale.status === 'pending' && (
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await api.prepareSale(selectedSale.id);
+                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                          else window.location.reload();
+                        } catch (e: any) { alert(e.message || "Hata"); }
+                      }}
+                      className="px-4 py-2 bg-amber-100 text-amber-700 hover:bg-amber-200 text-xs font-bold rounded-lg transition-colors"
+                    >
+                      {lang === 'tr' ? 'Hazırlanıyor Olarak İşaretle' : 'Mark as Preparing'}
+                    </button>
+                  )}
+                  {(selectedSale.status === 'pending' || selectedSale.status === 'processing') && (
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await api.updateSaleStatus(selectedSale.id, { status: 'shipped' });
+                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                          else window.location.reload();
+                        } catch (e: any) { alert(e.message || "Hata"); }
+                      }}
+                      className="px-4 py-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-xs font-bold rounded-lg transition-colors"
+                    >
+                      {lang === 'tr' ? 'Kargoya Verildi Yap' : 'Mark as Shipped'}
+                    </button>
+                  )}
+                  {selectedSale.status === 'shipped' && (
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await api.deliverSale(selectedSale.id);
+                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                          else window.location.reload();
+                        } catch (e: any) { alert(e.message || "Hata"); }
+                      }}
+                      className="px-4 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-xs font-bold rounded-lg transition-colors"
+                    >
+                      {lang === 'tr' ? 'Teslim Edildi Yap' : 'Mark as Delivered'}
+                    </button>
+                  )}
+                  {!selectedSale.sales_invoice_id && (
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await api.post(`/api/store/sales/${selectedSale.id}/create-invoice`, {});
+                          alert(lang === 'tr' ? 'Fatura başarıyla oluşturuldu.' : 'Invoice created successfully.');
+                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                          else window.location.reload();
+                        } catch (e: any) { alert(e.message || "Hata"); }
+                      }}
+                      className="px-4 py-2 bg-slate-900 text-white hover:bg-black text-xs font-bold rounded-lg transition-colors ml-auto"
+                    >
+                      {lang === 'tr' ? 'Satış Faturasına Dönüştür' : 'Convert to Invoice'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
       )}
+
 
       {/* Purchase Invoice Details Modal */}
       {showPurchaseInvoiceDetailsModal && selectedPurchaseInvoice && (

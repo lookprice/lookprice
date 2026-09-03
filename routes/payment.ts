@@ -26,8 +26,19 @@ router.post("/initialize", async (req, res) => {
     if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı." });
     const storeRow = storeRes.rows[0];
 
-    const settingsRaw = storeRow?.branding?.payment_settings || storeRow?.payment_settings;
-    let s = typeof settingsRaw === 'string' ? JSON.parse(settingsRaw) : (settingsRaw || {});
+    const rawPayment = storeRow?.payment_settings;
+    const brandingPayment = storeRow?.branding?.payment_settings;
+    let s: any = {};
+    if (typeof rawPayment === 'string') {
+      try { s = JSON.parse(rawPayment); } catch (e) {}
+    } else if (rawPayment && typeof rawPayment === 'object') {
+      s = { ...rawPayment };
+    }
+    if (typeof brandingPayment === 'string') {
+      try { s = { ...s, ...JSON.parse(brandingPayment) }; } catch (e) {}
+    } else if (brandingPayment && typeof brandingPayment === 'object') {
+      s = { ...s, ...brandingPayment };
+    }
     
     const apiKey = s.apiKey || s.api_key || s.iyzico_api_key;
     const secretKey = s.secretKey || s.secret_key || s.iyzico_secret_key;

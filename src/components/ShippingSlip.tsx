@@ -41,6 +41,16 @@ const ShippingSlip = React.forwardRef<HTMLDivElement, ShippingSlipProps>(({ sale
             <p className="font-bold text-sm text-gray-900">{sale.customer_name}</p>
             {sale.customer_phone && <p className="text-xs text-gray-600 mt-0.5">{sale.customer_phone}</p>}
             <p className="text-xs text-gray-700 mt-2 leading-relaxed">{sale.customer_address}</p>
+            {sale.notes && (
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Müşteri Detayları</p>
+                <div className="text-[10px] text-gray-600 space-y-0.5">
+                  {sale.notes.split('|').map((note: string, i: number) => (
+                    <p key={i}>{note.trim()}</p>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div className="space-y-4 text-right">
@@ -50,14 +60,13 @@ const ShippingSlip = React.forwardRef<HTMLDivElement, ShippingSlipProps>(({ sale
           </div>
           <div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ödeme</p>
-            <p className="text-xs font-bold text-gray-900 uppercase">{sale.payment_method === 'iyzico' ? 'Online Ödeme' : (sale.payment_method || '-')}</p>
+            <p className="text-xs font-bold text-gray-900 uppercase">
+              {sale.payment_method === 'iyzico' || sale.payment_method === 'credit_card' ? 'Online Ödeme' : 
+               sale.payment_method === 'bank_transfer' ? 'Havale / EFT' : 
+               sale.payment_method === 'cash_on_delivery' ? 'Kapıda Ödeme' : 
+               (sale.payment_method || '-')}
+            </p>
           </div>
-          {sale.notes && (
-            <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Notlar</p>
-              <p className="text-[10px] text-gray-600 italic">{sale.notes}</p>
-            </div>
-          )}
         </div>
       </div>
 

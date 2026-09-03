@@ -50,8 +50,26 @@ const CheckoutStatus: React.FC = () => {
         const saleInfo = await saleInfoRes.json();
         if (saleInfo?.store_slug) {
           setStoreSlug(saleInfo.store_slug);
+          // Clear basket from localStorage for this store
+          localStorage.removeItem(`basket_${saleInfo.store_slug}`);
+          localStorage.removeItem(`store_basket_${saleInfo.store_id}`);
         }
         setOrderDetails(saleInfo);
+
+        // Also if customer is logged in, empty backend cart
+        try {
+          const storedCustomer = localStorage.getItem("customer");
+          if (storedCustomer && saleInfo?.store_id) {
+            const parsed = JSON.parse(storedCustomer);
+            if (parsed?.id) {
+              fetch('/api/public/customers/cart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customerId: parsed.id, storeId: saleInfo.store_id, items: [] })
+              }).catch(() => {});
+            }
+          }
+        } catch (e) {}
       } catch (err) {
         console.warn("Could not fetch sale status info:", err);
       }
@@ -86,10 +104,12 @@ const CheckoutStatus: React.FC = () => {
   }, [saleId, token, PayerID, searchParams, slug]);
 
   const handleReturnToStore = () => {
-    if (storeSlug) {
+    if (orderDetails?.custom_domain && window.location.hostname === orderDetails.custom_domain) {
+      navigate('/');
+    } else if (storeSlug) {
       navigate(`/s/${storeSlug}`);
     } else {
-      window.history.length > 1 ? navigate(-1) : navigate("/");
+      navigate("/");
     }
   };
 
@@ -114,14 +134,22 @@ const CheckoutStatus: React.FC = () => {
               Ödemeniz ve siparişiniz başarıyla alındı. Sipariş sürecinizi üye profilinizden veya sipariş takip sayfasından takip edebilirsiniz.
             </p>
             {orderDetails && (
-              <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left my-2">
-                <div className="flex justify-between items-center text-xs text-slate-500 mb-1">
-                  <span>Sipariş No:</span>
-                  <span className="font-bold text-slate-900">#{orderDetails.id}</span>
-                </div>
+              <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left my-2 space-y-2">
                 <div className="flex justify-between items-center text-xs text-slate-500">
+                  <span>Sipariş No:</span>
+                  <span className="font-bold text-slate-900 font-mono text-sm">#{orderDetails.id}</span>
+                </div>
+                {orderDetails.store_name && (
+                  <div className="flex justify-between items-center text-xs text-slate-500">
+                    <span>Mağaza:</span>
+                    <span className="font-semibold text-slate-800">{orderDetails.store_name}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-xs text-slate-500 pt-1 border-t border-slate-200">
                   <span>Toplam Tutar:</span>
-                  <span className="font-bold text-slate-900">{orderDetails.total_amount} {orderDetails.currency || 'TL'}</span>
+                  <span className="font-black text-slate-900 text-sm">
+                    {Number(orderDetails.total_amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {orderDetails.currency || 'TL'}
+                  </span>
                 </div>
               </div>
             )}

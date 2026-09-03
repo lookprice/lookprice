@@ -233,6 +233,8 @@ export const api = {
   updatePendingSale: (id: number, data: any, storeId?: number) => api.post(`/api/store/sales/${id}/update-pending${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   completeSale: (id: number, data: any, storeId?: number) => api.post(`/api/store/sales/${id}/complete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   shipSale: (id: number, data: { carrier: string, trackingNumber: string }, storeId?: number) => api.post(`/api/store/sales/${id}/ship${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  prepareSale: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/prepare${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  updateSaleStatus: (id: number, data: { status: string; carrier?: string; trackingNumber?: string; reason?: string }, storeId?: number) => api.post(`/api/store/sales/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deliverSale: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/deliver${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   cancelSale: (id: number, data: { reason: string }, storeId?: number) => api.post(`/api/store/sales/${id}/cancel${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteSale: (id: number, storeId?: number) => api.delete(`/api/store/sales/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),

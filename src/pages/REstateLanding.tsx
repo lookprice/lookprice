@@ -367,10 +367,10 @@ export default function REstateLanding() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/?openDemo=true')}
               className="px-8 py-4 bg-rose-600 text-white font-black rounded-2xl hover:bg-rose-700 transition-all text-lg flex items-center justify-center gap-2 shadow-lg shadow-rose-600/15 cursor-pointer"
             >
-              {txt('Hemen Deneyin', 'Try Now', 'Δοκιμάστε Τώρα')} <ArrowRight className="h-5 w-5" />
+              {txt('Demo Randevusu Al', 'Book a Demo', 'Κλείστε Ραντεβού για Demo')} <ArrowRight className="h-5 w-5" />
             </button>
           </div>
         </div>

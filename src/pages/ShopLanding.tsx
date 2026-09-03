@@ -327,10 +327,10 @@ export default function ShopLanding() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/?openDemo=true')}
               className="px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all text-lg flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/15 cursor-pointer"
             >
-              {txt('Ücretsiz Deneyin', 'Try for Free', 'Δοκιμάστε Δωρεάν')} <ArrowRight className="h-5 w-5" />
+              {txt('Demo Randevusu Al', 'Book a Demo', 'Κλείστε Ραντεβού για Demo')} <ArrowRight className="h-5 w-5" />
             </button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import { X, AlertTriangle, LogOut } from "lucide-react";
+import { X, AlertTriangle, LogOut, Phone, Mail, MessageCircle, User, Calendar, Building2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Store, Lead, EnrakipsizSlide, EnrakipsizAd } from "../../types/superadmin";
 import { DEVELOPED_COUNTRIES } from "../../constants";
@@ -258,51 +258,121 @@ export const LeadModal: React.FC<{
   setLead: (lead: any) => void;
   onSave: (e: React.FormEvent) => void;
   st: any;
-}> = ({ isOpen, onClose, lead, setLead, onSave, st }) => (
-  <Modal isOpen={isOpen} onClose={onClose}>
-    <h2 className="text-xl font-bold mb-5">{st.manageLead}</h2>
-    <form onSubmit={onSave} className="space-y-3">
-      <div>
-        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.processStatus}</label>
-        <select 
-          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
-          value={lead.status} 
-          onChange={e => setLead({...lead, status: e.target.value})}
-        >
-          <option value="new">Yeni</option>
-          <option value="contacted">İletişime Geçildi</option>
-          <option value="demo">Demo Yapıldı</option>
-          <option value="sold">Satış Tamamlandı</option>
-          <option value="lost">Kaybedildi</option>
-        </select>
+}> = ({ isOpen, onClose, lead, setLead, onSave, st }) => {
+  const rawPhone = lead?.phone ? String(lead.phone).replace(/[^0-9]/g, '') : '';
+  const waPhone = rawPhone.startsWith('0') ? '90' + rawPhone.substring(1) : (rawPhone.startsWith('90') ? rawPhone : (rawPhone ? '90' + rawPhone : ''));
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+        <h2 className="text-xl font-bold text-gray-900">{st.manageLead}</h2>
+        {lead?.store_type && (
+          <span className="text-[10px] font-black uppercase px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">
+            {lead.store_type === 'motor_vehicle' ? 'AutoLP (Otomotiv)' : lead.store_type === 'real_estate' ? 'REstateLP (Emlak)' : lead.store_type === 'restaurant' ? 'HoReCaLP (Restoran)' : 'ShopLP (Perakende)'}
+          </span>
+        )}
       </div>
-      <div>
-        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.salesProbability} (%{lead.probability})</label>
-        <input 
-          type="range" 
-          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
-          min="0" max="100" 
-          value={lead.probability} 
-          onChange={e => setLead({...lead, probability: parseInt(e.target.value)})} 
-        />
+
+      {/* Lead Customer Info Card */}
+      <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 mb-4 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-bold text-gray-900">{lead?.store_name || 'İşletme Belirtilmedi'}</p>
+            {lead?.name && (
+              <p className="text-xs text-indigo-700 font-semibold flex items-center gap-1 mt-0.5">
+                <User className="h-3 w-3 text-indigo-500 shrink-0" />
+                {lead.name}
+              </p>
+            )}
+          </div>
+          {lead?.created_at && (
+            <span className="text-[10px] text-gray-400 font-mono">
+              {new Date(lead.created_at).toLocaleDateString('tr-TR')}
+            </span>
+          )}
+        </div>
+
+        <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center gap-2">
+          {lead?.phone ? (
+            <>
+              <a 
+                href={`tel:${lead.phone}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-indigo-300 text-gray-900 text-xs font-bold rounded-lg transition-all shadow-xs"
+              >
+                <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                {lead.phone}
+              </a>
+              {waPhone && (
+                <a 
+                  href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Merhaba ${lead.name ? `${lead.name} Bey/Hanım` : ''}, LookPrice demo ve sektörel paket başvurunuz için görüşmek isteriz.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-black rounded-lg transition-all shadow-xs"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  WhatsApp
+                </a>
+              )}
+            </>
+          ) : (
+            <span className="text-xs text-gray-400 italic">Telefon bilgisi bulunmuyor</span>
+          )}
+
+          {lead?.email && (
+            <a 
+              href={`mailto:${lead.email}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-indigo-300 text-gray-600 text-xs font-medium rounded-lg transition-all"
+            >
+              <Mail className="h-3.5 w-3.5 text-gray-400" />
+              {lead.email}
+            </a>
+          )}
+        </div>
       </div>
-      <div>
-        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.meetingNotes}</label>
-        <textarea 
-          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
-          rows={3} 
-          value={lead.notes || ""} 
-          onChange={e => setLead({...lead, notes: e.target.value})}
-          placeholder={st.notesPlaceholder}
-        />
-      </div>
-      <div className="flex space-x-2 pt-3">
-        <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm">{st.update}</button>
-        <button type="button" onClick={onClose} className="flex-1 bg-gray-100 text-gray-900 py-2 rounded-lg font-bold text-sm">{st.close}</button>
-      </div>
-    </form>
-  </Modal>
-);
+
+      <form onSubmit={onSave} className="space-y-3">
+        <div>
+          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.processStatus}</label>
+          <select 
+            className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium" 
+            value={lead?.status || 'new'} 
+            onChange={e => setLead({...lead, status: e.target.value})}
+          >
+            <option value="new">Yeni</option>
+            <option value="contacted">İletişime Geçildi</option>
+            <option value="demo">Demo Yapıldı</option>
+            <option value="sold">Satış Tamamlandı</option>
+            <option value="lost">Kaybedildi</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.salesProbability} (%{lead?.probability ?? 0})</label>
+          <input 
+            type="range" 
+            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
+            min="0" max="100" 
+            value={lead?.probability ?? 0} 
+            onChange={e => setLead({...lead, probability: parseInt(e.target.value) || 0})} 
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{st.meetingNotes}</label>
+          <textarea 
+            className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+            rows={3} 
+            value={lead?.notes || ""} 
+            onChange={e => setLead({...lead, notes: e.target.value})}
+            placeholder={st.notesPlaceholder}
+          />
+        </div>
+        <div className="flex space-x-2 pt-3">
+          <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-bold text-sm transition-colors cursor-pointer">{st.update}</button>
+          <button type="button" onClick={onClose} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 py-2.5 rounded-lg font-bold text-sm transition-colors cursor-pointer">{st.close}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
 
 export const EditStoreModal: React.FC<{
   isOpen: boolean;

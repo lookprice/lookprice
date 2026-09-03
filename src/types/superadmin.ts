@@ -30,9 +30,12 @@ export interface Store {
 
 export interface Lead {
   id: number;
+  name?: string;
   store_name: string;
   company_title?: string;
+  phone?: string;
   email?: string;
+  store_type?: string;
   status: string;
   probability: number;
   notes?: string;

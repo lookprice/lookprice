@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Filter, TrendingUp, Mail, Phone, ExternalLink, Calendar, Trash2 } from "lucide-react";
+import { Search, Filter, TrendingUp, Mail, Phone, ExternalLink, Calendar, Trash2, MessageCircle, User, Store as StoreIcon, Building2, Car, ShoppingCart, Utensils } from "lucide-react";
 import { Lead } from "../../types/superadmin";
 
 interface SuperAdminLeadsProps {
@@ -12,6 +12,20 @@ interface SuperAdminLeadsProps {
   setSelectedLead: (lead: Lead) => void;
   handleDeleteLead: (id: number) => void;
 }
+
+const getSectorBadge = (type?: string) => {
+  switch (type) {
+    case 'motor_vehicle':
+      return { label: 'Otomotiv (AutoLP)', bg: 'bg-blue-50 text-blue-700 border-blue-200' };
+    case 'real_estate':
+      return { label: 'Emlak (REstateLP)', bg: 'bg-rose-50 text-rose-700 border-rose-200' };
+    case 'restaurant':
+      return { label: 'HoReCa (HoReCaLP)', bg: 'bg-amber-50 text-amber-700 border-amber-200' };
+    case 'product':
+    default:
+      return { label: 'Perakende (ShopLP)', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+  }
+};
 
 export const SuperAdminLeads: React.FC<SuperAdminLeadsProps> = ({
   leads,
@@ -26,9 +40,11 @@ export const SuperAdminLeads: React.FC<SuperAdminLeadsProps> = ({
   const filteredLeads = leads.filter(l => {
     const leadSearchTerms = leadSearchTerm.toLowerCase().split(' ').filter(Boolean);
     const matchesSearch = leadSearchTerms.length === 0 || leadSearchTerms.every(term => 
-      l.store_name.toLowerCase().includes(term) ||
-      l.company_title?.toLowerCase().includes(term) ||
-      l.email?.toLowerCase().includes(term)
+      (l.store_name && l.store_name.toLowerCase().includes(term)) ||
+      (l.name && l.name.toLowerCase().includes(term)) ||
+      (l.company_title && l.company_title.toLowerCase().includes(term)) ||
+      (l.phone && l.phone.toLowerCase().includes(term)) ||
+      (l.email && l.email.toLowerCase().includes(term))
     );
     const matchesFilter = leadFilter === 'all' || l.status === leadFilter;
     return matchesSearch && matchesFilter;
@@ -41,14 +57,14 @@ export const SuperAdminLeads: React.FC<SuperAdminLeadsProps> = ({
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-indigo-600" /> {st.newLeads}
           </h2>
-          <p className="text-xs text-gray-500 font-medium">Satış hunisindeki potansiyel müşteri adayları</p>
+          <p className="text-xs text-gray-500 font-medium">Satış hunisindeki potansiyel müşteri adayları ve demo talepleri</p>
         </div>
         <div className="flex flex-col md:flex-row items-center gap-3">
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input 
               type="text"
-              placeholder="Talep ara..."
+              placeholder="İsim, mağaza, telefon veya e-posta..."
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20"
               value={leadSearchTerm}
               onChange={e => setLeadSearchTerm(e.target.value)}
@@ -88,77 +104,128 @@ export const SuperAdminLeads: React.FC<SuperAdminLeadsProps> = ({
                 </td>
               </tr>
             ) : (
-              filteredLeads.map(lead => (
-                <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 bg-indigo-50 text-indigo-700 rounded-lg flex items-center justify-center font-bold text-xs shrink-0">
-                        {lead.store_name.substring(0,2).toUpperCase()}
+              filteredLeads.map(lead => {
+                const sector = getSectorBadge(lead.store_type);
+                const rawPhone = lead.phone ? lead.phone.replace(/[^0-9]/g, '') : '';
+                const waPhone = rawPhone.startsWith('0') ? '90' + rawPhone.substring(1) : (rawPhone.startsWith('90') ? rawPhone : (rawPhone ? '90' + rawPhone : ''));
+
+                return (
+                  <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-9 w-9 bg-indigo-50 text-indigo-700 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                          {(lead.store_name || lead.name || 'LP').substring(0,2).toUpperCase()}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-gray-900 leading-tight">{lead.store_name}</p>
+                          {lead.name && (
+                            <div className="flex items-center gap-1.5 text-xs text-indigo-700 font-semibold">
+                              <User className="h-3 w-3 text-indigo-500 shrink-0" />
+                              <span>{lead.name}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 pt-0.5">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${sector.bg}`}>
+                              {sector.label}
+                            </span>
+                            {lead.company_title && (
+                              <span className="text-[10px] text-gray-400 font-medium truncate max-w-[120px]">
+                                {lead.company_title}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900 leading-tight">{lead.store_name}</p>
-                        <p className="text-[10px] text-gray-400 font-medium">{lead.company_title || 'Şahıs/Bireysel'}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-1.5">
+                        {lead.phone ? (
+                          <div className="flex items-center gap-2">
+                            <a 
+                              href={`tel:${lead.phone}`} 
+                              className="flex items-center text-xs font-bold text-gray-900 hover:text-indigo-600 transition-colors group/tel"
+                              title="Numarayı Ara"
+                            >
+                              <Phone className="h-3.5 w-3.5 mr-1 text-emerald-600 group-hover/tel:scale-110 transition-transform" />
+                              <span>{lead.phone}</span>
+                            </a>
+                            {waPhone && (
+                              <a
+                                href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`Merhaba ${lead.name ? `${lead.name} Bey/Hanım` : ''}, LookPrice demo ve sektörel paket talebiniz hakkında size ulaşıyoruz.`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black border border-emerald-200 transition-all cursor-pointer shadow-xs"
+                                title="WhatsApp'tan Mesaj Gönder"
+                              >
+                                <MessageCircle className="h-3 w-3 text-emerald-600" />
+                                WP
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400 italic">Telefon belirtilmedi</div>
+                        )}
+                        {lead.email && (
+                          <div className="flex items-center text-xs text-gray-600 font-medium">
+                            <Mail className="h-3 w-3 mr-1.5 text-gray-400 shrink-0" /> 
+                            <a href={`mailto:${lead.email}`} className="hover:text-indigo-600 transition-colors">{lead.email}</a>
+                          </div>
+                        )}
+                        <div className="flex items-center text-[10px] text-gray-400 font-mono">
+                          <Calendar className="h-3 w-3 mr-1.5 shrink-0" /> {new Date(lead.created_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center text-xs text-gray-600 font-medium">
-                        <Mail className="h-3 w-3 mr-1.5 text-gray-400" /> {lead.email}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        lead.status === 'new' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                        lead.status === 'contacted' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                        lead.status === 'demo' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                        lead.status === 'sold' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                        'bg-gray-50 text-gray-600 border border-gray-200'
+                      }`}>
+                        {lead.status === 'new' ? 'Yeni' :
+                         lead.status === 'contacted' ? 'Görüşülüyor' :
+                         lead.status === 'demo' ? 'Demo Yapıldı' :
+                         lead.status === 'sold' ? 'Tamamlandı' : 'Kaybedildi'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="w-24">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold text-gray-400">%{lead.probability}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1">
+                          <div 
+                            className={`h-1 rounded-full transition-all duration-500 ${
+                              lead.probability > 70 ? 'bg-emerald-500' : 
+                              lead.probability > 40 ? 'bg-amber-500' : 'bg-indigo-500'
+                            }`}
+                            style={{ width: `${lead.probability}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center text-[10px] text-gray-400 font-mono">
-                        <Calendar className="h-3 w-3 mr-1.5" /> {new Date(lead.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => setSelectedLead(lead)}
+                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer"
+                          title={st.manageLead}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteLead(lead.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                      lead.status === 'new' ? 'bg-indigo-50 text-indigo-700' :
-                      lead.status === 'contacted' ? 'bg-amber-50 text-amber-700' :
-                      lead.status === 'sold' ? 'bg-emerald-50 text-emerald-700' :
-                      'bg-gray-50 text-gray-600'
-                    }`}>
-                      {lead.status === 'new' ? 'Yeni' :
-                       lead.status === 'contacted' ? 'Görüşülüyor' :
-                       lead.status === 'demo' ? 'Demo' :
-                       lead.status === 'sold' ? 'Tamamlandı' : 'Kaybedildi'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="w-24">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-gray-400">%{lead.probability}</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-1">
-                        <div 
-                          className={`h-1 rounded-full transition-all duration-500 ${
-                            lead.probability > 70 ? 'bg-emerald-500' : 
-                            lead.probability > 40 ? 'bg-amber-500' : 'bg-indigo-500'
-                          }`}
-                          style={{ width: `${lead.probability}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button 
-                        onClick={() => setSelectedLead(lead)}
-                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                        title={st.manageLead}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteLead(lead.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

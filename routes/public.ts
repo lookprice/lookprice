@@ -1782,11 +1782,17 @@ router.get("/customers/profile", authenticateCustomer, async (req: any, res) => 
 });
 
 router.put("/customers/profile", authenticateCustomer, async (req: any, res) => {
-  const { name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms } = req.body;
+  const { name, surname, phone, address, country, city, tc_id, tax_number, tax_office, company_title, is_corporate, marketing_email, marketing_sms } = req.body;
   try {
+    const finalTcId = (tc_id || tax_number || '').trim();
     const result = await pool.query(
-      "UPDATE customers SET full_name = $1, surname = $2, phone = $3, address = $4, country = $5, city = $6, tc_id = $7, is_corporate = $8, marketing_email = $9, marketing_sms = $10 WHERE id = $11 RETURNING id, email, full_name as name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms",
-      [name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms, req.customer.id]
+      `UPDATE customers SET 
+         full_name = $1, surname = $2, phone = $3, address = $4, country = $5, city = $6, 
+         tc_id = $7, tax_number = $8, tax_office = $9, company_title = $10, is_corporate = $11, 
+         marketing_email = $12, marketing_sms = $13 
+       WHERE id = $14 
+       RETURNING id, email, full_name as name, surname, phone, address, country, city, tc_id, tax_number, tax_office, company_title, is_corporate, marketing_email, marketing_sms`,
+      [name, surname, phone, address, country, city, finalTcId, finalTcId, tax_office || '', company_title || '', !!is_corporate, marketing_email, marketing_sms, req.customer.id]
     );
     res.json({ success: true, customer: result.rows[0] });
   } catch (e: any) {
@@ -1797,7 +1803,26 @@ router.put("/customers/profile", authenticateCustomer, async (req: any, res) => 
 // Customer: Orders
 router.get("/customers/orders", authenticateCustomer, async (req: any, res) => {
   try {
-    const result = await pool.query("SELECT * FROM sales WHERE customer_id = $1 ORDER BY created_at DESC", [req.customer.id]);
+    const custRes = await pool.query("SELECT id, email, phone, store_id FROM customers WHERE id = $1", [req.customer.id]);
+    const cust = custRes.rows[0];
+    const storeId = req.customer.storeId || cust?.store_id;
+    const custEmail = (cust?.email || '').trim().toLowerCase();
+    const custPhone = (cust?.phone || '').trim();
+
+    const result = await pool.query(
+      `SELECT s.*, 
+        COALESCE(
+          (SELECT json_agg(si.*) FROM sale_items si WHERE si.sale_id = s.id),
+          '[]'::json
+        ) as items,
+        COALESCE((SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id), 0) as items_count
+       FROM sales s 
+       WHERE s.customer_id = $1 
+          OR (s.store_id = $2 AND ($3::text != '' AND LOWER(s.customer_email) = $3))
+          OR (s.store_id = $2 AND ($4::text != '' AND s.customer_phone = $4))
+       ORDER BY s.created_at DESC`,
+      [req.customer.id, storeId, custEmail, custPhone]
+    );
     res.json(result.rows);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -2006,23 +2031,43 @@ router.post("/sales", async (req, res) => {
     
     let finalCustomerId = customerId;
 
-    if (customerEmail) {
-      const existingCustomer = await client.query("SELECT id FROM customers WHERE email = $1 AND store_id = $2", [customerEmail, storeId]);
+    const authHeader = req.headers.authorization?.split(" ")[1];
+    if (authHeader && !finalCustomerId) {
+      try {
+        const decoded = jwt.verify(authHeader, JWT_SECRET) as any;
+        if (decoded?.id) {
+          finalCustomerId = decoded.id;
+        }
+      } catch (e) {}
+    }
+
+    if (customerEmail && !finalCustomerId) {
+      const existingCustomer = await client.query(
+        "SELECT id FROM customers WHERE LOWER(email) = LOWER($1) AND store_id = $2",
+        [customerEmail.trim(), storeId]
+      );
       if (existingCustomer.rows.length > 0) {
         finalCustomerId = existingCustomer.rows[0].id;
       } else if (createAccount) {
         // Create new customer
         const newCustomer = await client.query(
-          "INSERT INTO customers (store_id, name, surname, email, phone, address, tax_number, tc_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-          [storeId, customerName?.split(' ')[0] || '', customerName?.split(' ').slice(1).join(' ') || '', customerEmail, customerPhone, customerAddress, customerTcId, customerTcId]
+          "INSERT INTO customers (store_id, full_name, surname, email, phone, address, tax_number, tc_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+          [storeId, customerName?.split(' ')[0] || '', customerName?.split(' ').slice(1).join(' ') || '', customerEmail.trim(), customerPhone || '', customerAddress || '', customerTcId || '', customerTcId || '']
         );
         finalCustomerId = newCustomer.rows[0].id;
       }
     }
 
+    const orderNotes = [
+      notes || '',
+      customerEmail ? `E-posta: ${customerEmail}` : '',
+      customerCity ? `İl: ${customerCity}` : '',
+      customerCountry ? `Ülke: ${customerCountry}` : ''
+    ].filter(Boolean).join(' | ');
+
     const saleRes = await client.query(
       "INSERT INTO sales (store_id, total_amount, currency, customer_name, customer_phone, customer_address, notes, payment_method, status, customer_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'checkout_initiated', $9) RETURNING id",
-      [storeId, total || 0, currency || 'TRY', customerName || 'Müşteri', customerPhone || '', customerAddress || '', notes || '', paymentMethod, finalCustomerId || null]
+      [storeId, total || 0, currency || 'TRY', customerName || 'Müşteri', customerPhone || '', customerAddress || '', orderNotes, paymentMethod, finalCustomerId || null]
     );
     const saleId = saleRes.rows[0].id;
 
@@ -2084,10 +2129,23 @@ router.post("/sales", async (req, res) => {
     }
 
     // Handle Payment Gateways
-    const storeRes = await client.query("SELECT payment_settings, default_currency FROM stores WHERE id = $1", [storeId]);
+    const storeRes = await client.query("SELECT payment_settings, branding, default_currency FROM stores WHERE id = $1", [storeId]);
     const storeData = storeRes.rows[0];
-    const settingsRaw = storeData?.payment_settings;
-    const paymentSettings = typeof settingsRaw === 'string' ? JSON.parse(settingsRaw) : (settingsRaw || {});
+    const rawPayment = storeData?.payment_settings;
+    const brandingPayment = storeData?.branding?.payment_settings;
+
+    let paymentSettings: any = {};
+    if (typeof rawPayment === 'string') {
+      try { paymentSettings = JSON.parse(rawPayment); } catch (e) {}
+    } else if (rawPayment && typeof rawPayment === 'object') {
+      paymentSettings = { ...rawPayment };
+    }
+
+    if (typeof brandingPayment === 'string') {
+      try { paymentSettings = { ...paymentSettings, ...JSON.parse(brandingPayment) }; } catch (e) {}
+    } else if (brandingPayment && typeof brandingPayment === 'object') {
+      paymentSettings = { ...paymentSettings, ...brandingPayment };
+    }
 
     // 1. Payoneer Integration
     if (paymentMethod === 'payoneer' && paymentSettings.payoneer_enabled) {
@@ -2144,8 +2202,9 @@ router.post("/sales", async (req, res) => {
       }
     }
 
-    // 2. Iyzico Integration
-    if (paymentMethod === 'iyzico' && paymentSettings.iyzico_enabled) {
+    // 2. Iyzico Integration (supports credit_card and iyzico)
+    const isIyzico = paymentMethod === 'iyzico' || paymentMethod === 'credit_card';
+    if (isIyzico) {
       await client.query("COMMIT");
       return res.json({ 
         success: true, 
@@ -2241,9 +2300,16 @@ router.post("/register-request", async (req, res) => {
 router.get("/sales/:id/status", async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT status FROM sales WHERE id = $1", [id]);
+    const result = await pool.query(
+      `SELECT s.id, s.store_id, s.status, s.total_amount, s.currency, s.customer_name, s.customer_phone, s.customer_address, s.notes, s.payment_method, s.created_at,
+              st.name as store_name, st.slug as store_slug, st.custom_domain
+       FROM sales s
+       LEFT JOIN stores st ON s.store_id = st.id
+       WHERE s.id = $1`,
+      [id]
+    );
     if (result.rows.length === 0) return res.status(404).json({ error: "Sale not found" });
-    res.json({ status: result.rows[0].status });
+    res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: "Database error" });
   }

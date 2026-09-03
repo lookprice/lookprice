@@ -139,6 +139,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [sortBy, setSortBy] = useState<"default" | "priceAsc" | "priceDesc">("default");
   const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "bank_transfer" | "cash_on_delivery" | "payoneer" | "paypal" | "iyzico" | "store_reservation">("credit_card");
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState<string | null>(null);
+  const [orderError, setOrderError] = useState<string | null>(null);
   const [customer, setCustomer] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -539,11 +540,12 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     const selectedLocation = formData.get("selected_store_location");
 
     if (paymentMethod === "store_reservation" && ((store?.locations && store.locations.length > 0) || (store?.branches && store.branches.length > 0)) && !selectedLocation) {
-      setError(lang === "tr" ? "Lütfen bir mağaza seçin." : "Please select a store.");
+      setOrderError(lang === "tr" ? "Lütfen bir mağaza seçin." : "Please select a store.");
       return;
     }
 
     setCheckoutStatus("loading");
+    setOrderError(null);
     try {
       const itemsWithConvertedPrices = await Promise.all(basket.map(async (item: any) => {
         let finalPrice = Number(item.price) || 0;
@@ -594,10 +596,13 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           body: JSON.stringify({ saleId: res.saleId, paymentMethod: "iyzico" }),
         });
         const initData = await initRes.json();
-        if (initData.paymentPageUrl) {
-          window.location.href = initData.paymentPageUrl;
+        if (initData.success && (initData.paymentPageUrl || initData.payWithIyzicoPageUrl)) {
+          const redirectUrl = initData.paymentPageUrl || initData.payWithIyzicoPageUrl;
+          window.location.href = redirectUrl;
           return;
-        } else throw new Error(initData.error || "Ödeme başlatılamadı.");
+        } else {
+          throw new Error(initData.error || initData.details || (lang === "tr" ? "İyzico Sanal POS hizmetimiz şu anda bakım / güncelleme aşamasındadır. Lütfen Banka Havalesi veya Kapıda Ödeme gibi alternatif ödeme yöntemlerimizi tercih ediniz." : "Iyzico payment could not be initialized. Please choose an alternative payment method."));
+        }
       }
 
       if (res.redirectUrl) { window.location.href = res.redirectUrl; return; }
@@ -614,7 +619,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           ? "İyzico Sanal POS hizmetimiz şu anda bakım / güncelleme aşamasındadır. Lütfen Banka Havalesi veya Kapıda Ödeme gibi alternatif ödeme yöntemlerimizi tercih ediniz."
           : "Our virtual POS payment service is currently under maintenance. Please choose an alternative payment method such as Bank Transfer or Cash on Delivery.";
       }
-      setError(userMessage);
+      setOrderError(userMessage);
     }
   };
 
@@ -875,7 +880,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               lang={lang} currency={store?.currency || 'TL'} customerInfo={customerInfo}
               setCustomerInfo={setCustomerInfo} basketByBranch={basketByBranch} basketTotal={basketTotal}
               paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} checkoutStatus={checkoutStatus}
-              orderError={error} orderSummary={{}} handleCheckout={handleCheckout}
+              orderError={orderError} orderSummary={{}} handleCheckout={handleCheckout}
               iyzicoPaymentUrl={iyzicoPaymentUrl} theme={{}}
             />
           )}
