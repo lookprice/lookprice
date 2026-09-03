@@ -3,6 +3,8 @@
  * html2canvas does not natively parse oklch() or oklab(), causing export errors when Tailwind CSS v4 or modern color functions are present.
  */
 
+import html2canvas, { Options } from 'html2canvas';
+
 let canvas2dCtx: CanvasRenderingContext2D | null = null;
 
 function get2dContext(): CanvasRenderingContext2D | null {
@@ -12,7 +14,7 @@ function get2dContext(): CanvasRenderingContext2D | null {
       const canvas = document.createElement('canvas');
       canvas.width = 1;
       canvas.height = 1;
-      canvas2dCtx = canvas.getContext('2d');
+      canvas2dCtx = canvas.getContext('2d', { willReadFrequently: true });
     } catch (e) {
       canvas2dCtx = null;
     }
@@ -26,12 +28,12 @@ function get2dContext(): CanvasRenderingContext2D | null {
 export function oklchToRgb(oklchStr: string): string {
   if (!oklchStr) return oklchStr;
   
-  const regex = /oklch\(\s*([\d.%]+)\s+([\d.%]+)\s+([\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i;
+  const regex = /oklch\(\s*([\d.%]+)\s+([\d.%]+)\s+([-\d.]+)(?:deg)?(?:\s*\/\s*([\d.%]+))?\s*\)/i;
   const match = oklchStr.match(regex);
-  if (!match) return oklchStr;
-
+  if (!match) return 'rgb(30, 41, 59)'; // Safe slate-800 default
+  
   let L = match[1].endsWith('%') ? parseFloat(match[1]) / 100 : parseFloat(match[1]);
-  let C = parseFloat(match[2]);
+  let C = match[2].endsWith('%') ? (parseFloat(match[2]) / 100) * 0.4 : parseFloat(match[2]);
   let H = parseFloat(match[3]);
   let A = match[4] ? (match[4].endsWith('%') ? parseFloat(match[4]) / 100 : parseFloat(match[4])) : 1;
 
@@ -120,43 +122,62 @@ export function oklabToRgb(oklabStr: string): string {
   return `rgb(${r}, ${g}, ${bVal})`;
 }
 
-export function parseAndConvertColorToRgb(colorStr: string): string {
-  if (!colorStr) return colorStr;
-  
-  if (!colorStr.includes('oklch') && !colorStr.includes('oklab') && !colorStr.includes('color(')) {
-    return colorStr;
-  }
+/**
+ * Converts a single color string token (e.g. "oklch(...)" or "oklab(...)") to sRGB.
+ */
+export function convertSingleColorToRgb(singleColorStr: string): string {
+  if (!singleColorStr) return singleColorStr;
+  const trimmed = singleColorStr.trim();
 
-  // 1. Try browser canvas context first
+  // 1. Try browser canvas context first (native browser Color 4 engine)
   const ctx = get2dContext();
   if (ctx) {
     try {
-      ctx.fillStyle = '#000000';
-      ctx.fillStyle = colorStr;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+      ctx.fillStyle = trimmed;
       const normalized = ctx.fillStyle;
-      if (normalized && !normalized.includes('oklch') && !normalized.includes('oklab')) {
+      if (normalized && !normalized.includes('oklch') && !normalized.includes('oklab') && !normalized.includes('color(')) {
         return normalized;
       }
     } catch (e) {}
   }
 
   // 2. Math fallback
-  if (colorStr.includes('oklab')) {
-    return colorStr.replace(/oklab\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\)/gi, (m) => oklabToRgb(m));
+  if (trimmed.startsWith('oklab(')) {
+    return oklabToRgb(trimmed);
   }
-  return colorStr.replace(/oklch\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\)/gi, (m) => oklchToRgb(m));
+  if (trimmed.startsWith('oklch(')) {
+    return oklchToRgb(trimmed);
+  }
+  return trimmed;
+}
+
+/**
+ * Replaces all modern color tokens in any CSS string with standard sRGB.
+ */
+export function parseAndConvertColorToRgb(colorStr: string): string {
+  if (!colorStr || typeof colorStr !== 'string') return colorStr;
+  
+  if (!colorStr.includes('oklch') && !colorStr.includes('oklab') && !colorStr.includes('color(')) {
+    return colorStr;
+  }
+
+  let result = colorStr;
+  result = result.replace(/oklab\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\)/gi, (m) => convertSingleColorToRgb(m));
+  result = result.replace(/oklch\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\)/gi, (m) => convertSingleColorToRgb(m));
+  result = result.replace(/color\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\)/gi, (m) => convertSingleColorToRgb(m));
+
+  return result;
 }
 
 /**
  * Sanitizes a string containing CSS rules by replacing oklch/oklab occurrences with converted RGB/HEX
  */
 export function sanitizeCssString(cssText: string): string {
-  if (!cssText || (!cssText.includes('oklch') && !cssText.includes('oklab'))) {
+  if (!cssText || (!cssText.includes('oklch') && !cssText.includes('oklab') && !cssText.includes('color('))) {
     return cssText;
   }
-  return cssText
-    .replace(/oklch\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\)/gi, (match) => parseAndConvertColorToRgb(match))
-    .replace(/oklab\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\)/gi, (match) => parseAndConvertColorToRgb(match));
+  return parseAndConvertColorToRgb(cssText);
 }
 
 /**
@@ -173,7 +194,6 @@ export function sanitizeClonedDocForHtml2Canvas(
   // 1. Lock exact canonical dimensions on the cloned poster container
   if (clonedTargetElement) {
     try {
-      // Determine if ratio is story (9:16) or square (1:1)
       let isStory = true;
       if (originalTargetElement) {
         const origHeight = originalTargetElement.style.height || '';
@@ -217,7 +237,6 @@ export function sanitizeClonedDocForHtml2Canvas(
       if (node.style.webkitLineClamp) {
         node.style.webkitLineClamp = 'unset';
       }
-      // Ensure text descenders and second lines don't get clipped by parent overflow
       if (node.tagName.startsWith('H') || node.tagName === 'P') {
         node.style.overflow = 'visible';
         node.style.maxHeight = 'none';
@@ -233,7 +252,7 @@ export function sanitizeClonedDocForHtml2Canvas(
     }
   });
 
-  // 3. Gather live stylesheet rules, sanitize them (converting all oklch/oklab to rgb), and inject into clonedDoc
+  // 4. Gather live stylesheet rules, sanitize them, and inject into clonedDoc
   try {
     let globalCssText = '';
     const sheets = Array.from(document.styleSheets);
@@ -260,12 +279,80 @@ export function sanitizeClonedDocForHtml2Canvas(
     }
   } catch (e) {}
 
-  // 4. Scan all cloned elements for any remaining inline style attributes with oklch/oklab
+  // 5. Scan all cloned elements for any remaining inline style attributes with oklch/oklab
   const allClonedElements = Array.from(clonedDoc.querySelectorAll('*')) as HTMLElement[];
   allClonedElements.forEach((el) => {
     const styleAttr = el.getAttribute('style');
-    if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
+    if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab') || styleAttr.includes('color('))) {
       el.setAttribute('style', sanitizeCssString(styleAttr));
     }
   });
+}
+
+/**
+ * Bulletproof html2canvas wrapper:
+ * 1. Monkey-patches getComputedStyle so modern colors are safely converted to rgb/rgba
+ * 2. Injects sanitization into onclone
+ * 3. Restores original getComputedStyle after capture
+ */
+export async function safeHtml2Canvas(
+  element: HTMLElement,
+  options: Partial<Options> = {}
+): Promise<HTMLCanvasElement> {
+  const originalGetComputedStyle = window.getComputedStyle;
+
+  const createStyleProxy = (origComputed: CSSStyleDeclaration) => {
+    return new Proxy(origComputed, {
+      get(target, prop, receiver) {
+        if (prop === 'getPropertyValue') {
+          return (propertyName: string) => {
+            const val = target.getPropertyValue(propertyName);
+            return parseAndConvertColorToRgb(val);
+          };
+        }
+        const val = Reflect.get(target, prop, receiver);
+        if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('color('))) {
+          return parseAndConvertColorToRgb(val);
+        }
+        if (typeof val === 'function') {
+          return val.bind(target);
+        }
+        return val;
+      }
+    });
+  };
+
+  try {
+    // Intercept host window getComputedStyle
+    window.getComputedStyle = function (el: Element, pseudoElt?: string | null) {
+      const computed = originalGetComputedStyle.call(window, el, pseudoElt);
+      return createStyleProxy(computed);
+    };
+
+    const userOnClone = options.onclone;
+
+    const mergedOptions: Partial<Options> = {
+      ...options,
+      onclone: (clonedDoc: Document, clonedElement: HTMLElement) => {
+        // Intercept cloned iframe defaultView getComputedStyle
+        if (clonedDoc.defaultView && clonedDoc.defaultView.getComputedStyle) {
+          const iframeOrigGetComputed = clonedDoc.defaultView.getComputedStyle;
+          clonedDoc.defaultView.getComputedStyle = function (el: Element, pseudoElt?: string | null) {
+            const computed = iframeOrigGetComputed.call(clonedDoc.defaultView, el, pseudoElt);
+            return createStyleProxy(computed);
+          };
+        }
+
+        sanitizeClonedDocForHtml2Canvas(clonedDoc, clonedElement, element);
+
+        if (userOnClone) {
+          userOnClone(clonedDoc, clonedElement);
+        }
+      }
+    };
+
+    return await html2canvas(element, mergedOptions);
+  } finally {
+    window.getComputedStyle = originalGetComputedStyle;
+  }
 }

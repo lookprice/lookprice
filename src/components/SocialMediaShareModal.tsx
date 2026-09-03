@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import html2canvas from "html2canvas";
-import { sanitizeClonedDocForHtml2Canvas } from "../utils/html2canvasFix";
+import { safeHtml2Canvas } from "../utils/html2canvasFix";
 import { 
   X, 
   Copy, 
@@ -347,17 +346,14 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
       const targetWidth = 1080;
       const renderScale = Math.max(3.2, targetWidth / currentWidth);
 
-      // 3. Render DOM element to high-resolution canvas
-      const canvas = await html2canvas(element, {
+      // 3. Render DOM element to high-resolution canvas with safe modern color handling
+      const canvas = await safeHtml2Canvas(element, {
         scale: renderScale,
         useCORS: true,
         allowTaint: true,
         backgroundColor: null,
         logging: false,
         imageTimeout: 10000,
-        onclone: (clonedDoc, clonedElement) => {
-          sanitizeClonedDocForHtml2Canvas(clonedDoc, clonedElement, element);
-        },
       });
 
       // 4. Download generated PNG

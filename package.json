@@ -10,7 +10,8 @@
     "start": "NODE_ENV=production node --max-old-space-size=450 dist/server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "postinstall": "node scripts/patch-html2canvas.cjs"
   },
   "dependencies": {
     "@ericblade/quagga2": "^1.12.1",
