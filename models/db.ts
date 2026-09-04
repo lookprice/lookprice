@@ -1638,6 +1638,7 @@ export async function initDb() {
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS city TEXT;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS country TEXT;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS tc_id TEXT;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS company_title TEXT;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_corporate BOOLEAN DEFAULT FALSE;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_email BOOLEAN DEFAULT FALSE;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_sms BOOLEAN DEFAULT FALSE;

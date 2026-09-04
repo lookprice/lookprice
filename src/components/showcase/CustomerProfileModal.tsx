@@ -65,10 +65,37 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
   }, [initialTab]);
 
   useEffect(() => {
-    if (isOpen && activeTab === 'orders') {
-      fetchOrders();
+    if (isOpen) {
+      fetchProfile();
+      if (activeTab === 'orders') {
+        fetchOrders();
+      }
     }
   }, [isOpen, activeTab]);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await api.getCustomerProfile();
+      if (res && res.id) {
+        setProfile(res);
+        setEditForm({
+          name: res.name || res.full_name || '',
+          surname: res.surname || '',
+          phone: res.phone || '',
+          email: res.email || '',
+          address: res.address || '',
+          city: res.city || '',
+          country: res.country || 'TR',
+          tc_id: res.tc_id || res.tax_number || '',
+          company_title: res.company_title || '',
+          tax_office: res.tax_office || '',
+          is_corporate: !!res.is_corporate
+        });
+      }
+    } catch (e) {
+      console.error("Error fetching profile:", e);
+    }
+  };
 
   const fetchOrders = async () => {
     setLoadingOrders(true);

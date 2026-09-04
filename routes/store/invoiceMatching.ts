@@ -9,6 +9,87 @@ export interface MatchCandidate {
 }
 
 /**
+ * Checks if a string is a valid standard numeric barcode (e.g. EAN-13, EAN-8, UPC, GTIN-14).
+ * Must be 8 to 14 numeric digits, without letters or AUTO-/M-/P- prefixes.
+ */
+export function isValidStandardBarcode(code: string | null | undefined): boolean {
+  if (!code) return false;
+  const str = String(code).trim();
+  if (!str || str.startsWith("AUTO-") || str.startsWith("M-") || str.startsWith("P-") || str.startsWith("TEMP-")) {
+    return false;
+  }
+  // Standard barcodes are strictly numeric digits, 8 to 14 characters long
+  return /^[0-9]{8,14}$/.test(str);
+}
+
+/**
+ * Generates a valid standard 13-digit pseudo-EAN barcode (starting with internal prefix '200')
+ */
+export function generateTempBarcode(): string {
+  const timeStr = Date.now().toString().slice(-9);
+  const randomDigit = Math.floor(Math.random() * 10).toString();
+  return `200${timeStr}${randomDigit}`;
+}
+
+/**
+ * Sanitizes incoming barcode & product code values from invoice lines (UBL / XML / Manual).
+ * Ensures non-standard barcode strings (like "TRU16977") are routed to productCode,
+ * and a valid temporary numeric barcode is generated if no valid standard barcode exists.
+ */
+export function sanitizeInvoiceItemCodes(
+  rawBarcode?: string | null,
+  rawSellerCode?: string | null,
+  rawBuyerCode?: string | null,
+  rawProductCode?: string | null
+): { barcode: string; productCode: string | null; isTempBarcode: boolean } {
+  const cleanBarcode = rawBarcode ? String(rawBarcode).trim() : null;
+  const cleanSeller = rawSellerCode ? String(rawSellerCode).trim() : null;
+  const cleanBuyer = rawBuyerCode ? String(rawBuyerCode).trim() : null;
+  const cleanProdCode = rawProductCode ? String(rawProductCode).trim() : null;
+
+  // Candidates collected from invoice
+  const candidates = [cleanBarcode, cleanProdCode, cleanSeller, cleanBuyer]
+    .filter(Boolean)
+    .map(c => String(c).trim())
+    .filter(c => c.length > 0 && !c.startsWith("AUTO-"));
+
+  // Find if any candidate is a true valid standard barcode
+  let validBarcode: string | null = null;
+  for (const c of candidates) {
+    if (isValidStandardBarcode(c)) {
+      validBarcode = c;
+      break;
+    }
+  }
+
+  // Find candidate for productCode (e.g. "TRU16977")
+  let targetProductCode: string | null = cleanProdCode || cleanSeller || cleanBuyer || null;
+
+  // If cleanBarcode is NOT a valid barcode (e.g., "TRU16977"), it belongs in productCode!
+  if (cleanBarcode && !isValidStandardBarcode(cleanBarcode)) {
+    if (!targetProductCode || targetProductCode.length < cleanBarcode.length) {
+      targetProductCode = cleanBarcode;
+    }
+  }
+
+  // If no valid standard barcode found, generate a valid temporary numeric barcode
+  let finalBarcode: string;
+  let isTemp = false;
+  if (validBarcode) {
+    finalBarcode = validBarcode;
+  } else {
+    finalBarcode = generateTempBarcode();
+    isTemp = true;
+  }
+
+  return {
+    barcode: finalBarcode,
+    productCode: targetProductCode,
+    isTempBarcode: isTemp
+  };
+}
+
+/**
  * Normalizes text for Turkish-safe, punctuation-free string matching
  */
 export function normalizeText(text: string | null | undefined): string {

@@ -191,21 +191,67 @@ export function sanitizeClonedDocForHtml2Canvas(
 ) {
   if (!clonedDoc) return;
 
-  // 1. Lock exact canonical dimensions on the cloned poster container
+  // 0. Reset document and body margins/paddings to prevent scroll/offset shifts
+  try {
+    if (clonedDoc.documentElement) {
+      clonedDoc.documentElement.style.margin = '0';
+      clonedDoc.documentElement.style.padding = '0';
+      clonedDoc.documentElement.style.border = 'none';
+      clonedDoc.documentElement.style.overflow = 'visible';
+    }
+    if (clonedDoc.body) {
+      clonedDoc.body.style.margin = '0';
+      clonedDoc.body.style.padding = '0';
+      clonedDoc.body.style.border = 'none';
+      clonedDoc.body.style.overflow = 'visible';
+      clonedDoc.body.style.position = 'relative';
+      clonedDoc.body.style.top = '0';
+      clonedDoc.body.style.left = '0';
+    }
+  } catch (e) {}
+
+  // 1. Lock exact canonical dimensions on the cloned poster container and isolate it at (0,0) of clonedDoc.body
   if (clonedTargetElement) {
     try {
-      let isStory = true;
-      if (originalTargetElement) {
-        const origHeight = originalTargetElement.style.height || '';
-        const origRect = originalTargetElement.getBoundingClientRect();
-        if (origHeight.includes('340') || (origRect.height > 0 && origRect.width > 0 && Math.abs(origRect.height - origRect.width) < 50)) {
-          isStory = false;
-        }
+      const canonicalWidth = originalTargetElement?.offsetWidth || clonedTargetElement.offsetWidth || 340;
+      const canonicalHeight = originalTargetElement?.offsetHeight || clonedTargetElement.offsetHeight || 340;
+
+      // ISOLATION: Move clonedTargetElement to be the sole direct child of clonedDoc.body
+      // Strips away parent modal backdrops, dialog padding, scroll offsets, and parent transforms
+      if (clonedDoc.body && clonedTargetElement.parentElement !== clonedDoc.body) {
+        clonedDoc.body.innerHTML = '';
+        clonedDoc.body.appendChild(clonedTargetElement);
       }
 
-      const canonicalWidth = 340;
-      const canonicalHeight = isStory ? 604 : 340;
+      // Lock documentElement and body to exact poster dimensions at (0,0)
+      if (clonedDoc.documentElement) {
+        clonedDoc.documentElement.style.margin = '0';
+        clonedDoc.documentElement.style.padding = '0';
+        clonedDoc.documentElement.style.border = 'none';
+        clonedDoc.documentElement.style.width = `${canonicalWidth}px`;
+        clonedDoc.documentElement.style.height = `${canonicalHeight}px`;
+        clonedDoc.documentElement.style.overflow = 'hidden';
+      }
 
+      if (clonedDoc.body) {
+        clonedDoc.body.style.margin = '0';
+        clonedDoc.body.style.padding = '0';
+        clonedDoc.body.style.border = 'none';
+        clonedDoc.body.style.position = 'absolute';
+        clonedDoc.body.style.top = '0';
+        clonedDoc.body.style.left = '0';
+        clonedDoc.body.style.width = `${canonicalWidth}px`;
+        clonedDoc.body.style.height = `${canonicalHeight}px`;
+        clonedDoc.body.style.overflow = 'hidden';
+        clonedDoc.body.style.backgroundColor = 'transparent';
+      }
+
+      // Lock clonedTargetElement to top-left (0,0) with no margins or transforms
+      clonedTargetElement.style.position = 'absolute';
+      clonedTargetElement.style.top = '0';
+      clonedTargetElement.style.left = '0';
+      clonedTargetElement.style.margin = '0';
+      clonedTargetElement.style.transform = 'none';
       clonedTargetElement.style.width = `${canonicalWidth}px`;
       clonedTargetElement.style.height = `${canonicalHeight}px`;
       clonedTargetElement.style.minWidth = `${canonicalWidth}px`;
@@ -213,33 +259,31 @@ export function sanitizeClonedDocForHtml2Canvas(
       clonedTargetElement.style.maxWidth = `${canonicalWidth}px`;
       clonedTargetElement.style.maxHeight = `${canonicalHeight}px`;
       clonedTargetElement.style.boxSizing = 'border-box';
-      clonedTargetElement.style.transform = 'none';
-      clonedTargetElement.style.margin = '0 auto';
-
-      // Ensure no parent container forces squishing
-      let parent = clonedTargetElement.parentElement;
-      while (parent && parent !== clonedDoc.body) {
-        parent.style.width = 'auto';
-        parent.style.maxWidth = 'none';
-        parent.style.overflow = 'visible';
-        parent = parent.parentElement;
-      }
     } catch (e) {}
   }
 
   // 2. Prevent line clipping and text cutoff on all text elements
   try {
-    const textNodes = Array.from(clonedDoc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div')) as HTMLElement[];
+    const textNodes = Array.from(clonedDoc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, a, b, strong')) as HTMLElement[];
     textNodes.forEach((node) => {
-      if (node.classList.contains('line-clamp-1') || node.classList.contains('line-clamp-2') || node.classList.contains('line-clamp-3')) {
-        node.classList.remove('line-clamp-1', 'line-clamp-2', 'line-clamp-3');
-      }
+      node.classList.remove('truncate', 'line-clamp-1', 'line-clamp-2', 'line-clamp-3', 'leading-none', 'leading-tight', 'leading-snug');
+      
       if (node.style.webkitLineClamp) {
         node.style.webkitLineClamp = 'unset';
       }
-      if (node.tagName.startsWith('H') || node.tagName === 'P') {
-        node.style.overflow = 'visible';
-        node.style.maxHeight = 'none';
+      
+      // Force overflow to be visible on all text containers so glyph ascenders/descenders are never clipped
+      node.style.setProperty('overflow', 'visible', 'important');
+      node.style.setProperty('text-overflow', 'clip', 'important');
+      node.style.setProperty('max-height', 'none', 'important');
+
+      // CRITICAL html2canvas baseline fix:
+      // Force generous line-height (1.5) on text nodes so uppercase letters (G, A, P, B, İ, Ş, M) and accents are never clipped
+      node.style.setProperty('line-height', '1.5', 'important');
+      
+      if (node.tagName === 'SPAN') {
+        node.style.setProperty('display', 'inline-block', 'important');
+        node.style.setProperty('vertical-align', 'middle', 'important');
       }
     });
   } catch (e) {}
@@ -456,10 +500,14 @@ export async function safeHtml2Canvas(
     const userOnClone = options.onclone;
 
     const mergedOptions: Partial<Options> = {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       backgroundColor: null,
       logging: false,
+      scrollX: 0,
+      scrollY: 0,
+      x: 0,
+      y: 0,
       ...options,
       allowTaint: false, // CRITICAL: NEVER allow taint when exporting toDataURL!
       onclone: (clonedDoc: Document, clonedElement: HTMLElement) => {

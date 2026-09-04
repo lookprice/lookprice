@@ -474,13 +474,13 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                     <div className="absolute inset-3 border border-white/20 rounded-2xl pointer-events-none z-10" />
 
                     {/* TOP CONSULTANT BAR */}
-                    <div className="relative z-20 flex justify-between items-center px-2 py-1 mb-1 text-[8.5px] font-black tracking-wider text-white shrink-0">
+                    <div className="relative z-20 flex justify-between items-center px-2.5 py-1.5 mx-2.5 mt-3 mb-1 text-[9px] font-black tracking-wider text-white shrink-0">
                       <div className="flex items-center gap-1.5 min-w-0 max-w-[48%]">
                         <span className="shrink-0 text-[9px]">👤</span>
-                        <span className="truncate leading-none text-[8.5px] font-black">{brokerName}</span>
+                        <span className="truncate leading-normal text-[9px] font-black py-0.5 inline-block">{brokerName}</span>
                       </div>
-                      <div className={`truncate ${previewColors.textAccent} leading-none text-[8.5px] font-black`}>PLAKA: {plateText}</div>
-                      <div className={`shrink-0 ${previewColors.textAccent} leading-none text-[8.5px] font-black ml-1`}>📞 {brokerPhone}</div>
+                      <div className={`truncate ${previewColors.textAccent} leading-normal text-[9px] font-black py-0.5 inline-block`}>PLAKA: {plateText}</div>
+                      <div className={`shrink-0 ${previewColors.textAccent} leading-normal text-[9px] font-black ml-1 py-0.5 inline-block`}>📞 {brokerPhone}</div>
                     </div>
 
                     {/* FRAMED IMAGE AREA */}
@@ -576,20 +576,20 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                     </div>
 
                     {/* SOLID BOTTOM BAR */}
-                    <div className={`relative z-20 rounded-xl p-2.5 flex justify-between items-center text-slate-900 ${previewColors.barBg} shrink-0 mt-1`}>
+                    <div className={`relative z-20 rounded-xl p-2.5 flex justify-between items-center text-slate-900 ${previewColors.barBg} shrink-0 mt-1 mb-2`}>
                       <div className="flex flex-col text-left justify-center min-w-0 pr-2">
-                        <span className="text-[6.5px] font-black tracking-widest text-[#0f172a]/90 uppercase leading-none mb-0.5">
+                        <span className="text-[7px] font-black tracking-widest text-[#0f172a]/90 uppercase leading-normal mb-0.5 block">
                           ARAÇ SATIŞ BEDELİ
                         </span>
-                        <span className="text-[13px] font-black text-[#0f172a] tracking-tight leading-none mb-1">
+                        <span className="text-[13px] font-black text-[#0f172a] tracking-tight leading-normal mb-0.5 block">
                           {priceText}
                         </span>
-                        <span className="text-[8px] font-black text-[#0f172a] uppercase tracking-wider truncate leading-none">
+                        <span className="text-[8.5px] font-black text-[#0f172a] uppercase tracking-wider truncate leading-normal block">
                           {storeName}
                         </span>
                       </div>
                       
-                      <div className="text-right flex items-center shrink-0 text-[9.5px] font-black text-[#0f172a] tracking-wider leading-none">
+                      <div className="text-right flex items-center shrink-0 text-[9.5px] font-black text-[#0f172a] tracking-wider leading-normal">
                         ENRAKİPSİZ<span className="text-[#0f172a] font-extrabold">.COM</span>
                       </div>
                     </div>

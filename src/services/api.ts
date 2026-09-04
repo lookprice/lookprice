@@ -237,6 +237,7 @@ export const api = {
   updateSaleStatus: (id: number, data: { status: string; carrier?: string; trackingNumber?: string; reason?: string }, storeId?: number) => api.post(`/api/store/sales/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deliverSale: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/deliver${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   cancelSale: (id: number, data: { reason: string }, storeId?: number) => api.post(`/api/store/sales/${id}/cancel${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  createSaleInvoice: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/create-invoice${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   deleteSale: (id: number, storeId?: number) => api.delete(`/api/store/sales/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getDailySalesReport: (start = "", end = "", storeId?: number) => api.get(`/api/store/reports/daily-sales?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   getPosDailyReport: (dateOrStart = "", storeId?: number, endDate?: string) => {

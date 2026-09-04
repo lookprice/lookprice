@@ -27,12 +27,26 @@ router.get("/", async (req: any, res) => {
 
 router.post("/", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { full_name, email, phone, address, tax_number, tax_office } = req.body;
+  const { full_name, name, surname, email, phone, address, tax_number, tax_office } = req.body;
 
   try {
+    const rawFullName = (full_name || '').trim();
+    let firstNameVal = name ? String(name).trim() : '';
+    let surnameVal = surname ? String(surname).trim() : '';
+
+    if (!surnameVal && rawFullName.includes(' ')) {
+      const parts = rawFullName.split(' ');
+      surnameVal = parts.pop() || '';
+      firstNameVal = parts.join(' ');
+    } else if (!firstNameVal) {
+      firstNameVal = rawFullName;
+    }
+
+    const calculatedFullName = rawFullName || [firstNameVal, surnameVal].filter(Boolean).join(' ');
+
     const result = await pool.query(
-      "INSERT INTO customers (store_id, full_name, email, phone, address, tax_number, tax_office) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-      [storeId, full_name, email, phone, address, tax_number, tax_office]
+      "INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tax_office) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+      [storeId, calculatedFullName, firstNameVal, surnameVal, email, phone, address, tax_number, tax_office]
     );
     res.status(201).json(result.rows[0]);
   } catch (err: any) {
@@ -43,12 +57,26 @@ router.post("/", async (req: any, res) => {
 router.put("/:id", async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   const { id } = req.params;
-  const { full_name, email, phone, address, tax_number, tax_office } = req.body;
+  const { full_name, name, surname, email, phone, address, tax_number, tax_office } = req.body;
 
   try {
+    const rawFullName = (full_name || '').trim();
+    let firstNameVal = name ? String(name).trim() : '';
+    let surnameVal = surname ? String(surname).trim() : '';
+
+    if (!surnameVal && rawFullName.includes(' ')) {
+      const parts = rawFullName.split(' ');
+      surnameVal = parts.pop() || '';
+      firstNameVal = parts.join(' ');
+    } else if (!firstNameVal) {
+      firstNameVal = rawFullName;
+    }
+
+    const calculatedFullName = rawFullName || [firstNameVal, surnameVal].filter(Boolean).join(' ');
+
     const result = await pool.query(
-      "UPDATE customers SET full_name = $1, email = $2, phone = $3, address = $4, tax_number = $5, tax_office = $6 WHERE id = $7 AND store_id = $8 RETURNING *",
-      [full_name, email, phone, address, tax_number, tax_office, id, storeId]
+      "UPDATE customers SET full_name = $1, name = $2, surname = $3, email = $4, phone = $5, address = $6, tax_number = $7, tax_office = $8 WHERE id = $9 AND store_id = $10 RETURNING *",
+      [calculatedFullName, firstNameVal, surnameVal, email, phone, address, tax_number, tax_office, id, storeId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: "Customer not found" });
     res.json(result.rows[0]);

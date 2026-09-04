@@ -920,7 +920,7 @@ export default router;
 
 router.post("/:id/create-invoice", async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.query.storeId ? parseInt(req.query.storeId as string) : req.user.storeId;
+  const storeId = req.query.storeId ? parseInt(req.query.storeId as string) : req.user.store_id;
   
   try {
     await pool.query("BEGIN");
@@ -932,9 +932,161 @@ router.post("/:id/create-invoice", async (req: any, res) => {
     }
     const sale = saleRes.rows[0];
     
-    if (sale.sales_invoice_id) {
+    // Check if already invoiced via sales_invoices table
+    const existingInvRes = await pool.query(
+      "SELECT id, invoice_number FROM sales_invoices WHERE sale_id = $1 AND store_id = $2",
+      [id, storeId]
+    );
+    if (existingInvRes.rows.length > 0) {
       await pool.query("ROLLBACK");
-      return res.status(400).json({ error: "Sale is already invoiced" });
+      return res.status(400).json({ error: "Sale is already invoiced", invoice_number: existingInvRes.rows[0].invoice_number });
+    }
+    
+    // Fetch store name/branding
+    const storeRes = await pool.query("SELECT name, branding FROM stores WHERE id = $1", [storeId]);
+    const storeData = storeRes.rows[0];
+    const branding = storeData?.branding || {};
+    const storeName = branding?.store_name || branding?.name || storeData?.name || "Seçkin Mağaza";
+
+    // Extract notes, city, country, email from sale.notes
+    const rawNotes = sale.notes || "";
+    let extractedEmail = "";
+    let extractedCity = "";
+    let extractedCountry = "";
+    const customerNotesParts: string[] = [];
+
+    if (rawNotes) {
+      const parts = rawNotes.split('|').map((p: string) => p.trim());
+      for (const p of parts) {
+        if (p.startsWith('E-posta:')) {
+          extractedEmail = p.replace('E-posta:', '').trim();
+        } else if (p.startsWith('İl:')) {
+          extractedCity = p.replace('İl:', '').trim();
+        } else if (p.startsWith('Ülke:')) {
+          extractedCountry = p.replace('Ülke:', '').trim();
+        } else if (p) {
+          customerNotesParts.push(p);
+        }
+      }
+    }
+
+    // Customer resolution & auto-linking
+    let customerObj: any = null;
+    let finalCustomerId: number | null = sale.customer_id ? parseInt(sale.customer_id) : null;
+
+    if (finalCustomerId) {
+      const custRes = await pool.query("SELECT * FROM customers WHERE id = $1", [finalCustomerId]);
+      if (custRes.rows.length > 0) {
+        customerObj = custRes.rows[0];
+      }
+    }
+
+    const targetEmail = extractedEmail || sale.customer_email || (customerObj?.email || "");
+    const targetPhone = sale.customer_phone || (customerObj?.phone || "");
+    const targetFullName = (sale.customer_name || customerObj?.full_name || "Müşteri").trim();
+
+    if (!customerObj) {
+      let findCustRes = null;
+      if (targetEmail) {
+        findCustRes = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND LOWER(email) = LOWER($2) LIMIT 1", [storeId, targetEmail]);
+      }
+      if ((!findCustRes || findCustRes.rows.length === 0) && targetPhone) {
+        findCustRes = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND phone = $2 LIMIT 1", [storeId, targetPhone]);
+      }
+      if ((!findCustRes || findCustRes.rows.length === 0) && targetFullName && targetFullName !== "Müşteri") {
+        findCustRes = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND LOWER(full_name) = LOWER($2) LIMIT 1", [storeId, targetFullName]);
+      }
+
+      if (findCustRes && findCustRes.rows.length > 0) {
+        customerObj = findCustRes.rows[0];
+        finalCustomerId = customerObj.id;
+      } else {
+        const nameParts = targetFullName.split(' ');
+        const surname = nameParts.length > 1 ? nameParts.pop()! : '';
+        const firstName = nameParts.join(' ') || targetFullName;
+
+        const newCustRes = await pool.query(
+          `INSERT INTO customers (store_id, full_name, name, surname, phone, address, city, country, email)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+          [
+            storeId,
+            targetFullName,
+            firstName,
+            surname,
+            targetPhone || '',
+            sale.customer_address || '',
+            extractedCity || '',
+            extractedCountry || '',
+            targetEmail || ''
+          ]
+        );
+        customerObj = newCustRes.rows[0];
+        finalCustomerId = customerObj.id;
+      }
+    }
+
+    if (customerObj) {
+      const updates: string[] = [];
+      const vals: any[] = [];
+      let valIdx = 1;
+
+      if (!customerObj.address && sale.customer_address) {
+        updates.push(`address = $${valIdx++}`);
+        vals.push(sale.customer_address);
+      }
+      if (!customerObj.city && extractedCity) {
+        updates.push(`city = $${valIdx++}`);
+        vals.push(extractedCity);
+      }
+      if (!customerObj.country && extractedCountry) {
+        updates.push(`country = $${valIdx++}`);
+        vals.push(extractedCountry);
+      }
+      if (!customerObj.email && targetEmail) {
+        updates.push(`email = $${valIdx++}`);
+        vals.push(targetEmail);
+      }
+      if (updates.length > 0) {
+        vals.push(customerObj.id);
+        await pool.query(`UPDATE customers SET ${updates.join(', ')} WHERE id = $${valIdx}`, vals);
+      }
+    }
+
+    // Format full invoice address including street, city, and country
+    let streetAddress = customerObj?.address || sale.customer_address || "";
+    let city = customerObj?.city || extractedCity || "";
+    let country = customerObj?.country || extractedCountry || "";
+
+    let fullAddressParts: string[] = [];
+    if (streetAddress) fullAddressParts.push(streetAddress);
+    if (city && !streetAddress.toLowerCase().includes(city.toLowerCase())) {
+      fullAddressParts.push(city);
+    }
+    if (country && !streetAddress.toLowerCase().includes(country.toLowerCase())) {
+      fullAddressParts.push(country);
+    }
+    const fullInvoiceAddress = fullAddressParts.join(" / ");
+
+    // Payment method mapping and professional invoice notes
+    const paymentMethodMap: Record<string, string> = {
+      credit_card: "Kredi Kartı / Online Ödeme",
+      card: "Kredi Kartı / Online Ödeme",
+      paytr: "Kredi Kartı (PayTR)",
+      iyzico: "Kredi Kartı (iyzico)",
+      cash: "Nakit Ödeme",
+      nakit: "Nakit Ödeme",
+      transfer: "Havale / EFT",
+      eft: "Havale / EFT",
+      havale: "Havale / EFT",
+      pay_at_door: "Kapıda Ödeme",
+      kapida_odeme: "Kapıda Ödeme"
+    };
+    const rawPayment = (sale.payment_method || "cash").toLowerCase();
+    const paymentLabel = paymentMethodMap[rawPayment] || sale.payment_method || "Online Ödeme";
+
+    let professionalNote = `Bu fatura ${storeName} web sitesinden verilen #${id} nolu siparişe aittir. Ödeme Yöntemi: ${paymentLabel} ile ödenmiştir.`;
+    if (customerNotesParts.length > 0) {
+      professionalNote += `\n\nMüşteri Notu: ${customerNotesParts.join(' | ')}`;
     }
     
     // Generate invoice number
@@ -950,60 +1102,130 @@ router.post("/:id/create-invoice", async (req: any, res) => {
     }
     const invoiceNumber = `${prefix}${nextNum.toString().padStart(6, '0')}`;
     
-    // Create sales invoice
+    const isCorporate = customerObj?.is_corporate || false;
+    const eDocType = isCorporate ? 'E-FATURA' : 'E-ARSIV';
+    const invProfile = isCorporate ? 'TICARIFATURA' : 'EARSIVFATURA';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('tr-TR', { hour12: false });
+    
+    // Get sale items & calculate KDV/Tax
+    const itemsRes = await pool.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
+    
+    let calculatedTotalMatrah = 0;
+    let calculatedTotalTax = 0;
+    let calculatedGrandTotal = 0;
+
+    const processedItems = [];
+
+    for (const item of itemsRes.rows) {
+      const q = parseFloat(item.quantity) || 1;
+      const price = parseFloat(item.unit_price) || 0;
+      let taxRate = parseFloat(item.tax_rate);
+
+      if (isNaN(taxRate) && item.product_id) {
+        const prodRes = await pool.query("SELECT tax_rate FROM products WHERE id = $1", [item.product_id]);
+        if (prodRes.rows.length > 0 && prodRes.rows[0].tax_rate !== null) {
+          taxRate = parseFloat(prodRes.rows[0].tax_rate);
+        }
+      }
+      if (isNaN(taxRate) || taxRate < 0) {
+        taxRate = 0;
+      }
+
+      const lineTotalInclusive = parseFloat(item.total_price) || (q * price);
+      let lineMatrah = lineTotalInclusive;
+      let lineTaxAmount = 0;
+
+      if (taxRate > 0) {
+        lineMatrah = lineTotalInclusive / (1 + (taxRate / 100));
+        lineTaxAmount = lineTotalInclusive - lineMatrah;
+      } else if (item.tax_amount && parseFloat(item.tax_amount) > 0) {
+        lineTaxAmount = parseFloat(item.tax_amount);
+        lineMatrah = lineTotalInclusive - lineTaxAmount;
+      }
+
+      calculatedTotalMatrah += lineMatrah;
+      calculatedTotalTax += lineTaxAmount;
+      calculatedGrandTotal += lineTotalInclusive;
+
+      processedItems.push({
+        product_id: item.product_id || null,
+        product_name: item.product_name || 'Ürün',
+        quantity: q,
+        unit_price: price,
+        tax_rate: taxRate,
+        tax_amount: lineTaxAmount,
+        total_price: lineMatrah
+      });
+    }
+
+    if (calculatedGrandTotal === 0) {
+      calculatedGrandTotal = parseFloat(sale.total_amount) || 0;
+      calculatedTotalMatrah = calculatedGrandTotal;
+    }
+
+    const finalTaxNumber = customerObj?.tax_number || customerObj?.tc_id || '';
+    const finalTaxOffice = customerObj?.tax_office || '';
+    const finalEmail = targetEmail || customerObj?.email || '';
+
+    // Insert sales invoice
     const invRes = await pool.query(
       `INSERT INTO sales_invoices (
-        store_id, invoice_number, issue_date, invoice_type, status,
-        customer_name, customer_email, customer_phone, customer_address,
-        customer_tc_id, customer_tax_number, customer_tax_office, customer_company_title, customer_is_corporate,
-        subtotal, tax_amount, total_amount, currency, notes
+        store_id, sale_id, customer_id, invoice_number, invoice_date, invoice_time,
+        total_amount, tax_amount, grand_total, currency, notes, invoice_type, status,
+        payment_method, address, tax_number, tax_office, customer_email, e_document_type, invoice_profile, is_tax_inclusive
       ) VALUES (
-        $1, $2, CURRENT_DATE, 'retail', 'draft',
-        $3, $4, $5, $6,
-        $7, $8, $9, $10, $11,
-        $12, $13, $14, $15, $16
+        $1, $2, $3, $4, CURRENT_DATE, $5,
+        $6, $7, $8, $9, $10, 'sales', 'draft',
+        $11, $12, $13, $14, $15, $16, $17, true
       ) RETURNING id`,
       [
-        storeId, invoiceNumber,
-        sale.customer_name, sale.customer_email || '', sale.customer_phone || '', sale.customer_address || '',
-        sale.customer_tc_id || '', sale.customer_tax_number || '', sale.customer_tax_office || '', sale.customer_company_title || '', sale.customer_is_corporate || false,
-        sale.total_amount, 0, sale.total_amount, sale.currency, sale.notes || ''
+        storeId,
+        id,
+        finalCustomerId,
+        invoiceNumber,
+        timeStr,
+        calculatedTotalMatrah,
+        calculatedTotalTax,
+        calculatedGrandTotal,
+        sale.currency || 'TRY',
+        professionalNote,
+        sale.payment_method || 'cash',
+        fullInvoiceAddress,
+        finalTaxNumber,
+        finalTaxOffice,
+        finalEmail,
+        eDocType,
+        invProfile
       ]
     );
     
     const invoiceId = invRes.rows[0].id;
     
-    // Get sale items
-    const itemsRes = await pool.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
-    
     // Insert invoice items
-    for (const item of itemsRes.rows) {
+    for (const item of processedItems) {
       await pool.query(
         `INSERT INTO sales_invoice_items (
-          sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          sales_invoice_id, product_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           invoiceId,
+          item.product_id,
           item.product_name,
           item.quantity,
           item.unit_price,
-          0, // Web sales items might not have tax_rate recorded, assume 0
-          0,
+          item.tax_rate,
+          item.tax_amount,
           item.total_price
         ]
       );
     }
     
-    // Link sale to invoice
-    await pool.query(
-      "UPDATE sales SET sales_invoice_id = $1, sales_invoice_number = $2 WHERE id = $3",
-      [invoiceId, invoiceNumber, id]
-    );
-    
     await pool.query("COMMIT");
-    res.json({ success: true, invoice_id: invoiceId });
+    res.json({ success: true, invoice_id: invoiceId, invoice_number: invoiceNumber });
   } catch (err: any) {
     await pool.query("ROLLBACK");
+    console.error("Error in create-invoice:", err);
     res.status(500).json({ error: err.message });
   }
 });

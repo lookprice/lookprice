@@ -413,6 +413,11 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                                                   {item.barcode}
                                                 </span>
                                               )}
+                                              {item.product_code && (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 font-bold">
+                                                  Kod: {item.product_code}
+                                                </span>
+                                              )}
                                             </div>
                                           </td>
                                           <td className="py-2.5 px-3 text-right font-medium text-slate-700">

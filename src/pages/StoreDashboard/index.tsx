@@ -110,6 +110,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   };
   const [shipCarrier, setShipCarrier] = useState('');
   const [shipTrackingNumber, setShipTrackingNumber] = useState('');
+  const [dismissedWebSales, setDismissedWebSales] = useState(false);
 
   const t = translations[lang].dashboard;
   const {
@@ -892,7 +893,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           </div>
         )}
 
-        {notifications?.web_sales > 0 && (
+        {!dismissedWebSales && notifications?.web_sales > 0 && (
           <div className="mb-6 bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center text-xl font-black shrink-0 shadow">
@@ -915,7 +916,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               </div>
             </div>
             <button
-              onClick={() => setActiveTab("pos")}
+              onClick={() => { setActiveTab("pos"); setDismissedWebSales(true); }}
               className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-rose-400 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center gap-1.5 border border-rose-500/30"
             >
               <span>{isTr ? 'Satışları Görüntüle' : 'View Sales'}</span>
@@ -1043,6 +1044,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onDeleteSale={(id) => { setSaleToCancel(id); setShowCancelReasonModal(true); }}
                   onExportReport={handleExportSales}
                   isViewer={isViewer}
+                  activeStoreId={currentStoreId}
+                  onRefreshSales={fetchSales}
                 />
               )}
               {showCancelReasonModal && (

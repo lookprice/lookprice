@@ -169,7 +169,9 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
                                 >
                                   {item.product_name}
                                 </button>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">{item.barcode || '-'}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                  {item.barcode || '-'}{item.product_code ? ` • Kod: ${item.product_code}` : ''}
+                                </p>
                              </td>
                              <td className="p-4 text-center font-medium text-slate-700 text-sm">
                                 {Number(item.quantity).toLocaleString('tr-TR')} <span className="text-xs text-slate-400 font-bold">({item.unit_code || (isTr ? 'Adet' : 'Pcs')})</span>

@@ -355,14 +355,9 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
         }
       }));
 
-      // 2. Calculate render scale for 1080px resolution (HD Social Media standard)
-      const currentWidth = element.clientWidth || 340;
-      const targetWidth = 1080;
-      const renderScale = Math.max(3.2, targetWidth / currentWidth);
-
-      // 3. Render DOM element to high-resolution canvas with safe modern color handling
+      // 2. Render DOM element to high-resolution canvas with safe modern color handling
       const canvas = await safeHtml2Canvas(element, {
-        scale: renderScale,
+        scale: 3,
         useCORS: true,
         allowTaint: false,
         backgroundColor: null,
@@ -435,18 +430,18 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 style={{ height: selectedRatio === 'square' ? '340px' : '604px' }}
               >
                 {/* Double Luxury Borders */}
-                <div className={`absolute inset-2 border-[2px] rounded-2xl pointer-events-none z-30 ${themeConfig.accentBorder}`} />
-                <div className={`absolute inset-3 border rounded-2xl pointer-events-none z-30 ${themeConfig.innerBorder}`} />
+                <div className={`absolute inset-2 border-[2px] rounded-2xl pointer-events-none z-10 ${themeConfig.accentBorder}`} />
+                <div className={`absolute inset-3 border rounded-2xl pointer-events-none z-10 ${themeConfig.innerBorder}`} />
 
                 {/* Top Glassmorphic Store & Contact Bar */}
-                <div className={`relative z-20 flex justify-between items-center px-3 py-1.5 mx-3 mt-3 rounded-xl backdrop-blur-md ${themeConfig.headerBg} shrink-0`}>
+                <div className={`relative z-20 flex justify-between items-center px-3.5 py-2 mx-3.5 mt-4 rounded-xl backdrop-blur-md ${themeConfig.headerBg} shrink-0`}>
                   <div className="flex items-center gap-2 min-w-0 pr-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-sm" />
-                    <span className="text-[10px] font-black uppercase tracking-wider truncate leading-none">
+                    <span className="text-[10.5px] font-black uppercase tracking-wider text-white inline-block leading-normal py-0.5">
                       {storeNameDisplay}
                     </span>
                   </div>
-                  <div className={`shrink-0 text-[9px] font-mono font-black ${themeConfig.textTitle} leading-none flex items-center gap-1`}>
+                  <div className={`shrink-0 text-[9.5px] font-mono font-black ${themeConfig.textTitle} leading-normal py-0.5 flex items-center gap-1`}>
                     <span>📞</span>
                     <span>{branding?.whatsapp_number || branding?.phone || '+90 212 8812442'}</span>
                   </div>
@@ -480,11 +475,11 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                 </div>
 
                 {/* Translucent Overlay Info Card - 100% visible, elegant, NO line-clamp cut-off */}
-                <div className={`relative z-20 mx-3 mb-3 p-3 rounded-2xl backdrop-blur-md ${themeConfig.infoCardBg} flex flex-col gap-1.5 shrink-0`}>
+                <div className={`relative z-20 mx-3.5 mb-3.5 p-3 rounded-2xl backdrop-blur-md ${themeConfig.infoCardBg} flex flex-col gap-1.5 shrink-0`}>
                   {/* Product Title */}
                   <h4 
-                    className={`text-[12px] font-black uppercase tracking-wide leading-snug ${themeConfig.textTitle}`}
-                    style={{ lineHeight: '1.35', overflowWrap: 'break-word' }}
+                    className={`text-[12px] font-black uppercase tracking-wide leading-relaxed ${themeConfig.textTitle}`}
+                    style={{ lineHeight: '1.4', overflowWrap: 'break-word' }}
                   >
                     {productTitle}
                   </h4>
@@ -492,15 +487,15 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                   {/* Price and Guarantee Section */}
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
                     <div className="flex flex-col">
-                      <span className={`block text-[7px] uppercase tracking-wider leading-none ${themeConfig.priceLabel}`}>
+                      <span className={`block text-[7.5px] uppercase tracking-wider leading-normal font-extrabold ${themeConfig.priceLabel}`}>
                         {discountPercentage > 0 ? "KAMPANYALI LİSTE FİYATI" : "AVANTAJLI LİSTE FİYATI"}
                       </span>
-                      <div className="flex items-baseline gap-2 mt-1">
-                        <span className={`text-base font-black tracking-tight leading-none ${themeConfig.priceColor}`}>
+                      <div className="flex items-baseline gap-2 mt-0.5">
+                        <span className={`text-base font-black tracking-tight leading-normal ${themeConfig.priceColor}`}>
                           {priceText}
                         </span>
                         {oldPriceText && (
-                          <span className={`text-[9px] ${themeConfig.oldPriceColor} leading-none`}>
+                          <span className={`text-[9.5px] ${themeConfig.oldPriceColor} leading-normal`}>
                             {oldPriceText}
                           </span>
                         )}
@@ -508,10 +503,10 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                     </div>
 
                     <div className="text-right flex flex-col items-end shrink-0">
-                      <span className="text-[6.5px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">
+                      <span className="text-[7px] font-black uppercase tracking-widest text-slate-300 leading-normal mb-0.5 block">
                         GÜVENLİ MAĞAZA
                       </span>
-                      <span className={`text-[8px] font-black tracking-wider uppercase px-2 py-0.5 rounded border ${themeConfig.badgeBorder} ${themeConfig.badgeText} bg-white/5 leading-none`}>
+                      <span className={`text-[8.5px] font-black tracking-wider uppercase px-2.5 py-1 rounded border ${themeConfig.badgeBorder} ${themeConfig.badgeText} bg-white/5 leading-normal inline-block`}>
                         ENRAKİPSİZ.COM
                       </span>
                     </div>

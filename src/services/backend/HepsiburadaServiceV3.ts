@@ -477,12 +477,17 @@ export class HepsiburadaServiceV3 {
         customerId = custRes.rows[0].id;
       } else {
         try {
+          const rawCustName = (customerName || '').trim();
+          const nameParts = rawCustName.split(' ');
+          const surnameVal = nameParts.length > 1 ? nameParts.pop()! : '';
+          const firstNameVal = nameParts.join(' ') || rawCustName;
+
           const newCust = await client.query(
-            `INSERT INTO customers (store_id, email, password, full_name, name, phone, address) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) 
-             ON CONFLICT (store_id, email) DO UPDATE SET full_name = EXCLUDED.full_name 
+            `INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+             ON CONFLICT (store_id, email) DO UPDATE SET full_name = EXCLUDED.full_name, surname = EXCLUDED.surname 
              RETURNING id`,
-            [targetStoreId, customerEmail, "marketplace_user", customerName, customerName, customerPhone, "Hepsiburada SIT Test Adresi, Kadıköy / İstanbul"]
+            [targetStoreId, customerEmail, "marketplace_user", rawCustName, firstNameVal, surnameVal, customerPhone, "Hepsiburada SIT Test Adresi, Kadıköy / İstanbul"]
           );
           customerId = newCust.rows[0]?.id;
         } catch (cErr) {

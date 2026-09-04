@@ -2,7 +2,7 @@ import express from "express";
 import { pool, addStockMovement } from "../../models/db";
 import { getEInvoiceService } from "../einvoice";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
-import { findMatchingProduct, saveSupplierMapping } from "./invoiceMatching";
+import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode } from "./invoiceMatching";
 
 const router = express.Router();
 
@@ -109,6 +109,40 @@ export async function initPurchaseInvoiceSchema() {
             )
         )
     `);
+
+    // 4. Auto-repair existing products & purchase_invoice_items where non-standard barcode strings (e.g., TRU16977, letters, AUTO-) were placed in barcode
+    const invalidProds = await pool.query(
+      `SELECT id, store_id, barcode, product_code, sku FROM products 
+       WHERE barcode IS NOT NULL AND barcode != '' 
+         AND (barcode ~ '[^0-9]' OR LENGTH(barcode) < 8 OR LENGTH(barcode) > 14 OR barcode LIKE 'AUTO-%')`
+    );
+    for (const prod of invalidProds.rows) {
+      const oldBarcode = prod.barcode ? prod.barcode.trim() : '';
+      if (!oldBarcode) continue;
+      
+      const newProdCode = prod.product_code || prod.sku || (oldBarcode.startsWith("AUTO-") ? null : oldBarcode);
+      // Generate temp 13-digit numeric barcode
+      const timeStr = Date.now().toString().slice(-9);
+      const randDigit = Math.floor(Math.random() * 10).toString();
+      const tempBarcode = `200${timeStr}${randDigit}`;
+
+      await pool.query(
+        `UPDATE products 
+         SET barcode = $1, 
+             product_code = COALESCE(product_code, $2), 
+             sku = COALESCE(sku, $2) 
+         WHERE id = $3`,
+        [tempBarcode, newProdCode, prod.id]
+      );
+
+      await pool.query(
+        `UPDATE purchase_invoice_items 
+         SET barcode = $1, 
+             product_code = COALESCE(product_code, $2) 
+         WHERE product_id = $3 OR barcode = $4`,
+        [tempBarcode, newProdCode, prod.id, oldBarcode]
+      );
+    }
   } catch (e) {
     console.error("Failed to alter purchase_invoice_items schema / stock sync:", e);
   }
@@ -116,45 +150,53 @@ export async function initPurchaseInvoiceSchema() {
 
 async function resolveProductInfo(clientOrPool: any, storeId: number, productId: any, barcode: any, productCode?: any) {
   let resolvedId = productId ? Number(productId) : null;
-  let resolvedBarcode = barcode ? String(barcode).trim() : '';
-  let resolvedCode = productCode ? String(productCode).trim() : '';
+  let rawBarcode = barcode ? String(barcode).trim() : '';
+  let rawCode = productCode ? String(productCode).trim() : '';
 
   if ((!resolvedId || isNaN(resolvedId))) {
     // 1. Try matching barcode or product_code by barcode
-    if (resolvedBarcode) {
+    if (rawBarcode) {
       const pRes = await clientOrPool.query(
         "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR product_code = $2 OR sku = $2) LIMIT 1",
-        [storeId, resolvedBarcode]
+        [storeId, rawBarcode]
       );
       if (pRes.rows.length > 0) {
         resolvedId = pRes.rows[0].id;
-        if (!resolvedBarcode) resolvedBarcode = pRes.rows[0].barcode || '';
-        if (!resolvedCode) resolvedCode = pRes.rows[0].product_code || '';
+        rawBarcode = pRes.rows[0].barcode || rawBarcode;
+        rawCode = pRes.rows[0].product_code || rawCode;
       }
     }
     // 2. Try matching by productCode / SKU if still unresolved
-    if ((!resolvedId || isNaN(resolvedId)) && resolvedCode) {
+    if ((!resolvedId || isNaN(resolvedId)) && rawCode) {
       const pRes = await clientOrPool.query(
         "SELECT id, barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE store_id = $1 AND (LOWER(product_code) = LOWER($2) OR LOWER(sku) = LOWER($2) OR barcode = $2) LIMIT 1",
-        [storeId, resolvedCode]
+        [storeId, rawCode]
       );
       if (pRes.rows.length > 0) {
         resolvedId = pRes.rows[0].id;
-        if (!resolvedBarcode) resolvedBarcode = pRes.rows[0].barcode || '';
-        if (!resolvedCode) resolvedCode = pRes.rows[0].product_code || '';
+        rawBarcode = pRes.rows[0].barcode || rawBarcode;
+        rawCode = pRes.rows[0].product_code || rawCode;
       }
     }
-  } else if (resolvedId && (!resolvedBarcode || !resolvedCode)) {
+  } else if (resolvedId && (!rawBarcode || !rawCode)) {
     const pRes = await clientOrPool.query(
       "SELECT barcode, COALESCE(product_code, sku, '') as product_code FROM products WHERE id = $1 LIMIT 1",
       [resolvedId]
     );
     if (pRes.rows.length > 0) {
-      if (!resolvedBarcode) resolvedBarcode = pRes.rows[0].barcode || '';
-      if (!resolvedCode) resolvedCode = pRes.rows[0].product_code || '';
+      if (!rawBarcode) rawBarcode = pRes.rows[0].barcode || '';
+      if (!rawCode) rawCode = pRes.rows[0].product_code || '';
     }
   }
-  return { productId: resolvedId, barcode: resolvedBarcode, productCode: resolvedCode };
+
+  // Sanitize to prevent non-standard strings like "TRU16977" from becoming barcode
+  const sanitized = sanitizeInvoiceItemCodes(rawBarcode, null, null, rawCode);
+
+  return { 
+    productId: resolvedId, 
+    barcode: sanitized.barcode, 
+    productCode: sanitized.productCode || rawCode || null 
+  };
 }
 
 // --- Sales Invoices ---
@@ -254,10 +296,12 @@ router.get("/sales/:id", async (req: any, res) => {
               cust.tax_number as customer_tax_number,
               cust.tax_office as customer_tax_office,
               cust.address as customer_address,
-              cust.email as customer_email_fallback
+              cust.email as customer_email_fallback,
+              s.customer_name as sale_customer_name
        FROM sales_invoices si 
        LEFT JOIN companies c ON si.company_id = c.id 
        LEFT JOIN customers cust ON si.customer_id = cust.id
+       LEFT JOIN sales s ON si.sale_id = s.id
        WHERE si.id = $1 AND si.store_id = $2`,
       [req.params.id, storeId]
     );
@@ -284,6 +328,10 @@ router.get("/sales/:id", async (req: any, res) => {
       invoice.tax_office = invoice.tax_office || invoice.customer_tax_office;
       invoice.address = invoice.address || invoice.customer_address;
       invoice.customer_email = invoice.customer_email || invoice.customer_email_fallback;
+    }
+
+    if (!invoice.customer_name && invoice.sale_customer_name) {
+      invoice.customer_name = invoice.sale_customer_name;
     }
     
     res.json(invoice);
@@ -1207,14 +1255,28 @@ router.get("/purchase/:id", async (req: any, res) => {
                    });
 
                    let productId = match ? match.productId : null;
-                   let finalBarcode = match ? match.barcode : barcode;
-                   let finalProductCode = match ? match.productCode : (sellerCode || buyerCode || null);
+                   let finalBarcode: string;
+                   let finalProductCode: string | null;
 
-                   if (!productId) {
-                     finalBarcode = barcode || (sellerCode && /^[0-9]{8,14}$/.test(sellerCode) ? sellerCode : null);
-                     if (!finalBarcode) {
-                       finalBarcode = `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+                   if (match) {
+                     productId = match.productId;
+                     finalProductCode = match.productCode || sellerCode || buyerCode || null;
+                     if (isValidStandardBarcode(match.barcode)) {
+                       finalBarcode = match.barcode;
+                     } else {
+                       const sanitized = sanitizeInvoiceItemCodes(match.barcode, sellerCode, buyerCode, finalProductCode);
+                       finalBarcode = sanitized.barcode;
+                       if (!finalProductCode) finalProductCode = sanitized.productCode;
+                       await pool.query(
+                         "UPDATE products SET barcode = $1, product_code = COALESCE(product_code, $2), sku = COALESCE(sku, $2) WHERE id = $3",
+                         [finalBarcode, finalProductCode, productId]
+                       );
                      }
+                   } else {
+                     const sanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, null);
+                     finalBarcode = sanitized.barcode;
+                     finalProductCode = sanitized.productCode || sellerCode || buyerCode || null;
+
                      const existingProd = await pool.query(
                        "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
                        [invoice.store_id, finalBarcode, finalProductCode || '__NONE__']

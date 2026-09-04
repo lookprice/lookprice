@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { translations } from "../../translations";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { api } from "../../services/api";
 
 interface PosTabProps {
   sales: any[];
@@ -31,6 +32,8 @@ interface PosTabProps {
   onDeleteSale: (id: number) => void;
   onExportReport: () => void;
   isViewer?: boolean;
+  activeStoreId?: number;
+  onRefreshSales?: () => void;
 }
 
 const PosTab = ({ 
@@ -45,7 +48,9 @@ const PosTab = ({
   onViewDetails,
   onDeleteSale,
   isViewer = false,
-  onExportReport
+  onExportReport,
+  activeStoreId,
+  onRefreshSales
 }: PosTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -240,6 +245,27 @@ const PosTab = ({
                     </td>
                     <td className="px-3.5 py-4 text-right">
                       <div className="flex justify-end items-center space-x-1.5">
+                        {!s.sales_invoice_id && s.status !== 'cancelled' && (
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                const res = await api.createSaleInvoice(s.id, activeStoreId);
+                                if (res.error) throw new Error(res.error);
+                                alert(lang === 'tr' ? 'Satış faturası oluşturuldu.' : 'Invoice created.');
+                                if (onRefreshSales) onRefreshSales();
+                                else window.location.reload();
+                              } catch (err: any) {
+                                alert(err.message || 'Hata');
+                              }
+                            }}
+                            className="px-2.5 py-1.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                            title={lang === 'tr' ? 'Satış Faturasına Dönüştür' : 'Convert to Invoice'}
+                          >
+                            <FileText className="h-3.5 w-3.5 text-emerald-400" />
+                            <span className="hidden sm:inline">{lang === 'tr' ? 'Faturalandır' : 'Invoice'}</span>
+                          </button>
+                        )}
                         <button 
                           onClick={() => onViewDetails(s)}
                           className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200 active:scale-90"

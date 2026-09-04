@@ -432,7 +432,26 @@ export class MySoftService {
         const ettn = item.Uuid || item.uuid || item.ettn || item.Ettn || item.invoiceETTN || item.DocumentUUID || item.documentUUID || item.invoiceUuid || item.InvoiceUuid || "";
         const documentNumber = item.Id || item.id || item.documentNumber || item.DocumentNumber || item.invoiceID || item.documentId || item.DocumentId || item.InvoiceNumber || item.invoiceNumber || "";
         const issueDate = item.IssueDate || item.issueDate || item.Date || item.date || item.invoiceDate || item.DocumentDate || item.documentDate || item.ExecutionDate || item.executionDate || "";
-        const senderTitle = item.SenderTitle || item.senderTitle || item.Title || item.title || item.senderName || item.SenderName || item.companyName || item.CompanyName || item.customerName || item.CustomerName || item.TaxpayerName || item.taxpayerName || "";
+        // Extract Ad and Soyad for sole proprietorships (Şahıs firmaları)
+        const supplierObj = item.supplierInfo || item.accountingSupplierParty?.party || item.supplier || item;
+        const personObj = supplierObj.person || supplierObj.Person || item.person || item.Person || {};
+        const firstName = (supplierObj.firstName || supplierObj.FirstName || supplierObj.first_name || personObj.firstName || personObj.FirstName || item.firstName || item.FirstName || "").toString().trim();
+        const familyName = (supplierObj.familyName || supplierObj.FamilyName || supplierObj.family_name || supplierObj.lastName || supplierObj.LastName || supplierObj.last_name || supplierObj.surname || supplierObj.Surname || personObj.familyName || personObj.FamilyName || personObj.lastName || personObj.LastName || item.familyName || item.FamilyName || item.lastName || item.LastName || item.surname || item.Surname || "").toString().trim();
+
+        let rawSenderTitle = (item.SenderTitle || item.senderTitle || item.Title || item.title || item.senderName || item.SenderName || item.companyName || item.CompanyName || item.customerName || item.CustomerName || item.TaxpayerName || item.taxpayerName || "").toString().trim();
+
+        let senderTitle = rawSenderTitle;
+        if (firstName && familyName) {
+          const fullPersonName = `${firstName} ${familyName}`;
+          if (!rawSenderTitle || rawSenderTitle.toLowerCase() === firstName.toLowerCase()) {
+            senderTitle = fullPersonName;
+          } else if (!rawSenderTitle.toLowerCase().includes(familyName.toLowerCase())) {
+            senderTitle = `${rawSenderTitle} ${familyName}`;
+          }
+        } else if (!senderTitle && firstName) {
+          senderTitle = firstName;
+        }
+
         const senderVkn = item.SenderVkn || item.senderVkn || item.Vkn || item.vkn || item.senderIdentifier || item.SenderVknTckn || item.senderVknTckn || item.CustomerVkn || item.customerVkn || item.vkntckn || item.VknTckn || item.TaxNumber || item.taxNumber || item.TaxId || item.taxId || "";
         const payableAmount = item.PayableAmount || item.payableAmount || item.Amount || item.amount || item.totalAmount || item.TotalAmount || item.GrandTotal || item.grandTotal || item.InvoiceAmount || item.invoiceAmount || 0;
         const taxAmount = item.TaxAmount || item.taxAmount || item.LineTotalTaxAmount || item.TotalTaxAmount || item.totalTaxAmount || 0;

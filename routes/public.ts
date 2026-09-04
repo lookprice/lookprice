@@ -738,7 +738,8 @@ router.get("/stores/by-domain", async (req, res) => {
       res.status(404).json({ error: "Store not found" });
     }
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1572,7 +1573,8 @@ router.post("/customers/cart/save", async (req, res) => {
     );
     res.json({ success: true });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1582,7 +1584,8 @@ router.get("/customers/cart/:customerId", async (req, res) => {
     const result = await pool.query("SELECT items FROM carts WHERE customer_id = $1", [customerId]);
     res.json({ items: result.rows[0]?.items || [] });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1725,14 +1728,29 @@ router.post("/customers/register", async (req, res) => {
       return res.status(400).json({ error: "Bu e-posta adresi zaten kayıtlı." });
     }
 
+    const rawName = String(name || '').trim();
+    const rawSurname = String(surname || '').trim();
+
+    let firstNameVal = rawName;
+    let surnameVal = rawSurname;
+
+    if (!surnameVal && rawName.includes(' ')) {
+      const parts = rawName.split(' ');
+      surnameVal = parts.pop() || '';
+      firstNameVal = parts.join(' ');
+    }
+
+    const fullNameVal = [firstNameVal, surnameVal].filter(Boolean).join(' ').trim() || rawName;
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO customers (store_id, email, password, full_name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, email, full_name as name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms",
-      [storeId, email, hashedPassword, name, surname || '', phone || '', address || '', country || '', city || '', tc_id || '', is_corporate || false, marketing_email || false, marketing_sms || false]
+      "INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, email, full_name as name, full_name, name as first_name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms",
+      [storeId, email, hashedPassword, fullNameVal, firstNameVal, surnameVal, phone || '', address || '', country || '', city || '', tc_id || '', is_corporate || false, marketing_email || false, marketing_sms || false]
     );
     res.json({ success: true, customer: result.rows[0] });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1753,7 +1771,8 @@ router.post("/customers/login", async (req, res) => {
       customer: { id: customer.id, email: customer.email, name: customer.full_name, surname: customer.surname, phone: customer.phone, address: customer.address, country: customer.country, city: customer.city, tc_id: customer.tc_id, is_corporate: customer.is_corporate, marketing_email: customer.marketing_email, marketing_sms: customer.marketing_sms } 
     });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1774,29 +1793,44 @@ const authenticateCustomer = (req: any, res: any, next: any) => {
 // Customer: Profile
 router.get("/customers/profile", authenticateCustomer, async (req: any, res) => {
   try {
-    const result = await pool.query("SELECT id, email, full_name as name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms FROM customers WHERE id = $1", [req.customer.id]);
+    const result = await pool.query("SELECT id, email, full_name as name, surname, phone, address, country, city, tc_id, tax_number, tax_office, company_title, is_corporate, marketing_email, marketing_sms FROM customers WHERE id = $1", [req.customer.id]);
     res.json(result.rows[0]);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
 router.put("/customers/profile", authenticateCustomer, async (req: any, res) => {
   const { name, surname, phone, address, country, city, tc_id, tax_number, tax_office, company_title, is_corporate, marketing_email, marketing_sms } = req.body;
   try {
+    const rawName = String(name || '').trim();
+    const rawSurname = String(surname || '').trim();
+    let firstNameVal = rawName;
+    let surnameVal = rawSurname;
+
+    if (!surnameVal && rawName.includes(' ')) {
+      const parts = rawName.split(' ');
+      surnameVal = parts.pop() || '';
+      firstNameVal = parts.join(' ');
+    }
+
+    const fullNameVal = [firstNameVal, surnameVal].filter(Boolean).join(' ').trim() || rawName;
     const finalTcId = (tc_id || tax_number || '').trim();
+
     const result = await pool.query(
       `UPDATE customers SET 
-         full_name = $1, surname = $2, phone = $3, address = $4, country = $5, city = $6, 
-         tc_id = $7, tax_number = $8, tax_office = $9, company_title = $10, is_corporate = $11, 
-         marketing_email = $12, marketing_sms = $13 
-       WHERE id = $14 
-       RETURNING id, email, full_name as name, surname, phone, address, country, city, tc_id, tax_number, tax_office, company_title, is_corporate, marketing_email, marketing_sms`,
-      [name, surname, phone, address, country, city, finalTcId, finalTcId, tax_office || '', company_title || '', !!is_corporate, marketing_email, marketing_sms, req.customer.id]
+         full_name = $1, name = $2, surname = $3, phone = $4, address = $5, country = $6, city = $7, 
+         tc_id = $8, tax_number = $9, tax_office = $10, company_title = $11, is_corporate = $12, 
+         marketing_email = $13, marketing_sms = $14 
+       WHERE id = $15 
+       RETURNING id, email, full_name as name, full_name, surname, phone, address, country, city, tc_id, tax_number, tax_office, company_title, is_corporate, marketing_email, marketing_sms`,
+      [fullNameVal, firstNameVal, surnameVal, phone, address, country, city, finalTcId, finalTcId, tax_office || '', company_title || '', is_corporate === true || is_corporate === 'true', marketing_email === true || marketing_email === 'true', marketing_sms === true || marketing_sms === 'true', req.customer.id]
     );
     res.json({ success: true, customer: result.rows[0] });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1817,27 +1851,27 @@ router.get("/customers/orders", authenticateCustomer, async (req: any, res) => {
         ) as items,
         COALESCE((SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id), 0) as items_count
        FROM sales s 
-       WHERE s.customer_id = $1 
-          OR (s.store_id = $2 AND ($3::text != '' AND LOWER(s.customer_email) = $3))
-          OR (s.store_id = $2 AND ($4::text != '' AND s.customer_phone = $4))
+       WHERE (s.customer_id = $1 OR (s.store_id = $2 AND ($3::text != '' AND s.customer_phone = $3))) AND s.status != 'checkout_initiated'
        ORDER BY s.created_at DESC`,
-      [req.customer.id, storeId, custEmail, custPhone]
+      [req.customer.id, storeId, custPhone]
     );
     res.json(result.rows);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
 router.get("/customers/orders/:id", authenticateCustomer, async (req: any, res) => {
   try {
-    const saleRes = await pool.query("SELECT * FROM sales WHERE id = $1 AND customer_id = $2", [req.params.id, req.customer.id]);
+    const saleRes = await pool.query("SELECT * FROM sales WHERE id = $1 AND customer_id = $2 AND status != 'checkout_initiated'", [req.params.id, req.customer.id]);
     if (saleRes.rows.length === 0) return res.status(404).json({ error: "Order not found" });
     
     const itemsRes = await pool.query("SELECT * FROM sale_items WHERE sale_id = $1", [req.params.id]);
     res.json({ ...saleRes.rows[0], items: itemsRes.rows });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1854,7 +1888,8 @@ router.post("/returns", authenticateCustomer, async (req: any, res) => {
     );
     res.json(result.rows[0]);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1863,7 +1898,8 @@ router.get("/returns", authenticateCustomer, async (req: any, res) => {
     const result = await pool.query("SELECT * FROM return_requests WHERE customer_id = $1 ORDER BY created_at DESC", [req.customer.id]);
     res.json(result.rows);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1887,7 +1923,8 @@ router.get("/store/:slug/content", async (req, res) => {
 
     res.json(store);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -1980,7 +2017,8 @@ router.get("/store/:slug/collections/:type", async (req, res) => {
 
     res.json(Array.from(groupedProductsMap.values()));
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -2041,18 +2079,36 @@ router.post("/sales", async (req, res) => {
       } catch (e) {}
     }
 
-    if (customerEmail && !finalCustomerId) {
+    if (customerEmail) {
       const existingCustomer = await client.query(
-        "SELECT id FROM customers WHERE LOWER(email) = LOWER($1) AND store_id = $2",
+        "SELECT id, full_name, name, surname FROM customers WHERE LOWER(email) = LOWER($1) AND store_id = $2",
         [customerEmail.trim(), storeId]
       );
       if (existingCustomer.rows.length > 0) {
         finalCustomerId = existingCustomer.rows[0].id;
-      } else if (createAccount) {
-        // Create new customer
+        const existingCust = existingCustomer.rows[0];
+        const rawCustName = (customerName || '').trim();
+        if (rawCustName && (!existingCust.surname || !existingCust.full_name || existingCust.full_name === existingCust.name)) {
+          const nameParts = rawCustName.split(' ');
+          const surnameVal = nameParts.length > 1 ? nameParts.pop()! : '';
+          const firstNameVal = nameParts.join(' ') || rawCustName;
+          const fullNameVal = rawCustName;
+          await client.query(
+            "UPDATE customers SET full_name = $1, name = $2, surname = $3 WHERE id = $4",
+            [fullNameVal, firstNameVal, surnameVal, finalCustomerId]
+          );
+        }
+      } else {
+        // Create new customer with proper name, surname, and full_name
+        const rawCustName = (customerName || '').trim();
+        const nameParts = rawCustName.split(' ');
+        const surnameVal = nameParts.length > 1 ? nameParts.pop()! : '';
+        const firstNameVal = nameParts.join(' ') || rawCustName;
+        const fullNameVal = rawCustName || `${firstNameVal} ${surnameVal}`.trim();
+
         const newCustomer = await client.query(
-          "INSERT INTO customers (store_id, full_name, surname, email, phone, address, tax_number, tc_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-          [storeId, customerName?.split(' ')[0] || '', customerName?.split(' ').slice(1).join(' ') || '', customerEmail.trim(), customerPhone || '', customerAddress || '', customerTcId || '', customerTcId || '']
+          "INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tc_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+          [storeId, fullNameVal, firstNameVal, surnameVal, customerEmail.trim(), customerPhone || '', customerAddress || '', customerTcId || '', customerTcId || '']
         );
         finalCustomerId = newCustomer.rows[0].id;
       }
@@ -2331,7 +2387,8 @@ router.get("/quotations/:id", async (req, res) => {
     
     res.json(quotation);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -2351,7 +2408,8 @@ router.get("/vehicles/:id", async (req, res) => {
     }
     res.json(result.rows[0]);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -2381,7 +2439,8 @@ router.get("/real-estate/:id", async (req, res) => {
     }
     res.json(result.rows[0]);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -2628,7 +2687,8 @@ router.post("/quotations/:id/action", async (req, res) => {
   } catch (e: any) {
     console.error(`[PublicQuotationAction] Error processing quotation:`, e);
     await client.query("ROLLBACK");
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   } finally {
     client.release();
   }
@@ -2760,7 +2820,8 @@ router.post("/webhooks/payoneer", async (req, res) => {
     res.json({ success: true });
   } catch (e: any) {
     console.error("Webhook Error:", e.message);
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 
@@ -2800,7 +2861,8 @@ router.post("/paypal/capture", async (req, res) => {
     }
   } catch (e: any) {
     console.error("PayPal Capture Error:", e.message);
-    res.status(500).json({ error: e.message });
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 });
 

@@ -4,7 +4,8 @@ import {
   X, QrCode, Globe, Check, Copy, Printer, Download, 
   Scan, FileDown, History, Plus, Edit2, Trash2, 
   DollarSign, ChevronRight, PlusCircle, MinusCircle,
-  FileText, Clock, AlertCircle, Search, Building, Users, Eye, EyeOff, Calculator, FileCheck
+  FileText, Clock, AlertCircle, Search, Building, Users, Eye, EyeOff, Calculator, FileCheck,
+  Truck, CheckCircle2
 } from "lucide-react";
 import { api } from "../../services/api";
 import { QRCodeSVG } from "qrcode.react";
@@ -344,73 +345,10 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                 </div>
               </div>
 
-              {/* Status Update Actions for Web Sales */}
-              {selectedSale.status !== 'cancelled' && (
-                <div className="pt-4 border-t border-gray-100 flex flex-wrap gap-2">
-                  {selectedSale.status === 'pending' && (
-                    <button 
-                      onClick={async () => {
-                        try {
-                          await api.prepareSale(selectedSale.id);
-                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
-                          else window.location.reload();
-                        } catch (e: any) { alert(e.message || "Hata"); }
-                      }}
-                      className="px-4 py-2 bg-amber-100 text-amber-700 hover:bg-amber-200 text-xs font-bold rounded-lg transition-colors"
-                    >
-                      {lang === 'tr' ? 'Hazırlanıyor Olarak İşaretle' : 'Mark as Preparing'}
-                    </button>
-                  )}
-                  {(selectedSale.status === 'pending' || selectedSale.status === 'processing') && (
-                    <button 
-                      onClick={async () => {
-                        try {
-                          await api.updateSaleStatus(selectedSale.id, { status: 'shipped' });
-                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
-                          else window.location.reload();
-                        } catch (e: any) { alert(e.message || "Hata"); }
-                      }}
-                      className="px-4 py-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-xs font-bold rounded-lg transition-colors"
-                    >
-                      {lang === 'tr' ? 'Kargoya Verildi Yap' : 'Mark as Shipped'}
-                    </button>
-                  )}
-                  {selectedSale.status === 'shipped' && (
-                    <button 
-                      onClick={async () => {
-                        try {
-                          await api.deliverSale(selectedSale.id);
-                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
-                          else window.location.reload();
-                        } catch (e: any) { alert(e.message || "Hata"); }
-                      }}
-                      className="px-4 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-xs font-bold rounded-lg transition-colors"
-                    >
-                      {lang === 'tr' ? 'Teslim Edildi Yap' : 'Mark as Delivered'}
-                    </button>
-                  )}
-                  {!selectedSale.sales_invoice_id && (
-                    <button 
-                      onClick={async () => {
-                        try {
-                          await api.post(`/api/store/sales/${selectedSale.id}/create-invoice`, {});
-                          alert(lang === 'tr' ? 'Fatura başarıyla oluşturuldu.' : 'Invoice created successfully.');
-                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
-                          else window.location.reload();
-                        } catch (e: any) { alert(e.message || "Hata"); }
-                      }}
-                      className="px-4 py-2 bg-slate-900 text-white hover:bg-black text-xs font-bold rounded-lg transition-colors ml-auto"
-                    >
-                      {lang === 'tr' ? 'Satış Faturasına Dönüştür' : 'Convert to Invoice'}
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           </motion.div>
         </div>
       )}
-
 
       {/* Purchase Invoice Details Modal */}
       {showPurchaseInvoiceDetailsModal && selectedPurchaseInvoice && (
@@ -530,6 +468,83 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                   </div>
                 ))}
               </div>
+            
+              {/* Status Update Actions for Web Sales */}
+              {selectedSale.status !== 'cancelled' && (
+                <div className="pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {['pending', 'processing'].includes(selectedSale.status) && (
+                      <button 
+                        onClick={async () => {
+                          try {
+                            await api.prepareSale(selectedSale.id, selectedSale.store_id);
+                            if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                            else window.location.reload();
+                          } catch (e: any) { alert(e.message || "Hata"); }
+                        }}
+                        className="px-3 py-2 bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        {lang === 'tr' ? 'Hazırlanıyor Olarak İşaretle' : 'Mark as Preparing'}
+                      </button>
+                    )}
+                    {['pending', 'processing', 'preparing'].includes(selectedSale.status) && (
+                      <button 
+                        onClick={async () => {
+                          try {
+                            await api.updateSaleStatus(selectedSale.id, { status: 'shipped' }, selectedSale.store_id);
+                            if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                            else window.location.reload();
+                          } catch (e: any) { alert(e.message || "Hata"); }
+                        }}
+                        className="px-3 py-2 bg-indigo-100 text-indigo-800 hover:bg-indigo-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        {lang === 'tr' ? 'Kargoya Verildi Yap' : 'Mark as Shipped'}
+                      </button>
+                    )}
+                    {['pending', 'processing', 'preparing', 'shipped'].includes(selectedSale.status) && (
+                      <button 
+                        onClick={async () => {
+                          try {
+                            await api.deliverSale(selectedSale.id, selectedSale.store_id);
+                            if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                            else window.location.reload();
+                          } catch (e: any) { alert(e.message || "Hata"); }
+                        }}
+                        className="px-3 py-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {lang === 'tr' ? 'Teslim Edildi Yap' : 'Mark as Delivered'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Create Invoice Button or Invoice Badge */}
+                  {!selectedSale.sales_invoice_id ? (
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const res = await api.createSaleInvoice(selectedSale.id, selectedSale.store_id);
+                          if (res.error) throw new Error(res.error);
+                          alert(lang === 'tr' ? 'Satış faturası başarıyla oluşturuldu.' : 'Invoice created successfully.');
+                          if (handleSaleSuccess) handleSaleSuccess(selectedSale.id);
+                          else window.location.reload();
+                        } catch (e: any) { alert(e.message || "Hata"); }
+                      }}
+                      className="px-4 py-2 bg-slate-900 text-white hover:bg-black text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      <FileText className="w-4 h-4 text-emerald-400" />
+                      {lang === 'tr' ? 'Satış Faturasına Dönüştür' : 'Convert to Invoice'}
+                    </button>
+                  ) : (
+                    <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                      {lang === 'tr' ? 'Faturalandı:' : 'Invoiced:'} #{selectedSale.sales_invoice_number}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         </div>

@@ -62,7 +62,7 @@ const CheckoutStatus: React.FC = () => {
           if (storedCustomer && saleInfo?.store_id) {
             const parsed = JSON.parse(storedCustomer);
             if (parsed?.id) {
-              fetch('/api/public/customers/cart', {
+              fetch('/api/public/customers/cart/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ customerId: parsed.id, storeId: saleInfo.store_id, items: [] })

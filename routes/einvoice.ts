@@ -6,9 +6,63 @@ import { MySoftService } from "../src/services/backend/mysoftService";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
 import { numberToTurkishWords } from "../src/utils/formatUtils";
-import { findMatchingProduct, saveSupplierMapping } from "./store/invoiceMatching";
+import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode } from "./store/invoiceMatching";
 
 const router = express.Router();
+
+// Helper function to extract full title (Ad + Soyad) for sole proprietorships and companies
+export function extractSenderTitleFromUblOrDetails(source: any, defaultTitle: string = 'Bilinmeyen Tedarikçi'): string {
+  if (!source) return defaultTitle;
+
+  const supplierObj = source.supplierInfo || source.accountingSupplierParty?.party || source.supplier || source;
+  const personObj = supplierObj.person || supplierObj.Person || source.person || source.Person || {};
+  
+  const firstName = (
+    supplierObj.firstName || supplierObj.FirstName || supplierObj.first_name ||
+    personObj.firstName || personObj.FirstName || source.firstName || source.FirstName || ""
+  ).toString().trim();
+
+  const familyName = (
+    supplierObj.familyName || supplierObj.FamilyName || supplierObj.family_name ||
+    supplierObj.lastName || supplierObj.LastName || supplierObj.last_name ||
+    supplierObj.surname || supplierObj.Surname ||
+    personObj.familyName || personObj.FamilyName || personObj.lastName || personObj.LastName ||
+    source.familyName || source.FamilyName || source.lastName || source.LastName || source.surname || source.Surname || ""
+  ).toString().trim();
+
+  let rawTitle = (
+    supplierObj.partyName || supplierObj.PartyName ||
+    supplierObj.customerName || supplierObj.CustomerName ||
+    supplierObj.supplierName || supplierObj.SupplierName ||
+    source.senderTitle || source.SenderTitle ||
+    source.title || source.Title ||
+    source.senderName || source.SenderName ||
+    source.companyName || source.CompanyName ||
+    source.taxpayerName || source.TaxpayerName ||
+    defaultTitle
+  ).toString().trim();
+
+  if (firstName && familyName) {
+    const fullPersonName = `${firstName} ${familyName}`;
+    if (!rawTitle || rawTitle === defaultTitle || rawTitle.toLowerCase() === firstName.toLowerCase()) {
+      return fullPersonName;
+    }
+    if (!rawTitle.toLowerCase().includes(familyName.toLowerCase())) {
+      return `${rawTitle} ${familyName}`;
+    }
+    return rawTitle;
+  }
+
+  if (rawTitle && rawTitle !== defaultTitle) {
+    return rawTitle;
+  }
+
+  if (firstName) {
+    return firstName;
+  }
+
+  return defaultTitle;
+}
 
 // Self-Healing database schema updates for e_waybills and sales_invoices cargo fields
 export async function initCargoSchema() {
@@ -1271,7 +1325,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
              ...inv,
              documentNumber: details.docNo || details.Id || details.id || inv.documentNumber,
              issueDate: normalizeDate(details.docDate || details.IssueDate || details.issueDate || inv.issueDate),
-             senderTitle: details.supplierInfo?.partyName || details.supplierInfo?.customerName || details.SenderTitle || details.senderTitle || inv.senderTitle,
+             senderTitle: extractSenderTitleFromUblOrDetails(details, inv.senderTitle || 'Bilinmeyen Tedarikçi'),
              senderVkn: details.supplierInfo?.identifierNumber || details.SenderVkn || details.senderVkn || inv.senderVkn,
              payableAmount: details.legalMonetaryTotal?.payableAmount || details.PayableAmount || details.payableAmount || inv.payableAmount,
              baseAmount: Number(detailsBase) || inv.baseAmount || 0,
@@ -1313,9 +1367,14 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           // 1. Find or create company
           let companyId = null;
           if (invoiceDetails.senderVkn) {
-            const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
+            const compRes = await pool.query("SELECT id, title FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
             if (compRes.rows.length > 0) {
               companyId = compRes.rows[0].id;
+              const existingTitle = (compRes.rows[0].title || '').trim();
+              const newTitle = (invoiceDetails.senderTitle || '').trim();
+              if (newTitle && newTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < newTitle.split(' ').length || (existingTitle.toLowerCase() !== newTitle.toLowerCase() && existingTitle.length < newTitle.length))) {
+                await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [newTitle, companyId]);
+              }
             } else {
               // Create company
               const newComp = await pool.query(
@@ -1477,14 +1536,31 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
               });
 
               let productId = match ? match.productId : null;
-              let finalBarcode = match ? match.barcode : barcode;
-              let finalProductCode = match ? match.productCode : (sellerCode || buyerCode || null);
+              let finalBarcode: string;
+              let finalProductCode: string | null;
 
-              if (!productId) {
-                finalBarcode = barcode || (sellerCode && /^[0-9]{8,14}$/.test(sellerCode) ? sellerCode : null);
-                if (!finalBarcode) {
-                  finalBarcode = `AUTO-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+              if (match) {
+                productId = match.productId;
+                finalProductCode = match.productCode || sellerCode || buyerCode || null;
+                // If matched product has valid standard barcode, keep it, else sanitize
+                if (isValidStandardBarcode(match.barcode)) {
+                  finalBarcode = match.barcode;
+                } else {
+                  const sanitized = sanitizeInvoiceItemCodes(match.barcode, sellerCode, buyerCode, finalProductCode);
+                  finalBarcode = sanitized.barcode;
+                  if (!finalProductCode) finalProductCode = sanitized.productCode;
+                  // Repair matched product in DB if old barcode was non-standard
+                  await pool.query(
+                    "UPDATE products SET barcode = $1, product_code = COALESCE(product_code, $2), sku = COALESCE(sku, $2) WHERE id = $3",
+                    [finalBarcode, finalProductCode, productId]
+                  );
                 }
+              } else {
+                // Sanitize code values: non-standard strings like "TRU16977" become product_code, and a valid temp numeric barcode is generated
+                const sanitized = sanitizeInvoiceItemCodes(barcode, sellerCode, buyerCode, null);
+                finalBarcode = sanitized.barcode;
+                finalProductCode = sanitized.productCode || sellerCode || buyerCode || null;
+
                 const existingProd = await pool.query(
                   "SELECT id, barcode, product_code FROM products WHERE store_id = $1 AND (barcode = $2 OR (product_code IS NOT NULL AND product_code = $3))",
                   [storeId, finalBarcode, finalProductCode || '__NONE__']
@@ -1785,7 +1861,7 @@ export const runGlobalEInvoiceSync = async () => {
                  ...inv,
                  documentNumber: details.docNo || details.Id || details.id || inv.documentNumber,
                  issueDate: normalizeDate(details.docDate || details.IssueDate || details.issueDate || inv.issueDate),
-                 senderTitle: details.supplierInfo?.partyName || details.supplierInfo?.customerName || details.SenderTitle || details.senderTitle || inv.senderTitle,
+                 senderTitle: extractSenderTitleFromUblOrDetails(details, inv.senderTitle || 'Bilinmeyen Tedarikçi'),
                  senderVkn: details.supplierInfo?.identifierNumber || details.SenderVkn || details.senderVkn || inv.senderVkn,
                  payableAmount: details.legalMonetaryTotal?.payableAmount || details.PayableAmount || details.payableAmount || inv.payableAmount,
                  baseAmount: Number(detailsBase) || inv.baseAmount || 0,
@@ -1821,9 +1897,14 @@ export const runGlobalEInvoiceSync = async () => {
 
            let companyId = null;
            if (invoiceDetails.senderVkn) {
-             const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
+             const compRes = await pool.query("SELECT id, title FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
              if (compRes.rows.length > 0) {
                companyId = compRes.rows[0].id;
+               const existingTitle = (compRes.rows[0].title || '').trim();
+               const newTitle = (invoiceDetails.senderTitle || '').trim();
+               if (newTitle && newTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < newTitle.split(' ').length || (existingTitle.toLowerCase() !== newTitle.toLowerCase() && existingTitle.length < newTitle.length))) {
+                 await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [newTitle, companyId]);
+               }
              } else {
                const newComp = await pool.query(
                  "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",

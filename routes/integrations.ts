@@ -165,13 +165,18 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           const buyerName = order.BuyerInfo?.BuyerName || 'Amazon Müşterisi';
           const buyerEmail = order.BuyerInfo?.BuyerEmail || `amazon_${order.AmazonOrderId}@amazon.com`;
           
+          const rawBuyerName = (buyerName || '').trim();
+          const nameParts1 = rawBuyerName.split(' ');
+          const surname1 = nameParts1.length > 1 ? nameParts1.pop()! : '';
+          const firstName1 = nameParts1.join(' ') || rawBuyerName;
+
           const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, buyerEmail]);
           if (custRes.rows.length > 0) {
             customerId = custRes.rows[0].id;
           } else {
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
-              [storeId, buyerEmail, 'marketplace_user', buyerName]
+              "INSERT INTO customers (store_id, email, password, full_name, name, surname) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+              [storeId, buyerEmail, 'marketplace_user', rawBuyerName, firstName1, surname1]
             );
             customerId = newCust.rows[0].id;
           }
@@ -347,13 +352,18 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
           const customerEmail = buyer.email || `${orderId}@n11.com`;
           const customerName = buyer.fullName || "N11 Müşterisi";
 
+          const rawCustName2 = (customerName || '').trim();
+          const nameParts2 = rawCustName2.split(' ');
+          const surname2 = nameParts2.length > 1 ? nameParts2.pop()! : '';
+          const firstName2 = nameParts2.join(' ') || rawCustName2;
+
           const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, customerEmail]);
           if (custRes.rows.length > 0) {
             customerId = custRes.rows[0].id;
           } else {
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-              [storeId, customerEmail, 'marketplace_user', customerName, buyer.mobilePhone || '']
+              "INSERT INTO customers (store_id, email, password, full_name, name, surname, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+              [storeId, customerEmail, 'marketplace_user', rawCustName2, firstName2, surname2, buyer.mobilePhone || '']
             );
             customerId = newCust.rows[0].id;
           }
@@ -977,13 +987,18 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
           await client.query("BEGIN");
 
           let customerId = null;
+          const rawCustName3 = (order.customer || '').trim();
+          const nameParts3 = rawCustName3.split(' ');
+          const surname3 = nameParts3.length > 1 ? nameParts3.pop()! : '';
+          const firstName3 = nameParts3.join(' ') || rawCustName3;
+
           const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, order.email]);
           if (custRes.rows.length > 0) {
             customerId = custRes.rows[0].id;
           } else {
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name) VALUES ($1, $2, $3, $4) RETURNING id",
-              [storeId, order.email, 'marketplace_user', order.customer]
+              "INSERT INTO customers (store_id, email, password, full_name, name, surname) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+              [storeId, order.email, 'marketplace_user', rawCustName3, firstName3, surname3]
             );
             customerId = newCust.rows[0].id;
           }
@@ -1213,13 +1228,18 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
           const customerEmail = order.customerEmail || `${orderId}@pazarama.com`;
           const customerName = order.customerName || order.recipientName || "Pazarama Müşterisi";
 
+          const rawCustName4 = (customerName || '').trim();
+          const nameParts4 = rawCustName4.split(' ');
+          const surname4 = nameParts4.length > 1 ? nameParts4.pop()! : '';
+          const firstName4 = nameParts4.join(' ') || rawCustName4;
+
           const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, customerEmail]);
           if (custRes.rows.length > 0) {
             customerId = custRes.rows[0].id;
           } else {
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-              [storeId, customerEmail, 'marketplace_user', customerName, order.customerPhone || '', order.deliveryAddress || '']
+              "INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+              [storeId, customerEmail, 'marketplace_user', rawCustName4, firstName4, surname4, order.customerPhone || '', order.deliveryAddress || '']
             );
             customerId = newCust.rows[0].id;
           }
