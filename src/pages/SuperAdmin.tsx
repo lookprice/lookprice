@@ -5,7 +5,9 @@ import {
   Activity,
   Megaphone,
   Video,
-  Server
+  Server,
+  ShieldCheck,
+  UserCircle
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { translations } from "@/translations";
@@ -21,6 +23,8 @@ import { SuperAdminStoresTable } from "../components/superadmin/SuperAdminStores
 import { EnrakipsizPortalManager } from "../components/superadmin/EnrakipsizPortalManager";
 import { IntegratorHub } from "../components/IntegratorHub";
 import { SuperAdminVideosManager } from "../components/superadmin/SuperAdminVideosManager";
+import { SuperAdminAuditLogs } from "../components/superadmin/SuperAdminAuditLogs";
+import { SuperAdminProfile } from "../components/superadmin/SuperAdminProfile";
 import { 
   SlideModal, 
   AdModal, 
@@ -622,6 +626,26 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           >
             <Server className="h-4 w-4 text-indigo-500" /> ⚙️ Entegratör Hub
           </button>
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`pb-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'audit'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <ShieldCheck className="h-4 w-4 text-blue-600" /> 🛡️ Güvenlik & Denetim İzleri (DPP)
+          </button>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`pb-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'profile'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <UserCircle className="h-4 w-4 text-rose-500" /> Profil & Güvenlik
+          </button>
         </div>
 
         {activeTab === 'enrakipsiz' ? (
@@ -645,6 +669,10 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           <SuperAdminVideosManager lang={lang} />
         ) : activeTab === 'integrator' ? (
           <IntegratorHub />
+        ) : activeTab === 'audit' ? (
+          <SuperAdminAuditLogs lang={lang} />
+        ) : activeTab === 'profile' ? (
+          <SuperAdminProfile lang={lang} />
         ) : (
           <>
             <SuperAdminStats

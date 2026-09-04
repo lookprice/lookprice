@@ -30,6 +30,46 @@ router.get("/stats", async (req: any, res) => {
   });
 });
 
+// SuperAdmin: Profile & Security
+router.get("/profile", async (req: any, res) => {
+  try {
+    const userRes = await pool.query("SELECT id, email, name, full_name, phone, address FROM users WHERE id = $1", [req.user.id]);
+    res.json(userRes.rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/profile", async (req: any, res) => {
+  try {
+    const { name, full_name, phone, address, email } = req.body;
+    await pool.query(
+      "UPDATE users SET name = $1, full_name = $2, phone = $3, address = $4, email = $5 WHERE id = $6",
+      [name, full_name, phone, address, email, req.user.id]
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// SuperAdmin: Global Audit Logs
+router.get("/audit-logs", async (req: any, res) => {
+  try {
+    const logs = await pool.query(`
+      SELECT l.*, s.name as store_name, s.slug as store_slug, u.email as user_email
+      FROM audit_logs l
+      LEFT JOIN stores s ON l.store_id = s.id
+      LEFT JOIN users u ON l.user_id = u.id
+      ORDER BY l.created_at DESC
+      LIMIT 1000
+    `);
+    res.json(logs.rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // SuperAdmin: Integrator Configs
 router.get("/integrator-configs", async (req, res) => {
   const configs = (await pool.query("SELECT * FROM integrator_configs")).rows;

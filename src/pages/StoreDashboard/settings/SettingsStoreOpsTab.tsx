@@ -11,10 +11,12 @@ import {
   RefreshCw, 
   Save,
   ShieldCheck,
+  ShieldAlert,
   Copy
 } from "lucide-react";
 import { motion } from "motion/react";
 import { api } from "../../../services/api";
+import { IrpModal } from "../../../components/IrpModal";
 
 interface SettingsStoreOpsTabProps {
   branding: any;
@@ -48,6 +50,7 @@ export const SettingsStoreOpsTab = ({
   storeCode
 }: SettingsStoreOpsTabProps) => {
   const [syncingTcmb, setSyncingTcmb] = useState(false);
+  const [isIrpModalOpen, setIsIrpModalOpen] = useState(false);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const t = translations || {};
   const txt = (tr: string, en: string, el: string) => {
@@ -167,6 +170,18 @@ export const SettingsStoreOpsTab = ({
               </div>
             </div>
           </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsIrpModalOpen(true)}
+              className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer border border-rose-500/20"
+            >
+              <ShieldAlert className="w-4 h-4" />
+              {lang === 'tr' ? 'Olay Müdahale Planı (IRP)' : 'Incident Response Plan (IRP)'}
+            </button>
+          </div>
+          <IrpModal isOpen={isIrpModalOpen} onClose={() => setIsIrpModalOpen(false)} lang={lang} />
         </div>
       </div>
 

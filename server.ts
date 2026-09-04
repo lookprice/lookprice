@@ -1369,6 +1369,7 @@ function sanitizeFilename(originalName: string): string {
   console.log("Starting server listener...");
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+    
     // Initialize GİB / MySoft Background Sync Cron
     try {
       import("./src/services/backend/gibSyncCron").then(({ initGibSyncScheduler }) => {
@@ -1378,6 +1379,17 @@ function sanitizeFilename(originalName: string): string {
       });
     } catch (e: any) {
       console.warn("[GİB-CRON] Error loading scheduler:", e.message);
+    }
+
+    // Initialize Amazon PII Masking Cron (Data Protection Policy)
+    try {
+      import("./src/services/backend/piiMaskingCron").then(({ initPiiMaskingScheduler }) => {
+        initPiiMaskingScheduler();
+      }).catch(err => {
+        console.warn("[PII-MASKING-CRON] Failed to start scheduler:", err.message);
+      });
+    } catch (e: any) {
+      console.warn("[PII-MASKING-CRON] Error loading scheduler:", e.message);
     }
   });
 }

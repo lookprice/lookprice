@@ -157,6 +157,28 @@ router.post("/", async (req: any, res) => {
       JSON.stringify(mergedEinvoiceSettings)
     ]);
 
+    // Audit Log: Record that a user updated store settings/API keys
+    try {
+      const { logAudit } = await import("../../src/services/backend/auditService");
+      
+      // Determine if payment settings (API keys) changed
+      const paymentKeysChanged = JSON.stringify(existingPaymentSettings) !== JSON.stringify(mergedPaymentSettings);
+      const actionDesc = paymentKeysChanged 
+        ? "Müşteri API Anahtarları veya Finansal Ayarları güncelledi"
+        : "Mağaza temel bilgileri/branding güncellendi";
+
+      await logAudit(
+        targetStoreId,
+        req.user?.id || null,
+        "UPDATE_STORE_SETTINGS",
+        "stores",
+        targetStoreId,
+        actionDesc
+      );
+    } catch (auditErr) {
+      console.error("Failed to log audit for store settings update", auditErr);
+    }
+
     // Sync team/consultants to consultants table if provided
     const teamMembers = cleanedBody.team || (cleanedBody.page_layout_settings && cleanedBody.page_layout_settings.team) || cleanedBody.consultants;
     if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {

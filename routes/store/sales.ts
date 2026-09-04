@@ -101,6 +101,21 @@ router.get("/export", async (req: any, res) => {
   try {
     const sales = await pool.query(query, params);
     
+    // Audit Log: Record that a user exported sales data
+    try {
+      const { logAudit } = await import("../../src/services/backend/auditService");
+      await logAudit(
+        storeId,
+        req.user.id,
+        "EXPORT_SALES_DATA",
+        "sales",
+        null,
+        `Kullanıcı sipariş verilerini dışa aktardı (Excel/PDF). Başlangıç: ${startDate || 'Tümü'}, Bitiş: ${endDate || 'Tümü'}`
+      );
+    } catch (auditErr) {
+      console.error("Failed to log audit for sales export", auditErr);
+    }
+
     const isTr = lang === 'tr';
     const data = sales.rows.map(s => ({
       [isTr ? 'Tarih' : 'Date']: new Date(s.created_at).toLocaleString(isTr ? 'tr-TR' : 'en-US'),
