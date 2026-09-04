@@ -790,7 +790,8 @@ router.get("/hepsiburada/v3/listings/import/:trackingId", authenticate, async (r
     const result = await hbService.checkTaskStatus(trackingId);
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.warn(`[HB V3 checkTaskStatus Route Warning]:`, error.message);
+    res.status(400).json({ error: error.message || "Durum sorgulanamadı" });
   }
 });
 

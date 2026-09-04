@@ -546,6 +546,7 @@ const SettingsTab = ({
           products={products}
           savingBranding={savingBranding}
           currentStoreId={currentStoreId}
+          storeCode={branding?.store_code}
         />
       )}
 

@@ -67,6 +67,28 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      ALTER TABLE stores ADD COLUMN IF NOT EXISTS store_code VARCHAR(20) UNIQUE;
+      
+      -- Backfill existing stores with a random LP-XXXXXX code
+      UPDATE stores SET store_code = 'LP-' || UPPER(substring(md5(random()::text) from 1 for 6)) WHERE store_code IS NULL;
+
+      -- Auto-generate store_code for new stores
+      CREATE OR REPLACE FUNCTION generate_store_code()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF NEW.store_code IS NULL THEN
+          NEW.store_code := 'LP-' || UPPER(substring(md5(random()::text) from 1 for 6));
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS trg_generate_store_code ON stores;
+      CREATE TRIGGER trg_generate_store_code
+      BEFORE INSERT ON stores
+      FOR EACH ROW
+      EXECUTE FUNCTION generate_store_code();
+
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS default_tax_rate INTEGER DEFAULT 20;
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS category_tax_rules JSONB DEFAULT '[]';
       ALTER TABLE stores ADD COLUMN IF NOT EXISTS branding JSONB DEFAULT '{}';

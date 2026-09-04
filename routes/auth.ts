@@ -7,15 +7,34 @@ import { authenticate } from "../middleware/auth";
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key";
 
+// Helper for password policy (LookPrice Corporate Security Standards)
+const isValidPassword = (password: string) => {
+  if (!password || password.length < 12) return false;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  return hasUpper && hasLower && hasNumber && hasSpecial;
+};
+
 // Auth: Login
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const userRes = await pool.query(`
-    SELECT u.*, s.slug as store_slug, s.status as store_status, s.is_approved as store_is_approved
+  const { email, password, storeCode } = req.body;
+  
+  let query = `
+    SELECT u.*, s.slug as store_slug, s.status as store_status, s.is_approved as store_is_approved, s.store_code
     FROM users u 
     LEFT JOIN stores s ON u.store_id = s.id 
     WHERE u.email = $1
-  `, [email]);
+  `;
+  const params: any[] = [email];
+  
+  if (storeCode) {
+    query += ` AND (s.store_code = $2 OR u.role = 'superadmin')`;
+    params.push(storeCode);
+  }
+
+  const userRes = await pool.query(query, params);
   
   const user = userRes.rows[0];
   if (!user || !bcrypt.compareSync(password, user.password)) {
@@ -51,7 +70,8 @@ router.post("/login", async (req, res) => {
       email: user.email, 
       role: user.role, 
       store_id: user.store_id,
-      store_slug: user.store_slug 
+      store_slug: user.store_slug,
+      password_needs_update: !isValidPassword(password)
     } 
   });
 });
@@ -61,6 +81,10 @@ router.post("/register", async (req, res) => {
   const { name, email, password, phone, address, store_id } = req.body;
   
   try {
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: "LookPrice Kurumsal Güvenlik Standartları: Şifreniz en az 12 karakter olmalı ve büyük/küçük harf, rakam ve sembol içermelidir." });
+    }
+
     // Check if user exists
     const existingUser = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
     if (existingUser.rows.length > 0) {
@@ -88,7 +112,8 @@ router.post("/register", async (req, res) => {
       user: { 
         email: user.email, 
         role: user.role, 
-        store_id: user.store_id 
+        store_id: user.store_id,
+        password_needs_update: false
       } 
     });
   } catch (error) {
@@ -99,13 +124,18 @@ router.post("/register", async (req, res) => {
 
 router.post("/change-password", authenticate, async (req: any, res) => {
   const { currentPassword, newPassword } = req.body;
+
+  if (!isValidPassword(newPassword)) {
+    return res.status(400).json({ error: "LookPrice Kurumsal Güvenlik Standartları: Şifreniz en az 12 karakter olmalı ve büyük/küçük harf, rakam ve sembol içermelidir." });
+  }
+
   const userRes = await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
   const user = userRes.rows[0];
 
   if (user && bcrypt.compareSync(currentPassword, user.password)) {
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
     await pool.query("UPDATE users SET password = $1 WHERE id = $2", [hashedPassword, req.user.id]);
-    res.json({ success: true });
+    res.json({ success: true, password_needs_update: false });
   } else {
     res.status(400).json({ error: "Mevcut şifre hatalı" });
   }

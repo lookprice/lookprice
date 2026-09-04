@@ -406,6 +406,7 @@ export const api = {
   register: (data: any) => api.post("/api/auth/register", data),
   forgotPassword: (email: string) => api.post("/api/auth/forgot-password", { email }),
   resetPassword: (token: string, newPassword: any) => api.post("/api/auth/reset-password", { token, newPassword }),
+  changePassword: (currentPassword: string, newPassword: string) => api.post("/api/auth/change-password", { currentPassword, newPassword }),
   getProfile: () => api.get("/api/user/profile"),
   updateProfile: (data: any) => api.put("/api/user/profile", data),
   getMyOrders: () => api.get("/api/user/orders"),

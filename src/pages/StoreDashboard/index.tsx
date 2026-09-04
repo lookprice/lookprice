@@ -93,6 +93,7 @@ const EWaybillsTab = React.lazy(() => import("../../components/EWaybillsTab"));
 const FaqTab = React.lazy(() => import("./FaqTab"));
 
 import ShippingSlip from "../../components/ShippingSlip";
+import { ChangePasswordModal } from "../../components/ChangePasswordModal";
 
 interface StoreDashboardProps {
   user: User;
@@ -102,6 +103,7 @@ interface StoreDashboardProps {
 export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) {
   const { slug } = useParams();
   const { lang } = useLanguage();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const isTr = lang === 'tr';
   const txt = (tr: string, en: string, el: string) => {
     if (lang === 'tr') return tr;
@@ -855,6 +857,43 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }}
     >
       <div className={activeTab === 'fast-pos' ? "space-y-0" : "space-y-8"}>
+        {user?.password_needs_update && (
+          <div className="mb-6 bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-black shrink-0 shadow text-xl">
+                🛡️
+              </div>
+              <div>
+                <h4 className="font-bold text-rose-700 text-sm md:text-base tracking-tight uppercase">LookPrice Kurumsal Güvenlik Standartları</h4>
+                <p className="text-rose-600 font-medium text-xs md:text-sm mt-0.5">
+                  Hesabınızın güvenliği için lütfen "Ayarlar" sayfasından profil şifrenizi güncelleyiniz. (En az 12 karakter, büyük/küçük harf, rakam ve sembol).
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowPasswordModal(true)}
+              className="px-4 py-2 bg-rose-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-rose-700 transition-colors shrink-0 cursor-pointer"
+            >
+              Şifremi Değiştir
+            </button>
+          </div>
+        )}
+
+        <ChangePasswordModal 
+          isOpen={showPasswordModal}
+          onClose={() => setShowPasswordModal(false)}
+          onSuccess={() => {
+            // Optimistically update local user state
+            const updatedUser = { ...user, password_needs_update: false };
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            toast.success("Şifreniz başarıyla güncellendi.");
+            // A page reload or state update would ideally happen here to hide the banner,
+            // but we can just reload the window for simplicity and security after password change.
+            window.location.reload();
+          }}
+          translations={t}
+        />
+
         {activeTab !== 'fast-pos' && activeTab !== 'products' && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <motion.div 

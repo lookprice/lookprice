@@ -19,9 +19,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const { lang } = useLanguage();
   const t = translations[lang].auth;
 
+  const [storeCode, setStoreCode] = useState("");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await api.login({ email, password });
+    const res = await api.login({ email, password, storeCode: storeCode || undefined });
     if (res.token) {
       onLogin(res.token, res.user);
     } else {
@@ -68,6 +70,20 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           )}
           
           <div className="space-y-4">
+            <div>
+              <label htmlFor="storeCode" className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">
+                {lang === 'tr' ? 'Mağaza Kodu (Opsiyonel)' : 'Store Code (Optional)'}
+              </label>
+              <input 
+                id="storeCode"
+                name="storeCode"
+                type="text" 
+                value={storeCode}
+                onChange={(e) => setStoreCode(e.target.value)}
+                className="w-full px-4 py-3 bg-black border border-white/10 rounded-xl focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-white placeholder-white/20 uppercase"
+                placeholder="Örn: LP-108492"
+              />
+            </div>
             <div>
               <label htmlFor="email" className="block text-xs font-medium text-white/50 uppercase tracking-wider mb-2">{t.email}</label>
               <input 

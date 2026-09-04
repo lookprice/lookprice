@@ -18,10 +18,11 @@ export const IntegratorHub = () => {
   const [catalogTaskStatus, setCatalogTaskStatus] = useState<any>(null);
   const [fetchingCategories, setFetchingCategories] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('26012174');
   const [categoryAttributes, setCategoryAttributes] = useState<any[]>([]);
   const [fetchingAttributes, setFetchingAttributes] = useState(false);
   const [catalogSending, setCatalogSending] = useState(false);
+  const [useUniqueBarcode, setUseUniqueBarcode] = useState(true);
 
   // Real Test SKUs for Inventory/Listing
   const [customSku1, setCustomSku1] = useState({
@@ -62,6 +63,7 @@ export const IntegratorHub = () => {
 
   useEffect(() => {
     fetchConfigs();
+    handleFetchCategories('sit');
   }, []);
 
   // --- CATALOG OPERATIONS ---
@@ -105,7 +107,7 @@ export const IntegratorHub = () => {
   const handleSendSingleCatalogProduct = async (env: 'sit' | 'production' = 'sit') => {
     setCatalogSending(true);
     try {
-      let catId = selectedCategoryId ? Number(selectedCategoryId) : 1000282;
+      let catId = selectedCategoryId ? Number(selectedCategoryId) : 26012174;
       let currentAttrs = categoryAttributes;
 
       // If we don't have attributes loaded yet for this category, fetch them on the fly
@@ -144,14 +146,20 @@ export const IntegratorHub = () => {
         });
       }
 
+      // Generate a fresh unique barcode for SIT tests if requested to avoid duplicate barcode errors
+      const testBarcode = useUniqueBarcode 
+        ? `868000${Math.floor(1000000 + Math.random() * 9000000)}` 
+        : (customSku2.merchantSku || "8660743368267");
+      const testSku = useUniqueBarcode ? `SKU-${testBarcode}` : (customSku2.merchantSku || "8660743368267");
+
       // Single test product payload
       const payload = [
         {
           categoryId: catId,
-          merchantItemCode: customSku2.merchantSku || "8660743368267",
-          name: customSku2.name || "Lopard Apple Watch Uyumlu Silikon Kordon (LookPrice Test)",
-          brand: "Lopard",
-          barcode: customSku2.merchantSku || "8660743368267",
+          merchantItemCode: testSku,
+          name: customSku2.name || "LookPrice Test Ürünü",
+          brand: "LookPrice",
+          barcode: testBarcode,
           price: Number(customSku2.price) || 349,
           stock: Number(customSku2.stock) || 45,
           images: [
@@ -169,7 +177,11 @@ export const IntegratorHub = () => {
       }
       if (res?.trackingId) {
         setCatalogTrackingId(res.trackingId);
-        toast.success(`Tekil ürün kataloğa iletildi. Tracking ID: ${res.trackingId}`);
+        toast.success(`Tekil ürün kataloğa iletildi (Barkod: ${testBarcode}). Tracking ID: ${res.trackingId}`);
+        // Auto-check status after 3 seconds
+        setTimeout(() => {
+          handleCheckCatalogStatus(res.trackingId, env);
+        }, 3500);
       } else {
         toast.success(res?.message || "Ürün kataloğa iletildi.");
       }
@@ -183,7 +195,7 @@ export const IntegratorHub = () => {
   const handleSendVariantCatalogProducts = async (env: 'sit' | 'production' = 'sit') => {
     setCatalogSending(true);
     try {
-      let catId = selectedCategoryId ? Number(selectedCategoryId) : 1000282;
+      let catId = selectedCategoryId ? Number(selectedCategoryId) : 26012174;
       let currentAttrs = categoryAttributes;
 
       // Auto-fetch if empty
@@ -201,6 +213,12 @@ export const IntegratorHub = () => {
       }
 
       const variantGroupId = `VAR-GRP-${Date.now().toString().slice(-6)}`;
+      const baseBarcode1 = useUniqueBarcode 
+        ? `868000${Math.floor(1000000 + Math.random() * 9000000)}` 
+        : (customSku1.merchantSku || "8681892240266");
+      const baseBarcode2 = useUniqueBarcode 
+        ? `868000${Math.floor(1000000 + Math.random() * 9000000)}` 
+        : "8681892240267";
 
       const baseAttrs: Record<string, any> = {
         "Garanti Süresi (Ay)": "24",
@@ -228,10 +246,10 @@ export const IntegratorHub = () => {
         {
           categoryId: catId,
           variantGroupID: variantGroupId,
-          merchantItemCode: customSku1.merchantSku || "8681892240266",
-          name: `${customSku1.name || 'Otom Audi A6 Koltuk Kılıfı'} - Siyah`,
-          brand: "Otom",
-          barcode: customSku1.merchantSku || "8681892240266",
+          merchantItemCode: `SKU-${baseBarcode1}`,
+          name: `${customSku1.name || 'LookPrice Test Ürünü'} - Siyah`,
+          brand: "LookPrice",
+          barcode: baseBarcode1,
           price: Number(customSku1.price) || 1850,
           stock: Number(customSku1.stock) || 15,
           images: [
@@ -246,10 +264,10 @@ export const IntegratorHub = () => {
         {
           categoryId: catId,
           variantGroupID: variantGroupId,
-          merchantItemCode: `${customSku1.merchantSku || "8681892240266"}-GRI`,
-          name: `${customSku1.name || 'Otom Audi A6 Koltuk Kılıfı'} - Gri`,
-          brand: "Otom",
-          barcode: "8681892240267",
+          merchantItemCode: `SKU-${baseBarcode2}`,
+          name: `${customSku1.name || 'LookPrice Test Ürünü'} - Gri`,
+          brand: "LookPrice",
+          barcode: baseBarcode2,
           price: Number(customSku1.price) || 1850,
           stock: 10,
           images: [
@@ -271,6 +289,10 @@ export const IntegratorHub = () => {
       if (res?.trackingId) {
         setCatalogTrackingId(res.trackingId);
         toast.success(`Varyantlı ürün grubu (${variantGroupId}) kataloğa iletildi. Tracking ID: ${res.trackingId}`);
+        // Auto-check status after 3.5 seconds
+        setTimeout(() => {
+          handleCheckCatalogStatus(res.trackingId, env);
+        }, 3500);
       } else {
         toast.success(res?.message || "Varyantlı ürünler kataloğa iletildi.");
       }
@@ -537,8 +559,8 @@ export const IntegratorHub = () => {
           <div className="p-4 border border-slate-200 rounded-2xl space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-bold text-slate-900">SIT Kategori & Zorunlu Özellikler (Attributes)</h4>
-                <p className="text-xs text-slate-500">SIT ortamındaki kategori ağacını ve zorunlu alanları sorgulayın</p>
+                <h4 className="text-sm font-bold text-slate-900">SIT Yaprak Kategoriler & Zorunlu Özellikler</h4>
+                <p className="text-xs text-slate-500">Hepsiburada SIT ortamında onaylanan aktif yaprak (leaf) kategoriler</p>
               </div>
               <button
                 onClick={() => handleFetchCategories('sit')}
@@ -546,72 +568,84 @@ export const IntegratorHub = () => {
                 className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${fetchingCategories ? 'animate-spin' : ''}`} />
-                {fetchingCategories ? 'Çekiliyor...' : 'SIT Kategorilerini Listele'}
+                {fetchingCategories ? 'Çekiliyor...' : 'Kategorileri Yenile'}
               </button>
             </div>
 
-            {categories.length > 0 && (
-              <div className="space-y-3 pt-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600">Kategori Seçin (veya Manuel ID Girin)</label>
-                    <div className="flex gap-1.5">
-                      <select
-                        className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-white font-medium"
-                        value={selectedCategoryId}
-                        onChange={(e) => {
-                          setSelectedCategoryId(e.target.value);
-                          handleFetchAttributes(e.target.value, 'sit');
-                        }}
-                      >
-                        <option value="">Kategori seçiniz...</option>
-                        {categories.map((c: any) => (
-                          <option key={c.categoryId || c.id} value={c.categoryId || c.id}>
-                            {c.name || c.categoryName} (ID: {c.categoryId || c.id})
-                          </option>
-                        ))}
-                      </select>
-                      <input 
-                        type="text"
-                        placeholder="ID"
-                        className="w-24 border border-slate-200 p-2 rounded-xl text-xs font-mono bg-white"
-                        value={selectedCategoryId}
-                        onChange={(e) => {
-                          setSelectedCategoryId(e.target.value);
-                          handleFetchAttributes(e.target.value, 'sit');
-                        }}
-                      />
-                    </div>
+            <div className="space-y-3 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-600">Onaylı Yaprak Kategori Seçimi</label>
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold border border-emerald-200">
+                      Leaf & Available Aktif
+                    </span>
                   </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600">Zorunlu / Seçili Özellikler</label>
-                    <div className="p-2 border border-slate-200 rounded-xl text-xs bg-slate-50 min-h-[40px] max-h-32 overflow-y-auto">
-                      {fetchingAttributes ? (
-                        <span className="text-slate-400">Özellikler yükleniyor...</span>
-                      ) : categoryAttributes.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {categoryAttributes.map((attr: any, idx: number) => (
-                            <span key={idx} className={`text-[10px] px-2 py-0.5 rounded font-mono ${attr.mandatory ? 'bg-rose-100 text-rose-800 font-bold' : 'bg-slate-200 text-slate-700'}`}>
-                              {attr.name || attr.attributeName} {attr.mandatory ? '*' : ''}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">Kategori seçildiğinde zorunlu nitelikler otomatik doldurulur ve gönderime eklenir.</span>
-                      )}
-                    </div>
+                  <div className="flex gap-1.5">
+                    <select
+                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-white font-medium truncate"
+                      value={selectedCategoryId}
+                      onChange={(e) => {
+                        setSelectedCategoryId(e.target.value);
+                        handleFetchAttributes(e.target.value, 'sit');
+                      }}
+                    >
+                      <option value="">Kategori seçiniz...</option>
+                      {categories.map((c: any) => {
+                        const pathText = Array.isArray(c.paths) ? c.paths.join(' > ') : (c.paths || c.name || c.displayName);
+                        return (
+                          <option key={c.categoryId || c.id} value={c.categoryId || c.id}>
+                            {c.displayName || c.name} (ID: {c.categoryId || c.id}) {pathText ? `- ${pathText}` : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <input 
+                      type="text"
+                      placeholder="ID"
+                      className="w-24 border border-slate-200 p-2 rounded-xl text-xs font-mono bg-white text-center font-bold"
+                      value={selectedCategoryId}
+                      onChange={(e) => {
+                        setSelectedCategoryId(e.target.value);
+                        handleFetchAttributes(e.target.value, 'sit');
+                      }}
+                    />
                   </div>
                 </div>
 
-                <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <p>
-                    <strong>SIT Test İpucu:</strong> Hepsiburada SIT ortamı dummy verilerden oluşur (örn: Delsey Evrak Çantaları, Tetra Balık Yemleri vb.). Test ürününüzün kategorisiyle birebir uyuşmak zorunda değildir. Listeden <strong>herhangi bir kategoriyi</strong> seçtiğinizde sistem o kategorinin zorunlu özelliklerini (Attributes) otomatik olarak algılar ve gönderim paketine entegre eder!
-                  </p>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600">Zorunlu / Seçili Özellikler</label>
+                  <div className="p-2 border border-slate-200 rounded-xl text-xs bg-slate-50 min-h-[40px] max-h-32 overflow-y-auto">
+                    {fetchingAttributes ? (
+                      <span className="text-slate-400">Özellikler yükleniyor...</span>
+                    ) : categoryAttributes.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {categoryAttributes.map((attr: any, idx: number) => (
+                          <span key={idx} className={`text-[10px] px-2 py-0.5 rounded font-mono ${attr.mandatory ? 'bg-rose-100 text-rose-800 font-bold' : 'bg-slate-200 text-slate-700'}`}>
+                            {attr.name || attr.attributeName} {attr.mandatory ? '*' : ''}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 text-[11px]">Kategori seçildiğinde zorunlu nitelikler otomatik doldurulur ve gönderime eklenir.</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
+
+              {/* Options */}
+              <div className="flex items-center justify-between p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl text-xs">
+                <label className="flex items-center gap-2 cursor-pointer select-none font-medium text-indigo-950">
+                  <input 
+                    type="checkbox" 
+                    checked={useUniqueBarcode} 
+                    onChange={e => setUseUniqueBarcode(e.target.checked)} 
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Her test gönderiminde <strong>benzersiz rastgele barkod/SKU</strong> üret (Hepsiburada "Barcode must be unique" hatasını önler)</span>
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* 1.2 Send Test Catalog Products */}
@@ -620,11 +654,11 @@ export const IntegratorHub = () => {
             <div className="p-4 border border-slate-200 rounded-2xl bg-slate-50/70 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md">1. Adım: Tekil Ürün Testi</span>
-                <span className="text-[11px] font-mono text-slate-500">Lopard Kordon</span>
+                <span className="text-[11px] font-mono text-slate-500">LookPrice Tekil Ürün</span>
               </div>
               <div className="text-xs space-y-1">
-                <p className="font-bold text-slate-900">Lopard Apple Watch Uyumlu Silikon Kordon</p>
-                <p className="text-slate-500">Barkod: <strong className="text-indigo-600">8660743368267</strong></p>
+                <p className="font-bold text-slate-900">LookPrice SIT Test Ürünü</p>
+                <p className="text-slate-500">Seçili Kategori ID: <strong className="text-indigo-600 font-mono">{selectedCategoryId || 26012174}</strong></p>
                 <p className="text-slate-500">Fiyat: 349 TRY | Stok: 45 Adet</p>
               </div>
               <button
@@ -640,12 +674,12 @@ export const IntegratorHub = () => {
             <div className="p-4 border border-slate-200 rounded-2xl bg-slate-50/70 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md">2. Adım: Varyantlı Ürün Grubu Testi</span>
-                <span className="text-[11px] font-mono text-slate-500">Otom Koltuk Kılıfı</span>
+                <span className="text-[11px] font-mono text-slate-500">LookPrice Varyant Grubu</span>
               </div>
               <div className="text-xs space-y-1">
-                <p className="font-bold text-slate-900">Otom Audi A6 Koltuk Kılıfı (Siyah & Gri Varyantları)</p>
-                <p className="text-slate-500">Varyant Barkodları: <strong className="text-emerald-600">8681892240266 (Siyah), 8681892240267 (Gri)</strong></p>
-                <p className="text-slate-500">Ortak Grup ID: Otomatik <strong className="text-slate-700">variantGroupID</strong> ile bağlanır</p>
+                <p className="font-bold text-slate-900">LookPrice Varyantlı Ürün Grubu (Siyah & Gri Varyantları)</p>
+                <p className="text-slate-500">Seçili Kategori ID: <strong className="text-emerald-600 font-mono">{selectedCategoryId || 26012174}</strong></p>
+                <p className="text-slate-500">Ortak Grup ID: Otomatik <strong className="text-slate-700 font-mono">variantGroupID</strong> ile bağlanır</p>
               </div>
               <button
                 onClick={() => handleSendVariantCatalogProducts('sit')}
@@ -661,16 +695,75 @@ export const IntegratorHub = () => {
           {catalogTrackingId && (
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm space-y-3">
               <div className="flex items-center justify-between">
-                <p className="font-bold text-slate-800">Aktif Katalog Tracking ID: <span className="font-mono text-indigo-600 font-extrabold">{catalogTrackingId}</span></p>
+                <div>
+                  <p className="font-bold text-slate-800">Aktif Katalog Tracking ID: <span className="font-mono text-indigo-600 font-extrabold">{catalogTrackingId}</span></p>
+                  <p className="text-xs text-slate-500">Hepsiburada ürün aktarım ve onay motoru durum kontrolü</p>
+                </div>
                 <button 
                   onClick={() => handleCheckCatalogStatus(catalogTrackingId, 'sit')} 
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
                 >
-                  Onay Durumunu Sorgula
+                  <RefreshCw className="w-3.5 h-3.5" /> Onay Durumunu Sorgula
                 </button>
               </div>
+
               {catalogTaskStatus && (
-                <pre className="mt-2 text-xs bg-slate-900 text-emerald-400 p-3.5 rounded-xl overflow-x-auto font-mono">{JSON.stringify(catalogTaskStatus, null, 2)}</pre>
+                <div className="space-y-2">
+                  {Array.isArray(catalogTaskStatus.data) && catalogTaskStatus.data.length > 0 && (
+                    <div className="space-y-2">
+                      {catalogTaskStatus.data.map((item: any, idx: number) => {
+                        const isSuccess = item.importStatus === 'SUCCESS';
+                        const isFailed = item.importStatus === 'FAILED';
+                        const isPending = item.importStatus === 'PENDING' || !item.importStatus;
+                        
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`p-3 rounded-xl border text-xs flex flex-col gap-1.5 ${
+                              isSuccess ? 'bg-emerald-50 border-emerald-200 text-emerald-950' :
+                              isFailed ? 'bg-rose-50 border-rose-200 text-rose-950' :
+                              'bg-amber-50 border-amber-200 text-amber-950'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between font-bold">
+                              <span className="flex items-center gap-1.5">
+                                {isSuccess && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                                {isFailed && <AlertCircle className="w-4 h-4 text-rose-600" />}
+                                {item.productName || item.merchantSku || `Ürün #${idx + 1}`} (Barkod: {item.barcode})
+                              </span>
+                              <span className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-extrabold ${
+                                isSuccess ? 'bg-emerald-200 text-emerald-900' :
+                                isFailed ? 'bg-rose-200 text-rose-900' :
+                                'bg-amber-200 text-amber-900'
+                              }`}>
+                                {item.importStatus || 'İŞLENİYOR'}
+                              </span>
+                            </div>
+
+                            {item.importMessages && item.importMessages.length > 0 && (
+                              <div className="mt-1 space-y-1 bg-white/80 p-2 rounded-lg border border-rose-100">
+                                {item.importMessages.map((m: any, mIdx: number) => (
+                                  <div key={mIdx} className="text-rose-700 text-[11px] font-medium flex items-start gap-1">
+                                    <span className="font-bold">• {m.severity}:</span> {m.message}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {isSuccess && (
+                              <div className="text-emerald-700 text-[11px] font-semibold flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                Hepsiburada kataloğuna başarıyla kabul edildi ve onaylandı.
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <pre className="mt-2 text-xs bg-slate-900 text-emerald-400 p-3.5 rounded-xl overflow-x-auto font-mono max-h-60">{JSON.stringify(catalogTaskStatus, null, 2)}</pre>
+                </div>
               )}
             </div>
           )}

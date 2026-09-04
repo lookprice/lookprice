@@ -8,6 +8,7 @@ export interface User {
   name?: string;
   phone?: string;
   address?: string;
+  password_needs_update?: boolean;
 }
 
 export interface ProductVariantItem {

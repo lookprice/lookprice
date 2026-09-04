@@ -31,7 +31,7 @@ router.get("/", async (req: any, res) => {
         logo_url, favicon_url, primary_color, default_currency, language, plan, background_image_url,
         fiscal_brand, fiscal_terminal_id, fiscal_active, default_tax_rate, currency_rates, branding, payment_settings, meta_settings,
         custom_domain, custom_domain_status, page_layout, menu_links, shipping_profiles, emails, phones,
-        description, einvoice_settings, footer_links, parent_id, store_type, sub_sector,
+        description, einvoice_settings, footer_links, parent_id, store_type, sub_sector, store_code,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number, about_text
       FROM stores 
       WHERE id = $1

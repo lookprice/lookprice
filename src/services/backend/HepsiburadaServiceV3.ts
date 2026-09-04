@@ -106,20 +106,24 @@ export class HepsiburadaServiceV3 {
         maximumPurchasableQuantity: Number(p.MaximumPurchasableQuantity || p.maximumPurchasableQuantity || 10),
       }));
 
+      const listingDirectUrl = this.env === 'sit' 
+        ? 'https://listing-external-sit.hepsiburada.com' 
+        : 'https://listing-external.hepsiburada.com';
+
       const endpoints = [
+        {
+          name: "Listing V1 Inventory-Uploads",
+          url: `${listingDirectUrl}/listings/merchantid/${merchantId}/inventory-uploads`,
+          data: payloadV1
+        },
         {
           name: "Listing V2 GW",
           url: `${this.listingBaseUrl}/inventory/import/${merchantId}`,
           data: payloadV2
         },
         {
-          name: "Listing V1 Inventory-Uploads",
-          url: `https://listing-external-sit.hepsiburada.com/listings/merchantid/${merchantId}/inventory-uploads`,
-          data: payloadV2
-        },
-        {
           name: "Listing V1 Direct",
-          url: `https://listing-external-sit.hepsiburada.com/listings/merchantid/${merchantId}`,
+          url: `${listingDirectUrl}/listings/merchantid/${merchantId}`,
           data: payloadV1
         }
       ];
@@ -176,20 +180,28 @@ export class HepsiburadaServiceV3 {
   }
 
   /**
-   * Check task tracking status (Inventory / Listing V2)
+   * Check task tracking status (Inventory / Listing V2 & Catalog fallback)
    */
   async checkTaskStatus(trackingId: string) {
     return this.queue.add(async () => {
       const { merchantId, headers } = await this.getCredentials();
+      const listingDirectUrl = this.env === 'sit' 
+        ? 'https://listing-external-sit.hepsiburada.com' 
+        : 'https://listing-external.hepsiburada.com';
+
       const urls = [
+        `${listingDirectUrl}/listings/merchantid/${merchantId}/inventory-uploads/id/${trackingId}`,
         `${this.listingBaseUrl}/inventory/import/status/${merchantId}/task/${trackingId}`,
-        `https://listing-external-sit.hepsiburada.com/listings/merchantid/${merchantId}/inventory-uploads/${trackingId}`
+        `${listingDirectUrl}/listings/merchantid/${merchantId}/inventory-uploads/${trackingId}`,
+        `${this.catalogBaseUrl}/products/status/${trackingId}`
       ];
 
       for (const url of urls) {
         try {
           const res = await axios.get(url, { headers, timeout: 15000 });
-          return res.data;
+          if (res.data) {
+            return res.data;
+          }
         } catch (err) {
           // try next url
         }
@@ -200,21 +212,73 @@ export class HepsiburadaServiceV3 {
 
   /**
    * Fetch All Categories (Catalog API)
+   * Prioritizes active leaf categories (leaf: true & available: true) that Hepsiburada allows products to be assigned to.
    */
-  async getCategories(page: number = 0, size: number = 50) {
+  async getCategories(page: number = 0, size: number = 100) {
     return this.queue.add(async () => {
       const { headers } = await this.getCredentials();
-      const url = `${this.catalogBaseUrl}/categories/get-all-categories?page=${page}&size=${size}`;
+      const verifiedSitLeafs = [
+        { categoryId: 26012174, name: "Tansiyon Aletleri", displayName: "Tansiyon Aletleri", paths: ["Kozmetik Kişisel Bakım", "Sağlık / Kişisel Bakım", "Sağlık Ürünleri", "Tansiyon Aletleri"], leaf: true, available: true, status: "ACTIVE" },
+        { categoryId: 60003858, name: "Günlük Ayakkabı", displayName: "Kadın Günlük Ayakkabı", paths: ["Giyim / Ayakkabı", "Kadın", "Ayakkabı", "Günlük Ayakkabı"], leaf: true, available: true, status: "ACTIVE" },
+        { categoryId: 18021948, name: "Duş Bataryası", displayName: "Duş Bataryası", paths: ["Ev Dekorasyon", "Banyo & Mutfak", "Batarya & Musluk", "Duş Bataryası"], leaf: true, available: true, status: "ACTIVE" },
+        { categoryId: 12101943, name: "Büyük Beden Kaban", displayName: "Kadın Büyük Beden Kaban", paths: ["Giyim / Ayakkabı", "Kadın", "Büyük Beden", "Büyük Beden Kaban"], leaf: true, available: true, status: "ACTIVE" },
+        { categoryId: 60002524, name: "Konsept Hediyelikler", displayName: "Konsept Hediyelikler", paths: ["Kitap Film Müzik", "Müzik & Müzik Aletleri", "Konsept Hediyelikler"], leaf: true, available: true, status: "ACTIVE" },
+        { categoryId: 60003857, name: "Espadril", displayName: "Kadın Espadril", paths: ["Giyim / Ayakkabı", "Kadın", "Ayakkabı", "Espadril"], leaf: true, available: true, status: "ACTIVE" },
+        { categoryId: 60003859, name: "Loafer", displayName: "Kadın Loafer", paths: ["Giyim / Ayakkabı", "Kadın", "Ayakkabı", "Loafer"], leaf: true, available: true, status: "ACTIVE" },
+        { categoryId: 60003861, name: "Ev Ayakkabısı", displayName: "Kadın Ev Ayakkabısı", paths: ["Giyim / Ayakkabı", "Kadın", "Ayakkabı", "Ev Ayakkabısı"], leaf: true, available: true, status: "ACTIVE" },
+        { categoryId: 60003862, name: "Panduf", displayName: "Kadın Panduf", paths: ["Giyim / Ayakkabı", "Kadın", "Ayakkabı", "Panduf"], leaf: true, available: true, status: "ACTIVE" },
+        { categoryId: 18021982, name: "Duş Teknesi", displayName: "Duş Teknesi", paths: ["Ev Dekorasyon", "Banyo & Mutfak", "Duş Sistemleri", "Duş Teknesi"], leaf: true, available: true, status: "ACTIVE" }
+      ];
+
       try {
+        const url = `${this.catalogBaseUrl}/categories/get-all-categories?page=${page}&size=${size}`;
         const res = await axios.get(url, { headers, timeout: 25000 });
+        const rawList = res.data?.data || res.data?.categories || res.data || [];
+        
+        // Filter for leaf categories that are available
+        const leafList = Array.isArray(rawList)
+          ? rawList.filter((c: any) => c.leaf === true && c.available !== false && c.status !== "INACTIVE")
+          : [];
+
+        // If current page didn't yield leaf categories, scan up to 3 pages
+        let combined = [...leafList];
+        if (combined.length < 15 && page === 0) {
+          for (let p = 1; p <= 4; p++) {
+            try {
+              const nextRes = await axios.get(`${this.catalogBaseUrl}/categories/get-all-categories?page=${p}&size=200`, { headers, timeout: 15000 });
+              const nextList = nextRes.data?.data || [];
+              const nextLeafs = nextList.filter((c: any) => c.leaf === true && c.available !== false && c.status !== "INACTIVE");
+              combined.push(...nextLeafs);
+              if (combined.length >= 30) break;
+            } catch (e) {
+              break;
+            }
+          }
+        }
+
+        // Merge verified categories ensuring no duplicates
+        const existingIds = new Set(combined.map((c: any) => c.categoryId));
+        for (const v of verifiedSitLeafs) {
+          if (!existingIds.has(v.categoryId)) {
+            combined.unshift(v);
+            existingIds.add(v.categoryId);
+          }
+        }
+
         return {
           success: true,
-          data: res.data?.data || res.data?.categories || res.data || [],
+          data: combined,
+          total: combined.length,
           raw: res.data
         };
       } catch (err: any) {
-        const errorDetail = err.response?.data || err.message;
-        throw new Error(`Hepsiburada Kategori Çekme Hatası: ${typeof errorDetail === 'object' ? JSON.stringify(errorDetail) : errorDetail}`);
+        console.warn("[HB V3] Categories fetch failed, returning verified SIT leaf list:", err.message);
+        return {
+          success: true,
+          data: verifiedSitLeafs,
+          total: verifiedSitLeafs.length,
+          warning: "Canlı kategori servisine ulaşılamadı, doğrulanmış SIT yaprak kategorileri yüklendi."
+        };
       }
     });
   }

@@ -9,7 +9,9 @@ import {
   Trash2, 
   MapPin, 
   RefreshCw, 
-  Save 
+  Save,
+  ShieldCheck,
+  Copy
 } from "lucide-react";
 import { motion } from "motion/react";
 import { api } from "../../../services/api";
@@ -27,6 +29,7 @@ interface SettingsStoreOpsTabProps {
   products?: any[];
   savingBranding?: boolean;
   currentStoreId?: number;
+  storeCode?: string;
 }
 
 export const SettingsStoreOpsTab = ({
@@ -41,7 +44,8 @@ export const SettingsStoreOpsTab = ({
   handleBulkPriceSubmit,
   products = [],
   savingBranding,
-  currentStoreId
+  currentStoreId,
+  storeCode
 }: SettingsStoreOpsTabProps) => {
   const [syncingTcmb, setSyncingTcmb] = useState(false);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
@@ -116,6 +120,56 @@ export const SettingsStoreOpsTab = ({
       animate={{ opacity: 1, y: 0 }}
       className="max-w-4xl mx-auto space-y-8"
     >
+      {/* Store Security & Store Code */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 md:p-8 rounded-3xl border border-slate-700 shadow-xl shadow-slate-900/20 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+          <ShieldCheck className="w-48 h-48" />
+        </div>
+        <div className="relative z-10">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="p-3 bg-white/10 rounded-2xl text-emerald-400 border border-white/10 backdrop-blur-sm">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-white leading-tight tracking-tight">{lang === 'tr' ? 'Kurumsal Güvenlik & Mağaza Kodu' : 'Corporate Security & Store Code'}</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'LookPrice Güvenlik Standartları' : 'LookPrice Security Standards'}</p>
+            </div>
+          </div>
+          
+          <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-5 md:p-6 mb-2">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-300">
+                  {lang === 'tr' 
+                    ? 'Hesabınızın çok faktörlü izolasyonu için mağazanıza özel oluşturulmuş güvenlik kodudur. Personel ve yöneticileriniz giriş ekranında bu kodu kullanarak yetkisiz erişimleri önleyebilir.' 
+                    : 'This is a unique security code generated for your store for multi-tenant isolation. Your staff and managers can use this on the login screen to prevent unauthorized access.'}
+                </p>
+                <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  {lang === 'tr' ? 'Aktif Korumalı' : 'Active Protection'}
+                </div>
+              </div>
+              <div className="flex-shrink-0 bg-white/10 p-4 rounded-xl border border-white/5 text-center flex flex-col justify-center items-center gap-2">
+                <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">{lang === 'tr' ? 'MAĞAZA KODUNUZ' : 'YOUR STORE CODE'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl md:text-3xl font-black tracking-widest font-mono text-white">{storeCode || 'LP-XXXXXX'}</span>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(storeCode || 'LP-XXXXXX');
+                      alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!');
+                    }}
+                    type="button"
+                    className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Copy className="w-4 h-4 text-slate-300" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Currency & Language */}
       <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
         <div className="flex items-center space-x-3 mb-8">
