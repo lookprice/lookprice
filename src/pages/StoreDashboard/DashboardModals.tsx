@@ -788,7 +788,14 @@ export const DashboardModals = (props: DashboardModalsProps) => {
           >
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <div>
-                <h3 className="text-xl font-bold text-gray-900">{selectedCompany.title || selectedCompany.name}</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xl font-bold text-gray-900">{selectedCompany.title || selectedCompany.name}</h3>
+                  {selectedCompany.tax_number && (
+                    <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                      {selectedCompany.tax_number.length === 11 ? 'TCKN: ' : 'VKN: '}{selectedCompany.tax_number}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">{t.accountTransactions}</p>
               </div>
               <div className="flex items-center space-x-2">
@@ -941,7 +948,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                     let allTransactions: any[] = [];
                     try {
                       const res = await api.getCompanyTransactions(selectedCompany.id, "", "", storeId);
-                      allTransactions = res.transactions || res || [];
+                      allTransactions = Array.isArray(res?.transactions) ? res.transactions : (Array.isArray(res) ? res : []);
                     } catch (e) {
                       console.error("Error fetching transactions for reconciliation:", e);
                     }
@@ -1104,7 +1111,8 @@ export const DashboardModals = (props: DashboardModalsProps) => {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {(() => {
-                const filteredTransactions = companyTransactions.filter(tx => (tx.currency || 'TRY') === selectedCurrency);
+                const safeTransactions = Array.isArray(companyTransactions) ? companyTransactions : [];
+                const filteredTransactions = safeTransactions.filter(tx => (tx.currency || 'TRY') === selectedCurrency);
                 const currentBalance = Number((companies.find(c => c.id === selectedCompany.id) || selectedCompany).balances?.[selectedCurrency] || 0);
                 return (
                   <>
@@ -1261,19 +1269,25 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                                         <div className="flex justify-end gap-2">
                                           <button 
                                             onClick={() => {
-                                              const newDesc = prompt(isTr ? 'Yeni açıklama:' : 'New description:', tx.description);
+                                              const newDesc = prompt(isTr ? 'Yeni açıklama:' : 'New description:', tx.description || '');
                                               const newAmount = prompt(isTr ? 'Yeni tutar:' : 'New amount:', tx.amount);
-                                              if (newDesc !== null && newAmount !== null) {
-                                                handleEditTransaction(tx.id, { description: newDesc, amount: Number(newAmount), type: tx.type });
+                                              if (newDesc !== null && newAmount !== null && newAmount.trim() !== '') {
+                                                const cleanAmount = String(newAmount).trim().replace(/\s/g, '').replace(',', '.');
+                                                const parsedAmt = Number(cleanAmount);
+                                                if (!isNaN(parsedAmt) && parsedAmt >= 0) {
+                                                  handleEditTransaction(tx.id, { description: newDesc, amount: parsedAmt, type: tx.type });
+                                                }
                                               }
                                             }}
                                             className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
+                                            title={isTr ? 'İşlemi Düzenle' : 'Edit Transaction'}
                                           >
                                             <Edit2 className="h-3 w-3" />
                                           </button>
                                           <button 
                                             onClick={() => handleDeleteTransaction(tx.id)}
                                             className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                            title={isTr ? 'İşlemi Sil' : 'Delete Transaction'}
                                           >
                                             <Trash2 className="h-3 w-3" />
                                           </button>

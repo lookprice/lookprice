@@ -63,11 +63,12 @@ export const useCompanyActions = (
   };
 
   const handleDeleteTransaction = async (id: number) => {
+    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     if (window.confirm(lang === 'tr' ? "Silmek istediğinize emin misiniz?" : "Are you sure you want to delete?")) {
       const deletePromise = (async () => {
-        const res = await api.deleteTransaction(id);
+        const res = await api.deleteTransaction(id, targetStoreId);
         if (selectedCompany) {
-            handleFetchTransactions(selectedCompany.id, user.role === 'superadmin' ? currentStoreId : undefined);
+            handleFetchTransactions(selectedCompany.id, targetStoreId);
             fetchCompanies();
         }
         return res;
@@ -82,10 +83,11 @@ export const useCompanyActions = (
   };
 
   const handleEditTransaction = async (id: number, data: any) => {
+    const targetStoreId = user.role === 'superadmin' ? currentStoreId : undefined;
     const editPromise = (async () => {
-      const res = await api.updateTransaction(id, data);
+      const res = await api.updateTransaction(id, data, targetStoreId);
       if (selectedCompany) {
-        handleFetchTransactions(selectedCompany.id, user.role === 'superadmin' ? currentStoreId : undefined);
+        handleFetchTransactions(selectedCompany.id, targetStoreId);
         fetchCompanies();
       }
       return res;

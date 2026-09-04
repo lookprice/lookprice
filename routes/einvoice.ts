@@ -1363,23 +1363,44 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           continue; // Already processed
        }
 
-       if (true) {
+        if (true) {
           // 1. Find or create company
           let companyId = null;
           if (invoiceDetails.senderVkn) {
+            let resolvedTitle = (invoiceDetails.senderTitle || '').trim();
+            if (!resolvedTitle || resolvedTitle === 'Bilinmeyen Tedarikçi' || resolvedTitle.split(/\s+/).length === 1) {
+              // Try to get full title from official_taxpayer_cache or customers table
+              const cachedTp = await pool.query("SELECT title FROM official_taxpayer_cache WHERE vkn = $1 LIMIT 1", [invoiceDetails.senderVkn]);
+              if (cachedTp.rows.length > 0 && cachedTp.rows[0].title && cachedTp.rows[0].title.trim().length > resolvedTitle.length) {
+                resolvedTitle = cachedTp.rows[0].title.trim();
+              } else {
+                const custCheck = await pool.query("SELECT full_name, name, surname FROM customers WHERE tc_id = $1 OR tax_number = $1 LIMIT 1", [invoiceDetails.senderVkn]);
+                if (custCheck.rows.length > 0) {
+                  const c = custCheck.rows[0];
+                  const first = (c.name || c.full_name || '').trim();
+                  const last = (c.surname || '').trim();
+                  if (last && first && !first.toLowerCase().includes(last.toLowerCase())) {
+                    resolvedTitle = `${first} ${last}`;
+                  } else if (first || last) {
+                    resolvedTitle = first || last;
+                  }
+                }
+              }
+            }
+            if (!resolvedTitle) resolvedTitle = 'Bilinmeyen Tedarikçi';
+
             const compRes = await pool.query("SELECT id, title FROM companies WHERE store_id = $1 AND tax_number = $2", [storeId, invoiceDetails.senderVkn]);
             if (compRes.rows.length > 0) {
               companyId = compRes.rows[0].id;
               const existingTitle = (compRes.rows[0].title || '').trim();
-              const newTitle = (invoiceDetails.senderTitle || '').trim();
-              if (newTitle && newTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < newTitle.split(' ').length || (existingTitle.toLowerCase() !== newTitle.toLowerCase() && existingTitle.length < newTitle.length))) {
-                await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [newTitle, companyId]);
+              if (resolvedTitle && resolvedTitle !== 'Bilinmeyen Tedarikçi' && (existingTitle.split(' ').length < resolvedTitle.split(' ').length || (existingTitle.toLowerCase() !== resolvedTitle.toLowerCase() && existingTitle.length < resolvedTitle.length))) {
+                await pool.query("UPDATE companies SET title = $1 WHERE id = $2", [resolvedTitle, companyId]);
               }
             } else {
               // Create company
               const newComp = await pool.query(
                 "INSERT INTO companies (store_id, title, tax_number, address) VALUES ($1, $2, $3, $4) RETURNING id",
-                [storeId, invoiceDetails.senderTitle || 'Bilinmeyen Tedarikçi', invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
+                [storeId, resolvedTitle, invoiceDetails.senderVkn, 'Otomatik Oluşturuldu']
               );
               companyId = newComp.rows[0].id;
             }

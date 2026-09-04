@@ -34,6 +34,7 @@ interface PosTabProps {
   isViewer?: boolean;
   activeStoreId?: number;
   onRefreshSales?: () => void;
+  branding?: any;
 }
 
 const PosTab = ({ 
@@ -50,11 +51,18 @@ const PosTab = ({
   isViewer = false,
   onExportReport,
   activeStoreId,
-  onRefreshSales
+  onRefreshSales,
+  branding
 }: PosTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
   const isTr = lang === 'tr';
+
+  const isHoreca = branding?.store_type === 'cafe_restaurant' || 
+                   branding?.store_type === 'restaurant' || 
+                   branding?.store_type === 'cafe' || 
+                   branding?.page_layout_settings?.sector === 'cafe_restaurant' || 
+                   branding?.sector === 'cafe_restaurant';
 
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
@@ -152,7 +160,7 @@ const PosTab = ({
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.orderCode}</th>
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.date}</th>
-                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'Masa' : 'Table'}</th>
+                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{isHoreca ? (lang === 'tr' ? 'Masa' : 'Table') : (lang === 'tr' ? 'Müşteri / Cari' : 'Customer / Account')}</th>
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.amount}</th>
                 <th className="px-2 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-center w-[50px]">{t.status}</th>
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'İptal Sebebi' : 'Cancel Reason'}</th>
@@ -189,14 +197,14 @@ const PosTab = ({
                         {new Date(s.created_at).toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </td>
-                    <td className="px-3.5 py-4 text-[12px] font-black text-slate-700 uppercase tracking-tight max-w-[120px] truncate">
+                    <td className="px-3.5 py-4 text-[12px] font-black text-slate-700 uppercase tracking-tight max-w-[140px] truncate">
                       {s.customer_name?.toLowerCase().includes('garson') || s.customer_name === 'Masa Siparişi' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100 text-[10px]" title={s.customer_name}>
                           <UserCheck className="w-3 h-3 text-indigo-500 shrink-0" />
                           <span>{lang === 'tr' ? 'Garson' : 'Waiter'}</span>
                         </span>
                       ) : (
-                        s.customer_name || (lang === 'tr' ? 'Masa' : 'Table')
+                        s.customer_name || (isHoreca ? (lang === 'tr' ? 'Masa' : 'Table') : (lang === 'tr' ? 'Bireysel Müşteri' : 'Individual Customer'))
                       )}
                     </td>
                     <td className="px-3.5 py-4 whitespace-nowrap">

@@ -248,70 +248,102 @@ export async function initPurchaseInvoiceSchema() {
         )
     `);
 
-    // c) Auto-repair sales invoices missing company_id, customer_name, company_title or tax_number
+    // c) Auto-repair sales invoices missing company_id, sync titles from companies
     try {
-      // Find sales invoices with customer_id or sale_id but missing company_id
-      const unlinkedSalesInvoices = await pool.query(`
-        SELECT si.id, si.store_id, si.sale_id, si.customer_id, si.tax_number, si.address, si.customer_email,
-               cust.full_name as cust_full_name, cust.name as cust_name, cust.surname as cust_surname, 
-               cust.phone as cust_phone, cust.email as cust_email, cust.address as cust_address,
-               cust.city as cust_city, cust.tc_id as cust_tc_id, cust.tax_number as cust_tax_number,
-               s.customer_name as sale_cust_name, s.customer_phone as sale_cust_phone, s.customer_address as sale_cust_address
-        FROM sales_invoices si
-        LEFT JOIN customers cust ON si.customer_id = cust.id
-        LEFT JOIN sales s ON si.sale_id = s.id
-        WHERE si.company_id IS NULL OR si.customer_name IS NULL OR si.company_title IS NULL OR si.tax_number IS NULL OR si.tax_number = ''
+      // 1. Re-link sales invoices by tax_number to real companies
+      await pool.query(`
+        UPDATE sales_invoices si
+        SET company_id = c.id,
+            company_title = c.title,
+            customer_name = c.title
+        FROM companies c
+        WHERE c.store_id = si.store_id 
+          AND c.tax_number = si.tax_number
+          AND c.tax_number IS NOT NULL
+          AND c.tax_number != ''
+          AND c.tax_number != '11111111111'
+          AND c.title != 'Bireysel Web Müşterisi'
+          AND (si.company_id IS NULL OR si.company_title = 'Bireysel Web Müşterisi');
       `);
 
-      for (const row of unlinkedSalesInvoices.rows) {
-        const rawName = (row.cust_full_name || row.sale_cust_name || (row.cust_name ? `${row.cust_name} ${row.cust_surname || ''}` : '') || 'Bireysel Web Müşterisi').trim();
-        let rawTc = (row.cust_tc_id || row.cust_tax_number || row.tax_number || '').trim();
-        if (!rawTc || (rawTc.length !== 10 && rawTc.length !== 11)) {
-          rawTc = '11111111111';
-        }
-        const phone = row.cust_phone || row.sale_cust_phone || '';
-        const email = row.cust_email || row.customer_email || '';
-        const address = row.cust_address || row.sale_cust_address || row.address || '';
-        const city = row.cust_city || '';
+      // 2. Sync company_title and customer_name from existing valid company_id
+      await pool.query(`
+        UPDATE sales_invoices si
+        SET company_title = c.title,
+            customer_name = c.title
+        FROM companies c
+        WHERE si.company_id = c.id 
+          AND c.title != 'Bireysel Web Müşterisi'
+          AND (si.company_title IS NULL OR si.company_title = 'Bireysel Web Müşterisi' OR si.customer_name = 'Bireysel Web Müşterisi');
+      `);
 
-        // Check if company exists
-        let companyId = null;
-        const compFind = await pool.query(
-          "SELECT id FROM companies WHERE store_id = $1 AND (tax_number = $2 OR (LOWER(TRIM(title)) = LOWER(TRIM($3)) AND $3 != 'Bireysel Web Müşterisi')) LIMIT 1",
-          [row.store_id, rawTc, rawName]
-        );
-        if (compFind.rows.length > 0) {
-          companyId = compFind.rows[0].id;
-        } else {
-          const newComp = await pool.query(
-            `INSERT INTO companies (store_id, title, tax_number, tax_office, address, phone, email, contact_person)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-            [row.store_id, rawName, rawTc, city ? `${city} Vergi Dairesi` : 'Bireysel', address, phone, email, rawName]
+      // 3. For invoices and customers, sync full AD+SOYAD names
+      await pool.query(`
+        UPDATE customers
+        SET full_name = TRIM(CONCAT_WS(' ', name, surname))
+        WHERE surname IS NOT NULL AND surname != '' 
+          AND (full_name IS NULL OR full_name = '' OR full_name = name);
+      `);
+
+      await pool.query(`
+        UPDATE customers cust
+        SET full_name = s.customer_name,
+            surname = COALESCE(NULLIF(cust.surname, ''), SPLIT_PART(s.customer_name, ' ', 2))
+        FROM sales s
+        WHERE s.customer_id = cust.id
+          AND s.customer_name LIKE '% %'
+          AND (cust.full_name IS NULL OR cust.full_name NOT LIKE '% %' OR cust.full_name = 'Müşteri' OR cust.full_name = 'Bireysel Web Müşterisi');
+      `);
+
+      await pool.query(`
+        UPDATE sales_invoices si
+        SET customer_name = COALESCE(
+              NULLIF(s.customer_name, ''),
+              NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+              NULLIF(cust.full_name, ''),
+              si.customer_name
+            ),
+            company_title = COALESCE(
+              NULLIF(s.customer_name, ''),
+              NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+              NULLIF(cust.full_name, ''),
+              si.company_title
+            )
+        FROM sales s
+        LEFT JOIN customers cust ON cust.id = s.customer_id
+        WHERE si.sale_id = s.id
+          AND (
+            si.customer_name IS NULL 
+            OR si.customer_name = 'Bireysel Web Müşterisi'
+            OR si.customer_name = 'Müşteri'
+            OR (si.customer_name NOT LIKE '% %' AND s.customer_name LIKE '% %')
           );
-          companyId = newComp.rows[0].id;
-        }
+      `);
 
-        // Update sales_invoice
-        await pool.query(
-          `UPDATE sales_invoices 
-           SET company_id = COALESCE(company_id, $1),
-               customer_name = COALESCE(customer_name, $2),
-               company_title = COALESCE(company_title, $2),
-               tax_number = COALESCE(NULLIF(tax_number, ''), $3),
-               address = COALESCE(NULLIF(address, ''), $4),
-               customer_email = COALESCE(NULLIF(customer_email, ''), $5)
-           WHERE id = $6`,
-          [companyId, rawName, rawTc, address, email, row.id]
-        );
-
-        // Update sales if linked
-        if (row.sale_id) {
-          await pool.query(
-            "UPDATE sales SET company_id = COALESCE(company_id, $1), customer_name = COALESCE(customer_name, $2) WHERE id = $3",
-            [companyId, rawName, row.sale_id]
+      await pool.query(`
+        UPDATE sales_invoices si
+        SET customer_name = COALESCE(
+              NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+              NULLIF(cust.full_name, ''),
+              si.customer_name
+            ),
+            company_title = COALESCE(
+              NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+              NULLIF(cust.full_name, ''),
+              si.company_title
+            )
+        FROM customers cust
+        WHERE si.customer_id = cust.id
+          AND (
+            si.customer_name IS NULL 
+            OR si.customer_name = 'Bireysel Web Müşterisi'
+            OR si.customer_name = 'Müşteri'
+            OR (si.customer_name NOT LIKE '% %' AND cust.surname IS NOT NULL AND cust.surname != '')
           );
-        }
-      }
+      `);
+    } catch (err) {
+      console.error("Failed to sync sales invoices with companies:", err);
+    }
 
       // d) Ensure debt transaction exists for all linked sales_invoices
       await pool.query(`
@@ -392,9 +424,6 @@ export async function initPurchaseInvoiceSchema() {
         FROM companies c
         WHERE cat.company_id = c.id AND (cat.store_id IS NULL OR cat.store_id = 0)
       `);
-    } catch (err) {
-      console.error("Failed to auto-repair sales invoices / current accounts:", err);
-    }
   } catch (e) {
     console.error("Failed to alter purchase_invoice_items schema / stock sync:", e);
   }
@@ -460,8 +489,26 @@ router.get("/sales", async (req: any, res) => {
 
     let query = `
       SELECT si.*, 
-             COALESCE(si.company_title, c.title, si.customer_name, cust.full_name, s.customer_name, 'Bireysel Web Müşterisi') as company_title,
-             COALESCE(si.customer_name, si.company_title, cust.full_name, c.title, s.customer_name, 'Bireysel Web Müşterisi') as customer_name,
+             COALESCE(
+               NULLIF(c.title, 'Bireysel Web Müşterisi'),
+               NULLIF(s.customer_name, ''),
+               NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+               NULLIF(cust.full_name, ''),
+               NULLIF(si.company_title, 'Bireysel Web Müşterisi'),
+               NULLIF(si.customer_name, 'Bireysel Web Müşterisi'),
+               si.company_title,
+               'Müşteri'
+             ) as company_title,
+             COALESCE(
+               NULLIF(c.title, 'Bireysel Web Müşterisi'),
+               NULLIF(s.customer_name, ''),
+               NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''),
+               NULLIF(cust.full_name, ''),
+               NULLIF(si.customer_name, 'Bireysel Web Müşterisi'),
+               NULLIF(si.company_title, 'Bireysel Web Müşterisi'),
+               si.customer_name,
+               'Müşteri'
+             ) as customer_name,
              s.customer_name as sale_customer_name,
              COALESCE(NULLIF(si.tax_number, ''), c.tax_number, cust.tc_id, cust.tax_number, '11111111111') as resolved_tax_number,
              (
@@ -545,7 +592,7 @@ router.get("/sales/:id", async (req: any, res) => {
               c.tax_office as company_tax_office,
               c.address as company_address,
               c.email as company_email,
-              cust.full_name as customer_name,
+              COALESCE(NULLIF(TRIM(CONCAT_WS(' ', cust.name, cust.surname)), ''), NULLIF(TRIM(cust.full_name), ''), si.customer_name) as customer_name,
               cust.tax_number as customer_tax_number,
               cust.tax_office as customer_tax_office,
               cust.address as customer_address,
@@ -571,20 +618,26 @@ router.get("/sales/:id", async (req: any, res) => {
     const invoice = invoiceResult.rows[0];
     invoice.items = itemsResult.rows;
 
-    if (invoice.company_id) {
+    const resolvedCustomer = invoice.sale_customer_name || invoice.customer_name || (invoice.company_title !== 'Bireysel Web Müşterisi' ? invoice.company_title : null) || 'Müşteri';
+
+    if (invoice.company_id && invoice.company_title && invoice.company_title !== 'Bireysel Web Müşterisi') {
+      invoice.customer_name = invoice.company_title;
+      invoice.company_title = invoice.company_title;
       invoice.tax_number = invoice.tax_number || invoice.company_tax_number;
       invoice.tax_office = invoice.tax_office || invoice.company_tax_office;
       invoice.address = invoice.address || invoice.company_address;
       invoice.customer_email = invoice.customer_email || invoice.company_email;
     } else if (invoice.customer_id) {
+      invoice.customer_name = resolvedCustomer;
+      invoice.company_title = resolvedCustomer;
       invoice.tax_number = invoice.tax_number || invoice.customer_tax_number;
       invoice.tax_office = invoice.tax_office || invoice.customer_tax_office;
       invoice.address = invoice.address || invoice.customer_address;
       invoice.customer_email = invoice.customer_email || invoice.customer_email_fallback;
     }
 
-    invoice.customer_name = invoice.customer_name || invoice.company_title || invoice.sale_customer_name || 'Bireysel Web Müşterisi';
-    invoice.company_title = invoice.company_title || invoice.customer_name || 'Bireysel Web Müşterisi';
+    invoice.customer_name = resolvedCustomer;
+    invoice.company_title = resolvedCustomer;
     if (!invoice.tax_number || (invoice.tax_number.length !== 10 && invoice.tax_number.length !== 11)) {
       invoice.tax_number = '11111111111';
     }

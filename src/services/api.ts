@@ -546,8 +546,8 @@ export const api = {
   saveGoogleMerchantSettings: (data: { enabled: boolean, merchant_id: string, catalog_currency?: string, storeId?: number }) => api.post("/api/integrations/google-merchant/settings", data),
 
   // Transactions
-  deleteTransaction: (id: number) => api.delete(`/api/store/transactions/${id}`),
-  updateTransaction: (id: number, data: any) => api.put(`/api/store/transactions/${id}`, data),
+  deleteTransaction: (id: number, storeId?: number) => api.delete(`/api/store/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  updateTransaction: (id: number, data: any, storeId?: number) => api.put(`/api/store/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   logError: (data: any) => api.post("/api/store/log-error", data),
 
   // Integration Test Methods

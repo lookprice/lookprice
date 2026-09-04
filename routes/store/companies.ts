@@ -105,11 +105,11 @@ router.get("/:id/transactions", async (req: any, res) => {
   
   try {
     let openingBalances: Record<string, number> = {};
-    if (startDate) {
+    if (startDate && startDate !== "") {
       const obQuery = `
         SELECT currency, COALESCE(SUM(CASE WHEN type = 'debt' THEN amount ELSE -amount END), 0)::FLOAT as balance
         FROM current_account_transactions
-        WHERE company_id = $1 AND (store_id = $2 OR store_id IS NULL) AND COALESCE(transaction_date, created_at) < $3
+        WHERE company_id = $1 AND (store_id = $2 OR store_id IS NULL) AND transaction_date < $3
         GROUP BY currency
       `;
       const obResult = await pool.query(obQuery, [req.params.id, storeId, startDate]);
@@ -121,7 +121,7 @@ router.get("/:id/transactions", async (req: any, res) => {
     let query = `
       SELECT 
         c.*, 
-        COALESCE(c.transaction_date, c.created_at) as transaction_date,
+        c.transaction_date,
         s.due_date,
         s.id as sale_id,
         pi.id as purchase_invoice_id,
@@ -137,17 +137,17 @@ router.get("/:id/transactions", async (req: any, res) => {
     
     const params: any[] = [req.params.id, storeId];
     
-    if (startDate) {
+    if (startDate && startDate !== "") {
       params.push(startDate);
-      query += ` AND COALESCE(c.transaction_date, c.created_at) >= $${params.length}`;
+      query += ` AND c.transaction_date >= $${params.length}`;
     }
     
-    if (endDate) {
+    if (endDate && endDate !== "") {
       params.push(`${endDate} 23:59:59`);
-      query += ` AND COALESCE(c.transaction_date, c.created_at) <= $${params.length}`;
+      query += ` AND c.transaction_date <= $${params.length}`;
     }
     
-    query += " ORDER BY COALESCE(c.transaction_date, c.created_at) ASC, c.id ASC";
+    query += " ORDER BY c.transaction_date ASC, c.id ASC";
     
     const result = await pool.query(query, params);
     res.json({
@@ -155,7 +155,8 @@ router.get("/:id/transactions", async (req: any, res) => {
       opening_balances: openingBalances
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("Error fetching company transactions:", err);
+    res.status(500).json({ error: err.message, transactions: [], opening_balances: {} });
   }
 });
 
@@ -190,16 +191,72 @@ router.post("/:id/transactions", async (req: any, res) => {
   }
 });
 
+// Update Company Transaction
+router.put("/:companyId/transactions/:id", async (req: any, res) => {
+  let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
+  const { companyId, id } = req.params;
+  const { type, amount, description, transaction_date, payment_method, currency, exchange_rate } = req.body;
+
+  try {
+    let checkQuery = "SELECT * FROM current_account_transactions WHERE id = $1 AND company_id = $2";
+    let checkParams: any[] = [id, companyId];
+    if (req.user.role !== "superadmin") {
+      checkQuery += " AND (store_id = $3 OR store_id IS NULL)";
+      checkParams.push(storeId);
+    }
+    const checkRes = await pool.query(checkQuery, checkParams);
+    if (checkRes.rows.length === 0) {
+      return res.status(404).json({ error: "İşlem bulunamadı" });
+    }
+
+    const currentTx = checkRes.rows[0];
+    const newType = type || currentTx.type;
+    const newAmount = amount !== undefined && amount !== null && amount !== "" ? Number(String(amount).replace(',', '.')) : currentTx.amount;
+    const newDescription = description !== undefined ? description : currentTx.description;
+    const newPaymentMethod = payment_method !== undefined ? payment_method : currentTx.payment_method;
+    const newCurrency = currency !== undefined ? currency : currentTx.currency;
+    const newExchangeRate = exchange_rate !== undefined && exchange_rate !== null && exchange_rate !== "" ? Number(String(exchange_rate).replace(',', '.')) : currentTx.exchange_rate;
+    let newDate = currentTx.transaction_date;
+    if (transaction_date) {
+      newDate = new Date(transaction_date);
+    }
+
+    const updateRes = await pool.query(
+      `UPDATE current_account_transactions 
+       SET type = $1, amount = $2, description = $3, transaction_date = $4, payment_method = $5, currency = $6, exchange_rate = $7
+       WHERE id = $8 AND company_id = $9
+       RETURNING *`,
+      [newType, newAmount, newDescription, newDate, newPaymentMethod, newCurrency, newExchangeRate, id, companyId]
+    );
+
+    res.json({ success: true, transaction: updateRes.rows[0] });
+  } catch (err: any) {
+    console.error("Error updating company transaction:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Delete Company Transaction
 router.delete("/:companyId/transactions/:id", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  let storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  if (storeId === "undefined" || storeId === "null") storeId = req.user.store_id;
   try {
-    await pool.query(
-      "DELETE FROM current_account_transactions WHERE id = $1 AND company_id = $2 AND store_id = $3",
-      [req.params.id, req.params.companyId, storeId]
-    );
-    res.json({ success: true });
+    let deleteQuery = "DELETE FROM current_account_transactions WHERE id = $1 AND company_id = $2";
+    let deleteParams: any[] = [req.params.id, req.params.companyId];
+    if (req.user.role !== "superadmin") {
+      deleteQuery += " AND (store_id = $3 OR store_id IS NULL)";
+      deleteParams.push(storeId);
+    }
+    deleteQuery += " RETURNING *";
+
+    const result = await pool.query(deleteQuery, deleteParams);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "İşlem bulunamadı veya silinemedi" });
+    }
+    res.json({ success: true, message: "İşlem başarıyla silindi", deleted: result.rows[0] });
   } catch (err: any) {
+    console.error("Error deleting company transaction:", err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -26,6 +26,7 @@ import importRouter from "./store/import";
 import infoRouter from "./store/info";
 import brandingRouter from "./store/branding";
 import supplierApisRouter from "./store/supplier-apis";
+import transactionsRouter from "./store/transactions";
 
 const router = express.Router();
 
@@ -53,6 +54,7 @@ router.use("/users", usersRouter);
 router.use("/quotations", quotationsRouter);
 router.use("/companies", companiesRouter);
 router.use("/customers", customersRouter);
+router.use("/transactions", transactionsRouter);
 router.use("/restaurant", restaurantRouter);
 router.use("/seo", seoRouter);
 router.use("/blog", blogRouter);

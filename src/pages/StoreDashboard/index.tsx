@@ -1047,6 +1047,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   isViewer={isViewer}
                   activeStoreId={currentStoreId}
                   onRefreshSales={fetchSales}
+                  branding={branding}
                 />
               )}
               {showCancelReasonModal && (

@@ -1059,6 +1059,24 @@ router.post("/:id/create-invoice", async (req: any, res) => {
       const vals: any[] = [];
       let valIdx = 1;
 
+      // Ensure customer has full name (AD+SOYAD) from sale.customer_name if available
+      if (targetFullName && targetFullName !== "Müşteri" && targetFullName !== "Bireysel Web Müşterisi" && (!customerObj.full_name || !customerObj.full_name.includes(' ') || customerObj.full_name === 'Müşteri' || customerObj.full_name === 'Bireysel Web Müşterisi')) {
+        const nameParts = targetFullName.split(' ');
+        const surname = nameParts.length > 1 ? nameParts.pop()! : '';
+        const firstName = nameParts.join(' ') || targetFullName;
+        
+        updates.push(`full_name = $${valIdx++}`);
+        vals.push(targetFullName);
+        if (firstName) {
+          updates.push(`name = $${valIdx++}`);
+          vals.push(firstName);
+        }
+        if (surname) {
+          updates.push(`surname = $${valIdx++}`);
+          vals.push(surname);
+        }
+      }
+
       if (!customerObj.address && sale.customer_address) {
         updates.push(`address = $${valIdx++}`);
         vals.push(sale.customer_address);
@@ -1200,18 +1218,21 @@ router.post("/:id/create-invoice", async (req: any, res) => {
     // Insert sales invoice
     const invRes = await pool.query(
       `INSERT INTO sales_invoices (
-        store_id, sale_id, customer_id, invoice_number, invoice_date, invoice_time,
+        store_id, sale_id, customer_id, company_id, customer_name, company_title, invoice_number, invoice_date, invoice_time,
         total_amount, tax_amount, grand_total, currency, notes, invoice_type, status,
         payment_method, address, tax_number, tax_office, customer_email, e_document_type, invoice_profile, is_tax_inclusive
       ) VALUES (
-        $1, $2, $3, $4, CURRENT_DATE, $5,
-        $6, $7, $8, $9, $10, 'sales', 'draft',
-        $11, $12, $13, $14, $15, $16, $17, true
+        $1, $2, $3, $4, $5, $6, $7, CURRENT_DATE, $8,
+        $9, $10, $11, $12, $13, 'sales', 'draft',
+        $14, $15, $16, $17, $18, $19, $20, true
       ) RETURNING id`,
       [
         storeId,
         id,
         finalCustomerId,
+        sale.company_id || null,
+        targetFullName,
+        targetFullName,
         invoiceNumber,
         timeStr,
         calculatedTotalMatrah,

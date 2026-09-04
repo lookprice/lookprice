@@ -25,15 +25,20 @@ export const useCompanyData = (currentStoreId: number | undefined, includeZeroBa
       const sDate = customStart !== undefined ? customStart : transactionStartDate;
       const eDate = customEnd !== undefined ? customEnd : transactionEndDate;
       const res = await api.getCompanyTransactions(companyId, sDate, eDate, targetStoreId);
-      if (res.transactions) {
+      if (res && res.transactions && Array.isArray(res.transactions)) {
         setCompanyTransactions(res.transactions);
         setOpeningBalances(res.opening_balances || {});
-      } else {
+      } else if (Array.isArray(res)) {
         setCompanyTransactions(res);
+        setOpeningBalances({});
+      } else {
+        setCompanyTransactions([]);
         setOpeningBalances({});
       }
     } catch (error) {
       console.error("Fetch transactions error:", error);
+      setCompanyTransactions([]);
+      setOpeningBalances({});
     } finally {
       setTransactionLoading(false);
     }
