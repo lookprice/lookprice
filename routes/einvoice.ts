@@ -1644,6 +1644,19 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
               [storeId, companyId, newInvoiceId, 'credit', invoiceDetails.payableAmount || 0, invoiceDetails.currency || 'TRY', `E-Fatura İçe Aktarma: ${invoiceDetails.documentNumber}`, invoiceDetails.issueDate || new Date()]
             );
+
+            if (invoiceDetails.paymentStatus === 'paid' || (invoiceDetails.paymentMethod && invoiceDetails.paymentMethod !== 'term')) {
+              await pool.query(
+                `INSERT INTO current_account_transactions 
+                  (store_id, company_id, purchase_invoice_id, type, amount, currency, description, payment_method, transaction_date) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [
+                  storeId, companyId, newInvoiceId, 'debt', invoiceDetails.payableAmount || 0,
+                  invoiceDetails.currency || 'TRY', `E-Fatura Ödemesi: ${invoiceDetails.documentNumber}`,
+                  invoiceDetails.paymentMethod || 'nakit', invoiceDetails.issueDate || new Date()
+                ]
+              );
+            }
           }
 
           importedCount++;

@@ -3,6 +3,7 @@ import { pool, addStockMovement } from "../../models/db";
 import { getEInvoiceService } from "../einvoice";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
 import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode } from "./invoiceMatching";
+import { mergeProducts } from "./products";
 
 const router = express.Router();
 
@@ -14,8 +15,11 @@ export async function initPurchaseInvoiceSchema() {
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_code VARCHAR(255);`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku VARCHAR(255);`);
     await pool.query(`ALTER TABLE supplier_product_mappings ADD COLUMN IF NOT EXISTS supplier_product_code VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS company_title VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS company_id INT;`);
   } catch (e) {
-    console.error("Failed to alter purchase_invoice_items table columns:", e);
+    console.error("Failed to alter purchase_invoice_items / sales_invoices table columns:", e);
   }
 
   try {
@@ -143,6 +147,254 @@ export async function initPurchaseInvoiceSchema() {
         [tempBarcode, newProdCode, prod.id, oldBarcode]
       );
     }
+
+    // 4b. Auto-consolidate high-confidence duplicate products (temporary barcodes matching real inventory products)
+    try {
+      const dupQuery = await pool.query(`
+        SELECT 
+          t.id as source_id, t.store_id, t.name as source_name, t.barcode as source_barcode,
+          r.id as target_id, r.name as target_name, r.barcode as target_barcode
+        FROM products t
+        JOIN products r ON t.store_id = r.store_id AND t.id != r.id
+        WHERE (t.barcode LIKE '200%' OR t.barcode LIKE 'TEMP%')
+          AND r.barcode NOT LIKE '200%' AND r.barcode NOT LIKE 'TEMP%'
+          AND (
+            (t.product_code IS NOT NULL AND t.product_code != '' AND (t.product_code = r.product_code OR t.product_code = r.sku))
+            OR (t.sku IS NOT NULL AND t.sku != '' AND (t.sku = r.sku OR t.sku = r.product_code))
+            OR (LOWER(TRIM(t.name)) = LOWER(TRIM(r.name)))
+          )
+        ORDER BY t.id ASC
+      `);
+
+      for (const pair of dupQuery.rows) {
+        try {
+          await mergeProducts(pool, pair.source_id, pair.target_id, pair.store_id);
+          console.log(`[Auto-Consolidate] Merged duplicate product #${pair.source_id} (${pair.source_name}) -> #${pair.target_id} (${pair.target_name})`);
+        } catch (mErr: any) {
+          console.warn(`[Auto-Consolidate] Skipped #${pair.source_id}:`, mErr.message);
+        }
+      }
+    } catch (dupErr) {
+      console.error("Auto-consolidate duplicates error:", dupErr);
+    }
+
+    // 5. Auto-link missing company_id on purchase_invoices by tax_number or supplier_name
+    await pool.query(`
+      UPDATE purchase_invoices pi
+      SET company_id = c.id
+      FROM companies c
+      WHERE pi.company_id IS NULL 
+        AND pi.tax_number IS NOT NULL AND pi.tax_number != ''
+        AND c.store_id = pi.store_id
+        AND c.tax_number = pi.tax_number
+    `);
+
+    await pool.query(`
+      UPDATE purchase_invoices pi
+      SET company_id = c.id
+      FROM companies c
+      WHERE pi.company_id IS NULL 
+        AND pi.supplier_name IS NOT NULL AND pi.supplier_name != ''
+        AND c.store_id = pi.store_id
+        AND LOWER(TRIM(c.title)) = LOWER(TRIM(pi.supplier_name))
+    `);
+
+    // 6. Auto-repair missing transactions in current_account_transactions for purchase invoices
+    // a) Ensure credit transaction exists for all linked purchase_invoices
+    await pool.query(`
+      INSERT INTO current_account_transactions 
+        (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date)
+      SELECT 
+        pi.store_id, 
+        pi.company_id, 
+        pi.id, 
+        'credit', 
+        COALESCE(NULLIF(pi.grand_total, 0), pi.total_amount, 0),
+        COALESCE(pi.currency, 'TRY'),
+        COALESCE(pi.exchange_rate, 1),
+        'Alış Faturası: ' || COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number),
+        COALESCE(pi.invoice_date::timestamp, pi.created_at)
+      FROM purchase_invoices pi
+      WHERE pi.company_id IS NOT NULL 
+        AND COALESCE(NULLIF(pi.grand_total, 0), pi.total_amount, 0) > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM current_account_transactions cat
+          WHERE cat.purchase_invoice_id = pi.id AND cat.type = 'credit'
+        )
+    `);
+
+    // b) Ensure debt (payment) transaction exists for all paid purchase invoices (or payment_method != 'term')
+    await pool.query(`
+      INSERT INTO current_account_transactions 
+        (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date)
+      SELECT 
+        pi.store_id, 
+        pi.company_id, 
+        pi.id, 
+        'debt', 
+        COALESCE(NULLIF(pi.grand_total, 0), pi.total_amount, 0),
+        COALESCE(pi.currency, 'TRY'),
+        COALESCE(pi.exchange_rate, 1),
+        'Alış Faturası Ödemesi: ' || COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number) || CASE WHEN pi.payment_method IS NOT NULL THEN ' (' || pi.payment_method || ')' ELSE '' END,
+        COALESCE(pi.payment_method, 'nakit'),
+        COALESCE(pi.invoice_date::timestamp, pi.created_at)
+      FROM purchase_invoices pi
+      WHERE pi.company_id IS NOT NULL 
+        AND COALESCE(NULLIF(pi.grand_total, 0), pi.total_amount, 0) > 0
+        AND (pi.payment_status = 'paid' OR (pi.payment_method IS NOT NULL AND pi.payment_method != 'term'))
+        AND NOT EXISTS (
+          SELECT 1 FROM current_account_transactions cat
+          WHERE cat.purchase_invoice_id = pi.id AND cat.type = 'debt'
+        )
+    `);
+
+    // c) Auto-repair sales invoices missing company_id, customer_name, company_title or tax_number
+    try {
+      // Find sales invoices with customer_id or sale_id but missing company_id
+      const unlinkedSalesInvoices = await pool.query(`
+        SELECT si.id, si.store_id, si.sale_id, si.customer_id, si.tax_number, si.address, si.customer_email,
+               cust.full_name as cust_full_name, cust.name as cust_name, cust.surname as cust_surname, 
+               cust.phone as cust_phone, cust.email as cust_email, cust.address as cust_address,
+               cust.city as cust_city, cust.tc_id as cust_tc_id, cust.tax_number as cust_tax_number,
+               s.customer_name as sale_cust_name, s.customer_phone as sale_cust_phone, s.customer_address as sale_cust_address
+        FROM sales_invoices si
+        LEFT JOIN customers cust ON si.customer_id = cust.id
+        LEFT JOIN sales s ON si.sale_id = s.id
+        WHERE si.company_id IS NULL OR si.customer_name IS NULL OR si.company_title IS NULL OR si.tax_number IS NULL OR si.tax_number = ''
+      `);
+
+      for (const row of unlinkedSalesInvoices.rows) {
+        const rawName = (row.cust_full_name || row.sale_cust_name || (row.cust_name ? `${row.cust_name} ${row.cust_surname || ''}` : '') || 'Bireysel Web Müşterisi').trim();
+        let rawTc = (row.cust_tc_id || row.cust_tax_number || row.tax_number || '').trim();
+        if (!rawTc || (rawTc.length !== 10 && rawTc.length !== 11)) {
+          rawTc = '11111111111';
+        }
+        const phone = row.cust_phone || row.sale_cust_phone || '';
+        const email = row.cust_email || row.customer_email || '';
+        const address = row.cust_address || row.sale_cust_address || row.address || '';
+        const city = row.cust_city || '';
+
+        // Check if company exists
+        let companyId = null;
+        const compFind = await pool.query(
+          "SELECT id FROM companies WHERE store_id = $1 AND (tax_number = $2 OR (LOWER(TRIM(title)) = LOWER(TRIM($3)) AND $3 != 'Bireysel Web Müşterisi')) LIMIT 1",
+          [row.store_id, rawTc, rawName]
+        );
+        if (compFind.rows.length > 0) {
+          companyId = compFind.rows[0].id;
+        } else {
+          const newComp = await pool.query(
+            `INSERT INTO companies (store_id, title, tax_number, tax_office, address, phone, email, contact_person)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+            [row.store_id, rawName, rawTc, city ? `${city} Vergi Dairesi` : 'Bireysel', address, phone, email, rawName]
+          );
+          companyId = newComp.rows[0].id;
+        }
+
+        // Update sales_invoice
+        await pool.query(
+          `UPDATE sales_invoices 
+           SET company_id = COALESCE(company_id, $1),
+               customer_name = COALESCE(customer_name, $2),
+               company_title = COALESCE(company_title, $2),
+               tax_number = COALESCE(NULLIF(tax_number, ''), $3),
+               address = COALESCE(NULLIF(address, ''), $4),
+               customer_email = COALESCE(NULLIF(customer_email, ''), $5)
+           WHERE id = $6`,
+          [companyId, rawName, rawTc, address, email, row.id]
+        );
+
+        // Update sales if linked
+        if (row.sale_id) {
+          await pool.query(
+            "UPDATE sales SET company_id = COALESCE(company_id, $1), customer_name = COALESCE(customer_name, $2) WHERE id = $3",
+            [companyId, rawName, row.sale_id]
+          );
+        }
+      }
+
+      // d) Ensure debt transaction exists for all linked sales_invoices
+      await pool.query(`
+        INSERT INTO current_account_transactions 
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, transaction_date)
+        SELECT 
+          si.store_id, 
+          si.company_id, 
+          si.id, 
+          'debt', 
+          COALESCE(NULLIF(si.grand_total, 0), si.total_amount, 0),
+          COALESCE(si.currency, 'TRY'),
+          COALESCE(si.exchange_rate, 1),
+          'Satış Faturası: ' || COALESCE(NULLIF(si.document_number, ''), si.invoice_number),
+          COALESCE(si.invoice_date::timestamp, si.created_at)
+        FROM sales_invoices si
+        WHERE si.company_id IS NOT NULL 
+          AND COALESCE(NULLIF(si.grand_total, 0), si.total_amount, 0) > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM current_account_transactions cat
+            WHERE cat.sales_invoice_id = si.id AND cat.type = 'debt'
+          )
+      `);
+
+      // e) Ensure credit (collection) transaction exists for paid sales invoices (payment_method != 'term')
+      await pool.query(`
+        INSERT INTO current_account_transactions 
+          (store_id, company_id, sales_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date)
+        SELECT 
+          si.store_id, 
+          si.company_id, 
+          si.id, 
+          'credit', 
+          COALESCE(NULLIF(si.grand_total, 0), si.total_amount, 0),
+          COALESCE(si.currency, 'TRY'),
+          COALESCE(si.exchange_rate, 1),
+          'Satış Faturası Tahsilatı: ' || COALESCE(NULLIF(si.document_number, ''), si.invoice_number) || CASE WHEN si.payment_method IS NOT NULL THEN ' (' || si.payment_method || ')' ELSE '' END,
+          COALESCE(si.payment_method, 'kredi_karti'),
+          COALESCE(si.invoice_date::timestamp, si.created_at)
+        FROM sales_invoices si
+        WHERE si.company_id IS NOT NULL 
+          AND COALESCE(NULLIF(si.grand_total, 0), si.total_amount, 0) > 0
+          AND (si.status = 'paid' OR (si.payment_method IS NOT NULL AND si.payment_method != 'term'))
+          AND NOT EXISTS (
+            SELECT 1 FROM current_account_transactions cat
+            WHERE cat.sales_invoice_id = si.id AND cat.type = 'credit'
+          )
+      `);
+
+      // f) If there are sale_id current_account_transactions with type='credit' where no debt exists, create the corresponding debt!
+      await pool.query(`
+        INSERT INTO current_account_transactions 
+          (store_id, company_id, sale_id, type, amount, currency, exchange_rate, description, transaction_date)
+        SELECT 
+          cat.store_id,
+          cat.company_id,
+          cat.sale_id,
+          'debt',
+          COALESCE(s.total_amount, cat.amount),
+          COALESCE(s.currency, cat.currency, 'TRY'),
+          COALESCE(s.exchange_rate, cat.exchange_rate, 1),
+          'Satış #' || cat.sale_id,
+          COALESCE(s.created_at, cat.transaction_date, NOW())
+        FROM current_account_transactions cat
+        LEFT JOIN sales s ON cat.sale_id = s.id
+        WHERE cat.sale_id IS NOT NULL 
+          AND cat.type = 'credit'
+          AND NOT EXISTS (
+            SELECT 1 FROM current_account_transactions debt_cat
+            WHERE debt_cat.sale_id = cat.sale_id AND debt_cat.type = 'debt'
+          )
+      `);
+
+      // g) Repair null store_id in current_account_transactions
+      await pool.query(`
+        UPDATE current_account_transactions cat
+        SET store_id = c.store_id
+        FROM companies c
+        WHERE cat.company_id = c.id AND (cat.store_id IS NULL OR cat.store_id = 0)
+      `);
+    } catch (err) {
+      console.error("Failed to auto-repair sales invoices / current accounts:", err);
+    }
   } catch (e) {
     console.error("Failed to alter purchase_invoice_items schema / stock sync:", e);
   }
@@ -208,9 +460,10 @@ router.get("/sales", async (req: any, res) => {
 
     let query = `
       SELECT si.*, 
-             c.title as company_title,
-             cust.full_name as customer_name,
+             COALESCE(si.company_title, c.title, si.customer_name, cust.full_name, s.customer_name, 'Bireysel Web Müşterisi') as company_title,
+             COALESCE(si.customer_name, si.company_title, cust.full_name, c.title, s.customer_name, 'Bireysel Web Müşterisi') as customer_name,
              s.customer_name as sale_customer_name,
+             COALESCE(NULLIF(si.tax_number, ''), c.tax_number, cust.tc_id, cust.tax_number, '11111111111') as resolved_tax_number,
              (
                SELECT COALESCE(json_agg(json_build_object(
                  'id', sii.id,
@@ -330,8 +583,10 @@ router.get("/sales/:id", async (req: any, res) => {
       invoice.customer_email = invoice.customer_email || invoice.customer_email_fallback;
     }
 
-    if (!invoice.customer_name && invoice.sale_customer_name) {
-      invoice.customer_name = invoice.sale_customer_name;
+    invoice.customer_name = invoice.customer_name || invoice.company_title || invoice.sale_customer_name || 'Bireysel Web Müşterisi';
+    invoice.company_title = invoice.company_title || invoice.customer_name || 'Bireysel Web Müşterisi';
+    if (!invoice.tax_number || (invoice.tax_number.length !== 10 && invoice.tax_number.length !== 11)) {
+      invoice.tax_number = '11111111111';
     }
     
     res.json(invoice);
@@ -1467,8 +1722,22 @@ router.post("/purchase", async (req: any, res) => {
     const invoice = invoiceRes.rows[0];
 
     // Add transaction to current account if company exists
-    if (company_id) {
-      console.log(`Adding current account transaction for company ${company_id}, invoice ${invoice.id}, amount ${calculatedGrandTotal}`);
+    let finalCompanyId = company_id || null;
+    if (!finalCompanyId && tax_number) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2 LIMIT 1", [storeId, String(tax_number).trim()]);
+      if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
+    }
+    if (!finalCompanyId && supplier_name) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1", [storeId, String(supplier_name).trim()]);
+      if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
+    }
+
+    if (finalCompanyId && !company_id) {
+      await pool.query("UPDATE purchase_invoices SET company_id = $1 WHERE id = $2", [finalCompanyId, invoice.id]);
+    }
+
+    if (finalCompanyId) {
+      console.log(`Adding current account transaction for company ${finalCompanyId}, invoice ${invoice.id}, amount ${calculatedGrandTotal}`);
       const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
       const store = storeRes.rows[0];
       const branding = store?.branding || {};
@@ -1478,8 +1747,21 @@ router.post("/purchase", async (req: any, res) => {
         `INSERT INTO current_account_transactions 
           (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [storeId, company_id, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
+        [storeId, finalCompanyId, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
       );
+
+      const isPaid = payment_status === 'paid' || (payment_method && payment_method !== 'term');
+      if (isPaid) {
+        await pool.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            storeId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1,
+            `Alış Faturası Ödemesi: ${invoice_number}${payment_method ? ` (${payment_method})` : ''}`, payment_method || 'nakit', invoice_date || new Date()
+          ]
+        );
+      }
     }
 
     if (items && Array.isArray(items)) {
@@ -1739,9 +2021,23 @@ router.put("/purchase/:id", async (req: any, res) => {
     const invoice = invoiceRes.rows[0];
 
     // Delete old transaction and add new one
+    let finalCompanyId = company_id || null;
+    if (!finalCompanyId && tax_number) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2 LIMIT 1", [storeId, String(tax_number).trim()]);
+      if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
+    }
+    if (!finalCompanyId && supplier_name) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1", [storeId, String(supplier_name).trim()]);
+      if (compRes.rows.length > 0) finalCompanyId = compRes.rows[0].id;
+    }
+
+    if (finalCompanyId && !company_id) {
+      await pool.query("UPDATE purchase_invoices SET company_id = $1 WHERE id = $2", [finalCompanyId, id]);
+    }
+
     await pool.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [id]);
     
-    if (company_id) {
+    if (finalCompanyId) {
       const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
       const store = storeRes.rows[0];
       const branding = store?.branding || {};
@@ -1751,8 +2047,21 @@ router.put("/purchase/:id", async (req: any, res) => {
         `INSERT INTO current_account_transactions 
           (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [storeId, company_id, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
+        [storeId, finalCompanyId, invoice.id, 'credit', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1, `Alış Faturası: ${invoice_number}`, invoice_date || new Date()]
       );
+
+      const isPaid = payment_status === 'paid' || (payment_method && payment_method !== 'term');
+      if (isPaid) {
+        await pool.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            storeId, finalCompanyId, invoice.id, 'debt', calculatedGrandTotal, currency || defaultCurrency, exchange_rate || 1,
+            `Alış Faturası Ödemesi: ${invoice_number}${payment_method ? ` (${payment_method})` : ''}`, payment_method || 'nakit', invoice_date || new Date()
+          ]
+        );
+      }
     }
 
     if (items && Array.isArray(items)) {
@@ -1998,7 +2307,74 @@ router.patch("/purchase/:id/payment-status", async (req: any, res) => {
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
-    res.json(result.rows[0]);
+
+    const invoice = result.rows[0];
+
+    // Resolve company_id if missing
+    let compId = invoice.company_id;
+    if (!compId && invoice.tax_number) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND tax_number = $2 LIMIT 1", [storeId, String(invoice.tax_number).trim()]);
+      if (compRes.rows.length > 0) {
+        compId = compRes.rows[0].id;
+        await pool.query("UPDATE purchase_invoices SET company_id = $1 WHERE id = $2", [compId, id]);
+      }
+    }
+    if (!compId && invoice.supplier_name) {
+      const compRes = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1", [storeId, String(invoice.supplier_name).trim()]);
+      if (compRes.rows.length > 0) {
+        compId = compRes.rows[0].id;
+        await pool.query("UPDATE purchase_invoices SET company_id = $1 WHERE id = $2", [compId, id]);
+      }
+    }
+
+    if (compId) {
+      // Remove any existing debt (payment) transaction for this invoice first
+      await pool.query(
+        "DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1 AND type = 'debt'",
+        [id]
+      );
+
+      // Ensure credit transaction exists
+      const creditRes = await pool.query("SELECT 1 FROM current_account_transactions WHERE purchase_invoice_id = $1 AND type = 'credit'", [id]);
+      if (creditRes.rows.length === 0) {
+        const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+        const store = storeRes.rows[0];
+        const branding = store?.branding || {};
+        const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+        await pool.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            storeId, compId, id, 'credit', Number(invoice.grand_total || invoice.total_amount || 0),
+            invoice.currency || defaultCurrency, invoice.exchange_rate || 1,
+            `Alış Faturası: ${invoice.invoice_number}`, invoice.invoice_date || invoice.created_at || new Date()
+          ]
+        );
+      }
+
+      if (status === 'paid') {
+        const storeRes = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+        const store = storeRes.rows[0];
+        const branding = store?.branding || {};
+        const defaultCurrency = store?.default_currency || branding?.default_currency || 'TRY';
+
+        await pool.query(
+          `INSERT INTO current_account_transactions 
+            (store_id, company_id, purchase_invoice_id, type, amount, currency, exchange_rate, description, payment_method, transaction_date) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            storeId, compId, id, 'debt', Number(invoice.grand_total || invoice.total_amount || 0),
+            invoice.currency || defaultCurrency, invoice.exchange_rate || 1,
+            `Alış Faturası Ödemesi: ${invoice.invoice_number}${invoice.payment_method ? ` (${invoice.payment_method})` : ''}`,
+            invoice.payment_method || 'nakit', new Date()
+          ]
+        );
+      }
+    }
+
+    res.json(invoice);
   } catch (e: any) {
     res.status(400).json({ error: e.message });
   }

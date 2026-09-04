@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { safeHtml2Canvas } from "../utils/html2canvasFix";
+import { safeHtml2Canvas, prepareImagesForHtml2Canvas, urlToDataUrl } from "../utils/html2canvasFix";
 import { useParams } from "react-router-dom";
 import { 
   X, 
@@ -86,6 +86,7 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [safeProductImageUrl, setSafeProductImageUrl] = useState<string>('');
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -126,6 +127,33 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     }
     return list;
   }, [product]);
+
+  // Proactively convert external image URL to Data URL via backend proxy so that:
+  // 1) The preview displays crisp image with zero CORS restrictions
+  // 2) html2canvas has the Data URL ready instantly when user clicks "Görseli İndir"
+  useEffect(() => {
+    let isMounted = true;
+    const initialUrl = productImages[0];
+    if (!initialUrl) {
+      setSafeProductImageUrl('');
+      return;
+    }
+
+    if (initialUrl.startsWith('data:')) {
+      setSafeProductImageUrl(initialUrl);
+      return;
+    }
+
+    urlToDataUrl(initialUrl).then((safeUrl) => {
+      if (isMounted && safeUrl && safeUrl.startsWith('data:')) {
+        setSafeProductImageUrl(safeUrl);
+      }
+    }).catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [productImages]);
 
   if (!isOpen || !product) return null;
 
@@ -308,64 +336,27 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
     }
 
     try {
-      // Allow fonts, images, and layout engine to fully settle
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Allow layout engine to fully settle
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // 1. Prepare and convert all images inside preview element to Data URLs for 100% CORS safety
-      const imgs = Array.from(element.querySelectorAll('img'));
-      await Promise.all(imgs.map(async (img) => {
-        if (!img.src || img.src.startsWith('data:')) return;
-        try {
-          const res = await fetch(img.src, { mode: 'cors' });
-          if (res.ok) {
-            const blob = await res.blob();
-            await new Promise<void>((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                if (typeof reader.result === 'string') {
-                  img.src = reader.result;
-                }
-                resolve();
-              };
-              reader.onerror = () => resolve();
-              reader.readAsDataURL(blob);
-            });
-          }
-        } catch (e) {
-          // Fallback: draw image to a temporary canvas using crossOrigin
-          await new Promise<void>((resolve) => {
-            const tempImg = new Image();
-            tempImg.crossOrigin = 'anonymous';
-            tempImg.onload = () => {
-              try {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = tempImg.naturalWidth || tempImg.width;
-                tempCanvas.height = tempImg.naturalHeight || tempImg.height;
-                const ctx = tempCanvas.getContext('2d');
-                if (ctx) {
-                  ctx.drawImage(tempImg, 0, 0);
-                  img.src = tempCanvas.toDataURL('image/png');
-                }
-              } catch (err) {}
-              resolve();
-            };
-            tempImg.onerror = () => resolve();
-            tempImg.src = img.src + (img.src.includes('?') ? '&' : '?') + 'cors_ts=' + Date.now();
-          });
-        }
-      }));
+      await prepareImagesForHtml2Canvas(element);
 
       // 2. Render DOM element to high-resolution canvas with safe modern color handling
+      const currentWidth = element.clientWidth || 340;
+      const targetWidth = 1080;
+      const renderScale = Math.max(3.0, targetWidth / currentWidth);
+
       const canvas = await safeHtml2Canvas(element, {
-        scale: 3,
+        scale: renderScale,
         useCORS: true,
         allowTaint: false,
         backgroundColor: null,
         logging: false,
-        imageTimeout: 10000,
+        imageTimeout: 15000,
       });
 
-      // 4. Download generated PNG
+      // 3. Download generated PNG
       const sanitizedTitle = (productTitle || 'afis')
         .toLowerCase()
         .replace(/[^a-z0-9ğüşıöç]/g, '-')
@@ -452,11 +443,12 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                   {/* Soft Radial Backlight */}
                   <div className={`absolute inset-0 bg-radial ${themeConfig.ambientGlow} pointer-events-none`} />
 
-                  {productImages[0] ? (
+                  {(safeProductImageUrl || productImages[0]) ? (
                     <img 
-                      src={productImages[0]} 
+                      src={safeProductImageUrl || productImages[0]} 
                       alt={productTitle} 
-                      className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.7)] select-none z-10"
+                      className="max-w-full max-h-full w-auto h-auto object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.7)] select-none z-10"
+                      crossOrigin="anonymous"
                       referrerPolicy="no-referrer"
                     />
                   ) : (

@@ -331,20 +331,171 @@ export function sanitizeClonedDocForHtml2Canvas(
       el.setAttribute('style', sanitizeCssString(styleAttr));
     }
   });
+
+  // 6. Synchronize and guarantee all <img> tags in clonedDoc have valid Data URLs and clean styles
+  try {
+    const clonedImgs = Array.from(clonedDoc.querySelectorAll('img')) as HTMLImageElement[];
+    const originalImgs = originalTargetElement ? (Array.from(originalTargetElement.querySelectorAll('img')) as HTMLImageElement[]) : [];
+    
+    clonedImgs.forEach((clonedImg, idx) => {
+      const origImg = originalImgs[idx];
+      if (origImg && origImg.src) {
+        clonedImg.src = origImg.src;
+      }
+      
+      // Strip any complex CSS filter (like drop-shadow) on the cloned image that html2canvas cannot render
+      clonedImg.style.filter = 'none';
+      (clonedImg.style as any).webkitFilter = 'none';
+      clonedImg.style.visibility = 'visible';
+      clonedImg.style.display = 'block';
+
+      // Ensure loading is eager and decoded
+      clonedImg.loading = 'eager';
+      (clonedImg as any).decoding = 'sync';
+    });
+  } catch (e) {}
+}
+
+/**
+ * Converts a Blob to a base64 Data URL string.
+ */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        resolve('');
+      }
+    };
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Converts any image URL (local, remote, CORS or non-CORS) into a bulletproof base64 Data URL.
+ * Uses local proxy /api/proxy-image if the direct CORS fetch is blocked by upstream servers.
+ */
+export async function urlToDataUrl(url: string): Promise<string> {
+  if (!url || typeof url !== 'string') return '';
+  if (url.startsWith('data:')) return url;
+
+  // 1. Try direct fetch with CORS (works for same-origin or CORS-enabled CDNs)
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (res.ok) {
+      const blob = await res.blob();
+      const dataUrl = await blobToDataUrl(blob);
+      if (dataUrl && dataUrl.startsWith('data:')) {
+        return dataUrl;
+      }
+    }
+  } catch (e) {
+    // Cross-origin request blocked by browser CORS policy, proceed to proxy
+  }
+
+  // 2. High-performance backend proxy with format=dataurl
+  try {
+    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&format=dataurl`;
+    const res = await fetch(proxyUrl);
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.dataUrl && typeof json.dataUrl === 'string' && json.dataUrl.startsWith('data:')) {
+        return json.dataUrl;
+      }
+    }
+  } catch (e) {}
+
+  // 3. Backend proxy binary stream fallback
+  try {
+    const proxyBinaryUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxyBinaryUrl);
+    if (res.ok) {
+      const blob = await res.blob();
+      const dataUrl = await blobToDataUrl(blob);
+      if (dataUrl && dataUrl.startsWith('data:')) {
+        return dataUrl;
+      }
+    }
+  } catch (e) {}
+
+  // 4. Instagram proxy-image route fallback
+  try {
+    const proxyInstaUrl = `/api/instagram/proxy-image?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxyInstaUrl);
+    if (res.ok) {
+      const blob = await res.blob();
+      const dataUrl = await blobToDataUrl(blob);
+      if (dataUrl && dataUrl.startsWith('data:')) {
+        return dataUrl;
+      }
+    }
+  } catch (e) {}
+
+  return url;
+}
+
+/**
+ * Prepares all <img> elements inside a target container before html2canvas capture.
+ * Converts external non-CORS image sources to base64 Data URLs and guarantees they are fully decoded.
+ */
+export async function prepareImagesForHtml2Canvas(element: HTMLElement): Promise<void> {
+  if (!element) return;
+  const imgs = Array.from(element.querySelectorAll('img'));
+  
+  await Promise.all(imgs.map(async (img) => {
+    const currentSrc = img.src || img.getAttribute('src');
+    if (!currentSrc) return;
+
+    // If not a data URL, convert it
+    if (!currentSrc.startsWith('data:')) {
+      const dataUrl = await urlToDataUrl(currentSrc);
+      if (dataUrl && dataUrl.startsWith('data:')) {
+        img.src = dataUrl;
+      }
+    }
+
+    // Wait for image to be complete and decoded
+    await new Promise<void>((resolve) => {
+      if (img.complete && img.naturalWidth > 0) {
+        resolve();
+        return;
+      }
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      setTimeout(resolve, 800); // 800ms safety timeout
+    });
+
+    if ('decode' in img && typeof img.decode === 'function') {
+      try {
+        await img.decode();
+      } catch (e) {}
+    }
+  }));
 }
 
 /**
  * Bulletproof html2canvas wrapper:
- * 1. Monkey-patches getComputedStyle so modern colors (oklch, oklab, color()) are safely converted to rgb/rgba
- * 2. WebIDL compliance: Prevents "Illegal invocation" by never passing Proxy receiver to native getters
- * 3. Injects sanitization into onclone
- * 4. Ensures allowTaint is disabled so canvas.toDataURL() never throws SecurityError
- * 5. Restores original getComputedStyle after capture
+ * 1. Pre-converts all images in the container to base64 Data URLs via local proxy to eliminate CORS blocks
+ * 2. Monkey-patches getComputedStyle so modern colors (oklch, oklab, color()) are safely converted to rgb/rgba
+ * 3. WebIDL compliance: Prevents "Illegal invocation" by never passing Proxy receiver to native getters
+ * 4. Injects sanitization into onclone
+ * 5. Ensures allowTaint is disabled so canvas.toDataURL() never throws SecurityError
+ * 6. Restores original getComputedStyle after capture
  */
 export async function safeHtml2Canvas(
   element: HTMLElement,
   options: Partial<Options> = {}
 ): Promise<HTMLCanvasElement> {
+  // Pre-convert all images inside target element to base64 Data URLs for 100% CORS safety and instant canvas drawing
+  try {
+    await prepareImagesForHtml2Canvas(element);
+  } catch (err) {
+    console.warn("safeHtml2Canvas image prep warning:", err);
+  }
+
   const originalGetComputedStyle = window.getComputedStyle;
 
   const createStyleProxy = (origComputed: CSSStyleDeclaration): CSSStyleDeclaration => {

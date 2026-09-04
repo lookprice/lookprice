@@ -76,7 +76,7 @@ interface DashboardModalsProps {
   setTransactionStartDate: (d: string) => void;
   transactionEndDate: string;
   setTransactionEndDate: (d: string) => void;
-  handleFetchTransactions: (id: number) => void;
+  handleFetchTransactions: (id: number, targetStoreId?: number, customStart?: string, customEnd?: string) => void;
   transactionLoading: boolean;
   handleExportTransactionsPDF: () => void;
   openingBalances: Record<string, number>;
@@ -822,30 +822,86 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                   )}
                 </select>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.startDate}</label>
-                <input 
-                  type="date" 
-                  value={transactionStartDate}
-                  onChange={(e) => setTransactionStartDate(e.target.value)}
-                  className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransactionStartDate('');
+                      setTransactionEndDate('');
+                      handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, '', '');
+                    }}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                      !transactionStartDate && !transactionEndDate
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {isTr ? 'Tüm Zamanlar' : 'All Time'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - 30);
+                      const s = d.toISOString().split('T')[0];
+                      const e = new Date().toISOString().split('T')[0];
+                      setTransactionStartDate(s);
+                      setTransactionEndDate(e);
+                      handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, s, e);
+                    }}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                      transactionStartDate && !transactionStartDate.startsWith(new Date().getFullYear().toString() + '-01-01')
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {isTr ? 'Son 30 Gün' : 'Last 30 Days'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const s = `${new Date().getFullYear()}-01-01`;
+                      const e = new Date().toISOString().split('T')[0];
+                      setTransactionStartDate(s);
+                      setTransactionEndDate(e);
+                      handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, s, e);
+                    }}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                      transactionStartDate === `${new Date().getFullYear()}-01-01`
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {isTr ? 'Bu Yıl' : 'This Year'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.startDate}</label>
+                  <input 
+                    type="date" 
+                    value={transactionStartDate}
+                    onChange={(e) => setTransactionStartDate(e.target.value)}
+                    className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.endDate}</label>
+                  <input 
+                    type="date" 
+                    value={transactionEndDate}
+                    onChange={(e) => setTransactionEndDate(e.target.value)}
+                    className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <button 
+                  onClick={() => handleFetchTransactions(selectedCompany.id, selectedCompany.store_id)}
+                  className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all"
+                  title={isTr ? "Filtrele / Yenile" : "Filter / Refresh"}
+                >
+                  <History className={`h-4 w-4 ${transactionLoading ? 'animate-spin' : ''}`} />
+                </button>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.endDate}</label>
-                <input 
-                  type="date" 
-                  value={transactionEndDate}
-                  onChange={(e) => setTransactionEndDate(e.target.value)}
-                  className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-              <button 
-                onClick={() => handleFetchTransactions(selectedCompany.id)}
-                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all"
-              >
-                <History className={`h-4 w-4 ${transactionLoading ? 'animate-spin' : ''}`} />
-              </button>
               <button 
                 onClick={handleExportTransactionsPDF}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-200 transition-all cursor-pointer"
@@ -1114,9 +1170,28 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                           <p className="text-gray-500 font-medium">{t.loading}</p>
                         </div>
                       ) : filteredTransactions.length === 0 ? (
-                        <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                        <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 p-6">
                           <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                          <p className="text-gray-500 font-medium">{isTr ? 'Hareket bulunmuyor' : 'No transactions found'}</p>
+                          <p className="text-gray-700 font-bold text-sm mb-1">{isTr ? 'Seçili Tarih Aralığında Hareket Bulunmuyor' : 'No transactions in selected range'}</p>
+                          {openingBalances[selectedCurrency] ? (
+                            <p className="text-xs text-amber-700 font-semibold mb-3">
+                              {isTr ? `Geçmiş dönemden devreden bakiye: ${Number(openingBalances[selectedCurrency]).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${selectedCurrency}` : `Carry-over balance: ${openingBalances[selectedCurrency]} ${selectedCurrency}`}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-400 mb-3">{isTr ? 'Bu döneme ait herhangi bir borç/alacak hareketi kaydedilmemiş.' : 'No transactions recorded.'}</p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTransactionStartDate('');
+                              setTransactionEndDate('');
+                              handleFetchTransactions(selectedCompany.id, selectedCompany.store_id, '', '');
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-sm"
+                          >
+                            <History className="h-3.5 w-3.5" />
+                            {isTr ? 'Tüm Zamanların Hareketlerini Göster' : 'Show All Time Transactions'}
+                          </button>
                         </div>
                       ) : (
                         <div className="overflow-x-auto">
@@ -1134,7 +1209,23 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                             <tbody>
                               {(() => {
                                 let runningBalance = openingBalances[selectedCurrency] || 0;
-                                return filteredTransactions.map((tx: any) => {
+                                return (
+                                  <>
+                                    {openingBalances[selectedCurrency] ? (
+                                      <tr className="bg-amber-50/60 border-b border-amber-100 font-bold">
+                                        <td className="py-3 px-4 text-xs text-amber-800">-</td>
+                                        <td className="py-3 px-4 text-xs text-amber-900">
+                                          {isTr ? 'Önceki Dönemden Devreden Bakiye' : 'Opening / Carry-Over Balance'}
+                                        </td>
+                                        <td className="py-3 px-4 text-right text-xs text-amber-900">-</td>
+                                        <td className="py-3 px-4 text-right text-xs text-amber-900">-</td>
+                                        <td className="py-3 px-4 text-right text-xs text-amber-900 font-bold">
+                                          {Number(openingBalances[selectedCurrency]).toLocaleString(isTr ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="py-3 px-4 text-right text-xs text-amber-700">-</td>
+                                      </tr>
+                                    ) : null}
+                                    {filteredTransactions.map((tx: any) => {
                                   const amount = Number(tx.amount);
                                   if (tx.type === 'debt') runningBalance += amount;
                                   else runningBalance -= amount;
@@ -1190,8 +1281,10 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                                       </td>
                                     </tr>
                                   );
-                                });
-                              })()}
+                                })}
+                              </>
+                            );
+                          })()}
                             </tbody>
                           </table>
                         </div>

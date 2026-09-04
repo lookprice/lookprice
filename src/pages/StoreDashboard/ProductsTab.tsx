@@ -41,6 +41,7 @@ import ProductMovementModal from "../../components/ProductMovementModal";
 import { ProductSocialMediaShareModal } from "../../components/ProductSocialMediaShareModal";
 import { RecipeModal } from "./modals/RecipeModal";
 import ProductsFilterBar from "../../components/dashboard/ProductsFilterBar";
+import { DuplicateMergeModal } from "../../components/DuplicateMergeModal";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { getLabels } from "../../utils/showcase";
@@ -70,6 +71,7 @@ interface ProductsTabProps {
   propertiesCount?: number;
   onSwitchTab?: (tab: string) => void;
   isCafeRestaurant?: boolean;
+  onRefresh?: () => void;
 }
 
 const ProductsTab = ({ 
@@ -96,7 +98,8 @@ const ProductsTab = ({
   includeBranches,
   propertiesCount,
   onSwitchTab,
-  isCafeRestaurant
+  isCafeRestaurant,
+  onRefresh
 }: ProductsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -129,6 +132,7 @@ const ProductsTab = ({
   const [sharingProduct, setSharingProduct] = useState<any>(null);
   const [recipeProduct, setRecipeProduct] = useState<any>(null);
   const [bestsellerStateMap, setBestsellerStateMap] = useState<Record<number, boolean>>({});
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
 
   const isCafe = isCafeRestaurant || branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
@@ -519,6 +523,19 @@ const ProductsTab = ({
             >
               <Download className="h-4.5 w-4.5" />
             </button>
+
+            {!isViewer && (
+              <button 
+                onClick={() => setIsMergeModalOpen(true)}
+                className="os-btn-secondary p-2.5 sm:p-3 text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-all border border-amber-200 hover:border-amber-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                title={lang === 'tr' ? "Mükerrer Ürünleri Birleştir / Envanter Temizliği" : "Merge Duplicate Products / Clean Inventory"}
+              >
+                <Sparkles className="h-4.5 w-4.5 text-amber-600 shrink-0" />
+                <span className="text-[11px] font-bold text-amber-900 hidden lg:inline whitespace-nowrap">
+                  {lang === 'tr' ? "Envanter Temizliği" : "Clean Inventory"}
+                </span>
+              </button>
+            )}
 
             {driveConnected && (
               <button 
@@ -996,6 +1013,13 @@ const ProductsTab = ({
           </div>
         )}
       </div>
+
+      <DuplicateMergeModal 
+        isOpen={isMergeModalOpen}
+        onClose={() => setIsMergeModalOpen(false)}
+        onMergedSuccess={onRefresh || (() => {})}
+        storeId={currentStoreId}
+      />
     </div>
   );
 };

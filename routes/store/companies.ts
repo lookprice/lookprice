@@ -109,7 +109,7 @@ router.get("/:id/transactions", async (req: any, res) => {
       const obQuery = `
         SELECT currency, COALESCE(SUM(CASE WHEN type = 'debt' THEN amount ELSE -amount END), 0)::FLOAT as balance
         FROM current_account_transactions
-        WHERE company_id = $1 AND store_id = $2 AND transaction_date < $3
+        WHERE company_id = $1 AND (store_id = $2 OR store_id IS NULL) AND COALESCE(transaction_date, created_at) < $3
         GROUP BY currency
       `;
       const obResult = await pool.query(obQuery, [req.params.id, storeId, startDate]);
@@ -121,6 +121,7 @@ router.get("/:id/transactions", async (req: any, res) => {
     let query = `
       SELECT 
         c.*, 
+        COALESCE(c.transaction_date, c.created_at) as transaction_date,
         s.due_date,
         s.id as sale_id,
         pi.id as purchase_invoice_id,
@@ -131,22 +132,22 @@ router.get("/:id/transactions", async (req: any, res) => {
       LEFT JOIN sales s ON c.sale_id = s.id
       LEFT JOIN purchase_invoices pi ON c.purchase_invoice_id = pi.id
       LEFT JOIN sales_invoices si ON c.sales_invoice_id = si.id
-      WHERE c.company_id = $1 AND c.store_id = $2
+      WHERE c.company_id = $1 AND (c.store_id = $2 OR c.store_id IS NULL)
     `;
     
     const params: any[] = [req.params.id, storeId];
     
     if (startDate) {
       params.push(startDate);
-      query += ` AND c.transaction_date >= $${params.length}`;
+      query += ` AND COALESCE(c.transaction_date, c.created_at) >= $${params.length}`;
     }
     
     if (endDate) {
       params.push(`${endDate} 23:59:59`);
-      query += ` AND c.transaction_date <= $${params.length}`;
+      query += ` AND COALESCE(c.transaction_date, c.created_at) <= $${params.length}`;
     }
     
-    query += " ORDER BY c.transaction_date ASC, c.id ASC";
+    query += " ORDER BY COALESCE(c.transaction_date, c.created_at) ASC, c.id ASC";
     
     const result = await pool.query(query, params);
     res.json({

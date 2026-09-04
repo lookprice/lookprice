@@ -1,7 +1,279 @@
 import express from "express";
 import { pool, logAction } from "../../models/db";
 import { getAuthorizedStoreId, getTurkishSearchSnippet, normalizeTurkishParam, checkProductLimit } from "./utils";
+import { isValidStandardBarcode } from "./invoiceMatching";
 import XLSX from "xlsx";
+
+/**
+ * Reusable engine to merge a duplicate/temporary product into a target real product.
+ * Reassigns all related stock movements, invoice lines, POS sales, and aliases.
+ */
+export async function mergeProducts(clientOrPool: any, sourceId: number, targetId: number, storeId?: number) {
+  if (sourceId === targetId) {
+    throw new Error("Kaynak ve hedef ürün aynı olamaz.");
+  }
+
+  const isDirectClient = typeof clientOrPool.release === "function";
+  const client = isDirectClient ? clientOrPool : await pool.connect();
+  let mustCommit = false;
+
+  try {
+    if (!isDirectClient) {
+      await client.query("BEGIN");
+      mustCommit = true;
+    }
+
+    const sourceRes = await client.query("SELECT * FROM products WHERE id = $1", [sourceId]);
+    const targetRes = await client.query("SELECT * FROM products WHERE id = $1", [targetId]);
+
+    if (sourceRes.rows.length === 0) throw new Error(`Kaynak ürün bulunamadı (ID: ${sourceId})`);
+    if (targetRes.rows.length === 0) throw new Error(`Hedef ürün bulunamadı (ID: ${targetId})`);
+
+    const source = sourceRes.rows[0];
+    const target = targetRes.rows[0];
+
+    if (storeId && (source.store_id !== storeId || target.store_id !== storeId)) {
+      throw new Error("Yetkisiz işlem: Ürünler bu mağazaya ait değil.");
+    }
+    if (source.store_id !== target.store_id) {
+      throw new Error("Farklı mağazalara ait ürünler birleştirilemez.");
+    }
+
+    // 1. Reassign stock movements
+    await client.query("UPDATE stock_movements SET product_id = $1 WHERE product_id = $2", [target.id, source.id]);
+
+    // 2. Reassign purchase invoice items
+    await client.query(
+      "UPDATE purchase_invoice_items SET product_id = $1, barcode = COALESCE(NULLIF($2, ''), barcode), product_code = COALESCE(product_code, $3) WHERE product_id = $4",
+      [target.id, target.barcode, target.product_code || source.product_code, source.id]
+    );
+    if (source.barcode) {
+      await client.query(
+        "UPDATE purchase_invoice_items SET barcode = $1 WHERE barcode = $2 AND (product_id = $3 OR product_id IS NULL)",
+        [target.barcode, source.barcode, target.id]
+      );
+    }
+
+    // 3. Reassign sales invoice items
+    await client.query(
+      "UPDATE sales_invoice_items SET product_id = $1, barcode = COALESCE(NULLIF($2, ''), barcode) WHERE product_id = $3",
+      [target.id, target.barcode, source.id]
+    );
+    if (source.barcode) {
+      await client.query(
+        "UPDATE sales_invoice_items SET barcode = $1 WHERE barcode = $2 AND (product_id = $3 OR product_id IS NULL)",
+        [target.barcode, source.barcode, target.id]
+      );
+    }
+
+    // 4. Reassign sale items (POS / Fast-POS)
+    await client.query(
+      "UPDATE sale_items SET product_id = $1, barcode = COALESCE(NULLIF($2, ''), barcode) WHERE product_id = $3",
+      [target.id, target.barcode, source.id]
+    );
+    if (source.barcode) {
+      await client.query(
+        "UPDATE sale_items SET barcode = $1 WHERE barcode = $2 AND (product_id = $3 OR product_id IS NULL)",
+        [target.barcode, source.barcode, target.id]
+      );
+    }
+
+    // 5. Quotation items
+    await client.query(
+      "UPDATE quotation_items SET product_id = $1, barcode = COALESCE(NULLIF($2, ''), barcode) WHERE product_id = $3",
+      [target.id, target.barcode, source.id]
+    );
+
+    // 6. Procurements
+    await client.query(
+      "UPDATE procurements SET product_id = $1, barcode = COALESCE(NULLIF($2, ''), barcode) WHERE product_id = $3",
+      [target.id, target.barcode, source.id]
+    );
+
+    // 7. E-Waybill items
+    await client.query(
+      "UPDATE e_waybill_items SET product_id = $1, barcode = COALESCE(NULLIF($2, ''), barcode) WHERE product_id = $3",
+      [target.id, target.barcode, source.id]
+    );
+
+    // 8. Stock transfer items
+    await client.query(
+      "UPDATE stock_transfer_items SET product_id = $1, barcode = COALESCE(NULLIF($2, ''), barcode) WHERE product_id = $3",
+      [target.id, target.barcode, source.id]
+    );
+
+    // 9. Service items
+    await client.query("UPDATE service_items SET product_id = $1 WHERE product_id = $2", [target.id, source.id]);
+
+    // 10. Scan logs
+    await client.query("UPDATE scan_logs SET product_id = $1 WHERE product_id = $2", [target.id, source.id]);
+
+    // 11. Product recipes
+    await client.query("UPDATE product_recipes SET product_id = $1 WHERE product_id = $2", [target.id, source.id]);
+    await client.query("UPDATE product_recipes SET ingredient_id = $1 WHERE ingredient_id = $2", [target.id, source.id]);
+
+    // 12. Supplier product mappings (resolve potential unique constraint conflicts)
+    await client.query(`
+      DELETE FROM supplier_product_mappings s1
+      USING supplier_product_mappings s2
+      WHERE s1.product_id = $1 AND s2.product_id = $2
+        AND s1.store_id = s2.store_id AND s1.supplier_vkn = s2.supplier_vkn AND s1.supplier_product_name = s2.supplier_product_name
+    `, [source.id, target.id]);
+    await client.query("UPDATE supplier_product_mappings SET product_id = $1 WHERE product_id = $2", [target.id, source.id]);
+
+    // 13. Product aliases - preserve mapping so future imports match the target product
+    await client.query("UPDATE product_aliases SET product_id = $1 WHERE product_id = $2", [target.id, source.id]);
+    if (source.name && source.name.trim().toLowerCase() !== target.name.trim().toLowerCase()) {
+      await client.query(
+        "INSERT INTO product_aliases (store_id, product_id, raw_product_name, raw_product_code) VALUES ($1, $2, $3, $4)",
+        [target.store_id, target.id, source.name.trim(), source.product_code || source.sku || null]
+      );
+    }
+
+    // 14. Calculate combined stock & cost price for target product
+    const newStock = Number(target.stock_quantity || 0) + Number(source.stock_quantity || 0);
+    let newCost = Number(target.cost_price || 0);
+    if (newCost <= 0 && Number(source.cost_price || 0) > 0) {
+      newCost = Number(source.cost_price);
+    }
+    const newCurrency = target.cost_currency || source.cost_currency || "TRY";
+    const newCode = target.product_code || source.product_code || null;
+    const newSku = target.sku || source.sku || null;
+    const newBrand = target.brand || source.brand || null;
+    const newCategory = target.category || source.category || null;
+    const newSubCat = target.sub_category || source.sub_category || null;
+    const newPrice = Number(target.price || 0) > 0 ? Number(target.price) : Number(source.price || 0);
+    const newImage = target.image_url || source.image_url || null;
+
+    await client.query(`
+      UPDATE products 
+      SET stock_quantity = $1,
+          cost_price = $2,
+          cost_currency = $3,
+          product_code = COALESCE(product_code, $4),
+          sku = COALESCE(sku, $5),
+          brand = COALESCE(brand, $6),
+          category = COALESCE(category, $7),
+          sub_category = COALESCE(sub_category, $8),
+          price = CASE WHEN price > 0 THEN price ELSE $9 END,
+          image_url = COALESCE(image_url, $10),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $11
+    `, [newStock, newCost, newCurrency, newCode, newSku, newBrand, newCategory, newSubCat, newPrice, newImage, target.id]);
+
+    // 15. Delete duplicate source product safely
+    await client.query("DELETE FROM products WHERE id = $1", [source.id]);
+
+    if (mustCommit) {
+      await client.query("COMMIT");
+    }
+
+    return {
+      success: true,
+      mergedIntoId: target.id,
+      deletedId: source.id,
+      targetName: target.name,
+      targetBarcode: target.barcode,
+      newStock,
+      newCost
+    };
+  } catch (err) {
+    if (mustCommit) {
+      await client.query("ROLLBACK");
+    }
+    throw err;
+  } finally {
+    if (mustCommit) {
+      client.release();
+    }
+  }
+}
+
+/**
+ * Scans a store's products to find candidate pairs for merging (duplicates, temp barcodes matching real products).
+ */
+export async function getDuplicateCandidatesForStore(storeId: number) {
+  const all = await pool.query(
+    `SELECT id, store_id, name, barcode, product_code, sku, stock_quantity, cost_price, cost_currency, price, currency, image_url, category, brand, created_at 
+     FROM products 
+     WHERE store_id = $1 
+     ORDER BY id ASC`,
+    [storeId]
+  );
+  const prods = all.rows;
+  const candidates: any[] = [];
+  const seenPairs = new Set<string>();
+
+  for (let i = 0; i < prods.length; i++) {
+    for (let j = i + 1; j < prods.length; j++) {
+      const a = prods[i];
+      const b = prods[j];
+      const pairKey = [a.id, b.id].sort().join("-");
+      if (seenPairs.has(pairKey)) continue;
+
+      let reason = "";
+      let confidence = 0;
+
+      const aIsTemp = a.barcode && (a.barcode.startsWith("200") || a.barcode.startsWith("TEMP") || !isValidStandardBarcode(a.barcode));
+      const bIsTemp = b.barcode && (b.barcode.startsWith("200") || b.barcode.startsWith("TEMP") || !isValidStandardBarcode(b.barcode));
+
+      const aCode = (a.product_code || "").trim().toLowerCase();
+      const bCode = (b.product_code || "").trim().toLowerCase();
+      const aSku = (a.sku || "").trim().toLowerCase();
+      const bSku = (b.sku || "").trim().toLowerCase();
+
+      const codeMatch = (aCode && bCode && aCode === bCode) ||
+                        (aSku && bSku && aSku === bSku) ||
+                        (aCode && bSku && aCode === bSku) ||
+                        (aSku && bCode && aSku === bCode);
+
+      const aNameNorm = (a.name || "").trim().toLowerCase();
+      const bNameNorm = (b.name || "").trim().toLowerCase();
+      const nameMatch = aNameNorm.length > 2 && aNameNorm === bNameNorm;
+
+      if (codeMatch && nameMatch) {
+        reason = `Ürün Kodu (${a.product_code || a.sku}) ve Ürün Adı birebir aynı`;
+        confidence = 100;
+      } else if (codeMatch) {
+        reason = `Aynı Ürün Kodu / Model No (${a.product_code || a.sku})`;
+        confidence = (aIsTemp || bIsTemp) ? 95 : 85;
+      } else if (nameMatch && (aIsTemp || bIsTemp)) {
+        reason = `Birebir aynı ürün adı (biri geçici/dahili barkodlu)`;
+        confidence = 90;
+      } else if (nameMatch) {
+        reason = `Birebir aynı ürün adı`;
+        confidence = 80;
+      }
+
+      if (reason) {
+        seenPairs.add(pairKey);
+        // Decide target (to keep) and source (to merge into target)
+        let target = a;
+        let source = b;
+
+        if (aIsTemp && !bIsTemp) {
+          target = b;
+          source = a;
+        } else if (!aIsTemp && bIsTemp) {
+          target = a;
+          source = b;
+        } else {
+          // If both temp or both real: prefer the one with positive stock or earlier created
+          if ((Number(b.stock_quantity) || 0) > (Number(a.stock_quantity) || 0)) {
+            target = b;
+            source = a;
+          }
+        }
+
+        candidates.push({ target, source, reason, confidence });
+      }
+    }
+  }
+
+  // Sort by highest confidence first
+  candidates.sort((x, y) => y.confidence - x.confidence);
+  return candidates;
+}
 
 const router = express.Router();
 
@@ -341,6 +613,106 @@ router.put("/bulk-recalculate-price2", async (req: any, res) => {
   } catch (e: any) {
     console.error("Bulk price2 recalculate error:", e);
     res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /products/duplicate-candidates
+router.get("/duplicate-candidates", async (req: any, res) => {
+  const requestedId = req.query.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+  try {
+    const candidates = await getDuplicateCandidatesForStore(storeId);
+    res.json({ candidates });
+  } catch (error: any) {
+    console.error("Duplicate candidates error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /products/merge
+router.post("/merge", async (req: any, res) => {
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+  const { sourceId, targetId } = req.body;
+  if (!sourceId || !targetId) {
+    return res.status(400).json({ error: "sourceId ve targetId zorunludur." });
+  }
+
+  try {
+    const result = await mergeProducts(pool, Number(sourceId), Number(targetId), storeId);
+    await logAction(
+      storeId,
+      req.user.id,
+      "merge_products",
+      "product",
+      Number(targetId),
+      `Ürün birleştirildi: #${sourceId} silindi, #${targetId} (${result.targetName}) ile birleştirildi.`,
+      { sourceId, targetId, result }
+    );
+    res.json(result);
+  } catch (error: any) {
+    console.error("Product merge error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /products/auto-merge-duplicates
+router.post("/auto-merge-duplicates", async (req: any, res) => {
+  const requestedId = req.query.storeId || req.body.storeId;
+  const storeId = await getAuthorizedStoreId(req, requestedId);
+  if (storeId === null) return res.status(403).json({ error: "Store ID unauthorized" });
+
+  try {
+    const candidates = await getDuplicateCandidatesForStore(storeId);
+    const highConfidence = candidates.filter((c: any) => c.confidence >= 90);
+    const mergedResults: any[] = [];
+    const mergedIds = new Set<number>();
+
+    for (const item of highConfidence) {
+      if (mergedIds.has(item.source.id) || mergedIds.has(item.target.id)) {
+        continue;
+      }
+      try {
+        const resMerge = await mergeProducts(pool, item.source.id, item.target.id, storeId);
+        mergedIds.add(item.source.id);
+        mergedResults.push({
+          sourceId: item.source.id,
+          sourceName: item.source.name,
+          sourceBarcode: item.source.barcode,
+          targetId: item.target.id,
+          targetName: item.target.name,
+          targetBarcode: item.target.barcode,
+          reason: item.reason
+        });
+      } catch (e: any) {
+        console.warn(`Could not merge ${item.source.id} into ${item.target.id}:`, e.message);
+      }
+    }
+
+    if (mergedResults.length > 0) {
+      await logAction(
+        storeId,
+        req.user.id,
+        "auto_merge_duplicates",
+        "product",
+        null,
+        `Otomatik ${mergedResults.length} adet mükerrer ürün birleştirildi.`,
+        { count: mergedResults.length, mergedResults }
+      );
+    }
+
+    res.json({
+      success: true,
+      mergedCount: mergedResults.length,
+      mergedResults
+    });
+  } catch (error: any) {
+    console.error("Auto merge error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -99,6 +99,11 @@ async function startServer() {
 
   app.set("trust proxy", true);
 
+  // Healthcheck endpoint (must respond instantly for container probes)
+  app.get("/api/health", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // Security & HSTS Header Middleware for enrakipsiz.com
   app.use((req, res, next) => {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
@@ -177,21 +182,21 @@ async function startServer() {
     next();
   });
 
-  // 3. Initialize Database
-  console.log("Calling initDb...");
-  await initDb();
-  console.log("initDb finished.");
-
-  console.log("Running self-healing module schemas sequentially...");
-  try { await initProductSchema(); } catch (e) { console.error("Error in initProductSchema:", e); }
-  try { await initPurchaseInvoiceSchema(); } catch (e) { console.error("Error in initPurchaseInvoiceSchema:", e); }
-  try { await initCargoSchema(); } catch (e) { console.error("Error in initCargoSchema:", e); }
-  try { await initRealEstateSchema(); } catch (e) { console.error("Error in initRealEstateSchema:", e); }
-  try { await initFleetSchema(); } catch (e) { console.error("Error in initFleetSchema:", e); }
-  console.log("Self-healing module schemas completed.");
-
-  startCronJobs();
-  aiWorkerService.startWorker();
+  // 3. Initialize Database & Self-healing Schemas in background (Non-blocking for fast server boot)
+  initDb().then(async () => {
+    console.log("initDb finished.");
+    console.log("Running self-healing module schemas sequentially in background...");
+    try { await initProductSchema(); } catch (e) { console.error("Error in initProductSchema:", e); }
+    try { await initPurchaseInvoiceSchema(); } catch (e) { console.error("Error in initPurchaseInvoiceSchema:", e); }
+    try { await initCargoSchema(); } catch (e) { console.error("Error in initCargoSchema:", e); }
+    try { await initRealEstateSchema(); } catch (e) { console.error("Error in initRealEstateSchema:", e); }
+    try { await initFleetSchema(); } catch (e) { console.error("Error in initFleetSchema:", e); }
+    console.log("Self-healing module schemas completed.");
+    startCronJobs();
+    aiWorkerService.startWorker();
+  }).catch((err) => {
+    console.error("Error in database initialization:", err);
+  });
 
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -228,6 +233,51 @@ async function startServer() {
     } catch (err) {
       console.error("Image annotation error:", err);
       res.status(500).send("Error annotating image");
+    }
+  });
+
+  // Generic High-Performance CORS-Safe Image Proxy for Posters & Share Templates
+  app.get("/api/proxy-image", async (req, res) => {
+    const { url, format } = req.query;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).send("Missing url parameter");
+    }
+
+    try {
+      const targetUrl = decodeURIComponent(url.trim());
+      const parsedUrl = new URL(targetUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return res.status(400).send("Invalid URL protocol");
+      }
+
+      const response = await axios.get(targetUrl, {
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+        }
+      });
+
+      const contentType = response.headers['content-type'] || 'image/png';
+      const imageBuffer = Buffer.from(response.data);
+
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.set('Access-Control-Allow-Headers', '*');
+
+      if (format === 'dataurl' || format === 'base64' || format === 'json') {
+        const base64 = imageBuffer.toString('base64');
+        const dataUrl = `data:${contentType};base64,${base64}`;
+        return res.json({ dataUrl, contentType });
+      }
+
+      res.set('Cache-Control', 'public, max-age=86400');
+      res.set('Content-Type', contentType);
+      res.send(imageBuffer);
+    } catch (err: any) {
+      console.error("Proxy image fetch error:", err?.message || err);
+      res.status(500).send("Error fetching image via proxy");
     }
   });
 

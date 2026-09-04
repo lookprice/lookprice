@@ -2079,39 +2079,78 @@ router.post("/sales", async (req, res) => {
       } catch (e) {}
     }
 
-    if (customerEmail) {
-      const existingCustomer = await client.query(
-        "SELECT id, full_name, name, surname FROM customers WHERE LOWER(email) = LOWER($1) AND store_id = $2",
-        [customerEmail.trim(), storeId]
-      );
-      if (existingCustomer.rows.length > 0) {
-        finalCustomerId = existingCustomer.rows[0].id;
-        const existingCust = existingCustomer.rows[0];
-        const rawCustName = (customerName || '').trim();
-        if (rawCustName && (!existingCust.surname || !existingCust.full_name || existingCust.full_name === existingCust.name)) {
-          const nameParts = rawCustName.split(' ');
-          const surnameVal = nameParts.length > 1 ? nameParts.pop()! : '';
-          const firstNameVal = nameParts.join(' ') || rawCustName;
-          const fullNameVal = rawCustName;
-          await client.query(
-            "UPDATE customers SET full_name = $1, name = $2, surname = $3 WHERE id = $4",
-            [fullNameVal, firstNameVal, surnameVal, finalCustomerId]
-          );
-        }
-      } else {
-        // Create new customer with proper name, surname, and full_name
-        const rawCustName = (customerName || '').trim();
-        const nameParts = rawCustName.split(' ');
-        const surnameVal = nameParts.length > 1 ? nameParts.pop()! : '';
-        const firstNameVal = nameParts.join(' ') || rawCustName;
-        const fullNameVal = rawCustName || `${firstNameVal} ${surnameVal}`.trim();
+    // 11-digit default VKN/TCKN assignment for individual web customers if not provided
+    let effectiveTcId = (customerTcId ? String(customerTcId).trim() : '');
+    if (!effectiveTcId || (effectiveTcId.length !== 10 && effectiveTcId.length !== 11)) {
+      effectiveTcId = '11111111111';
+    }
 
+    const rawCustName = (customerName || '').trim() || 'Bireysel Web Müşterisi';
+    const nameParts = rawCustName.split(' ');
+    const surnameVal = nameParts.length > 1 ? nameParts.pop()! : '';
+    const firstNameVal = nameParts.join(' ') || rawCustName;
+    const fullNameVal = rawCustName;
+
+    if (customerEmail || customerPhone) {
+      let existingCustomer = null;
+      if (customerEmail) {
+        existingCustomer = await client.query(
+          "SELECT id, full_name, name, surname FROM customers WHERE LOWER(email) = LOWER($1) AND store_id = $2",
+          [customerEmail.trim(), storeId]
+        );
+      }
+      if ((!existingCustomer || existingCustomer.rows.length === 0) && customerPhone) {
+        existingCustomer = await client.query(
+          "SELECT id, full_name, name, surname FROM customers WHERE phone = $1 AND store_id = $2",
+          [customerPhone.trim(), storeId]
+        );
+      }
+
+      if (existingCustomer && existingCustomer.rows.length > 0) {
+        finalCustomerId = existingCustomer.rows[0].id;
+        await client.query(
+          `UPDATE customers 
+           SET full_name = COALESCE(NULLIF($1, ''), full_name),
+               name = COALESCE(NULLIF($2, ''), name),
+               surname = COALESCE(NULLIF($3, ''), surname),
+               tc_id = COALESCE(NULLIF(tc_id, ''), $4),
+               tax_number = COALESCE(NULLIF(tax_number, ''), $4)
+           WHERE id = $5`,
+          [fullNameVal, firstNameVal, surnameVal, effectiveTcId, finalCustomerId]
+        );
+      } else {
         const newCustomer = await client.query(
           "INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tc_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
-          [storeId, fullNameVal, firstNameVal, surnameVal, customerEmail.trim(), customerPhone || '', customerAddress || '', customerTcId || '', customerTcId || '']
+          [storeId, fullNameVal, firstNameVal, surnameVal, customerEmail ? customerEmail.trim() : '', customerPhone || '', customerAddress || '', effectiveTcId, effectiveTcId]
         );
         finalCustomerId = newCustomer.rows[0].id;
       }
+    }
+
+    // Auto-create / link Company (Cari Hesap) for web sale customer
+    let finalCompanyId: number | null = null;
+    const compCheck = await client.query(
+      "SELECT id FROM companies WHERE store_id = $1 AND (tax_number = $2 OR (LOWER(TRIM(title)) = LOWER(TRIM($3)) AND $3 != 'Bireysel Web Müşterisi')) LIMIT 1",
+      [storeId, effectiveTcId, fullNameVal]
+    );
+    if (compCheck.rows.length > 0) {
+      finalCompanyId = compCheck.rows[0].id;
+    } else {
+      const newComp = await client.query(
+        `INSERT INTO companies (store_id, title, tax_number, tax_office, address, phone, email, contact_person)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+        [
+          storeId,
+          fullNameVal,
+          effectiveTcId,
+          customerCity ? `${customerCity} Vergi Dairesi` : 'Bireysel Web Satışı',
+          customerAddress || '',
+          customerPhone || '',
+          customerEmail || '',
+          fullNameVal
+        ]
+      );
+      finalCompanyId = newComp.rows[0].id;
     }
 
     const orderNotes = [
@@ -2122,8 +2161,8 @@ router.post("/sales", async (req, res) => {
     ].filter(Boolean).join(' | ');
 
     const saleRes = await client.query(
-      "INSERT INTO sales (store_id, total_amount, currency, customer_name, customer_phone, customer_address, notes, payment_method, status, customer_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'checkout_initiated', $9) RETURNING id",
-      [storeId, total || 0, currency || 'TRY', customerName || 'Müşteri', customerPhone || '', customerAddress || '', orderNotes, paymentMethod, finalCustomerId || null]
+      "INSERT INTO sales (store_id, total_amount, currency, customer_name, customer_phone, customer_address, notes, payment_method, status, customer_id, company_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'checkout_initiated', $9, $10) RETURNING id",
+      [storeId, total || 0, currency || 'TRY', fullNameVal, customerPhone || '', customerAddress || '', orderNotes, paymentMethod, finalCustomerId || null, finalCompanyId || null]
     );
     const saleId = saleRes.rows[0].id;
 

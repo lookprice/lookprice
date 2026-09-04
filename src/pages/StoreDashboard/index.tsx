@@ -994,6 +994,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   includeBranches={includeBranches}
                   propertiesCount={properties.length}
                   onSwitchTab={(tab) => setActiveTab(tab)}
+                  onRefresh={fetchProductsData}
                 />
               )}
               {activeTab === "real_estate" && (

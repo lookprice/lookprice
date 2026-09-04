@@ -591,7 +591,43 @@ router.post("/:id/complete", async (req: any, res) => {
       [primaryMethod, id]
     );
 
-    const finalCompanyId = sale.company_id; 
+    let finalCompanyId = companyId || sale.company_id; 
+    if (!finalCompanyId && sale.customer_name && !sale.customer_name.toLowerCase().startsWith('masa')) {
+      const custName = sale.customer_name.trim();
+      const compCheck = await client.query(
+        "SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1",
+        [storeId, custName]
+      );
+      if (compCheck.rows.length > 0) {
+        finalCompanyId = compCheck.rows[0].id;
+      } else {
+        const newComp = await client.query(
+          `INSERT INTO companies (store_id, title, tax_number, tax_office, address, phone)
+           VALUES ($1, $2, '11111111111', 'Bireysel Satış', $3, $4) RETURNING id`,
+          [storeId, custName, sale.customer_address || '', sale.customer_phone || '']
+        );
+        finalCompanyId = newComp.rows[0].id;
+      }
+      await client.query("UPDATE sales SET company_id = $1 WHERE id = $2", [finalCompanyId, id]);
+    }
+
+    if (finalCompanyId) {
+      const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+      const branding = storeRes.rows[0]?.branding || {};
+      const total = Number(sale.total_amount) || 0;
+
+      // 1. Record Sale Debt
+      const existingDebt = await client.query(
+        "SELECT id FROM current_account_transactions WHERE store_id = $1 AND company_id = $2 AND sale_id = $3 AND type = 'debt' LIMIT 1",
+        [storeId, finalCompanyId, id]
+      );
+      if (existingDebt.rows.length === 0 && total > 0) {
+        await client.query(
+          "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'debt', $4, $5, $6, $7, $8)",
+          [storeId, finalCompanyId, id, total, `Satış #${id}`, primaryMethod || 'cash', sale.currency || branding?.default_currency || 'TRY', sale.exchange_rate || 1]
+        );
+      }
+    }
     
     if (payments && payments.length > 0) {
       for (const p of payments) {
@@ -600,7 +636,7 @@ router.post("/:id/complete", async (req: any, res) => {
           [id, p.method, p.amount]
         );
         
-        if (finalCompanyId) {
+        if (finalCompanyId && Number(p.amount) > 0) {
           const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
           const branding = storeRes.rows[0]?.branding || {};
 
@@ -619,21 +655,14 @@ router.post("/:id/complete", async (req: any, res) => {
         );
       }
 
-      if (finalCompanyId) {
+      if (finalCompanyId && paymentMethod !== 'term') {
         const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
         const branding = storeRes.rows[0]?.branding || {};
 
         await client.query(
-          "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'debt', $4, $5, $6, $7, $8)",
-          [storeId, finalCompanyId, id, total, `Satış #${id} (${paymentMethod || 'cash'})`, paymentMethod || 'cash', sale.currency || branding?.default_currency || 'TRY', sale.exchange_rate || 1]
+          "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'credit', $4, $5, $6, $7, $8)",
+          [storeId, finalCompanyId, id, total, `Satış #${id} Ödemesi (${paymentMethod || 'cash'})`, paymentMethod || 'cash', sale.currency || branding?.default_currency || 'TRY', sale.exchange_rate || 1]
         );
-        
-        if (paymentMethod !== 'term') {
-          await client.query(
-            "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'credit', $4, $5, $6, $7, $8)",
-            [storeId, finalCompanyId, id, total, `Satış #${id} Ödemesi (${paymentMethod || 'cash'})`, paymentMethod || 'cash', sale.currency || branding?.default_currency || 'TRY', sale.exchange_rate || 1]
-          );
-        }
       }
     }
 

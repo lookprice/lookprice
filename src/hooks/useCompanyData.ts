@@ -19,10 +19,12 @@ export const useCompanyData = (currentStoreId: number | undefined, includeZeroBa
     }
   }, [currentStoreId]);
 
-  const handleFetchTransactions = async (companyId: number, targetStoreId: number | undefined) => {
+  const handleFetchTransactions = async (companyId: number, targetStoreId?: number | undefined, customStart?: string, customEnd?: string) => {
     try {
       setTransactionLoading(true);
-      const res = await api.getCompanyTransactions(companyId, transactionStartDate, transactionEndDate, targetStoreId);
+      const sDate = customStart !== undefined ? customStart : transactionStartDate;
+      const eDate = customEnd !== undefined ? customEnd : transactionEndDate;
+      const res = await api.getCompanyTransactions(companyId, sDate, eDate, targetStoreId);
       if (res.transactions) {
         setCompanyTransactions(res.transactions);
         setOpeningBalances(res.opening_balances || {});

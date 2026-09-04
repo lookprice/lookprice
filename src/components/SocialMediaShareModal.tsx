@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { safeHtml2Canvas } from "../utils/html2canvasFix";
+import { safeHtml2Canvas, prepareImagesForHtml2Canvas } from "../utils/html2canvasFix";
 import { 
   X, 
   Copy, 
@@ -295,51 +295,10 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
     try {
       // 0. Wait a bit for layout to settle
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // 1. Prepare and convert all images inside preview element to Data URLs for 100% CORS safety
-      const imgs = Array.from(element.querySelectorAll('img'));
-      await Promise.all(imgs.map(async (img) => {
-        if (!img.src || img.src.startsWith('data:')) return;
-        try {
-          const res = await fetch(img.src, { mode: 'cors' });
-          if (res.ok) {
-            const blob = await res.blob();
-            await new Promise<void>((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                if (typeof reader.result === 'string') {
-                  img.src = reader.result;
-                }
-                resolve();
-              };
-              reader.onerror = () => resolve();
-              reader.readAsDataURL(blob);
-            });
-          }
-        } catch (e) {
-          // Fallback: draw image to a temporary canvas using crossOrigin
-          await new Promise<void>((resolve) => {
-            const tempImg = new Image();
-            tempImg.crossOrigin = 'anonymous';
-            tempImg.onload = () => {
-              try {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = tempImg.naturalWidth || tempImg.width;
-                tempCanvas.height = tempImg.naturalHeight || tempImg.height;
-                const ctx = tempCanvas.getContext('2d');
-                if (ctx) {
-                  ctx.drawImage(tempImg, 0, 0);
-                  img.src = tempCanvas.toDataURL('image/png');
-                }
-              } catch (err) {}
-              resolve();
-            };
-            tempImg.onerror = () => resolve();
-            tempImg.src = img.src + (img.src.includes('?') ? '&' : '?') + 'cors_ts=' + Date.now();
-          });
-        }
-      }));
+      await prepareImagesForHtml2Canvas(element);
 
       // 2. Calculate render scale for 1080px resolution (HD Social Media standard)
       const currentWidth = element.clientWidth || 340;
