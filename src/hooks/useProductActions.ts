@@ -53,6 +53,19 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       parsedAllergens = rawData.allergens;
     }
 
+    let marketplaceData: any = {};
+    if (rawData.marketplace_data) {
+      try {
+        marketplaceData = typeof rawData.marketplace_data === 'string'
+          ? JSON.parse(rawData.marketplace_data)
+          : rawData.marketplace_data;
+      } catch (err) {
+        console.error("Marketplace data parse error:", err);
+      }
+    } else if (editingProduct?.marketplace_data) {
+      marketplaceData = editingProduct.marketplace_data;
+    }
+
     const data: any = { 
       ...rawData,
       sector_data,
@@ -69,7 +82,8 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       prep_time_min: Number(rawData.prep_time_min) || 0,
       portion_size: String(rawData.portion_size || '').trim(),
       product_type: rawData.product_type || 'product',
-      sync_group: rawData.sync_group === 'on'
+      sync_group: rawData.sync_group === 'on',
+      marketplace_data: marketplaceData
     };
 
     if (data.has_variants && rawData.variants_data) {
