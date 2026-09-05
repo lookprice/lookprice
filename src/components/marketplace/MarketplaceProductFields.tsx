@@ -17,19 +17,28 @@ export const MarketplaceProductFields = ({
   categories = [], 
   storeSettings 
 }: MarketplaceProductFieldsProps) => {
-  const [marketData, setMarketData] = useState(
-    product?.marketplace_data?.hepsiburada || { categoryId: "", attributes: {} }
-  );
+  const getHbData = (prod: any) => {
+    let mp = prod?.marketplace_data;
+    if (typeof mp === "string") {
+      try {
+        mp = JSON.parse(mp);
+      } catch (e) {
+        mp = {};
+      }
+    }
+    return mp?.hepsiburada || { categoryId: "", attributes: {} };
+  };
+
+  const [marketData, setMarketData] = useState(() => getHbData(product));
   const [searchTerm, setSearchTerm] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showAttributesEditor, setShowAttributesEditor] = useState(false);
 
   // Sync state if product changes
   useEffect(() => {
-    if (product?.marketplace_data?.hepsiburada) {
-      setMarketData(product.marketplace_data.hepsiburada);
-    }
-  }, [product?.id]);
+    const currentHb = getHbData(product);
+    setMarketData(currentHb);
+  }, [product?.id, JSON.stringify(product?.marketplace_data)]);
 
   // Check store-level category mapping (checks hierarchical sub-category first, then sub_category, then main category)
   const catKey = product?.category ? String(product.category).trim() : "";
