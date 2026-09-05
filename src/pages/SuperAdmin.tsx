@@ -70,7 +70,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const [storeFilter, setStoreFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [leadFilter, setLeadFilter] = useState<'all' | 'new' | 'contacted' | 'converted'>('all');
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'enrakipsiz' | 'videos' | 'integrator'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>('dashboard');
   
   // Enrakipsiz states
   const [enrakipsizSettings, setEnrakipsizSettings] = useState<EnrakipsizSettings>({

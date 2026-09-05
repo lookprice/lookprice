@@ -44,23 +44,48 @@ router.get("/amazon/auth-url", authenticate, async (req: any, res) => {
 // 2. Save Amazon Settings (Manual)
 router.post("/amazon/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { clientId, clientSecret, refreshToken, sellerId } = req.body;
+  const { clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryAttributes } = req.body;
 
   try {
+    const storeRes = await pool.query("SELECT amazon_settings FROM stores WHERE id = $1", [storeId]);
+    const prev = storeRes.rows[0]?.amazon_settings || {};
     const settings = {
+      ...prev,
       connected: !!(clientId && clientSecret && refreshToken && sellerId),
-      clientId,
-      clientSecret,
-      refresh_token: refreshToken,
-      sellerId,
+      clientId: clientId !== undefined ? clientId : prev.clientId,
+      clientSecret: clientSecret !== undefined ? clientSecret : prev.clientSecret,
+      refresh_token: refreshToken !== undefined ? refreshToken : prev.refresh_token,
+      sellerId: sellerId !== undefined ? sellerId : prev.sellerId,
       marketplace_id: AMAZON_TR_MARKETPLACE_ID,
-      last_sync: null
+      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
+      last_sync: prev.last_sync || null
     };
 
     await pool.query("UPDATE stores SET amazon_settings = $1 WHERE id = $2", [settings, storeId]);
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Amazon Categories Endpoint
+router.get("/amazon/categories", authenticate, async (req: any, res) => {
+  try {
+    const { AMAZON_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
+    res.json({ success: true, categories: AMAZON_DEFAULT_CATEGORIES });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Amazon Category Attributes Endpoint
+router.get("/amazon/categories/:categoryId/attributes", authenticate, async (req: any, res) => {
+  try {
+    const { getAttributesForCategory } = await import("../src/data/marketplaceCategoriesData");
+    res.json({ success: true, attributes: getAttributesForCategory(String(req.params.categoryId)) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -531,26 +556,34 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
     defaultCargoCompany, 
     autoSyncOrders, 
     autoStockSync,
-    webhookSecret
+    webhookSecret,
+    categoryMappings,
+    categoryAttributes
   } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const prev = storeRes.rows[0]?.hepsiburada_settings || {};
 
+    const finalApiKey = (apiKey !== undefined ? apiKey?.trim() : prev.apiKey) || "lookprice_dev";
+    const finalApiSecret = apiSecret !== undefined ? apiSecret?.trim() : (prev.apiSecret || "");
+    const finalMerchantId = merchantId !== undefined ? merchantId?.trim() : (prev.merchantId || "");
+
     const settings = {
       ...prev,
-      connected: !!(apiKey && apiSecret && merchantId),
-      apiKey: apiKey?.trim() || "",
-      apiSecret: apiSecret?.trim() || "",
-      merchantId: merchantId?.trim() || "",
-      isTestMode: !!isTestMode,
-      userAgent: userAgent || `${merchantId} - LookPrice Marketplace Manager`,
-      defaultDispatchTime: Number(defaultDispatchTime) || 1,
-      defaultCargoCompany: defaultCargoCompany || "Hepsijet",
-      autoSyncOrders: autoSyncOrders ?? true,
-      autoStockSync: autoStockSync ?? true,
+      connected: !!(finalApiKey && finalApiSecret && finalMerchantId),
+      apiKey: finalApiKey,
+      apiSecret: finalApiSecret,
+      merchantId: finalMerchantId,
+      isTestMode: isTestMode !== undefined ? !!isTestMode : !!prev.isTestMode,
+      userAgent: userAgent || prev.userAgent || `${finalMerchantId || 'lookprice'} - LookPrice Marketplace Manager`,
+      defaultDispatchTime: Number(defaultDispatchTime) || prev.defaultDispatchTime || 1,
+      defaultCargoCompany: defaultCargoCompany || prev.defaultCargoCompany || "Hepsijet",
+      autoSyncOrders: autoSyncOrders !== undefined ? autoSyncOrders : (prev.autoSyncOrders ?? true),
+      autoStockSync: autoStockSync !== undefined ? autoStockSync : (prev.autoStockSync ?? true),
       webhookSecret: webhookSecret || prev.webhookSecret || `hb_wh_${Math.random().toString(36).substring(2, 12)}`,
+      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {})
     };
 
     await pool.query("UPDATE stores SET hepsiburada_settings = $1 WHERE id = $2", [settings, storeId]);
@@ -678,15 +711,26 @@ router.get("/hepsiburada/categories", authenticate, async (req: any, res) => {
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    if (settings?.apiSecret && settings?.merchantId) {
+      try {
+        const hbService = new HepsiburadaService(settings, storeId);
+        const categories = await hbService.getAllCategories();
+        if (Array.isArray(categories) && categories.length > 0) {
+          return res.json({ success: true, categories, source: "live_api" });
+        }
+      } catch (hbErr) {
+        console.warn("[Hepsiburada Categories] Live API fetch failed, falling back to verified catalog:", hbErr);
+      }
     }
-
-    const hbService = new HepsiburadaService(settings, storeId);
-    const categories = await hbService.getAllCategories();
-    res.json({ success: true, categories });
+    const { HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
+    res.json({ success: true, categories: HEPSIBURADA_DEFAULT_CATEGORIES, source: "verified_catalog" });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    try {
+      const { HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
+      res.json({ success: true, categories: HEPSIBURADA_DEFAULT_CATEGORIES, source: "verified_catalog" });
+    } catch (e: any) {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 
@@ -698,15 +742,26 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    if (settings?.apiSecret && settings?.merchantId) {
+      try {
+        const hbService = new HepsiburadaService(settings, storeId);
+        const attributes = await hbService.getCategoryAttributes(categoryId);
+        if (Array.isArray(attributes) && attributes.length > 0) {
+          return res.json({ success: true, attributes, source: "live_api" });
+        }
+      } catch (hbErr) {
+        console.warn("[Hepsiburada Attributes] Live API fetch failed, falling back to verified attributes:", hbErr);
+      }
     }
-
-    const hbService = new HepsiburadaService(settings, storeId);
-    const attributes = await hbService.getCategoryAttributes(categoryId);
-    res.json({ success: true, attributes });
+    const { getAttributesForCategory } = await import("../src/data/marketplaceCategoriesData");
+    res.json({ success: true, attributes: getAttributesForCategory(String(categoryId)), source: "verified_catalog" });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    try {
+      const { getAttributesForCategory } = await import("../src/data/marketplaceCategoriesData");
+      res.json({ success: true, attributes: getAttributesForCategory(String(categoryId)), source: "verified_catalog" });
+    } catch (e: any) {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 
@@ -773,7 +828,7 @@ router.post("/hepsiburada/disconnect", authenticate, async (req: any, res) => {
 router.post("/hepsiburada/v3/listings/import", authenticate, async (req: any, res) => {
   const { env, products } = req.body;
   try {
-    const hbService = new HepsiburadaServiceV3(env || 'sit');
+    const hbService = new HepsiburadaServiceV3(env || 'production');
     const result = await hbService.importListings(products || []);
     res.json(result);
   } catch (error: any) {
@@ -786,7 +841,7 @@ router.get("/hepsiburada/v3/listings/import/:trackingId", authenticate, async (r
   const { trackingId } = req.params;
   const { env } = req.query;
   try {
-    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const hbService = new HepsiburadaServiceV3((env as any) || 'production');
     const result = await hbService.checkTaskStatus(trackingId);
     res.json(result);
   } catch (error: any) {
@@ -799,7 +854,7 @@ router.get("/hepsiburada/v3/listings/import/:trackingId", authenticate, async (r
 router.get("/hepsiburada/v3/categories", authenticate, async (req: any, res) => {
   const { env, page, size } = req.query;
   try {
-    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const hbService = new HepsiburadaServiceV3((env as any) || 'production');
     const result = await hbService.getCategories(page ? Number(page) : 0, size ? Number(size) : 50);
     res.json(result);
   } catch (error: any) {
@@ -811,7 +866,7 @@ router.get("/hepsiburada/v3/categories/:categoryId/attributes", authenticate, as
   const { categoryId } = req.params;
   const { env } = req.query;
   try {
-    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const hbService = new HepsiburadaServiceV3((env as any) || 'production');
     const result = await hbService.getCategoryAttributes(categoryId);
     res.json(result);
   } catch (error: any) {
@@ -822,7 +877,7 @@ router.get("/hepsiburada/v3/categories/:categoryId/attributes", authenticate, as
 router.post("/hepsiburada/v3/catalog/import", authenticate, async (req: any, res) => {
   const { env, products } = req.body;
   try {
-    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const hbService = new HepsiburadaServiceV3((env as any) || 'production');
     const result = await hbService.importCatalogProducts(products || []);
     res.json(result);
   } catch (error: any) {
@@ -834,7 +889,7 @@ router.get("/hepsiburada/v3/catalog/status/:trackingId", authenticate, async (re
   const { trackingId } = req.params;
   const { env } = req.query;
   try {
-    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const hbService = new HepsiburadaServiceV3((env as any) || 'production');
     const result = await hbService.checkCatalogTaskStatus(trackingId);
     res.json(result);
   } catch (error: any) {
@@ -845,7 +900,7 @@ router.get("/hepsiburada/v3/catalog/status/:trackingId", authenticate, async (re
 router.get("/hepsiburada/v3/orders", authenticate, async (req: any, res) => {
   const { env, status, limit, offset } = req.query;
   try {
-    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const hbService = new HepsiburadaServiceV3((env as any) || 'production');
     const result = await hbService.fetchOrders({
       status: status as string,
       limit: limit ? Number(limit) : 20,
@@ -860,7 +915,7 @@ router.get("/hepsiburada/v3/orders", authenticate, async (req: any, res) => {
 router.post("/hepsiburada/v3/orders/simulate", authenticate, async (req: any, res) => {
   const { env, storeId, customerName, customerEmail, customerPhone, sku, productName, quantity, price } = req.body;
   try {
-    const hbService = new HepsiburadaServiceV3((env as any) || 'sit');
+    const hbService = new HepsiburadaServiceV3((env as any) || 'production');
     const result = await hbService.simulateTestOrder({
       storeId: storeId ? Number(storeId) : undefined,
       customerName,
@@ -936,21 +991,37 @@ router.post("/hepsiburada/webhook/:storeId", async (req: any, res) => {
 // 1. Save Trendyol Settings
 router.post("/trendyol/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { apiKey, apiSecret, merchantId } = req.body;
+  const { apiKey, apiSecret, merchantId, categoryMappings, categoryAttributes } = req.body;
 
   try {
+    const storeRes = await pool.query("SELECT trendyol_settings FROM stores WHERE id = $1", [storeId]);
+    const prev = storeRes.rows[0]?.trendyol_settings || {};
+
     const settings = {
+      ...prev,
       connected: !!(apiKey && apiSecret && merchantId),
-      apiKey,
-      apiSecret,
-      merchantId,
-      last_sync: null
+      apiKey: apiKey !== undefined ? apiKey?.trim() : prev.apiKey,
+      apiSecret: apiSecret !== undefined ? apiSecret?.trim() : prev.apiSecret,
+      merchantId: merchantId !== undefined ? merchantId?.trim() : prev.merchantId,
+      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
+      last_sync: prev.last_sync || null
     };
 
     await pool.query("UPDATE stores SET trendyol_settings = $1 WHERE id = $2", [settings, storeId]);
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Trendyol Category Attributes Endpoint
+router.get("/trendyol/categories/:categoryId/attributes", authenticate, async (req: any, res) => {
+  try {
+    const { getAttributesForCategory } = await import("../src/data/marketplaceCategoriesData");
+    res.json({ success: true, attributes: getAttributesForCategory(String(req.params.categoryId)) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 

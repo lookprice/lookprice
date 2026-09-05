@@ -434,11 +434,10 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
 
                     {/* TOP CONSULTANT BAR */}
                     <div className="relative z-20 flex justify-between items-center px-2.5 py-1.5 mx-2.5 mt-3 mb-1 text-[9px] font-black tracking-wider text-white shrink-0">
-                      <div className="flex items-center gap-1.5 min-w-0 max-w-[48%]">
+                      <div className="flex items-center gap-1.5 min-w-0 max-w-[60%]">
                         <span className="shrink-0 text-[9px]">👤</span>
                         <span className="truncate leading-normal text-[9px] font-black py-0.5 inline-block">{brokerName}</span>
                       </div>
-                      <div className={`truncate ${previewColors.textAccent} leading-normal text-[9px] font-black py-0.5 inline-block`}>PLAKA: {plateText}</div>
                       <div className={`shrink-0 ${previewColors.textAccent} leading-normal text-[9px] font-black ml-1 py-0.5 inline-block`}>📞 {brokerPhone}</div>
                     </div>
 
@@ -548,8 +547,11 @@ export const AutomotiveSocialMediaShareModal: React.FC<AutomotiveSocialMediaShar
                         </span>
                       </div>
                       
-                      <div className="text-right flex items-center shrink-0 text-[9.5px] font-black text-[#0f172a] tracking-wider leading-normal">
-                        ENRAKİPSİZ<span className="text-[#0f172a] font-extrabold">.COM</span>
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="text-[7.5px] font-black text-[#0f172a]/80 mb-0.5 tracking-widest uppercase">PLAKA: {plateText}</span>
+                        <div className="flex items-center text-[9.5px] font-black text-[#0f172a] tracking-wider leading-normal">
+                          ENRAKİPSİZ<span className="text-[#0f172a] font-extrabold">.COM</span>
+                        </div>
                       </div>
                     </div>
 

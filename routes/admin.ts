@@ -30,10 +30,20 @@ router.get("/stats", async (req: any, res) => {
   });
 });
 
+// Ensure super store identity columns exist
+pool.query(`
+  ALTER TABLE users 
+  ADD COLUMN IF NOT EXISTS super_store_id VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS super_store_code VARCHAR(255);
+`).catch((err) => console.log("users super_store migration notice:", err?.message));
+
 // SuperAdmin: Profile & Security
 router.get("/profile", async (req: any, res) => {
   try {
-    const userRes = await pool.query("SELECT id, email, name, full_name, phone, address FROM users WHERE id = $1", [req.user.id]);
+    const userRes = await pool.query(
+      "SELECT id, email, name, full_name, phone, address, super_store_id, super_store_code FROM users WHERE id = $1", 
+      [req.user.id]
+    );
     res.json(userRes.rows[0]);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -42,10 +52,10 @@ router.get("/profile", async (req: any, res) => {
 
 router.post("/profile", async (req: any, res) => {
   try {
-    const { name, full_name, phone, address, email } = req.body;
+    const { name, full_name, phone, address, email, super_store_id, super_store_code } = req.body;
     await pool.query(
-      "UPDATE users SET name = $1, full_name = $2, phone = $3, address = $4, email = $5 WHERE id = $6",
-      [name, full_name, phone, address, email, req.user.id]
+      "UPDATE users SET name = $1, full_name = $2, phone = $3, address = $4, email = $5, super_store_id = $6, super_store_code = $7 WHERE id = $8",
+      [name, full_name, phone, address, email, super_store_id || null, super_store_code || null, req.user.id]
     );
     res.json({ success: true });
   } catch (e: any) {

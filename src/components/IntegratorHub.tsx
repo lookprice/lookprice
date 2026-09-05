@@ -63,11 +63,11 @@ export const IntegratorHub = () => {
 
   useEffect(() => {
     fetchConfigs();
-    handleFetchCategories('sit');
+    handleFetchCategories('production');
   }, []);
 
   // --- CATALOG OPERATIONS ---
-  const handleFetchCategories = async (env: 'sit' | 'production' = 'sit') => {
+  const handleFetchCategories = async (env: 'production' | 'production' = 'production') => {
     setFetchingCategories(true);
     try {
       const res = await api.hepsiburadaV3GetCategories(env, 0, 50);
@@ -85,7 +85,7 @@ export const IntegratorHub = () => {
     }
   };
 
-  const handleFetchAttributes = async (categoryId: string, env: 'sit' | 'production' = 'sit') => {
+  const handleFetchAttributes = async (categoryId: string, env: 'production' | 'production' = 'production') => {
     if (!categoryId) return;
     setFetchingAttributes(true);
     try {
@@ -104,7 +104,7 @@ export const IntegratorHub = () => {
     }
   };
 
-  const handleSendSingleCatalogProduct = async (env: 'sit' | 'production' = 'sit') => {
+  const handleSendSingleCatalogProduct = async (env: 'production' | 'production' = 'production') => {
     setCatalogSending(true);
     try {
       let catId = selectedCategoryId ? Number(selectedCategoryId) : 26012174;
@@ -192,7 +192,7 @@ export const IntegratorHub = () => {
     }
   };
 
-  const handleSendVariantCatalogProducts = async (env: 'sit' | 'production' = 'sit') => {
+  const handleSendVariantCatalogProducts = async (env: 'production' | 'production' = 'production') => {
     setCatalogSending(true);
     try {
       let catId = selectedCategoryId ? Number(selectedCategoryId) : 26012174;
@@ -303,7 +303,7 @@ export const IntegratorHub = () => {
     }
   };
 
-  const handleCheckCatalogStatus = async (trackingId: string, env: 'sit' | 'production' = 'sit') => {
+  const handleCheckCatalogStatus = async (trackingId: string, env: 'production' | 'production' = 'production') => {
     if (!trackingId) return;
     try {
       const res = await api.hepsiburadaV3CheckCatalogStatus(env, trackingId);
@@ -315,7 +315,7 @@ export const IntegratorHub = () => {
   };
 
   // --- INVENTORY OPERATIONS ---
-  const handleSendSpecificProduct = async (productData: any, env: 'sit' | 'production' = 'sit') => {
+  const handleSendSpecificProduct = async (productData: any, env: 'production' | 'production' = 'production') => {
     try {
       const payload = [{
         MerchantSku: productData.merchantSku,
@@ -342,7 +342,7 @@ export const IntegratorHub = () => {
     }
   };
 
-  const handleSendBothProducts = async (env: 'sit' | 'production' = 'sit') => {
+  const handleSendBothProducts = async (env: 'production' | 'production' = 'production') => {
     try {
       const payload = [
         {
@@ -379,7 +379,7 @@ export const IntegratorHub = () => {
     }
   };
 
-  const checkListingStatus = async (env: 'sit' | 'production', id: string) => {
+  const checkListingStatus = async (env: 'production' | 'production', id: string) => {
     try {
       const res = await api.hepsiburadaV3CheckTaskStatus(env, id);
       if (res?.error) {
@@ -394,7 +394,7 @@ export const IntegratorHub = () => {
   };
 
   // --- OMS OPERATIONS ---
-  const handleFetchLiveOrders = async (env: 'sit' | 'production') => {
+  const handleFetchLiveOrders = async (env: 'production' | 'production') => {
     setFetchingOrders(true);
     setOrdersResult(null);
     try {
@@ -417,7 +417,7 @@ export const IntegratorHub = () => {
     setSimulatingOrder(true);
     try {
       const res = await api.hepsiburadaV3SimulateOrder({
-        env: 'sit',
+        env: 'production',
         customerName: 'Serkan Erdekli (Hepsiburada SIT Test)',
         customerEmail: 'serkanerdekli@gmail.com',
         customerPhone: '+90 548 888 1234',
@@ -469,7 +469,7 @@ export const IntegratorHub = () => {
           <p className="text-xs text-slate-500 mt-1">Katalog tanımlama, Envanter (fiyat/stok) revizyonu ve OMS sipariş akışı yönetimi</p>
         </div>
         <button 
-          onClick={() => setEditingConfig({ marketplace: 'hepsiburada', env: 'sit', client_id: '', client_secret: '', config: { user_agent: 'enrakipsiz_dev' } })}
+          onClick={() => setEditingConfig({ marketplace: 'hepsiburada', env: 'production', client_id: '', client_secret: '', config: { user_agent: 'enrakipsiz_dev' } })}
           className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm self-start md:self-auto"
         >
           Yeni Konfigürasyon
@@ -563,7 +563,7 @@ export const IntegratorHub = () => {
                 <p className="text-xs text-slate-500">Hepsiburada SIT ortamında onaylanan aktif yaprak (leaf) kategoriler</p>
               </div>
               <button
-                onClick={() => handleFetchCategories('sit')}
+                onClick={() => handleFetchCategories('production')}
                 disabled={fetchingCategories}
                 className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
@@ -587,7 +587,7 @@ export const IntegratorHub = () => {
                       value={selectedCategoryId}
                       onChange={(e) => {
                         setSelectedCategoryId(e.target.value);
-                        handleFetchAttributes(e.target.value, 'sit');
+                        handleFetchAttributes(e.target.value, 'production');
                       }}
                     >
                       <option value="">Kategori seçiniz...</option>
@@ -607,7 +607,7 @@ export const IntegratorHub = () => {
                       value={selectedCategoryId}
                       onChange={(e) => {
                         setSelectedCategoryId(e.target.value);
-                        handleFetchAttributes(e.target.value, 'sit');
+                        handleFetchAttributes(e.target.value, 'production');
                       }}
                     />
                   </div>
@@ -662,7 +662,7 @@ export const IntegratorHub = () => {
                 <p className="text-slate-500">Fiyat: 349 TRY | Stok: 45 Adet</p>
               </div>
               <button
-                onClick={() => handleSendSingleCatalogProduct('sit')}
+                onClick={() => handleSendSingleCatalogProduct('production')}
                 disabled={catalogSending}
                 className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
@@ -682,7 +682,7 @@ export const IntegratorHub = () => {
                 <p className="text-slate-500">Ortak Grup ID: Otomatik <strong className="text-slate-700 font-mono">variantGroupID</strong> ile bağlanır</p>
               </div>
               <button
-                onClick={() => handleSendVariantCatalogProducts('sit')}
+                onClick={() => handleSendVariantCatalogProducts('production')}
                 disabled={catalogSending}
                 className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
@@ -700,7 +700,7 @@ export const IntegratorHub = () => {
                   <p className="text-xs text-slate-500">Hepsiburada ürün aktarım ve onay motoru durum kontrolü</p>
                 </div>
                 <button 
-                  onClick={() => handleCheckCatalogStatus(catalogTrackingId, 'sit')} 
+                  onClick={() => handleCheckCatalogStatus(catalogTrackingId, 'production')} 
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
                 >
                   <RefreshCw className="w-3.5 h-3.5" /> Onay Durumunu Sorgula
@@ -779,7 +779,7 @@ export const IntegratorHub = () => {
               <p className="text-xs text-slate-500 mt-0.5">Gerçek SKU ve Satıcı Kodu eşleşmesiyle anlık fiyat/stok güncellemesi</p>
             </div>
             <button 
-              onClick={() => handleSendBothProducts('sit')}
+              onClick={() => handleSendBothProducts('production')}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
             >
               <Send className="w-4 h-4" /> Her İki Ürünü Birlikte Güncelle (SIT)
@@ -820,7 +820,7 @@ export const IntegratorHub = () => {
               </div>
 
               <button 
-                onClick={() => handleSendSpecificProduct(customSku1, 'sit')}
+                onClick={() => handleSendSpecificProduct(customSku1, 'production')}
                 className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" /> Fiyat & Stok Güncelle (SIT)
@@ -860,7 +860,7 @@ export const IntegratorHub = () => {
               </div>
 
               <button 
-                onClick={() => handleSendSpecificProduct(customSku2, 'sit')}
+                onClick={() => handleSendSpecificProduct(customSku2, 'production')}
                 className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" /> Fiyat & Stok Güncelle (SIT)
@@ -873,7 +873,7 @@ export const IntegratorHub = () => {
               <div className="flex items-center justify-between">
                 <p className="font-bold text-slate-800">Son Envanter Tracking ID: <span className="font-mono text-indigo-600 font-extrabold">{listingTrackingId}</span></p>
                 <button 
-                  onClick={() => checkListingStatus('sit', listingTrackingId)} 
+                  onClick={() => checkListingStatus('production', listingTrackingId)} 
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
                 >
                   Durumu Sorgula
@@ -897,7 +897,7 @@ export const IntegratorHub = () => {
 
           <div className="flex flex-wrap items-center gap-3">
             <button 
-              onClick={() => handleFetchLiveOrders('sit')}
+              onClick={() => handleFetchLiveOrders('production')}
               disabled={fetchingOrders}
               className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
             >
@@ -983,7 +983,7 @@ export const IntegratorHub = () => {
                 <p className="text-xs text-slate-500">Hepsiburada API erişim parametreleri</p>
               </div>
               <span className="text-xs font-mono font-bold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md uppercase">
-                {editingConfig.marketplace || 'hepsiburada'} ({editingConfig.env || 'sit'})
+                {editingConfig.marketplace || 'hepsiburada'} ({editingConfig.env || 'production'})
               </span>
             </div>
 
@@ -1005,7 +1005,7 @@ export const IntegratorHub = () => {
                 <label className="text-xs font-bold text-slate-700">Ortam (Environment)</label>
                 <select 
                   className="w-full border border-slate-200 p-2.5 rounded-xl text-sm font-medium bg-slate-50"
-                  value={editingConfig.env || 'sit'}
+                  value={editingConfig.env || 'production'}
                   onChange={e => setEditingConfig({...editingConfig, env: e.target.value})}
                 >
                   <option value="sit">Test / Sandbox (SIT)</option>

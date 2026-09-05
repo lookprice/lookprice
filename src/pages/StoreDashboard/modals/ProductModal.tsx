@@ -474,6 +474,7 @@ export const ProductModal = ({
                   onUpdate={(data) => setEditingProduct(data)}
                   isTr={isTr}
                   categories={hbCategories}
+                  storeSettings={branding?.hepsiburada_settings}
                 />
               )}
 

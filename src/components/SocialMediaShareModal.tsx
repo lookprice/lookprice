@@ -416,7 +416,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
 
                     {/* TOP CONSULTANT BAR */}
                     <div className="relative z-20 flex justify-between items-center px-2.5 py-1.5 mx-2.5 mt-3 mb-1 text-[9px] font-black tracking-wider text-white shrink-0">
-                      <div className="flex items-center gap-1.5 min-w-0 max-w-[48%]">
+                      <div className="flex items-center gap-1.5 min-w-0 max-w-[60%]">
                         {activeAgent?.image_url ? (
                           <img src={activeAgent.image_url} alt={activeBrokerName} className="w-4 h-4 rounded-full object-cover border border-white/40 shrink-0" />
                         ) : (
@@ -424,7 +424,6 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                         )}
                         <span className="truncate leading-normal text-[9px] font-black py-0.5 inline-block">{activeBrokerName}</span>
                       </div>
-                      <div className={`truncate ${previewColors.textAccent} leading-normal text-[9px] font-black py-0.5 inline-block`}>REF: {activeRefNoText}</div>
                       <div className={`shrink-0 ${previewColors.textAccent} leading-normal text-[9px] font-black ml-1 py-0.5 inline-block`}>📞 {activeBrokerPhone}</div>
                     </div>
 
@@ -435,12 +434,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                           {/* Left Main (67%) */}
                           <div className="w-[67%] h-full relative border-r border-black/30 overflow-hidden">
                             {property.images[0] ? (
-                              <img 
-                                src={property.images[0]} 
-                                alt={propertyTitle} 
-                                className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                                referrerPolicy="no-referrer"
-                              />
+                              <div style={{ backgroundImage: `url("${property.images[0]}")` }} className="w-full h-full bg-cover bg-center filter brightness-[1.12] contrast-[1.05] saturate-[1.12]" />
                             ) : (
                               <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">🏠</div>
                             )}
@@ -449,24 +443,14 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                           <div className="w-[33%] h-full flex flex-col">
                             <div className="flex-1 relative border-b border-black/30 overflow-hidden">
                               {property.images[1] ? (
-                                <img 
-                                  src={property.images[1]} 
-                                  alt="Görsel 2" 
-                                  className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                                  referrerPolicy="no-referrer"
-                                />
+                                <div style={{ backgroundImage: `url("${property.images[1]}")` }} className="w-full h-full bg-cover bg-center filter brightness-[1.12] contrast-[1.05] saturate-[1.12]" />
                               ) : (
                                 <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
                               )}
                             </div>
                             <div className="flex-1 relative overflow-hidden">
                               {property.images[2] ? (
-                                <img 
-                                  src={property.images[2]} 
-                                  alt="Görsel 3" 
-                                  className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                                  referrerPolicy="no-referrer"
-                                />
+                                <div style={{ backgroundImage: `url("${property.images[2]}")` }} className="w-full h-full bg-cover bg-center filter brightness-[1.12] contrast-[1.05] saturate-[1.12]" />
                               ) : (
                                 <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">📸</div>
                               )}
@@ -476,12 +460,7 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       ) : (
                         // Full bleed single cover image
                         property.images && property.images[0] ? (
-                          <img 
-                            src={property.images[0]} 
-                            alt={propertyTitle} 
-                            className="w-full h-full object-cover filter brightness-[1.12] contrast-[1.05] saturate-[1.12]"
-                            referrerPolicy="no-referrer"
-                          />
+                          <div style={{ backgroundImage: `url("${property.images[0]}")` }} className="w-full h-full bg-cover bg-center filter brightness-[1.12] contrast-[1.05] saturate-[1.12]" />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
                             <span className="text-2xl">🏠</span>
@@ -492,15 +471,15 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                       {/* Diagonal Banner for SOLD/RENTED (HTML Preview) */}
                       {forcedStatus && (
                         forcedStatus === 'deal' ? (
-                          <div className="absolute top-0 left-0 w-16 h-16 overflow-hidden z-50 pointer-events-none">
-                            <div className="absolute top-[8px] left-[-24px] w-[110px] py-0.5 bg-gradient-to-r from-orange-500 via-orange-600 to-red-600 text-white font-black text-[7px] text-center transform -rotate-45 shadow-lg tracking-wider uppercase border-b border-white/20">
-                              FIRSAT
+                          <div className="absolute top-2 left-2 z-50 pointer-events-none">
+                            <div className="px-3 py-1 bg-gradient-to-r from-orange-500 to-red-600 text-white font-black text-[10px] rounded-lg shadow-xl tracking-widest uppercase border border-white/20">
+                              🔥 FIRSAT
                             </div>
                           </div>
                         ) : (
-                          <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none">
-                            <div className={`w-[200%] py-1.5 text-center text-lg font-black tracking-[0.1em] text-white shadow-2xl transform -rotate-12 uppercase ${
-                              forcedStatus === 'sold' ? 'bg-rose-600/95' : 'bg-sky-700/95'
+                          <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-50 pointer-events-none bg-black/20">
+                            <div className={`px-6 py-2 rounded-2xl text-center text-xl font-black tracking-[0.15em] text-white shadow-2xl uppercase border-2 border-white/20 backdrop-blur-sm ${
+                              forcedStatus === 'sold' ? 'bg-rose-600/90' : 'bg-sky-600/90'
                             }`}>
                               {forcedStatus === 'sold' ? 'SATILDI' : 'KİRALANDI'}
                             </div>
@@ -534,8 +513,11 @@ export const SocialMediaShareModal: React.FC<SocialMediaShareModalProps> = ({
                         </span>
                       </div>
                       
-                      <div className="text-right flex items-center shrink-0 text-[9.5px] font-black text-[#0f172a] tracking-wider leading-normal">
-                        ENRAKİPSİZ<span className="text-[#0f172a] font-extrabold">.COM</span>
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="text-[7.5px] font-black text-[#0f172a]/80 mb-0.5 tracking-widest uppercase">REF: {activeRefNoText}</span>
+                        <div className="flex items-center text-[9.5px] font-black text-[#0f172a] tracking-wider leading-normal">
+                          ENRAKİPSİZ<span className="text-[#0f172a] font-extrabold">.COM</span>
+                        </div>
                       </div>
                     </div>
 

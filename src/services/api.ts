@@ -470,9 +470,11 @@ export const api = {
   // Amazon Integration
   getAmazonAuthUrl: () => api.get("/api/integrations/amazon/auth-url"),
   getAmazonSettings: (storeId?: number) => api.get(`/api/integrations/amazon/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  saveAmazonSettings: (data: { clientId: string, clientSecret: string, refreshToken: string, sellerId: string, storeId?: number }) => api.post("/api/integrations/amazon/settings", data),
+  saveAmazonSettings: (data: { clientId: string, clientSecret: string, refreshToken: string, sellerId: string, categoryMappings?: any, categoryAttributes?: any, storeId?: number }) => api.post("/api/integrations/amazon/settings", data),
   syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),
   disconnectAmazon: (storeId?: number) => api.post("/api/integrations/amazon/disconnect", { storeId }),
+  getAmazonCategories: () => api.get("/api/integrations/amazon/categories"),
+  getAmazonCategoryAttributes: (categoryId: string | number) => api.get(`/api/integrations/amazon/categories/${categoryId}/attributes`),
 
   // N11 Integration
   getN11Settings: (storeId?: number) => api.get(`/api/integrations/n11/settings${storeId ? `?storeId=${storeId}` : ""}`),
@@ -493,6 +495,8 @@ export const api = {
     autoSyncOrders?: boolean;
     autoStockSync?: boolean;
     webhookSecret?: string;
+    categoryMappings?: any;
+    categoryAttributes?: any;
     storeId?: number; 
   }) => api.post("/api/integrations/hepsiburada/settings", data),
   syncHepsiburadaOrders: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync", { storeId }),
@@ -505,9 +509,10 @@ export const api = {
 
   // Trendyol Integration
   getTrendyolSettings: (storeId?: number) => api.get(`/api/integrations/trendyol/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  saveTrendyolSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, storeId?: number }) => api.post("/api/integrations/trendyol/settings", data),
+  saveTrendyolSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, categoryMappings?: any, categoryAttributes?: any, storeId?: number }) => api.post("/api/integrations/trendyol/settings", data),
   syncTrendyolOrders: (storeId?: number) => api.post("/api/integrations/trendyol/sync", { storeId }),
   disconnectTrendyol: (storeId?: number) => api.post("/api/integrations/trendyol/disconnect", { storeId }),
+  getTrendyolCategoryAttributes: (categoryId: string | number) => api.get(`/api/integrations/trendyol/categories/${categoryId}/attributes`),
 
   // Pazarama Integration
   getPazaramaSettings: (storeId?: number) => api.get(`/api/integrations/pazarama/settings${storeId ? `?storeId=${storeId}` : ""}`),

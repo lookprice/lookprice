@@ -17,13 +17,18 @@ import {
   Layers,
   FileText,
   HelpCircle,
-  Info
+  Info,
+  Sparkles,
+  SlidersHorizontal,
+  ArrowRight,
+  CheckCheck
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "@/translations";
 import { api } from "@/services/api";
 import { useIntegrationSync } from "@/hooks/useIntegrationSync";
 import { toast } from "sonner";
+import { MarketplaceCategoryMappingModal } from "@/components/marketplace/MarketplaceCategoryMappingModal";
 
 interface SettingsEStoresTabProps {
   branding: any;
@@ -58,7 +63,7 @@ export const SettingsEStoresTab = ({
   const [n11AppKey, setN11AppKey] = useState(branding.n11_settings?.appKey || "");
   const [n11AppSecret, setN11AppSecret] = useState(branding.n11_settings?.appSecret || "");
 
-  const [hbApiKey, setHbApiKey] = useState(branding.hepsiburada_settings?.apiKey || "");
+  const [hbApiKey, setHbApiKey] = useState(branding.hepsiburada_settings?.apiKey || "lookprice_dev");
   const [hbApiSecret, setHbApiSecret] = useState(branding.hepsiburada_settings?.apiSecret || "");
   const [hbMerchantId, setHbMerchantId] = useState(branding.hepsiburada_settings?.merchantId || "");
   const [hbIsTestMode, setHbIsTestMode] = useState<boolean>(branding.hepsiburada_settings?.isTestMode || false);
@@ -72,6 +77,10 @@ export const SettingsEStoresTab = ({
   const [loadingHbCats, setLoadingHbCats] = useState<boolean>(false);
   const [showHbCategoriesModal, setShowHbCategoriesModal] = useState<boolean>(false);
   const [copiedWebhook, setCopiedWebhook] = useState<boolean>(false);
+
+  // Global Marketplace Category Mapping Modal
+  const [categoryMappingModalOpen, setCategoryMappingModalOpen] = useState(false);
+  const [selectedMappingMarketplace, setSelectedMappingMarketplace] = useState<'hepsiburada' | 'trendyol' | 'amazon' | 'pazarama'>('hepsiburada');
 
   const [tyApiKey, setTyApiKey] = useState(branding.trendyol_settings?.apiKey || "");
   const [tyApiSecret, setTyApiSecret] = useState(branding.trendyol_settings?.apiSecret || "");
@@ -104,7 +113,7 @@ export const SettingsEStoresTab = ({
     setN11AppSecret(n.appSecret || "");
 
     const h = branding.hepsiburada_settings || {};
-    setHbApiKey(h.apiKey || "");
+    setHbApiKey(h.apiKey || "lookprice_dev");
     setHbApiSecret(h.apiSecret || "");
     setHbMerchantId(h.merchantId || "");
     setHbIsTestMode(h.isTestMode || false);
@@ -222,8 +231,9 @@ export const SettingsEStoresTab = ({
 
   const handleSaveHbSettings = async () => {
     try {
-      await api.saveHepsiburadaSettings({ 
-        apiKey: hbApiKey, 
+      const prevHb = branding.hepsiburada_settings || {};
+      const payload = { 
+        apiKey: hbApiKey || "lookprice_dev", 
         apiSecret: hbApiSecret, 
         merchantId: hbMerchantId,
         isTestMode: hbIsTestMode,
@@ -232,8 +242,12 @@ export const SettingsEStoresTab = ({
         autoSyncOrders: hbAutoSyncOrders,
         autoStockSync: hbAutoStockSync,
         webhookSecret: hbWebhookSecret,
+        categoryMappings: prevHb.categoryMappings || {},
+        categoryAttributes: prevHb.categoryAttributes || {},
         storeId: currentStoreId 
-      });
+      };
+      await api.saveHepsiburadaSettings(payload as any);
+      onBrandingChange('hepsiburada_settings', payload);
       toast.success(t.saveSuccess || "Hepsiburada ayarları başarıyla kaydedildi");
       if (onRefresh) onRefresh();
     } catch (error: any) {
@@ -496,6 +510,58 @@ export const SettingsEStoresTab = ({
           </div>
         </div>
         <div className="space-y-8" id="e-stores-integrations-stack">
+          {/* Marketplace Category & Specification Mapping Hub Banner */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl shadow-slate-900/10 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start space-x-3.5">
+              <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm shrink-0 border border-white/15">
+                <Sparkles className="h-6 w-6 text-amber-400" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h4 className="text-base font-black tracking-tight text-white">
+                    {lang === 'tr' ? 'Pazaryeri Kategori & Nitelik Eşleştirme Merkezi' : 'Marketplace Category & Attribute Hub'}
+                  </h4>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    {lang === 'tr' ? 'Akıllı Eşleştirme' : 'Smart Mapping'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 font-normal mt-1 leading-relaxed max-w-xl">
+                  {lang === 'tr' 
+                    ? 'Ürünlerinizin Hepsiburada, Trendyol, Amazon ve Pazarama kataloglarına sorunsuz aktarılması için mağaza kategorilerinizi ve zorunlu nitelikleri tek bir merkezden kolayca eşleştirin.'
+                    : 'Map your store categories and mandatory specifications to Hepsiburada, Trendyol, Amazon and Pazarama catalogs.'}
+                </p>
+
+                {/* Status pills */}
+                <div className="flex flex-wrap items-center gap-2 mt-3 text-[11px]">
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/10 text-slate-200 font-medium">
+                    <strong className="text-rose-400">Hepsiburada:</strong> {Object.keys(branding.hepsiburada_settings?.categoryMappings || {}).length} {lang === 'tr' ? 'Kategori Eşleşti' : 'Categories Mapped'}
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/10 text-slate-200 font-medium">
+                    <strong className="text-orange-400">Trendyol:</strong> {Object.keys(branding.trendyol_settings?.categoryMappings || {}).length} {lang === 'tr' ? 'Kategori Eşleşti' : 'Categories Mapped'}
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/10 text-slate-200 font-medium">
+                    <strong className="text-amber-400">Amazon:</strong> {Object.keys(branding.amazon_settings?.categoryMappings || {}).length} {lang === 'tr' ? 'Kategori Eşleşti' : 'Categories Mapped'}
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/10 text-slate-200 font-medium">
+                    <strong className="text-blue-400">Pazarama:</strong> {Object.keys(pzCategoryMappings || branding.pazarama_settings?.categoryMappings || {}).length} {lang === 'tr' ? 'Kategori Eşleşti' : 'Categories Mapped'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMappingMarketplace('hepsiburada');
+                setCategoryMappingModalOpen(true);
+              }}
+              className="px-5 py-3 bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-rose-500/25 flex items-center justify-center space-x-2 shrink-0 cursor-pointer"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span>{lang === 'tr' ? 'Eşleştirme Merkezini Aç' : 'Open Mapping Hub'}</span>
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </button>
+          </div>
           
           {/* Amazon Integration Section */}
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm" id="amazon-integration-card">
@@ -599,6 +665,17 @@ export const SettingsEStoresTab = ({
                     >
                       <Save className="h-4 w-4" />
                       <span>{t.update}</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setSelectedMappingMarketplace('amazon');
+                        setCategoryMappingModalOpen(true);
+                      }}
+                      className="px-6 py-3 bg-amber-50 border-2 border-amber-200 text-amber-900 rounded-xl font-bold text-sm hover:border-amber-300 transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
+                    >
+                      <Layers className="h-4 w-4 text-amber-600" />
+                      <span>{lang === 'tr' ? 'Kategori & Özellik Eşleştir' : 'Category & Attribute Mapping'}</span>
                     </button>
                     <button 
                       onClick={handleDisconnectAmazon}
@@ -817,10 +894,18 @@ export const SettingsEStoresTab = ({
               </div>
 
               {/* API Credentials */}
+              
+              <div className="bg-blue-50/50 border border-blue-200/50 rounded-xl p-4 mb-4 flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-900 leading-relaxed font-medium">
+                  <strong>Entegrasyon Kurulumu:</strong> Hepsiburada Satıcı Panelinizde <em className="not-italic font-bold">Entegrasyon &gt; Entegratör Bilgileri</em> sayfasına gidin. 
+                  Yeni entegratör ekle diyerek <strong className="text-blue-700">lookprice_dev</strong> kullanıcısını seçin. Ekrandaki <strong className="text-blue-700">Mağaza ID</strong> ve size özel üretilen <strong className="text-blue-700">Servis Anahtarını</strong> aşağıya yapıştırın. (Kullanıcı Adı: lookprice_dev olmalıdır)
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-                    {t.hepsiburadaMerchantId || 'Merchant ID (Mağaza ID)'}
+                    {t.hepsiburadaMerchantId || 'Mağaza ID (Merchant ID)'}
                   </label>
                   <input 
                     type="text" 
@@ -832,19 +917,19 @@ export const SettingsEStoresTab = ({
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-                    {t.hepsiburadaApiKey || 'API Key (Username / Entegratör Adı)'}
+                    {t.hepsiburadaApiKey || 'Entegratör Kullanıcı Adı'}
                   </label>
                   <input 
                     type="text" 
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
                     value={hbApiKey}
                     onChange={(e) => setHbApiKey(e.target.value)}
-                    placeholder="Entegratör Kullanıcı Adı"
+                    placeholder="Örn: lookprice_dev"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-                    {t.hepsiburadaApiSecret || 'API Secret (Password)'}
+                    {t.hepsiburadaApiSecret || 'Servis Anahtarı (Secret Key)'}
                   </label>
                   <input 
                     type="password" 
@@ -959,6 +1044,37 @@ export const SettingsEStoresTab = ({
                 </div>
               </div>
 
+              {/* Category & Attribute Mapping Card */}
+              <div className="p-4 bg-gradient-to-r from-rose-50 to-orange-50 rounded-2xl border border-rose-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 bg-rose-600 text-white rounded-xl shadow-sm">
+                    <Layers className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      {lang === 'tr' ? 'Hepsiburada Kategori ve Zorunlu Alan Eşleştirmesi' : 'Hepsiburada Category & Attribute Mapping'}
+                    </h4>
+                    <p className="text-xs text-slate-600 font-medium">
+                      {Object.keys(branding.hepsiburada_settings?.categoryMappings || {}).length > 0 
+                        ? `${Object.keys(branding.hepsiburada_settings?.categoryMappings || {}).length} ${lang === 'tr' ? 'kategori Hepsiburada kataloğuna bağlandı.' : 'categories mapped to Hepsiburada.'}`
+                        : (lang === 'tr' ? 'Ürünlerinizi HB listesine hatasız göndermek için kategorileri eşleştirin.' : 'Map categories to list products on Hepsiburada without errors.')}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedMappingMarketplace('hepsiburada');
+                    setCategoryMappingModalOpen(true);
+                  }}
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2 shadow-sm shrink-0 cursor-pointer"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>{lang === 'tr' ? 'Kategorileri Eşleştir' : 'Map Categories'}</span>
+                </button>
+              </div>
+
               {/* Action Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <button 
@@ -1000,12 +1116,25 @@ export const SettingsEStoresTab = ({
                 </button>
 
                 <button 
+                  type="button"
+                  onClick={() => {
+                    setSelectedMappingMarketplace('hepsiburada');
+                    setCategoryMappingModalOpen(true);
+                  }}
+                  id="hb-category-mapping-btn"
+                  className="px-5 py-3 bg-rose-50 border-2 border-rose-200 text-rose-800 rounded-xl font-bold text-sm hover:border-rose-300 transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
+                >
+                  <Sparkles className="h-4 w-4 text-rose-600" />
+                  <span>{lang === 'tr' ? 'Kategori & Özellik Eşleştir' : 'Map Categories & Attributes'}</span>
+                </button>
+
+                <button 
                   onClick={handleFetchHbCategories}
                   id="hb-categories-btn"
                   className="px-5 py-3 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:border-slate-300 transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
                 >
                   <Layers className="h-4 w-4 text-slate-500" />
-                  <span>{t.hepsiburadaCategories || 'Kategori Rehberi'}</span>
+                  <span>{t.hepsiburadaCategories || 'Kategori Rehberi (Canlı)'}</span>
                 </button>
 
                 {isHbConnected && (
@@ -1134,6 +1263,17 @@ export const SettingsEStoresTab = ({
                     >
                       <Save className="h-4 w-4" />
                       <span>{t.update}</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setSelectedMappingMarketplace('trendyol');
+                        setCategoryMappingModalOpen(true);
+                      }}
+                      className="px-6 py-3 bg-orange-50 border-2 border-orange-200 text-orange-900 rounded-xl font-bold text-sm hover:border-orange-300 transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
+                    >
+                      <Layers className="h-4 w-4 text-orange-600" />
+                      <span>{lang === 'tr' ? 'Kategori & Özellik Eşleştir' : 'Category & Attribute Mapping'}</span>
                     </button>
                     <button 
                       onClick={handleDisconnectTy}
@@ -1518,6 +1658,21 @@ export const SettingsEStoresTab = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Marketplace Category & Attributes Mapping Modal */}
+      {categoryMappingModalOpen && (
+        <MarketplaceCategoryMappingModal
+          isOpen={categoryMappingModalOpen}
+          onClose={() => setCategoryMappingModalOpen(false)}
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          products={products}
+          currentStoreId={currentStoreId}
+          initialMarketplace={selectedMappingMarketplace}
+          lang={lang}
+          onRefresh={onRefresh}
+        />
       )}
     </motion.div>
   );

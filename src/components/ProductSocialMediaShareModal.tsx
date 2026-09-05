@@ -495,12 +495,16 @@ export const ProductSocialMediaShareModal: React.FC<ProductSocialMediaShareModal
                     </div>
 
                     <div className="text-right flex flex-col items-end shrink-0">
-                      <span className="text-[7px] font-black uppercase tracking-widest text-slate-300 leading-normal mb-0.5 block">
-                        GÜVENLİ MAĞAZA
-                      </span>
-                      <span className={`text-[8.5px] font-black tracking-wider uppercase px-2.5 py-1 rounded border ${themeConfig.badgeBorder} ${themeConfig.badgeText} bg-white/5 leading-normal inline-block`}>
-                        ENRAKİPSİZ.COM
-                      </span>
+                      {branding?.custom_domain ? (
+                        <>
+                          <span className="text-[7px] font-black uppercase tracking-widest text-slate-300 leading-normal mb-0.5 block">
+                            GÜVENLİ MAĞAZA
+                          </span>
+                          <span className={`text-[8.5px] font-black tracking-wider uppercase px-2.5 py-1 rounded border ${themeConfig.badgeBorder} ${themeConfig.badgeText} bg-white/5 leading-normal inline-block`}>
+                            {branding.custom_domain.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                          </span>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 </div>

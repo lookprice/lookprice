@@ -7,20 +7,20 @@ export class HepsiburadaServiceV3 {
   private queue = new PQueue({ concurrency: 5, interval: 1000, intervalCap: 100 });
   private env: 'sit' | 'production';
 
-  constructor(env: 'sit' | 'production' = 'sit') {
+  constructor(env: 'sit' | 'production' = 'production') {
     this.env = env;
   }
 
   private get listingBaseUrl(): string {
     return this.env === 'sit'
       ? 'https://listing-external-v2-gw-sit.hepsiburada.com'
-      : 'https://listing-external-v2-gw-prod.hepsiburada.com';
+      : 'https://listing-external.hepsiburada.com';
   }
 
   private get omsBaseUrl(): string {
     return this.env === 'sit'
       ? 'https://oms-external-sit.hepsiburada.com'
-      : 'https://oms-external-prod.hepsiburada.com';
+      : 'https://oms-external.hepsiburada.com';
   }
 
   private get catalogBaseUrl(): string {
@@ -154,7 +154,7 @@ export class HepsiburadaServiceV3 {
         try {
           const results = [];
           for (const item of payloadV2) {
-            const singleUrl = `https://listing-external-sit.hepsiburada.com/listings/merchantid/${merchantId}/sku/${item.MerchantSku}`;
+            const singleUrl = `${this.listingBaseUrl}/listings/merchantid/${merchantId}/sku/${item.MerchantSku}`;
             const singleRes = await axios.put(singleUrl, {
               price: item.Price,
               availableStock: item.AvailableStock,

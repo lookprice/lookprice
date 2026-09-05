@@ -62,7 +62,7 @@ export class HepsiburadaService {
   private get listingBaseUrl(): string {
     return this.config.isTestMode
       ? "https://listing-external-v2-gw-sit.hepsiburada.com"
-      : "https://listing-external-v2-gw-prod.hepsiburada.com";
+      : "https://listing-external.hepsiburada.com";
   }
 
   private get catalogBaseUrl(): string {
