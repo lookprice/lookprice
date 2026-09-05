@@ -2,13 +2,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, Search, Sparkles, Layers, Settings2, CheckCircle2, AlertCircle, 
   ChevronRight, Save, RefreshCw, SlidersHorizontal, ArrowRight, 
-  HelpCircle, Trash2, Check, Info, ShieldCheck, Tag
+  HelpCircle, Trash2, Check, Info, ShieldCheck, Tag, Laptop, Smartphone,
+  Tv, Shirt, Home, Wrench, LayoutGrid, FolderTree, Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
 import { 
   MarketplaceCategory, 
   MarketplaceAttribute,
+  MARKETPLACE_SECTORS,
+  MarketplaceSectorOption,
+  detectCategorySector,
   HEPSIBURADA_DEFAULT_CATEGORIES,
   TRENDYOL_DEFAULT_CATEGORIES,
   AMAZON_DEFAULT_CATEGORIES,
@@ -45,6 +49,14 @@ const PRODUCT_FIELD_OPTIONS = [
   { value: '$product.price', label: 'Satış Fiyatı (Price)' }
 ];
 
+export interface LocalCategoryItem {
+  key: string;
+  mainCategory: string;
+  subCategory?: string;
+  isSubCategory: boolean;
+  productCount: number;
+}
+
 export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappingModalProps> = ({
   isOpen,
   onClose,
@@ -60,6 +72,12 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   const [activeMarketplace, setActiveMarketplace] = useState<MarketplaceType>(initialMarketplace);
   const [saving, setSaving] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+
+  // Sector Filtering State (e.g. 'all', 'computer', 'phone', 'electronics', 'fashion', 'home', 'auto')
+  const [selectedSector, setSelectedSector] = useState<string>('all');
+  
+  // Local Category Scope Filter (e.g. 'all', 'sub', 'main', 'unmapped')
+  const [localScopeFilter, setLocalScopeFilter] = useState<'all' | 'sub' | 'main' | 'unmapped'>('all');
 
   // Active Category Dropdown Search & State
   const [openDropdownFor, setOpenDropdownFor] = useState<string | null>(null);
@@ -115,7 +133,8 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                 name: c.name || c.displayName,
                 displayName: c.displayName || c.name,
                 paths: c.paths || (c.parentName ? [c.parentName, c.name] : []),
-                leaf: c.leaf !== false
+                leaf: c.leaf !== false,
+                sector: c.sector || detectCategorySector(c.name || c.displayName, c.paths || [])
               }))
             }));
           }
@@ -134,7 +153,8 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                 id: c.id,
                 name: c.name,
                 displayName: c.name,
-                paths: c.subCategories ? [c.name] : []
+                paths: c.subCategories ? [c.name] : [],
+                sector: c.sector || detectCategorySector(c.name, c.subCategories ? [c.name] : [])
               }))
             }));
           }
@@ -152,7 +172,8 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               pazarama: list.map((c: any) => ({
                 id: c.id || c.categoryId,
                 name: c.name || c.categoryName,
-                displayName: c.name || c.categoryName
+                displayName: c.name || c.categoryName,
+                sector: c.sector || detectCategorySector(c.name || c.categoryName)
               }))
             }));
           }
@@ -163,33 +184,101 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     }
   }, [isOpen, activeMarketplace, currentStoreId]);
 
-  // Extract all unique local categories from store's products
-  const localCategories = useMemo(() => {
-    const cats = new Set<string>();
+  // Extract all unique local categories and sub-categories from store's products
+  const localCategoryItems = useMemo<LocalCategoryItem[]>(() => {
+    const itemMap = new Map<string, LocalCategoryItem>();
+
     (products || []).forEach((p: any) => {
-      if (p.category && String(p.category).trim() !== '') {
-        cats.add(String(p.category).trim());
+      const cat1 = p.category ? String(p.category).trim() : '';
+      const sub1 = p.sub_category ? String(p.sub_category).trim() : '';
+      const cat2 = p.category_2 ? String(p.category_2).trim() : '';
+      const sub2 = p.sub_category_2 ? String(p.sub_category_2).trim() : '';
+
+      // 1. Primary Hierarchical Sub-Category (e.g. "BELLEK&HAFIZA KARTLARI > USB BELLEK")
+      if (cat1 && sub1) {
+        const key = `${cat1} > ${sub1}`;
+        if (!itemMap.has(key)) {
+          itemMap.set(key, {
+            key,
+            mainCategory: cat1,
+            subCategory: sub1,
+            isSubCategory: true,
+            productCount: 0
+          });
+        }
+        itemMap.get(key)!.productCount += 1;
+      }
+
+      // 2. Primary Main Category (e.g. "BELLEK&HAFIZA KARTLARI")
+      if (cat1) {
+        const key = cat1;
+        if (!itemMap.has(key)) {
+          itemMap.set(key, {
+            key,
+            mainCategory: cat1,
+            isSubCategory: false,
+            productCount: 0
+          });
+        }
+        itemMap.get(key)!.productCount += 1;
+      }
+
+      // 3. Secondary Category & Subcategory if exists
+      if (cat2 && sub2) {
+        const key = `${cat2} > ${sub2}`;
+        if (!itemMap.has(key)) {
+          itemMap.set(key, {
+            key,
+            mainCategory: cat2,
+            subCategory: sub2,
+            isSubCategory: true,
+            productCount: 0
+          });
+        }
+        itemMap.get(key)!.productCount += 1;
+      } else if (cat2) {
+        const key = cat2;
+        if (!itemMap.has(key)) {
+          itemMap.set(key, {
+            key,
+            mainCategory: cat2,
+            isSubCategory: false,
+            productCount: 0
+          });
+        }
+        itemMap.get(key)!.productCount += 1;
       }
     });
-    return Array.from(cats);
+
+    // Sub-categories first, then descending by product count
+    return Array.from(itemMap.values()).sort((a, b) => {
+      if (a.isSubCategory && !b.isSubCategory) return -1;
+      if (!a.isSubCategory && b.isSubCategory) return 1;
+      return b.productCount - a.productCount;
+    });
   }, [products]);
 
-  // Count of products per local category
+  const localCategories = useMemo(() => localCategoryItems.map((i) => i.key), [localCategoryItems]);
+
+  // Count of products per local category key
   const productCountPerCategory = useMemo(() => {
     const counts: Record<string, number> = {};
-    (products || []).forEach((p: any) => {
-      if (p.category) {
-        counts[p.category] = (counts[p.category] || 0) + 1;
-      }
+    localCategoryItems.forEach((i) => {
+      counts[i.key] = i.productCount;
     });
     return counts;
-  }, [products]);
+  }, [localCategoryItems]);
 
   // Statistics for active marketplace
   const currentMappings = mappings[activeMarketplace] || {};
   const mappedCount = localCategories.filter((cat) => !!currentMappings[cat]).length;
   const totalCount = localCategories.length;
   const completionPercent = totalCount > 0 ? Math.round((mappedCount / totalCount) * 100) : 0;
+
+  // Subcategory and main category counts
+  const subCategoryCount = localCategoryItems.filter((i) => i.isSubCategory).length;
+  const mainCategoryCount = localCategoryItems.filter((i) => !i.isSubCategory).length;
+  const unmappedCount = localCategories.filter((cat) => !currentMappings[cat]).length;
 
   // Handler: Set single mapping
   const handleSelectMapping = (localCat: string, marketCatId: string | number) => {
@@ -218,7 +307,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     toast.info(`"${localCat}" eşleştirmesi kaldırıldı.`);
   };
 
-  // Handler: Smart Auto-Match
+  // Handler: Smart Auto-Match with sector awareness and subcategory prioritization
   const handleAutoMatch = () => {
     const availableCats = marketCategories[activeMarketplace] || [];
     if (availableCats.length === 0) {
@@ -229,12 +318,28 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     let newlyMatched = 0;
     const updated = { ...currentMappings };
 
-    localCategories.forEach((localCat) => {
-      if (!updated[localCat]) {
-        const { bestMatch, score } = suggestMarketplaceCategory(localCat, availableCats);
-        if (bestMatch && score >= 40) {
-          updated[localCat] = String(bestMatch.id);
+    localCategoryItems.forEach((item) => {
+      if (!updated[item.key]) {
+        // If sector selected and not 'all', try sector categories first
+        let pool = availableCats;
+        if (selectedSector !== 'all') {
+          const sectorCats = availableCats.filter((c) => (c.sector || detectCategorySector(c.name, c.paths)) === selectedSector);
+          if (sectorCats.length > 0) {
+            pool = sectorCats;
+          }
+        }
+
+        const { bestMatch, score } = suggestMarketplaceCategory(item.key, pool);
+        if (bestMatch && score >= 35) {
+          updated[item.key] = String(bestMatch.id);
           newlyMatched++;
+        } else if (pool !== availableCats) {
+          // Fallback to all categories
+          const fallback = suggestMarketplaceCategory(item.key, availableCats);
+          if (fallback.bestMatch && fallback.score >= 35) {
+            updated[item.key] = String(fallback.bestMatch.id);
+            newlyMatched++;
+          }
         }
       }
     });
@@ -244,7 +349,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         ...prev,
         [activeMarketplace]: updated
       }));
-      toast.success(`${newlyMatched} adet kategori akıllı eşleme ile otomatik bağlandı!`);
+      toast.success(`${newlyMatched} adet kategori (özellikle alt kategoriler) otomatik bağlandı!`);
     } else {
       toast.info('Eşleşecek yeni kategori bulunamadı veya tüm kategoriler zaten eşleşmiş.');
     }
@@ -424,10 +529,40 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
   if (!isOpen) return null;
 
-  const currentAvailableMarketCats = marketCategories[activeMarketplace] || [];
-  const filteredLocalCategories = localCategories.filter((cat) => 
-    cat.toLowerCase().includes(searchFilter.toLowerCase())
-  );
+  const currentAvailableMarketCats = useMemo(() => {
+    return (marketCategories[activeMarketplace] || []).map((c) => ({
+      ...c,
+      sector: c.sector || detectCategorySector(c.name || c.displayName || '', c.paths || [])
+    }));
+  }, [marketCategories, activeMarketplace]);
+
+  // Categories filtered by the selected sector
+  const sectorFilteredMarketCats = useMemo(() => {
+    if (selectedSector === 'all') return currentAvailableMarketCats;
+    return currentAvailableMarketCats.filter((c) => c.sector === selectedSector);
+  }, [currentAvailableMarketCats, selectedSector]);
+
+  // Filter local category items by search term and local scope
+  const filteredLocalCategoryItems = useMemo(() => {
+    return localCategoryItems.filter((item) => {
+      const mappedId = currentMappings[item.key];
+
+      // Text search
+      if (searchFilter.trim()) {
+        const s = searchFilter.toLowerCase();
+        const matchKey = item.key.toLowerCase().includes(s);
+        const matchMapped = mappedId && String(mappedId).includes(s);
+        if (!matchKey && !matchMapped) return false;
+      }
+
+      // Scope filter: all, sub, main, unmapped
+      if (localScopeFilter === 'sub' && !item.isSubCategory) return false;
+      if (localScopeFilter === 'main' && item.isSubCategory) return false;
+      if (localScopeFilter === 'unmapped' && !!mappedId) return false;
+
+      return true;
+    });
+  }, [localCategoryItems, searchFilter, localScopeFilter, currentMappings]);
 
   const activeMarketplaceConfig = {
     hepsiburada: {
@@ -464,6 +599,19 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     }
   }[activeMarketplace];
 
+  // Helper: Icon for sector
+  const getSectorIcon = (sectorId: string) => {
+    switch (sectorId) {
+      case 'computer': return <Laptop className="h-3.5 w-3.5" />;
+      case 'phone': return <Smartphone className="h-3.5 w-3.5" />;
+      case 'electronics': return <Tv className="h-3.5 w-3.5" />;
+      case 'fashion': return <Shirt className="h-3.5 w-3.5" />;
+      case 'home': return <Home className="h-3.5 w-3.5" />;
+      case 'auto': return <Wrench className="h-3.5 w-3.5" />;
+      default: return <LayoutGrid className="h-3.5 w-3.5" />;
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 md:p-6 overflow-y-auto animate-fade-in">
       <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] overflow-hidden my-auto">
@@ -478,13 +626,13 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
                 <span>{lang === 'tr' ? 'Pazaryeri Kategori & Özellik Eşleştirme' : 'Marketplace Category & Attribute Mapping'}</span>
                 <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  Otomatik & Akıllı
+                  Hiyerarşik Alt Kategori Destekli
                 </span>
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
                 {lang === 'tr' 
-                  ? 'Envanterinizdeki ürün kategorilerini pazaryerlerinin resmi kategorileri ve zorunlu alanlarıyla eşleştirin.' 
-                  : 'Map your store inventory categories with official marketplace categories and mandatory attributes.'}
+                  ? 'Ürünlerinizin alt kategorilerini (Örn: Bellek & Hafıza Kartları > USB Bellek) resmi pazaryeri kategorileriyle sektörel olarak eşleştirin.' 
+                  : 'Map store sub-categories with official marketplace categories using sector-based filtering.'}
               </p>
             </div>
           </div>
@@ -532,7 +680,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               type="button"
               onClick={handleAutoMatch}
               className="px-3.5 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5 cursor-pointer"
-              title="Kategori isim benzerliklerine göre otomatik eşleme yap"
+              title="Alt kategori ve ana kategori isimlerine göre otomatik akıllı eşleme yap"
             >
               <Sparkles className="h-3.5 w-3.5" />
               <span>{lang === 'tr' ? 'Akıllı Otomatik Eşleştir' : 'Auto Match'}</span>
@@ -540,40 +688,130 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           </div>
         </div>
 
-        {/* PROGRESS & STATUS BAR */}
-        <div className="px-6 py-3 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center space-x-3">
-            <span className="font-bold text-slate-700">
-              {lang === 'tr' ? 'Eşleşme Durumu:' : 'Mapping Status:'}
+        {/* SECTOR FILTER BAR (SEKTÖREL KATEGORİ SEÇİMİ) */}
+        <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200/80">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5">
+              <Filter className="h-3 w-3 text-indigo-600" />
+              {lang === 'tr' ? 'Pazaryeri Sektör Filtresi (Aradığınız sektöre göre kategori ağacını filtreleyin):' : 'Marketplace Sector Filter:'}
             </span>
-            <div className="w-36 bg-slate-200 rounded-full h-2 overflow-hidden">
-              <div 
-                className="bg-emerald-500 h-2 rounded-full transition-all duration-500" 
-                style={{ width: `${completionPercent}%` }}
-              />
-            </div>
-            <span className="font-mono font-bold text-slate-900">
-              %{completionPercent} ({mappedCount} / {totalCount} {lang === 'tr' ? 'Kategori' : 'Categories'})
+            <span className="text-[10px] text-slate-400 font-medium">
+              {sectorFilteredMarketCats.length} {lang === 'tr' ? 'kategori listeleniyor' : 'categories available'}
             </span>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {MARKETPLACE_SECTORS.map((sector) => {
+              const isCurrent = selectedSector === sector.id;
+              const sectorCatsCount = sector.id === 'all' 
+                ? currentAvailableMarketCats.length 
+                : currentAvailableMarketCats.filter((c) => c.sector === sector.id).length;
+
+              return (
+                <button
+                  key={sector.id}
+                  type="button"
+                  onClick={() => setSelectedSector(sector.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 whitespace-nowrap cursor-pointer border ${
+                    isCurrent
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'
+                  }`}
+                  title={sector.description}
+                >
+                  {getSectorIcon(sector.id)}
+                  <span>{sector.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isCurrent ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {sectorCatsCount}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* PROGRESS, SEARCH & SCOPE TABS */}
+        <div className="px-6 py-3 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          {/* SCOPE TABS */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5">
+            <button
+              type="button"
+              onClick={() => setLocalScopeFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                localScopeFilter === 'all' 
+                  ? 'bg-slate-200 text-slate-900' 
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {lang === 'tr' ? 'Tümü' : 'All'} ({totalCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocalScopeFilter('sub')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer ${
+                localScopeFilter === 'sub' 
+                  ? 'bg-purple-100 text-purple-900' 
+                  : 'text-purple-700 hover:bg-purple-50'
+              }`}
+            >
+              <FolderTree className="h-3 w-3" />
+              <span>{lang === 'tr' ? 'Alt Kategoriler' : 'Sub-Categories'} ({subCategoryCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocalScopeFilter('main')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                localScopeFilter === 'main' 
+                  ? 'bg-blue-100 text-blue-900' 
+                  : 'text-blue-700 hover:bg-blue-50'
+              }`}
+            >
+              {lang === 'tr' ? 'Ana Kategoriler' : 'Main'} ({mainCategoryCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocalScopeFilter('unmapped')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                localScopeFilter === 'unmapped' 
+                  ? 'bg-rose-100 text-rose-900' 
+                  : 'text-rose-700 hover:bg-rose-50'
+              }`}
+            >
+              {lang === 'tr' ? 'Eşleşmemiş' : 'Unmapped'} ({unmappedCount})
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-3 shrink-0">
+            <div className="flex items-center space-x-2">
+              <div className="w-28 bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-emerald-500 h-2 rounded-full transition-all duration-500" 
+                  style={{ width: `${completionPercent}%` }}
+                />
+              </div>
+              <span className="font-mono font-bold text-slate-800 text-[11px]">
+                %{completionPercent} ({mappedCount}/{totalCount})
+              </span>
+            </div>
+
             <div className="relative">
               <input
                 type="text"
-                placeholder={lang === 'tr' ? 'Kategorilerde ara...' : 'Filter categories...'}
+                placeholder={lang === 'tr' ? 'Kategori ara...' : 'Filter categories...'}
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
-                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 w-48 transition-all"
+                className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 w-40 transition-all"
               />
-              <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+              <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2" />
             </div>
           </div>
         </div>
 
         {/* MAPPING TABLE / LIST */}
         <div className="p-6 overflow-y-auto flex-1 space-y-3">
-          {localCategories.length === 0 ? (
+          {localCategoryItems.length === 0 ? (
             <div className="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
               <AlertCircle className="h-8 w-8 text-slate-400 mx-auto mb-2" />
               <p className="text-sm font-bold text-slate-700">
@@ -581,35 +819,38 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               </p>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                 {lang === 'tr' 
-                  ? 'Ürün eklerken veya düzenlerken kategori belirlediğinizde burada listelenecektir.' 
-                  : 'Categories will appear here once you assign categories to your products.'}
+                  ? 'Ürün eklerken kategori veya alt kategori belirlediğinizde burada listelenecektir.' 
+                  : 'Categories and sub-categories will appear here once you assign categories to your products.'}
               </p>
             </div>
-          ) : filteredLocalCategories.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 text-xs font-medium">
-              {lang === 'tr' ? 'Aramanızla eşleşen kategori bulunamadı.' : 'No matching categories.'}
+          ) : filteredLocalCategoryItems.length === 0 ? (
+            <div className="text-center py-8 text-slate-500 text-xs font-medium bg-slate-50 rounded-2xl border border-slate-100">
+              {lang === 'tr' ? 'Seçilen filtre ve aramayla eşleşen kategori bulunamadı.' : 'No matching categories found.'}
             </div>
           ) : (
-            filteredLocalCategories.map((localCat) => {
+            filteredLocalCategoryItems.map((item) => {
+              const localCat = item.key;
               const mappedId = currentMappings[localCat];
               const matchedMarketCat = currentAvailableMarketCats.find((c) => String(c.id) === String(mappedId));
-              const prodCount = productCountPerCategory[localCat] || 0;
+              const prodCount = item.productCount;
               const isDropdownOpen = openDropdownFor === localCat;
 
               // Check attributes configured count
               const currentCatAttrs = attributesConfig[activeMarketplace]?.[String(mappedId)] || {};
               const configuredAttrCount = Object.keys(currentCatAttrs).length;
 
-              // Suggestion pill if unmapped
-              const suggestion = !mappedId ? suggestMarketplaceCategory(localCat, currentAvailableMarketCats).bestMatch : null;
+              // Suggestion pill if unmapped (prioritizes active sector pool if available)
+              const suggestionPool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : currentAvailableMarketCats;
+              const suggestion = !mappedId ? suggestMarketplaceCategory(localCat, suggestionPool).bestMatch : null;
 
-              // Filter marketplace categories for dropdown
-              const filteredMarketCats = currentAvailableMarketCats.filter((c) => {
+              // Filter marketplace categories for dropdown (sector filtered first)
+              const filteredMarketCats = sectorFilteredMarketCats.filter((c) => {
                 if (!catSearchTerm) return true;
                 const s = catSearchTerm.toLowerCase();
                 return (
                   c.name.toLowerCase().includes(s) ||
                   String(c.id).includes(s) ||
+                  (c.displayName && c.displayName.toLowerCase().includes(s)) ||
                   (c.paths || []).some((p) => p.toLowerCase().includes(s))
                 );
               });
@@ -620,22 +861,46 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                   className={`p-4 rounded-2xl border transition-all ${
                     mappedId 
                       ? 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs' 
-                      : 'bg-slate-50/50 border-slate-200/80'
+                      : 'bg-slate-50/60 border-slate-200/80'
                   }`}
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     
-                    {/* STORE CATEGORY COLUMN */}
+                    {/* STORE CATEGORY COLUMN (HIERARCHICAL & SUBCATEGORY AWARE) */}
                     <div className="lg:w-1/3 space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-slate-900 text-sm">{localCat}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/70">
-                          {prodCount} {lang === 'tr' ? 'Ürün' : 'Products'}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-400">
-                        {lang === 'tr' ? 'Mağazanızdaki ürün kategorisi' : 'Store category'}
-                      </p>
+                      {item.isSubCategory ? (
+                        <div>
+                          <div className="flex items-center space-x-1 text-[11px] font-semibold text-slate-400">
+                            <FolderTree className="h-3 w-3 text-purple-500 shrink-0" />
+                            <span>{item.mainCategory}</span>
+                            <span>&gt;</span>
+                          </div>
+                          <div className="flex items-center space-x-2 mt-0.5">
+                            <span className="font-black text-slate-900 text-sm">{item.subCategory}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+                              {lang === 'tr' ? 'Alt Kategori' : 'Sub-Category'}
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                              {prodCount} {lang === 'tr' ? 'Ürün' : 'Products'}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-slate-900 text-sm">{item.mainCategory}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                              {lang === 'tr' ? 'Ana Kategori' : 'Main'}
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                              {prodCount} {lang === 'tr' ? 'Ürün' : 'Products'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {lang === 'tr' ? 'Mağaza ana ürün kategorisi' : 'Store category'}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* MARKETPLACE MAPPING SELECTOR COLUMN */}
@@ -690,7 +955,14 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                             }}
                             className="w-full text-left px-4 py-2.5 bg-white border border-dashed border-slate-300 hover:border-indigo-400 rounded-xl text-xs font-bold text-slate-600 flex items-center justify-between cursor-pointer transition-all"
                           >
-                            <span>{lang === 'tr' ? `${activeMarketplaceConfig.title} Kategorisi Seç...` : 'Select category...'}</span>
+                            <span className="flex items-center gap-1.5">
+                              <span>{lang === 'tr' ? `${activeMarketplaceConfig.title} Kategorisi Seç...` : 'Select category...'}</span>
+                              {selectedSector !== 'all' && (
+                                <span className="text-[10px] font-normal text-indigo-600">
+                                  ({MARKETPLACE_SECTORS.find((s) => s.id === selectedSector)?.name})
+                                </span>
+                              )}
+                            </span>
                             <ChevronRight className="h-4 w-4 text-slate-400" />
                           </button>
 
@@ -705,7 +977,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                                 onClick={() => handleSelectMapping(localCat, suggestion.id)}
                                 className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg font-bold flex items-center space-x-1 cursor-pointer transition-colors"
                               >
-                                <Sparkles className="h-3 w-3" />
+                                <Sparkles className="h-3 w-3 text-purple-600" />
                                 <span>{suggestion.displayName || suggestion.name} (#{suggestion.id})</span>
                               </button>
                             </div>
@@ -713,14 +985,33 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                         </div>
                       )}
 
-                      {/* DROPDOWN SEARCH MENU */}
+                      {/* DROPDOWN SEARCH MENU WITH SECTOR QUICK SWITCH */}
                       {isDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 space-y-2 max-h-72 flex flex-col">
+                        <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 space-y-2 max-h-80 flex flex-col">
+                          
+                          {/* Mini Sector Switcher inside dropdown */}
+                          <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-[10px] font-bold border-b border-slate-100">
+                            {MARKETPLACE_SECTORS.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => setSelectedSector(s.id)}
+                                className={`px-2 py-0.5 rounded-md cursor-pointer whitespace-nowrap ${
+                                  selectedSector === s.id
+                                    ? 'bg-slate-900 text-white'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                              >
+                                {s.name}
+                              </button>
+                            ))}
+                          </div>
+
                           <div className="relative">
                             <input
                               type="text"
                               autoFocus
-                              placeholder={lang === 'tr' ? 'Kategori adı veya ID ara...' : 'Search category name or ID...'}
+                              placeholder={lang === 'tr' ? 'Kategori ara (örn: USB Bellek, Kart Okuyucu, SSD)...' : 'Search category name or ID...'}
                               value={catSearchTerm}
                               onChange={(e) => setCatSearchTerm(e.target.value)}
                               className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20"
@@ -728,11 +1019,22 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                             <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                           </div>
 
-                          <div className="overflow-y-auto flex-1 space-y-1 max-h-48 pr-1">
+                          <div className="overflow-y-auto flex-1 space-y-1 max-h-52 pr-1">
                             {filteredMarketCats.length === 0 ? (
-                              <p className="text-xs text-slate-400 text-center py-4">
-                                {lang === 'tr' ? 'Kategori bulunamadı' : 'No categories found'}
-                              </p>
+                              <div className="text-center py-4 space-y-1">
+                                <p className="text-xs text-slate-400">
+                                  {lang === 'tr' ? 'Seçili sektörde uygun kategori bulunamadı' : 'No categories found'}
+                                </p>
+                                {selectedSector !== 'all' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedSector('all')}
+                                    className="text-[11px] text-indigo-600 font-bold hover:underline cursor-pointer"
+                                  >
+                                    {lang === 'tr' ? 'Tüm sektörleri göster' : 'Show all sectors'}
+                                  </button>
+                                )}
+                              </div>
                             ) : (
                               filteredMarketCats.map((c) => (
                                 <button
@@ -749,7 +1051,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                                       <p className="text-[10px] text-slate-400">{c.paths.join(' > ')}</p>
                                     )}
                                   </div>
-                                  <span className="font-mono text-[10px] bg-slate-100 group-hover:bg-indigo-50 text-slate-600 group-hover:text-indigo-700 px-2 py-0.5 rounded border border-slate-200">
+                                  <span className="font-mono text-[10px] bg-slate-100 group-hover:bg-indigo-50 text-slate-600 group-hover:text-indigo-700 px-2 py-0.5 rounded border border-slate-200 shrink-0 ml-2">
                                     ID: {c.id}
                                   </span>
                                 </button>
@@ -757,7 +1059,8 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                             )}
                           </div>
 
-                          <div className="border-t border-slate-100 pt-2 flex justify-end">
+                          <div className="border-t border-slate-100 pt-2 flex justify-between items-center text-[11px] text-slate-400">
+                            <span>{filteredMarketCats.length} {lang === 'tr' ? 'kategori' : 'categories'}</span>
                             <button
                               type="button"
                               onClick={() => setOpenDropdownFor(null)}

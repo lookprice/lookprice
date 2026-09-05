@@ -1,3 +1,5 @@
+export type MarketplaceSectorType = 'computer' | 'phone' | 'electronics' | 'fashion' | 'home' | 'auto' | 'all' | string;
+
 export interface MarketplaceCategory {
   id: string | number;
   name: string;
@@ -7,6 +9,78 @@ export interface MarketplaceCategory {
   leaf?: boolean;
   available?: boolean;
   status?: string;
+  sector?: MarketplaceSectorType;
+}
+
+export interface MarketplaceSectorOption {
+  id: string;
+  name: string;
+  iconName: string;
+  description: string;
+  keywords: string[];
+}
+
+export const MARKETPLACE_SECTORS: MarketplaceSectorOption[] = [
+  {
+    id: 'all',
+    name: 'Tüm Sektörler',
+    iconName: 'LayoutGrid',
+    description: 'Tüm pazar yeri kategorileri',
+    keywords: []
+  },
+  {
+    id: 'computer',
+    name: 'Bilgisayar & Bilişim',
+    iconName: 'Laptop',
+    description: 'USB Bellek, Kart Okuyucu, SSD, RAM, PC Donanım, Ağ ve Çevre Birimleri',
+    keywords: ['bilgisayar', 'bellek', 'usb', 'ram', 'hafıza', 'kart okuyucu', 'ssd', 'harddisk', 'laptop', 'dizüstü', 'monitör', 'klavye', 'mouse', 'yazıcı', 'toner', 'kartuş', 'modem', 'router', 'anakart', 'işlemci', 'ekran kartı', 'gaming', 'çevre birimleri', 'kasa', 'güç kaynağı', 'barkod']
+  },
+  {
+    id: 'phone',
+    name: 'Telefon & Aksesuar',
+    iconName: 'Smartphone',
+    description: 'Akıllı Telefon, Şarj, Kılıf, Ekran Koruyucu, Powerbank, Bluetooth Kulaklık, Akıllı Saat',
+    keywords: ['telefon', 'cep', 'akıllı telefon', 'kılıf', 'şarj', 'kablo', 'powerbank', 'kulaklık', 'tws', 'bluetooth', 'akıllı saat', 'bileklik', 'ekran koruyucu', 'cam', 'tutucu', 'tablet', 'ipad']
+  },
+  {
+    id: 'electronics',
+    name: 'Elektronik & TV',
+    iconName: 'Tv',
+    description: 'Televizyon, Soundbar, Ses Sistemleri, Güvenlik Kameraları, Projeksiyon',
+    keywords: ['elektronik', 'televizyon', 'tv', 'soundbar', 'ses sistemi', 'kamera', 'ip kamera', 'güvenlik', 'projeksiyon', 'hoparlör', 'amfi']
+  },
+  {
+    id: 'fashion',
+    name: 'Moda & Tekstil',
+    iconName: 'Shirt',
+    description: 'Kadın & Erkek Giyim, Ayakkabı, Çanta ve Aksesuar',
+    keywords: ['giyim', 'ayakkabı', 'sneaker', 'tişört', 'elbise', 'pantolon', 'jean', 'kadın', 'erkek', 'çanta', 'mont', 'ceket', 'çorap', 'iç giyim']
+  },
+  {
+    id: 'home',
+    name: 'Ev, Yaşam & Mutfak',
+    iconName: 'Home',
+    description: 'Küçük Ev Aletleri, Mutfak, Ev Tekstili, Banyo & Dekorasyon',
+    keywords: ['ev', 'yaşam', 'mutfak', 'kahve makinesi', 'çay', 'nevresim', 'banyo', 'batarya', 'musluk', 'süpürge', 'robot süpürge', 'tencere', 'tava']
+  },
+  {
+    id: 'auto',
+    name: 'Oto & Yapı Market',
+    iconName: 'Wrench',
+    description: 'Otomotiv Aksesuarları, El Aletleri, Hırdavat & Yapı',
+    keywords: ['oto', 'araba', 'motosiklet', 'aksesuar', 'paspas', 'koltuk kılıfı', 'matkap', 'hırdavat', 'el aletleri', 'vidalama', 'yapı market']
+  }
+];
+
+export function detectCategorySector(catName: string, paths: string[] = []): string {
+  const text = (catName + ' ' + (paths || []).join(' ')).toLowerCase();
+  for (const s of MARKETPLACE_SECTORS) {
+    if (s.id === 'all') continue;
+    for (const kw of s.keywords) {
+      if (text.includes(kw)) return s.id;
+    }
+  }
+  return 'all';
 }
 
 export interface MarketplaceAttribute {
@@ -22,6 +96,463 @@ export interface MarketplaceAttribute {
 
 // 1. Standard Hepsiburada Leaf Categories & Attributes
 export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
+  // --- BİLGİSAYAR & VERİ DEPOLAMA (USB BELLEK, KART OKUYUCU, HAFIZA KARTLARI, SSD, RAM) ---
+  {
+    id: 1000101,
+    name: "USB Flash Bellekler",
+    displayName: "Bilgisayar > Veri Depolama > USB Flash Bellekler",
+    paths: ["Bilgisayar", "Veri Depolama", "USB Flash Bellekler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000102,
+    name: "Kart Okuyucular",
+    displayName: "Bilgisayar > Veri Depolama > Kart Okuyucular",
+    paths: ["Bilgisayar", "Veri Depolama", "Kart Okuyucular"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000103,
+    name: "Hafıza Kartları (MicroSD / SD)",
+    displayName: "Bilgisayar > Veri Depolama > Hafıza Kartları (MicroSD & SD)",
+    paths: ["Bilgisayar", "Veri Depolama", "Hafıza Kartları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000104,
+    name: "Taşınabilir / Harici SSD",
+    displayName: "Bilgisayar > Veri Depolama > Taşınabilir Harici SSD",
+    paths: ["Bilgisayar", "Veri Depolama", "Taşınabilir SSD"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000105,
+    name: "Harici Sabit Diskler (External HDD)",
+    displayName: "Bilgisayar > Veri Depolama > Harici Harddiskler",
+    paths: ["Bilgisayar", "Veri Depolama", "Harici Harddiskler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000106,
+    name: "Dahili SSD Diskler (M.2 NVMe & SATA)",
+    displayName: "Bilgisayar > Bileşenler > Dahili SSD Diskler",
+    paths: ["Bilgisayar", "Bileşenler", "Dahili SSD"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000107,
+    name: "Dahili Sabit Diskler (HDD)",
+    displayName: "Bilgisayar > Bileşenler > Dahili Harddiskler (HDD)",
+    paths: ["Bilgisayar", "Bileşenler", "Dahili Harddisk"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000108,
+    name: "RAM / Bellek (DDR4 & DDR5)",
+    displayName: "Bilgisayar > Bileşenler > RAM / Bellek (Masaüstü & Notebook)",
+    paths: ["Bilgisayar", "Bileşenler", "RAM (Bellek)"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000109,
+    name: "Anakartlar",
+    displayName: "Bilgisayar > Bileşenler > Anakartlar",
+    paths: ["Bilgisayar", "Bileşenler", "Anakartlar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000110,
+    name: "İşlemciler (CPU)",
+    displayName: "Bilgisayar > Bileşenler > İşlemciler (Intel / AMD)",
+    paths: ["Bilgisayar", "Bileşenler", "İşlemciler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000111,
+    name: "Ekran Kartları (GPU)",
+    displayName: "Bilgisayar > Bileşenler > Ekran Kartları",
+    paths: ["Bilgisayar", "Bileşenler", "Ekran Kartları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000112,
+    name: "Bilgisayar Kasaları & Güç Kaynakları (PSU)",
+    displayName: "Bilgisayar > Bileşenler > Kasa & Güç Kaynakları",
+    paths: ["Bilgisayar", "Bileşenler", "Kasa & Güç Kaynağı"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000113,
+    name: "İşlemci Soğutucuları & Sıvı Soğutma",
+    displayName: "Bilgisayar > Bileşenler > Soğutma Sistemleri & Fanlar",
+    paths: ["Bilgisayar", "Bileşenler", "Soğutma Sistemleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000114,
+    name: "Dizüstü Bilgisayar (Laptop / Notebook)",
+    displayName: "Bilgisayar > Bilgisayarlar > Dizüstü Bilgisayar (Laptop)",
+    paths: ["Bilgisayar", "Bilgisayarlar", "Dizüstü Bilgisayar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000115,
+    name: "Masaüstü Bilgisayar & All-in-One",
+    displayName: "Bilgisayar > Bilgisayarlar > Masaüstü Bilgisayarlar",
+    paths: ["Bilgisayar", "Bilgisayarlar", "Masaüstü Bilgisayar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000116,
+    name: "Gaming Oyuncu Bilgisayarları",
+    displayName: "Bilgisayar > Gaming > Hazır Oyuncu Sistemleri",
+    paths: ["Bilgisayar", "Bilgisayarlar", "Oyuncu Bilgisayarı"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000117,
+    name: "Monitörler",
+    displayName: "Bilgisayar > Çevre Birimleri > Monitörler & Gaming Ekranlar",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Monitörler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000118,
+    name: "Klavye & Mouse Setleri",
+    displayName: "Bilgisayar > Çevre Birimleri > Klavye & Mouse Setleri",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Klavye & Mouse"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000119,
+    name: "Oyuncu Klavye, Mouse & Kulaklık",
+    displayName: "Bilgisayar > Gaming > Oyuncu Ekipmanları",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Oyuncu Ekipmanları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000120,
+    name: "PC Kulaklık & Mikrofon",
+    displayName: "Bilgisayar > Çevre Birimleri > PC Kulaklık & Mikrofon",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Kulaklık"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000121,
+    name: "Web Kameraları (Webcam)",
+    displayName: "Bilgisayar > Çevre Birimleri > Web Kameraları",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Webcam"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000122,
+    name: "USB Hub & Type-C Çoklayıcılar",
+    displayName: "Bilgisayar > Aksesuarlar > USB Hub & Type-C Dönüştürücüler",
+    paths: ["Bilgisayar", "Aksesuarlar", "USB Hub & Çoklayıcı"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000123,
+    name: "Laptop Çantaları & Kılıfları",
+    displayName: "Bilgisayar > Aksesuarlar > Notebook Çantaları & Kılıflar",
+    paths: ["Bilgisayar", "Aksesuarlar", "Laptop Çantaları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000124,
+    name: "Laptop Soğutucuları & Standlar",
+    displayName: "Bilgisayar > Aksesuarlar > Laptop Soğutucu & Standlar",
+    paths: ["Bilgisayar", "Aksesuarlar", "Soğutucu & Stand"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000125,
+    name: "Modem & Wi-Fi Router",
+    displayName: "Bilgisayar > Ağ & Modem > Wi-Fi Router & Modemler",
+    paths: ["Bilgisayar", "Ağ & Modem", "Router & Modem"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000126,
+    name: "Wi-Fi Menzil Genişleticiler (Range Extender)",
+    displayName: "Bilgisayar > Ağ & Modem > Wi-Fi Menzil Genişleticiler",
+    paths: ["Bilgisayar", "Ağ & Modem", "Menzil Genişletici"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000127,
+    name: "USB Wi-Fi Adaptörler & Ağ Kartları",
+    displayName: "Bilgisayar > Ağ & Modem > USB Wi-Fi Adaptörler",
+    paths: ["Bilgisayar", "Ağ & Modem", "Ağ Adaptörleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000128,
+    name: "Ethernet Ağ Anahtarları (Switch)",
+    displayName: "Bilgisayar > Ağ & Modem > Ethernet Switch & Hub",
+    paths: ["Bilgisayar", "Ağ & Modem", "Switch"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000129,
+    name: "Yazıcılar & Tarayıcılar",
+    displayName: "Bilgisayar > Ofis Donanımları > Çok Fonksiyonlu Yazıcılar",
+    paths: ["Bilgisayar", "Yazıcı & Tarayıcı", "Yazıcılar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000130,
+    name: "Toner, Kartuş & Mürekkep",
+    displayName: "Bilgisayar > Tüketim Malzemeleri > Toner & Kartuş",
+    paths: ["Bilgisayar", "Yazıcı Tüketim", "Toner & Kartuş"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000131,
+    name: "Barkod Okuyucular & Termal Yazıcılar",
+    displayName: "Ofis & Pos > Barkod Okuyucu & Termal Yazıcılar",
+    paths: ["Ofis & Kırtasiye", "Barkod Sistemleri", "Barkod Okuyucular"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+
+  // --- TELEFON & AKSESUAR ---
+  {
+    id: 371960,
+    name: "Akıllı Cep Telefonları",
+    displayName: "Telefon > Cep Telefonları & Akıllı Telefonlar",
+    paths: ["Telefon", "Cep Telefonu", "Akıllı Telefonlar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 371965,
+    name: "Cep Telefonu Kılıfları",
+    displayName: "Telefon > Aksesuarlar > Telefon Kılıfı & Kapaklar",
+    paths: ["Telefon", "Telefon Aksesuarları", "Kılıflar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 371966,
+    name: "Şarj Cihazı & Adaptörler",
+    displayName: "Telefon > Aksesuarlar > Hızlı Şarj Adaptörleri",
+    paths: ["Telefon", "Telefon Aksesuarları", "Şarj Aletleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 371969,
+    name: "Şarj & Data Kabloları (Type-C / Lightning)",
+    displayName: "Telefon > Aksesuarlar > Type-C, Lightning Kablolar",
+    paths: ["Telefon", "Telefon Aksesuarları", "Kablolar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 371970,
+    name: "Powerbank Taşınabilir Şarj",
+    displayName: "Telefon > Aksesuarlar > Powerbank Taşınabilir Şarj Cihazları",
+    paths: ["Telefon", "Telefon Aksesuarları", "Powerbank"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 371971,
+    name: "Ekran Koruyucu Kırılmaz Cam",
+    displayName: "Telefon > Aksesuarlar > Ekran Koruyucu Camlar",
+    paths: ["Telefon", "Telefon Aksesuarları", "Ekran Koruyucu"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 371967,
+    name: "Bluetooth TWS Kulaklıklar",
+    displayName: "Telefon > Aksesuarlar > Bluetooth TWS Kulaklık",
+    paths: ["Telefon", "Ses Sistemleri", "Bluetooth Kulaklık"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 371968,
+    name: "Akıllı Saat & Akıllı Bileklik",
+    displayName: "Telefon > Giyilebilir Teknoloji > Akıllı Saat & Bileklik",
+    paths: ["Telefon", "Giyilebilir Teknoloji", "Akıllı Saat"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 371972,
+    name: "Tablet Bilgisayarlar & iPad",
+    displayName: "Telefon & Mobil > Tablet Bilgisayarlar & iPad",
+    paths: ["Telefon", "Tablet", "Tabletler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+  {
+    id: 371973,
+    name: "Araç İçi Telefon Tutucular",
+    displayName: "Telefon > Aksesuarlar > Araç İçi Telefon Tutucular & MagSafe",
+    paths: ["Telefon", "Telefon Aksesuarları", "Araç Tutucu"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "phone"
+  },
+
+  // --- ELEKTRONİK & TV ---
+  {
+    id: 2000101,
+    name: "LED, QLED & OLED Televizyonlar",
+    displayName: "Elektronik > TV & Görüntü > LED, QLED & OLED TV",
+    paths: ["Elektronik", "TV", "Televizyon"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+  {
+    id: 2000102,
+    name: "Soundbar & Ev Sinema Sistemleri",
+    displayName: "Elektronik > Ses Sistemleri > Soundbar & Ev Sinema",
+    paths: ["Elektronik", "Ses Sistemleri", "Soundbar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+  {
+    id: 2000103,
+    name: "Güvenlik & IP Kameralar",
+    displayName: "Elektronik > Güvenlik Sistemleri > IP Güvenlik Kameraları",
+    paths: ["Elektronik", "Güvenlik", "Kameralar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+  {
+    id: 2000104,
+    name: "TV Askı Aparatları & Kumandalar",
+    displayName: "Elektronik > TV Aksesuarları > Askı Aparatları & Akıllı Kumanda",
+    paths: ["Elektronik", "TV Aksesuar", "Askı Aparatı"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+
+  // --- MODA & TEKSTİL ---
   {
     id: 60003858,
     name: "Kadın Günlük Ayakkabı",
@@ -29,7 +560,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Kadın", "Ayakkabı", "Günlük Ayakkabı"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 60003859,
@@ -38,7 +570,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Erkek", "Ayakkabı", "Günlük Ayakkabı"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 60003857,
@@ -47,7 +580,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Kadın", "Spor Ayakkabı", "Sneaker"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 60003860,
@@ -56,7 +590,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Erkek", "Spor Ayakkabı", "Sneaker"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 12101943,
@@ -65,7 +600,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Kadın", "Dış Giyim", "Mont & Kaban"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 12101944,
@@ -74,7 +610,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Erkek", "Dış Giyim", "Mont & Kaban"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 12101945,
@@ -83,7 +620,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Kadın", "Giyim", "Elbise"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 12101946,
@@ -92,7 +630,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Kadın", "Giyim", "Tişört"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 12101947,
@@ -101,7 +640,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Erkek", "Giyim", "Tişört"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 12101948,
@@ -110,7 +650,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Kadın", "Giyim", "Pantolon"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
   {
     id: 12101949,
@@ -119,8 +660,11 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Giyim / Ayakkabı", "Erkek", "Giyim", "Pantolon"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "fashion"
   },
+
+  // --- EV, YAŞAM & SAĞLIK ---
   {
     id: 26012174,
     name: "Tansiyon Aletleri",
@@ -128,7 +672,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Kozmetik & Kişisel Bakım", "Sağlık & Medikal", "Tansiyon Aletleri"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "home"
   },
   {
     id: 26012175,
@@ -137,7 +682,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Kozmetik & Kişisel Bakım", "Cilt Bakımı", "Yüz Kremleri"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "home"
   },
   {
     id: 26012176,
@@ -146,43 +692,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Kozmetik & Kişisel Bakım", "Parfüm", "Kadın & Erkek"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
-  },
-  {
-    id: 371965,
-    name: "Cep Telefonu Kılıfları",
-    displayName: "Cep Telefonu Kılıfları & Koruyucular",
-    paths: ["Elektronik", "Telefon Aksesuarları", "Kılıflar"],
-    leaf: true,
-    available: true,
-    status: "ACTIVE"
-  },
-  {
-    id: 371966,
-    name: "Şarj Cihazı & Kablolar",
-    displayName: "Şarj Cihazı & Kablolar",
-    paths: ["Elektronik", "Telefon Aksesuarları", "Şarj Aletleri"],
-    leaf: true,
-    available: true,
-    status: "ACTIVE"
-  },
-  {
-    id: 371967,
-    name: "Kulaklık & Ses Sistemleri",
-    displayName: "Kulaklık & Bluetooth Kulaklık",
-    paths: ["Elektronik", "Ses Sistemleri", "Bluetooth Kulaklık"],
-    leaf: true,
-    available: true,
-    status: "ACTIVE"
-  },
-  {
-    id: 371968,
-    name: "Akıllı Saat & Bileklik",
-    displayName: "Akıllı Saat & Bileklik",
-    paths: ["Elektronik", "Giyilebilir Teknoloji", "Akıllı Saat"],
-    leaf: true,
-    available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "home"
   },
   {
     id: 18021948,
@@ -191,7 +702,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Ev & Yaşam", "Banyo & Mutfak", "Batarya & Musluk"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "home"
   },
   {
     id: 18021949,
@@ -200,7 +712,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Ev & Yaşam", "Ev Tekstili", "Nevresim"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "home"
   },
   {
     id: 18021950,
@@ -209,8 +722,11 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Elektrikli Ev Aletleri", "Mutfak Aletleri", "Kahve Makineleri"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "home"
   },
+
+  // --- OTO & YAPI MARKET ---
   {
     id: 2147483647,
     name: "Oto Koltuk Kılıfı & Paspas",
@@ -218,7 +734,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Oto & Motosiklet", "Oto Aksesuar", "Koltuk Kılıfları"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "auto"
   },
   {
     id: 60002524,
@@ -227,7 +744,8 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     paths: ["Hobi & Eğlence", "Hediyelik Eşya", "Konsept"],
     leaf: true,
     available: true,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    sector: "home"
   }
 ];
 
@@ -376,8 +894,17 @@ export function suggestMarketplaceCategory(
     return { bestMatch: null, score: 0 };
   }
 
+  // Handle hierarchical path like "BELLEK&HAFIZA KARTLARI > USB BELLEK"
+  const rawParts = localCategoryName.split('>').map((p) => p.trim()).filter(Boolean);
+  const leafName = rawParts[rawParts.length - 1] || localCategoryName;
+  const parentName = rawParts.length > 1 ? rawParts[0] : '';
+
   const localNorm = normalizeCategoryText(localCategoryName);
+  const leafNorm = normalizeCategoryText(leafName);
+  const parentNorm = parentName ? normalizeCategoryText(parentName) : '';
+
   const localTokens = localNorm.split(" ").filter((t) => t.length > 1 && !["ve", "ile", "de", "da"].includes(t));
+  const leafTokens = leafNorm.split(" ").filter((t) => t.length > 1 && !["ve", "ile", "de", "da"].includes(t));
 
   let bestMatch: MarketplaceCategory | null = null;
   let bestScore = 0;
@@ -386,31 +913,36 @@ export function suggestMarketplaceCategory(
     const catNameNorm = normalizeCategoryText(cat.name || "");
     const fullPathNorm = normalizeCategoryText(`${cat.name} ${(cat.paths || []).join(" ")} ${cat.displayName || ""}`);
 
-    // Exact name match
-    if (catNameNorm === localNorm) {
+    // Exact leaf match (e.g. "USB BELLEK" -> "USB Flash Bellekler" or exact)
+    if (catNameNorm === leafNorm || catNameNorm === localNorm) {
       return { bestMatch: cat, score: 100 };
     }
 
     let score = 0;
 
-    // Substring containment
-    if (catNameNorm.includes(localNorm) || localNorm.includes(catNameNorm)) {
+    // Substring containment for leaf subcategory
+    if (catNameNorm.includes(leafNorm) || leafNorm.includes(catNameNorm)) {
+      score += 70;
+    } else if (catNameNorm.includes(localNorm) || localNorm.includes(catNameNorm)) {
       score += 60;
     }
 
-    // Token matching
-    let matchedTokens = 0;
-    for (const token of localTokens) {
+    // Leaf token matching (higher weight)
+    let matchedLeafTokens = 0;
+    for (const token of leafTokens) {
       if (catNameNorm.includes(token)) {
-        matchedTokens += 2;
+        matchedLeafTokens += 3;
       } else if (fullPathNorm.includes(token)) {
-        matchedTokens += 1;
+        matchedLeafTokens += 1.5;
       }
     }
+    if (leafTokens.length > 0) {
+      score += (matchedLeafTokens / (leafTokens.length * 3)) * 40;
+    }
 
-    if (localTokens.length > 0) {
-      const tokenRatio = (matchedTokens / (localTokens.length * 2)) * 40;
-      score += tokenRatio;
+    // Parent context bonus if parent matches path or category
+    if (parentNorm && (fullPathNorm.includes(parentNorm) || parentNorm.includes(catNameNorm))) {
+      score += 15;
     }
 
     if (score > bestScore) {

@@ -32,7 +32,8 @@ router.get("/", async (req: any, res) => {
         fiscal_brand, fiscal_terminal_id, fiscal_active, default_tax_rate, currency_rates, branding, payment_settings, meta_settings,
         custom_domain, custom_domain_status, page_layout, menu_links, shipping_profiles, emails, phones,
         description, einvoice_settings, footer_links, parent_id, store_type, sub_sector, store_code,
-        hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number, about_text
+        hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number, about_text,
+        hepsiburada_settings, trendyol_settings, amazon_settings, pazarama_settings, n11_settings
       FROM stores 
       WHERE id = $1
     `, [targetStoreId]);
@@ -51,35 +52,64 @@ router.get("/", async (req: any, res) => {
     }
 
     // Parse JSON fields
-    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'payment_settings', 'meta_settings', 'page_layout', 'menu_links', 'currency_rates', 'einvoice_settings'];
+    const jsonFields = [
+      'emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 
+      'payment_settings', 'meta_settings', 'page_layout', 'menu_links', 'currency_rates', 'einvoice_settings',
+      'hepsiburada_settings', 'trendyol_settings', 'amazon_settings', 'pazarama_settings', 'n11_settings'
+    ];
     jsonFields.forEach(field => {
       if (typeof store[field] === 'string') {
         try {
           store[field] = JSON.parse(store[field]);
         } catch (e) {
-          store[field] = field === 'branding' || field === 'payment_settings' || field === 'meta_settings' || field === 'einvoice_settings' || field === 'currency_rates' ? {} : [];
+          store[field] = field === 'branding' || field === 'payment_settings' || field === 'meta_settings' || field === 'einvoice_settings' || field === 'currency_rates' || field.endsWith('_settings') ? {} : [];
         }
       } else if (!store[field]) {
-        store[field] = field === 'branding' || field === 'payment_settings' || field === 'meta_settings' || field === 'einvoice_settings' || field === 'currency_rates' ? {} : [];
+        store[field] = field === 'branding' || field === 'payment_settings' || field === 'meta_settings' || field === 'einvoice_settings' || field === 'currency_rates' || field.endsWith('_settings') ? {} : [];
       }
     });
 
-    // Merge branding onto store top-level
-    if (store.branding && typeof store.branding === 'object') {
-      const psFromCol = store.payment_settings || {};
-      const psFromBr = store.branding.payment_settings || {};
-      const msFromCol = store.meta_settings || {};
-      const msFromBr = store.branding.meta_settings || {};
-      const esFromCol = store.einvoice_settings || {};
-      const esFromBr = store.branding.einvoice_settings || {};
-
-      Object.assign(store, store.branding);
-      store.payment_settings = { ...psFromCol, ...psFromBr };
-      store.meta_settings = { ...msFromCol, ...msFromBr };
-      store.einvoice_settings = { ...esFromCol, ...esFromBr };
-      store.branding.meta_settings = store.meta_settings;
-      store.branding.einvoice_settings = store.einvoice_settings;
+    // Merge branding onto store top-level and sync marketplace settings
+    if (!store.branding || typeof store.branding !== 'object') {
+      store.branding = {};
     }
+
+    const psFromCol = store.payment_settings || {};
+    const psFromBr = store.branding.payment_settings || {};
+    const msFromCol = store.meta_settings || {};
+    const msFromBr = store.branding.meta_settings || {};
+    const esFromCol = store.einvoice_settings || {};
+    const esFromBr = store.branding.einvoice_settings || {};
+
+    const hbFromCol = store.hepsiburada_settings || {};
+    const hbFromBr = store.branding.hepsiburada_settings || {};
+    const tyFromCol = store.trendyol_settings || {};
+    const tyFromBr = store.branding.trendyol_settings || {};
+    const amzFromCol = store.amazon_settings || {};
+    const amzFromBr = store.branding.amazon_settings || {};
+    const pzFromCol = store.pazarama_settings || {};
+    const pzFromBr = store.branding.pazarama_settings || {};
+    const n11FromCol = store.n11_settings || {};
+    const n11FromBr = store.branding.n11_settings || {};
+
+    Object.assign(store, store.branding);
+    store.payment_settings = { ...psFromCol, ...psFromBr };
+    store.meta_settings = { ...msFromCol, ...msFromBr };
+    store.einvoice_settings = { ...esFromCol, ...esFromBr };
+
+    store.hepsiburada_settings = { ...hbFromBr, ...hbFromCol };
+    store.trendyol_settings = { ...tyFromBr, ...tyFromCol };
+    store.amazon_settings = { ...amzFromBr, ...amzFromCol };
+    store.pazarama_settings = { ...pzFromBr, ...pzFromCol };
+    store.n11_settings = { ...n11FromBr, ...n11FromCol };
+
+    store.branding.meta_settings = store.meta_settings;
+    store.branding.einvoice_settings = store.einvoice_settings;
+    store.branding.hepsiburada_settings = store.hepsiburada_settings;
+    store.branding.trendyol_settings = store.trendyol_settings;
+    store.branding.amazon_settings = store.amazon_settings;
+    store.branding.pazarama_settings = store.pazarama_settings;
+    store.branding.n11_settings = store.n11_settings;
 
     // Fetch branches if this is a main store
     if (!store.parent_id) {

@@ -31,8 +31,16 @@ export const MarketplaceProductFields = ({
     }
   }, [product?.id]);
 
-  // Check store-level category mapping
-  const storeMappedCatId = product?.category && storeSettings?.categoryMappings?.[product.category];
+  // Check store-level category mapping (checks hierarchical sub-category first, then sub_category, then main category)
+  const catKey = product?.category ? String(product.category).trim() : "";
+  const subCatKey = product?.sub_category ? String(product.sub_category).trim() : "";
+  const hierarchicalKey = catKey && subCatKey ? `${catKey} > ${subCatKey}` : "";
+  
+  const storeMappedCatId = 
+    (hierarchicalKey && storeSettings?.categoryMappings?.[hierarchicalKey]) ||
+    (subCatKey && storeSettings?.categoryMappings?.[subCatKey]) ||
+    (catKey && storeSettings?.categoryMappings?.[catKey]) ||
+    "";
   const effectiveCatId = marketData.categoryId || storeMappedCatId || "";
 
   const activeCategory = categories.find(

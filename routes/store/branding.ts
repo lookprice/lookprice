@@ -21,7 +21,8 @@ router.post("/", async (req: any, res) => {
         name, logo_url, favicon_url, primary_color, background_image_url, about_text, description,
         phone, address, email, page_layout, menu_links, footer_links, store_type, sub_sector,
         hero_title, hero_subtitle, hero_image_url, instagram_url, facebook_url, twitter_url, whatsapp_number,
-        branding, payment_settings, meta_settings, einvoice_settings
+        branding, payment_settings, meta_settings, einvoice_settings,
+        hepsiburada_settings, trendyol_settings, amazon_settings, pazarama_settings, n11_settings
       FROM stores 
       WHERE id = $1
     `, [targetStoreId]);
@@ -51,11 +52,39 @@ router.post("/", async (req: any, res) => {
       try { existingEinvoiceSettings = JSON.parse(existingEinvoiceSettings); } catch (e) { existingEinvoiceSettings = {}; }
     }
 
+    // Existing marketplace settings from columns or branding
+    const existingHb = (typeof existingStore.hepsiburada_settings === 'object' && existingStore.hepsiburada_settings) || existingBranding.hepsiburada_settings || {};
+    const existingTy = (typeof existingStore.trendyol_settings === 'object' && existingStore.trendyol_settings) || existingBranding.trendyol_settings || {};
+    const existingAmz = (typeof existingStore.amazon_settings === 'object' && existingStore.amazon_settings) || existingBranding.amazon_settings || {};
+    const existingPz = (typeof existingStore.pazarama_settings === 'object' && existingStore.pazarama_settings) || existingBranding.pazarama_settings || {};
+    const existingN11 = (typeof existingStore.n11_settings === 'object' && existingStore.n11_settings) || existingBranding.n11_settings || {};
+
     // Clean base64 data in incoming body
     const cleanedBody = await cleanDeepBase64(req.body, `store_${targetStoreId}_branding`);
 
     // Merge incoming cleaned body with existing branding
     const updatedBranding = await cleanDeepBase64({ ...existingBranding, ...cleanedBody }, `store_${targetStoreId}_branding`);
+
+    // Helper to safely merge marketplace settings without wiping out existing credentials
+    const mergeMarketplaceSettings = (existing: any, incoming: any) => {
+      if (!incoming || typeof incoming !== 'object' || Object.keys(incoming).length === 0) {
+        return existing || {};
+      }
+      return { ...(existing || {}), ...incoming };
+    };
+
+    // Ensure marketplace settings are preserved and synchronized
+    const mergedHb = mergeMarketplaceSettings(existingHb, cleanedBody.hepsiburada_settings || updatedBranding.hepsiburada_settings);
+    const mergedTy = mergeMarketplaceSettings(existingTy, cleanedBody.trendyol_settings || updatedBranding.trendyol_settings);
+    const mergedAmz = mergeMarketplaceSettings(existingAmz, cleanedBody.amazon_settings || updatedBranding.amazon_settings);
+    const mergedPz = mergeMarketplaceSettings(existingPz, cleanedBody.pazarama_settings || updatedBranding.pazarama_settings);
+    const mergedN11 = mergeMarketplaceSettings(existingN11, cleanedBody.n11_settings || updatedBranding.n11_settings);
+
+    updatedBranding.hepsiburada_settings = mergedHb;
+    updatedBranding.trendyol_settings = mergedTy;
+    updatedBranding.amazon_settings = mergedAmz;
+    updatedBranding.pazarama_settings = mergedPz;
+    updatedBranding.n11_settings = mergedN11;
 
     // Ensure payment_settings are merged and kept consistent across branding and payment_settings column
     const mergedPaymentSettings = { ...existingPaymentSettings, ...(existingBranding.payment_settings || {}), ...(updatedBranding.payment_settings || {}) };
@@ -125,7 +154,12 @@ router.post("/", async (req: any, res) => {
         branding = $23,
         payment_settings = $25,
         meta_settings = $26,
-        einvoice_settings = $27
+        einvoice_settings = $27,
+        hepsiburada_settings = $28,
+        trendyol_settings = $29,
+        amazon_settings = $30,
+        pazarama_settings = $31,
+        n11_settings = $32
       WHERE id = $24
     `, [
       name,
@@ -154,7 +188,12 @@ router.post("/", async (req: any, res) => {
       targetStoreId,
       JSON.stringify(mergedPaymentSettings),
       JSON.stringify(mergedMetaSettings),
-      JSON.stringify(mergedEinvoiceSettings)
+      JSON.stringify(mergedEinvoiceSettings),
+      JSON.stringify(mergedHb),
+      JSON.stringify(mergedTy),
+      JSON.stringify(mergedAmz),
+      JSON.stringify(mergedPz),
+      JSON.stringify(mergedN11)
     ]);
 
     // Audit Log: Record that a user updated store settings/API keys

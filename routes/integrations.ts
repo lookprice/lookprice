@@ -47,8 +47,12 @@ router.post("/amazon/settings", authenticate, async (req: any, res) => {
   const { clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryAttributes } = req.body;
 
   try {
-    const storeRes = await pool.query("SELECT amazon_settings FROM stores WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
     const prev = storeRes.rows[0]?.amazon_settings || {};
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') {
+      try { br = JSON.parse(br); } catch (e) { br = {}; }
+    }
     const settings = {
       ...prev,
       connected: !!(clientId && clientSecret && refreshToken && sellerId),
@@ -62,7 +66,8 @@ router.post("/amazon/settings", authenticate, async (req: any, res) => {
       last_sync: prev.last_sync || null
     };
 
-    await pool.query("UPDATE stores SET amazon_settings = $1 WHERE id = $2", [settings, storeId]);
+    br.amazon_settings = settings;
+    await pool.query("UPDATE stores SET amazon_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -293,8 +298,14 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
 router.get("/amazon/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
-    const result = await pool.query("SELECT amazon_settings FROM stores WHERE id = $1", [storeId]);
-    res.json(result.rows[0]?.amazon_settings || {});
+    const result = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = result.rows[0];
+    let amz = row?.amazon_settings || {};
+    if (typeof amz === 'string') { try { amz = JSON.parse(amz); } catch(e) { amz = {}; } }
+    let br = row?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch(e) { br = {}; } }
+    const amzBr = br.amazon_settings || {};
+    res.json({ ...amzBr, ...amz });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -304,7 +315,11 @@ router.get("/amazon/settings", authenticate, async (req: any, res) => {
 router.post("/amazon/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
-    await pool.query("UPDATE stores SET amazon_settings = '{}' WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
+    delete br.amazon_settings;
+    await pool.query("UPDATE stores SET amazon_settings = '{}', branding = $1 WHERE id = $2", [br, storeId]);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -319,6 +334,9 @@ router.post("/n11/settings", authenticate, async (req: any, res) => {
   const { appKey, appSecret } = req.body;
 
   try {
+    const storeRes = await pool.query("SELECT n11_settings, branding FROM stores WHERE id = $1", [storeId]);
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
     const settings = {
       connected: !!(appKey && appSecret),
       appKey,
@@ -326,7 +344,8 @@ router.post("/n11/settings", authenticate, async (req: any, res) => {
       last_sync: null
     };
 
-    await pool.query("UPDATE stores SET n11_settings = $1 WHERE id = $2", [settings, storeId]);
+    br.n11_settings = settings;
+    await pool.query("UPDATE stores SET n11_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -337,8 +356,14 @@ router.post("/n11/settings", authenticate, async (req: any, res) => {
 router.get("/n11/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
-    const result = await pool.query("SELECT n11_settings FROM stores WHERE id = $1", [storeId]);
-    res.json(result.rows[0]?.n11_settings || {});
+    const result = await pool.query("SELECT n11_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = result.rows[0];
+    let n11 = row?.n11_settings || {};
+    if (typeof n11 === 'string') { try { n11 = JSON.parse(n11); } catch(e) { n11 = {}; } }
+    let br = row?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch(e) { br = {}; } }
+    const n11Br = br.n11_settings || {};
+    res.json({ ...n11Br, ...n11 });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -534,7 +559,11 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
 router.post("/n11/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
-    await pool.query("UPDATE stores SET n11_settings = '{}' WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
+    delete br.n11_settings;
+    await pool.query("UPDATE stores SET n11_settings = '{}', branding = $1 WHERE id = $2", [br, storeId]);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -562,8 +591,10 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
   } = req.body;
 
   try {
-    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
     const prev = storeRes.rows[0]?.hepsiburada_settings || {};
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
 
     const finalApiKey = (apiKey !== undefined ? apiKey?.trim() : prev.apiKey) || "lookprice_dev";
     const finalApiSecret = apiSecret !== undefined ? apiSecret?.trim() : (prev.apiSecret || "");
@@ -586,7 +617,8 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
       categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {})
     };
 
-    await pool.query("UPDATE stores SET hepsiburada_settings = $1 WHERE id = $2", [settings, storeId]);
+    br.hepsiburada_settings = settings;
+    await pool.query("UPDATE stores SET hepsiburada_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -597,8 +629,14 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
 router.get("/hepsiburada/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
-    const result = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
-    res.json(result.rows[0]?.hepsiburada_settings || {});
+    const result = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = result.rows[0];
+    let hb = row?.hepsiburada_settings || {};
+    if (typeof hb === 'string') { try { hb = JSON.parse(hb); } catch(e) { hb = {}; } }
+    let br = row?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch(e) { br = {}; } }
+    const hbBr = br.hepsiburada_settings || {};
+    res.json({ ...hbBr, ...hb });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -817,7 +855,11 @@ router.post("/hepsiburada/orders/:orderId/invoice", authenticate, async (req: an
 router.post("/hepsiburada/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
-    await pool.query("UPDATE stores SET hepsiburada_settings = '{}' WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
+    delete br.hepsiburada_settings;
+    await pool.query("UPDATE stores SET hepsiburada_settings = '{}', branding = $1 WHERE id = $2", [br, storeId]);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -994,8 +1036,10 @@ router.post("/trendyol/settings", authenticate, async (req: any, res) => {
   const { apiKey, apiSecret, merchantId, categoryMappings, categoryAttributes } = req.body;
 
   try {
-    const storeRes = await pool.query("SELECT trendyol_settings FROM stores WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
     const prev = storeRes.rows[0]?.trendyol_settings || {};
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
 
     const settings = {
       ...prev,
@@ -1008,7 +1052,8 @@ router.post("/trendyol/settings", authenticate, async (req: any, res) => {
       last_sync: prev.last_sync || null
     };
 
-    await pool.query("UPDATE stores SET trendyol_settings = $1 WHERE id = $2", [settings, storeId]);
+    br.trendyol_settings = settings;
+    await pool.query("UPDATE stores SET trendyol_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -1029,8 +1074,14 @@ router.get("/trendyol/categories/:categoryId/attributes", authenticate, async (r
 router.get("/trendyol/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
-    const result = await pool.query("SELECT trendyol_settings FROM stores WHERE id = $1", [storeId]);
-    res.json(result.rows[0]?.trendyol_settings || {});
+    const result = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = result.rows[0];
+    let ty = row?.trendyol_settings || {};
+    if (typeof ty === 'string') { try { ty = JSON.parse(ty); } catch(e) { ty = {}; } }
+    let br = row?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch(e) { br = {}; } }
+    const tyBr = br.trendyol_settings || {};
+    res.json({ ...tyBr, ...ty });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -1152,7 +1203,11 @@ router.post("/trendyol/test", authenticate, async (req: any, res) => {
 router.post("/trendyol/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
-    await pool.query("UPDATE stores SET trendyol_settings = '{}' WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
+    delete br.trendyol_settings;
+    await pool.query("UPDATE stores SET trendyol_settings = '{}', branding = $1 WHERE id = $2", [br, storeId]);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -1240,8 +1295,10 @@ router.post("/pazarama/settings", authenticate, async (req: any, res) => {
   const { apiKey, apiSecret, merchantId, commissionRate, categoryMappings, brandMappings } = req.body;
 
   try {
-    const prevRes = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
+    const prevRes = await pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId]);
     const prevSettings = prevRes.rows[0]?.pazarama_settings || {};
+    let br = prevRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
 
     const settings = {
       ...prevSettings,
@@ -1254,7 +1311,8 @@ router.post("/pazarama/settings", authenticate, async (req: any, res) => {
       brandMappings: brandMappings || prevSettings.brandMappings || {}
     };
 
-    await pool.query("UPDATE stores SET pazarama_settings = $1 WHERE id = $2", [settings, storeId]);
+    br.pazarama_settings = settings;
+    await pool.query("UPDATE stores SET pazarama_settings = $1, branding = $2 WHERE id = $3", [settings, br, storeId]);
     res.json({ success: true, settings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -1265,8 +1323,14 @@ router.post("/pazarama/settings", authenticate, async (req: any, res) => {
 router.get("/pazarama/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
   try {
-    const result = await pool.query("SELECT pazarama_settings FROM stores WHERE id = $1", [storeId]);
-    res.json(result.rows[0]?.pazarama_settings || {});
+    const result = await pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId]);
+    const row = result.rows[0];
+    let pz = row?.pazarama_settings || {};
+    if (typeof pz === 'string') { try { pz = JSON.parse(pz); } catch(e) { pz = {}; } }
+    let br = row?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch(e) { br = {}; } }
+    const pzBr = br.pazarama_settings || {};
+    res.json({ ...pzBr, ...pz });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -1398,7 +1462,11 @@ router.post("/pazarama/test", authenticate, async (req: any, res) => {
 router.post("/pazarama/disconnect", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
-    await pool.query("UPDATE stores SET pazarama_settings = '{}' WHERE id = $1", [storeId]);
+    const storeRes = await pool.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+    let br = storeRes.rows[0]?.branding || {};
+    if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
+    delete br.pazarama_settings;
+    await pool.query("UPDATE stores SET pazarama_settings = '{}', branding = $1 WHERE id = $2", [br, storeId]);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
