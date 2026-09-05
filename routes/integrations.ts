@@ -718,11 +718,14 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
 
     const hbService = new HepsiburadaService(settings, storeId);
+    const rawPrice = parseFloat(p.price || "0");
+    const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+
     const result = await hbService.updatePriceAndStock([
       {
         HepsiburadaSku: p.hepsiburada_sku || "",
         MerchantSku: p.barcode,
-        Price: parseFloat(p.price || "0"),
+        Price: effectivePrice,
         AvailableStock: parseInt(p.stock_quantity || "0", 10),
         DispatchTime: settings.defaultDispatchTime || 1,
       }
@@ -791,12 +794,18 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
         console.warn("[Hepsiburada Attributes] Live API fetch failed, falling back to verified attributes:", hbErr);
       }
     }
-    const { getAttributesForCategory } = await import("../src/data/marketplaceCategoriesData");
-    res.json({ success: true, attributes: getAttributesForCategory(String(categoryId)), source: "verified_catalog" });
+    const { getAttributesForCategory, HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
+    const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId));
+    const catName = matchedCat?.name || String(categoryId);
+    const catPaths = matchedCat?.paths || [];
+    res.json({ success: true, attributes: getAttributesForCategory(catName, catPaths), source: "verified_catalog" });
   } catch (error: any) {
     try {
-      const { getAttributesForCategory } = await import("../src/data/marketplaceCategoriesData");
-      res.json({ success: true, attributes: getAttributesForCategory(String(categoryId)), source: "verified_catalog" });
+      const { getAttributesForCategory, HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
+      const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId));
+      const catName = matchedCat?.name || String(categoryId);
+      const catPaths = matchedCat?.paths || [];
+      res.json({ success: true, attributes: getAttributesForCategory(catName, catPaths), source: "verified_catalog" });
     } catch (e: any) {
       res.status(500).json({ error: error.message });
     }

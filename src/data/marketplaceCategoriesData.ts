@@ -791,44 +791,206 @@ export const PAZARAMA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   { id: 107, name: "Spor & Outdoor", displayName: "Spor & Outdoor > Fitness & Kamp", paths: ["Spor Outdoor"] }
 ];
 
-// Common Category Attribute Definitions (by sector keywords)
+// Country list for Origin / Menşei
+export const MARKETPLACE_ORIGIN_COUNTRIES = [
+  "Çin",
+  "Türkiye",
+  "Almanya",
+  "ABD",
+  "Japonya",
+  "Güney Kore",
+  "Vietnam",
+  "Tayvan",
+  "İtalya",
+  "Fransa",
+  "İngiltere",
+  "Diğer"
+];
+
+// Common Category Attribute Definitions (by sector & product category keywords)
 export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[]> = {
+  usb_storage: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ürün markası veya üretici", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "Kapasite", name: "Kapasite / Hafıza", description: "Depolama kapasitesi", mandatory: true, type: "select", values: ["8 GB", "16 GB", "32 GB", "64 GB", "128 GB", "256 GB", "512 GB", "1 TB", "2 TB"], defaultValue: "64 GB" },
+    { id: "UsbVersiyonu", name: "USB Versiyonu / Bağlantı", description: "Arayüz standardı", mandatory: true, type: "select", values: ["USB 3.2 Gen 1", "USB 3.1", "USB 3.0", "USB 2.0", "Type-C", "Lightning / OTG"], defaultValue: "USB 3.0" },
+    { id: "Mensei", name: "Menşei Ülke (Origin Country)", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Yasal garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36", "60"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  memory_cards: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "Kapasite", name: "Kapasite", description: "Kart depolama boyutu", mandatory: true, type: "select", values: ["16 GB", "32 GB", "64 GB", "128 GB", "256 GB", "512 GB", "1 TB"], defaultValue: "64 GB" },
+    { id: "KartTipi", name: "Kart / Okuyucu Tipi", description: "Hafıza kartı veya okuyucu formatı", mandatory: true, type: "select", values: ["MicroSDXC", "MicroSDHC", "SDHC / SDXC", "CompactFlash", "Type-C Çoklu Okuyucu", "USB 3.0 Okuyucu"], defaultValue: "MicroSDXC" },
+    { id: "HizSinifi", name: "Hız Sınıfı", description: "Okuma/Yazma hız standardı", mandatory: false, type: "select", values: ["UHS-I U3 (V30)", "UHS-I U1 (Class 10)", "Class 10", "A1 / A2"], defaultValue: "UHS-I U3 (V30)" },
+    { id: "Mensei", name: "Menşei Ülke (Origin Country)", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36", "60"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  ssd_hardware: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "Kapasite", name: "Disk Kapasitesi", description: "SSD / Sabit Disk boyutu", mandatory: true, type: "select", values: ["120 GB", "240 GB", "250 GB", "480 GB", "500 GB", "512 GB", "1 TB", "2 TB", "4 TB"], defaultValue: "500 GB" },
+    { id: "FormFaktoru", name: "Form Faktörü / Arayüz", description: "Bağlantı arayüzü", mandatory: true, type: "select", values: ["M.2 NVMe (PCIe 4.0)", "M.2 NVMe (PCIe 3.0)", "2.5 inç SATA 3", "Harici Taşınabilir Type-C"], defaultValue: "M.2 NVMe (PCIe 4.0)" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36", "60"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  phone_accessories: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "UyumluMarka", name: "Uyumlu Telefon Markası", description: "Aksesuarın uyumlu olduğu telefon markası", mandatory: true, type: "select", values: ["Apple iPhone", "Samsung", "Xiaomi", "Huawei", "Oppo", "Evrensel (Tüm Markalar)"], defaultValue: "Apple iPhone" },
+    { id: "UyumluModel", name: "Uyumlu Model", description: "Uyumlu telefon model adı (Örn: iPhone 15 Pro, S24)", mandatory: false, type: "text", placeholder: "Örn: iPhone 15 Pro / Galaxy S24" },
+    { id: "BaglantiTipi", name: "Bağlantı / Şarj Tipi", description: "Kablo / adaptör çıkışı", mandatory: false, type: "select", values: ["Type-C", "Lightning", "Micro USB", "Kablosuz (MagSafe / Qi)", "Yok"], defaultValue: "Type-C" },
+    { id: "GucWatt", name: "Güç Çıkışı (Watt)", description: "Şarj adaptörü veya kablo kapasitesi", mandatory: false, type: "select", values: ["20W", "25W", "30W", "45W", "65W", "100W", "Yok"], defaultValue: "20W" },
+    { id: "Renk", name: "Renk (Color)", description: "Ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Şeffaf", "Mavi", "Mor", "Yeşil", "Gri", "Gümüş", "Gold", "Pembe"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  audio_headphone: [
+    { id: "Marka", name: "Marka (Brand)", description: "Kulaklık markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "KulaklikTipi", name: "Kulaklık Türü", description: "Form faktörü", mandatory: true, type: "select", values: ["TWS Tam Kablosuz Kulakiçi", "Kulaküstü Bluetooth (ANC)", "Kablolu Kulakiçi", "Gaming Oyuncu Kulaklığı"], defaultValue: "TWS Tam Kablosuz Kulakiçi" },
+    { id: "BluetoothSurumu", name: "Bluetooth Versiyonu", description: "Kablosuz bağlantı sürümü", mandatory: false, type: "select", values: ["Bluetooth 5.4", "Bluetooth 5.3", "Bluetooth 5.2", "Bluetooth 5.0", "Kablolu"], defaultValue: "Bluetooth 5.3" },
+    { id: "GurultuEngelleme", name: "Aktif Gürültü Engelleme (ANC)", description: "ANC özelliği", mandatory: false, type: "select", values: ["Var (ANC)", "Yok / Pasif Yalıtım"], defaultValue: "Yok / Pasif Yalıtım" },
+    { id: "Renk", name: "Renk", description: "Kulaklık rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Gri", "Mavi", "Bej", "Pembe"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  smartwatch: [
+    { id: "Marka", name: "Marka (Brand)", description: "Akıllı saat markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "EkranBoyutu", name: "Ekran Boyutu / Tipi", description: "Ekran özellikleri", mandatory: false, type: "select", values: ["1.96 inç AMOLED", "1.75 inç AMOLED", "1.69 inç IPS", "1.4 inç Yuvarlak", "1.83 inç HD"], defaultValue: "1.96 inç AMOLED" },
+    { id: "UyumluSistem", name: "Uyumlu İşletim Sistemi", description: "Bağlantı desteği", mandatory: true, type: "select", values: ["Android & iOS (Evrensel)", "Yalnızca iOS (Apple)", "Yalnızca Android"], defaultValue: "Android & iOS (Evrensel)" },
+    { id: "KordonRengi", name: "Kordon / Kasa Rengi", description: "Renk", mandatory: true, type: "select", values: ["Siyah", "Gümüş", "Gri", "Turuncu", "Lacivert", "Gold", "Pembe"], defaultValue: "Siyah" },
+    { id: "SuGecirmezlik", name: "Suya Dayanıklılık", description: "Su koruma sertifikası", mandatory: false, type: "select", values: ["IP68", "IP67", "5 ATM", "Suya Dayanıklı Değil"], defaultValue: "IP68" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
   apparel: [
-    { id: "Marka", name: "Marka (Brand)", description: "Ürünün tescilli markası veya üretici", mandatory: true, type: "text", defaultValue: "Mağaza Markası" },
-    { id: "Beden", name: "Beden / Numara (Size)", description: "Kıyafet veya ayakkabı bedeni", mandatory: true, type: "select", values: ["XS", "S", "M", "L", "XL", "2XL", "3XL", "Standart", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"] },
-    { id: "Renk", name: "Renk (Color)", description: "Ana ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Gri", "Lacivert", "Mavi", "Kırmızı", "Yeşil", "Sarı", "Bej", "Kahverengi", "Çok Renkli"] },
+    { id: "Marka", name: "Marka (Brand)", description: "Ürünün tescilli markası veya üretici", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "Beden", name: "Beden / Numara (Size)", description: "Kıyafet veya ayakkabı bedeni", mandatory: true, type: "select", values: ["XS", "S", "M", "L", "XL", "2XL", "3XL", "Standart", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"], defaultValue: "M" },
+    { id: "Renk", name: "Renk (Color)", description: "Ana ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Gri", "Lacivert", "Mavi", "Kırmızı", "Yeşil", "Sarı", "Bej", "Kahverengi", "Çok Renkli"], defaultValue: "Siyah" },
     { id: "Cinsiyet", name: "Cinsiyet (Gender)", description: "Hedef kitle cinsiyeti", mandatory: true, type: "select", values: ["Erkek", "Kadın", "Unisex", "Kız Çocuk", "Erkek Çocuk", "Bebek"], defaultValue: "Unisex" },
-    { id: "Materyal", name: "Materyal / Kumaş (Material)", description: "Kumaş veya malzeme türü", mandatory: false, type: "text", defaultValue: "Pamuk" },
-    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Tüketici garanti süresi", mandatory: true, type: "select", values: ["6", "12", "24", "36", "60"], defaultValue: "24" },
-    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" },
-    { id: "Mensei", name: "Menşei (Origin Country)", description: "Üretim ülkesi", mandatory: false, type: "text", defaultValue: "Türkiye" }
+    { id: "Materyal", name: "Materyal / Kumaş (Material)", description: "Kumaş veya malzeme türü", mandatory: false, type: "select", values: ["%100 Pamuk", "Pamuk & Polyester", "Keten", "Kot / Denim", "Deri / Suni Deri", "Polyester", "Triko / Yün"], defaultValue: "%100 Pamuk" },
+    { id: "Mensei", name: "Menşei (Origin Country)", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Tüketici garanti süresi", mandatory: true, type: "select", values: ["6", "12", "24"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "10" }
   ],
   electronics: [
-    { id: "Marka", name: "Marka (Brand)", description: "Ürünün üretici markası", mandatory: true, type: "text" },
-    { id: "Model", name: "Model Kodu", description: "Cihaz veya parça model adı", mandatory: false, type: "text" },
-    { id: "Renk", name: "Renk (Color)", description: "Cihaz veya kılıf rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Gümüş", "Uzay Grisi", "Mavi", "Kırmızı", "Şeffaf"] },
+    { id: "Marka", name: "Marka (Brand)", description: "Ürünün üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "Model", name: "Model Kodu", description: "Cihaz veya parça model adı", mandatory: false, type: "text", defaultValue: "$product.model" },
+    { id: "Renk", name: "Renk (Color)", description: "Cihaz veya kılıf rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Gümüş", "Uzay Grisi", "Mavi", "Kırmızı", "Şeffaf"], defaultValue: "Siyah" },
     { id: "UyumluMarka", name: "Uyumlu Cihaz / Marka", description: "Aksesuarın uyumlu olduğu telefon/cihaz", mandatory: false, type: "text", defaultValue: "Evrensel" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Yasal garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36", "60"], defaultValue: "24" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
   ],
   cosmetics: [
-    { id: "Marka", name: "Marka (Brand)", description: "Kozmetik markası", mandatory: true, type: "text" },
+    { id: "Marka", name: "Marka (Brand)", description: "Kozmetik markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
     { id: "Hacim", name: "Hacim / Gramaj", description: "Ürün net ağırlığı veya hacmi (ml, gr)", mandatory: true, type: "text", defaultValue: "100 ml" },
     { id: "CiltTipi", name: "Cilt Tipi", description: "Uyumlu cilt türü", mandatory: false, type: "select", values: ["Tüm Cilt Tipleri", "Kuru", "Yağlı", "Karma", "Hassas"], defaultValue: "Tüm Cilt Tipleri" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti veya raf ömrü", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["10", "20"], defaultValue: "20" }
   ],
+  auto: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "UyumluAracMarkasi", name: "Uyumlu Araç Markası", description: "Uyumlu araç markası veya Evrensel", mandatory: true, type: "select", values: ["Evrensel (Tüm Araçlar)", "Volkswagen", "Ford", "Renault", "Fiat", "Toyota", "BMW", "Mercedes-Benz", "Hyundai", "Honda", "Peugeot", "Diğer"], defaultValue: "Evrensel (Tüm Araçlar)" },
+    { id: "UrunTipi", name: "Ürün Tipi / Kategorisi", description: "Aksesuar türü", mandatory: false, type: "select", values: ["Telefon Tutucu / Şarj", "Oto Paspas", "Koltuk Kılıfı & Minder", "FM Transmitter & Bluetooth", "Araç İçi Kamera", "Bakım & Temizlik", "Aydınlatma / LED"], defaultValue: "Telefon Tutucu / Şarj" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  home_kitchen: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "GucWatt", name: "Güç (Watt)", description: "Elektrikli cihaz güç tüketimi", mandatory: false, type: "text", placeholder: "Örn: 1500W" },
+    { id: "Materyal", name: "Materyal / Malzeme", description: "Gövde ve parça materyali", mandatory: false, type: "select", values: ["Paslanmaz Çelik", "Plastik", "Cam", "Döküm / Granit", "Seramik", "Ahşap / Bambu"], defaultValue: "Paslanmaz Çelik" },
+    { id: "Renk", name: "Renk", description: "Ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Inox / Gri", "Kırmızı", "Rose Gold", "Antrasit"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
   general: [
-    { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "Genel" },
+    { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "Mensei", name: "Menşei Ülke (Origin Country)", description: "Üretim yeri", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi (Ay cinsinden)", mandatory: true, type: "select", values: ["6", "12", "24", "36"], defaultValue: "24" },
-    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Vergi Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" },
-    { id: "Mensei", name: "Menşei Ülke", description: "Üretim yeri", mandatory: false, type: "text", defaultValue: "Türkiye" }
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Vergi Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
   ]
 };
 
 // Returns relevant attributes based on category name or category path
 export function getAttributesForCategory(catName: string, paths: string[] = []): MarketplaceAttribute[] {
   const text = `${catName} ${paths.join(" ")}`.toLowerCase();
+
+  // 1. USB Flash Bellek & Veri Depolama
+  if (
+    text.includes("usb") ||
+    text.includes("flash bellek") ||
+    text.includes("flash drive") ||
+    text.includes("bellekler")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.usb_storage;
+  }
+
+  // 2. Kart Okuyucu & Hafıza Kartları
+  if (
+    text.includes("kart okuyucu") ||
+    text.includes("hafıza kart") ||
+    text.includes("microsd") ||
+    text.includes("sd kart")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.memory_cards;
+  }
+
+  // 3. SSD & Sabit Disk & PC Donanım
+  if (
+    text.includes("ssd") ||
+    text.includes("harddisk") ||
+    text.includes("sabit disk") ||
+    text.includes("m.2") ||
+    text.includes("nvme") ||
+    text.includes("ram") ||
+    text.includes("anakart") ||
+    text.includes("işlemci") ||
+    text.includes("ekran kartı")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware;
+  }
+
+  // 4. Telefon Aksesuar / Kılıf / Şarj
+  if (
+    text.includes("telefon") ||
+    text.includes("kılıf") ||
+    text.includes("şarj") ||
+    text.includes("powerbank") ||
+    text.includes("kablo") ||
+    text.includes("ekran koruyucu")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories;
+  }
+
+  // 5. Kulaklık & Ses
+  if (
+    text.includes("kulaklık") ||
+    text.includes("headphone") ||
+    text.includes("earphone") ||
+    text.includes("tws") ||
+    text.includes("soundbar") ||
+    text.includes("hoparlör")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone;
+  }
+
+  // 6. Akıllı Saat & Bileklik
+  if (
+    text.includes("akıllı saat") ||
+    text.includes("smart watch") ||
+    text.includes("bileklik") ||
+    text.includes("smartband")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.smartwatch;
+  }
+
+  // 7. Giyim & Ayakkabı
   if (
     text.includes("ayakkabı") ||
     text.includes("giyim") ||
@@ -843,17 +1005,29 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
   ) {
     return COMMON_MARKETPLACE_ATTRIBUTES.apparel;
   }
+
+  // 8. Oto Aksesuar
   if (
-    text.includes("elektronik") ||
-    text.includes("telefon") ||
-    text.includes("kulaklık") ||
-    text.includes("şarj") ||
-    text.includes("kılıf") ||
-    text.includes("saat") ||
-    text.includes("electronics")
+    text.includes("oto") ||
+    text.includes("araba") ||
+    text.includes("motosiklet") ||
+    text.includes("automotive")
   ) {
-    return COMMON_MARKETPLACE_ATTRIBUTES.electronics;
+    return COMMON_MARKETPLACE_ATTRIBUTES.auto;
   }
+
+  // 9. Ev & Mutfak
+  if (
+    text.includes("mutfak") ||
+    text.includes("kahve") ||
+    text.includes("süpürge") ||
+    text.includes("tencere") ||
+    text.includes("küçük ev aletleri")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.home_kitchen;
+  }
+
+  // 10. Kozmetik
   if (
     text.includes("kozmetik") ||
     text.includes("parfüm") ||
@@ -864,6 +1038,20 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
   ) {
     return COMMON_MARKETPLACE_ATTRIBUTES.cosmetics;
   }
+
+  // 11. Genel Elektronik
+  if (
+    text.includes("elektronik") ||
+    text.includes("tv") ||
+    text.includes("televizyon") ||
+    text.includes("monitör") ||
+    text.includes("klavye") ||
+    text.includes("mouse") ||
+    text.includes("electronics")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.electronics;
+  }
+
   return COMMON_MARKETPLACE_ATTRIBUTES.general;
 }
 

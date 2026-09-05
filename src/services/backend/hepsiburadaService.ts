@@ -466,6 +466,62 @@ export class HepsiburadaService {
   }
 
   /**
+   * Calculate effective Hepsiburada price using the net margin protection formula:
+   * P_HB = (P_Web + FixedFee) / (1 - (CommissionRate / 100))
+   */
+  calculateMarketplacePrice(webPrice: number, category?: string, subCategory?: string): number {
+    const rawPrice = Number(webPrice) || 0;
+    if (rawPrice <= 0) return 0;
+
+    const settings: any = this.config || {};
+    const categoryMarkups = settings.categoryMarkups || {};
+
+    let commissionRate = settings.defaultCommissionRate !== undefined && settings.defaultCommissionRate !== null
+      ? Number(settings.defaultCommissionRate) 
+      : 0;
+    let fixedFee = settings.defaultFixedFee !== undefined && settings.defaultFixedFee !== null 
+      ? Number(settings.defaultFixedFee) 
+      : 0;
+
+    // Check specific subcategory first, then main category
+    const cat1 = category ? String(category).trim() : '';
+    const sub1 = subCategory ? String(subCategory).trim() : '';
+    const subKey = cat1 && sub1 ? `${cat1} > ${sub1}` : '';
+
+    if (subKey && categoryMarkups[subKey]) {
+      const cm = categoryMarkups[subKey];
+      if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') {
+        commissionRate = Number(cm.commissionRate);
+      }
+      if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') {
+        fixedFee = Number(cm.fixedFee);
+      }
+    } else if (cat1 && categoryMarkups[cat1]) {
+      const cm = categoryMarkups[cat1];
+      if (cm.commissionRate !== undefined && cm.commissionRate !== null && cm.commissionRate !== '') {
+        commissionRate = Number(cm.commissionRate);
+      }
+      if (cm.fixedFee !== undefined && cm.fixedFee !== null && cm.fixedFee !== '') {
+        fixedFee = Number(cm.fixedFee);
+      }
+    }
+
+    if (commissionRate <= 0 && fixedFee <= 0) {
+      return Number(rawPrice.toFixed(2));
+    }
+
+    // Protection against division by zero or negative divisor
+    if (commissionRate >= 100) {
+      commissionRate = 99.9;
+    }
+
+    const divisor = 1 - (commissionRate / 100);
+    const calculatedPrice = (rawPrice + fixedFee) / divisor;
+
+    return Number(calculatedPrice.toFixed(2));
+  }
+
+  /**
    * Bulk Sync all active store products to Hepsiburada
    */
   async syncAllActiveProducts(): Promise<{
@@ -475,7 +531,7 @@ export class HepsiburadaService {
     trackingId?: string;
   }> {
     const prodRes = await pool.query(
-      `SELECT id, barcode, price, stock_quantity, hepsiburada_sku, is_hepsiburada_active 
+      `SELECT id, name, category, sub_category, barcode, price, stock_quantity, hepsiburada_sku, is_hepsiburada_active 
        FROM products 
        WHERE store_id = $1 AND (is_hepsiburada_active = true OR barcode IS NOT NULL) AND barcode != ''`,
       [this.storeId]
@@ -486,13 +542,18 @@ export class HepsiburadaService {
       return { total: 0, successCount: 0, failedCount: 0 };
     }
 
-    const inventoryItems: HepsiburadaInventoryItem[] = products.map((p) => ({
-      MerchantSku: p.barcode,
-      HepsiburadaSku: p.hepsiburada_sku || "",
-      Price: parseFloat(p.price || "0"),
-      AvailableStock: parseInt(p.stock_quantity || "0", 10),
-      DispatchTime: this.config.defaultDispatchTime || 1,
-    }));
+    const inventoryItems: HepsiburadaInventoryItem[] = products.map((p) => {
+      const rawPrice = parseFloat(p.price || "0");
+      const effectivePrice = this.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+
+      return {
+        MerchantSku: p.barcode,
+        HepsiburadaSku: p.hepsiburada_sku || "",
+        Price: effectivePrice,
+        AvailableStock: parseInt(p.stock_quantity || "0", 10),
+        DispatchTime: this.config.defaultDispatchTime || 1,
+      };
+    });
 
     try {
       const res = await this.updatePriceAndStock(inventoryItems);

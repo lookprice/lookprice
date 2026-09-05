@@ -267,13 +267,60 @@ export const MarketplaceProductFields = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {categoryAttributes.map((attr) => {
                   const inheritedStoreVal = storeCategoryAttrs[attr.id]?.value;
-                  const currentProductVal = marketData.attributes?.[attr.id] || "";
-                  const effectiveVal = currentProductVal || (inheritedStoreVal && !inheritedStoreVal.startsWith("$product.") ? inheritedStoreVal : "");
+                  const currentProductVal = marketData.attributes?.[attr.id];
+
+                  // Resolve dynamic variable mappings like $product.brand or fallbacks
+                  const resolveDynamicValue = (valOrVar: string | undefined): string => {
+                    if (!valOrVar) return "";
+                    if (valOrVar === "$product.brand") return product?.brand || product?.brand_name || "";
+                    if (valOrVar === "$product.name") return product?.name || "";
+                    if (valOrVar === "$product.barcode") return product?.barcode || "";
+                    if (valOrVar === "$product.model") return product?.model || "";
+                    if (valOrVar === "$product.tax_rate" || valOrVar === "$product.kdv") return String(product?.tax_rate || 20);
+                    return valOrVar;
+                  };
+
+                  let effectiveVal = currentProductVal !== undefined && currentProductVal !== "" ? currentProductVal : "";
+
+                  if (!effectiveVal) {
+                    if (inheritedStoreVal) {
+                      effectiveVal = resolveDynamicValue(inheritedStoreVal);
+                    }
+                  }
+
+                  // If still empty, check if this is Brand / Marka
+                  const isBrandAttr = attr.id.toLowerCase() === "marka" || attr.id.toLowerCase().includes("brand");
+                  if (!effectiveVal && isBrandAttr) {
+                    effectiveVal = product?.brand || product?.brand_name || "";
+                  }
+
+                  // If still empty, check if this is Origin / Menşei (Default to 'Çin')
+                  const isOriginAttr = attr.id.toLowerCase() === "mensei" || attr.id.toLowerCase().includes("origin");
+                  if (!effectiveVal && isOriginAttr) {
+                    effectiveVal = "Çin";
+                  }
+
+                  // If still empty and attribute has a default value defined
+                  if (!effectiveVal && attr.defaultValue) {
+                    effectiveVal = resolveDynamicValue(attr.defaultValue);
+                  }
 
                   return (
                     <div key={attr.id} className="space-y-1">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="font-bold text-slate-700">{attr.name}</span>
+                        <span className="font-bold text-slate-700 flex items-center gap-1">
+                          <span>{attr.name}</span>
+                          {isBrandAttr && product?.brand && (
+                            <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1 rounded font-normal">
+                              ({isTr ? "Üründen Alındı" : "From Product"})
+                            </span>
+                          )}
+                          {isOriginAttr && effectiveVal === "Çin" && (
+                            <span className="text-[9px] text-amber-600 bg-amber-50 px-1 rounded font-normal">
+                              ({isTr ? "Varsayılan: Çin" : "Default: China"})
+                            </span>
+                          )}
+                        </span>
                         {attr.mandatory && <span className="text-rose-600 font-bold">*</span>}
                       </div>
 

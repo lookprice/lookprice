@@ -3,7 +3,7 @@ import {
   X, Search, Sparkles, Layers, Settings2, CheckCircle2, AlertCircle, 
   ChevronRight, Save, RefreshCw, SlidersHorizontal, ArrowRight, 
   HelpCircle, Trash2, Check, Info, ShieldCheck, Tag, Laptop, Smartphone,
-  Tv, Shirt, Home, Wrench, LayoutGrid, FolderTree, Filter
+  Tv, Shirt, Home, Wrench, LayoutGrid, FolderTree, Filter, Percent
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
@@ -108,6 +108,58 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     amazon: branding.amazon_settings?.categoryAttributes || {},
     pazarama: branding.pazarama_settings?.categoryAttributes || {}
   });
+
+  // Category-specific Commission & Markup configuration per marketplace
+  // Structure: { [marketplace]: { [localCategoryKey]: { commissionRate?: number, fixedFee?: number } } }
+  const [categoryMarkups, setCategoryMarkups] = useState<Record<MarketplaceType, Record<string, { commissionRate?: number; fixedFee?: number }>>>({
+    hepsiburada: branding.hepsiburada_settings?.categoryMarkups || {},
+    trendyol: branding.trendyol_settings?.categoryMarkups || {},
+    amazon: branding.amazon_settings?.categoryMarkups || {},
+    pazarama: branding.pazarama_settings?.categoryMarkups || {}
+  });
+
+  // Global default commission and fixed fee per marketplace
+  const [defaultCommissionRates, setDefaultCommissionRates] = useState<Record<MarketplaceType, number>>({
+    hepsiburada: branding.hepsiburada_settings?.defaultCommissionRate ?? 18,
+    trendyol: branding.trendyol_settings?.defaultCommissionRate ?? 18,
+    amazon: branding.amazon_settings?.defaultCommissionRate ?? 15,
+    pazarama: branding.pazarama_settings?.commissionRate ?? 15
+  });
+
+  const [defaultFixedFees, setDefaultFixedFees] = useState<Record<MarketplaceType, number>>({
+    hepsiburada: branding.hepsiburada_settings?.defaultFixedFee ?? 20,
+    trendyol: branding.trendyol_settings?.defaultFixedFee ?? 20,
+    amazon: branding.amazon_settings?.defaultFixedFee ?? 20,
+    pazarama: branding.pazarama_settings?.defaultFixedFee ?? 20
+  });
+
+  const [showPricingFormulaInfo, setShowPricingFormulaInfo] = useState(false);
+
+  // Helper to update specific category's markup
+  const handleUpdateCategoryMarkup = (localCatKey: string, field: 'commissionRate' | 'fixedFee', val: number) => {
+    setCategoryMarkups((prev) => {
+      const currentMarketMarkups = prev[activeMarketplace] || {};
+      const existing = currentMarketMarkups[localCatKey] || {};
+      return {
+        ...prev,
+        [activeMarketplace]: {
+          ...currentMarketMarkups,
+          [localCatKey]: {
+            ...existing,
+            [field]: isNaN(val) ? 0 : val
+          }
+        }
+      };
+    });
+  };
+
+  // Helper to compute sample price
+  const calculateSimulatedPrice = (basePrice: number, commRate: number, fixedFee: number) => {
+    if (basePrice <= 0) return 0;
+    const safeRate = commRate >= 100 ? 99.9 : Math.max(0, commRate);
+    const divisor = 1 - (safeRate / 100);
+    return Math.round(((basePrice + fixedFee) / divisor) * 100) / 100;
+  };
 
   // Available marketplace categories from API / Fallback
   const [marketCategories, setMarketCategories] = useState<Record<MarketplaceType, MarketplaceCategory[]>>({
@@ -425,20 +477,31 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
     const autoFilled: Record<string, any> = {};
     currentCategoryAttributes.forEach((attr) => {
-      if (attr.id === 'Marka' || attr.name.toLowerCase().includes('marka')) {
+      const lowerId = attr.id.toLowerCase();
+      const lowerName = attr.name.toLowerCase();
+
+      if (lowerId === 'marka' || lowerName.includes('marka') || lowerId.includes('brand')) {
         autoFilled[attr.id] = { mode: 'field', value: '$product.brand' };
-      } else if (attr.id === 'Renk' || attr.name.toLowerCase().includes('renk')) {
+      } else if (lowerId === 'mensei' || lowerName.includes('menşei') || lowerName.includes('mensei') || lowerId.includes('origin')) {
+        autoFilled[attr.id] = { mode: 'fixed', value: 'Çin' };
+      } else if (lowerId === 'model' || lowerName === 'model') {
+        autoFilled[attr.id] = { mode: 'field', value: '$product.model' };
+      } else if (lowerId === 'renk' || lowerName.includes('renk')) {
         autoFilled[attr.id] = { mode: 'field', value: '$product.variant_color' };
-      } else if (attr.id === 'Beden' || attr.name.toLowerCase().includes('beden')) {
+      } else if (lowerId === 'beden' || lowerName.includes('beden')) {
         autoFilled[attr.id] = { mode: 'field', value: '$product.variant_size' };
-      } else if (attr.id === 'GarantiSuresi' || attr.name.toLowerCase().includes('garanti')) {
+      } else if (lowerId === 'garantisuresi' || lowerName.includes('garanti')) {
         autoFilled[attr.id] = { mode: 'fixed', value: '24' };
-      } else if (attr.id === 'tax_vat_rate' || attr.name.toLowerCase().includes('kdv')) {
+      } else if (lowerId === 'tax_vat_rate' || lowerName.includes('kdv')) {
         autoFilled[attr.id] = { mode: 'fixed', value: '20' };
-      } else if (attr.id === 'Cinsiyet') {
+      } else if (lowerId === 'cinsiyet') {
         autoFilled[attr.id] = { mode: 'fixed', value: 'Unisex' };
       } else if (attr.defaultValue) {
-        autoFilled[attr.id] = { mode: 'fixed', value: attr.defaultValue };
+        if (attr.defaultValue.startsWith('$product.')) {
+          autoFilled[attr.id] = { mode: 'field', value: attr.defaultValue };
+        } else {
+          autoFilled[attr.id] = { mode: 'fixed', value: attr.defaultValue };
+        }
       }
     });
 
@@ -461,6 +524,9 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     try {
       const activeMappings = mappings[activeMarketplace];
       const activeAttrs = attributesConfig[activeMarketplace];
+      const activeMarkups = categoryMarkups[activeMarketplace] || {};
+      const activeDefComm = defaultCommissionRates[activeMarketplace] ?? 18;
+      const activeDefFee = defaultFixedFees[activeMarketplace] ?? 20;
 
       if (activeMarketplace === 'hepsiburada') {
         const prevHb = branding.hepsiburada_settings || {};
@@ -471,8 +537,11 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           isTestMode: prevHb.isTestMode,
           defaultDispatchTime: prevHb.defaultDispatchTime,
           defaultCargoCompany: prevHb.defaultCargoCompany,
+          defaultCommissionRate: activeDefComm,
+          defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
           categoryAttributes: activeAttrs,
+          categoryMarkups: activeMarkups,
           storeId: currentStoreId
         };
         await api.saveHepsiburadaSettings(payload as any);
@@ -483,8 +552,11 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           apiKey: prevTy.apiKey || '',
           apiSecret: prevTy.apiSecret || '',
           merchantId: prevTy.merchantId || '',
+          defaultCommissionRate: activeDefComm,
+          defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
           categoryAttributes: activeAttrs,
+          categoryMarkups: activeMarkups,
           storeId: currentStoreId
         };
         await api.saveTrendyolSettings(payload as any);
@@ -496,8 +568,11 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           clientSecret: prevAmz.clientSecret || '',
           refreshToken: prevAmz.refresh_token || '',
           sellerId: prevAmz.sellerId || '',
+          defaultCommissionRate: activeDefComm,
+          defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
           categoryAttributes: activeAttrs,
+          categoryMarkups: activeMarkups,
           storeId: currentStoreId
         };
         await api.saveAmazonSettings(payload as any);
@@ -508,8 +583,10 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           apiKey: prevPz.apiKey || '',
           apiSecret: prevPz.apiSecret || '',
           merchantId: prevPz.merchantId || '',
-          commissionRate: prevPz.commissionRate || 0,
+          commissionRate: activeDefComm,
+          defaultFixedFee: activeDefFee,
           categoryMappings: activeMappings,
+          categoryMarkups: activeMarkups,
           brandMappings: prevPz.brandMappings || {},
           storeId: currentStoreId
         };
@@ -686,6 +763,105 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               <span>{lang === 'tr' ? 'Akıllı Otomatik Eşleştir' : 'Auto Match'}</span>
             </button>
           </div>
+        </div>
+
+        {/* PRICING STRATEGY & REVERSE MARGIN COMMISSION BANNER */}
+        <div className="px-6 py-3 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white border-b border-slate-700">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-black tracking-wide uppercase text-amber-400">
+                  {lang === 'tr' ? `${activeMarketplaceConfig.title} Fiyatlandırma & Komisyon Formülü` : `${activeMarketplaceConfig.title} Pricing & Commission Strategy`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowPricingFormulaInfo(!showPricingFormulaInfo)}
+                  className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 flex items-center space-x-1 cursor-pointer transition-all"
+                >
+                  <Info className="h-3 w-3 text-amber-300" />
+                  <span>{showPricingFormulaInfo ? (lang === 'tr' ? 'Formülü Gizle' : 'Hide Formula') : (lang === 'tr' ? 'Ters Marj Formülü Detayı' : 'Formula Details')}</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                {lang === 'tr' 
+                  ? 'Pazaryeri komisyon ve kargo kesintisi yapıldığında, kasanıza web sitenizdeki net fiyatın kalması için fiyat otomatik yükseltilir.'
+                  : 'Prices are dynamically marked up so your net profit remains 100% equal to your web store price after commission.'}
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-3 shrink-0 bg-white/10 backdrop-blur-md px-3 py-2 rounded-xl border border-white/15">
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[10px] font-bold text-slate-300 uppercase">{lang === 'tr' ? 'Genel Komisyon:' : 'Def. Comm:'}</span>
+                <div className="flex items-center bg-slate-900/80 rounded-lg px-2 py-1 border border-white/20">
+                  <span className="text-xs font-bold text-amber-400 mr-1">%</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    step="0.5"
+                    value={defaultCommissionRates[activeMarketplace] ?? 18}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      setDefaultCommissionRates((prev) => ({ ...prev, [activeMarketplace]: isNaN(v) ? 0 : v }));
+                    }}
+                    className="w-12 bg-transparent text-xs font-black text-white focus:outline-hidden text-right"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[10px] font-bold text-slate-300 uppercase">{lang === 'tr' ? 'Sabit Gider:' : 'Fixed Fee:'}</span>
+                <div className="flex items-center bg-slate-900/80 rounded-lg px-2 py-1 border border-white/20">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={defaultFixedFees[activeMarketplace] ?? 20}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      setDefaultFixedFees((prev) => ({ ...prev, [activeMarketplace]: isNaN(v) ? 0 : v }));
+                    }}
+                    className="w-12 bg-transparent text-xs font-black text-white focus:outline-hidden text-right"
+                  />
+                  <span className="text-[11px] font-bold text-slate-300 ml-1">TL</span>
+                </div>
+              </div>
+
+              <div className="hidden lg:flex items-center pl-2 border-l border-white/20 text-[11px] text-amber-300 font-bold whitespace-nowrap">
+                <span>1.000 TL Web ➔ {calculateSimulatedPrice(1000, defaultCommissionRates[activeMarketplace] ?? 18, defaultFixedFees[activeMarketplace] ?? 20).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+              </div>
+            </div>
+          </div>
+
+          {/* DETAILED FORMULA EXPLANATION */}
+          {showPricingFormulaInfo && (
+            <div className="mt-3 pt-3 border-t border-white/15 text-xs grid grid-cols-1 md:grid-cols-2 gap-3 text-slate-200">
+              <div className="bg-white/5 p-2.5 rounded-xl border border-white/10 space-y-1">
+                <p className="font-bold text-white flex items-center gap-1.5">
+                  <span className="text-amber-400">📐</span> {lang === 'tr' ? 'Ters Marj (Net Kasa Koruma) Formülü:' : 'Formula:'}
+                </p>
+                <div className="font-mono text-[11px] bg-slate-950/80 p-2 rounded-lg text-emerald-400 border border-white/10 overflow-x-auto">
+                  Fiyat_Pazaryeri = (Fiyat_Web + Sabit_Gider) / (1 - (Komisyon_Oranı / 100))
+                </div>
+                <p className="text-[10px] text-slate-300">
+                  {lang === 'tr' 
+                    ? 'Düz yüzde eklemesi yerine ters marj kullanılır. Çünkü pazaryeri komisyonu nihai satış fiyatından keser.'
+                    : 'Reverse margin is applied because marketplaces deduct commission from the final gross selling price.'}
+                </p>
+              </div>
+
+              <div className="bg-white/5 p-2.5 rounded-xl border border-white/10 space-y-1">
+                <p className="font-bold text-white flex items-center gap-1.5">
+                  <span className="text-amber-400">💡</span> {lang === 'tr' ? 'Kategori Bazlı Özel Komisyon Tanımlama:' : 'Category-Specific Overrides:'}
+                </p>
+                <p className="text-[11px] text-slate-300">
+                  {lang === 'tr' 
+                    ? 'Aşağıdaki kategori listesinde her satırın yanındaki komisyon alanından o kategoriye özel komisyon oranı (%) ve kargo payı (TL) girebilirsiniz. Boş bırakılan kategorilerde yukarıdaki genel varsayılan değerler uygulanır.'
+                    : 'You can set category-specific commission rates and fixed fees for individual rows below. Empty rows automatically inherit the default global values.'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* SECTOR FILTER BAR (SEKTÖREL KATEGORİ SEÇİMİ) */}
@@ -1099,6 +1275,70 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                       )}
                     </div>
 
+                  </div>
+
+                  {/* CATEGORY COMMISSION & REVERSE MARGIN PRICING BAR */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                        <Percent className="h-3 w-3 text-indigo-500" />
+                        <span>{lang === 'tr' ? 'Bu Kategoriye Özel Komisyon & Gider:' : 'Category Markup:'}</span>
+                      </span>
+                      
+                      <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{lang === 'tr' ? 'Komisyon' : 'Comm'}</span>
+                        <div className="flex items-center">
+                          <span className="text-xs font-bold text-indigo-600 mr-0.5">%</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="99"
+                            step="0.5"
+                            placeholder={String(defaultCommissionRates[activeMarketplace] ?? 18)}
+                            value={categoryMarkups[activeMarketplace]?.[localCat]?.commissionRate ?? ''}
+                            onChange={(e) => handleUpdateCategoryMarkup(localCat, 'commissionRate', parseFloat(e.target.value))}
+                            className="w-11 bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden text-right"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{lang === 'tr' ? 'Sabit Pay' : 'Fixed'}</span>
+                        <div className="flex items-center">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder={String(defaultFixedFees[activeMarketplace] ?? 20)}
+                            value={categoryMarkups[activeMarketplace]?.[localCat]?.fixedFee ?? ''}
+                            onChange={(e) => handleUpdateCategoryMarkup(localCat, 'fixedFee', parseFloat(e.target.value))}
+                            className="w-11 bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden text-right"
+                          />
+                          <span className="text-[10px] font-bold text-slate-500 ml-0.5">TL</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 text-[11px]">
+                      {(() => {
+                        const customComm = categoryMarkups[activeMarketplace]?.[localCat]?.commissionRate;
+                        const customFee = categoryMarkups[activeMarketplace]?.[localCat]?.fixedFee;
+                        const comm = customComm !== undefined && !isNaN(Number(customComm)) ? Number(customComm) : (defaultCommissionRates[activeMarketplace] ?? 18);
+                        const fee = customFee !== undefined && !isNaN(Number(customFee)) ? Number(customFee) : (defaultFixedFees[activeMarketplace] ?? 20);
+                        const sim = calculateSimulatedPrice(1000, comm, fee);
+                        const hasCustom = customComm !== undefined || customFee !== undefined;
+                        return (
+                          <span className={`px-2.5 py-1 rounded-md font-mono font-bold flex items-center space-x-1 border ${
+                            hasCustom 
+                              ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}>
+                            <span className="text-[10px] uppercase">{hasCustom ? 'Özel Formül:' : 'Varsayılan:'}</span>
+                            <span>1.000 TL ➔ {sim.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
               );
