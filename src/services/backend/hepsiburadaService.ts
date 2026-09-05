@@ -444,9 +444,21 @@ export class HepsiburadaService {
       MaximumPurchasableQuantity: item.MaximumPurchasableQuantity || 10,
     }));
 
+    const primaryUrl = `${this.listingBaseUrl}/listings/merchantid/${this.config.merchantId}/inventory-uploads`;
+    const fallbackUrl = `${this.listingBaseUrl}/inventory/import/${this.config.merchantId}`;
+
     try {
-      const url = `${this.listingBaseUrl}/inventory/import/${this.config.merchantId}`;
-      const response = await axios.post(url, payload, { headers, timeout: 30000 });
+      let response;
+      try {
+        response = await axios.post(primaryUrl, payload, { headers, timeout: 30000 });
+      } catch (err1: any) {
+        if (err1.response?.status === 404 || !err1.response) {
+          response = await axios.post(fallbackUrl, payload, { headers, timeout: 30000 });
+        } else {
+          throw err1;
+        }
+      }
+
       const trackingId = response.data?.trackingId || response.data?.id || response.data?.taskId;
 
       return {
@@ -456,11 +468,20 @@ export class HepsiburadaService {
         details: response.data,
       };
     } catch (error: any) {
-      const errMsg =
+      console.error("[HB updatePriceAndStock Error]:", error?.response?.data || error.message);
+      let errMsg =
         error.response?.data?.message ||
         error.response?.data?.error ||
+        error.response?.data?.errorMessage ||
+        (Array.isArray(error.response?.data?.errors) ? error.response.data.errors.map((e: any) => e.message || e).join(", ") : null) ||
         error.message ||
         "Fiyat/Stok güncelleme başarısız.";
+
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        errMsg = `Hepsiburada API Yetkilendirme Hatası (${error.response.status}). Merchant ID (${this.config.merchantId}) ve API Anahtarlarınızın doğruluğunu ve test/canlı modunu kontrol ediniz.`;
+      } else if (error.response?.status === 400) {
+        errMsg = `Hepsiburada Ürün Kabul Etmedi (400): ${errMsg}`;
+      }
       throw new Error(errMsg);
     }
   }
