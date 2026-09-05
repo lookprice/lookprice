@@ -531,6 +531,7 @@ export const api = {
   publishTrendyolProduct: (productId: number, storeId?: number) => api.post("/api/integrations/trendyol/publish", { productId, storeId }),
   publishN11Product: (productId: number, storeId?: number) => api.post("/api/integrations/n11/publish", { productId, storeId }),
   publishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/publish", { productId, storeId }),
+  bulkPublishHepsiburadaProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/hepsiburada/bulk-publish", { productIds, storeId }),
   getTrendyolCategories: () => api.get("/api/integrations/trendyol/categories"),
   getTrendyolBrands: (page?: number, size?: number) => api.get(`/api/integrations/trendyol/brands${(page !== undefined || size !== undefined) ? `?${page !== undefined ? `page=${page}` : ''}${size !== undefined ? `&size=${size}` : ''}` : ''}`),
   getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),

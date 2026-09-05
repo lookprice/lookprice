@@ -668,7 +668,7 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
     if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (Merchant ID, API Key ve Secret Key kaydedilmelidir)" });
     }
 
     const hbService = new HepsiburadaService(settings, storeId);
@@ -676,8 +676,18 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
 
     res.json({ success: true, count: syncedCount, errors });
   } catch (error: any) {
+    console.error("[Hepsiburada Sync Error]:", error?.message || error);
     await IntegrationService.logIntegrationError(storeId, 'Hepsiburada', 'Sync All Orders', error);
-    res.status(500).json({ error: error.message || "Hepsiburada siparişleri senkronize edilemedi." });
+    
+    // Provide user-friendly diagnostic guidance
+    let errorDetail = error.message || "Hepsiburada siparişleri senkronize edilemedi.";
+    if (error.response?.status === 401 || error.response?.status === 403 || errorDetail.includes("401") || errorDetail.includes("403")) {
+      errorDetail = "Hepsiburada API Kimlik Doğrulama Reddedildi (401/403). Lütfen Satıcı Paneli Entegratör ayarlarından Merchant ID, API Key ve Secret Key değerlerinizin onaylandığından ve Test/Canlı ortam modunun doğru seçildiğinden emin olun.";
+    } else if (error.response?.status === 404 || errorDetail.includes("404")) {
+      errorDetail = "Hepsiburada Sipariş API uç noktası bulunamadı (404). Lütfen Merchant ID bilginizi kontrol edin.";
+    }
+
+    res.status(400).json({ error: errorDetail });
   }
 });
 
@@ -697,7 +707,7 @@ router.post("/hepsiburada/sync-inventory", authenticate, async (req: any, res) =
     res.json({ success: true, ...result });
   } catch (error: any) {
     await IntegrationService.logIntegrationError(storeId, 'Hepsiburada', 'Bulk Inventory Sync', error);
-    res.status(500).json({ error: error.message || "Hepsiburada ürün envanteri güncellenemedi." });
+    res.status(400).json({ error: error.message || "Hepsiburada ürün envanteri güncellenemedi." });
   }
 });
 
@@ -710,12 +720,16 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
     const settings = storeRes.rows[0]?.hepsiburada_settings;
     if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (Ayarlar > E-Mağazalar sekmesinden API anahtarlarınızı kaydedin)" });
     }
 
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
     const p = prodRes.rows[0];
     if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
+
+    if (!p.barcode || !p.barcode.trim()) {
+      return res.status(400).json({ error: `"${p.name}" ürününün barkodu eksik. Hepsiburada'da satışa açmak için geçerli bir barkod gereklidir.` });
+    }
 
     const hbService = new HepsiburadaService(settings, storeId);
     const rawPrice = parseFloat(p.price || "0");
@@ -724,7 +738,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     const result = await hbService.updatePriceAndStock([
       {
         HepsiburadaSku: p.hepsiburada_sku || "",
-        MerchantSku: p.barcode,
+        MerchantSku: p.barcode.trim(),
         Price: effectivePrice,
         AvailableStock: parseInt(p.stock_quantity || "0", 10),
         DispatchTime: settings.defaultDispatchTime || 1,
@@ -736,13 +750,89 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       [productId]
     );
 
-    res.json({ success: true, message: result.message, trackingId: result.trackingId });
+    res.json({ success: true, message: result.message, effectivePrice, trackingId: result.trackingId });
   } catch (e: any) {
     const errMsg = e.message || "Hepsiburada ürün aktarımı başarısız.";
     if (productId) {
       await pool.query("UPDATE products SET hepsiburada_last_error = $1 WHERE id = $2", [errMsg, productId]);
     }
     res.status(400).json({ error: errMsg });
+  }
+});
+
+// 6b. Bulk Publish / Update Selected Products to Hepsiburada
+router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productIds = req.body.productIds;
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (Ayarlar > E-Mağazalar sekmesinden API anahtarlarınızı kaydedin)" });
+    }
+
+    let query = "SELECT * FROM products WHERE store_id = $1";
+    const params: any[] = [storeId];
+    if (Array.isArray(productIds) && productIds.length > 0) {
+      query += " AND id = ANY($2)";
+      params.push(productIds);
+    } else {
+      query += " AND barcode IS NOT NULL AND barcode != ''";
+    }
+
+    const prodRes = await pool.query(query, params);
+    const products = prodRes.rows;
+
+    if (products.length === 0) {
+      return res.status(400).json({ error: "İlana açılacak uygun barkodlu ürün bulunamadı." });
+    }
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const validItems: any[] = [];
+    const skippedItems: any[] = [];
+
+    for (const p of products) {
+      if (!p.barcode || !p.barcode.trim()) {
+        skippedItems.push({ id: p.id, name: p.name, reason: "Barkod eksik" });
+        continue;
+      }
+      const rawPrice = parseFloat(p.price || "0");
+      const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+      validItems.push({
+        MerchantSku: p.barcode.trim(),
+        HepsiburadaSku: p.hepsiburada_sku || "",
+        Price: effectivePrice,
+        AvailableStock: parseInt(p.stock_quantity || "0", 10),
+        DispatchTime: settings.defaultDispatchTime || 1,
+      });
+    }
+
+    if (validItems.length === 0) {
+      return res.status(400).json({ error: "Seçilen ürünlerin hiçbirinde geçerli barkod bulunamadı.", skipped: skippedItems });
+    }
+
+    const result = await hbService.updatePriceAndStock(validItems);
+
+    await pool.query(
+      `UPDATE products 
+       SET is_hepsiburada_active = true, 
+           hepsiburada_last_sync = NOW(), 
+           hepsiburada_last_error = NULL 
+       WHERE store_id = $1 AND barcode = ANY($2)`,
+      [storeId, validItems.map(i => i.MerchantSku)]
+    );
+
+    res.json({ 
+      success: true, 
+      syncedCount: validItems.length, 
+      skippedCount: skippedItems.length, 
+      skipped: skippedItems, 
+      trackingId: result.trackingId, 
+      message: `${validItems.length} ürün Hepsiburada'da ilana açıldı / güncellendi.` 
+    });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "Toplu Hepsiburada ilana açma başarısız." });
   }
 });
 

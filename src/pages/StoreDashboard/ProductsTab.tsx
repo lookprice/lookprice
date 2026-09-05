@@ -42,6 +42,7 @@ import { ProductSocialMediaShareModal } from "../../components/ProductSocialMedi
 import { RecipeModal } from "./modals/RecipeModal";
 import ProductsFilterBar from "../../components/dashboard/ProductsFilterBar";
 import { DuplicateMergeModal } from "../../components/DuplicateMergeModal";
+import { MarketplaceBulkPublishModal } from "../../components/marketplace/MarketplaceBulkPublishModal";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { getLabels } from "../../utils/showcase";
@@ -128,6 +129,7 @@ const ProductsTab = ({
   const [isFixingNames, setIsFixingNames] = useState(false);
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
   const [isFindingImages, setIsFindingImages] = useState(false);
   const [sharingProduct, setSharingProduct] = useState<any>(null);
   const [recipeProduct, setRecipeProduct] = useState<any>(null);
@@ -253,18 +255,24 @@ const ProductsTab = ({
     }
   };
 
-  const handlePublishToHepsiburada = async (product: any) => {
+  const handlePublishToHepsiburada = async (product: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (publishingId === product.id) return;
+    if (!product.barcode || !String(product.barcode).trim()) {
+      toast.error(lang === 'tr' ? `"${product.name}" ürününün barkodu eksik! Hepsiburada'da ilana açmak için barkod zorunludur.` : "Barcode is required to publish on Hepsiburada!");
+      return;
+    }
     try {
       setPublishingId(product.id);
       const res = await api.publishHepsiburadaProduct(product.id, currentStoreId);
-      if (res && res.success) {
-        toast.success(res.message || (lang === 'tr' ? "Ürün başarıyla Hepsiburada'ya aktarıldı." : "Product published to Hepsiburada successfully."));
+      if (res && (res.data?.success || res?.success)) {
+        toast.success(lang === 'tr' ? `"${product.name}" Hepsiburada'da ilana açıldı / güncellendi!` : `"${product.name}" published to Hepsiburada!`);
+        if (onRefresh) onRefresh();
       } else {
-        toast.error(res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
+        toast.error(res?.data?.error || res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
       }
     } catch (e: any) {
-      toast.error(e.message || "Hepsiburada aktarım hatası");
+      toast.error(e.response?.data?.error || e.message || (lang === 'tr' ? "Hepsiburada aktarım hatası" : "Publish failed"));
     } finally {
       setPublishingId(null);
     }
@@ -526,6 +534,21 @@ const ProductsTab = ({
 
             {!isViewer && (
               <button 
+                onClick={() => setShowBulkPublishModal(true)}
+                className="os-btn-secondary p-2.5 sm:p-3 text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-xl transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                title={lang === 'tr' ? "Hepsiburada'da Toplu İlan Aç & Satışa Gönder" : "Bulk Publish to Hepsiburada"}
+              >
+                <UploadCloud className="h-4.5 w-4.5 text-orange-600 shrink-0" />
+                <span className="text-[11px] font-bold text-orange-950 hidden md:inline whitespace-nowrap">
+                  {selectedIds.length > 0 
+                    ? (lang === 'tr' ? `HB'de İlana Aç (${selectedIds.length})` : `Publish HB (${selectedIds.length})`)
+                    : (lang === 'tr' ? "HB Toplu İlan Aç" : "Bulk Publish HB")}
+                </span>
+              </button>
+            )}
+
+            {!isViewer && (
+              <button 
                 onClick={() => setIsMergeModalOpen(true)}
                 className="os-btn-secondary p-2.5 sm:p-3 text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-all border border-amber-200 hover:border-amber-300 active:scale-95 shadow-xs flex items-center gap-1.5"
                 title={lang === 'tr' ? "Mükerrer Ürünleri Birleştir / Envanter Temizliği" : "Merge Duplicate Products / Clean Inventory"}
@@ -771,6 +794,12 @@ const ProductsTab = ({
                                   }
                                   return null;
                                 })()}
+                                {p.is_hepsiburada_active && (
+                                  <span className="text-[8px] font-black text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1" title="Hepsiburada Listing Aktif">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                    HB SATIŞTA
+                                  </span>
+                                )}
                                 {p.category && (
                                   <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none">
                                     {p.category}
@@ -896,6 +925,23 @@ const ProductsTab = ({
 
 
                           <button 
+                            onClick={(e) => handlePublishToHepsiburada(p, e)}
+                            disabled={publishingId === p.id}
+                            className={`p-2.5 rounded-xl transition-all border active:scale-90 flex items-center justify-center ${
+                              p.is_hepsiburada_active
+                                ? "text-orange-600 bg-orange-50 hover:bg-orange-100 border-orange-200 hover:border-orange-300"
+                                : "text-slate-400 hover:text-orange-600 hover:bg-orange-50 border-transparent hover:border-orange-200"
+                            }`}
+                            title={
+                              p.is_hepsiburada_active 
+                                ? (lang === 'tr' ? "Hepsiburada'da Yayında - Güncelle" : "Active on HB - Update")
+                                : (lang === 'tr' ? "Hepsiburada'da İlana Aç / Satışa Gönder" : "Publish to Hepsiburada")
+                            }
+                          >
+                            <UploadCloud className="h-4.5 w-4.5" />
+                          </button>
+
+                          <button 
                             onClick={() => setSelectedProduct(p)}
                             className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100 active:scale-90"
                             title={t.movementHistory}
@@ -1019,6 +1065,17 @@ const ProductsTab = ({
         onClose={() => setIsMergeModalOpen(false)}
         onMergedSuccess={onRefresh || (() => {})}
         storeId={currentStoreId}
+      />
+
+      <MarketplaceBulkPublishModal
+        isOpen={showBulkPublishModal}
+        onClose={() => setShowBulkPublishModal(false)}
+        products={products}
+        selectedProductIds={selectedIds}
+        storeBranding={branding}
+        currentStoreId={currentStoreId}
+        onSuccess={onRefresh}
+        lang={lang}
       />
     </div>
   );

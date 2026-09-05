@@ -98,6 +98,47 @@ export const ProductModal = ({
     }
   };
 
+  const [isPublishingToHb, setIsPublishingToHb] = useState(false);
+
+  useEffect(() => {
+    if (showProductModal && hbCategories.length === 0) {
+      setLoadingHbCategories(true);
+      api.getHepsiburadaCategories(branding?.id)
+        .then((res: any) => {
+          const data = res.data?.categories || res.categories || res.data || [];
+          if (Array.isArray(data) && data.length > 0) {
+            setHbCategories(data);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingHbCategories(false));
+    }
+  }, [showProductModal]);
+
+  const handleDirectPublishToHb = async () => {
+    if (!editingProduct?.id) {
+      alert(isTr ? "Lütfen önce ürünü kaydedin." : "Please save the product first.");
+      return;
+    }
+    if (!editingProduct.barcode || !String(editingProduct.barcode).trim()) {
+      alert(isTr ? "Hepsiburada'da ilana açmak için ürünün geçerli bir barkodu olmalıdır!" : "Barcode is required to publish on Hepsiburada!");
+      return;
+    }
+    try {
+      setIsPublishingToHb(true);
+      const res = await api.publishHepsiburadaProduct(editingProduct.id, branding?.id);
+      if (res.data?.success || res.success) {
+        alert(isTr ? "Ürün Hepsiburada'ya başarıyla gönderildi / ilana açıldı!" : "Product published to Hepsiburada!");
+      } else {
+        alert(res.data?.error || res.error || (isTr ? "Aktarım başarısız" : "Publish failed"));
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || err.message || (isTr ? "Aktarım başarısız" : "Publish failed"));
+    } finally {
+      setIsPublishingToHb(false);
+    }
+  };
+
   const scrollToLatestVariant = (targetId?: string) => {
     setTimeout(() => {
       if (targetId) {
@@ -1137,6 +1178,39 @@ export const ProductModal = ({
               <input type="hidden" name="allergens_data" value={JSON.stringify(selectedAllergens)} />
             </div>
           )}
+
+          {/* SECTION: Hepsiburada Pazaryeri İlanı & Kategori Eşleme */}
+          <div className="space-y-2">
+            <MarketplaceProductFields
+              product={editingProduct || {}}
+              onUpdate={(updated) => {
+                if (editingProduct) {
+                  setEditingProduct({ ...editingProduct, ...updated });
+                }
+              }}
+              isTr={isTr}
+              categories={hbCategories}
+              storeSettings={branding?.hepsiburada_settings}
+            />
+
+            {editingProduct?.id && (
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={handleDirectPublishToHb}
+                  disabled={isPublishingToHb}
+                  className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>
+                    {isPublishingToHb 
+                      ? (isTr ? "Hepsiburada'ya Gönderiliyor..." : "Publishing...") 
+                      : (isTr ? "Bu Ürünü Hepsiburada'da İlana / Satışa Aç" : "Publish to Hepsiburada")}
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Published Visibility Switches */}
           <div className="p-4 bg-slate-100 rounded-3xl border border-slate-200 space-y-3">
