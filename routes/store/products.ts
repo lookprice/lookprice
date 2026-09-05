@@ -288,6 +288,7 @@ export async function initProductSchema() {
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS calories NUMERIC DEFAULT 0;`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS prep_time_min NUMERIC DEFAULT 0;`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS portion_size VARCHAR(100) DEFAULT '';`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS marketplace_data JSONB DEFAULT '{}'::jsonb;`);
   } catch (e) {
     console.error("Failed to alter products table schema for variants and 2nd categories:", e);
   }
@@ -382,7 +383,8 @@ router.post("/", async (req: any, res) => {
     stock_quantity, min_stock_level, unit, category, sub_category, 
     category_2, sub_category_2, has_variants, variants,
     brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
-    price_2, price_2_currency, tax_rate, volume_ml, allergens, calories, prep_time_min, portion_size
+    price_2, price_2_currency, tax_rate, volume_ml, allergens, calories, prep_time_min, portion_size,
+    marketplace_data
   } = req.body;
   
   if (!barcode || !name || !price) return res.status(400).json({ error: "Missing fields" });
@@ -406,6 +408,7 @@ router.post("/", async (req: any, res) => {
     const hasVariantsVal = has_variants === true || has_variants === 'true' || has_variants === 'on';
     const variantsVal = JSON.stringify(Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []));
     const allergensVal = JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : []));
+    const marketplaceDataVal = JSON.stringify(typeof marketplace_data === 'object' && marketplace_data !== null ? marketplace_data : (typeof marketplace_data === 'string' ? JSON.parse(marketplace_data || '{}') : {}));
     const finalProductCode = (product_code || sku || '').trim() || null;
 
     const result = await pool.query(`
@@ -414,9 +417,9 @@ router.post("/", async (req: any, res) => {
         stock_quantity, min_stock_level, unit, category, sub_category, category_2, sub_category_2,
         has_variants, variants, brand, author, labels, image_url, is_web_sale, is_bestseller, 
         product_type, price_2, price_2_currency, tax_rate, shipping_profile_id, volume_ml, is_sellable,
-        allergens, calories, prep_time_min, portion_size, updated_at
+        allergens, calories, prep_time_min, portion_size, marketplace_data, updated_at
       ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb, $34, $35, $36, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb, $34, $35, $36, $37::jsonb, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
       storeId, String(barcode), finalProductCode, finalProductCode, name, parseFloat(price), currency || 'TRY', 
@@ -437,7 +440,8 @@ router.post("/", async (req: any, res) => {
       allergensVal,
       parseFloat(calories) || 0,
       parseFloat(prep_time_min) || 0,
-      portion_size || ''
+      portion_size || '',
+      marketplaceDataVal
     ]);
 
     if (req.body.sync_group && barcode) {
@@ -729,11 +733,11 @@ router.put("/:id", async (req: any, res) => {
     category_2, sub_category_2, has_variants, variants,
     brand, author, labels, image_url, is_web_sale, is_bestseller, product_type, 
     price_2, price_2_currency, tax_rate, shipping_profile_id, sync_group, volume_ml, is_sellable,
-    allergens, calories, prep_time_min, portion_size
+    allergens, calories, prep_time_min, portion_size, marketplace_data
   } = req.body;
 
   try {
-    const existingProductRes = await pool.query("SELECT labels, barcode, product_code, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const existingProductRes = await pool.query("SELECT labels, barcode, product_code, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size, marketplace_data FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (existingProductRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
     let existingLabels = existingProductRes.rows[0]?.labels || [];
     let existingIsSellable = existingProductRes.rows[0]?.is_sellable;
@@ -755,6 +759,11 @@ router.put("/:id", async (req: any, res) => {
     const finalAllergens = allergens !== undefined ? JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : [])) : JSON.stringify(existingProductRes.rows[0]?.allergens || []);
     const finalProductCode = (product_code !== undefined ? product_code : (sku !== undefined ? sku : existingProductRes.rows[0]?.product_code)) || null;
 
+    const existingMarketplaceData = existingProductRes.rows[0]?.marketplace_data || {};
+    const finalMarketplaceData = marketplace_data !== undefined
+      ? (typeof marketplace_data === 'object' && marketplace_data !== null ? marketplace_data : JSON.parse(marketplace_data || '{}'))
+      : existingMarketplaceData;
+
     await pool.query(`
       UPDATE products SET 
         barcode = $1, product_code = $2, sku = $2, name = $3, price = $4, currency = $5, 
@@ -765,8 +774,8 @@ router.put("/:id", async (req: any, res) => {
         labels = $20, image_url = $21, is_web_sale = $22, is_bestseller = $23, product_type = $24,
         price_2 = $25, price_2_currency = $26, tax_rate = $27, shipping_profile_id = $28, volume_ml = $29, is_sellable = $30,
         allergens = $31::jsonb, calories = $32, prep_time_min = $33, portion_size = $34,
-        updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $35 AND store_id = $36
+        marketplace_data = $35::jsonb, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $36 AND store_id = $37
     `, [
       String(barcode), finalProductCode, name, parseFloat(price), currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
@@ -787,6 +796,7 @@ router.put("/:id", async (req: any, res) => {
       calories !== undefined ? (parseFloat(calories) || 0) : (existingProductRes.rows[0]?.calories || 0),
       prep_time_min !== undefined ? (parseFloat(prep_time_min) || 0) : (existingProductRes.rows[0]?.prep_time_min || 0),
       portion_size !== undefined ? String(portion_size) : (existingProductRes.rows[0]?.portion_size || ''),
+      JSON.stringify(finalMarketplaceData),
       id, storeId
     ]);
 
