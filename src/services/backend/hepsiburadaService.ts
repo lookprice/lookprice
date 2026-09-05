@@ -435,55 +435,127 @@ export class HepsiburadaService {
     }
 
     const headers = this.getHeaders();
-    const payload = items.map((item) => ({
-      HepsiburadaSku: item.HepsiburadaSku || "",
-      MerchantSku: item.MerchantSku,
-      Price: Number(item.Price),
-      AvailableStock: Number(item.AvailableStock),
-      DispatchTime: Number(item.DispatchTime || this.config.defaultDispatchTime || 1),
-      MaximumPurchasableQuantity: item.MaximumPurchasableQuantity || 10,
-    }));
+    const merchantId = this.config.merchantId;
 
-    const primaryUrl = `${this.listingBaseUrl}/listings/merchantid/${this.config.merchantId}/inventory-uploads`;
-    const fallbackUrl = `${this.listingBaseUrl}/inventory/import/${this.config.merchantId}`;
-
-    try {
-      let response;
-      try {
-        response = await axios.post(primaryUrl, payload, { headers, timeout: 30000 });
-      } catch (err1: any) {
-        if (err1.response?.status === 404 || !err1.response) {
-          response = await axios.post(fallbackUrl, payload, { headers, timeout: 30000 });
-        } else {
-          throw err1;
-        }
-      }
-
-      const trackingId = response.data?.trackingId || response.data?.id || response.data?.taskId;
-
-      return {
-        success: true,
-        trackingId,
-        message: `${items.length} adet ürün fiyat/stok güncellemesi Hepsiburada kuyruğuna iletildi.`,
-        details: response.data,
+    const payloadV1 = items.map((item) => {
+      const entry: any = {
+        merchantSku: String(item.MerchantSku).trim(),
+        price: Number(item.Price),
+        availableStock: Number(item.AvailableStock),
+        dispatchTime: Number(item.DispatchTime || this.config.defaultDispatchTime || 1),
+        maximumPurchasableQuantity: Number(item.MaximumPurchasableQuantity || 10),
       };
-    } catch (error: any) {
-      console.error("[HB updatePriceAndStock Error]:", error?.response?.data || error.message);
-      let errMsg =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.response?.data?.errorMessage ||
-        (Array.isArray(error.response?.data?.errors) ? error.response.data.errors.map((e: any) => e.message || e).join(", ") : null) ||
-        error.message ||
-        "Fiyat/Stok güncelleme başarısız.";
-
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        errMsg = `Hepsiburada API Yetkilendirme Hatası (${error.response.status}). Merchant ID (${this.config.merchantId}) ve API Anahtarlarınızın doğruluğunu ve test/canlı modunu kontrol ediniz.`;
-      } else if (error.response?.status === 400) {
-        errMsg = `Hepsiburada Ürün Kabul Etmedi (400): ${errMsg}`;
+      if (item.HepsiburadaSku && item.HepsiburadaSku.trim()) {
+        entry.hepsiburadaSku = item.HepsiburadaSku.trim();
       }
-      throw new Error(errMsg);
+      return entry;
+    });
+
+    const payloadV2 = items.map((item) => {
+      const entry: any = {
+        MerchantSku: String(item.MerchantSku).trim(),
+        Price: Number(item.Price),
+        AvailableStock: Number(item.AvailableStock),
+        DispatchTime: Number(item.DispatchTime || this.config.defaultDispatchTime || 1),
+        MaximumPurchasableQuantity: Number(item.MaximumPurchasableQuantity || 10),
+      };
+      if (item.HepsiburadaSku && item.HepsiburadaSku.trim()) {
+        entry.HepsiburadaSku = item.HepsiburadaSku.trim();
+      }
+      return entry;
+    });
+
+    const listingDirectUrl = this.config.isTestMode
+      ? "https://listing-external-sit.hepsiburada.com"
+      : "https://listing-external.hepsiburada.com";
+
+    const endpoints = [
+      {
+        name: "Listing V1 Inventory Uploads",
+        url: `${listingDirectUrl}/listings/merchantid/${merchantId}/inventory-uploads`,
+        data: payloadV1,
+      },
+      {
+        name: "Listing V2 GW Import",
+        url: `${this.listingBaseUrl}/inventory/import/${merchantId}`,
+        data: payloadV2,
+      },
+      {
+        name: "Listing V1 Direct",
+        url: `${listingDirectUrl}/listings/merchantid/${merchantId}`,
+        data: payloadV1,
+      },
+    ];
+
+    let lastError: any = null;
+    for (const ep of endpoints) {
+      try {
+        const response = await axios.post(ep.url, ep.data, { headers, timeout: 30000 });
+        const trackingId =
+          response.data?.trackingId ||
+          response.data?.id ||
+          response.data?.taskId ||
+          response.data?.data?.trackingId;
+
+        return {
+          success: true,
+          trackingId,
+          message: `${items.length} adet ürün fiyat/stok güncellemesi Hepsiburada (${ep.name}) kuyruğuna iletildi.`,
+          details: response.data,
+        };
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[HB updatePriceAndStock] ${ep.name} denemesi başarısız oldu:`, err.response?.data || err.message);
+      }
     }
+
+    // If bulk endpoints failed, try single-SKU PUT fallback
+    if (payloadV2.length > 0) {
+      try {
+        const singleResults = [];
+        for (const item of payloadV2) {
+          const singleUrl = `${this.listingBaseUrl}/listings/merchantid/${merchantId}/sku/${encodeURIComponent(item.MerchantSku)}`;
+          const singleRes = await axios.put(
+            singleUrl,
+            {
+              price: item.Price,
+              availableStock: item.AvailableStock,
+              dispatchTime: item.DispatchTime,
+            },
+            { headers, timeout: 15000 }
+          );
+          singleResults.push(singleRes.data);
+        }
+
+        return {
+          success: true,
+          message: `${payloadV2.length} adet ürün tekil SKU güncellemesiyle Hepsiburada'ya iletildi.`,
+          details: singleResults,
+        };
+      } catch (putErr: any) {
+        console.warn("[HB updatePriceAndStock] Single SKU PUT fallback de başarısız oldu:", putErr.response?.data || putErr.message);
+      }
+    }
+
+    // Format error response
+    console.error("[HB updatePriceAndStock] Tüm aktarım kanalları başarısız oldu:", lastError?.response?.data || lastError?.message);
+    const errObj = lastError?.response?.data;
+    let errMsg =
+      errObj?.message ||
+      errObj?.error ||
+      errObj?.errorMessage ||
+      errObj?.error_description ||
+      (Array.isArray(errObj?.errors) ? errObj.errors.map((e: any) => e.message || e).join(", ") : null) ||
+      lastError?.message ||
+      "Hepsiburada ürün fiyat/stok aktarımı başarısız.";
+
+    if (lastError?.response?.status === 401 || lastError?.response?.status === 403) {
+      errMsg = `Hepsiburada Yetkilendirme Hatası (${lastError.response.status}). Merchant ID ve API Anahtarlarınızı kontrol ediniz.`;
+    } else if (lastError?.response?.status === 400) {
+      errMsg = `Hepsiburada İsteği Reddetti (400): ${errMsg}`;
+    }
+
+    throw new Error(errMsg);
   }
 
   /**
