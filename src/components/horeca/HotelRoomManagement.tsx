@@ -6164,43 +6164,6 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                 </div>
               </div>
 
-              {/* STORE DATE FORMAT PREFERENCE */}
-              <div className="space-y-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-indigo-600" />
-                  <h4 className="text-xs font-black uppercase text-slate-700 dark:text-slate-300 tracking-wider">
-                    Tarih Görünüm Modeli (Varsayılan: GG/AA/YYYY)
-                  </h4>
-                </div>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  Mağazanıza özel otel rezervasyon ve konaklama tarih gösterim formatını seçin:
-                </p>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  {[
-                    { id: 'DD/MM/YYYY', label: 'gg/aa/yyyy', example: '24/08/2026 (Varsayılan)' },
-                    { id: 'DD.MM.YYYY', label: 'gg.aa.yyyy', example: '24.08.2026 (Noktalı)' },
-                    { id: 'YYYY-MM-DD', label: 'yyyy-aa-gg', example: '2026-08-24 (ISO)' },
-                    { id: 'DD MMM YYYY', label: 'gg Aaa yyyy', example: '24 Ağustos 2026 (Metin)' }
-                  ].map(f => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => saveStoreDateFormat(f.id)}
-                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                        storeDateFormat === f.id
-                          ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs font-bold'
-                          : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="text-xs font-black">{f.label}</div>
-                      <div className={`text-[10px] mt-0.5 ${storeDateFormat === f.id ? 'text-indigo-100' : 'text-slate-400'}`}>
-                        {f.example}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="flex justify-between items-center pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"

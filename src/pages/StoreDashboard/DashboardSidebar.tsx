@@ -114,7 +114,7 @@ export const DashboardSidebar = ({
             <div className="flex items-center space-x-4 min-w-0">
               <StoreLogo logoUrl={storeLogoUrl} storeName={displayName} size="md" />
               <div className="min-w-0">
-                <h1 className="text-lg font-black text-white tracking-tighter leading-none truncate max-w-[120px]" title={displayName}>
+                <h1 className="text-lg font-black text-white tracking-tighter leading-none truncate" title={displayName}>
                   {displayName}
                 </h1>
                 <div className="flex items-center space-x-1.5 mt-2">

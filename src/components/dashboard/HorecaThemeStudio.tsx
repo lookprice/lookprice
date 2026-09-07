@@ -29,7 +29,8 @@ import {
   Instagram,
   Heart,
   Plus,
-  Calendar
+  Calendar,
+  MapPin
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -559,6 +560,40 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
             </div>
           </div>
 
+          {/* Google Maps Location & Embed Settings */}
+          <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 space-y-6">
+            <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2 mb-2 border-b border-slate-100 pb-4">
+              <MapPin className="w-5 h-5 text-indigo-500" />
+              <span>Google Maps Konum Haritası & Navigasyon Linki</span>
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-2 p-5 bg-slate-50 rounded-2xl border border-slate-200">
+                <label className="text-[10px] font-black text-slate-500 uppercase">Google Maps Harita Linki / Pin URL</label>
+                <input
+                  type="text"
+                  placeholder="https://maps.app.goo.gl/..."
+                  value={branding?.google_maps_url || ""}
+                  onChange={(e) => onBrandingChange("google_maps_url", e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block leading-relaxed">Web sitesindeki 'Haritada Göster' butonunun açacağı direkt Google Harita pini.</span>
+              </div>
+
+              <div className="space-y-2 p-5 bg-slate-50 rounded-2xl border border-slate-200">
+                <label className="text-[10px] font-black text-slate-500 uppercase">Google Maps iFrame Embed Kodu veya Embed URL</label>
+                <input
+                  type="text"
+                  placeholder='https://www.google.com/maps/embed?pb=... veya <iframe src="..."></iframe>'
+                  value={branding?.google_maps_embed || ""}
+                  onChange={(e) => onBrandingChange("google_maps_embed", e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block leading-relaxed">Web sitenizin alt kısmında canlı interaktif harita penceresi oluşturur.</span>
+              </div>
+            </div>
+          </div>
+
           {/* HOTEL WEB SITE & CONCEPT CUSTOMIZATION */}
           <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -587,8 +622,10 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
               </label>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Check-In / Check-Out Times */}
+            {branding?.hotel_module_enabled !== false && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Check-In / Check-Out Times */}
               <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-200">
                 <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-500" />
@@ -661,7 +698,13 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
                     <button
                       key={fmt.id}
                       type="button"
-                      onClick={() => onBrandingChange('hotel_date_format', fmt.id)}
+                      onClick={() => {
+                        onBrandingChange('hotel_date_format', fmt.id);
+                        try {
+                          if (storeId) localStorage.setItem(`hotelDateFormat_${storeId}`, fmt.id);
+                          localStorage.setItem('hotel_date_format', fmt.id);
+                        } catch (e) {}
+                      }}
                       className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                         (branding?.hotel_date_format || 'DD/MM/YYYY') === fmt.id
                           ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-400'
@@ -674,40 +717,6 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
                       }`}>{fmt.sample}</div>
                     </button>
                   ))}
-                </div>
-              </div>
-
-              {/* Google Maps Location & Embed Settings */}
-              <div className="md:col-span-2 space-y-3 p-5 bg-slate-50 rounded-2xl border border-slate-200">
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-indigo-500" />
-                  <span>Google Maps Konum Haritası & Navigasyon Linki</span>
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Google Maps Harita Linki / Pin URL</label>
-                    <input
-                      type="text"
-                      placeholder="https://maps.app.goo.gl/..."
-                      value={branding?.google_maps_url || ""}
-                      onChange={(e) => onBrandingChange("google_maps_url", e.target.value)}
-                      className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
-                    />
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">Web sitesindeki 'Haritada Göster' butonunun açacağı direkt Google Harita pini.</span>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Google Maps iFrame Embed Kodu veya Embed URL</label>
-                    <input
-                      type="text"
-                      placeholder='https://www.google.com/maps/embed?pb=... veya <iframe src="..."></iframe>'
-                      value={branding?.google_maps_embed || ""}
-                      onChange={(e) => onBrandingChange("google_maps_embed", e.target.value)}
-                      className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
-                    />
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">Web sitenizin alt kısmında canlı interaktif harita penceresi oluşturur.</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -764,6 +773,8 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
                 })}
               </div>
             </div>
+            </div>
+            )}
           </div>
         </motion.div>
       )}
