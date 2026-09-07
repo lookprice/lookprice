@@ -310,6 +310,10 @@ export const api = {
   updatePurchaseInvoiceTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED', storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
   markPurchaseInvoiceRead: (id: number, storeId?: number) => api.patch(`/api/store/purchase-invoices/${id}/read${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   updatePurchaseInvoicePaymentStatus: (id: number, status: 'paid' | 'unpaid') => api.patch(`/api/store/purchase-invoices/${id}/payment-status`, { status }),
+  
+  // AI Endpoints
+  parseMenuImage: (imageBase64: string, lang: string) => api.post("/api/store/ai/parse-menu-image", { imageBase64, lang }),
+  
   generateProductDescription: (name: string, category: string, lang: string) => api.post("/api/store/generate-description", { name, category, lang }),
   generateBlog: (topic: string, storeName: string, lang: string) => api.post("/api/store/generate-blog", { topic, storeName, lang }),
   getBlogPosts: (storeId?: number) => api.get(`/api/store/blog-posts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),

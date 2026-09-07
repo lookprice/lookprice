@@ -385,4 +385,88 @@ router.post("/reformat-product-names", async (req: any, res) => {
   }
 });
 
+router.post("/parse-menu-image", async (req: any, res) => {
+  const { imageBase64, lang } = req.body;
+  if (!imageBase64) {
+    return res.status(400).json({ error: "No image provided" });
+  }
+
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    return res.status(500).json({ error: "Gemini API key is missing. Contact support." });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    
+    // Extract base64 and mimeType
+    const matches = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+    const mimeType = matches ? matches[1] : "image/jpeg";
+    const base64Data = matches ? matches[2] : imageBase64;
+    
+    const prompt = lang === 'tr' 
+      ? `Bu bir restoran veya kafe menüsünün fotoğrafıdır. Lütfen fotoğraftaki ürünleri kategorilerine göre ayırarak JSON formatında çıkar. Fiyatları numara (sayı) olarak çıkar, boşsa 0 yap.
+         JSON formatı şu şekilde olmalıdır:
+         {
+           "categories": [
+             {
+               "name": "Kategori Adı",
+               "products": [
+                 {
+                   "name": "Ürün Adı",
+                   "price": 0,
+                   "description": "Ürün açıklaması veya içindekiler (varsa)"
+                 }
+               ]
+             }
+           ]
+         }
+         Sadece geçerli bir JSON döndür. Başka bir metin ekleme.`
+      : `This is a photo of a restaurant or cafe menu. Please extract the products categorized by their sections in JSON format. Extract prices as numbers, if empty use 0.
+         The JSON format should be:
+         {
+           "categories": [
+             {
+               "name": "Category Name",
+               "products": [
+                 {
+                   "name": "Product Name",
+                   "price": 0,
+                   "description": "Product description or ingredients (if available)"
+                 }
+               ]
+             }
+           ]
+         }
+         Return ONLY valid JSON. Do not add any other text.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
+          }
+        },
+        prompt
+      ],
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+
+    let text = response.text || "{}";
+    if (text.includes("\`\`\`")) {
+      text = text.replace(/\`\`\`[a-z]*\n?/g, "").replace(/\`\`\`/g, "").trim();
+    }
+
+    const parsedData = JSON.parse(text);
+    res.json(parsedData);
+  } catch (error: any) {
+    console.error("AI Menu parsing error:", error);
+    res.status(500).json({ error: error.message || "Failed to parse menu image" });
+  }
+});
+
 export default router;

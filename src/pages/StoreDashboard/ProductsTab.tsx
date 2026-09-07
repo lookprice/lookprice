@@ -42,6 +42,7 @@ import { ProductSocialMediaShareModal } from "../../components/ProductSocialMedi
 import { RecipeModal } from "./modals/RecipeModal";
 import ProductsFilterBar from "../../components/dashboard/ProductsFilterBar";
 import { DuplicateMergeModal } from "../../components/DuplicateMergeModal";
+import AiMenuScanModal from "./modals/AiMenuScanModal";
 import { MarketplaceBulkPublishModal } from "../../components/marketplace/MarketplaceBulkPublishModal";
 import { api } from "../../services/api";
 import { toast } from "sonner";
@@ -135,6 +136,7 @@ const ProductsTab = ({
   const [recipeProduct, setRecipeProduct] = useState<any>(null);
   const [bestsellerStateMap, setBestsellerStateMap] = useState<Record<number, boolean>>({});
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [isAiMenuModalOpen, setIsAiMenuModalOpen] = useState(false);
 
   const isCafe = isCafeRestaurant || branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
@@ -497,6 +499,18 @@ const ProductsTab = ({
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {!isViewer && (
               <div className="flex items-center gap-1.5 sm:gap-2">
+                {isCafe && (
+                  <button
+                    onClick={() => setIsAiMenuModalOpen(true)}
+                    className="os-btn-secondary p-2.5 sm:p-3 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                    title={lang === 'tr' ? "Yapay Zeka ile Menü Oku (Görselden)" : "Scan Menu with AI (From Image)"}
+                  >
+                    <Sparkles className="h-4.5 w-4.5 shrink-0" />
+                    <span className="text-[11px] font-bold hidden md:inline whitespace-nowrap">
+                      {lang === 'tr' ? "Menü Fotoğrafı Oku" : "AI Menu Scan"}
+                    </span>
+                  </button>
+                )}
                 <button 
                   onClick={onImport}
                   className="os-btn-secondary p-2.5 sm:p-3 text-slate-500 hover:text-indigo-600 rounded-xl transition-all border border-slate-200 hover:border-indigo-200 active:scale-95 shadow-xs"
@@ -1069,6 +1083,14 @@ const ProductsTab = ({
         onClose={() => setIsMergeModalOpen(false)}
         onMergedSuccess={onRefresh || (() => {})}
         storeId={currentStoreId}
+      />
+      
+      <AiMenuScanModal
+        isOpen={isAiMenuModalOpen}
+        onClose={() => setIsAiMenuModalOpen(false)}
+        lang={lang}
+        storeId={currentStoreId}
+        onSuccess={onRefresh || (() => window.location.reload())}
       />
 
       {isShopLp && (
