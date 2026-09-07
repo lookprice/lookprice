@@ -598,4 +598,14 @@ export const api = {
   getPublicDigitalMenuInfo: (storeIdentifier: string | number) => api.get(`/api/public/digital-menu/${storeIdentifier}/info`),
   getPublicDigitalMenuProducts: (storeIdentifier: string | number) => api.get(`/api/public/digital-menu/${storeIdentifier}/products`),
   getPublicDigitalMenuTables: (storeIdentifier: string | number) => api.get(`/api/public/digital-menu/${storeIdentifier}/tables`),
+
+  // Hotel Reservations
+  getHotelReservations: (storeId?: number, status?: string) => 
+    api.get(`/api/store/hotel-reservations?${storeId ? `storeId=${storeId}&` : ''}${status ? `status=${status}` : ''}`),
+  updateHotelReservationStatus: (id: number | string, status: string, extraData?: any, storeId?: number) => 
+    api.patch(`/api/store/hotel-reservations/${id}${storeId ? `?storeId=${storeId}` : ''}`, { status, ...(extraData || {}) }),
+  deleteHotelReservation: (id: number | string, storeId?: number) => 
+    api.delete(`/api/store/hotel-reservations/${id}${storeId ? `?storeId=${storeId}` : ''}`),
+  createPublicHotelReservation: (storeId: number | string, data: any) => 
+    api.post(`/api/public/stores/${storeId}/hotel-reservations`, data),
 };

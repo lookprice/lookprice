@@ -42,6 +42,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
 import PurchaseInvoices from "../../components/PurchaseInvoices";
 import SalesInvoices from "../../components/SalesInvoices";
+import { playHotelReservationChime } from "../../utils/hotelSound";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useDashboardController } from "../../hooks/useDashboardController";
 import { useProducts } from "../../hooks/useProducts";
@@ -115,12 +116,25 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const [shipCarrier, setShipCarrier] = useState('');
   const [shipTrackingNumber, setShipTrackingNumber] = useState('');
   const [dismissedWebSales, setDismissedWebSales] = useState(false);
+  const [dismissedHotelReservations, setDismissedHotelReservations] = useState(false);
 
   const t = translations[lang].dashboard;
   const {
     activeTab, setActiveTab,
     branding, setBranding
   } = useDashboardController(user);
+
+  const isGapStore = 
+    slug?.toLowerCase() === 'gap' || 
+    branding?.slug?.toLowerCase() === 'gap' || 
+    branding?.store_name?.toUpperCase().includes('GAP') ||
+    user?.store_slug?.toLowerCase() === 'gap';
+
+  const isPortfolio = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
+  const isRealEstate = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate');
+  const isAutomotive = !isGapStore && (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive');
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+  const isHotelModuleActive = isCafeRestaurant && Boolean(branding?.hotel_module_enabled);
 
   // Cafe/Restaurant Role-based authorization state
   const [activeStaffRole, setActiveStaffRole] = useState<'manager' | 'cashier' | 'waiter'>(() => {
@@ -525,16 +539,27 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     service: 0,
     quotations: 0,
     sales: 0,
+    web_sales: 0,
+    hotel_reservations: 0,
     fleet: 0,
     sales_invoices: 0,
     purchase_invoices: 0
   });
+
+  const prevHotelResCount = useRef<number>(0);
 
   const fetchNotifications = useCallback(async () => {
     if (!currentStoreId) return;
     try {
       const data = await api.getNotifications(currentStoreId);
       setNotifications(data);
+
+      const newHotelCount = Number(data?.hotel_reservations || 0);
+      if (newHotelCount > prevHotelResCount.current && newHotelCount > 0) {
+        setDismissedHotelReservations(false);
+        playHotelReservationChime();
+      }
+      prevHotelResCount.current = newHotelCount;
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     }
@@ -543,9 +568,36 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   useEffect(() => {
     fetchData();
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 300000); 
+    const interval = setInterval(fetchNotifications, isHotelModuleActive ? 30000 : 300000); 
     return () => clearInterval(interval);
-  }, [fetchData, fetchNotifications]);
+  }, [fetchData, fetchNotifications, isHotelModuleActive]);
+
+  // Real-time custom event listeners for hotel reservations
+  useEffect(() => {
+    const handleHotelReservationCreated = (e: any) => {
+      if (e.detail?.storeId === currentStoreId) {
+        setDismissedHotelReservations(false);
+        playHotelReservationChime();
+        fetchNotifications();
+      }
+    };
+
+    const handleHotelReservationsUpdated = (e: any) => {
+      if (e.detail?.storeId === currentStoreId) {
+        fetchNotifications();
+      }
+    };
+
+    window.addEventListener('hotel_reservation_created', handleHotelReservationCreated);
+    window.addEventListener('hotel_reservations_updated', handleHotelReservationsUpdated);
+    window.addEventListener('hotel_rooms_updated', handleHotelReservationsUpdated);
+
+    return () => {
+      window.removeEventListener('hotel_reservation_created', handleHotelReservationCreated);
+      window.removeEventListener('hotel_reservations_updated', handleHotelReservationsUpdated);
+      window.removeEventListener('hotel_rooms_updated', handleHotelReservationsUpdated);
+    };
+  }, [currentStoreId, fetchNotifications]);
 
   useEffect(() => {
     if (currentStoreId) {
@@ -688,18 +740,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  const isGapStore = 
-    slug?.toLowerCase() === 'gap' || 
-    branding?.slug?.toLowerCase() === 'gap' || 
-    branding?.store_name?.toUpperCase().includes('GAP') ||
-    user?.store_slug?.toLowerCase() === 'gap';
-
-  const isPortfolio = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
-  const isRealEstate = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate');
-  const isAutomotive = !isGapStore && (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive');
-  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
-  const isHotelModuleActive = isCafeRestaurant && Boolean(branding?.hotel_module_enabled);
-
   useEffect(() => {
     if (!isHotelModuleActive && activeTab === 'hotel-rooms') {
       setActiveTab('products');
@@ -761,7 +801,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   ] : [
     { type: 'category', key: "operations", title: txt('Operasyonlar', 'Operations', 'Λειτουργίες'), items: [
       { id: "products", label: t.products, icon: Package },
-      ...(isHotelModuleActive ? [{ id: "hotel-rooms", label: txt('Otel & Oda Yönetimi', 'Hotel & Room Management', 'Διαχείριση Δωματίων'), icon: Building2 }] : []),
+      ...(isHotelModuleActive ? [{ 
+        id: "hotel-rooms", 
+        label: txt('Otel & Oda Yönetimi', 'Hotel & Room Management', 'Διαχείριση Δωματίων'), 
+        icon: Building2,
+        badge: Number(notifications?.hotel_reservations || 0),
+        badgeType: 'warning'
+      }] : []),
       { id: "purchase_invoices", label: t.purchase_invoices, icon: FileDown, badge: notifications.purchase_invoices },
       ...(!isCafeRestaurant ? [{ id: "service", label: t.service, icon: Wrench, badge: notifications.service }] : []),
       ...(!isCafeRestaurant ? [{ id: "fleet", label: txt('Filo Yönetimi', 'Fleet Management', 'Διαχείριση Στόλου'), icon: Car, badge: notifications.fleet }] : []),
@@ -971,6 +1017,40 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
               <span>{isTr ? 'Satışları Görüntüle' : 'View Sales'}</span>
               <span>→</span>
             </button>
+          </div>
+        )}
+
+        {!dismissedHotelReservations && isHotelModuleActive && Number(notifications?.hotel_reservations || 0) > 0 && (
+          <div className="mb-6 bg-amber-500/10 border-2 border-amber-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md animate-fadeIn">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl font-black shrink-0 shadow">
+                🏨
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    {isTr ? `YENİ OTEL REZERVASYONU (${notifications.hotel_reservations} Bekleyen)` : `NEW HOTEL RESERVATION (${notifications.hotel_reservations})`}
+                  </span>
+                  <span className="animate-pulse px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-[10px] rounded-full uppercase">
+                    {isTr ? 'Aksiyon Bekliyor' : 'Action Required'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-700 dark:text-slate-200 font-medium mt-1 leading-relaxed">
+                  {isTr 
+                    ? 'Web siteniz üzerinden yeni oda rezervasyonu alındı. Misafir kayıt, check-in veya oda ataması yapmak için rezervasyonları inceleyebilirsiniz.' 
+                    : 'A new online hotel reservation was completed. Please check room assignments or check-in to confirm.'}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => { setActiveTab("hotel-rooms"); setDismissedHotelReservations(true); }}
+                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-xs rounded-xl shadow-md transition-all shrink-0 active:scale-95 flex items-center justify-center gap-1.5 border border-amber-500/30 cursor-pointer"
+              >
+                <span>{isTr ? 'Rezervasyonları Yönet' : 'Manage Reservations'}</span>
+                <span>→</span>
+              </button>
+            </div>
           </div>
         )}
 

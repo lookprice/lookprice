@@ -3117,4 +3117,140 @@ router.post("/property-submission", async (req, res) => {
   }
 });
 
+// POST /api/public/stores/:id/hotel-reservations and /api/public/hotel-reservations
+const handlePublicHotelReservation = async (req: express.Request, res: express.Response) => {
+  try {
+    const storeIdParam = req.params.id || req.body.storeId || req.body.store_id;
+    const storeId = Number(storeIdParam);
+
+    if (!storeId || isNaN(storeId)) {
+      return res.status(400).json({ error: "Store ID is required" });
+    }
+
+    const {
+      reservation_code,
+      code,
+      room_id,
+      roomId,
+      room_number,
+      roomNumber,
+      room_type,
+      roomType,
+      guest,
+      guest_name,
+      guest_first_name,
+      guest_last_name,
+      guest_identity_no,
+      guest_phone,
+      guest_email,
+      check_in_date,
+      checkInDate,
+      check_out_date,
+      checkOutDate,
+      nights,
+      board_type,
+      boardType,
+      board_name,
+      boardName,
+      adults_count,
+      adultsCount,
+      children_count,
+      childrenCount,
+      total_amount,
+      totalAmount,
+      payment_method,
+      paymentMethod,
+      payment_label,
+      paymentLabel,
+      special_requests,
+      specialRequests,
+      details
+    } = req.body;
+
+    const resCode = reservation_code || code || `REZ-${Date.now().toString().slice(-6)}`;
+    const fRoomId = String(room_id || roomId || '');
+    const fRoomNumber = String(room_number || roomNumber || '');
+    const fRoomType = String(room_type || roomType || 'Standart Oda');
+
+    const fFirstName = guest_first_name || guest?.first_name || '';
+    const fLastName = guest_last_name || guest?.last_name || '';
+    const fGuestName = guest_name || (fFirstName || fLastName ? `${fFirstName} ${fLastName}`.trim() : 'Misafir');
+    const fIdentityNo = guest_identity_no || guest?.identity_no || '';
+    const fPhone = guest_phone || guest?.phone || '';
+    const fEmail = guest_email || guest?.email || '';
+
+    const fCheckIn = check_in_date || checkInDate || new Date().toISOString().split('T')[0];
+    const fCheckOut = check_out_date || checkOutDate || new Date().toISOString().split('T')[0];
+    const fNights = Number(nights) || 1;
+    const fBoardType = board_type || boardType || 'RO';
+    const fBoardName = board_name || boardName || 'Sadece Oda (RO)';
+    const fAdults = Number(adults_count || adultsCount) || 1;
+    const fChildren = Number(children_count || childrenCount) || 0;
+    const fTotalAmount = Number(total_amount || totalAmount) || 0;
+    const fPaymentMethod = payment_method || paymentMethod || 'at_hotel';
+    const fPaymentLabel = payment_label || paymentLabel || 'Otelde Öde';
+    const fSpecialRequests = special_requests || specialRequests || guest?.special_requests || '';
+    const fDetails = details || req.body;
+
+    const inserted = await pool.query(
+      `INSERT INTO hotel_reservations (
+        store_id, reservation_code, room_id, room_number, room_type,
+        guest_name, guest_first_name, guest_last_name, guest_identity_no, guest_phone, guest_email,
+        check_in_date, check_out_date, nights, board_type, board_name,
+        adults_count, children_count, total_amount, payment_method, payment_label,
+        special_requests, details, status
+      ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9, $10, $11,
+        $12, $13, $14, $15, $16,
+        $17, $18, $19, $20, $21,
+        $22, $23, 'pending_action'
+      ) RETURNING *`,
+      [
+        storeId, resCode, fRoomId, fRoomNumber, fRoomType,
+        fGuestName, fFirstName, fLastName, fIdentityNo, fPhone, fEmail,
+        fCheckIn, fCheckOut, fNights, fBoardType, fBoardName,
+        fAdults, fChildren, fTotalAmount, fPaymentMethod, fPaymentLabel,
+        fSpecialRequests, JSON.stringify(fDetails)
+      ]
+    );
+
+    // Also safely create or update customer record for the hotel guest
+    try {
+      if (fPhone || fEmail) {
+        await pool.query(
+          `INSERT INTO customers (store_id, name, surname, full_name, phone, email, tc_id, address, password, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+           ON CONFLICT DO NOTHING`,
+          [
+            storeId,
+            fFirstName || fGuestName,
+            fLastName || '',
+            fGuestName,
+            fPhone,
+            fEmail || null,
+            fIdentityNo || '11111111111',
+            `Otel Misafiri (Oda #${fRoomNumber})`,
+            'no_password_guest'
+          ]
+        );
+      }
+    } catch (cErr) {
+      console.warn("Hotel customer auto-insert note:", cErr);
+    }
+
+    res.json({
+      success: true,
+      message: "Hotel reservation created successfully",
+      reservation: inserted.rows[0]
+    });
+  } catch (err: any) {
+    console.error("Public hotel reservation error:", err);
+    res.status(500).json({ error: err.message || "Failed to process hotel reservation" });
+  }
+};
+
+router.post("/stores/:id/hotel-reservations", handlePublicHotelReservation);
+router.post("/hotel-reservations", handlePublicHotelReservation);
+
 export default router;

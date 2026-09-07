@@ -306,6 +306,38 @@ export async function initDb() {
 
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS store_type TEXT DEFAULT 'product';
 
+      CREATE TABLE IF NOT EXISTS hotel_reservations (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+        reservation_code VARCHAR(50) NOT NULL,
+        room_id VARCHAR(100),
+        room_number VARCHAR(50),
+        room_type VARCHAR(150),
+        guest_name VARCHAR(150),
+        guest_first_name VARCHAR(100),
+        guest_last_name VARCHAR(100),
+        guest_identity_no VARCHAR(50),
+        guest_phone VARCHAR(50),
+        guest_email VARCHAR(150),
+        check_in_date VARCHAR(20),
+        check_out_date VARCHAR(20),
+        nights INTEGER DEFAULT 1,
+        board_type VARCHAR(50),
+        board_name VARCHAR(100),
+        adults_count INTEGER DEFAULT 1,
+        children_count INTEGER DEFAULT 0,
+        total_amount NUMERIC(12, 2) DEFAULT 0,
+        payment_method VARCHAR(50) DEFAULT 'at_hotel',
+        payment_label VARCHAR(100),
+        special_requests TEXT,
+        details JSONB DEFAULT '{}',
+        status VARCHAR(50) DEFAULT 'pending_action',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_hotel_reservations_store_status ON hotel_reservations(store_id, status);
+
       CREATE TABLE IF NOT EXISTS quotations (
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { api } from "../services/api";
 import {
   MapPin,
   Clock,
@@ -582,6 +583,52 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
       localStorage.setItem(`hotel_rooms_${store.id}`, JSON.stringify(updatedRooms));
       window.dispatchEvent(new CustomEvent('hotel_rooms_updated', { detail: { storeId: store.id, rooms: updatedRooms } }));
+      
+      // Dispatch custom event for real-time notification in dashboard
+      window.dispatchEvent(new CustomEvent('hotel_reservation_created', { 
+        detail: { 
+          storeId: store.id, 
+          reservationCode,
+          room: selectedBookingRoom,
+          guest: bookingGuestForm,
+          totalAmount: breakdown.finalPayableTotal
+        } 
+      }));
+
+      // Persist to database via backend public API
+      api.createPublicHotelReservation(store.id, {
+        reservation_code: reservationCode,
+        room_id: selectedBookingRoom.id,
+        room_number: selectedBookingRoom.room_number,
+        room_type: selectedBookingRoom.room_type,
+        guest: bookingGuestForm,
+        guest_name: `${bookingGuestForm.first_name} ${bookingGuestForm.last_name}`.trim(),
+        guest_first_name: bookingGuestForm.first_name,
+        guest_last_name: bookingGuestForm.last_name,
+        guest_identity_no: bookingGuestForm.identity_no || '11111111111',
+        guest_phone: bookingGuestForm.phone,
+        guest_email: bookingGuestForm.email || '',
+        check_in_date: searchCheckIn,
+        check_out_date: searchCheckOut,
+        nights: breakdown.nights,
+        board_type: selectedBoardOption,
+        board_name: boardName,
+        adults_count: searchAdults,
+        children_count: breakdown.childrenDetails.length,
+        total_amount: breakdown.finalPayableTotal,
+        payment_method: selectedPaymentMethod,
+        payment_label: paymentLabel,
+        special_requests: bookingGuestForm.special_requests || '',
+        details: {
+          breakdown,
+          extraGuests,
+          adults: searchAdults,
+          selectedBoardOption,
+          room: selectedBookingRoom
+        }
+      }).catch(err => {
+        console.warn("Could not save hotel reservation to backend:", err);
+      });
     } catch (err) {}
 
     // Show Confirmation Voucher Modal
@@ -608,10 +655,10 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       
       {/* Warm Premium Navigation Bar */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-stone-200/80 shadow-xs">
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3 sm:gap-6">
           
           {/* Logo & Store Branding */}
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             {(store.logo_url || store.branding?.logo_url) ? (
               <img
                 src={store.logo_url || store.branding?.logo_url}
@@ -623,14 +670,14 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 {store.name?.substring(0, 2).toUpperCase()}
               </div>
             )}
-            <div className="min-w-0">
-              <span className="block text-sm sm:text-base font-black tracking-tight text-stone-900 leading-none truncate">
+            <div className="flex flex-col justify-center min-w-0">
+              <span className="block text-sm sm:text-base font-black tracking-tight text-stone-900 leading-tight whitespace-nowrap">
                 {store.name}
               </span>
-              <div className="flex items-center gap-1 mt-1">
+              <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0"></span>
-                <span className="text-[10px] sm:text-[11px] font-semibold tracking-wider text-amber-800 uppercase font-sans truncate">
-                  {isHotelModuleActive ? (isTr ? "Resort Hotel & Fine Dining" : "Resort Hotel & Fine Dining") : (isTr ? "Gurme Lezzetler & Kafe" : "Gourmet Flavors")}
+                <span className="text-[10px] sm:text-[11px] font-bold tracking-wider text-amber-800 uppercase font-sans whitespace-nowrap">
+                  {store.branding?.slogan || (isHotelModuleActive ? (isTr ? "Resort Hotel & Fine Dining" : "Resort Hotel & Fine Dining") : (isTr ? "Gurme Lezzetler & Kafe" : "Gourmet Flavors"))}
                 </span>
               </div>
             </div>
@@ -649,7 +696,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 }`}
               >
                 <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="hidden sm:inline">{isTr ? "Otel & Rezerve Et" : "Hotel & Rooms"}</span>
+                <span className="hidden md:inline">{isTr ? "Otel & Rezerve Et" : "Hotel & Rooms"}</span>
               </button>
 
               <button
@@ -662,12 +709,12 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 }`}
               >
                 <Utensils className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">{isTr ? "Restoran & Menü" : "Restaurant Menu"}</span>
+                <span className="hidden md:inline">{isTr ? "Restoran & Menü" : "Restaurant Menu"}</span>
               </button>
             </div>
           )}
 
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-bold text-stone-600">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs font-bold text-stone-600 shrink-0">
             {isHotelModuleActive && (
               <a href="#rooms" onClick={() => setActiveMode('hotel')} className="hover:text-amber-700 transition-colors">
                 {isTr ? "Otel Odaları" : "Rooms & Suites"}

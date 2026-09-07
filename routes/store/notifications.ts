@@ -70,12 +70,22 @@ router.get("/", async (req: any, res) => {
       [storeId]
     );
 
+    let hotelReservationsCount = 0;
+    try {
+      const hotelRes = await pool.query(
+        "SELECT COUNT(*) FROM hotel_reservations WHERE store_id = $1 AND status = 'pending_action'",
+        [storeId]
+      );
+      hotelReservationsCount = parseInt(hotelRes.rows[0]?.count || '0');
+    } catch (err) {}
+
     res.json({
       transfers: parseInt(transfersCount.rows[0].count),
       service: parseInt(serviceCount.rows[0].count),
       quotations: parseInt(quotationsCount.rows[0].count),
       sales: parseInt(salesCount.rows[0].count),
       web_sales: parseInt(webSalesCount.rows[0].count),
+      hotel_reservations: hotelReservationsCount,
       fleet: parseInt(expiringDocsCount.rows[0].count) + parseInt(maintenanceDueCount.rows[0].count),
       sales_invoices: parseInt(salesInvoicesCount.rows[0].count),
       purchase_invoices: parseInt(purchaseInvoicesCount.rows[0].count)
