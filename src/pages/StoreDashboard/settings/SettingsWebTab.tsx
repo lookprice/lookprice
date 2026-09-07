@@ -1,0 +1,567 @@
+import React from "react";
+import { motion } from "motion/react";
+import TeamAccessManagement from "../../../components/TeamAccessManagement";
+import { ShopThemeStudio } from "../../../components/dashboard/ShopThemeStudio";
+import { HorecaThemeStudio } from "../../../components/dashboard/HorecaThemeStudio";
+import {
+  Palette,
+  RefreshCw,
+  Image as ImageIcon,
+  ShoppingBag,
+  User,
+  Mail,
+  Smartphone,
+  Star,
+  ShieldCheck,
+  Upload,
+  Plus,
+  X,
+  Instagram,
+  Facebook,
+  Twitter,
+  MessageCircle,
+  Tag,
+  Lock,
+  Trash2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+
+interface SettingsWebTabProps {
+  branding: any;
+  onBrandingChange: (field: string, value: any) => void;
+  lang: string;
+  isPortfolio: boolean;
+  currentUser: any;
+  emails: string[];
+  phones: string[];
+  updateEmail: (index: number, value: string) => void;
+  removeEmail: (index: number) => void;
+  addEmail: () => void;
+  updatePhone: (index: number, value: string) => void;
+  removePhone: (index: number) => void;
+  addPhone: () => void;
+  onLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFaviconUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBannerUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  users: any[];
+  onAddUser: () => void;
+  onDeleteUser: (id: number) => void;
+  onSaveBranding?: () => void;
+  savingBranding?: boolean;
+}
+
+export const SettingsWebTab = ({
+
+  branding,
+  onBrandingChange,
+  lang,
+
+  isPortfolio,
+  currentUser,
+  emails,
+  phones,
+  updateEmail,
+  removeEmail,
+  addEmail,
+  updatePhone,
+  removePhone,
+  addPhone,
+  onLogoUpload,
+  onFaviconUpload,
+  onBannerUpload,
+  users,
+  onAddUser,
+  onDeleteUser,
+  onSaveBranding,
+  savingBranding,
+}: SettingsWebTabProps) => {
+  const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
+  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+
+  const normalizedBanners = React.useMemo(() => {
+    const list = Array.isArray(branding?.banners) ? branding.banners : [];
+
+    if (list.length === 0) {
+      if (branding?.hero_image_url || branding?.hero_title) {
+        return [{
+          id: "banner_legacy_0",
+          image_url: branding?.hero_image_url || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80",
+          title: branding?.hero_title || "",
+          subtitle: branding?.hero_subtitle || "",
+          text_position: "center",
+          show_store_name: true,
+          button_text: lang === "tr" ? "İncele" : "Explore",
+          button_link: "#portfolio"
+        }];
+      }
+      return [];
+    }
+
+    return list.map((b: any, idx: number) => {
+      if (typeof b === "string") {
+        return {
+          id: `banner_str_${idx}`,
+          image_url: b,
+          title: idx === 0 ? (branding?.hero_title || "") : "",
+          subtitle: idx === 0 ? (branding?.hero_subtitle || "") : "",
+          text_position: "center",
+          show_store_name: true,
+          button_text: lang === "tr" ? "İncele" : "Explore",
+          button_link: "#portfolio"
+        };
+      }
+      return {
+        id: b.id || `banner_obj_${idx}`,
+        image_url: b.image_url || b.url || (typeof b === 'string' ? b : '') || (idx === 0 ? branding?.hero_image_url : '') || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80",
+        title: b.title !== undefined ? b.title : (idx === 0 ? (branding?.hero_title || "") : ""),
+        subtitle: b.subtitle !== undefined ? b.subtitle : (idx === 0 ? (branding?.hero_subtitle || "") : ""),
+        text_position: b.text_position || "center",
+        show_store_name: b.show_store_name !== false,
+        button_text: b.button_text !== undefined ? b.button_text : (lang === "tr" ? "İncele" : "Explore"),
+        button_link: b.button_link !== undefined ? b.button_link : "#portfolio"
+      };
+    });
+  }, [branding?.banners, branding?.hero_image_url, branding?.hero_title, branding?.hero_subtitle, lang]);
+
+  React.useEffect(() => {
+    if (!branding?.banners) return;
+    const needsFix = branding.banners.some((b: any) => typeof b !== 'string' && !b.id);
+    if (needsFix) {
+      const fixedBanners = branding.banners.map((b: any, idx: number) => {
+        if (typeof b === 'string') return b;
+        if (b.id) return b;
+        return {
+          ...b,
+          id: `banner_${Date.now()}_${Math.random().toString(36).substring(2, 6)}_${idx}`
+        };
+      });
+      onBrandingChange("banners", fixedBanners);
+    }
+  }, [branding?.banners]);
+
+  const handleAddBanner = () => {
+    const newBanner = {
+      id: `banner_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      image_url: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80",
+      title: "",
+      subtitle: "",
+      text_position: "center",
+      show_store_name: true,
+      button_text: lang === "tr" ? "İncele" : "Explore",
+      button_link: "#portfolio"
+    };
+
+    const updated = [...normalizedBanners, newBanner];
+    onBrandingChange("banners", updated);
+
+    if (updated.length > 0) {
+      onBrandingChange("hero_image_url", updated[0].image_url || "");
+      onBrandingChange("hero_title", updated[0].title || "");
+      onBrandingChange("hero_subtitle", updated[0].subtitle || "");
+    }
+  };
+
+  const handleUpdateBannerFieldSafe = (id: string, field: string, value: any) => {
+    console.log("Updating banner field:", id, field, value);
+    const currentList = normalizedBanners.map((b: any) => b.id === id ? { ...b, [field]: value } : b);
+    console.log("New banner list:", currentList);
+    onBrandingChange("banners", currentList);
+
+    if (currentList.length > 0) {
+      onBrandingChange("hero_image_url", currentList[0].image_url || "");
+      onBrandingChange("hero_title", currentList[0].title || "");
+      onBrandingChange("hero_subtitle", currentList[0].subtitle || "");
+    }
+  };
+
+  const handleRemoveBannerSafe = (id: string) => {
+    const currentList = normalizedBanners.filter((b: any) => b.id !== id);
+    onBrandingChange("banners", currentList);
+
+    if (currentList.length > 0) {
+      onBrandingChange("hero_image_url", currentList[0].image_url || "");
+      onBrandingChange("hero_title", currentList[0].title || "");
+      onBrandingChange("hero_subtitle", currentList[0].subtitle || "");
+    } else {
+      onBrandingChange("hero_image_url", "");
+      onBrandingChange("hero_title", "");
+      onBrandingChange("hero_subtitle", "");
+    }
+  };
+
+  const handleBannerImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const b64 = uploadEvent.target?.result as string;
+        handleUpdateBannerFieldSafe(id, "image_url", b64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-5xl mx-auto space-y-6 pb-20"
+    >
+      {/* 1. HorecaLP Theme & Digital QR Menu Studio (Exclusively for Cafe & Restaurant) */}
+      {isCafeRestaurant && (
+        <HorecaThemeStudio
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          lang={lang}
+          onSave={onSaveBranding}
+          saving={savingBranding}
+          storeId={branding?.id || branding?.slug}
+        />
+      )}
+
+      {/* 2. ShopLP Comprehensive Theme & Showcase Studio (Exclusively for Retail / ShopLP) */}
+      {!isPortfolio && !isCafeRestaurant && (
+        <ShopThemeStudio
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          lang={lang}
+          onSave={onSaveBranding}
+          saving={savingBranding}
+        />
+      )}
+
+      {/* Label & About Section (For Retail ShopLP Non-Portfolios only) */}
+      {!isPortfolio && !isCafeRestaurant && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Label Customization */}
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                {lang === "tr" ? "ÖZEL ETİKETLER" : "CUSTOM LABELS"}
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onBrandingChange("brand_label", lang === "tr" ? "Yazarlar" : "Authors");
+                    onBrandingChange("category_label", lang === "tr" ? "Kitap Türleri" : "Book Types");
+                    onBrandingChange("product_label", lang === "tr" ? "Kitap" : "Book");
+                    onBrandingChange("stock_label", lang === "tr" ? "Stoktaki Kitap Sayısı" : "Books in Stock");
+                    onBrandingChange("hero_title", lang === "tr" ? "Okumayı Seviyoruz" : "We Love Reading");
+                  }}
+                  className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-tight hover:bg-indigo-100 transition-colors"
+                >
+                  {lang === "tr" ? "Kitapçı Konsepti Uygula" : "Apply Bookstore Concept"}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    {lang === "tr" ? "MARKA ETİKETİ" : "BRAND LABEL"}
+                  </label>
+                  <input
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
+                    placeholder={lang === "tr" ? "Örn: Yazarlar" : "e.g. Authors"}
+                    value={branding?.brand_label || ""}
+                    onChange={(e) => onBrandingChange("brand_label", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    {lang === "tr" ? "KATEGORİ ETİKETİ" : "CATEGORY LABEL"}
+                  </label>
+                  <input
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
+                    placeholder={lang === "tr" ? "Örn: Koleksiyon" : "e.g. Collections"}
+                    value={branding?.category_label || ""}
+                    onChange={(e) => onBrandingChange("category_label", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    {lang === "tr" ? "ÜRÜN ADLANDIRMA" : "PRODUCT LABEL"}
+                  </label>
+                  <input
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
+                    placeholder={lang === "tr" ? "Örn: Kitap" : "e.g. Book"}
+                    value={branding?.product_label || ""}
+                    onChange={(e) => onBrandingChange("product_label", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    {lang === "tr" ? "STOK ETİKETİ" : "STOCK LABEL"}
+                  </label>
+                  <input
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold"
+                    placeholder={lang === "tr" ? "Örn: Kalan Adet" : "e.g. Remaining"}
+                    value={branding?.stock_label || ""}
+                    onChange={(e) => onBrandingChange("stock_label", e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
+                {"* " + txt('Bu ayarlar web sitenizdeki filtreleme ve ürün detaylarındaki başlıkları değiştirir.', 'These settings change the filtering and product detail headings on your website.', 'Αυτές οι ρυθμίσεις αλλάζουν το φιλτράρισμα και τις επικεφαλίδες λεπτομερειών προϊόντος στον ιστότοπό σας.')}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">
+              {lang === "tr" ? "HAKKIMIZDA METNİ" : "ABOUT TEXT"}
+            </h3>
+            <textarea
+              className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
+              value={branding?.about_text || ""}
+              onChange={(e) => onBrandingChange("about_text", e.target.value)}
+              placeholder={lang === "tr" ? "Mağazanız hakkında kısa bir bilgi yazın..." : "Write some info about your store..."}
+            />
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                {lang === "tr" ? "SAYFA LİNKİ (Google Merchant İçin)" : "PAGE LINK (For Google Merchant)"}
+              </p>
+              <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
+                {window.location.origin}/store/{branding?.slug}/about-us
+              </code>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Legal Policies Section */}
+      {!isPortfolio && !isCafeRestaurant && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">
+              {lang === "tr" ? "İADE POLİTİKASI" : "RETURN POLICY"}
+            </h3>
+            <p className="text-[10px] text-slate-400 font-medium mb-4">
+              {lang === "tr" ? "Google Merchant Center için zorunludur." : "Required for Google Merchant Center."}
+            </p>
+            <textarea
+              className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
+              value={branding?.legal_pages?.return_policy || ""}
+              onChange={(e) =>
+                onBrandingChange("legal_pages", { ...branding?.legal_pages, return_policy: e.target.value })
+              }
+              placeholder={lang === "tr" ? "İade şartlarınızı yazın..." : "Write your return conditions..."}
+            />
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                {lang === "tr" ? "SAYFA LİNKİ" : "PAGE LINK"}
+              </p>
+              <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
+                {window.location.origin}/store/{branding?.slug}/return-policy
+              </code>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">
+              {lang === "tr" ? "KARGO POLİTİKASI" : "SHIPPING POLICY"}
+            </h3>
+            <p className="text-[10px] text-slate-400 font-medium mb-4">
+              {lang === "tr" ? "Google Merchant Center için zorunludur." : "Required for Google Merchant Center."}
+            </p>
+            <textarea
+              className="w-full h-[180px] p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium text-slate-600 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none mb-4"
+              value={branding?.legal_pages?.shipping_policy || ""}
+              onChange={(e) =>
+                onBrandingChange("legal_pages", { ...branding?.legal_pages, shipping_policy: e.target.value })
+              }
+              placeholder={lang === "tr" ? "Kargo ve teslimat şartlarınızı yazın..." : "Write your shipping and delivery conditions..."}
+            />
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                {lang === "tr" ? "SAYFA LİNKİ" : "PAGE LINK"}
+              </p>
+              <code className="text-[10px] text-blue-600 font-mono break-all font-bold">
+                {window.location.origin}/store/{branding?.slug}/shipping-policy
+              </code>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact & Social Compact */}
+      <div className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* Contact */}
+          <div className="space-y-6">
+            <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">
+              {lang === "tr" ? "İLETİŞİM BİLGİLERİ" : "CONTACT INFO"}
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  {lang === "tr" ? "E-POSTALARI YÖNET" : "MANAGE EMAILS"}
+                </p>
+                {emails.map((email, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs"
+                      value={email}
+                      onChange={(e) => updateEmail(idx, e.target.value)}
+                    />
+                    {emails.length > 1 && (
+                      <button onClick={() => removeEmail(idx)} className="text-rose-500">
+                        <X />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={addEmail} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                  + {lang === "tr" ? "EKLE" : "ADD"}
+                </button>
+              </div>
+              <div className="space-y-3">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  {lang === "tr" ? "TELEFONLARI YÖNET" : "MANAGE PHONES"}
+                </p>
+                {phones.map((phone, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs"
+                      value={phone}
+                      onChange={(e) => updatePhone(idx, e.target.value)}
+                    />
+                    {phones.length > 1 && (
+                      <button onClick={() => removePhone(idx)} className="text-rose-500">
+                        <X />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={addPhone} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                  + {lang === "tr" ? "EKLE" : "ADD"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Social */}
+          <div className="space-y-6">
+            <h4 className="text-[10px] font-pink-500 uppercase tracking-[0.2em]">
+              {lang === "tr" ? "SOSYAL MEDYA" : "SOCIAL MEDIA"}
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { icon: <Instagram className="w-4 h-4" />, key: "instagram_url", placeholder: "@username" },
+                { icon: <Facebook className="w-4 h-4" />, key: "facebook_url", placeholder: "facebook.com/..." },
+                { icon: <Twitter className="w-4 h-4" />, key: "twitter_url", placeholder: "@twitter" },
+                { icon: <MessageCircle className="w-4 h-4" />, key: "whatsapp_number", placeholder: "+90..." },
+              ].map((social) => (
+                <div key={social.key} className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="text-slate-400">{social.icon}</div>
+                  <input
+                    className="w-full bg-transparent text-xs font-bold outline-none placeholder:text-slate-300"
+                    placeholder={social.placeholder}
+                    value={branding?.[social.key as keyof typeof branding] || ""}
+                    onChange={(e) => onBrandingChange(social.key as any, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tracking & Analytics */}
+      <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50">
+        <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+          <Tag className="w-4 h-4 text-emerald-500" />
+          {lang === "tr" ? "İZLEME VE ANALİTİK" : "TRACKING & ANALYTICS"}
+        </h3>
+        <p className="text-xs text-slate-500 mb-6 font-medium">
+          {lang === "tr"
+            ? txt('Google Analytics veya Google Tag Manager (GTM) aracılığıyla mağazanızı dijital olarak analiz edin.', 'Digitally analyze your store via Google Analytics or Google Tag Manager (GTM).', 'Αναλύστε ψηφιακά το κατάστημά σας μέσω του Google Analytics ή του Google Tag Manager (GTM).')
+            : "Analyze your store digitally through Google Analytics or Google Tag Manager (GTM)."}
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Google Analytics (gtag) ID
+            </label>
+            <input
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold font-mono placeholder:text-slate-300"
+              placeholder="G-XXXXXXXXXX"
+              value={
+                branding?.meta_settings &&
+                typeof branding.meta_settings === "object" &&
+                !Array.isArray(branding.meta_settings)
+                  ? branding.meta_settings.ga_measurement_id || ""
+                  : ""
+              }
+              onChange={(e) => {
+                const newSettings = { ...(branding?.meta_settings || {}) };
+                newSettings.ga_measurement_id = e.target.value;
+                onBrandingChange("meta_settings", newSettings);
+              }}
+            />
+            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">{txt("Örn: G-XXXXXXXXXX. Sadece ID'yi girin.", "e.g., G-XXXXXXXXXX. Just enter the ID.", "π.χ. G-XXXXXXXXXX. Απλώς εισάγετε το ID.")}</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Google Tag Manager (GTM) ID
+            </label>
+            <input
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold font-mono placeholder:text-slate-300"
+              placeholder="GTM-XXXXXXX"
+              value={
+                branding?.meta_settings &&
+                typeof branding.meta_settings === "object" &&
+                !Array.isArray(branding.meta_settings)
+                  ? branding.meta_settings.gtm_id || ""
+                  : ""
+              }
+              onChange={(e) => {
+                const newSettings = { ...(branding?.meta_settings || {}) };
+                newSettings.gtm_id = e.target.value;
+                onBrandingChange("meta_settings", newSettings);
+              }}
+            />
+            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">{txt("Örn: GTM-XXXXXXX. Sadece ID'yi girin.", "e.g., GTM-XXXXXXX. Just enter the ID.", "π.χ. GTM-XXXXXXX. Απλώς εισάγετε το ID.")}</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Google Search Console (GSC) Doğrulama Kodu
+            </label>
+            <input
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold font-mono placeholder:text-slate-300"
+              placeholder={txt('google-site-verification meta etiketinin content değeri', 'Content value of the google-site-verification meta tag', 'Τιμή περιεχομένου της μετα-ετικέτας google-site-verification')}
+              value={
+                branding?.meta_settings &&
+                typeof branding.meta_settings === "object" &&
+                !Array.isArray(branding.meta_settings)
+                  ? branding.meta_settings.gsc_id || ""
+                  : ""
+              }
+              onChange={(e) => {
+                const newSettings = { ...(branding?.meta_settings || {}) };
+                newSettings.gsc_id = e.target.value;
+                onBrandingChange("meta_settings", newSettings);
+              }}
+            />
+            <p className="text-[10px] text-slate-400 mt-1 ml-1 leading-relaxed">{txt('Google Search Console\'daki meta etiketinin ("google-site-verification") içindeki kod/content değeridir.', 'It is the code/content value in the meta tag ("google-site-verification") in Google Search Console.', 'Είναι η τιμή κωδικού/περιεχομένου στη μετα-ετικέτα ("google-site-verification") στο Google Search Console.')}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* EKİP YÖNETİMİ MAĞAZA ERİŞİM YETKİLERİ */}
+      <TeamAccessManagement 
+        users={users} 
+        currentUser={currentUser} 
+        lang={lang} 
+        onRefreshUsers={onAddUser} 
+      />
+    </motion.div>
+  );
+};

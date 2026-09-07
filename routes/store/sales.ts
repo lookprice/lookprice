@@ -1,0 +1,1296 @@
+import express from "express";
+import { pool, logAction, addStockMovement, convertRecipeAmountToMl } from "../../models/db";
+import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
+import * as XLSX from "xlsx";
+
+const router = express.Router();
+
+// Get All Sales
+router.get("/", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  const status = req.query.status;
+  const startDate = req.query.startDate;
+  const endDate = req.query.endDate;
+
+  let query = `
+    SELECT s.*, si.id as sales_invoice_id, si.invoice_number as sales_invoice_number 
+    FROM sales s
+    LEFT JOIN sales_invoices si ON si.sale_id = s.id
+    WHERE s.store_id = $1 AND s.status != 'checkout_initiated'
+  `;
+  const params: any[] = [storeId];
+
+  if (status && status !== 'all') {
+    params.push(status);
+    query += ` AND s.status = $${params.length}`;
+  }
+  if (startDate) {
+    params.push(startDate);
+    query += ` AND s.created_at >= $${params.length}`;
+  }
+  if (endDate) {
+    params.push(endDate + ' 23:59:59');
+    query += ` AND s.created_at <= $${params.length}`;
+  }
+
+  query += " ORDER BY s.created_at DESC";
+
+  try {
+    const sales = await pool.query(query, params);
+    
+    const saleIds = sales.rows.map(s => s.id);
+    let allItems: any[] = [];
+    let allPayments: any[] = [];
+
+    if (saleIds.length > 0) {
+      const itemsRes = await pool.query("SELECT * FROM sale_items WHERE sale_id = ANY($1)", [saleIds]);
+      allItems = itemsRes.rows;
+      const paymentsRes = await pool.query("SELECT * FROM sale_payments WHERE sale_id = ANY($1)", [saleIds]);
+      allPayments = paymentsRes.rows;
+    }
+
+    const itemsMap = new Map();
+    for (const item of allItems) {
+      if (!itemsMap.has(item.sale_id)) itemsMap.set(item.sale_id, []);
+      itemsMap.get(item.sale_id).push(item);
+    }
+
+    const paymentsMap = new Map();
+    for (const payment of allPayments) {
+      if (!paymentsMap.has(payment.sale_id)) paymentsMap.set(payment.sale_id, []);
+      paymentsMap.get(payment.sale_id).push(payment);
+    }
+
+    const salesWithDetails = sales.rows.map(sale => ({
+      ...sale,
+      items: itemsMap.get(sale.id) || [],
+      payments: paymentsMap.get(sale.id) || []
+    }));
+    
+    res.json(salesWithDetails);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Export Sales
+router.get("/export", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;
+  const startDate = req.query.startDate;
+  const endDate = req.query.endDate;
+  const lang = req.query.lang || 'tr';
+
+  let query = `
+    SELECT s.created_at, s.customer_name, s.total_amount, s.currency, s.payment_method, s.status
+    FROM sales s
+    WHERE s.store_id = $1 AND s.status != 'checkout_initiated'
+  `;
+  const params: any[] = [storeId];
+
+  if (startDate) {
+    params.push(startDate);
+    query += ` AND s.created_at >= $${params.length}`;
+  }
+  if (endDate) {
+    params.push(endDate + ' 23:59:59');
+    query += ` AND s.created_at <= $${params.length}`;
+  }
+
+  query += " ORDER BY s.created_at DESC";
+
+  try {
+    const sales = await pool.query(query, params);
+    
+    // Audit Log: Record that a user exported sales data
+    try {
+      const { logAudit } = await import("../../src/services/backend/auditService");
+      await logAudit(
+        storeId,
+        req.user.id,
+        "EXPORT_SALES_DATA",
+        "sales",
+        null,
+        `Kullanıcı sipariş verilerini dışa aktardı (Excel/PDF). Başlangıç: ${startDate || 'Tümü'}, Bitiş: ${endDate || 'Tümü'}`
+      );
+    } catch (auditErr) {
+      console.error("Failed to log audit for sales export", auditErr);
+    }
+
+    const isTr = lang === 'tr';
+    const data = sales.rows.map(s => ({
+      [isTr ? 'Tarih' : 'Date']: new Date(s.created_at).toLocaleString(isTr ? 'tr-TR' : 'en-US'),
+      [isTr ? 'Müşteri' : 'Customer']: s.customer_name || '-',
+      [isTr ? 'Tutar' : 'Amount']: s.total_amount,
+      [isTr ? 'Para Birimi' : 'Currency']: s.currency,
+      [isTr ? 'Ödeme Yöntemi' : 'Payment Method']: s.payment_method,
+      [isTr ? 'Durum' : 'Status']: s.status
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, isTr ? "Satışlar" : "Sales");
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=Satis_Raporu_${startDate || 'tum'}_${endDate || 'tum'}.xlsx`);
+    res.send(buffer);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Fast POS Sale
+router.post("/pos", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { items, total, paymentMethod, customerName, notes, currency, exchangeRate, status, tableNumber } = req.body;
+  const saleStatus = status || 'completed';
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    let resolvedTableId = null;
+    if (customerName) {
+      const cleanName = customerName.replace(/Masa/gi, '').trim();
+      const tableRes = await client.query(
+        "SELECT id FROM restaurant_tables WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, customerName, cleanName]
+      );
+      if (tableRes.rows.length > 0) {
+        resolvedTableId = tableRes.rows[0].id;
+      }
+    }
+
+    const saleRes = await client.query(
+      "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes, restaurant_table_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+      [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, customerName || 'Hızlı Satış', paymentMethod || 'cash', notes || 'Hızlı POS Satışı', resolvedTableId]
+    );
+    const saleId = saleRes.rows[0].id;
+
+    if (saleStatus === 'pending') {
+      if (resolvedTableId) {
+        await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
+      } else if (customerName) {
+        const cleanName = customerName.replace(/Masa/gi, '').trim();
+        await client.query(
+          "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+          [storeId, customerName, cleanName]
+        );
+      }
+    }
+
+    for (const item of items) {
+      const itemTotal = Number(item.quantity) * Number(item.price);
+      await client.query(
+        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [saleId, item.id || null, item.name, item.barcode || '', item.quantity, item.price, itemTotal]
+      );
+
+      if (item.id && saleStatus !== 'pending') {
+        const productRes = await client.query("SELECT product_type, has_variants, variants FROM products WHERE id = $1", [item.id]);
+        const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
+        const hasVariants = productRes.rows[0]?.has_variants || false;
+        let variantsList = productRes.rows[0]?.variants || [];
+        if (typeof variantsList === 'string') {
+          try { variantsList = JSON.parse(variantsList); } catch (e) { variantsList = []; }
+        }
+
+        // Check if item has variant-specific recipe items
+        let variantRecipeItems: any[] = [];
+        if (item.variant_recipe_items && Array.isArray(item.variant_recipe_items) && item.variant_recipe_items.length > 0) {
+          variantRecipeItems = item.variant_recipe_items;
+        } else if (hasVariants && Array.isArray(variantsList) && (item.variant_id || item.variant_name)) {
+          const matchedVar = variantsList.find((v: any) => 
+            (item.variant_id && String(v.id) === String(item.variant_id)) || 
+            (item.variant_name && String(v.name).toLowerCase() === String(item.variant_name).toLowerCase())
+          );
+          if (matchedVar && Array.isArray(matchedVar.recipe_items)) {
+            variantRecipeItems = matchedVar.recipe_items;
+          }
+        }
+
+        if (variantRecipeItems.length > 0) {
+          for (const recItem of variantRecipeItems) {
+            const baseAmount = convertRecipeAmountToMl(Number(recItem.amount), recItem.unit || recItem.ingredient_unit || 'ml');
+            const totalIngredientQtyMl = Number(item.quantity) * baseAmount;
+            
+            const ingRes = await client.query("SELECT volume_ml, unit FROM products WHERE id = $1", [recItem.ingredient_id]);
+            const volMl = Number(ingRes.rows[0]?.volume_ml) || 0;
+            const ingUnit = ingRes.rows[0]?.unit;
+            
+            let finalDeduction = totalIngredientQtyMl;
+            let descriptionExtra = "";
+            
+            if (volMl > 0 && !['ml', 'gr', 'g', 'cc'].includes(ingUnit?.toLowerCase())) {
+              finalDeduction = totalIngredientQtyMl / volMl;
+              descriptionExtra = ` (${totalIngredientQtyMl}ml / ${volMl}ml)`;
+            }
+
+            await client.query(
+              "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+              [finalDeduction, recItem.ingredient_id]
+            );
+            await addStockMovement(
+              client, 
+              storeId, 
+              recItem.ingredient_id, 
+              'out', 
+              finalDeduction, 
+              'pos', 
+              `Varyant Reçete Çıkışı (Hızlı POS Satışı #${saleId}, Ürün: ${item.name})${descriptionExtra}`, 
+              0, 
+              customerName || 'Hızlı Satış', 
+              currency || 'TRY',
+              saleId
+            );
+          }
+        } else {
+          const recipeRes = await client.query(
+            "SELECT ingredient_id, amount, unit FROM product_recipes WHERE product_id = $1 AND store_id = $2",
+            [item.id, storeId]
+          );
+
+          if (recipeRes.rows.length > 0) {
+            for (const recItem of recipeRes.rows) {
+              const baseAmount = convertRecipeAmountToMl(Number(recItem.amount), recItem.unit);
+              const totalIngredientQtyMl = Number(item.quantity) * baseAmount;
+              
+              const ingRes = await client.query("SELECT volume_ml, unit FROM products WHERE id = $1", [recItem.ingredient_id]);
+              const volMl = Number(ingRes.rows[0]?.volume_ml) || 0;
+              const ingUnit = ingRes.rows[0]?.unit;
+              
+              let finalDeduction = totalIngredientQtyMl;
+              let descriptionExtra = "";
+              
+              if (volMl > 0 && !['ml', 'gr', 'g', 'cc'].includes(ingUnit?.toLowerCase())) {
+                finalDeduction = totalIngredientQtyMl / volMl;
+                descriptionExtra = ` (${totalIngredientQtyMl}ml / ${volMl}ml)`;
+              }
+
+              await client.query(
+                "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+                [finalDeduction, recItem.ingredient_id]
+              );
+              await addStockMovement(
+                client, 
+                storeId, 
+                recItem.ingredient_id, 
+                'out', 
+                finalDeduction, 
+                'pos', 
+                `Reçete Çıkışı (Hızlı POS Satışı #${saleId}, Ürün: ${item.name})${descriptionExtra}`, 
+                0, 
+                customerName || 'Hızlı Satış', 
+                currency || 'TRY',
+                saleId
+              );
+            }
+          } else if (productType !== 'service') {
+            await client.query(
+              "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+              [item.quantity, item.id]
+            );
+
+            if (hasVariants && Array.isArray(variantsList) && variantsList.length > 0) {
+              const varId = item.variant_id || item.selected_variant_id;
+              const varName = item.variant_name || item.selected_variant_name;
+              if (varId || varName) {
+                let updated = false;
+                const updatedVars = variantsList.map((v: any) => {
+                  const matchId = varId && String(v.id) === String(varId);
+                  const matchName = varName && String(v.name).trim().toLowerCase() === String(varName).trim().toLowerCase();
+                  if (matchId || matchName) {
+                    updated = true;
+                    const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                    return { ...v, stock_quantity: Math.max(0, currentStock - Number(item.quantity)) };
+                  }
+                  return v;
+                });
+                if (updated) {
+                  await client.query("UPDATE products SET variants = $1 WHERE id = $2", [JSON.stringify(updatedVars), item.id]);
+                }
+              }
+            }
+
+            await addStockMovement(client, storeId, item.id, 'out', item.quantity, 'pos', `Hızlı POS Satışı #${saleId}`, item.price, customerName || 'Hızlı Satış', currency || 'TRY', saleId);
+          }
+        }
+      }
+    }
+
+    let fiscalResult = null;
+    if (saleStatus !== 'pending') {
+      const storeBrandingRes = await client.query("SELECT fiscal_active, fiscal_brand, fiscal_terminal_id FROM stores WHERE id = $1", [storeId]);
+      const branding = storeBrandingRes.rows[0];
+      
+      if (branding && branding.fiscal_active) {
+        fiscalResult = {
+          success: true,
+          receiptNo: `F-${Math.floor(Math.random() * 1000000)}`,
+          zNo: `Z-${Math.floor(Math.random() * 10000)}`,
+          brand: branding.fiscal_brand,
+          terminal: branding.fiscal_terminal_id,
+          timestamp: new Date().toISOString()
+        };
+        
+        const fiscalNote = `\n[FISCAL] Receipt: ${fiscalResult.receiptNo}, Z-No: ${fiscalResult.zNo}, Brand: ${branding.fiscal_brand}`;
+        await client.query("UPDATE sales SET notes = COALESCE(notes, '') || $1 WHERE id = $2", [fiscalNote, saleId]);
+      }
+
+      await client.query(
+        "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
+        [saleId, paymentMethod || 'cash', total || 0]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "pos_sale", 
+      "sale", 
+      saleId, 
+      saleStatus === 'pending' ? `Adisyon Açıldı: Masa ${customerName}, Tutar: ${total} ₺` : `Hızlı POS Satışı: ${total} ₺, Ödeme: ${paymentMethod}`,
+      null,
+      { saleId, total, itemsCount: items.length, fiscal: fiscalResult, status: saleStatus }
+    );
+
+    res.json({ success: true, saleId, fiscal: fiscalResult });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Restaurant Table Transfer
+router.post("/restaurant/tables/transfer", async (req: any, res) => {
+  const { fromTableId, toTableId } = req.body;
+  const storeId = req.user.store_id;
+
+  if (!fromTableId || !toTableId) {
+    return res.status(400).json({ error: "From and To table IDs are required" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const toTableRes = await client.query(
+      "SELECT id, table_number FROM restaurant_tables WHERE id = $1 AND store_id = $2",
+      [toTableId, storeId]
+    );
+
+    if (toTableRes.rows.length === 0) {
+      throw new Error("Target table not found");
+    }
+
+    const targetTableNum = toTableRes.rows[0].table_number;
+
+    const toTableSalesRes = await client.query(
+      "SELECT id FROM sales WHERE restaurant_table_id = $1 AND store_id = $2 AND status = 'pending'",
+      [toTableId, storeId]
+    );
+
+    if (toTableSalesRes.rows.length > 0) {
+      throw new Error("Target table is not empty. Please merge or close it first.");
+    }
+
+    await client.query(
+      "UPDATE sales SET restaurant_table_id = $1, customer_name = $2 WHERE restaurant_table_id = $3 AND store_id = $4 AND status = 'pending'",
+      [toTableId, `Masa ${targetTableNum.replace(/Masa/gi, '').trim()}`, fromTableId, storeId]
+    );
+
+    await client.query(
+      "UPDATE restaurant_tables SET status = 'empty' WHERE id = $1 AND store_id = $2",
+      [fromTableId, storeId]
+    );
+
+    await client.query(
+      "UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2",
+      [toTableId, storeId]
+    );
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Table transferred successfully" });
+  } catch (error: any) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Update Pending Sale
+router.post("/:id/update-pending", async (req: any, res) => {
+  const { id } = req.params;
+  const { items, total, customerName, notes } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const saleRes = await client.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2 FOR UPDATE", [id, storeId]);
+    if (saleRes.rows.length === 0) {
+      throw new Error("Sale not found");
+    }
+    const sale = saleRes.rows[0];
+    if (sale.status !== 'pending') {
+      throw new Error("Sale is not pending");
+    }
+
+    await client.query("DELETE FROM sale_items WHERE sale_id = $1", [id]);
+    
+    for (const item of items) {
+      const itemTotal = Number(item.quantity) * Number(item.price);
+      await client.query(
+        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [id, item.id || null, item.name, item.barcode || '', item.quantity, item.price, itemTotal]
+      );
+    }
+    
+    let resolvedTableId = null;
+    const nameToResolve = customerName || sale.customer_name;
+    if (nameToResolve) {
+      const cleanName = nameToResolve.replace(/Masa/gi, '').trim();
+      const tableRes = await client.query(
+        "SELECT id FROM restaurant_tables WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, nameToResolve, cleanName]
+      );
+      if (tableRes.rows.length > 0) {
+        resolvedTableId = tableRes.rows[0].id;
+      }
+    }
+
+    await client.query(
+      "UPDATE sales SET total_amount = $1, customer_name = $2, notes = $3, restaurant_table_id = $4 WHERE id = $5",
+      [total || 0, customerName || sale.customer_name, notes || sale.notes, resolvedTableId, id]
+    );
+
+    if (resolvedTableId) {
+      await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
+    } else if (nameToResolve) {
+      const cleanName = nameToResolve.replace(/Masa/gi, '').trim();
+      await client.query(
+        "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, nameToResolve, cleanName]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, saleId: id });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Complete Sale
+router.post("/:id/complete", async (req: any, res) => {
+  const { id } = req.params;
+  const { paymentMethod, payments, companyId, dueDate } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const saleRes = await client.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2 FOR UPDATE", [id, storeId]);
+    if (saleRes.rows.length === 0) {
+      throw new Error("Sale not found");
+    }
+    const sale = saleRes.rows[0];
+    if (!['pending', 'processing', 'shipped', 'delivered'].includes(sale.status)) {
+      throw new Error("Sale is not in a completable status");
+    }
+
+    if (sale.status === 'pending' && req.body.items && Array.isArray(req.body.items)) {
+      await client.query("DELETE FROM sale_items WHERE sale_id = $1", [id]);
+      
+      let newTotal = 0;
+      for (const item of req.body.items) {
+        const itemTotal = Number(item.quantity) * Number(item.unit_price);
+        newTotal += itemTotal;
+        await client.query(
+          "INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6)",
+          [id, item.product_id || null, item.product_name, item.quantity, item.unit_price, itemTotal]
+        );
+      }
+      
+      await client.query("UPDATE sales SET total_amount = $1 WHERE id = $2", [newTotal, id]);
+      sale.total_amount = newTotal;
+    }
+
+    if (sale.status === 'pending') {
+      const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
+      for (const item of itemsRes.rows) {
+        if (item.product_id) {
+          const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [item.product_id]);
+          const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
+
+          const recipeRes = await client.query(
+            "SELECT ingredient_id, amount, unit FROM product_recipes WHERE product_id = $1 AND store_id = $2",
+            [item.product_id, storeId]
+          );
+
+          if (recipeRes.rows.length > 0) {
+            for (const recItem of recipeRes.rows) {
+              const totalIngredientQty = Number(item.quantity) * Number(recItem.amount);
+              await client.query(
+                "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+                [totalIngredientQty, recItem.ingredient_id]
+              );
+              await addStockMovement(
+                client, 
+                storeId, 
+                recItem.ingredient_id, 
+                'out', 
+                totalIngredientQty, 
+                'pos', 
+                `Reçete Çıkışı (Satış #${id}, Ürün: ${item.product_name})`, 
+                0, 
+                sale.customer_name, 
+                sale.currency || 'TRY',
+                id
+              );
+            }
+          } else if (productType !== 'service') {
+            await client.query(
+              "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+              [item.quantity, item.product_id]
+            );
+            await addStockMovement(client, storeId, item.product_id, 'out', item.quantity, 'pos', `Kasa Satışı #${id}`, item.unit_price, sale.customer_name, sale.currency || 'TRY', id);
+
+            // Deduct variant stock if item has variant
+            try {
+              const pDataRes = await client.query("SELECT variants, has_variants FROM products WHERE id = $1", [item.product_id]);
+              if (pDataRes.rows.length > 0) {
+                let vList = pDataRes.rows[0].variants;
+                if (typeof vList === 'string') {
+                  try { vList = JSON.parse(vList); } catch (e) { vList = []; }
+                }
+                if (Array.isArray(vList) && vList.length > 0) {
+                  let updated = false;
+                  const updatedVars = vList.map((v: any) => {
+                    const vName = String(v.name || '').trim().toLowerCase();
+                    const itemName = String(item.product_name || '').toLowerCase();
+                    const matchName = vName && (itemName.includes(`(${vName})`) || itemName.endsWith(vName));
+                    if (matchName) {
+                      updated = true;
+                      const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                      return { ...v, stock_quantity: Math.max(0, currentStock - Number(item.quantity)) };
+                    }
+                    return v;
+                  });
+                  if (updated) {
+                    await client.query("UPDATE products SET variants = $1::jsonb WHERE id = $2", [JSON.stringify(updatedVars), item.product_id]);
+                  }
+                }
+              }
+            } catch (vErr) {
+              console.error("Error updating variant stock on table sale completion:", vErr);
+            }
+          }
+        }
+      }
+    }
+
+    const primaryMethod = payments && payments.length > 0
+      ? (payments.length > 1 ? 'multiple' : payments[0].method)
+      : (sale.status === 'processing' && sale.payment_method ? sale.payment_method : (paymentMethod || 'cash'));
+    
+    await client.query(
+      "UPDATE sales SET status = 'completed', payment_method = $1 WHERE id = $2",
+      [primaryMethod, id]
+    );
+
+    let finalCompanyId = companyId || sale.company_id; 
+    if (!finalCompanyId && sale.customer_name && !sale.customer_name.toLowerCase().startsWith('masa')) {
+      const custName = sale.customer_name.trim();
+      const compCheck = await client.query(
+        "SELECT id FROM companies WHERE store_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1",
+        [storeId, custName]
+      );
+      if (compCheck.rows.length > 0) {
+        finalCompanyId = compCheck.rows[0].id;
+      } else {
+        const newComp = await client.query(
+          `INSERT INTO companies (store_id, title, tax_number, tax_office, address, phone)
+           VALUES ($1, $2, '11111111111', 'Bireysel Satış', $3, $4) RETURNING id`,
+          [storeId, custName, sale.customer_address || '', sale.customer_phone || '']
+        );
+        finalCompanyId = newComp.rows[0].id;
+      }
+      await client.query("UPDATE sales SET company_id = $1 WHERE id = $2", [finalCompanyId, id]);
+    }
+
+    if (finalCompanyId) {
+      const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+      const branding = storeRes.rows[0]?.branding || {};
+      const total = Number(sale.total_amount) || 0;
+
+      // 1. Record Sale Debt
+      const existingDebt = await client.query(
+        "SELECT id FROM current_account_transactions WHERE store_id = $1 AND company_id = $2 AND sale_id = $3 AND type = 'debt' LIMIT 1",
+        [storeId, finalCompanyId, id]
+      );
+      if (existingDebt.rows.length === 0 && total > 0) {
+        await client.query(
+          "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'debt', $4, $5, $6, $7, $8)",
+          [storeId, finalCompanyId, id, total, `Satış #${id}`, primaryMethod || 'cash', sale.currency || branding?.default_currency || 'TRY', sale.exchange_rate || 1]
+        );
+      }
+    }
+    
+    if (payments && payments.length > 0) {
+      for (const p of payments) {
+        await client.query(
+          "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
+          [id, p.method, p.amount]
+        );
+        
+        if (finalCompanyId && Number(p.amount) > 0) {
+          const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+          const branding = storeRes.rows[0]?.branding || {};
+
+          await client.query(
+            "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'credit', $4, $5, $6, $7, $8)",
+            [storeId, finalCompanyId, id, p.amount, `Satış #${id} Ödemesi (${p.method})`, p.method, sale.currency || branding?.default_currency || 'TRY', sale.exchange_rate || 1]
+          );
+        }
+      }
+    } else {
+      const total = sale.total_amount;
+      if (paymentMethod !== 'term') {
+        await client.query(
+          "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
+          [id, paymentMethod || 'cash', total]
+        );
+      }
+
+      if (finalCompanyId && paymentMethod !== 'term') {
+        const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+        const branding = storeRes.rows[0]?.branding || {};
+
+        await client.query(
+          "INSERT INTO current_account_transactions (store_id, company_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, 'credit', $4, $5, $6, $7, $8)",
+          [storeId, finalCompanyId, id, total, `Satış #${id} Ödemesi (${paymentMethod || 'cash'})`, paymentMethod || 'cash', sale.currency || branding?.default_currency || 'TRY', sale.exchange_rate || 1]
+        );
+      }
+    }
+
+    const storeBrandingRes = await client.query("SELECT fiscal_active, fiscal_brand, fiscal_terminal_id FROM stores WHERE id = $1", [storeId]);
+    const branding = storeBrandingRes.rows[0];
+    let fiscalResult = null;
+    
+    if (branding && branding.fiscal_active) {
+      fiscalResult = {
+        success: true,
+        receiptNo: `F-${Math.floor(Math.random() * 1000000)}`,
+        zNo: `Z-${Math.floor(Math.random() * 10000)}`,
+        brand: branding.fiscal_brand,
+        terminal: branding.fiscal_terminal_id,
+        timestamp: new Date().toISOString()
+      };
+      
+      const fiscalNote = `\n[FISCAL] Receipt: ${fiscalResult.receiptNo}, Z-No: ${fiscalResult.zNo}, Brand: ${fiscalResult.brand}`;
+      await client.query("UPDATE sales SET notes = COALESCE(notes, '') || $1 WHERE id = $2", [fiscalNote, id]);
+    }
+
+    if (sale.restaurant_table_id) {
+      await client.query("UPDATE restaurant_tables SET status = 'empty' WHERE id = $1 AND store_id = $2", [sale.restaurant_table_id, storeId]);
+    } else if (sale.customer_name) {
+      const cleanName = sale.customer_name.replace(/Masa/gi, '').trim();
+      await client.query(
+        "UPDATE restaurant_tables SET status = 'empty' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, sale.customer_name, cleanName]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "sale_complete", 
+      "sale", 
+      parseInt(id), 
+      `Bekleyen satış tamamlandı: #${id}, Tutar: ${sale.total_amount} ₺`,
+      { oldStatus: 'pending' },
+      { newStatus: 'completed', paymentMethod: primaryMethod, fiscal: fiscalResult }
+    );
+
+    res.json({ success: true, fiscal: fiscalResult });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Update Status (Generic)
+router.post("/:id/status", async (req: any, res) => {
+  const { id } = req.params;
+  const { status, carrier, trackingNumber, reason } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+
+  if (!status) {
+    return res.status(400).json({ error: "Status is required" });
+  }
+
+  try {
+    let query = "UPDATE sales SET status = $1";
+    const params: any[] = [status];
+    let pIdx = 2;
+
+    if (carrier !== undefined) {
+      query += `, shipping_carrier = $${pIdx++}`;
+      params.push(carrier);
+    }
+    if (trackingNumber !== undefined) {
+      query += `, tracking_number = $${pIdx++}`;
+      params.push(trackingNumber);
+    }
+    if (reason !== undefined) {
+      query += `, cancellation_reason = $${pIdx++}`;
+      params.push(reason);
+    }
+
+    query += ` WHERE id = $${pIdx++} AND store_id = $${pIdx++} RETURNING *`;
+    params.push(id, storeId);
+
+    const result = await pool.query(query, params);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Sale not found" });
+    }
+
+    await logAction(storeId, req.user.id, "sale_status_update", "sales", parseInt(id), `Sipariş durumu güncellendi: ${status}`);
+
+    res.json({ success: true, sale: result.rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Prepare Sale
+router.post("/:id/prepare", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  try {
+    const result = await pool.query(
+      "UPDATE sales SET status = 'processing' WHERE id = $1 AND store_id = $2 RETURNING *",
+      [id, storeId]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: "Sale not found" });
+    await logAction(storeId, req.user.id, "sale_prepare", "sales", parseInt(id), "Sipariş hazırlanıyor olarak işaretlendi");
+    res.json({ success: true, sale: result.rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Ship Sale
+router.post("/:id/ship", async (req: any, res) => {
+  const { id } = req.params;
+  const { carrier, trackingNumber } = req.body;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  
+  try {
+    const result = await pool.query(
+      "UPDATE sales SET status = 'shipped', shipping_carrier = $1, tracking_number = $2 WHERE id = $3 AND store_id = $4 RETURNING *",
+      [carrier, trackingNumber, id, storeId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Sale not found" });
+    }
+
+    await logAction(storeId, req.user.id, "sale_ship", "sales", parseInt(id), JSON.stringify({ carrier, trackingNumber }));
+
+    res.json({ success: true, sale: result.rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Deliver Sale
+router.post("/:id/deliver", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  
+  try {
+    const result = await pool.query(
+      "UPDATE sales SET status = 'delivered' WHERE id = $1 AND store_id = $2 RETURNING *",
+      [id, storeId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Sale not found" });
+    }
+
+    await logAction(storeId, req.user.id, "sale_deliver", "sales", parseInt(id), "Sipariş teslim edildi olarak işaretlendi");
+
+    res.json({ success: true, sale: result.rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Cancel Sale
+router.post("/:id/cancel", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { reason } = req.body;
+  if (!reason) {
+    return res.status(400).json({ error: "Cancellation reason is required" });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const saleRes = await client.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2 FOR UPDATE", [req.params.id, storeId]);
+    if (saleRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Sale not found" });
+    }
+
+    const sale = saleRes.rows[0];
+    if (sale.status === 'cancelled') {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Sale already cancelled" });
+    }
+
+    const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [sale.id]);
+    for (const item of itemsRes.rows) {
+      if (item.product_id) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
+          [item.quantity, item.product_id]
+        );
+        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade): ${reason}`, item.unit_price, sale.customer_name, 'TRY', sale.id);
+      }
+    }
+
+    await client.query("DELETE FROM current_account_transactions WHERE sale_id = $1", [sale.id]);
+    await client.query("DELETE FROM sale_payments WHERE sale_id = $1", [sale.id]);
+
+    await client.query("UPDATE sales SET status = 'cancelled', cancellation_reason = $1 WHERE id = $2", [reason, req.params.id]);
+
+    if (sale.quotation_id) {
+      await client.query("UPDATE quotations SET status = 'cancelled', is_sale = FALSE WHERE id = $1", [sale.quotation_id]);
+    }
+
+    await client.query("COMMIT");
+
+    await logAction(
+      storeId, 
+      req.user.id, 
+      "sale_cancel", 
+      "sale", 
+      parseInt(req.params.id), 
+      `Satış iptal edildi: #${req.params.id}. Sebep: ${reason}`,
+      { oldStatus: sale.status },
+      { newStatus: 'cancelled', reason }
+    );
+
+    res.json({ success: true });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(400).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Delete Sale (Restrict to Superadmin)
+router.delete("/:id", async (req: any, res) => {
+  if (req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const saleRes = await client.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2 FOR UPDATE", [req.params.id, storeId]);
+    if (saleRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Sale not found" });
+    }
+
+    const sale = saleRes.rows[0];
+
+    if (sale.status === 'completed') {
+      const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [sale.id]);
+      for (const item of itemsRes.rows) {
+        if (item.product_id) {
+          await client.query(
+            "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
+            [item.quantity, item.product_id]
+          );
+        }
+      }
+    }
+
+    // Completely delete all stock movements associated with this sale ID so they disappear from the product's movement history
+    await client.query("DELETE FROM stock_movements WHERE sale_id = $1", [sale.id]);
+
+    await client.query("DELETE FROM procurements WHERE sale_id = $1", [sale.id]);
+    await client.query("DELETE FROM current_account_transactions WHERE sale_id = $1", [sale.id]);
+    await client.query("DELETE FROM sale_items WHERE sale_id = $1", [sale.id]);
+    await client.query("DELETE FROM sale_payments WHERE sale_id = $1", [sale.id]);
+    await client.query("DELETE FROM sales WHERE id = $1 AND store_id = $2", [sale.id, storeId]);
+    
+    if (sale.quotation_id) {
+      await client.query("UPDATE quotations SET status = 'pending', is_sale = FALSE WHERE id = $1", [sale.quotation_id]);
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+
+export default router;
+
+
+router.post("/:id/create-invoice", async (req: any, res) => {
+  const { id } = req.params;
+  const storeId = req.query.storeId ? parseInt(req.query.storeId as string) : req.user.store_id;
+  
+  try {
+    await pool.query("BEGIN");
+    
+    const saleRes = await pool.query("SELECT * FROM sales WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (saleRes.rows.length === 0) {
+      await pool.query("ROLLBACK");
+      return res.status(404).json({ error: "Sale not found" });
+    }
+    const sale = saleRes.rows[0];
+    
+    // Check if already invoiced via sales_invoices table
+    const existingInvRes = await pool.query(
+      "SELECT id, invoice_number FROM sales_invoices WHERE sale_id = $1 AND store_id = $2",
+      [id, storeId]
+    );
+    if (existingInvRes.rows.length > 0) {
+      await pool.query("ROLLBACK");
+      return res.status(400).json({ error: "Sale is already invoiced", invoice_number: existingInvRes.rows[0].invoice_number });
+    }
+    
+    // Fetch store name/branding
+    const storeRes = await pool.query("SELECT name, branding FROM stores WHERE id = $1", [storeId]);
+    const storeData = storeRes.rows[0];
+    const branding = storeData?.branding || {};
+    const storeName = branding?.store_name || branding?.name || storeData?.name || "Seçkin Mağaza";
+
+    // Extract notes, city, country, email from sale.notes
+    const rawNotes = sale.notes || "";
+    let extractedEmail = "";
+    let extractedCity = "";
+    let extractedCountry = "";
+    const customerNotesParts: string[] = [];
+
+    if (rawNotes) {
+      const parts = rawNotes.split('|').map((p: string) => p.trim());
+      for (const p of parts) {
+        if (p.startsWith('E-posta:')) {
+          extractedEmail = p.replace('E-posta:', '').trim();
+        } else if (p.startsWith('İl:')) {
+          extractedCity = p.replace('İl:', '').trim();
+        } else if (p.startsWith('Ülke:')) {
+          extractedCountry = p.replace('Ülke:', '').trim();
+        } else if (p) {
+          customerNotesParts.push(p);
+        }
+      }
+    }
+
+    // Customer resolution & auto-linking
+    let customerObj: any = null;
+    let finalCustomerId: number | null = sale.customer_id ? parseInt(sale.customer_id) : null;
+
+    if (finalCustomerId) {
+      const custRes = await pool.query("SELECT * FROM customers WHERE id = $1", [finalCustomerId]);
+      if (custRes.rows.length > 0) {
+        customerObj = custRes.rows[0];
+      }
+    }
+
+    const targetEmail = extractedEmail || sale.customer_email || (customerObj?.email || "");
+    const targetPhone = sale.customer_phone || (customerObj?.phone || "");
+    const targetFullName = (sale.customer_name || customerObj?.full_name || "Müşteri").trim();
+
+    if (!customerObj) {
+      let findCustRes = null;
+      if (targetEmail) {
+        findCustRes = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND LOWER(email) = LOWER($2) LIMIT 1", [storeId, targetEmail]);
+      }
+      if ((!findCustRes || findCustRes.rows.length === 0) && targetPhone) {
+        findCustRes = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND phone = $2 LIMIT 1", [storeId, targetPhone]);
+      }
+      if ((!findCustRes || findCustRes.rows.length === 0) && targetFullName && targetFullName !== "Müşteri") {
+        findCustRes = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND LOWER(full_name) = LOWER($2) LIMIT 1", [storeId, targetFullName]);
+      }
+
+      if (findCustRes && findCustRes.rows.length > 0) {
+        customerObj = findCustRes.rows[0];
+        finalCustomerId = customerObj.id;
+      } else {
+        const nameParts = targetFullName.split(' ');
+        const surname = nameParts.length > 1 ? nameParts.pop()! : '';
+        const firstName = nameParts.join(' ') || targetFullName;
+
+        const newCustRes = await pool.query(
+          `INSERT INTO customers (store_id, full_name, name, surname, phone, address, city, country, email)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+          [
+            storeId,
+            targetFullName,
+            firstName,
+            surname,
+            targetPhone || '',
+            sale.customer_address || '',
+            extractedCity || '',
+            extractedCountry || '',
+            targetEmail || ''
+          ]
+        );
+        customerObj = newCustRes.rows[0];
+        finalCustomerId = customerObj.id;
+      }
+    }
+
+    if (customerObj) {
+      const updates: string[] = [];
+      const vals: any[] = [];
+      let valIdx = 1;
+
+      // Ensure customer has full name (AD+SOYAD) from sale.customer_name if available
+      if (targetFullName && targetFullName !== "Müşteri" && targetFullName !== "Bireysel Web Müşterisi" && (!customerObj.full_name || !customerObj.full_name.includes(' ') || customerObj.full_name === 'Müşteri' || customerObj.full_name === 'Bireysel Web Müşterisi')) {
+        const nameParts = targetFullName.split(' ');
+        const surname = nameParts.length > 1 ? nameParts.pop()! : '';
+        const firstName = nameParts.join(' ') || targetFullName;
+        
+        updates.push(`full_name = $${valIdx++}`);
+        vals.push(targetFullName);
+        if (firstName) {
+          updates.push(`name = $${valIdx++}`);
+          vals.push(firstName);
+        }
+        if (surname) {
+          updates.push(`surname = $${valIdx++}`);
+          vals.push(surname);
+        }
+      }
+
+      if (!customerObj.address && sale.customer_address) {
+        updates.push(`address = $${valIdx++}`);
+        vals.push(sale.customer_address);
+      }
+      if (!customerObj.city && extractedCity) {
+        updates.push(`city = $${valIdx++}`);
+        vals.push(extractedCity);
+      }
+      if (!customerObj.country && extractedCountry) {
+        updates.push(`country = $${valIdx++}`);
+        vals.push(extractedCountry);
+      }
+      if (!customerObj.email && targetEmail) {
+        updates.push(`email = $${valIdx++}`);
+        vals.push(targetEmail);
+      }
+      if (updates.length > 0) {
+        vals.push(customerObj.id);
+        await pool.query(`UPDATE customers SET ${updates.join(', ')} WHERE id = $${valIdx}`, vals);
+      }
+    }
+
+    // Format full invoice address including street, city, and country
+    let streetAddress = customerObj?.address || sale.customer_address || "";
+    let city = customerObj?.city || extractedCity || "";
+    let country = customerObj?.country || extractedCountry || "";
+
+    let fullAddressParts: string[] = [];
+    if (streetAddress) fullAddressParts.push(streetAddress);
+    if (city && !streetAddress.toLowerCase().includes(city.toLowerCase())) {
+      fullAddressParts.push(city);
+    }
+    if (country && !streetAddress.toLowerCase().includes(country.toLowerCase())) {
+      fullAddressParts.push(country);
+    }
+    const fullInvoiceAddress = fullAddressParts.join(" / ");
+
+    // Payment method mapping and professional invoice notes
+    const paymentMethodMap: Record<string, string> = {
+      credit_card: "Kredi Kartı / Online Ödeme",
+      card: "Kredi Kartı / Online Ödeme",
+      paytr: "Kredi Kartı (PayTR)",
+      iyzico: "Kredi Kartı (iyzico)",
+      cash: "Nakit Ödeme",
+      nakit: "Nakit Ödeme",
+      transfer: "Havale / EFT",
+      eft: "Havale / EFT",
+      havale: "Havale / EFT",
+      pay_at_door: "Kapıda Ödeme",
+      kapida_odeme: "Kapıda Ödeme"
+    };
+    const rawPayment = (sale.payment_method || "cash").toLowerCase();
+    const paymentLabel = paymentMethodMap[rawPayment] || sale.payment_method || "Online Ödeme";
+
+    let professionalNote = `Bu fatura ${storeName} web sitesinden verilen #${id} nolu siparişe aittir. Ödeme Yöntemi: ${paymentLabel} ile ödenmiştir.`;
+    if (customerNotesParts.length > 0) {
+      professionalNote += `\n\nMüşteri Notu: ${customerNotesParts.join(' | ')}`;
+    }
+    
+    // Generate invoice number
+    const prefix = 'SATIŞ-';
+    const numberRes = await pool.query(
+      "SELECT invoice_number FROM sales_invoices WHERE store_id = $1 AND invoice_number LIKE $2 ORDER BY id DESC LIMIT 1",
+      [storeId, `${prefix}%`]
+    );
+    let nextNum = 1;
+    if (numberRes.rows.length > 0) {
+      const match = numberRes.rows[0].invoice_number.match(/\d+$/);
+      if (match) nextNum = parseInt(match[0]) + 1;
+    }
+    const invoiceNumber = `${prefix}${nextNum.toString().padStart(6, '0')}`;
+    
+    const isCorporate = customerObj?.is_corporate || false;
+    const eDocType = isCorporate ? 'E-FATURA' : 'E-ARSIV';
+    const invProfile = isCorporate ? 'TICARIFATURA' : 'EARSIVFATURA';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('tr-TR', { hour12: false });
+    
+    // Get sale items & calculate KDV/Tax
+    const itemsRes = await pool.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
+    
+    let calculatedTotalMatrah = 0;
+    let calculatedTotalTax = 0;
+    let calculatedGrandTotal = 0;
+
+    const processedItems = [];
+
+    for (const item of itemsRes.rows) {
+      const q = parseFloat(item.quantity) || 1;
+      const price = parseFloat(item.unit_price) || 0;
+      let taxRate = parseFloat(item.tax_rate);
+
+      if (isNaN(taxRate) && item.product_id) {
+        const prodRes = await pool.query("SELECT tax_rate FROM products WHERE id = $1", [item.product_id]);
+        if (prodRes.rows.length > 0 && prodRes.rows[0].tax_rate !== null) {
+          taxRate = parseFloat(prodRes.rows[0].tax_rate);
+        }
+      }
+      if (isNaN(taxRate) || taxRate < 0) {
+        taxRate = 0;
+      }
+
+      const lineTotalInclusive = parseFloat(item.total_price) || (q * price);
+      let lineMatrah = lineTotalInclusive;
+      let lineTaxAmount = 0;
+
+      if (taxRate > 0) {
+        lineMatrah = lineTotalInclusive / (1 + (taxRate / 100));
+        lineTaxAmount = lineTotalInclusive - lineMatrah;
+      } else if (item.tax_amount && parseFloat(item.tax_amount) > 0) {
+        lineTaxAmount = parseFloat(item.tax_amount);
+        lineMatrah = lineTotalInclusive - lineTaxAmount;
+      }
+
+      calculatedTotalMatrah += lineMatrah;
+      calculatedTotalTax += lineTaxAmount;
+      calculatedGrandTotal += lineTotalInclusive;
+
+      processedItems.push({
+        product_id: item.product_id || null,
+        product_name: item.product_name || 'Ürün',
+        quantity: q,
+        unit_price: price,
+        tax_rate: taxRate,
+        tax_amount: lineTaxAmount,
+        total_price: lineMatrah
+      });
+    }
+
+    if (calculatedGrandTotal === 0) {
+      calculatedGrandTotal = parseFloat(sale.total_amount) || 0;
+      calculatedTotalMatrah = calculatedGrandTotal;
+    }
+
+    const finalTaxNumber = customerObj?.tax_number || customerObj?.tc_id || '';
+    const finalTaxOffice = customerObj?.tax_office || '';
+    const finalEmail = targetEmail || customerObj?.email || '';
+
+    // Insert sales invoice
+    const invRes = await pool.query(
+      `INSERT INTO sales_invoices (
+        store_id, sale_id, customer_id, company_id, customer_name, company_title, invoice_number, invoice_date, invoice_time,
+        total_amount, tax_amount, grand_total, currency, notes, invoice_type, status,
+        payment_method, address, tax_number, tax_office, customer_email, e_document_type, invoice_profile, is_tax_inclusive
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, CURRENT_DATE, $8,
+        $9, $10, $11, $12, $13, 'sales', 'draft',
+        $14, $15, $16, $17, $18, $19, $20, true
+      ) RETURNING id`,
+      [
+        storeId,
+        id,
+        finalCustomerId,
+        sale.company_id || null,
+        targetFullName,
+        targetFullName,
+        invoiceNumber,
+        timeStr,
+        calculatedTotalMatrah,
+        calculatedTotalTax,
+        calculatedGrandTotal,
+        sale.currency || 'TRY',
+        professionalNote,
+        sale.payment_method || 'cash',
+        fullInvoiceAddress,
+        finalTaxNumber,
+        finalTaxOffice,
+        finalEmail,
+        eDocType,
+        invProfile
+      ]
+    );
+    
+    const invoiceId = invRes.rows[0].id;
+    
+    // Insert invoice items
+    for (const item of processedItems) {
+      await pool.query(
+        `INSERT INTO sales_invoice_items (
+          sales_invoice_id, product_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          invoiceId,
+          item.product_id,
+          item.product_name,
+          item.quantity,
+          item.unit_price,
+          item.tax_rate,
+          item.tax_amount,
+          item.total_price
+        ]
+      );
+    }
+    
+    await pool.query("COMMIT");
+    res.json({ success: true, invoice_id: invoiceId, invoice_number: invoiceNumber });
+  } catch (err: any) {
+    await pool.query("ROLLBACK");
+    console.error("Error in create-invoice:", err);
+    res.status(500).json({ error: err.message });
+  }
+});

@@ -1,0 +1,165 @@
+# System & Branding Guidelines
+
+This file outlines strict engineering, performance, and naming directives that must be followed by all development agents modifying the **LookPrice/Otomotiv/Emlak/Horeca/Shop** workspace ecosystem.
+
+---
+
+## 0. KESİN SEKTÖREL İZOLASYON & E-MAĞAZA (PAZARYERİ) KURALLARI (Kara Kaplı Kitap En Üst Şartı)
+
+- **Sektörel İzolasyon ve E-Mağaza (Pazaryeri) Ayrımı**:
+  - **shopLP (Genel Ürün / Perakende Mağazaları)**: Fiziksel ürün, giyim, elektronik, tüketim malzemesi vb. satışı yapılan perakende mağazalarıdır. **E-Mağazalar (Pazaryeri Entegrasyonları: Hepsiburada, Trendyol, N11, Amazon, Pazarama vb.)**, pazar yeri stok/fiyat aktarımı ve Google Merchant SADECE VE SADECE `shopLP` mağazaları içindir.
+  - **horecaLP (Kafeterya, Restoran, Otel, Horeca)**: Yiyecek, içecek, menü, adisyon, masa ve mutfak operasyonları içindir. `horecaLP` sisteminde Hepsiburada, Trendyol Pazaryeri, N11, Amazon, Pazarama veya e-Mağaza entegrasyon panelleri/özellikleri BULUNAMAZ, GÖSTERİLEMEZ ve ERİŞİLEMEZ.
+  - **Gayrimenkul (Emlak)** ve **Otomotiv (Motorlu Araçlar)**: İlan odaklı portföy mağazalarıdır. E-Mağaza (pazaryeri) entegrasyonları, fatura/e-irsaliye modülleri bu sistemlerde kesinlikle bulunamaz.
+  - Bir sektörel modüle veya genel ürün altyapısına yapılan müdahaleler, diğer modüllerin veri yapılarını, API uçlarını, ilan/form şablonlarını veya durum yönetimlerini kesinlikle etkilememelidir.
+  - **Mağaza Oluşturma ve Yönlendirme Kuralı**: Yeni mağaza oluşturulurken veya başlatılırken, seçilen sektör (`shopLP`, `horecaLP`, Emlak, Otomotiv) sistem tarafından belirlenen şablonlara ve tema ayarlarına (`branding.store_type`, `branding.page_layout_settings.sector`) hatasız bir şekilde işlenmelidir. Hiçbir e-mağaza / pazaryeri özelliği `horecaLP` veya gayrimenkul/otomotiv mağazalarına sızdırılamaz.
+
+---
+
+## 1. Strict Naming & Corporate Mapping Rules
+
+- **Display Names Over Slugs ("Firma Adı" over "Slug")**:
+  - Always resolve and display the human-readable company/store name (e.g., `branding?.store_name` or `branding?.name` or fallback titles like `"Seçkin Emlak"`, `"Seçkin Otomotiv"`, `"Seçkin Mağaza"`) rather than printing raw technical slugs (e.g., `urlSlug`, `activeSlug`, `branding?.slug`).
+  - Raw strings containing the term `"lookprice"` should have high-confidence fallback mappings to Turkish equivalents of premium service agencies (e.g. `"Premium VIP Emlak"`, `"Seçkin Mağaza"`, `"Seçkin Emlak"`) unless specifically requested.
+
+- **Dynamic Contract Templates & Legal Documents**:
+  - All contracts generated under `/src/components/AutoContractModal.tsx`, `/src/components/LegalContractModal.tsx` must accurately inherit settings-level objects:
+    - **Firma Adı**: Dynamically bind to `branding?.store_name` or `branding?.name`. Fallbacks must reflect premium names (`"Seçkin Emlak"` or `"Seçkin Otomotiv"`), never hardcoded platform indicators.
+    - **Detaylı İletişim & Telefon**: Strictly use `branding?.phone`, `branding?.whatsapp_number`, or other sectoral profile options configures in settings.
+    - **Suites & Services Footer**: Standardized to dynamically computed store identifiers.
+
+- **Zero Manual Post-Copy Correction ("Kopyala-Yapıştır Hazır")**:
+  - Social media share modals (Real Estate, Automotive, and Product variants) must generate fully complete and accurate caption texts.
+  - Clipboard copy operations (`getCaptionText`) must never output generic, static mockup data or dummy phone numbers (such as `+90 (548) 000 0000`) if any valid phone parameters exist in `branding`.
+  - All hashtags and brand labels should dynamically sanitize special characters from the exact customer store's name.
+
+---
+
+## 2. Startup & Performance Optimization Rules
+
+- **Bypass Flash Loadings & Blocking Splashes**:
+  - Never default initial check states (e.g. `isCheckingDomain`) to `true` if they can be evaluated synchronously based on initial client-side metadata (e.g., matching known local or system hostnames synchronously).
+  - Keeps initial loading visual transitions elegant and free of unnecessary layout shifts.
+
+- **Asset Chunks and Lazy Loading (code split)**:
+  - All lazy-loaded components in `/src/App.tsx` must be retained to maintain minimal initial asset sizes.
+  - Large external bundles (utility worksheets, PDF generators, charts) must be designated inside the Vite config under target vendor chunks to avoid bundle bloat.
+
+---
+
+## 5. Sektörel İzolasyon ve Ortak Yönetim Koruma Kuralları
+
+- **Sektörel İzolasyon (İlan Odaklı Portföy Mağazaları)**: Oto Galeri (Motorlu Araçlar) ve Emlak Portföy mağazalarında 'Alış/Satış Faturaları' ve 'e-İrsaliye' modülleri tamamen gizlenmelidir. Bu özellikler sadece genel perakende mağazaları için aktif tutulmalıdır. Bu kural tüm geliştiriciler için zorunludur.
+  - **Gayrimenkul (Emlak)**, **Otomotiv (Motorlu Araçlar)** ve **Genel Ürün Yönetimi** modülleri kod düzeyinde tamamen izole kalmalıdır.
+  - Bir sektörel modüle veya genel ürün alt yapısına yapılan müdahaleler, diğer modüllerin veri yapılarını, API uçlarını, ilan/form şablonlarını veya durum yönetimlerini kesinlikle etkilememelidir.
+  - Emlak ve Otomotiv modüllerine ait özel bileşenler (`SectorSpecs`, `RealEstateModal`, vb.) bağımsız yapıdadır ve ortak ürün tablolarına geçildiğinde bu sectoral alanlar bozulmadan korunmalıdır.
+  - **Mağaza Oluşturma Kuralı**: Yeni mağaza oluşturulurken veya başlatılırken, seçilen sektör (Emlak, Otomotiv, Genel Ürün) sistem tarafından belirlenen şablonlara ve tema ayarlarına (branding.store_type, branding.page_layout_settings.sector) hatasız bir şekilde işlenmelidir. Hiçbir koşulda varsayılan "genel ürün" şablonu sektörel bir mağazaya atanmamalıdır.
+
+- **Ortak Özelliklerin/Hataların Korunması**:
+  - Ürün Yönetimi, Alış/Satış Faturaları, Cari Hesaplar ve Stok sistemleri üzerinde hata giderilirken ortak arayüzlerin veya statik doğrulamaların (örneğin fatura durumları, ödeme yöntemleri) sektörel filtrelerle (Emlak/Oto) çakışmaması sağlanmalıdır.
+  - Tüm geliştirici ajanlar, her turn öncesinde bu izolasyon kurallarını okumak ve modül sınırlarına harfiyen uymakla yükümlüdür.
+
+---
+
+## 4. E-Fatura, E-Arşiv ve Alış/Satış Görsel Kuralları
+
+- **Alış (Gelen/Purchase) Faturaları HTML Görüntüleme**:
+  - Alınan e-faturaların HTML görsellerine kesinlikle hiçbir ek açıklama, döviz kur bilgisi, TL cinsinden hesaplama tablosu ("Döviz Karşılıkları") ya da harici müdahale eklenmemelidir.
+  - Alış faturaları entegratörden geldiği orijinal formatta ve bilgilerle, "geldiği gibi" ham HTML olarak temiz bir şekilde ekrana yansıtılmalıdır.
+
+- **Satış (Giden/Sales) Faturaları ve Döviz/Kur Bilgileri**:
+  - Sadece dövizli satış faturalarında, açıklama kısmında döviz kuru bilgisi ile TL cinsinden hesaplama tablosu ("Döviz Karşılıkları (TRY)" başlığı altında Mal Hizmet Toplam Tutarı, Hesaplanan KDV ve Vergiler Dahil Toplam Tutar) HTML görseline entegre edilmelidir.
+
+- **Satış Faturalarında KDV Oran Gruplama Kuralı**:
+  - Çok kalemli (örn. 100 satır) satış faturalarında her kalem için ayrı ayrı KDV satırı oluşturulmamalıdır.
+  - Faturadaki tüm ürünlerin KDV oranları aynı ise, bu KDV tutarlarının toplamı tek bir "Hesaplanan Katma Değer Vergisi (%X)" satırında gösterilmelidir.
+  - Eğer faturada farklı yüzdelere sahip KDV oranları mevcut ise (örn. hem %10 hem %20), her bir benzersiz KDV oranı kendi içinde gruplanarak alt alta ayrı satırlar halinde (örn. biri %10, diğeri %20 toplamı olarak) gösterilmelidir.
+
+---
+
+## 6. Core Financial & Integration Stability (e-Fatura / e-Arşiv)
+
+- **High-Risk Module Designation**:
+  - Files `/routes/einvoice.ts`, `/src/services/backend/mysoftService.ts`, `/src/services/backend/gibSyncCron.ts` and related invoice processing logic are designated as **CRITICAL FINANCIAL MODULES**. Any modification here is considered HIGH-RISK.
+  - Development agents must exercise extreme caution. **Refactoring is strictly forbidden** without an explicit, verifiable test plan that mimics production API responses for each invoice type (Purchase, Sales, E-Archive).
+
+- **GİB & Mükellef Etiket (Alias) Canlılık ve Dayanıklılık Kuralı (Zero-Stale Alias Protocol)**:
+  - GİB e-Fatura / e-İrsaliye sistemi yaşayan, mükelleflerin posta kutusu etiketlerinin (`pkAlias`) zamanla güncellenebildiği dinamik bir ekosistemdir.
+  - `official_taxpayer_cache` önbelleğinde bir mükellefin `alias` değeri `NULL`, boş (`""`) veya varsayılan `urn:mail:defaultpk` ise bu önbellek verisi ASLA güvenilir kabul edilmemeli, **anında MySoft API (`checkTaxpayer`) üzerinden canlı GİB sorgusu yapılarak** güncel posta kutusu çekilmeli ve önbellek güncellenmelidir.
+  - Fatura UBL paketinde alıcı posta kutusu adresi (`pkAlias`) ile satıcı/gönderici adresi (`gbAlias`, `senderAlias`) kesinlikle birbirine karıştırılmamalı, satıcının kendi posta kutusu alıcıya atanmamalıdır.
+  - **Arka Plan Cron Senkronizasyonu (`/src/services/backend/gibSyncCron.ts`)**: Sunucu arka planda periyodik olarak (her 30 dakikada bir) eski/geçersiz önbellek kayıtlarını onarmalı ve kuyrukta bekleyen faturaların GİB kabul/red durumlarını MySoft üzerinden tazelemelidir.
+
+- **Defensive Integration Policy**:
+  - All external API integrations (e.g., HTML invoice retrieval) **MUST** implement robust defensive programming.
+  - Unexpected or missing metadata (e.g., `e_document_type`) **MUST NOT** trigger runtime failures. Implement safe, documented fallbacks (e.g., defaulting to 'E-ARSIV') to ensure continuity of service.
+  - Logging **MUST** be verbose for HTML retrieval steps to allow immediate debugging in production without code modification.
+
+- **Mandatory Regression Verification**:
+  - Any change, no matter how small, affecting these modules **MUST** be verified by the developer agent by triggering the affected functionality (e.g., attempting to fetch a known invoice HTML or taxpayer check) immediately after the change, before completing the turn. 
+  - If integration tests fail, the change MUST be rolled back immediately.
+
+---
+
+## 7. Operator UX Continuity & Persistence Rules (Sayfa Yenileme / Tab Koruma)
+
+- **Operator Workflow Preservation (Kaldığı Yerden Devam Etme)**:
+  - Sayfa yenilendiğinde (`F5` veya `Shift+F5`) ya da oturum tazelendiğinde operatörün çalıştığı aktif sekme (örn. `products`, `fast-pos`, `sales_invoices`, `settings`), alt sekmeler ve kategori/filtre durumları sıfırlanmamalıdır.
+  - Aktif sekme `activeTab` ve kritik filtreler hem `localStorage` (`storeDashboardTab_${storeId}`, `productsTabCategory`, vb.) hem de URL arama parametreleri (`?tab=...`) ile senkronize tutulmalıdır.
+  
+---
+
+## 8. Stability & Regression Protocol (Anti-Regression)
+- **Module Identification**: Before editing any "Critical Module" (e.g., Poster System, CRM, Invoice logic, e-Waybill), explicitly identify it as such in the chain-of-thought.
+
+## 9. Real Estate Showcase Layout & A4 Poster Design Specifications
+
+- **Logo Size and Sticky Header Guard**:
+  - The sticky header in `ModernRealEstateLayout.tsx` MUST retain a compact height structure (e.g. `py-1 md:py-1.5`) while supporting an oversized logo visibility. The logo image should use negative margins (e.g. `-my-8 md:-my-10 h-28 md:h-36`) to visually overlap elegant container boundaries without expanding the physical layout grid's vertical footprint.
+
+- **A4 Portrait Real Estate Poster Layout**:
+  - The printed/PDF poster designed under `RealEstateTab.tsx` (the `handlePrintProperty` print window HTML generation) is formatted strictly for professional physical standard A4 dimensions (`210mm x 297mm`, inside a `277mm` double border with `8mm` inner padding).
+  - You are STRICTLY forbidden from using dynamically loaded external utility scripts (like Tailwind CDN) inside the generated iframe document, as they can fail, freeze page loads, or alter styling during print rendering.
+  - Rely purely on explicit inline or embedded document CSS classes to control pixel-perfect layout nodes:
+    - **Header**: Flex-based brand title & date subtitle block (exactly `20mm` height).
+    - **Title Area**: Intent badge, main property title, and region tag pills (exactly `22mm` height).
+    - **Property Image**: Perfect `108mm` height bounded cover canvas with absolute embedded pricing overlay badge.
+    - **Bento Specs**: Exactly a 4-column flat grid with `22mm` fixed height structure displaying Rooms, Area, Heating, and Deed types.
+    - **Description**: Sided highlight card exactly `26mm` height limiting the description content to 3-line clamp safely.
+    - **Agent Footer**: Fully resolved contact credentials with integrated Lookprice platform guarantee indicators (exactly `22mm` height).
+
+- **Interactive Full-Screen Map (Map Mode) & Advanced Filtering Safeguards**:
+  - On the full-screen interactive discovery layout in `IDXSplitMapView.tsx`, clicking any marker MUST toggle high-contrast visual focus styling (with scale zoom animations) and trigger a complete, fully featured floating info-popup containing a rich product cover image, formatted price tags, and immediate detail navigation links.
+  - **Category Classification Guard (`getNormalizedCategory`)**: Under no circumstances should the normalization logic be modified or bypassed. Residential indicators (e.g., `hasHouseIndicator` detecting keyword variations like "müstakil", "villa", "daire", "ev", "1+1", "2+1") MUST always take precedence over generic sector tags (e.g., land/"arsa" indicators) to prevent villas/houses from being misclassified as raw land.
+  - **Legibility & Theme Continuity**: To preserve optimal contrast and prevent invisible text in light/dark mode transitions, all containers, search drawers, filter selections, and headers MUST adhere to adaptive utility variables (e.g., `bg-white dark:bg-slate-900`, `text-slate-900 dark:text-slate-100`, and `border-slate-200 dark:border-slate-800`). No hardcoded dark-only colors (`bg-slate-950`, etc.) are allowed on core panels or interactive controls unless explicitly styled for high-contrast light mode counterparts.
+  - **Absolute Filter Isolation**: The filters inside the advanced search drawer—including tapu türü, imar durumu (zoning), KAKS, altyapı, devir/kiracı durumu, oda sayısı, eşya durumu, trafo bedeli, and KDV—are locked. No future agent is authorized to simplify, alter the filtering logic, or remove these specialized KKTC real estate parameters from the codebase.
+
+- **Eşgüdümlü İlan ve Web Filtre Standardı**: İlan düzenle içeriğinde yapılan her bir geliştirme, filtre, web sitesindeki ilgili alana tam bir eşgüdüm ile yansıtılacak!
+
+- **Fiyat Formatlama ve Görünürlük Standartları (Binlik Ayraç Kuralı)**: Tüm ilan girme/düzenleme formlarında (ör. `RealEstateModal.tsx`), fiyat giriş alanları optimum genişlikte (fiyat ve para birimi sıkışmayacak şekilde) tasarlanmalı ve fiyat değerleri hem giriş esnasında hem de gösterimde binlik ayraç (ör. `850.000` veya `1.250.000`) formatıyla sunulmalıdır. Fiyat alanı dar sütunlara sıkıştırılamaz.
+
+- **Test Path Documentation**: For every critical module, there must be a known manual test path or verification script.
+- **Pre-Post Verification**:
+    - **PRE**: Execute the manual test path to establish a baseline.
+    - **POST**: Execute the manual test path to verify no regression.
+- **Mandatory Reporting**: Every turn summary MUST explicitly state: "Regression check for [Module Name] passed."
+- **Failure Policy**: If regression tests fail post-change, the modification MUST be immediately rolled back.
+
+---
+
+## 10. TCMB Döviz Kurları ve Çapraz Kur (Forex Buying / Önceki İş Günü) Kuralı
+
+- **Döviz Alış (ForexBuying) Esası**:
+  - Faturalarda, cari hesaplarda ve çapraz kur hesaplamalarında TCMB tarafından deklare edilen **"Döviz Alış" (`ForexBuying`)** kuru kesin kural olarak esas alınmalıdır. Satış veya efektif kurları fatura değerlemesinde kullanılmamalıdır.
+- **Önceki İş Günü / Tatil Günü Kuralı**:
+  - TCMB kurları her iş günü öğleden sonra (~15:30 - 16:00) açıklanır. Örneğin 24.08.2026 Pazartesi günü için geçerli olan kur, bir önceki iş günü olan 21.08.2026 Cuma tarihli TCMB bülteninde yayınlanan kurlardır. Hafta sonu ve resmi tatillerde de bir önceki son iş gününün kurları geçerlidir.
+- **Otomatik Güncelleme (Cron) Garantisi**:
+  - Mağazaların `Ayarlar > Mağaza ayarları > Para Birimi & Dil Yerelleştirme Ayarları` altında yer alan `currency_rates` alanları, arka plandaki cron job (`syncTCMBRates`) vasıtasıyla düzenli olarak TCMB `today.xml` verisinden güncellenmeli, her mağazanın ana para birimine (TRY vb.) göre çapraz kurlar güncel ve doğru tarihli tutulmalıdır.
+
+---
+
+## 11. Renk Kontrastı ve Zıtlık Standardı (Koyu/Açık Arka Plan Kuralı)
+
+- **Zıtlık ve Okunabilirlik Kuralı**:
+  - Herhangi bir bileşen, modal başlığı, kart veya panelde **koyu renk bir arka plan** (`bg-slate-900`, `bg-slate-950`, `bg-blue-900`, vb.) tercih ediliyorsa, üzerindeki tüm yazılar, rakamlar ve ikonlar muhakkak **ters renk, yani açık renk (`text-white`, `text-slate-100`, `text-slate-200`)** olarak set edilmelidir. Hem arka planın hem de metin renginin koyu olması durumunda metinler okunmaz hale gelir (Kritik UI hatası).
+  - Benzer şekilde, **açık renk bir arka plan** (`bg-white`, `bg-slate-50`, vb.) üzerinde de yazıların ve rakamların **koyu renkli (`text-slate-900`, `text-slate-950`)** seçilmesi şarttır.
+
+

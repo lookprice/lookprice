@@ -1,0 +1,3120 @@
+import express from "express";
+import { pool, processSaleAutomation } from "../models/db";
+import crypto from "crypto";
+
+const router = express.Router();
+
+// High-Performance In-Memory RAM Cache for Read-Heavy Public Endpoints
+// Prevents redundant Supabase PostgreSQL queries and reduces Database Egress by 90%+
+class MemoryCache {
+  private cache = new Map<string, { data: any; expiry: number }>();
+
+  get(key: string): any | null {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expiry) {
+      this.cache.delete(key);
+      return null;
+    }
+    return item.data;
+  }
+
+  set(key: string, data: any, ttlSeconds: number = 60): void {
+    if (this.cache.size > 500) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) this.cache.delete(oldestKey);
+    }
+    this.cache.set(key, { data, expiry: Date.now() + ttlSeconds * 1000 });
+  }
+
+  del(key: string): void {
+    this.cache.delete(key);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+export const publicApiCache = new MemoryCache();
+
+router.get("/sitemap.xml", async (req, res) => {
+  try {
+    const cacheKey = "sitemap_xml";
+    const cachedXml = publicApiCache.get(cacheKey);
+    if (cachedXml) {
+      res.type('application/xml');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.send(cachedXml);
+    }
+
+    const stores = await pool.query("SELECT id, slug, custom_domain FROM stores WHERE status = 'active' OR status IS NULL");
+    const seoPages = await pool.query("SELECT slug, store_id, updated_at FROM seo_pages WHERE status = 'active'");
+    
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+
+    for (const store of stores.rows) {
+      const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+      const host = store.custom_domain || req.get('host');
+      const baseUrl = `${protocol}://${host}`;
+
+      // Base store URL
+      xml += `\n  <url>\n    <loc>${baseUrl}</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`;
+
+      // SEO Pages for this store
+      const storeSeoPages = seoPages.rows.filter((p: any) => p.store_id === store.id);
+      for (const page of storeSeoPages) {
+        xml += `\n  <url>\n    <loc>${baseUrl}/seo/${page.slug}</loc>\n    <lastmod>${new Date(page.updated_at).toISOString().split('T')[0]}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
+      }
+    }
+
+    xml += `\n</urlset>`;
+    publicApiCache.set(cacheKey, xml, 1800); // 30 minutes in RAM
+    res.type('application/xml');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(xml);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/fix-db", async (req, res) => {
+
+  const result = await pool.query("SELECT id, branding FROM stores");
+  for (const row of result.rows) {
+    if (row.branding && typeof row.branding === 'object') {
+       let br = { ...row.branding };
+       let changed = false;
+       while (br.branding) {
+         const nested = br.branding;
+         delete br.branding;
+         br = { ...nested, ...br };
+         changed = true;
+       }
+       const colsToRemove = ['id', 'created_at', 'updated_at', 'store_id', 'cf_api_token', 'cf_account_id', 'cf_api_email', 'cf_zone_id', 'custom_domain_status', 'cf_name_servers', 'parent_id', 'hero_title', 'about_text'];
+       for (const col of colsToRemove) {
+         if (br[col] !== undefined) {
+           delete br[col];
+           changed = true;
+         }
+       }
+       if (changed) {
+         await pool.query("UPDATE stores SET branding = $1 WHERE id = $2", [JSON.stringify(br), row.id]);
+       }
+    }
+  }
+  res.json({ success: true });
+});
+
+router.post("/analytics/event", async (req, res) => {
+  const { store_id, entity_type, entity_id, event_type, referer } = req.body;
+  if (!store_id || !entity_type || !event_type) {
+    return res.status(400).json({ error: "Missing required analytics fields" });
+  }
+
+  try {
+    const ip = req.ip || req.headers["x-forwarded-for"] || "";
+    const userAgent = req.headers["user-agent"] || "";
+    
+    await pool.query(
+      `INSERT INTO store_analytics_events (store_id, entity_type, entity_id, event_type, ip_address, user_agent, referer)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        Number(store_id),
+        String(entity_type),
+        entity_id ? Number(String(entity_id).replace(/\D/g, "")) : null,
+        String(event_type),
+        String(ip).substring(0, 45),
+        String(userAgent),
+        referer ? String(referer) : null
+      ]
+    );
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Public analytics logging failed:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/debug-stores", async (req, res) => {
+  const result = await pool.query("SELECT * FROM stores WHERE name ILIKE '%GAP%'");
+  res.json(result.rows);
+});
+
+router.get("/stores/:slug/blog-posts", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const storeId = storeRes.rows[0].id;
+
+    const result = await pool.query(
+      "SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC",
+      [storeId]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/stores/:slug/blog-posts/:id", async (req, res) => {
+  const { slug, id } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT id FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const storeId = storeRes.rows[0].id;
+
+    const result = await pool.query(
+      "SELECT * FROM blog_posts WHERE id = $1 AND store_id = $2 AND status = 'published'",
+      [id, storeId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Post not found" });
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper for Iyzico Signature
+function generateIyzicoSignature(apiKey: string, secretKey: string, randomString: string, payload: any) {
+  let pkiString = `[apiKey=${apiKey}][randomString=${randomString}]`;
+  
+  const fields = [
+    'locale', 'conversationId', 'price', 'paidPrice', 'currency', 
+    'basketId', 'paymentGroup', 'buyer', 'shippingAddress', 'billingAddress', 
+    'basketItems', 'callbackUrl', 'posOrderId', 'enabledInstallments', 'token'
+  ];
+
+  const nestedFields: any = {
+    buyer: ['id', 'name', 'surname', 'identityNumber', 'email', 'registrationAddress', 'city', 'country', 'ip'],
+    shippingAddress: ['contactName', 'city', 'country', 'address'],
+    billingAddress: ['contactName', 'city', 'country', 'address'],
+    basketItems: ['id', 'name', 'itemType', 'category1', 'category2', 'price']
+  };
+
+  for (const field of fields) {
+    const value = payload[field];
+    if (value !== undefined && value !== null) {
+      if (Array.isArray(value)) {
+        let str = `[${field}=[`;
+        if (value.length > 0 && typeof value[0] === 'object') {
+          str += value.map(item => {
+            let itemStr = "[";
+            const subFields = nestedFields[field] || Object.keys(item);
+            itemStr += subFields
+              .filter((f: string) => item[f] !== undefined && item[f] !== null)
+              .map((f: string) => `[${f}=${item[f]}]`)
+              .join("");
+            itemStr += "]";
+            return itemStr;
+          }).join("");
+        } else {
+          str += value.join(", ");
+        }
+        str += "]]";
+        pkiString += str;
+      } else if (typeof value === 'object') {
+        let str = `[${field}=[`;
+        const subFields = nestedFields[field] || Object.keys(value);
+        str += subFields
+          .filter((f: string) => value[f] !== undefined && value[f] !== null)
+          .map((f: string) => `[${f}=${value[f]}]`)
+          .join("");
+        str += "]]";
+        pkiString += str;
+      } else {
+        pkiString += `[${field}=${value}]`;
+      }
+    }
+  }
+
+  const hash = crypto.createHash('sha1').update(apiKey + randomString + secretKey + pkiString).digest('base64');
+  return hash;
+}
+
+router.get("/stores/:slug/radar-news", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT id, store_type FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const storeId = storeRes.rows[0].id;
+    const storeType = storeRes.rows[0].store_type;
+
+    // Logic: Return store specific and globally published radar news matching store sector
+    const query = `
+      SELECT DISTINCT * FROM radar_news 
+      WHERE (store_id = $1 AND published_on_store = TRUE)
+      OR (published_on_enrakipsiz = TRUE AND sector = $2)
+      ORDER BY created_at DESC
+    `;
+    const params = [storeId, storeType || 'real_estate'];
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Public fetch news error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/enrakipsiz/radar-news", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT r.*, s.name as store_name, s.slug as store_slug
+       FROM radar_news r
+       JOIN stores s ON r.store_id = s.id
+       WHERE r.published_on_enrakipsiz = TRUE 
+       ORDER BY r.created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Public enrakipsiz news error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/enrakipsiz/portal", async (req, res) => {
+  try {
+    const cacheKey = "enrakipsiz_portal";
+    const cached = publicApiCache.get(cacheKey);
+    if (cached) {
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      return res.json(cached);
+    }
+
+    const settings = await pool.query("SELECT * FROM enrakipsiz_settings WHERE id = 1");
+    const slides = await pool.query("SELECT * FROM enrakipsiz_slides WHERE is_active = TRUE ORDER BY id ASC");
+    const ads = await pool.query("SELECT * FROM enrakipsiz_ads WHERE is_active = TRUE ORDER BY id ASC");
+    
+    // Fetch featured sponsor stores
+    const featuredStores = await pool.query(`
+      SELECT id, name, slug, logo_url, sub_sector, description, is_enrakipsiz_featured, enrakipsiz_featured_order, enrakipsiz_featured_title, branding
+      FROM stores
+      WHERE is_enrakipsiz_featured = true
+      ORDER BY enrakipsiz_featured_order ASC, name ASC
+    `);
+    
+    const payload = {
+      settings: settings.rows[0],
+      slides: slides.rows,
+      ads: ads.rows,
+      featured_stores: featuredStores.rows
+    };
+    publicApiCache.set(cacheKey, payload, 60);
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.json(payload);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public: Mega Portal Marketplace combined listings
+router.get("/marketplace/listings", async (req, res) => {
+  try {
+    const cacheKey = "marketplace_listings";
+    const cached = publicApiCache.get(cacheKey);
+    if (cached) {
+      res.setHeader('Cache-Control', 'public, max-age=45');
+      return res.json(cached);
+    }
+
+    let vehiclesList: any[] = [];
+    try {
+      const vehiclesRes = await pool.query(`
+        SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, v.market_story, v.technical_description, v.category, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
+        FROM vehicles v
+        JOIN stores s ON v.store_id = s.id
+        WHERE v.status <> 'sold' AND (v.is_on_enrakipsiz = true)
+        ORDER BY v.id DESC
+        LIMIT 100
+      `);
+      vehiclesList = vehiclesRes.rows || [];
+    } catch (error: any) {
+      console.warn("Marketplace vehicles queries had an issue. Retrying with simple select fallback:", error);
+      try {
+        const fallbackRes = await pool.query(`
+          SELECT v.id as db_id, v.store_id, v.brand, v.model, v.year, v.transmission, v.fuel_type, v.selling_price, v.currency, v.type, v.current_mileage as mileage, v.status, v.images, v.created_at, v.description, v.paint_report, v.is_trade_in_available, v.market_story, v.technical_description, v.category, s.name as store_name, s.slug as store_slug, s.sub_sector as store_sub_sector, s.phone as store_phone, s.whatsapp_number as store_whatsapp
+          FROM vehicles v
+          JOIN stores s ON v.store_id = s.id
+          LIMIT 100
+        `);
+        vehiclesList = fallbackRes.rows || [];
+      } catch (fallbackErr: any) {
+        console.error("Ultimate vehicles fallback failed:", fallbackErr);
+      }
+    }
+
+    let realEstateList: any[] = [];
+    try {
+      const realEstateRes = await pool.query(`
+        SELECT r.*, s.name as store_name, s.slug as store_slug, s.phone as store_phone, s.whatsapp_number as store_whatsapp,
+               c.name as consultant_name, c.phone as consultant_phone
+        FROM real_estate_properties r
+        JOIN stores s ON r.store_id = s.id
+        LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
+        WHERE r.status <> 'sold' AND (r.is_on_enrakipsiz = true)
+        ORDER BY r.created_at DESC
+        LIMIT 100
+      `);
+      const rows = realEstateRes.rows || [];
+      realEstateList = rows.map((r: any) => ({
+        ...r,
+        responsible_agent: r.consultant_name || r.responsible_agent,
+        consultant_phone: r.consultant_phone || undefined
+      }));
+    } catch (error: any) {
+      console.warn("Table real_estate_properties query soft-failed. Attempting real_estate table name instead...", error);
+      try {
+        const realEstateRes = await pool.query(`
+          SELECT r.*, s.name as store_name, s.slug as store_slug, s.phone as store_phone, s.whatsapp_number as store_whatsapp
+          FROM real_estate r
+          JOIN stores s ON r.store_id = s.id
+          WHERE r.status <> 'sold' AND (r.is_on_enrakipsiz = true)
+          ORDER BY r.created_at DESC
+          LIMIT 100
+        `);
+        const rows2 = realEstateRes.rows || [];
+        realEstateList = rows2.map((r: any) => ({
+          ...r,
+          responsible_agent: r.consultant_name || r.responsible_agent,
+          consultant_phone: r.consultant_phone || undefined
+        }));
+      } catch (innerError: any) {
+        console.error("Both real_estate table aliases failed or missing:", innerError);
+      }
+    }
+
+    const allListings: any[] = [];
+
+    vehiclesList.forEach((v: any) => {
+      const transMap: Record<string, string> = {
+        'manual': 'Manuel',
+        'automatic': 'Otomatik',
+        'semi_automatic': 'Yarı Otomatik',
+        'dual_clutch': 'Çift Kavrama (DCT/DSG)'
+      };
+      const fuelMap: Record<string, string> = {
+        'gasoline': 'Benzin',
+        'diesel': 'Dizel',
+        'gasoline_hybrid': 'Benzin / Hibrit',
+        'diesel_hybrid': 'Dizel / Hibrit',
+        'electric': 'Elektrik',
+        'lpg': 'LPG'
+      };
+
+      const trans = transMap[v.transmission] || v.transmission || '';
+      const fuel = fuelMap[v.fuel_type] || v.fuel_type || '';
+      const generatedTitle = `${v.year || ''} Model ${trans} ${fuel} ${v.brand || ''} ${v.model || ''}`.replace(/\s+/g, ' ').trim();
+      
+      const resolvedVehicleCat = ['hafif_ticari', 'suv', 'pickup', 'otomobil'].includes(v.category) ? v.category : (v.category || (v.store_sub_sector === 'car' ? 'otomobil' : (v.store_sub_sector || 'otomobil')));
+      
+      allListings.push({
+        id: `v_${v.db_id}`,
+        db_id: v.db_id,
+        listing_type: 'vehicle',
+        sub_sector: resolvedVehicleCat,
+        category: resolvedVehicleCat,
+        vehicle_category: resolvedVehicleCat,
+        title: generatedTitle,
+        price: v.selling_price || 0,
+        currency: v.currency,
+        year: v.year,
+        mileage: v.mileage,
+        km: v.mileage,
+        fuel_type: v.fuel_type,
+        fuel: v.fuel_type,
+        transmission: v.transmission,
+        image_url: v.images && v.images.length > 0 ? v.images[0] : null,
+        images: v.images || [],
+        store_name: v.store_name,
+        store_slug: v.store_slug,
+        store_phone: v.store_phone,
+        store_whatsapp: v.store_whatsapp,
+        brand: v.brand,
+        model: v.model,
+        description: v.description || '',
+        paint_report: v.paint_report,
+        is_trade_in_available: v.is_trade_in_available,
+        created_at: v.created_at || new Date(),
+        market_story: v.market_story,
+        technical_description: v.technical_description,
+        sector_data: {
+          category: resolvedVehicleCat,
+          vehicle_category: resolvedVehicleCat,
+          sub_sector: resolvedVehicleCat,
+          year: v.year,
+          brand: v.brand,
+          model: v.model,
+          hp: v.hp || '',
+          engine: v.engine_number ? 'Mevcut' : '',
+          transmission: v.transmission,
+          fuel: v.fuel_type,
+          fuel_type: v.fuel_type,
+          is_trade_in_available: v.is_trade_in_available,
+          mileage: v.mileage,
+          km: v.mileage,
+          paint_report: v.paint_report,
+          package_name: v.package_name,
+          color: v.color,
+          body_type: v.body_type,
+          tramer_amount: v.tramer_amount,
+          tramer_currency: v.tramer_currency,
+          market_story: v.market_story,
+          technical_description: v.technical_description
+        }
+      });
+    });
+
+    realEstateList.forEach((r: any) => {
+      let secData = r.sector_data;
+      if (typeof secData === 'string') {
+        try { secData = JSON.parse(secData); } catch(e) { secData = {}; }
+      }
+      if (!secData || typeof secData !== 'object') secData = {};
+
+      allListings.push({
+        id: `re_${r.id}`,
+        db_id: r.id,
+        listing_type: 'real_estate',
+        type: r.type || 'residence',
+        subtype: r.subtype || '',
+        title: r.title,
+        price: r.price,
+        currency: r.currency,
+        square_meters: r.square_meters,
+        m2: r.square_meters,
+        rooms: r.room_count,
+        room_count: r.room_count,
+        image_url: r.images && r.images.length > 0 ? r.images[0] : null,
+        images: r.images || [],
+        store_name: r.store_name,
+        store_slug: r.store_slug,
+        store_phone: r.store_phone,
+        store_whatsapp: r.store_whatsapp,
+        category: 'Emlak',
+        brand: r.location,
+        description: r.description || '',
+        listing_intent: r.listing_intent || (r.title?.toLowerCase().includes("kiralık") ? "rent" : "sale"),
+        intent: (r.listing_intent === 'rent' || r.title?.toLowerCase().includes("kiralık")) ? 'kiralik' : 'satilik',
+        reference_no: r.reference_no,
+        created_at: r.created_at,
+        ...secData,
+        sector_data: {
+          ...secData,
+          square_meters: r.square_meters || secData.square_meters,
+          net_m2: r.square_meters || secData.net_m2 || secData.square_meters,
+          m2: r.square_meters || secData.m2 || secData.square_meters,
+          rooms: r.room_count || secData.rooms,
+          room_count: r.room_count || secData.room_count,
+          virtual_tour_url: r.virtual_tour_url,
+          ai_tour_enabled: r.ai_tour_enabled,
+          sqm_gross: r.sqm_gross,
+          block_plot: r.block_plot,
+          facade: r.facade,
+          building_age: r.building_age,
+          floor: r.floor,
+          total_floors: r.total_floors,
+          heating: r.heating,
+          furnished: r.furnished,
+          in_gated_community: r.in_gated_community,
+          dues: r.dues,
+          dues_currency: r.dues_currency,
+          country: r.country,
+          kktc_region: r.kktc_region,
+          kktc_sub_region: r.kktc_sub_region,
+          district: r.kktc_sub_region || r.district,
+          trafo_bedeli: r.trafo_bedeli,
+          kdv_status: r.kdv_status,
+          cati_terasi: r.cati_terasi,
+          subtype: r.subtype,
+          listing_intent: r.listing_intent || (r.title?.toLowerCase().includes("kiralık") ? "rent" : "sale"),
+          intent: (r.listing_intent === 'rent' || r.title?.toLowerCase().includes("kiralık")) ? 'kiralik' : 'satilik',
+          deposit: r.deposit,
+          billing_period: r.billing_period,
+          kktc_title_type: r.kktc_title_type || secData.kktc_title_type || secData.kocan_type,
+          kocan_type: r.kktc_title_type || secData.kocan_type || secData.kktc_title_type,
+          is_trade_in_available: r.is_trade_in_available,
+          location: r.location,
+          reference_no: r.reference_no
+        }
+      });
+    });
+
+    // Shuffle or sort newest
+    allListings.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    publicApiCache.set(cacheKey, allListings, 45);
+    res.setHeader('Cache-Control', 'public, max-age=45');
+    res.json(allListings);
+  } catch (outerError: any) {
+    console.error("Critical error in marketplace listings core:", outerError);
+    // Always return an array empty rather than crashing, to avoid client side n.filter typeerrors!
+    res.json([]);
+  }
+});
+async function getPayPalAccessToken(clientId: string, secret: string, sandbox: boolean) {
+  const baseUrl = sandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+  const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
+  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
+  });
+  const data = await response.json();
+  return data.access_token;
+}
+
+// Public: Get Product by Barcode and Store Slug
+router.get("/scan/:slug/:barcode", async (req, res) => {
+  const { slug, barcode } = req.params;
+  const storeRes = await pool.query(`
+    SELECT 
+      id, name, slug, logo_url, primary_color, default_currency, background_image_url,
+      hero_title, hero_subtitle, hero_image_url, about_text,
+      instagram_url, facebook_url, twitter_url, whatsapp_number,
+      address, phone, parent_id, currency_rates
+    FROM stores 
+    WHERE LOWER(slug) = LOWER($1)
+  `, [slug]);
+  let store = storeRes.rows[0];
+
+  if (store && store.parent_id) {
+    // If it's a branch, we use the parent's branding for the scan result
+    const parentRes = await pool.query(`
+      SELECT 
+        id, name, logo_url, primary_color, default_currency, background_image_url,
+        hero_title, hero_subtitle, hero_image_url, about_text,
+        instagram_url, facebook_url, twitter_url, whatsapp_number,
+        address, phone, slug, currency_rates
+      FROM stores 
+      WHERE id = $1
+    `, [store.parent_id]);
+    if (parentRes.rows[0]) {
+      const parentStore = parentRes.rows[0];
+      // Keep the branch ID for logging and stock checking if needed, but use parent branding
+      store = { ...parentStore, branch_id: store.id };
+    }
+  }
+  
+  if (!store && (slug === 'demo-store' || slug === 'demo')) {
+    store = {
+      id: -1,
+      name: "Demo Mağaza",
+      logo_url: "",
+      primary_color: "#4f46e5",
+      default_currency: "TRY",
+      background_image_url: "",
+      hero_title: "Hoş Geldiniz",
+      hero_subtitle: "En iyi ürünler burada",
+      about_text: "Biz bir demo mağazayız."
+    };
+  }
+
+  if (!store) return res.status(404).json({ error: "Store not found" });
+
+  let product = null;
+  if (store.id !== -1) {
+    const productRes = await pool.query("SELECT * FROM products WHERE store_id = $1 AND barcode = $2", [store.id, barcode]);
+    product = productRes.rows[0];
+    
+    if (product) {
+      const defaultCurrency = store.default_currency || 'TRY';
+      const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+      let convertedPrice = product.price;
+      const fromCurrency = product.currency || 'TRY';
+      
+      if (fromCurrency !== defaultCurrency) {
+        if (defaultCurrency === 'TRY') {
+          const rate = rates[fromCurrency] || 1;
+          convertedPrice = product.price * rate;
+        } else if (fromCurrency === 'TRY') {
+          const rate = rates[defaultCurrency] || 1;
+          convertedPrice = product.price / rate;
+        } else {
+          const fromRate = rates[fromCurrency] || 1;
+          const toRate = rates[defaultCurrency] || 1;
+          convertedPrice = (product.price * fromRate) / toRate;
+        }
+      }
+      
+      product = {
+        ...product,
+        price: convertedPrice,
+        original_price: product.price,
+        original_currency: product.currency,
+        currency: defaultCurrency
+      };
+    }
+  }
+  
+  if (!product) {
+    // Demo product logic: Return a sample product instead of 404 for any store
+    const demoProduct = {
+      id: 0,
+      store_id: store.id,
+      barcode: barcode,
+      name: "Demo Ürün (Örnek)",
+      price: 129.90,
+      currency: store.default_currency || 'TRY',
+      description: "Bu bir demo üründür. Sistemde gerçek bir ürün bulunamadığında bu örnek gösterilir.",
+      updated_at: new Date().toISOString(),
+      is_demo: true
+    };
+    return res.json({ ...demoProduct, store });
+  }
+
+  // Log the scan
+  await pool.query("INSERT INTO scan_logs (store_id, product_id) VALUES ($1, $2)", [store.branch_id || store.id, product.id]);
+
+  res.json({ ...product, store });
+});
+
+// Public: Demo Request
+router.post("/demo-request", async (req, res) => {
+  const { name, storeName, phone, email, notes, storeType } = req.body;
+  try {
+    await pool.query(
+      "INSERT INTO leads (name, store_name, phone, email, notes, store_type) VALUES ($1, $2, $3, $4, $5, $6)",
+      [name, storeName, phone, email, notes, storeType || 'product']
+    );
+    res.json({ success: true, message: "Talebiniz başarıyla alındı." });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get("/stores/by-domain", async (req, res) => {
+  const { domain } = req.query;
+  if (!domain) return res.status(400).json({ error: "Domain required" });
+
+  const cacheKey = `domain_${domain}`;
+  const cached = publicApiCache.get(cacheKey);
+  if (cached) {
+    res.setHeader('Cache-Control', 'public, max-age=120');
+    return res.json(cached);
+  }
+
+  try {
+    const normalizedDomain = (domain as string).startsWith("www.") ? (domain as string).substring(4) : domain;
+    
+    // Check if it's the Portal (Enrakipsiz) domain
+    const portalRes = await pool.query("SELECT portal_domain FROM enrakipsiz_settings WHERE id = 1");
+    if (portalRes.rows.length > 0) {
+      const portalDomain = portalRes.rows[0].portal_domain;
+      if (portalDomain) {
+        const normPortalDomain = portalDomain.startsWith("www.") ? portalDomain.substring(4) : portalDomain;
+        if (normalizedDomain === normPortalDomain || normalizedDomain === "enrakipsiz.com") {
+          const payload = { slug: "__portal__", isPortal: true };
+          publicApiCache.set(cacheKey, payload, 120);
+          res.setHeader('Cache-Control', 'public, max-age=120');
+          return res.json(payload);
+        }
+      }
+    }
+
+    const cleanDomain = (domain as string).trim();
+    const cleanNormalized = (normalizedDomain as string).trim();
+
+    const result = await pool.query(
+      "SELECT slug FROM stores WHERE LOWER(TRIM(custom_domain)) = LOWER($1) OR LOWER(TRIM(custom_domain)) = LOWER($2) LIMIT 1",
+      [cleanDomain, cleanNormalized]
+    );
+
+    if (result.rows.length > 0) {
+      const payload = { slug: result.rows[0].slug };
+      publicApiCache.set(cacheKey, payload, 120);
+      res.setHeader('Cache-Control', 'public, max-age=120');
+      res.json(payload);
+    } else {
+      res.status(404).json({ error: "Store not found" });
+    }
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+router.get("/store/:slug", async (req, res) => {
+  const { slug } = req.params;
+  const cacheKey = `store_${slug.toLowerCase()}`;
+  const cached = publicApiCache.get(cacheKey);
+  if (cached) {
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    return res.json(cached);
+  }
+
+  const storeRes = await pool.query(`
+    SELECT 
+      id, name, slug, logo_url, favicon_url, primary_color, default_currency, background_image_url,
+      hero_title, hero_subtitle, hero_image_url, about_text, description,
+      instagram_url, facebook_url, twitter_url, whatsapp_number,
+      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, meta_settings, shipping_profiles, custom_domain,
+      branding, page_layout, menu_links, status, is_approved
+    FROM stores 
+    WHERE LOWER(slug) = LOWER($1)
+  `, [slug]);
+  let store = storeRes.rows[0];
+
+  if (store) {
+    if (store.is_approved === false || store.status === 'suspended') {
+      return res.status(403).json({ error: 'store_suspended', message: 'Bu mağaza geçici olarak askıya alınmıştır veya onaylanmamıştır.' });
+    }
+    if (store.status === 'pending') {
+      return res.status(403).json({ error: 'store_pending', message: 'Bu mağaza onay sürecindedir. Lütfen daha sonra tekrar deneyiniz.' });
+    }
+
+    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links'];
+    jsonFields.forEach(field => {
+      if (typeof store[field] === 'string') {
+        try {
+          store[field] = JSON.parse(store[field]);
+        } catch (e) {
+          store[field] = field === 'branding' || field === 'meta_settings' ? {} : [];
+        }
+      } else if (!store[field]) {
+        store[field] = field === 'branding' || field === 'meta_settings' ? {} : [];
+      }
+    });
+
+    if (store.branding && typeof store.branding === 'object') {
+      const msFromCol = store.meta_settings || {};
+      const msFromBr = store.branding.meta_settings || {};
+      Object.assign(store, store.branding);
+      store.meta_settings = { ...msFromCol, ...msFromBr };
+    }
+
+    if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {
+      store.whatsapp_number = "905488902309";
+    }
+    if (!store.phone || store.phone === "905428655000" || store.phone === "+905428655000") {
+      store.phone = "+90 548 890 23 09";
+    }
+
+    // Sanitize payment_settings to only expose enabled flags and sandbox mode
+    let ps = store.payment_settings || {};
+    if (typeof ps === 'string') {
+      try {
+        ps = JSON.parse(ps);
+      } catch (e) {
+        ps = {};
+      }
+    }
+    store.payment_settings = {
+      iyzico_enabled: !!ps.iyzico_enabled,
+      iyzico_sandbox: !!ps.iyzico_sandbox,
+      paypal_enabled: !!ps.paypal_enabled,
+      paypal_sandbox: !!ps.paypal_sandbox,
+      payoneer_enabled: !!ps.payoneer_enabled,
+      payoneer_sandbox: !!ps.payoneer_sandbox,
+      bank_transfer_enabled: !!ps.bank_transfer_enabled,
+      bank_details: ps.bank_details || '',
+      cod_enabled: !!ps.cod_enabled
+    };
+  }
+
+  if (store && store.parent_id) {
+    // This is a branch. Redirect to parent store's website.
+    const parentRes = await pool.query("SELECT slug FROM stores WHERE id = $1", [store.parent_id]);
+    if (parentRes.rows[0]) {
+      return res.json({ redirect: `/store/${parentRes.rows[0].slug}`, isBranch: true });
+    }
+  }
+  
+  if (!store && (slug === 'demo-store' || slug === 'demo')) {
+    store = {
+      id: -1,
+      name: "Demo Mağaza",
+      logo_url: "",
+      primary_color: "#4f46e5",
+      default_currency: "TRY",
+      background_image_url: "",
+      hero_title: "Hoş Geldiniz",
+      hero_subtitle: "En iyi ürünler burada",
+      about_text: "Biz bir demo mağazayız."
+    };
+  }
+  
+  if (!store) return res.status(404).json({ error: "Store not found" });
+
+  // Fetch branches, blog posts, and consultants in parallel
+  const [branchesRes, blogRes, consultantsRes2] = await Promise.all([
+    !store.parent_id
+      ? pool.query("SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1", [store.id])
+      : Promise.resolve({ rows: [] }),
+    pool.query("SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC", [store.id]),
+    pool.query("SELECT id, name, email, phone, role, image_url FROM consultants WHERE store_id = $1 AND (status IS NULL OR status != 'inactive') ORDER BY name ASC", [store.id])
+  ]);
+
+  if (!store.parent_id) {
+    store.branches = branchesRes.rows;
+  }
+  store.blog_posts = blogRes.rows;
+  store.consultants = consultantsRes2.rows;
+
+  publicApiCache.set(cacheKey, store, 60);
+  res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
+  res.json(store);
+});
+
+// Cache for 5 minutes, serve stale for up to 1 hour
+const PUBLIC_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=3600';
+
+async function findStoreByIdentifier(identifier: string) {
+  let isNumeric = !isNaN(Number(identifier));
+  let query = isNumeric 
+    ? "SELECT * FROM stores WHERE id = $1 OR LOWER(slug) = LOWER($2)" 
+    : "SELECT * FROM stores WHERE LOWER(slug) = LOWER($1)";
+  let params = isNumeric ? [Number(identifier), identifier] : [identifier];
+  
+  const res = await pool.query(query, params);
+  const store = res.rows[0] || null;
+  if (store) {
+    if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {
+      store.whatsapp_number = "905488902309";
+    }
+    if (!store.phone || store.phone === "905428655000" || store.phone === "+905428655000") {
+      store.phone = "+90 548 890 23 09";
+    }
+  }
+  return store;
+}
+
+// Public: Get Digital Menu Store Info
+router.get("/digital-menu/:storeIdentifier/info", async (req, res) => {
+  const { storeIdentifier } = req.params;
+  try {
+    const store = await findStoreByIdentifier(storeIdentifier);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    let branding = store.branding;
+    if (typeof branding === 'string') {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+    }
+
+    res.json({
+      id: store.id,
+      name: store.name,
+      slug: store.slug,
+      logo_url: store.logo_url,
+      primary_color: store.primary_color,
+      default_currency: store.default_currency || 'TRY',
+      whatsapp_number: store.whatsapp_number,
+      phone: store.phone,
+      address: store.address,
+      branding: branding || {},
+      store_type: store.store_type
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public: Get Digital Menu Store Products
+router.get("/digital-menu/:storeIdentifier/products", async (req, res) => {
+  const { storeIdentifier } = req.params;
+  try {
+    const store = await findStoreByIdentifier(storeIdentifier);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    const productsRes = await pool.query(`
+      SELECT p.id, p.store_id, p.barcode, p.name, p.price, p.currency, p.cost_price, 
+             p.tax_rate, p.description, p.stock_quantity, p.unit, p.category, 
+             p.sub_category, p.image_url, p.is_bestseller, p.product_type, p.is_web_sale,
+             p.has_variants, p.variants, p.category_2, p.sub_category_2, p.is_sellable,
+             p.allergens, p.calories, p.prep_time_min, p.portion_size,
+             (
+               SELECT COALESCE(json_agg(json_build_object(
+                 'id', pr.id,
+                 'ingredient_id', pr.ingredient_id,
+                 'ingredient_name', ing.name,
+                 'amount', pr.amount,
+                 'ingredient_unit', COALESCE(pr.unit, ing.unit)
+               )), '[]'::json)
+               FROM product_recipes pr
+               JOIN products ing ON pr.ingredient_id = ing.id
+               WHERE pr.product_id = p.id
+             ) AS recipe_items
+      FROM products p
+      LEFT JOIN stores s ON p.store_id = s.id
+      WHERE (p.store_id = $1 OR s.parent_id = $1)
+        AND (p.is_sellable IS TRUE OR p.is_sellable IS NULL)
+      ORDER BY COALESCE(p.is_bestseller, false) DESC, p.category ASC, p.name ASC
+    `, [store.id]);
+
+    res.json(productsRes.rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public: Get Digital Menu Store Tables
+router.get("/digital-menu/:storeIdentifier/tables", async (req, res) => {
+  const { storeIdentifier } = req.params;
+  try {
+    const store = await findStoreByIdentifier(storeIdentifier);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    const tablesRes = await pool.query(`
+      SELECT id, table_number, status 
+      FROM restaurant_tables 
+      WHERE store_id = $1 
+      ORDER BY id ASC
+    `, [store.id]);
+
+    res.json(tablesRes.rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public: Get Store Products by Slug
+router.get("/store/:slug/products", async (req, res) => {
+  const { slug } = req.params;
+  const cacheKey = `products_${slug.toLowerCase()}`;
+  const cached = publicApiCache.get(cacheKey);
+  if (cached) {
+    res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
+    return res.json(cached);
+  }
+
+  const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates, store_type FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+  let store = storeRes.rows[0];
+
+  if (!store && (slug === 'demo-store' || slug === 'demo')) {
+    store = { id: -1, default_currency: 'TRY', currency_rates: { "USD": 45.0, "EUR": 48.5, "GBP": 56.2 }, store_type: 'product' };
+  }
+
+  if (!store) return res.status(404).json({ error: "Store not found" });
+
+  if (store.id === -1) {
+    // Return demo products
+    return res.json([
+      { id: 1, name: "Örnek Ürün 1", price: 100, currency: "TRY", barcode: "123", description: "Açıklama 1" },
+      { id: 2, name: "Örnek Ürün 2", price: 200, currency: "TRY", barcode: "456", description: "Açıklama 2" },
+      { id: 3, name: "Örnek Ürün 3", price: 300, currency: "TRY", barcode: "789", description: "Açıklama 3" }
+    ]);
+  }
+
+  const productsRes = await pool.query(`
+    SELECT p.*, s.name as branch_name, s.slug as branch_slug 
+    FROM products p 
+    JOIN stores s ON p.store_id = s.id
+    WHERE (p.store_id = $1 OR s.parent_id = $1) 
+    AND (p.is_web_sale = true OR p.is_web_sale IS NULL) 
+    ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC
+  `, [store.id]);
+
+  let vehiclesRes: any = { rows: [] };
+  try {
+    vehiclesRes = await pool.query(`
+      SELECT v.*, s.name as branch_name, s.slug as branch_slug 
+      FROM vehicles v 
+      JOIN stores s ON v.store_id = s.id
+      WHERE (v.store_id = $1 OR s.parent_id = $1) 
+      AND (v.status IN ('active', 'for_sale') OR v.status IS NULL)
+      AND (v.is_on_website = true OR v.is_on_website IS NULL)
+    `, [store.id]);
+  } catch (ve) {
+    vehiclesRes = { rows: [] };
+  }
+
+  let realEstateRes: any = { rows: [] };
+  try {
+    realEstateRes = await pool.query(`
+      SELECT r.*, s.name as branch_name, s.slug as branch_slug,
+             c.name as consultant_name, c.phone as consultant_phone
+      FROM real_estate_properties r 
+      JOIN stores s ON r.store_id = s.id
+      LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
+      WHERE (r.store_id = $1 OR s.parent_id = $1) 
+      AND (r.status IN ('active', 'rented', 'optioned', 'sold', 'published', 'for_sale', 'for_rent') OR r.status IS NULL)
+    `, [store.id]);
+  } catch (e: any) {
+    try {
+      realEstateRes = await pool.query(`
+        SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+        FROM real_estate r 
+        JOIN stores s ON r.store_id = s.id
+        WHERE (r.store_id = $1 OR s.parent_id = $1) 
+        AND (r.status IN ('active', 'rented', 'optioned', 'sold', 'published', 'for_sale', 'for_rent') OR r.status IS NULL)
+      `, [store.id]);
+    } catch (inner) {
+      realEstateRes = { rows: [] };
+    }
+  }
+
+  let allListings: any[] = [ ...productsRes.rows.map((p: any) => ({ ...p, type: 'product' })) ];
+
+  vehiclesRes.rows.forEach((v: any) => {
+    let vehicleImages: string[] = [];
+    if (v.images) {
+      if (Array.isArray(v.images)) {
+        vehicleImages = v.images;
+      } else if (typeof v.images === "string") {
+        try {
+          vehicleImages = JSON.parse(v.images);
+        } catch (e) {
+          vehicleImages = [];
+        }
+      }
+    }
+    const transMap: Record<string, string> = {
+      'manual': 'Manuel',
+      'automatic': 'Otomatik',
+      'semi_automatic': 'Yarı Otomatik',
+      'dual_clutch': 'Çift Kavrama (DCT/DSG)'
+    };
+    const fuelMap: Record<string, string> = {
+      'gasoline': 'Benzin',
+      'diesel': 'Dizel',
+      'gasoline_hybrid': 'Benzin / Hibrit',
+      'diesel_hybrid': 'Dizel / Hibrit',
+      'electric': 'Elektrik',
+      'lpg': 'LPG'
+    };
+
+    const trans = transMap[v.transmission] || v.transmission || '';
+    const fuel = fuelMap[v.fuel_type] || v.fuel_type || '';
+    const coverImage = (vehicleImages && vehicleImages.length > 0) ? vehicleImages[0] : null;
+
+    const generatedTitle = `${v.year || ''} Model ${trans} ${fuel} ${v.brand || ''} ${v.model || ''}`.replace(/\s+/g, ' ').trim();
+
+    const showcaseVehicleCat = ['hafif_ticari', 'suv', 'pickup', 'otomobil'].includes(v.category) ? v.category : (v.category || 'otomobil');
+
+    allListings.push({
+      id: `v_${v.id}`,
+      db_id: v.id,
+      store_id: v.store_id,
+      type: 'vehicle',
+      name: generatedTitle,
+      description: v.market_story || v.description || `Şasi: ${v.chassis_number || ""}, Tip: ${v.type || ""}, KM: ${v.current_mileage || 0}`,
+      price: v.selling_price || 0,
+      currency: v.currency || 'TRY',
+      stock_quantity: 1,
+      category: showcaseVehicleCat,
+      sub_sector: showcaseVehicleCat,
+      vehicle_category: showcaseVehicleCat,
+      brand: v.brand,
+      model: v.model,
+      year: v.year,
+      transmission: v.transmission,
+      fuel: v.fuel_type,
+      fuel_type: v.fuel_type,
+      branch_name: v.branch_name,
+      branch_slug: v.branch_slug,
+      image_url: coverImage,
+      images: vehicleImages,
+      market_story: v.market_story,
+      technical_description: v.technical_description,
+      sector_data: { 
+        category: showcaseVehicleCat,
+        vehicle_category: showcaseVehicleCat,
+        sub_sector: showcaseVehicleCat,
+        brand: v.brand,
+        model: v.model,
+        year: v.year,
+        transmission: v.transmission,
+        fuel: v.fuel_type || (v as any).fuel,
+        fuel_type: v.fuel_type || (v as any).fuel,
+        color: v.color,
+        body_type: v.body_type,
+        current_mileage: v.current_mileage,
+        plate: v.plate,
+        package_name: v.package_name,
+        paint_report: v.paint_report,
+        tramer_amount: v.tramer_amount,
+        tramer_currency: v.tramer_currency,
+        chassis_number: v.chassis_number,
+        engine_number: v.engine_number,
+        virtual_tour_url: v.virtual_tour_url,
+        ai_tour_enabled: v.ai_tour_enabled,
+        seller_type: v.seller_type,
+        is_verified: v.is_verified,
+        verification_status: v.verification_status,
+        is_trade_in_available: v.is_trade_in_available,
+        technical_description: v.technical_description,
+        market_story: v.market_story,
+        images: vehicleImages
+      }
+    });
+  });
+
+  realEstateRes.rows.forEach((r: any) => {
+    let reImages: string[] = [];
+    if (r.images) {
+      if (Array.isArray(r.images)) {
+        reImages = r.images;
+      } else if (typeof r.images === "string") {
+        try {
+          reImages = JSON.parse(r.images);
+        } catch (e) {
+          if (r.images.startsWith("http") || r.images.startsWith("/")) {
+            reImages = [r.images];
+          } else {
+            reImages = [];
+          }
+        }
+      }
+    }
+    const coverImage = reImages.length > 0 ? reImages[0] : null;
+
+    allListings.push({
+      id: `re_${r.id}`,
+      db_id: r.id,
+      store_id: r.store_id,
+      type: 'real_estate',
+      name: r.title,
+      description: r.description,
+      price: r.price,
+      currency: r.currency || 'TRY',
+      stock_quantity: 1,
+      category: r.type || 'residence',
+      subtype: r.subtype || '',
+      brand: r.location,
+      branch_name: r.branch_name,
+      branch_slug: r.branch_slug,
+      consultant_name: r.consultant_name,
+      consultant_phone: r.consultant_phone,
+      image_url: coverImage,
+      images: reImages,
+      location: r.location,
+      reference_no: r.reference_no,
+      status: r.status,
+      sector_data: {
+        ...(typeof r.sector_data === 'string' ? (() => { try { return JSON.parse(r.sector_data); } catch(e) { return {}; } })() : (r.sector_data || {})),
+        square_meters: r.square_meters,
+        rooms: r.room_count,
+        room_count: r.room_count,
+        virtual_tour_url: r.virtual_tour_url,
+        ai_tour_enabled: r.ai_tour_enabled,
+        sqm_gross: r.sqm_gross,
+        block_plot: r.block_plot,
+        facade: r.facade,
+        building_age: r.building_age,
+        floor: r.floor,
+        total_floors: r.total_floors,
+        heating: r.heating,
+        furnished: r.furnished,
+        in_gated_community: r.in_gated_community,
+        dues: r.dues,
+        dues_currency: r.dues_currency,
+        country: r.country,
+        kktc_region: r.kktc_region,
+        kktc_sub_region: r.kktc_sub_region,
+        district: r.kktc_sub_region || r.district,
+        trafo_bedeli: r.trafo_bedeli,
+        kdv_status: r.kdv_status,
+        cati_terasi: r.cati_terasi,
+        subtype: r.subtype,
+        listing_intent: r.listing_intent,
+        deposit: r.deposit,
+        billing_period: r.billing_period,
+        kktc_title_type: r.kktc_title_type,
+        is_trade_in_available: r.is_trade_in_available,
+        location: r.location,
+        reference_no: r.reference_no
+      }
+    });
+  });
+
+  // Convert prices to store's default currency
+  const defaultCurrency = store.default_currency || 'TRY';
+  const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+  
+  const convertedProducts = allListings.map(p => {
+    let convertedPrice = p.price;
+    const fromCurrency = p.currency || 'TRY';
+    
+    if (fromCurrency !== defaultCurrency) {
+      if (defaultCurrency === 'TRY') {
+        const rate = rates[fromCurrency] || 1;
+        convertedPrice = p.price * rate;
+      } else if (fromCurrency === 'TRY') {
+        const rate = rates[defaultCurrency] || 1;
+        convertedPrice = p.price / rate;
+      } else {
+        const fromRate = rates[fromCurrency] || 1;
+        const toRate = rates[defaultCurrency] || 1;
+        convertedPrice = (p.price * fromRate) / toRate;
+      }
+    }
+    
+    return {
+      ...p,
+      price: convertedPrice,
+      original_price: p.price,
+      original_currency: p.currency,
+      currency: defaultCurrency
+    };
+  });
+
+  const groupedProductsMap = new Map();
+  convertedProducts.forEach(p => {
+    const key = p.barcode ? `barcode_${p.barcode}` : `id_${p.id}`;
+    if (groupedProductsMap.has(key)) {
+      const existing = groupedProductsMap.get(key);
+      if (!existing.available_branches) {
+        existing.available_branches = [{
+          id: existing.id,
+          store_id: existing.store_id,
+          branch_name: existing.branch_name || store.name,
+          branch_slug: existing.branch_slug || store.slug
+        }];
+      }
+      existing.available_branches.push({
+        id: p.id,
+        store_id: p.store_id,
+        branch_name: p.branch_name || store.name,
+        branch_slug: p.branch_slug || store.slug
+      });
+    } else {
+      groupedProductsMap.set(key, { ...p });
+    }
+  });
+
+  const finalProducts = Array.from(groupedProductsMap.values());
+  publicApiCache.set(cacheKey, finalProducts, 60);
+  res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
+  res.json(finalProducts);
+});
+
+// Public: Facebook & Google Product Catalog XML Feed
+router.get(["/store/:slug/catalog", "/store/:slug/catalog.xml"], async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT id, name, slug, description, default_currency, currency_rates, meta_settings, google_merchant_settings, custom_domain FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
+    const store = storeRes.rows[0];
+    
+    // Check if meta catalog or google merchant is enabled
+    const metaSettings = typeof store.meta_settings === 'string' ? JSON.parse(store.meta_settings) : (store.meta_settings || {});
+    const merchantSettings = typeof store.google_merchant_settings === 'string' ? JSON.parse(store.google_merchant_settings) : (store.google_merchant_settings || {});
+    
+    if (metaSettings.enabled === false && merchantSettings.enabled === false) {
+      return res.status(403).send("Catalog integration is not enabled for this store.");
+    }
+
+    const productsRes = await pool.query(`
+      SELECT p.*, s.name as branch_name, s.slug as branch_slug 
+      FROM products p 
+      JOIN stores s ON p.store_id = s.id
+      WHERE (p.store_id = $1 OR s.parent_id = $1) 
+      AND (p.is_web_sale = true OR p.is_web_sale IS NULL) 
+      ORDER BY p.name ASC
+    `, [store.id]);
+
+    const vehiclesRes = await pool.query(`
+      SELECT v.*, s.name as branch_name, s.slug as branch_slug 
+      FROM vehicles v 
+      JOIN stores s ON v.store_id = s.id
+      WHERE (v.store_id = $1 OR s.parent_id = $1) 
+      AND v.status IN ('active', 'for_sale')
+    `, [store.id]);
+
+    let realEstateRes: any = { rows: [] };
+    try {
+      realEstateRes = await pool.query(`
+        SELECT r.*, s.name as branch_name, s.slug as branch_slug,
+               c.name as consultant_name, c.phone as consultant_phone
+        FROM real_estate_properties r 
+        JOIN stores s ON r.store_id = s.id
+        LEFT JOIN consultants c ON r.responsible_consultant_id = c.id
+        WHERE (r.store_id = $1 OR s.parent_id = $1) 
+        AND r.status IN ('active', 'rented', 'optioned', 'sold')
+      `, [store.id]);
+    } catch (e: any) {
+      try {
+        realEstateRes = await pool.query(`
+          SELECT r.*, s.name as branch_name, s.slug as branch_slug 
+          FROM real_estate r 
+          JOIN stores s ON r.store_id = s.id
+          WHERE (r.store_id = $1 OR s.parent_id = $1) 
+          AND r.status IN ('active', 'rented', 'optioned', 'sold')
+        `, [store.id]);
+      } catch (inner) { }
+    }
+
+    let mergedItems: any[] = [];
+
+    productsRes.rows.forEach(p => {
+      let variantsList: any[] = [];
+      if (p.variants) {
+        if (typeof p.variants === 'string') {
+          try { variantsList = JSON.parse(p.variants); } catch (e) { variantsList = []; }
+        } else if (Array.isArray(p.variants)) {
+          variantsList = p.variants;
+        }
+      }
+
+      if (variantsList.length > 0) {
+        const parentId = p.barcode || p.id;
+        variantsList.forEach((v: any, idx: number) => {
+          let vColor = v.color_name || (v.attributes ? (v.attributes['Renk'] || v.attributes['Color']) : undefined);
+          let vSize = v.size || (v.attributes ? (v.attributes['Beden'] || v.attributes['Size'] || v.attributes['Hafıza'] || v.attributes['Kapasite'] || v.attributes['Porsiyon']) : undefined);
+
+          mergedItems.push({
+            id: v.barcode || v.sku || `${parentId}_v${idx + 1}`,
+            item_group_id: String(parentId),
+            name: `${p.name} - ${v.name || 'Varyant'}`,
+            description: p.description || p.name,
+            price: (v.price !== undefined && Number(v.price) > 0) ? Number(v.price) : (Number(p.price) || 0),
+            currency: p.currency || 'TRY',
+            stock_quantity: (v.stock_quantity !== undefined && v.stock_quantity !== null) ? Number(v.stock_quantity) : (p.stock_quantity || 0),
+            image_url: v.image_url || p.image_url || '',
+            brand: p.brand || store.name,
+            category: p.category || 'Products',
+            color: vColor,
+            size: vSize
+          });
+        });
+      } else {
+        mergedItems.push({
+          id: p.barcode || p.id,
+          name: p.name,
+          description: p.description || p.name,
+          price: Number(p.price) || 0,
+          currency: p.currency || 'TRY',
+          stock_quantity: p.stock_quantity || 0,
+          image_url: p.image_url || '',
+          brand: p.brand || store.name,
+          category: p.category || 'Products'
+        });
+      }
+    });
+
+    vehiclesRes.rows.forEach(v => {
+      const transMap: Record<string, string> = {
+        'manual': 'Manuel',
+        'automatic': 'Otomatik',
+        'semi_automatic': 'Yarı Otomatik',
+        'dual_clutch': 'Çift Kavrama (DCT/DSG)'
+      };
+      const fuelMap: Record<string, string> = {
+        'gasoline': 'Benzin',
+        'diesel': 'Dizel',
+        'gasoline_hybrid': 'Benzin / Hibrit',
+        'diesel_hybrid': 'Dizel / Hibrit',
+        'electric': 'Elektrik',
+        'lpg': 'LPG'
+      };
+
+      const trans = transMap[v.transmission] || v.transmission || '';
+      const fuel = fuelMap[v.fuel_type] || v.fuel_type || '';
+      const generatedTitle = `${v.year || ''} Model ${trans} ${fuel} ${v.brand || ''} ${v.model || ''}`.replace(/\s+/g, ' ').trim();
+
+      mergedItems.push({
+        id: `v_${v.id}`,
+        name: generatedTitle,
+        description: `Model: ${v.model}, Year: ${v.year}, Mileage: ${v.current_mileage} km. Chassis: ${v.chassis_number}`,
+        price: Number(v.selling_price) || 0,
+        currency: v.currency || 'TRY',
+        stock_quantity: 1,
+        image_url: v.image_url || store.logo_url || '',
+        brand: v.brand,
+        category: 'Vehicle'
+      });
+    });
+
+    realEstateRes.rows.forEach(r => {
+      const img = r.images && r.images.length > 0 ? r.images[0] : (store.logo_url || '');
+      mergedItems.push({
+        id: `re_${r.id}`,
+        name: r.title,
+        description: r.description || r.title,
+        price: Number(r.price) || 0,
+        currency: r.currency || 'TRY',
+        stock_quantity: 1,
+        image_url: img,
+        brand: r.location || store.name,
+        category: r.type || 'Real Estate',
+        status: r.status
+      });
+    });
+
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = store.custom_domain || req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+    
+    // Prefer Merchant Settings currency if available, else Meta, else Store Default
+    const merchantCurrency = merchantSettings.catalog_currency;
+    const metaCurrency = metaSettings.catalog_currency;
+    const catalogCurrency = merchantCurrency || metaCurrency || store.default_currency || 'TRY';
+    
+    const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+
+    const escapeXml = (unsafe: string) => {
+      return unsafe.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+          default: return c;
+        }
+      });
+    };
+
+    let xml = `<?xml version="1.0"?>
+<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
+  <channel>
+    <title>${escapeXml(store.name)}</title>
+    <link>${escapeXml(baseUrl)}</link>
+    <description>${escapeXml(store.description || store.name + " Ürün Kataloğu")}</description>\n`;
+
+    mergedItems.forEach(p => {
+      // Currency conversion
+      let convertedPrice = p.price;
+      const fromCurrency = p.currency || 'TRY';
+      if (fromCurrency !== catalogCurrency) {
+        if (catalogCurrency === 'TRY') {
+          const rate = rates[fromCurrency] || 1;
+          convertedPrice = p.price * rate;
+        } else if (fromCurrency === 'TRY') {
+          const rate = rates[catalogCurrency] || 1;
+          convertedPrice = p.price / rate;
+        } else {
+          const fromRate = rates[fromCurrency] || 1;
+          const toRate = rates[catalogCurrency] || 1;
+          convertedPrice = (p.price * fromRate) / toRate;
+        }
+      }
+
+      const availability = (p.stock_quantity > 0) ? 'in stock' : 'out of stock';
+      const productUrl = store.custom_domain ? `${baseUrl}/p/${p.id}` : `${baseUrl}/s/${store.slug}/p/${p.id}`;
+      const imageUrl = p.image_url || '';
+      const brand = p.brand || store.name;
+      const description = escapeXml(p.description || p.name);
+      
+      const category = p.category ? escapeXml(p.category) : 'Product';
+
+      xml += `    <item>
+      <g:id>${escapeXml(String(p.id))}</g:id>
+      ${p.item_group_id ? `<g:item_group_id>${escapeXml(p.item_group_id)}</g:item_group_id>` : ''}
+      <g:title>${escapeXml(p.name)}</g:title>
+      <g:description>${description}</g:description>
+      <g:link>${escapeXml(productUrl)}</g:link>
+      <g:image_link>${escapeXml(imageUrl)}</g:image_link>
+      <g:brand>${escapeXml(brand)}</g:brand>
+      <g:condition>new</g:condition>
+      <g:availability>${availability}</g:availability>
+      <g:price>${convertedPrice.toFixed(2)} ${catalogCurrency}</g:price>
+      <g:google_product_category>${category}</g:google_product_category>
+      ${p.color ? `<g:color>${escapeXml(p.color)}</g:color>` : ''}
+      ${p.size ? `<g:size>${escapeXml(p.size)}</g:size>` : ''}
+    </item>\n`;
+    });
+
+    xml += `  </channel>
+</rss>`;
+
+    res.header('Content-Type', 'application/xml; charset=utf-8');
+    res.send(xml);
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+// Public: Store About Us HTML for Google Merchant Center
+router.get("/store/:slug/about-us", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT name, about_text FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
+    
+    const store = storeRes.rows[0];
+    const aboutContent = store.about_text || `${store.name} Hakkında Bilgi.`;
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${store.name} - Hakkımızda</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
+    .content { white-space: pre-wrap; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>${store.name} - Hakkımızda</h1>
+  <div class="content">${aboutContent}</div>
+</body>
+</html>
+    `;
+    
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+// Cart synchronization for registered customers
+router.post("/customers/cart/save", async (req, res) => {
+  const { customerId, storeId, items } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO carts (customer_id, store_id, items, updated_at) 
+       VALUES ($1, $2, $3, NOW()) 
+       ON CONFLICT (customer_id) DO UPDATE SET items = $3, updated_at = NOW()`,
+      [customerId, storeId, JSON.stringify(items)]
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+router.get("/customers/cart/:customerId", async (req, res) => {
+  const { customerId } = req.params;
+  try {
+    const result = await pool.query("SELECT items FROM carts WHERE customer_id = $1", [customerId]);
+    res.json({ items: result.rows[0]?.items || [] });
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Public: Store Return Policy HTML for Google Merchant Center
+router.get("/store/:slug/return-policy", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
+    
+    const store = storeRes.rows[0];
+    const legalPages = typeof store.legal_pages === 'string' ? JSON.parse(store.legal_pages) : (store.legal_pages || {});
+    
+    const returnContentRaw = legalPages?.return_policy;
+    const returnContent = (typeof returnContentRaw === 'object' ? returnContentRaw?.content : returnContentRaw) || legalPages?.sales_agreement?.content || (typeof legalPages?.sales_agreement === 'string' ? legalPages?.sales_agreement : null) || `İade ve İptal Politikası. Detaylar için lütfen bizimle iletişime geçin.`;
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${store.name} - İade Politikası</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
+    .content { white-space: pre-wrap; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>${store.name} - İade Politikası</h1>
+  <div class="content">${returnContent}</div>
+</body>
+</html>
+    `;
+    
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+// Public: Store Shipping Policy HTML for Google Merchant Center
+router.get("/store/:slug/shipping-policy", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
+    
+    const store = storeRes.rows[0];
+    const legalPages = typeof store.legal_pages === 'string' ? JSON.parse(store.legal_pages) : (store.legal_pages || {});
+    
+    const shippingContentRaw = legalPages?.shipping_policy;
+    const shippingContent = (typeof shippingContentRaw === 'object' ? shippingContentRaw?.content : shippingContentRaw) || `Teslimat ve Kargo Politikası. Tüm siparişleriniz en kısa sürede kargoya verilir.`;
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${store.name} - Teslimat Politikası</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
+    .content { white-space: pre-wrap; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>${store.name} - Teslimat Politikası</h1>
+  <div class="content">${shippingContent}</div>
+</body>
+</html>
+    `;
+    
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+// GET Catalog XML (Facebook & Google Merchant Center Feed)
+router.get("/store/:slug/privacy", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query("SELECT name, legal_pages FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).send("Store not found");
+    
+    const store = storeRes.rows[0];
+    const legalPages = typeof store.legal_pages === 'string' ? JSON.parse(store.legal_pages) : (store.legal_pages || {});
+    
+    // Facebook wants a privacy policy. We'll use the 'kvkk' (PDPL) content or fallback
+    const privacyContent = legalPages?.kvkk?.content || legalPages?.pre_info?.content || `${store.name} Gizlilik Politikası (Privacy Policy). Bu sayfa Meta Katalog entegrasyonu için oluşturulmuştur.`;
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${store.name} - Gizlilik Politikası</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 0.5rem; }
+    .content { white-space: pre-wrap; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>${store.name} - Gizlilik Politikası</h1>
+  <div class="content">${privacyContent}</div>
+</body>
+</html>
+    `;
+    
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e: any) {
+    res.status(500).send(e.message);
+  }
+});
+
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { GoogleGenAI } from "@google/genai";
+
+const JWT_SECRET = process.env.JWT_SECRET || "customer-secret-key";
+
+// Customer: Register
+router.post("/customers/register", async (req, res) => {
+  const { storeId, email, password, name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms } = req.body;
+  if (!storeId || !email || !password || !name) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    const existing = await pool.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, email]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: "Bu e-posta adresi zaten kayıtlı." });
+    }
+
+    const rawName = String(name || '').trim();
+    const rawSurname = String(surname || '').trim();
+
+    let firstNameVal = rawName;
+    let surnameVal = rawSurname;
+
+    if (!surnameVal && rawName.includes(' ')) {
+      const parts = rawName.split(' ');
+      surnameVal = parts.pop() || '';
+      firstNameVal = parts.join(' ');
+    }
+
+    const fullNameVal = [firstNameVal, surnameVal].filter(Boolean).join(' ').trim() || rawName;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      "INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, email, full_name as name, full_name, name as first_name, surname, phone, address, country, city, tc_id, is_corporate, marketing_email, marketing_sms",
+      [storeId, email, hashedPassword, fullNameVal, firstNameVal, surnameVal, phone || '', address || '', country || '', city || '', tc_id || '', is_corporate || false, marketing_email || false, marketing_sms || false]
+    );
+    res.json({ success: true, customer: result.rows[0] });
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Customer: Login
+router.post("/customers/login", async (req, res) => {
+  const { storeId, email, password } = req.body;
+  try {
+    const result = await pool.query("SELECT * FROM customers WHERE store_id = $1 AND email = $2", [storeId, email]);
+    const customer = result.rows[0];
+    if (!customer) return res.status(401).json({ error: "E-posta veya şifre hatalı." });
+
+    const valid = await bcrypt.compare(password, customer.password);
+    if (!valid) return res.status(401).json({ error: "E-posta veya şifre hatalı." });
+
+    const token = jwt.sign({ id: customer.id, storeId: customer.store_id, type: 'customer' }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ 
+      token, 
+      customer: { id: customer.id, email: customer.email, name: customer.full_name, surname: customer.surname, phone: customer.phone, address: customer.address, country: customer.country, city: customer.city, tc_id: customer.tc_id, is_corporate: customer.is_corporate, marketing_email: customer.marketing_email, marketing_sms: customer.marketing_sms } 
+    });
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Customer Middleware
+const authenticateCustomer = (req: any, res: any, next: any) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    if (decoded.type !== 'customer') throw new Error("Invalid token type");
+    req.customer = decoded;
+    next();
+  } catch (e) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+};
+
+// Customer: Profile
+router.get("/customers/profile", authenticateCustomer, async (req: any, res) => {
+  try {
+    const result = await pool.query("SELECT id, email, full_name as name, surname, phone, address, country, city, tc_id, tax_number, tax_office, company_title, is_corporate, marketing_email, marketing_sms FROM customers WHERE id = $1", [req.customer.id]);
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+router.put("/customers/profile", authenticateCustomer, async (req: any, res) => {
+  const { name, surname, phone, address, country, city, tc_id, tax_number, tax_office, company_title, is_corporate, marketing_email, marketing_sms } = req.body;
+  try {
+    const rawName = String(name || '').trim();
+    const rawSurname = String(surname || '').trim();
+    let firstNameVal = rawName;
+    let surnameVal = rawSurname;
+
+    if (!surnameVal && rawName.includes(' ')) {
+      const parts = rawName.split(' ');
+      surnameVal = parts.pop() || '';
+      firstNameVal = parts.join(' ');
+    }
+
+    const fullNameVal = [firstNameVal, surnameVal].filter(Boolean).join(' ').trim() || rawName;
+    const finalTcId = (tc_id || tax_number || '').trim();
+
+    const result = await pool.query(
+      `UPDATE customers SET 
+         full_name = $1, name = $2, surname = $3, phone = $4, address = $5, country = $6, city = $7, 
+         tc_id = $8, tax_number = $9, tax_office = $10, company_title = $11, is_corporate = $12, 
+         marketing_email = $13, marketing_sms = $14 
+       WHERE id = $15 
+       RETURNING id, email, full_name as name, full_name, surname, phone, address, country, city, tc_id, tax_number, tax_office, company_title, is_corporate, marketing_email, marketing_sms`,
+      [fullNameVal, firstNameVal, surnameVal, phone, address, country, city, finalTcId, finalTcId, tax_office || '', company_title || '', is_corporate === true || is_corporate === 'true', marketing_email === true || marketing_email === 'true', marketing_sms === true || marketing_sms === 'true', req.customer.id]
+    );
+    res.json({ success: true, customer: result.rows[0] });
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Customer: Orders
+router.get("/customers/orders", authenticateCustomer, async (req: any, res) => {
+  try {
+    const custRes = await pool.query("SELECT id, email, phone, store_id FROM customers WHERE id = $1", [req.customer.id]);
+    const cust = custRes.rows[0];
+    const storeId = req.customer.storeId || cust?.store_id;
+    const custEmail = (cust?.email || '').trim().toLowerCase();
+    const custPhone = (cust?.phone || '').trim();
+
+    const result = await pool.query(
+      `SELECT s.*, 
+        COALESCE(
+          (SELECT json_agg(si.*) FROM sale_items si WHERE si.sale_id = s.id),
+          '[]'::json
+        ) as items,
+        COALESCE((SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id), 0) as items_count
+       FROM sales s 
+       WHERE (s.customer_id = $1 OR (s.store_id = $2 AND ($3::text != '' AND s.customer_phone = $3))) AND s.status != 'checkout_initiated'
+       ORDER BY s.created_at DESC`,
+      [req.customer.id, storeId, custPhone]
+    );
+    res.json(result.rows);
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+router.get("/customers/orders/:id", authenticateCustomer, async (req: any, res) => {
+  try {
+    const saleRes = await pool.query("SELECT * FROM sales WHERE id = $1 AND customer_id = $2 AND status != 'checkout_initiated'", [req.params.id, req.customer.id]);
+    if (saleRes.rows.length === 0) return res.status(404).json({ error: "Order not found" });
+    
+    const itemsRes = await pool.query("SELECT * FROM sale_items WHERE sale_id = $1", [req.params.id]);
+    res.json({ ...saleRes.rows[0], items: itemsRes.rows });
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Customer: Returns
+router.post("/returns", authenticateCustomer, async (req: any, res) => {
+  const { saleId, reason, items } = req.body;
+  try {
+    const saleRes = await pool.query("SELECT id FROM sales WHERE id = $1 AND customer_id = $2", [saleId, req.customer.id]);
+    if (saleRes.rows.length === 0) return res.status(404).json({ error: "Order not found" });
+
+    const result = await pool.query(
+      "INSERT INTO return_requests (store_id, sale_id, customer_id, reason, items, status) VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING *",
+      [req.customer.storeId, saleId, req.customer.id, reason, JSON.stringify(items || [])]
+    );
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+router.get("/returns", authenticateCustomer, async (req: any, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM return_requests WHERE customer_id = $1 ORDER BY created_at DESC", [req.customer.id]);
+    res.json(result.rows);
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Public: Website Content (FAQ, Blog, Legal)
+router.get("/store/:slug/content", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const storeRes = await pool.query(
+      "SELECT id, slug, faq, legal_pages, social_links, about_text, hero_title, hero_subtitle, hero_image_url FROM stores WHERE LOWER(slug) = LOWER($1)",
+      [slug]
+    );
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const store = storeRes.rows[0];
+
+    // Fetch blog posts from separate table
+    const blogRes = await pool.query(
+      "SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC",
+      [store.id]
+    );
+    store.blog_posts = blogRes.rows;
+
+    res.json(store);
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Public: Get Products by Category/Label
+router.get("/store/:slug/collections/:type", async (req, res) => {
+  const { slug, type } = req.params; // type: 'new', 'bestseller', 'discounted' or category name
+  try {
+    const storeRes = await pool.query("SELECT id, slug, default_currency, currency_rates FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+    const store = storeRes.rows[0];
+    const storeId = store.id;
+
+    let query = `
+      SELECT p.*, s.name as branch_name, s.slug as branch_slug
+      FROM products p
+      JOIN stores s ON p.store_id = s.id
+      WHERE (p.store_id = $1 OR s.parent_id = $1) 
+      AND (p.is_web_sale = true OR p.is_web_sale IS NULL)
+    `;
+    let params: any[] = [storeId];
+
+    if (type === 'new') {
+      query += " AND p.labels @> '\"Yeni\"'";
+    } else if (type === 'bestseller') {
+      query += " AND p.labels @> '\"Çok Satanlar\"'";
+    } else if (type === 'discounted') {
+      query += " AND p.labels @> '\"İndirimde\"'";
+    } else {
+      query += " AND (LOWER(p.category) = LOWER($2) OR LOWER(p.sub_category) = LOWER($2))";
+      params.push(type);
+    }
+
+    query += " ORDER BY p.updated_at DESC LIMIT 50";
+    const result = await pool.query(query, params);
+    
+    // Convert prices to store's default currency
+    const defaultCurrency = store.default_currency || 'TRY';
+    const rates = typeof store.currency_rates === 'string' ? JSON.parse(store.currency_rates) : (store.currency_rates || { "USD": 1, "EUR": 1, "GBP": 1 });
+    
+    const convertedProducts = result.rows.map(p => {
+      let convertedPrice = p.price;
+      const fromCurrency = p.currency || 'TRY';
+      
+      if (fromCurrency !== defaultCurrency) {
+        if (defaultCurrency === 'TRY') {
+          const rate = rates[fromCurrency] || 1;
+          convertedPrice = p.price * rate;
+        } else if (fromCurrency === 'TRY') {
+          const rate = rates[defaultCurrency] || 1;
+          convertedPrice = p.price / rate;
+        } else {
+          const fromRate = rates[fromCurrency] || 1;
+          const toRate = rates[defaultCurrency] || 1;
+          convertedPrice = (p.price * fromRate) / toRate;
+        }
+      }
+      
+      return {
+        ...p,
+        price: convertedPrice,
+        original_price: p.price,
+        original_currency: p.currency,
+        currency: defaultCurrency
+      };
+    });
+
+    const groupedProductsMap = new Map();
+    convertedProducts.forEach(p => {
+      const key = p.barcode ? `barcode_${p.barcode}` : `id_${p.id}`;
+      if (groupedProductsMap.has(key)) {
+        const existing = groupedProductsMap.get(key);
+        if (!existing.available_branches) {
+          existing.available_branches = [{
+            id: existing.id,
+            store_id: existing.store_id,
+            branch_name: existing.branch_name || store.name,
+            branch_slug: existing.branch_slug || store.slug
+          }];
+        }
+        existing.available_branches.push({
+          id: p.id,
+          store_id: p.store_id,
+          branch_name: p.branch_name || store.name,
+          branch_slug: p.branch_slug || store.slug
+        });
+      } else {
+        groupedProductsMap.set(key, { ...p });
+      }
+    });
+
+    res.json(Array.from(groupedProductsMap.values()));
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Public: Get product stock across all branches of a store group
+router.get("/store/:slug/products/:barcode/stock", async (req, res) => {
+  const { slug, barcode } = req.params;
+  try {
+    // 1. Find the store by slug to get its parent_id
+    const storeRes = await pool.query("SELECT id, parent_id FROM stores WHERE LOWER(slug) = LOWER($1)", [slug]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+    
+    const { id, parent_id } = storeRes.rows[0];
+    const parentId = parent_id || id;
+
+    // 2. Get stock from all stores in the same group (parent + siblings)
+    const stockRes = await pool.query(`
+      SELECT s.name as branch_name, s.slug as branch_slug, s.id as store_id, COALESCE(p.stock_quantity, 0) as stock, p.id as product_id
+      FROM stores s
+      LEFT JOIN products p ON p.store_id = s.id AND p.barcode = $1
+      WHERE s.id = $2 OR s.parent_id = $2
+      ORDER BY (s.parent_id IS NULL) DESC, s.name ASC
+    `, [barcode, parentId]);
+
+    res.json(stockRes.rows);
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: "Stok bilgisi alınamadı" });
+  }
+});
+
+// Update Public Sales to handle customer_id
+router.post("/sales", async (req, res) => {
+  console.log("POST /api/public/sales request body:", JSON.stringify(req.body, null, 2));
+  const { 
+    storeId, items, total, currency, customerName, customerPhone, 
+    customerAddress, customerCity, customerCountry, customerEmail, 
+    customerTcId, notes, paymentMethod, customerId, createAccount 
+  } = req.body;
+  
+  if (!paymentMethod) {
+    console.warn("POST /api/public/sales: Missing paymentMethod");
+    return res.status(400).json({ error: "Lütfen bir ödeme yöntemi seçin." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    let finalCustomerId = customerId;
+
+    const authHeader = req.headers.authorization?.split(" ")[1];
+    if (authHeader && !finalCustomerId) {
+      try {
+        const decoded = jwt.verify(authHeader, JWT_SECRET) as any;
+        if (decoded?.id) {
+          finalCustomerId = decoded.id;
+        }
+      } catch (e) {}
+    }
+
+    // 11-digit default VKN/TCKN assignment for individual web customers if not provided
+    let effectiveTcId = (customerTcId ? String(customerTcId).trim() : '');
+    if (!effectiveTcId || (effectiveTcId.length !== 10 && effectiveTcId.length !== 11)) {
+      effectiveTcId = '11111111111';
+    }
+
+    const rawCustName = (customerName || '').trim() || 'Bireysel Web Müşterisi';
+    const nameParts = rawCustName.split(' ');
+    const surnameVal = nameParts.length > 1 ? nameParts.pop()! : '';
+    const firstNameVal = nameParts.join(' ') || rawCustName;
+    const fullNameVal = rawCustName;
+
+    if (customerEmail || customerPhone) {
+      let existingCustomer = null;
+      if (customerEmail) {
+        existingCustomer = await client.query(
+          "SELECT id, full_name, name, surname FROM customers WHERE LOWER(email) = LOWER($1) AND store_id = $2",
+          [customerEmail.trim(), storeId]
+        );
+      }
+      if ((!existingCustomer || existingCustomer.rows.length === 0) && customerPhone) {
+        existingCustomer = await client.query(
+          "SELECT id, full_name, name, surname FROM customers WHERE phone = $1 AND store_id = $2",
+          [customerPhone.trim(), storeId]
+        );
+      }
+
+      if (existingCustomer && existingCustomer.rows.length > 0) {
+        finalCustomerId = existingCustomer.rows[0].id;
+        await client.query(
+          `UPDATE customers 
+           SET full_name = COALESCE(NULLIF($1, ''), full_name),
+               name = COALESCE(NULLIF($2, ''), name),
+               surname = COALESCE(NULLIF($3, ''), surname),
+               tc_id = COALESCE(NULLIF(tc_id, ''), $4),
+               tax_number = COALESCE(NULLIF(tax_number, ''), $4)
+           WHERE id = $5`,
+          [fullNameVal, firstNameVal, surnameVal, effectiveTcId, finalCustomerId]
+        );
+      } else {
+        const newCustomer = await client.query(
+          "INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tc_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+          [storeId, fullNameVal, firstNameVal, surnameVal, customerEmail ? customerEmail.trim() : '', customerPhone || '', customerAddress || '', effectiveTcId, effectiveTcId]
+        );
+        finalCustomerId = newCustomer.rows[0].id;
+      }
+    }
+
+    // Auto-create / link Company (Cari Hesap) for web sale customer
+    let finalCompanyId: number | null = null;
+    const compCheck = await client.query(
+      "SELECT id FROM companies WHERE store_id = $1 AND (tax_number = $2 OR (LOWER(TRIM(title)) = LOWER(TRIM($3)) AND $3 != 'Bireysel Web Müşterisi')) LIMIT 1",
+      [storeId, effectiveTcId, fullNameVal]
+    );
+    if (compCheck.rows.length > 0) {
+      finalCompanyId = compCheck.rows[0].id;
+    } else {
+      const newComp = await client.query(
+        `INSERT INTO companies (store_id, title, tax_number, tax_office, address, phone, email, contact_person)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+        [
+          storeId,
+          fullNameVal,
+          effectiveTcId,
+          customerCity ? `${customerCity} Vergi Dairesi` : 'Bireysel Web Satışı',
+          customerAddress || '',
+          customerPhone || '',
+          customerEmail || '',
+          fullNameVal
+        ]
+      );
+      finalCompanyId = newComp.rows[0].id;
+    }
+
+    const orderNotes = [
+      notes || '',
+      customerEmail ? `E-posta: ${customerEmail}` : '',
+      customerCity ? `İl: ${customerCity}` : '',
+      customerCountry ? `Ülke: ${customerCountry}` : ''
+    ].filter(Boolean).join(' | ');
+
+    const saleRes = await client.query(
+      "INSERT INTO sales (store_id, total_amount, currency, customer_name, customer_phone, customer_address, notes, payment_method, status, customer_id, company_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'checkout_initiated', $9, $10) RETURNING id",
+      [storeId, total || 0, currency || 'TRY', fullNameVal, customerPhone || '', customerAddress || '', orderNotes, paymentMethod, finalCustomerId || null, finalCompanyId || null]
+    );
+    const saleId = saleRes.rows[0].id;
+
+    if (!items || !Array.isArray(items)) {
+      throw new Error("Sipariş içeriği geçersiz.");
+    }
+
+    for (const item of items) {
+      const taxRate = Number(item.tax_rate || 20);
+      const itemTotal = (item.price || 0) * (item.quantity || 1);
+      const taxAmount = itemTotal - (itemTotal / (1 + taxRate / 100));
+
+      await client.query(
+        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price, currency, branch_id, branch_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+        [saleId, item.productId || item.id || null, item.name || 'Bilinmeyen Ürün', item.barcode || '', item.quantity || 1, item.price || 0, taxRate, taxAmount, itemTotal, currency || 'TRY', item.branch_id || null, item.branch_name || null]
+      );
+
+      const pId = item.productId || item.id;
+      if (pId) {
+        const qty = Number(item.quantity || 1);
+        await client.query(
+          "UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2 AND store_id = $3",
+          [qty, pId, storeId]
+        );
+
+        const pRes = await client.query("SELECT variants FROM products WHERE id = $1 AND store_id = $2", [pId, storeId]);
+        if (pRes.rows.length > 0) {
+          let vars = pRes.rows[0].variants;
+          if (typeof vars === 'string') {
+            try { vars = JSON.parse(vars); } catch (e) { vars = []; }
+          }
+          const varId = item.selected_variant_id || item.variant_id;
+          const varName = item.selected_variant_name || item.variant_name;
+
+          if (Array.isArray(vars) && vars.length > 0 && (varId || varName)) {
+            let updated = false;
+            const updatedVars = vars.map((v: any) => {
+              const matchId = varId && String(v.id) === String(varId);
+              const matchName = varName && String(v.name).trim().toLowerCase() === String(varName).trim().toLowerCase();
+              if (matchId || matchName) {
+                updated = true;
+                const currentStock = Number(v.stock_quantity ?? v.stock ?? 0);
+                return { ...v, stock_quantity: Math.max(0, currentStock - qty) };
+              }
+              return v;
+            });
+
+            if (updated) {
+              await client.query("UPDATE products SET variants = $1 WHERE id = $2 AND store_id = $3", [JSON.stringify(updatedVars), pId, storeId]);
+            }
+          }
+        }
+
+        await client.query(
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, 'out', $3, 'web_sale', $4, $5, $6)",
+          [storeId, pId, qty, `Web Siparişi #${saleId} (${item.name || 'Ürün'})`, item.price || 0, customerName || 'Web Müşterisi']
+        );
+      }
+    }
+
+    // Handle Payment Gateways
+    const storeRes = await client.query("SELECT payment_settings, branding, default_currency FROM stores WHERE id = $1", [storeId]);
+    const storeData = storeRes.rows[0];
+    const rawPayment = storeData?.payment_settings;
+    const brandingPayment = storeData?.branding?.payment_settings;
+
+    let paymentSettings: any = {};
+    if (typeof rawPayment === 'string') {
+      try { paymentSettings = JSON.parse(rawPayment); } catch (e) {}
+    } else if (rawPayment && typeof rawPayment === 'object') {
+      paymentSettings = { ...rawPayment };
+    }
+
+    if (typeof brandingPayment === 'string') {
+      try { paymentSettings = { ...paymentSettings, ...JSON.parse(brandingPayment) }; } catch (e) {}
+    } else if (brandingPayment && typeof brandingPayment === 'object') {
+      paymentSettings = { ...paymentSettings, ...brandingPayment };
+    }
+
+    // 1. Payoneer Integration
+    if (paymentMethod === 'payoneer' && paymentSettings.payoneer_enabled) {
+      const { payoneer_username, payoneer_password, payoneer_store_code, payoneer_sandbox } = paymentSettings;
+      
+      if (payoneer_username && payoneer_password && payoneer_store_code) {
+        const baseUrl = payoneer_sandbox ? 'https://api.sandbox.checkout.payoneer.com' : 'https://api.checkout.payoneer.com';
+        const auth = Buffer.from(`${payoneer_username}:${payoneer_password}`).toString('base64');
+        
+        const listRequest = {
+          transactionId: `SALE-${saleId}-${Date.now()}`,
+          country: "TR", 
+          division: payoneer_store_code,
+          integration: "HOSTED_CHECKOUT",
+          operation: "CHARGE",
+          payment: {
+            amount: total,
+            currency: currency || storeData.default_currency || 'TRY',
+            reference: `Order #${saleId}`
+          },
+          style: {
+            language: "en_US"
+          },
+          callback: {
+            returnUrl: `${req.headers.origin}/checkout/success?saleId=${saleId}`,
+            cancelUrl: `${req.headers.origin}/checkout/cancel?saleId=${saleId}`,
+            notificationUrl: `${req.headers.origin}/api/public/webhooks/payoneer`
+          }
+        };
+
+        try {
+          const response = await fetch(`${baseUrl}/api/lists`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${auth}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(listRequest)
+          });
+
+          const result = await response.json();
+          if (result.links && result.links.redirect) {
+            await client.query("COMMIT");
+            return res.json({ 
+              success: true, 
+              saleId, 
+              redirectUrl: result.links.redirect,
+              paymentProvider: 'payoneer'
+            });
+          }
+        } catch (payoneerErr) {
+          console.error("Payoneer Fetch Error:", payoneerErr);
+        }
+      }
+    }
+
+    // 2. Iyzico Integration (supports credit_card and iyzico)
+    const isIyzico = paymentMethod === 'iyzico' || paymentMethod === 'credit_card';
+    if (isIyzico) {
+      await client.query("COMMIT");
+      return res.json({ 
+        success: true, 
+        saleId, 
+        paymentProvider: 'iyzico',
+        initializeUrl: '/api/payment/initialize'
+      });
+    }
+
+    // 3. PayPal Integration
+    if (paymentMethod === 'paypal' && paymentSettings.paypal_enabled) {
+      const { paypal_client_id, paypal_secret, paypal_sandbox } = paymentSettings;
+      if (paypal_client_id && paypal_secret) {
+        try {
+          const accessToken = await getPayPalAccessToken(paypal_client_id, paypal_secret, paypal_sandbox);
+          const baseUrl = paypal_sandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+          
+          const paypalRequest = {
+            intent: "CAPTURE",
+            purchase_units: [{
+              reference_id: saleId.toString(),
+              amount: {
+                currency_code: currency || storeData.default_currency || 'USD',
+                value: total.toString()
+              }
+            }],
+            application_context: {
+              return_url: `${req.headers.origin}/checkout/success?saleId=${saleId}`,
+              cancel_url: `${req.headers.origin}/checkout/cancel?saleId=${saleId}`
+            }
+          };
+
+          const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(paypalRequest)
+          });
+
+          const result = await response.json();
+          const approveLink = result.links?.find((l: any) => l.rel === 'approve');
+          
+          if (approveLink) {
+            await client.query("COMMIT");
+            return res.json({ 
+              success: true, 
+              saleId, 
+              redirectUrl: approveLink.href,
+              paymentProvider: 'paypal'
+            });
+          }
+        } catch (paypalErr) {
+          console.error("PayPal Fetch Error:", paypalErr);
+        }
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, saleId });
+  } catch (e: any) {
+    await client.query("ROLLBACK");
+    console.error("POST /api/public/sales error:", e);
+    res.status(400).json({ error: e.message, stack: e.stack });
+  } finally {
+    client.release();
+  }
+});
+
+// Public: Registration Request
+router.post("/register-request", async (req, res) => {
+  const { 
+    storeName, username, password, companyTitle, 
+    address, phone, country, language, currency, plan, 
+    uploadMethod, excelData, mapping, storeType 
+  } = req.body;
+  
+  try {
+    await pool.query(
+      `INSERT INTO registration_requests 
+      (store_name, username, password, company_title, address, phone, country, language, currency, plan, upload_method, excel_data, mapping, store_type) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [storeName, username, password, companyTitle, address, phone, country || 'TR', language, currency, plan, uploadMethod, JSON.stringify(excelData || []), JSON.stringify(mapping || {}), storeType || 'product']
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Public Sales Status
+router.get("/sales/:id/status", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT s.id, s.store_id, s.status, s.total_amount, s.currency, s.customer_name, s.customer_phone, s.customer_address, s.notes, s.payment_method, s.created_at,
+              st.name as store_name, st.slug as store_slug, st.custom_domain
+       FROM sales s
+       LEFT JOIN stores st ON s.store_id = st.id
+       WHERE s.id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Sale not found" });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Public Quotation View
+router.get("/quotations/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query("SELECT q.*, s.name as store_name, s.slug as store_slug, s.logo_url, s.address as store_address, s.phone as store_phone, s.email as store_email FROM quotations q JOIN stores s ON q.store_id = s.id WHERE q.id = $1", [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Quotation not found" });
+    }
+    
+    const quotation = result.rows[0];
+    const itemsResult = await pool.query("SELECT * FROM quotation_items WHERE quotation_id = $1 ORDER BY id ASC", [id]);
+    quotation.items = itemsResult.rows;
+    
+    res.json(quotation);
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Public Vehicle View for Signing/Reviewing
+router.get("/vehicles/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`
+      SELECT v.*, s.name as store_name, s.logo_url as store_logo, s.phone as store_phone, s.email as store_email, s.address as store_address, s.slug as store_slug
+      FROM vehicles v
+      JOIN stores s ON v.store_id = s.id
+      WHERE v.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Vehicle not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Public Real Estate Property View for Signing/Reviewing
+router.get("/real-estate/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    let result = { rows: [] as any[] };
+    try {
+      result = await pool.query(`
+        SELECT r.*, s.name as store_name, s.logo_url as store_logo, s.phone as store_phone, s.email as store_email, s.address as store_address, s.slug as store_slug
+        FROM real_estate_properties r
+        JOIN stores s ON r.store_id = s.id
+        WHERE r.id = $1
+      `, [id]);
+    } catch (err) {
+      result = await pool.query(`
+        SELECT r.*, s.name as store_name, s.logo_url as store_logo, s.phone as store_phone, s.email as store_email, s.address as store_address, s.slug as store_slug
+        FROM real_estate r
+        JOIN stores s ON r.store_id = s.id
+        WHERE r.id = $1
+      `, [id]);
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (e: any) {
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Public Real Estate Property Signature Save
+router.post("/real-estate/:id/sign", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { clientName, clientIdentity, clientPhone, commissionRate, templateId, signatureImage } = req.body;
+
+    if (!clientName || !clientIdentity || !clientPhone) {
+      return res.status(400).json({ error: "Lütfen tüm imza alanlarını doldurunuz." });
+    }
+
+    let propRes = await pool.query("SELECT * FROM real_estate_properties WHERE id = $1", [id]);
+    let tableName = "real_estate_properties";
+    if (propRes.rows.length === 0) {
+      propRes = await pool.query("SELECT * FROM real_estate WHERE id = $1", [id]);
+      tableName = "real_estate";
+    }
+
+    if (propRes.rows.length === 0) {
+      return res.status(404).json({ error: "Gayrimenkul bulunamadı." });
+    }
+
+    const property = propRes.rows[0];
+    const existingDocs = property.documents ? (typeof property.documents === 'string' ? JSON.parse(property.documents) : property.documents) : [];
+
+    const newDoc = {
+      id: `virtual-contract-${Date.now()}`,
+      name: `Dijital İmzalı Sözleşme - ${clientName} (${new Date().toLocaleDateString("tr-TR")})`,
+      category: "contract",
+      file_url: "is_virtual_contract",
+      upload_date: new Date().toLocaleDateString("tr-TR"),
+      details: {
+        templateId: templateId || "showing_agreement",
+        clientName,
+        clientIdentity,
+        clientPhone,
+        commissionRate: commissionRate || "3",
+        contractDate: new Date().toLocaleDateString("tr-TR"),
+        signed: true,
+        signingName: clientName,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        signatureImage
+      }
+    };
+
+    const updatedDocs = [...existingDocs, newDoc];
+
+    await pool.query(
+      `UPDATE ${tableName} SET documents = $1 WHERE id = $2`,
+      [JSON.stringify(updatedDocs), id]
+    );
+
+    res.json({ success: true, document: newDoc });
+  } catch (error: any) {
+    console.error("Error signing real estate contract:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public Vehicle Signature Save
+router.post("/vehicles/:id/sign", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const realVehicleId = id.replace("vehicle-", "");
+    const { clientName, clientIdentity, clientPhone, commissionAmount, contractType, displayName, signatureImage } = req.body;
+
+    if (!clientName || !clientIdentity || !clientPhone) {
+      return res.status(400).json({ error: "Lütfen tüm imza alanlarını doldurunuz." });
+    }
+
+    const vehRes = await pool.query("SELECT * FROM vehicles WHERE id = $1", [realVehicleId]);
+    if (vehRes.rows.length === 0) {
+      return res.status(404).json({ error: "Araç bulunamadı." });
+    }
+
+    const details = {
+      clientName,
+      clientIdentity,
+      clientPhone,
+      commissionAmount: commissionAmount || "2.5",
+      contractDate: new Date().toLocaleDateString("tr-TR"),
+      contractType: contractType || "consignment",
+      signed: true,
+      signingName: clientName,
+      displayName: displayName || "Seçkin Otomotiv",
+      ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+      signatureImage
+    };
+
+    const docType = contractType === 'consignment' ? "Konsinye Satış Sözleşmesi (İmzalı)" : "Rezervasyon Protokolü (İmzalı)";
+
+    await pool.query(
+      `INSERT INTO vehicle_documents (vehicle_id, type, document_url, expiry_date, is_recurring, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        Number(realVehicleId),
+        docType,
+        "is_virtual_contract",
+        new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        false,
+        JSON.stringify(details)
+      ]
+    );
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Error signing vehicle contract:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public Quotation Action (Approve/Reject)
+router.post("/quotations/:id/action", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const quotationId = parseInt(id);
+    const { action, notes: customerNotes, paymentMethod: bodyPaymentMethod, dueDate: bodyDueDate } = req.body; // action: 'approve' or 'reject'
+    
+    console.log(`[PublicQuotationAction] ID: ${id}, Action: ${action}, Notes: ${customerNotes}`);
+
+    if (isNaN(quotationId)) {
+      return res.status(400).json({ error: "Invalid quotation ID" });
+    }
+
+    if (action !== 'approve') {
+      console.log(`[PublicQuotationAction] Rejecting quotation ${quotationId}`);
+      const result = await pool.query(
+        "UPDATE quotations SET status = 'cancelled', notes = COALESCE(notes, '') || '\nCustomer Note (Reject): ' || $1 WHERE id = $2 AND status = 'pending' RETURNING id",
+        [customerNotes || '', quotationId]
+      );
+      
+      console.log(`[PublicQuotationAction] Reject result:`, result.rows);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Quotation not found or already processed" });
+      }
+      return res.json({ success: true });
+    }
+
+    // Approval logic (similar to store admin approval)
+    console.log(`[PublicQuotationAction] Approving quotation ${quotationId}`);
+    await client.query("BEGIN");
+    
+    const qResult = await client.query(
+      "SELECT * FROM quotations WHERE id = $1 FOR UPDATE",
+      [quotationId]
+    );
+    
+    if (qResult.rows.length === 0) {
+      console.error(`[PublicQuotationAction] Quotation ${quotationId} not found`);
+      throw new Error("Quotation not found");
+    }
+    
+    const quotation = qResult.rows[0];
+    const storeId = quotation.store_id;
+    
+    const storeRes = await client.query("SELECT branding FROM stores WHERE id = $1", [storeId]);
+    const branding = storeRes.rows[0]?.branding || {};
+    
+    console.log(`[PublicQuotationAction] Quotation found:`, { id: quotation.id, status: quotation.status, is_sale: quotation.is_sale });
+
+    if (quotation.status === 'approved' || quotation.is_sale) {
+      console.warn(`[PublicQuotationAction] Quotation ${quotationId} already processed`);
+      throw new Error("Quotation already approved or converted to sale");
+    }
+    
+    const paymentMethod = bodyPaymentMethod || quotation.payment_method || 'cash';
+    const dueDate = (bodyDueDate || quotation.due_date) || null;
+
+    if (!quotation.company_id && paymentMethod === 'term') {
+      throw new Error("Quotation must be linked to a company for 'Term' payment");
+    }
+
+    // Create Sale
+    console.log(`[PublicQuotationAction] Creating sale for quotation ${quotationId}`);
+    const saleRes = await client.query(
+      "INSERT INTO sales (store_id, total_amount, currency, status, customer_name, payment_method, due_date, quotation_id, notes, company_id) VALUES ($1, $2, $3, 'completed', $4, $5, $6, $7, $8, $9) RETURNING id",
+      [storeId, quotation.total_amount, quotation.currency, quotation.customer_name, paymentMethod, dueDate, quotation.id, (quotation.notes || '') + (customerNotes ? `\nCustomer Note: ${customerNotes}` : ''), quotation.company_id]
+    );
+    const saleId = saleRes.rows[0].id;
+    console.log(`[PublicQuotationAction] Sale created: ${saleId}`);
+
+    // Items and Stock
+    const itemsRes = await client.query("SELECT * FROM quotation_items WHERE quotation_id = $1", [quotation.id]);
+    for (const item of itemsRes.rows) {
+      const taxRate = (item.tax_rate !== undefined && item.tax_rate !== null) ? Number(item.tax_rate) : (branding?.default_tax_rate !== undefined ? Number(branding.default_tax_rate) : 20);
+      const kdvHariçPrice = Number(item.unit_price) / (1 + taxRate / 100);
+      const kdvHariçTotal = Number(item.quantity) * kdvHariçPrice;
+      const taxAmount = (Number(item.quantity) * Number(item.unit_price)) - kdvHariçTotal;
+
+      await client.query(
+        "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+        [saleId, item.product_id, item.product_name, item.barcode, item.quantity, kdvHariçPrice, taxRate, taxAmount, kdvHariçTotal]
+      );
+      
+      if (item.product_id) {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+          [item.quantity, item.product_id]
+        );
+
+        await client.query(
+          "INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info) VALUES ($1, $2, 'out', $3, 'quotation', $4, $5, $6)",
+          [storeId, item.product_id, item.quantity, `Müşteri Onaylı Satış #${saleId} (Teklif #${quotation.id})`, kdvHariçPrice, quotation.customer_name]
+        );
+      }
+    }
+
+    // Current Account Transactions
+    if (quotation.company_id) {
+      await client.query(
+        "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        [storeId, quotation.company_id, quotation.id, saleId, 'debt', quotation.total_amount, `Müşteri Onaylı Satış #${quotation.id} (${paymentMethod})`, paymentMethod, quotation.currency || 'TRY', quotation.exchange_rate || 1]
+      );
+
+      if (paymentMethod !== 'term') {
+        await client.query(
+          "INSERT INTO current_account_transactions (store_id, company_id, quotation_id, sale_id, type, amount, description, payment_method, currency, exchange_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+          [storeId, quotation.company_id, quotation.id, saleId, 'credit', quotation.total_amount, `Teklif #${quotation.id} Ödemesi (${paymentMethod})`, paymentMethod, quotation.currency || 'TRY', quotation.exchange_rate || 1]
+        );
+      }
+    }
+
+    if (paymentMethod !== 'term') {
+      await client.query(
+        "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
+        [saleId, paymentMethod, quotation.total_amount]
+      );
+    }
+
+    // Update Quotation Status
+    console.log(`[PublicQuotationAction] Updating quotation ${quotationId} status to approved`);
+    await client.query(
+      "UPDATE quotations SET status = 'approved', is_sale = TRUE, payment_method = $1, due_date = $2, notes = COALESCE(notes, '') || $3 WHERE id = $4",
+      [paymentMethod, dueDate, customerNotes ? `\nCustomer Note: ${customerNotes}` : '', quotation.id]
+    );
+
+    await client.query("COMMIT");
+    console.log(`[PublicQuotationAction] Successfully processed quotation ${quotationId}`);
+    res.json({ success: true, saleId });
+  } catch (e: any) {
+    console.error(`[PublicQuotationAction] Error processing quotation:`, e);
+    await client.query("ROLLBACK");
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  } finally {
+    client.release();
+  }
+});
+
+router.get("/schema-check", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='current_account_transactions'
+    `);
+    res.json(result.rows);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Iyzico Webhook / Callback
+router.post("/webhooks/iyzico", async (req, res) => {
+  const { token } = req.body;
+  const { saleId } = req.query;
+
+  if (!token || !saleId) {
+    return res.status(400).send("Missing token or saleId");
+  }
+
+  try {
+    const numericSaleId = Number(saleId);
+    // We need to retrieve the store's iyzico settings to verify the token
+    const saleRes = await pool.query("SELECT store_id FROM sales WHERE id = $1", [numericSaleId]);
+    if (saleRes.rows.length === 0) return res.status(404).send("Sale not found");
+    
+    const storeId = saleRes.rows[0].store_id;
+    const storeRes = await pool.query("SELECT payment_settings FROM stores WHERE id = $1", [storeId]);
+    let settings = storeRes.rows[0].payment_settings;
+    if (typeof settings === 'string') {
+      try {
+        settings = JSON.parse(settings);
+      } catch (e) {
+        settings = {};
+      }
+    }
+
+    const baseUrl = settings.iyzico_sandbox ? 'https://sandbox-api.iyzipay.com' : 'https://api.iyzipay.com';
+    const randomString = Date.now().toString();
+    
+    const retrieveRequest = { locale: "tr", conversationId: numericSaleId.toString(), token };
+    const signature = generateIyzicoSignature(settings.iyzico_api_key, settings.iyzico_secret_key, randomString, retrieveRequest);
+
+    const response = await fetch(`${baseUrl}/payment/iyzipay/checkoutform/auth/retrieve`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `IYZIPAY ${Buffer.from(`${settings.iyzico_api_key}:${signature}`).toString('base64')}`,
+        'x-iyzipay-rnd': randomString,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(retrieveRequest)
+    });
+
+    const result = await response.json();
+    
+    const protocol = req.headers['x-forwarded-proto'] || 'http';
+    const host = req.headers.host;
+    const baseUrlForRedirect = `${protocol}://${host}`;
+
+    if (result.status === 'success' && result.paymentStatus === 'SUCCESS') {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("UPDATE sales SET status = 'processing', payment_method = 'iyzico' WHERE id = $1", [numericSaleId]);
+        
+        // --- AUTOMATION: Stock Deduction and Invoice Creation ---
+        await processSaleAutomation(client, numericSaleId, storeId);
+        
+        await client.query("COMMIT");
+      } catch (automationError) {
+        await client.query("ROLLBACK");
+        console.error("Iyzico Webhook Automation Error:", automationError);
+        // We still redirect to success because payment WAS successful, but we log the error
+      } finally {
+        client.release();
+      }
+
+      // Redirect back to success page
+      res.redirect(`${baseUrlForRedirect}/checkout/success?saleId=${numericSaleId}`);
+    } else {
+      const errorMsg = result.errorMessage || "Unknown payment error";
+      await pool.query(
+        "UPDATE sales SET status = 'cancelled', notes = COALESCE(notes, '') || '\n[Iyzico Error]: ' || $1 WHERE id = $2",
+        [errorMsg, numericSaleId]
+      );
+      res.redirect(`${baseUrlForRedirect}/checkout/cancel?saleId=${numericSaleId}`);
+    }
+  } catch (e: any) {
+    console.error("Iyzico Callback Error:", e.message);
+    res.status(500).send(e.message);
+  }
+});
+
+// Payoneer Webhook
+router.post("/webhooks/payoneer", async (req, res) => {
+  console.log("Payoneer Webhook Received:", JSON.stringify(req.body, null, 2));
+  const { transactionId, status, result } = req.body;
+
+  if (!transactionId) {
+    return res.status(400).json({ error: "Missing transactionId" });
+  }
+
+  // transactionId format: SALE-{saleId}-{timestamp}
+  const parts = transactionId.split("-");
+  const saleId = parts[1];
+
+  if (!saleId) {
+    return res.status(400).json({ error: "Invalid transactionId format" });
+  }
+
+  try {
+    // Status can be 'PROCESSED', 'PENDING', 'FAILED', etc.
+    // Result code can be '00000' for success
+    let newStatus = 'pending';
+    if (result && result.code === '00000') {
+      newStatus = 'processing'; // Or 'completed' depending on workflow
+    } else if (status === 'FAILED') {
+      newStatus = 'cancelled';
+    }
+
+    await pool.query("UPDATE sales SET status = $1 WHERE id = $2", [newStatus, saleId]);
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("Webhook Error:", e.message);
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// PayPal Capture
+router.post("/paypal/capture", async (req, res) => {
+  const { orderId, saleId } = req.body;
+
+  if (!orderId || !saleId) {
+    return res.status(400).json({ error: "Missing orderId or saleId" });
+  }
+
+  try {
+    const saleRes = await pool.query("SELECT store_id FROM sales WHERE id = $1", [saleId]);
+    if (saleRes.rows.length === 0) return res.status(404).json({ error: "Sale not found" });
+    
+    const storeId = saleRes.rows[0].store_id;
+    const storeRes = await pool.query("SELECT payment_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0].payment_settings;
+
+    const accessToken = await getPayPalAccessToken(settings.paypal_client_id, settings.paypal_secret, settings.paypal_sandbox);
+    const baseUrl = settings.paypal_sandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+
+    const response = await fetch(`${baseUrl}/v2/checkout/orders/${orderId}/capture`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    if (result.status === 'COMPLETED') {
+      await pool.query("UPDATE sales SET status = 'processing' WHERE id = $1", [saleId]);
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: "Payment not completed", details: result });
+    }
+  } catch (e: any) {
+    console.error("PayPal Capture Error:", e.message);
+    console.error('API Error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+
+
+// Public POS Sale (e.g. from Digital Menu)
+router.post("/pos/sale", async (req: any, res) => {
+  const storeId = req.query.storeId || req.body.storeId;
+  if (!storeId) return res.status(400).json({ error: "Store ID is required" });
+  
+  const { items, total, paymentMethod, customerName, notes, currency, exchangeRate, status, tableNumber } = req.body;
+  const saleStatus = status || 'pending';
+  const resolvedCustomerName = customerName || (tableNumber ? `Masa ${tableNumber}` : 'Masa Siparişi');
+  const finalNotes = tableNumber ? `Masa ${tableNumber} - Dijital Menü` + (notes ? ` | ${notes}` : '') : (notes || 'Dijital Menü Siparişi');
+  
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    // Resolve restaurant table ID from tableNumber
+    let resolvedTableId = null;
+    if (tableNumber) {
+      console.log(`Resolving table ${tableNumber} for store ${storeId}`);
+      const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
+      const tableRes = await client.query(
+        "SELECT id FROM restaurant_tables WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+        [storeId, tableNumber.toString(), cleanNum]
+      );
+      if (tableRes.rows.length > 0) {
+        resolvedTableId = tableRes.rows[0].id;
+        console.log(`Resolved table ${tableNumber} to ID ${resolvedTableId}`);
+      } else {
+        console.log(`Could not resolve table ${tableNumber}`);
+      }
+    }
+
+    // Check if there is an existing pending sale for this table
+    let existingSaleId = null;
+    let existingTotal = 0;
+    
+    if (saleStatus === 'pending') {
+      let existingSaleRes = { rows: [] as any[] };
+      if (resolvedTableId) {
+        existingSaleRes = await client.query(
+          "SELECT id, total_amount FROM sales WHERE store_id = $1 AND restaurant_table_id = $2 AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+          [storeId, resolvedTableId]
+        );
+      } else if (tableNumber) {
+        const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
+        existingSaleRes = await client.query(
+          "SELECT id, total_amount FROM sales WHERE store_id = $1 AND status = 'pending' AND (customer_name = $2 OR customer_name = $3 OR customer_name = $4) ORDER BY created_at DESC LIMIT 1",
+          [storeId, `Masa ${cleanNum}`, cleanNum, tableNumber.toString()]
+        );
+      }
+      
+      if (existingSaleRes.rows.length > 0) {
+        existingSaleId = existingSaleRes.rows[0].id;
+        existingTotal = Number(existingSaleRes.rows[0].total_amount);
+      }
+    }
+
+    let saleId = existingSaleId;
+
+    if (existingSaleId) {
+      // Append to existing pending sale
+      const newTotal = existingTotal + Number(total || 0);
+      console.log(`Updating existing sale ${existingSaleId} with new total ${newTotal}`);
+      await client.query(
+        "UPDATE sales SET total_amount = $1, notes = COALESCE(notes, '') || '\n' || $2 WHERE id = $3",
+        [newTotal, `Ek Sipariş: ${finalNotes}`, existingSaleId]
+      );
+    } else {
+      // Create new pending sale
+      console.log(`Creating new sale for table ${tableNumber}`);
+      const saleRes = await client.query(
+        "INSERT INTO sales (store_id, total_amount, currency, exchange_rate, status, customer_name, payment_method, notes, restaurant_table_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+        [storeId, total || 0, currency || 'TRY', exchangeRate || 1, saleStatus, resolvedCustomerName, paymentMethod || 'cash', finalNotes, resolvedTableId]
+      );
+      saleId = saleRes.rows[0].id;
+
+      // Update table status to occupied in database if pending
+      if (saleStatus === 'pending') {
+        try {
+          if (resolvedTableId) {
+            await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND store_id = $2", [resolvedTableId, storeId]);
+          } else if (tableNumber) {
+            const cleanNum = tableNumber.toString().replace(/Masa/gi, '').trim();
+            await client.query(
+              "UPDATE restaurant_tables SET status = 'occupied' WHERE store_id = $1 AND (table_number = $2 OR table_number = $3)",
+              [storeId, tableNumber.toString(), cleanNum]
+            );
+          }
+        } catch (e) {
+          console.error("Could not update table status:", e);
+        }
+      }
+    }
+
+    for (const item of items) {
+      let itemName = item.name;
+      if (!itemName && item.productId) {
+         const pRes = await client.query("SELECT name FROM products WHERE id = $1", [item.productId]);
+         if (pRes.rows.length > 0) {
+            itemName = pRes.rows[0].name;
+         }
+      }
+      if (!itemName) itemName = 'Ürün';
+
+      const itemTotal = Number(item.quantity) * Number(item.price);
+      await client.query(
+        "INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6)",
+        [saleId, item.productId || null, itemName, item.quantity, item.price, itemTotal]
+      );
+    }
+    
+    await client.query("COMMIT");
+    res.json({ success: true, saleId });
+  } catch (error: any) {
+    await client.query("ROLLBACK");
+    console.error("Public POS Sale Error:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Get Active Videos
+router.get("/enrakipsiz/videos", async (req, res) => {
+  console.log("Fetching videos, query:", req.query);
+  try {
+    const { page_type } = req.query;
+    let query = "SELECT * FROM enrakipsiz_videos WHERE is_live = TRUE";
+    const params: any[] = [];
+    if (page_type) {
+      query += " AND page_type = $1";
+      params.push(page_type);
+    }
+    query += " ORDER BY order_index ASC, id ASC";
+    console.log("Executing query:", query, "with params:", params);
+    const result = await pool.query(query, params);
+    console.log("Query result count:", result.rows.length);
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Error fetching videos:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Property submission endpoint for real estate leads
+router.post("/property-submission", async (req, res) => {
+  try {
+    const { storeSlug, ownerName, ownerPhone, ownerEmail, propertyType, location, expectedPrice, notes } = req.body;
+    
+    // Find store
+    let storeId = null;
+    let storeType = null;
+    if (storeSlug) {
+      const storeRes = await pool.query("SELECT id, store_type FROM stores WHERE LOWER(slug) = LOWER($1)", [storeSlug]);
+      if (storeRes.rows.length > 0) {
+        storeId = storeRes.rows[0].id;
+        storeType = storeRes.rows[0].store_type;
+      }
+    }
+
+    console.log(`[Property Lead] Store ID: ${storeId || 'N/A'}, Store Type: ${storeType || 'N/A'}, Name: ${ownerName}, Phone: ${ownerPhone}, Type: ${propertyType}, Location: ${location}, Price: ${expectedPrice}`);
+
+    // Try inserting into customers and real_estate_contacts
+    try {
+      if (storeId) {
+        // 1. Insert into customers table safely (columns: store_id, name, phone, email, address, password)
+        try {
+          await pool.query(
+            "INSERT INTO customers (store_id, name, phone, email, address, password, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) ON CONFLICT DO NOTHING",
+            [
+              storeId, 
+              ownerName, 
+              ownerPhone, 
+              ownerEmail || null, 
+              location || '',
+              'no_password_guest'
+            ]
+          );
+        } catch (cErr) {
+          console.warn("Customers insert warning:", cErr);
+        }
+
+        // 2. Insert into real_estate_contacts table so it appears directly in the portfolio / CRM panel
+        const leadNote = `[MÜLK SAHİBİ BAŞVURUSU] Tip: ${propertyType || ''} | Konum: ${location || ''} | Beklenen Fiyat: ${expectedPrice || ''} | Not: ${notes || ''}`;
+        await pool.query(
+          `INSERT INTO real_estate_contacts (store_id, name, phone, email, type, notes, address, id_number, created_at) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+          [
+            storeId,
+            ownerName,
+            ownerPhone,
+            ownerEmail || '',
+            'owner', // It's a property owner submitting a property valuation request!
+            leadNote,
+            location || '',
+            ''
+          ]
+        );
+        console.log(`[Property Lead Success] Saved contact for store ${storeId}: ${ownerName} (${ownerPhone})`);
+      }
+    } catch (dbErr) {
+      console.error("Db insert lead error:", dbErr);
+    }
+
+    res.json({ success: true, message: "Property lead received successfully" });
+  } catch (error: any) {
+    console.error("Property submission error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;

@@ -1,0 +1,601 @@
+
+const getToken = (url: string) => {
+  if (url.includes('/api/public/customers/')) {
+    return localStorage.getItem("customerToken");
+  }
+  return localStorage.getItem("token");
+};
+
+// --- API Helper ---
+const handleResponse = async (res: Response) => {
+  const contentType = res.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    const data = await res.json();
+    if (!res.ok && !data.error) {
+      data.error = `Sunucu hatası (${res.status})`;
+    }
+    return data;
+  }
+  const text = await res.text();
+  if (res.ok) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { success: true, text };
+    }
+  }
+  console.warn("Non-JSON response received:", text);
+  return { error: text || `Sunucu yanıtı (${res.status})` };
+};
+
+export const api = {
+  async get(url: string) {
+    try {
+      const token = getToken(url);
+      const isPublic = url.includes('/api/public/');
+      const separator = url.includes('?') ? '&' : '?';
+      // Only cache bust if it's NOT a public request
+      const finalUrl = isPublic ? url : `${url}${separator}_t=${Date.now()}`;
+      const res = await fetch(finalUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        ...(!isPublic ? { cache: 'no-store' } : {}),
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API GET (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
+  },
+  async post(url: string, body: any) {
+    try {
+      const token = getToken(url);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API POST (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
+  },
+  async put(url: string, body: any) {
+    try {
+      const token = getToken(url);
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API PUT (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
+  },
+  async patch(url: string, body: any) {
+    try {
+      const token = getToken(url);
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API PATCH (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
+  },
+  async delete(url: string) {
+    try {
+      const token = getToken(url);
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return await handleResponse(res);
+    } catch (err: any) {
+      console.warn(`API DELETE (${url}) failed:`, err?.message || err);
+      return { error: err?.message || "Network error" };
+    }
+  },
+  async download(url: string, filename: string) {
+    const token = getToken(url);
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("Download failed");
+    const blob = await res.blob();
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  },
+  async upload(url: string, formData: FormData) {
+    const token = getToken(url);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+    return handleResponse(res);
+  },
+
+  // SEO Methods
+  getSEOPage: (id: string) => api.get(`/api/store/seo/${id}`),
+  addSEOPage: (data: any, storeId?: number) => api.post(`/api/store/seo${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateSEOPage: (id: string, data: any, storeId?: number) => api.put(`/api/store/seo/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteSEOPage: (id: string, storeId?: number) => api.delete(`/api/store/seo/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getSEOPages: (storeId?: number) => api.get(`/api/store/seo${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  
+  // Store Methods
+  getProducts: (search = "", storeId?: number, includeBranches = false, sellableOnly = false) => {
+    const params = new URLSearchParams();
+    if (search) params.append("search", search);
+    if (storeId !== undefined && storeId !== null) params.append("storeId", storeId.toString());
+    if (includeBranches) params.append("includeBranches", "true");
+    if (sellableOnly) params.append("sellableOnly", "true");
+    const queryString = params.toString();
+    const url = `/api/store/products${queryString ? `?${queryString}` : ""}`;
+    return api.get(url);
+  },
+  addProduct: (data: any, storeId?: number) => api.post(`/api/store/products${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateProduct: (id: number, data: any, storeId?: number) => api.put(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  bulkUpdateTax: (category: string, taxRate: number, storeId?: number, includeBranches?: boolean) => api.put(`/api/store/products/bulk-update-tax${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { category, taxRate, includeBranches }),
+  bulkUpdatePrice: (data: any, storeId?: number) => api.put(`/api/store/products/bulk-update-price${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  bulkRecalculatePrice2: (storeId?: number) => api.put(`/api/store/products/bulk-recalculate-price2${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  updateProductStock: (id: number, quantityChange: number, storeId?: number) => api.post(`/api/store/products/${id}/stock${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { quantityChange }),
+  toggleBestsellerProduct: (id: number, storeId?: number) => api.put(`/api/store/products/${id}/toggle-bestseller${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  deleteProduct: (id: number, storeId?: number) => api.delete(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  deleteBulkProducts: (ids: number[], storeId?: number) => api.post(`/api/store/products/bulk-delete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ids }),
+  addBulkProducts: (products: any[], storeId?: number) => api.post(`/api/store/products/bulk-add${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { products }),
+  bulkRenameProducts: (renames: { id: number, name: string }[], storeId?: number) => api.put(`/api/store/products/bulk-rename${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { renames }),
+  getProductRecipe: (id: number, storeId?: number) => api.get(`/api/store/products/${id}/recipe${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  saveProductRecipe: (id: number, items: any[], storeId?: number) => api.post(`/api/store/products/${id}/recipe${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { items }),
+  reformatProductNames: (storeId?: number) => api.post(`/api/store/ai/reformat-product-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  getDuplicateCandidates: (storeId?: number) => api.get(`/api/store/products/duplicate-candidates${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  mergeProducts: (sourceId: number, targetId: number, storeId?: number) => api.post(`/api/store/products/merge${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { sourceId, targetId }),
+  autoMergeDuplicates: (storeId?: number) => api.post(`/api/store/products/auto-merge-duplicates${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  deleteAllProducts: (storeId?: number) => api.delete(`/api/store/products/all${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  autoFindImage: (data: { productIds?: number[], allMissing?: boolean, id?: number }, storeId?: number, includeBranches?: boolean) => api.post(`/api/store/products/auto-image${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ...data, includeBranches }),
+  importProducts: (formData: FormData, storeId?: number) => api.upload(`/api/store/import${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, formData),
+  
+  getDriverDocuments: (id: number) => api.get(`/api/fleet/drivers/${id}/documents`),
+  getDriverAssignments: (id: number) => api.get(`/api/fleet/drivers/${id}/assignments`),
+  
+  getAnalytics: (storeId?: number, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (storeId !== undefined && storeId !== null) params.append("storeId", storeId.toString());
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+    const queryString = params.toString();
+    return api.get(`/api/store/analytics${queryString ? `?${queryString}` : ""}`);
+  },
+  getAuditLogs: (storeId?: number) => api.get(`/api/store/audit-logs${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getBranding: (storeId?: number, slug?: string) => api.get(`/api/store/info${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : (slug ? `?slug=${slug}` : "")}`),
+  updateBranding: (data: any, storeId?: number) => api.post(`/api/store/branding${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  syncTcmbRates: (storeId?: number) => api.post(`/api/store/sync-tcmb${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  verifyDomain: (domain: string) => api.post("/api/store/verify-domain", { domain }),
+  addCustomDomain: (domain: string, storeId?: number, config?: any) => api.post(`/api/store/domain${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { domain, ...config }),
+  saveCustomDomainManual: (domain: string, storeId?: number) => api.post(`/api/store/domain/manual${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { domain }),
+  getCustomDomainStatus: (storeId?: number) => api.get(`/api/store/domain${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  
+  getQuotations: (search = "", status = "all", storeId?: number) => api.get(`/api/store/quotations?search=${search}&status=${status}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  getQuotation: (id: number, storeId?: number) => api.get(`/api/store/quotations/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addQuotation: (data: any, storeId?: number) => api.post(`/api/store/quotations${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  approveQuotation: (id: number, data: any = {}, storeId?: number) => api.post(`/api/store/quotations/${id}/approve${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  cancelQuotation: (id: number, storeId?: number) => api.post(`/api/store/quotations/${id}/cancel${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  createSale: (data: any) => api.post("/api/public/sales", data), 
+  deleteQuotation: (id: number, storeId?: number) => api.delete(`/api/store/quotations/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  updateQuotation: (id: number, data: any, storeId?: number) => api.put(`/api/store/quotations/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+
+  getCompanies: (includeZero = false, storeId?: number) => api.get(`/api/store/companies?includeZero=${includeZero}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  getCustomers: (storeId?: number) => api.get(`/api/store/customers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addCustomer: (data: any, storeId?: number) => api.post(`/api/store/customers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateCustomer: (id: number | string, data: any, storeId?: number) => api.put(`/api/store/customers/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  addCompany: (data: any, storeId?: number) => api.post(`/api/store/companies${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateCompany: (id: number | string, data: any, storeId?: number) => api.put(`/api/store/companies/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteCompany: (id: number | string, storeId?: number) => api.delete(`/api/store/companies/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addCompanyTransaction: (id: number | string, data: any, storeId?: number) => api.post(`/api/store/companies/${id}/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteCompanyTransaction: (companyId: number | string, id: number | string, storeId?: number) => api.delete(`/api/store/companies/${companyId}/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getCompanyTransactions: (id: number | string, start = "", end = "", storeId?: number) => api.get(`/api/store/companies/${id}/transactions?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  exportCompanyTransactionsPDF: async (id: number | string, start = "", end = "", storeId?: number) => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`/api/store/companies/${id}/transactions/pdf?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("PDF export failed");
+    return res.blob();
+  },
+
+  getSales: (status = "all", start = "", end = "", storeId?: number) => api.get(`/api/store/sales?status=${status}&startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  exportSales: (start = "", end = "", storeId?: number, lang = 'tr') => {
+    const params = new URLSearchParams();
+    if (start) params.append("startDate", start);
+    if (end) params.append("endDate", end);
+    if (storeId !== undefined && storeId !== null) params.append("storeId", storeId.toString());
+    params.append("lang", lang);
+    const url = `/api/store/sales/export?${params.toString()}`;
+    return api.download(url, `Satis_Raporu_${start || 'tum'}_${end || 'tum'}.xlsx`);
+  },
+  createPosSale: (data: any, storeId?: number) => api.post(`/api/store/pos/sale${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  createPublicPosSale: (data: any, storeId?: number) => api.post(`/api/public/pos/sale${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updatePendingSale: (id: number, data: any, storeId?: number) => api.post(`/api/store/sales/${id}/update-pending${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  completeSale: (id: number, data: any, storeId?: number) => api.post(`/api/store/sales/${id}/complete${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  shipSale: (id: number, data: { carrier: string, trackingNumber: string }, storeId?: number) => api.post(`/api/store/sales/${id}/ship${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  prepareSale: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/prepare${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  updateSaleStatus: (id: number, data: { status: string; carrier?: string; trackingNumber?: string; reason?: string }, storeId?: number) => api.post(`/api/store/sales/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deliverSale: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/deliver${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  cancelSale: (id: number, data: { reason: string }, storeId?: number) => api.post(`/api/store/sales/${id}/cancel${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  createSaleInvoice: (id: number, storeId?: number) => api.post(`/api/store/sales/${id}/create-invoice${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  deleteSale: (id: number, storeId?: number) => api.delete(`/api/store/sales/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getDailySalesReport: (start = "", end = "", storeId?: number) => api.get(`/api/store/reports/daily-sales?startDate=${start}&endDate=${end}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
+  getPosDailyReport: (dateOrStart = "", storeId?: number, endDate?: string) => {
+    let url = `/api/store/reports/pos-daily?`;
+    if (dateOrStart && endDate) {
+      url += `startDate=${dateOrStart}&endDate=${endDate}`;
+    } else if (dateOrStart) {
+      url += `date=${dateOrStart}`;
+    }
+    if (storeId !== undefined && storeId !== null) {
+      url += `&storeId=${storeId}`;
+    }
+    return api.get(url);
+  },
+  
+  getSalesInvoices: (storeId?: number, search?: string, startDate?: string, endDate?: string) => {
+    let url = `/api/store/sales-invoices?`;
+    if (storeId !== undefined && storeId !== null) url += `storeId=${storeId}&`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (startDate) url += `startDate=${startDate}&`;
+    if (endDate) url += `endDate=${endDate}&`;
+    return api.get(url);
+  },
+  getSalesInvoice: (id: number, storeId?: number) => api.get(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  
+  // Real Estate Methods
+  getProperties: (storeId?: number) => api.get(`/api/real-estate/properties${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addProperty: (data: any) => api.post(`/api/real-estate/properties`, data),
+  updateProperty: (id: number, data: any) => api.put(`/api/real-estate/properties/${id}`, data),
+  deleteProperty: (id: number, storeId?: number) => api.delete(`/api/real-estate/properties/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  transferPropertyAuthority: (id: number, data: { authorized_branch_id: number; responsible_consultant_id: number }) => api.post(`/api/real-estate/properties/${id}/transfer-authority`, data),
+  analyzePortfolio: (storeId?: number) => api.post(`/api/real-estate/properties/analyze${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  createTask: (data: { property_id?: number; task_type: string; description: string; due_date?: string }, storeId?: number) => api.post(`/api/real-estate/properties/tasks${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  getTasks: (storeId?: number) => api.get(`/api/real-estate/properties/tasks${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  completeTask: (id: number, storeId?: number, data: any = {}) => api.patch(`/api/real-estate/properties/tasks/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { ...data, is_completed: true }),
+  updateTask: (id: number, data: any, storeId?: number) => api.put(`/api/real-estate/properties/tasks/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  getPropertyAuditLog: (id: number, storeId?: number) => api.get(`/api/real-estate/properties/${id}/audit-log${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  publishRadarNews: (data: any, storeId?: number) => api.post(`/api/real-estate/radar-news/publish${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  getRadarNews: (storeId?: number) => api.get(`/api/real-estate/radar-news${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  deleteRadarNews: (storeId?: number) => api.delete(`/api/real-estate/radar-news${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),  getPublicRadarNews: (slug: string) => api.get(`/api/public/stores/${slug}/radar-news?t=${Date.now()}`),
+  getPublicEnrakipsizRadarNews: () => api.get(`/api/public/enrakipsiz/radar-news?t=${Date.now()}`),
+  getRealEstateContacts: (type?: 'owner' | 'investor', storeId?: number) => api.get(`/api/real-estate/contacts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}${type ? `&type=${type}` : ''}` : (type ? `?type=${type}` : '')}`),
+  addRealEstateContact: (data: any, storeId?: number) => api.post(`/api/real-estate/contacts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateRealEstateContact: (id: string, data: any, storeId?: number) => api.put(`/api/real-estate/contacts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteRealEstateContact: (id: string, storeId?: number) => api.delete(`/api/real-estate/contacts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getPortfolioTransactions: (storeId?: number) => api.get(`/api/real-estate/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addPortfolioTransaction: (data: any, storeId?: number) => api.post(`/api/real-estate/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deletePortfolioTransaction: (id: number, storeId?: number) => api.delete(`/api/real-estate/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getAcquisitionLeads: (source: string = "101evler", filter: string = "individual", keywords?: string) => api.post(`/api/real-estate/acquisition-radar`, { source, filter, keywords }),
+  getSalesInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html?type=sales`),
+  addSalesInvoice: (data: any, storeId?: number) => api.post(`/api/store/sales-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateSalesInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteSalesInvoice: (id: number, storeId?: number) => api.delete(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getPurchaseInvoices: (storeId?: number, search?: string, startDate?: string, endDate?: string) => {
+    let url = `/api/store/purchase-invoices?`;
+    if (storeId !== undefined && storeId !== null) url += `storeId=${storeId}&`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (startDate) url += `startDate=${startDate}&`;
+    if (endDate) url += `endDate=${endDate}&`;
+    return api.get(url);
+  },
+  getPurchaseInvoice: (id: number, storeId?: number) => api.get(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getPurchaseInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html`),
+  addPurchaseInvoice: (data: any, storeId?: number) => api.post(`/api/store/purchase-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updatePurchaseInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deletePurchaseInvoice: (id: number, storeId?: number) => api.delete(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  updatePurchaseInvoiceTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED', storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
+  markPurchaseInvoiceRead: (id: number, storeId?: number) => api.patch(`/api/store/purchase-invoices/${id}/read${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  updatePurchaseInvoicePaymentStatus: (id: number, status: 'paid' | 'unpaid') => api.patch(`/api/store/purchase-invoices/${id}/payment-status`, { status }),
+  generateProductDescription: (name: string, category: string, lang: string) => api.post("/api/store/generate-description", { name, category, lang }),
+  generateBlog: (topic: string, storeName: string, lang: string) => api.post("/api/store/generate-blog", { topic, storeName, lang }),
+  getBlogPosts: (storeId?: number) => api.get(`/api/store/blog-posts${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getBlogPost: (id: number, storeId?: number) => api.get(`/api/blog-posts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addBlogPost: (data: any, storeId?: number) => api.post(`/api/store/blog-posts`, { ...data, storeId }),
+  updateBlogPost: (id: number, data: any, storeId?: number) => api.put(`/api/store/blog-posts/${id}`, { ...data, storeId }),
+  deleteBlogPost: (id: number, storeId?: number) => api.delete(`/api/store/blog-posts/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getPublicBlogPosts: (slug: string) => api.get(`/api/public/stores/${slug}/blog-posts?t=${Date.now()}`),
+  getPublicBlogPost: (slug: string, id: number) => api.get(`/api/public/stores/${slug}/blog-posts/${id}`),
+
+  getUsers: (storeId?: number) => api.get(`/api/store/users${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addUser: (data: any, storeId?: number) => api.post(`/api/store/users${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateUser: (id: number, data: any, storeId?: number) => api.put(`/api/store/users/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  toggleUserStatus: (id: number, isActive: boolean, storeId?: number) => api.patch(`/api/store/users/${id}/toggle-status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { is_active: isActive, storeId }),
+  deleteUser: (id: number, storeId?: number) => api.delete(`/api/store/users/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+
+  getLeads: () => api.get("/api/admin/leads"),
+  deleteLead: (id: number) => api.delete(`/api/admin/leads/${id}`),
+  getRegistrationRequests: () => api.get("/api/admin/registration-requests"),
+  deleteRegistrationRequest: (id: number) => api.delete(`/api/admin/registration-requests/${id}`),
+  approveRegistration: (id: number) => api.post(`/api/admin/registration-requests/${id}/approve`, {}),
+  rejectRegistration: (id: number) => api.post(`/api/admin/registration-requests/${id}/reject`, {}),
+  getAdminStats: () => api.get("/api/admin/stats"),
+  getAdminProfile: () => api.get("/api/admin/profile"),
+  updateAdminProfile: (data: any) => api.post("/api/admin/profile", data),
+  getGlobalAuditLogs: () => api.get("/api/admin/audit-logs"),
+  getSupabaseStatus: () => api.get("/api/admin/supabase-status"),
+  updateLead: (id: number, data: any) => api.put(`/api/admin/leads/${id}`, data),
+  getStores: () => api.get("/api/admin/stores"),
+  addStore: (data: any) => api.post("/api/admin/stores", data),
+  updateStore: (id: number, data: any) => api.put(`/api/admin/stores/${id}`, data),
+  toggleStoreHotel: (id: number, enabled?: boolean) => api.post(`/api/admin/stores/${id}/toggle-hotel`, { enabled }),
+  deleteStore: (id: number, password: any) => api.post(`/api/admin/stores/${id}/delete`, { password }),
+
+  // Enrakipsiz Portal & Ad Management Methods
+  getEnrakipsizSettings: () => api.get("/api/admin/enrakipsiz/settings"),
+  saveEnrakipsizSettings: (data: any) => api.post("/api/admin/enrakipsiz/settings", data),
+  saveEnrakipsizSlide: (data: any) => api.post("/api/admin/enrakipsiz/slides", data),
+  deleteEnrakipsizSlide: (id: number) => api.delete(`/api/admin/enrakipsiz/slides/${id}`),
+  saveEnrakipsizAd: (data: any) => api.post("/api/admin/enrakipsiz/ads", data),
+  deleteEnrakipsizAd: (id: number) => api.delete(`/api/admin/enrakipsiz/ads/${id}`),
+  getPublicEnrakipsizPortal: () => api.get("/api/public/enrakipsiz/portal"),
+  updateStoreEnrakipsizFeatured: (id: number, data: any) => api.post(`/api/admin/stores/${id}/enrakipsiz-featured`, data),
+
+  // Video Management Methods
+  getPublicVideos: (pageType?: string) => api.get(`/api/public/enrakipsiz/videos${pageType ? `?page_type=${pageType}` : ""}`),
+  getAdminVideos: () => api.get("/api/admin/enrakipsiz/videos"),
+  saveAdminVideo: (data: any) => api.post("/api/admin/enrakipsiz/videos", data),
+  deleteAdminVideo: (id: number) => api.delete(`/api/admin/enrakipsiz/videos/${id}`),
+
+  uploadFile: (formData: FormData) => api.upload("/api/upload", formData),
+  
+  // Supplier APIs
+  getSupplierApis: (storeId?: number) => api.get(`/api/store/supplier-apis${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addSupplierApi: (data: any, storeId?: number) => api.post(`/api/store/supplier-apis${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateSupplierApi: (id: number, data: any, storeId?: number) => api.put(`/api/store/supplier-apis/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteSupplierApi: (id: number, storeId?: number) => api.delete(`/api/store/supplier-apis/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+
+  // Procurements
+  getProcurements: (storeId?: number) => api.get(`/api/store/procurements${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  updateProcurement: (id: number, data: any, storeId?: number) => api.put(`/api/store/procurements/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteProcurement: (id: number, storeId?: number) => api.delete(`/api/store/procurements/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  querySupplierApis: (id: number, storeId?: number) => api.post(`/api/store/procurements/${id}/query${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+
+  // Technical Service
+  getServiceRecords: (storeId?: number) => api.get(`/api/store/service-records${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getServiceRecord: (id: number, storeId?: number) => api.get(`/api/store/service-records/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addServiceRecord: (data: any, storeId?: number) => api.post(`/api/store/service-records${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateServiceRecord: (id: number, data: any, storeId?: number) => api.put(`/api/store/service-records/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteServiceRecord: (id: number, storeId?: number) => api.delete(`/api/store/service-records/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+
+  // Branches & Stock Transfers
+  getBranches: (storeId?: number) => api.get(`/api/store/branches${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addBranch: (data: any, storeId?: number) => api.post(`/api/store/branches`, { ...data, storeId }),
+  updateBranch: (id: number, data: any, storeId?: number) => api.put(`/api/store/branches/${id}`, { ...data, storeId }),
+  deleteBranch: (id: number, storeId?: number) => api.delete(`/api/store/branches/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getBranchStock: (barcode: string, storeId?: number) => api.get(`/api/store/branches/stock/${barcode}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getStockTransfers: (storeId?: number, includeBranches?: boolean) => api.get(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}${includeBranches ? `&includeBranches=true` : ""}`),
+  createStockTransfer: (data: any, storeId?: number) => api.post(`/api/store/stock-transfers${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateStockTransferStatus: (id: number, status: string, storeId?: number, lang = 'tr') => api.put(`/api/store/stock-transfers/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}&lang=${lang}` : `?lang=${lang}`}`, { status }),
+  deleteStockTransfer: (id: number, storeId?: number) => api.delete(`/api/store/stock-transfers/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  getNotifications: (storeId?: number) => api.get(`/api/store/notifications${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  
+  // Consultants CRM
+  getConsultants: (storeId?: number) => api.get(`/api/store/consultants${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  addConsultant: (data: any, storeId?: number) => api.post(`/api/store/consultants${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateConsultant: (id: number, data: any, storeId?: number) => api.put(`/api/store/consultants/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  deleteConsultant: (id: number, storeId?: number) => api.delete(`/api/store/consultants/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+
+  customerLogin: (data: any) => api.post("/api/public/customers/login", data),
+  customerRegister: (data: any) => api.post("/api/public/customers/register", data),
+  getCustomerProfile: () => api.get("/api/public/customers/profile"),
+  updateCustomerProfile: (data: any) => api.put("/api/public/customers/profile", data),
+  getCustomerOrders: () => api.get("/api/public/customers/orders"),
+  saveCustomerCart: (data: { customerId: number, storeId: number, items: any[] }) => api.post("/api/public/customers/cart/save", data),
+  getCustomerCart: (customerId: number) => api.get(`/api/public/customers/cart/${customerId}`),
+  login: (data: any) => api.post("/api/auth/login", data),
+  register: (data: any) => api.post("/api/auth/register", data),
+  forgotPassword: (email: string) => api.post("/api/auth/forgot-password", { email }),
+  resetPassword: (token: string, newPassword: any) => api.post("/api/auth/reset-password", { token, newPassword }),
+  changePassword: (currentPassword: string, newPassword: string) => api.post("/api/auth/change-password", { currentPassword, newPassword }),
+  getProfile: () => api.get("/api/user/profile"),
+  updateProfile: (data: any) => api.put("/api/user/profile", data),
+  getMyOrders: () => api.get("/api/user/orders"),
+  requestReturn: (orderId: number, reason: string) => api.post(`/api/user/orders/${orderId}/return`, { reason }),
+  
+  // Public Methods
+  getMarketplaceListings: () => api.get(`/api/public/marketplace/listings`),
+  getPublicStoreProducts: (slug: string) => api.get(`/api/public/store/${slug}/products?t=${Date.now()}`),
+  getPublicStore: (slug: string) => api.get(`/api/public/store/${slug}?t=${Date.now()}`),
+  getProductBySlug: (slug: string, barcode: string) => api.get(`/api/public/scan/${slug}/${barcode}`),
+  getSaleStatus: (id: number) => api.get(`/api/public/sales/${id}/status`),
+  createPublicSale: (data: any) => api.post("/api/public/sales", data),
+  createGuestSale: (data: any) => api.post("/api/public/guest-sales", data),
+  getPublicProductBranchStock: (slug: string, barcode: string) => api.get(`/api/public/store/${slug}/products/${barcode}/stock`),
+  requestDemo: (data: any) => api.post("/api/public/demo-request", data),
+  requestRegistration: (data: any) => api.post("/api/public/register-request", data),
+  
+  getPublicQuotation: (id: string) => api.get(`/api/public/quotations/${id}`),
+  publicQuotationAction: (id: string, action: 'approve' | 'reject', notes?: string, paymentMethod?: string, dueDate?: string) => api.post(`/api/public/quotations/${id}/action`, { action, notes, paymentMethod, dueDate }),
+
+  // Fleet Management Methods
+  getVehicles: (storeId?: number) => api.get(`/api/fleet/vehicles${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  createVehicle: (data: any) => api.post("/api/fleet/vehicles", data),
+  updateVehicle: (id: number, data: any) => api.put(`/api/fleet/vehicles/${id}`, data),
+  deleteVehicle: (id: number) => api.delete(`/api/fleet/vehicles/${id}`),
+  getVehicleDocuments: (id: number) => api.get(`/api/fleet/vehicles/${id}/documents`),
+  createVehicleDocument: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/documents`, data),
+  updateVehicleDocument: (id: number, data: any) => api.put(`/api/fleet/vehicle-documents/${id}`, data),
+  deleteVehicleDocument: (id: number) => api.delete(`/api/fleet/vehicle-documents/${id}`),
+  getVehicleMaintenance: (id: number) => api.get(`/api/fleet/vehicles/${id}/maintenance`),
+  createVehicleMaintenance: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/maintenance`, data),
+  updateVehicleMaintenance: (id: number, data: any) => api.put(`/api/fleet/vehicle-maintenance/${id}`, data),
+  deleteVehicleMaintenance: (id: number) => api.delete(`/api/fleet/vehicle-maintenance/${id}`),
+  getVehicleAssignments: (id: number) => api.get(`/api/fleet/vehicles/${id}/assignments`),
+  createVehicleAssignment: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/assignments`, data),
+  updateVehicleAssignment: (id: number, data: any) => api.put(`/api/fleet/vehicle-assignments/${id}`, data),
+  getVehicleMileage: (id: number) => api.get(`/api/fleet/vehicles/${id}/mileage`),
+  createVehicleMileage: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/mileage`, data),
+  getVehicleIncidents: (id: number) => api.get(`/api/fleet/vehicles/${id}/incidents`),
+  createVehicleIncident: (id: number, data: any) => api.post(`/api/fleet/vehicles/${id}/incidents`, data),
+  
+  // Store-wide Fleet Methods
+  getAllFleetDocuments: (storeId?: number) => api.get(`/api/fleet/documents${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetMaintenance: (storeId?: number) => api.get(`/api/fleet/maintenance${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetAssignments: (storeId?: number) => api.get(`/api/fleet/assignments${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetMileage: (storeId?: number) => api.get(`/api/fleet/mileage${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetIncidents: (storeId?: number) => api.get(`/api/fleet/incidents${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  getAllFleetDriverDocuments: (storeId?: number) => api.get(`/api/fleet/driver-documents${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  
+  // Driver Methods
+  getDrivers: (storeId?: number) => api.get(`/api/fleet/drivers${(storeId !== undefined && storeId !== null) ? `?store_id=${storeId}` : ""}`),
+  createDriver: (data: any) => api.post("/api/fleet/drivers", data),
+  updateDriver: (id: number, data: any) => api.put(`/api/fleet/drivers/${id}`, data),
+  deleteDriver: (id: number) => api.delete(`/api/fleet/drivers/${id}`),
+  uploadDriverDocument: (id: number, formData: FormData) => api.upload(`/api/fleet/drivers/${id}/documents`, formData),
+  deleteDriverDocument: (id: number) => api.delete(`/api/fleet/driver-documents/${id}`),
+
+  // Amazon Integration
+  getAmazonAuthUrl: () => api.get("/api/integrations/amazon/auth-url"),
+  getAmazonSettings: (storeId?: number) => api.get(`/api/integrations/amazon/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveAmazonSettings: (data: { clientId: string, clientSecret: string, refreshToken: string, sellerId: string, categoryMappings?: any, categoryAttributes?: any, storeId?: number }) => api.post("/api/integrations/amazon/settings", data),
+  syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),
+  disconnectAmazon: (storeId?: number) => api.post("/api/integrations/amazon/disconnect", { storeId }),
+  getAmazonCategories: () => api.get("/api/integrations/amazon/categories"),
+  getAmazonCategoryAttributes: (categoryId: string | number) => api.get(`/api/integrations/amazon/categories/${categoryId}/attributes`),
+
+  // N11 Integration
+  getN11Settings: (storeId?: number) => api.get(`/api/integrations/n11/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveN11Settings: (data: { appKey: string, appSecret: string, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
+  syncN11Orders: (storeId?: number) => api.post("/api/integrations/n11/sync", { storeId }),
+  disconnectN11: (storeId?: number) => api.post("/api/integrations/n11/disconnect", { storeId }),
+
+  // Hepsiburada Integration
+  getHepsiburadaSettings: (storeId?: number) => api.get(`/api/integrations/hepsiburada/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveHepsiburadaSettings: (data: { 
+    apiKey: string; 
+    apiSecret: string; 
+    merchantId: string; 
+    isTestMode?: boolean;
+    userAgent?: string;
+    defaultDispatchTime?: number;
+    defaultCargoCompany?: string;
+    autoSyncOrders?: boolean;
+    autoStockSync?: boolean;
+    webhookSecret?: string;
+    categoryMappings?: any;
+    categoryAttributes?: any;
+    storeId?: number; 
+  }) => api.post("/api/integrations/hepsiburada/settings", data),
+  syncHepsiburadaOrders: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync", { storeId }),
+  syncHepsiburadaInventory: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync-inventory", { storeId }),
+  getHepsiburadaCategories: (storeId?: number) => api.get(`/api/integrations/hepsiburada/categories${storeId ? `?storeId=${storeId}` : ""}`),
+  getHepsiburadaCategoryAttributes: (categoryId: string | number, storeId?: number) => api.get(`/api/integrations/hepsiburada/categories/${categoryId}/attributes${storeId ? `?storeId=${storeId}` : ""}`),
+  getHepsiburadaTaskStatus: (taskId: string, storeId?: number) => api.get(`/api/integrations/hepsiburada/task/${taskId}${storeId ? `?storeId=${storeId}` : ""}`),
+  sendHepsiburadaInvoice: (orderId: string, data: any, storeId?: number) => api.post(`/api/integrations/hepsiburada/orders/${orderId}/invoice${storeId ? `?storeId=${storeId}` : ""}`, data),
+  disconnectHepsiburada: (storeId?: number) => api.post("/api/integrations/hepsiburada/disconnect", { storeId }),
+
+  // Trendyol Integration
+  getTrendyolSettings: (storeId?: number) => api.get(`/api/integrations/trendyol/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveTrendyolSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, categoryMappings?: any, categoryAttributes?: any, storeId?: number }) => api.post("/api/integrations/trendyol/settings", data),
+  syncTrendyolOrders: (storeId?: number) => api.post("/api/integrations/trendyol/sync", { storeId }),
+  disconnectTrendyol: (storeId?: number) => api.post("/api/integrations/trendyol/disconnect", { storeId }),
+  getTrendyolCategoryAttributes: (categoryId: string | number) => api.get(`/api/integrations/trendyol/categories/${categoryId}/attributes`),
+
+  // Pazarama Integration
+  getPazaramaSettings: (storeId?: number) => api.get(`/api/integrations/pazarama/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  savePazaramaSettings: (data: { 
+    apiKey: string, 
+    apiSecret: string, 
+    merchantId?: string, 
+    commissionRate?: number, 
+    categoryMappings?: any,
+    brandMappings?: any,
+    storeId?: number 
+  }) => api.post("/api/integrations/pazarama/settings", data),
+  syncPazaramaOrders: (storeId?: number) => api.post("/api/integrations/pazarama/sync", { storeId }),
+  disconnectPazarama: (storeId?: number) => api.post("/api/integrations/pazarama/disconnect", { storeId }),
+  publishPazaramaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/pazarama/publish", { productId, storeId }),
+  publishTrendyolProduct: (productId: number, storeId?: number) => api.post("/api/integrations/trendyol/publish", { productId, storeId }),
+  publishN11Product: (productId: number, storeId?: number) => api.post("/api/integrations/n11/publish", { productId, storeId }),
+  publishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/publish", { productId, storeId }),
+  bulkPublishHepsiburadaProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/hepsiburada/bulk-publish", { productIds, storeId }),
+  getTrendyolCategories: () => api.get("/api/integrations/trendyol/categories"),
+  getTrendyolBrands: (page?: number, size?: number) => api.get(`/api/integrations/trendyol/brands${(page !== undefined || size !== undefined) ? `?${page !== undefined ? `page=${page}` : ''}${size !== undefined ? `&size=${size}` : ''}` : ''}`),
+  getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),
+  getPazaramaBrands: (storeId?: number) => api.get(`/api/integrations/pazarama/brands${storeId ? `?storeId=${storeId}` : ""}`),
+  
+  // Google Drive
+  getGoogleDriveAuthUrl: () => api.get("/api/google-drive/auth-url"),
+  getGoogleDriveSettings: () => api.get("/api/google-drive/settings"),
+  disconnectGoogleDrive: () => api.post("/api/google-drive/disconnect", {}),
+  exportToGoogleDrive: (data: { format: string, targetType: string }) => api.post("/api/google-drive/export", data),
+
+  // Meta Integration
+  getMetaSettings: (storeId?: number) => api.get(`/api/integrations/meta/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveMetaSettings: (data: { enabled: boolean, pixel_id: string, catalog_id: string, storeId?: number }) => api.post("/api/integrations/meta/settings", data),
+
+  // Instagram Integration
+  getInstagramSettings: (storeId?: number) => api.get(`/api/integrations/instagram/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveInstagramSettings: (data: any, storeId?: number) => api.post(`/api/integrations/instagram/settings${storeId ? `?storeId=${storeId}` : ""}`, data),
+
+  // Google Merchant Integration
+  getGoogleMerchantSettings: (storeId?: number) => api.get(`/api/integrations/google-merchant/settings${storeId ? `?storeId=${storeId}` : ""}`),
+  saveGoogleMerchantSettings: (data: { enabled: boolean, merchant_id: string, catalog_currency?: string, storeId?: number }) => api.post("/api/integrations/google-merchant/settings", data),
+
+  // Transactions
+  deleteTransaction: (id: number, storeId?: number) => api.delete(`/api/store/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  updateTransaction: (id: number, data: any, storeId?: number) => api.put(`/api/store/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  logError: (data: any) => api.post("/api/store/log-error", data),
+
+  // Integration Test Methods
+  testN11Connection: (storeId?: number) => api.post("/api/integrations/n11/test", { storeId }),
+  testHepsiburadaConnection: (storeId?: number) => api.post("/api/integrations/hepsiburada/test", { storeId }),
+  testTrendyolConnection: (storeId?: number) => api.post("/api/integrations/trendyol/test", { storeId }),
+  testPazaramaConnection: (storeId?: number) => api.post("/api/integrations/pazarama/test", { storeId }),
+  
+  // Integrator Hub
+  getIntegratorConfigs: () => api.get("/api/admin/integrator-configs"),
+  saveIntegratorConfig: (data: any) => api.post("/api/admin/integrator-configs", data),
+  
+  // Hepsiburada V3 Integration
+  hepsiburadaV3ImportListings: (env: 'sit' | 'production', products: any[]) => api.post("/api/integrations/hepsiburada/v3/listings/import", { env, products }),
+  hepsiburadaV3CheckTaskStatus: (env: 'sit' | 'production', trackingId: string) => api.get(`/api/integrations/hepsiburada/v3/listings/import/${trackingId}?env=${env}`),
+  hepsiburadaV3GetCategories: (env: 'sit' | 'production', page: number = 0, size: number = 50) => api.get(`/api/integrations/hepsiburada/v3/categories?env=${env}&page=${page}&size=${size}`),
+  hepsiburadaV3GetCategoryAttributes: (env: 'sit' | 'production', categoryId: string | number) => api.get(`/api/integrations/hepsiburada/v3/categories/${categoryId}/attributes?env=${env}`),
+  hepsiburadaV3ImportCatalog: (env: 'sit' | 'production', products: any[]) => api.post("/api/integrations/hepsiburada/v3/catalog/import", { env, products }),
+  hepsiburadaV3CheckCatalogStatus: (env: 'sit' | 'production', trackingId: string) => api.get(`/api/integrations/hepsiburada/v3/catalog/status/${trackingId}?env=${env}`),
+  hepsiburadaV3FetchOrders: (env: 'sit' | 'production', params?: { status?: string; limit?: number }) => api.get(`/api/integrations/hepsiburada/v3/orders?env=${env}${params?.status ? `&status=${params.status}` : ''}${params?.limit ? `&limit=${params.limit}` : ''}`),
+  hepsiburadaV3SimulateOrder: (data: any) => api.post("/api/integrations/hepsiburada/v3/orders/simulate", data),
+
+  // E-Invoice Methods
+  checkTaxpayer: (vknTckn: string, storeId?: number) => api.post(`/api/einvoice/check-taxpayer${storeId ? `?storeId=${storeId}` : ""}`, { vknTckn, storeId }),
+  sendEInvoice: (invoiceId: number) => api.post(`/api/einvoice/send/${invoiceId}`, {}),
+  cancelEInvoice: (invoiceId: number, reason: string) => api.post(`/api/einvoice/cancel/${invoiceId}`, { reason }),
+  checkEInvoiceStatus: (invoiceId: number) => api.get(`/api/einvoice/status/${invoiceId}`),
+  syncIncomingEInvoices: (startDate: string, endDate: string, storeId?: number) => api.post(`/api/einvoice/sync-inbox${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { startDate, endDate }),
+  testEInvoiceConnection: () => api.post("/api/einvoice/test-connection", {}),
+
+  // Restaurant Tables
+  getRestaurantTables: (storeId?: number) => api.get(`/api/store/restaurant-tables${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
+  createRestaurantTable: (data: any, storeId?: number) => api.post(`/api/store/restaurant-tables${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+  updateRestaurantTable: (id: number, data: any, storeId?: number) => api.put(`/api/store/restaurant-tables/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
+
+  // Public Digital Menu Methods
+  getPublicDigitalMenuInfo: (storeIdentifier: string | number) => api.get(`/api/public/digital-menu/${storeIdentifier}/info`),
+  getPublicDigitalMenuProducts: (storeIdentifier: string | number) => api.get(`/api/public/digital-menu/${storeIdentifier}/products`),
+  getPublicDigitalMenuTables: (storeIdentifier: string | number) => api.get(`/api/public/digital-menu/${storeIdentifier}/tables`),
+};

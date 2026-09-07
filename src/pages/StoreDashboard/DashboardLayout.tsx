@@ -1,0 +1,115 @@
+import React, { useState, useEffect } from "react";
+import { DashboardSidebar } from "./DashboardSidebar";
+import ErrorBoundary from "../../components/ErrorBoundary";
+import StoreLogo from "../../components/StoreLogo";
+import { Loader2, Menu, WifiOff } from "lucide-react";
+
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+  sidebarProps: any;
+  loading: boolean;
+  lang: string;
+}
+
+export const DashboardLayout = ({ children, sidebarProps, loading, lang }: DashboardLayoutProps) => {
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  const branding = sidebarProps?.branding || {};
+  const headerLogoUrl = branding.logo_url || branding.logo;
+  const headerStoreName = (branding.store_name && !/^lookprice$/i.test(branding.store_name.trim()))
+    ? branding.store_name.trim()
+    : (branding.name && !/^lookprice$/i.test(branding.name.trim()))
+    ? branding.name.trim()
+    : "Seçkin Mağaza";
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  return (
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans relative">
+      {/* Offline Alert Banner */}
+      {!isOnline && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] flex items-center gap-3 px-5 py-3 bg-rose-600 text-white rounded-full shadow-2xl font-bold text-xs sm:text-sm animate-pulse border border-rose-500/30">
+          <WifiOff className="h-4 w-4 shrink-0 text-rose-100" />
+          <span>
+            {lang === "tr" 
+              ? "Şu an çevrimdışısınız, verileriniz yerel depoda tutuluyor." 
+              : "You are currently offline, data is saved locally."}
+          </span>
+        </div>
+      )}
+
+      {/* Background Pattern */}
+      <div className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none overflow-hidden select-none flex flex-wrap gap-8 p-8">
+        {Array.from({ length: 150 }).map((_, i) => (
+          <div key={i} className="flex flex-col items-center rotate-12">
+            <div className="w-16 h-1 bg-slate-900 mb-0.5" />
+            <div className="w-16 h-2 bg-slate-900 mb-0.5" />
+            <div className="w-16 h-0.5 bg-slate-900 mb-0.5" />
+            <div className="w-16 h-3 bg-slate-900 mb-0.5" />
+          </div>
+        ))}
+      </div>
+
+      <DashboardSidebar {...sidebarProps} />
+
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Mobile Header with Hamburger Menu */}
+        <div className="lg:hidden flex items-center p-4 bg-white border-b border-slate-200 z-10">
+          <button onClick={() => sidebarProps.setSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+            <Menu className="w-6 h-6" />
+          </button>
+          <div className="ml-4 flex items-center gap-2.5 min-w-0">
+            <StoreLogo logoUrl={headerLogoUrl} storeName={headerStoreName} size="xs" />
+            <div className="font-bold text-slate-900 truncate tracking-tight uppercase text-sm">
+              {headerStoreName}
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Collapsed Header */}
+        {sidebarProps.desktopSidebarCollapsed && (
+          <div className="hidden lg:flex items-center p-4 bg-white border-b border-slate-200/60 z-10 shadow-sm transition-all">
+            <button 
+              onClick={() => sidebarProps.setDesktopSidebarCollapsed(false)} 
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 rounded-xl font-bold text-xs uppercase transition-all tracking-wider shrink-0"
+              title={lang === 'tr' ? 'Menüyü Aç' : 'Open Sidebar'}
+            >
+              <Menu className="w-4 h-4" />
+              <span>{lang === 'tr' ? 'Menüyü Aç' : 'Open Menu'}</span>
+            </button>
+            <div className="ml-4 flex items-center gap-2.5 min-w-0">
+              <StoreLogo logoUrl={headerLogoUrl} storeName={headerStoreName} size="xs" />
+              <div className="font-black text-slate-900 truncate tracking-tight uppercase text-xs">
+                {headerStoreName}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50">
+          <div className="max-w-7xl mx-auto space-y-8">
+            <ErrorBoundary lang={lang}>
+              {loading ? (
+                <div className="flex flex-col items-center justify-center h-64">
+                   <Loader2 className="h-12 w-12 text-indigo-600 animate-spin mb-4" />
+                   <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">{lang === 'tr' ? 'Veriler Yükleniyor...' : 'Loading Data...'}</p>
+                </div>
+              ) : children}
+            </ErrorBoundary>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
