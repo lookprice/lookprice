@@ -41,7 +41,10 @@ import {
   LayoutGrid,
   List,
   RotateCcw,
-  Check
+  Check,
+  Hotel,
+  Settings2,
+  Coffee
 } from "lucide-react";
 
 export const getDemoRooms = (): HotelRoom[] => {
@@ -227,6 +230,11 @@ export interface HotelRoom {
   bed_info?: string; // e.g., "1 Double + 1 Single"
   status: 'vacant' | 'occupied' | 'maintenance' | 'staff' | 'disabled';
   price_per_night?: number;
+  price_room_only?: number;
+  price_half_board?: number;
+  price_full_board?: number;
+  price_all_inclusive?: number;
+  price_ultra_all_inclusive?: number;
   board_prices?: {
     room_only?: number; // Sadece Oda (RO)
     bed_breakfast?: number; // Oda + Kahvaltı (BB)
@@ -251,10 +259,16 @@ export interface HotelRoom {
     age: number;
     age_category: 'infant' | 'child' | 'adult' | 'senior';
     discount_rate: number; // e.g., 100 for 0-6 age, 50 for 7-12 age
+    gender?: string;
+    nationality?: string;
     phone?: string;
+    email?: string;
     check_in_date: string;
     check_out_date: string; // YYYY-MM-DD
-    board_type?: 'RO' | 'BB' | 'HB' | 'FB' | 'AI' | 'UAI';
+    board_type?: 'RO' | 'BB' | 'HB' | 'FB' | 'AI' | 'UAI' | string;
+    advance_payment?: number;
+    payment_method?: string;
+    notes?: string;
   };
   additional_guests?: Array<{
     identity_no: string;
@@ -264,6 +278,9 @@ export interface HotelRoom {
     age: number;
     age_category: 'infant' | 'child' | 'adult' | 'senior';
     discount_rate: number;
+    gender?: string;
+    nationality?: string;
+    phone?: string;
   }>;
   folio?: {
     id: string;
@@ -299,7 +316,12 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     }
     const saved = localStorage.getItem(`hotel_rooms_${storeId || 'default'}`);
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try { 
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {}
     }
     const todayStr = new Date().toISOString().split('T')[0];
     const tomorrow = new Date();
@@ -460,6 +482,12 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     }
   }, [rooms, storeId]);
 
+  useEffect(() => {
+    if (initialRooms && Array.isArray(initialRooms) && initialRooms.length > 0) {
+      setRooms(initialRooms);
+    }
+  }, [initialRooms]);
+
   // Date helper for Check-In / Check-Out constraints
   const getNextDayString = (dateStr: string) => {
     if (!dateStr) return new Date().toISOString().split('T')[0];
@@ -529,13 +557,36 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   };
 
   // View Mode, Display Format & Helper States
-  const [activeViewMode, setActiveViewMode] = useState<'grid' | 'calendar'>('grid');
+  const [activeViewMode, setActiveViewMode] = useState<'grid' | 'calendar' | 'guests'>('grid');
+  const [selectedAgeCategoryModal, setSelectedAgeCategoryModal] = useState<{
+    category: string;
+    title: string;
+    badge: string;
+    guests: any[];
+  } | null>(null);
+  const [inspectGuestModal, setInspectGuestModal] = useState<any | null>(null);
+  const [guestListSearch, setGuestListSearch] = useState<string>('');
+  const [guestListCategoryFilter, setGuestListCategoryFilter] = useState<'all' | 'adults' | 'children_all' | 'infants' | 'toddlers' | 'school_teens' | 'occupied_only'>('all');
   const [roomDisplayMode, setRoomDisplayMode] = useState<'grid' | 'list'>(() => {
     try {
       const saved = localStorage.getItem(`hotelRoomDisplayMode_${storeId}`);
       if (saved === 'grid' || saved === 'list') return saved;
     } catch (e) {}
     return 'list'; // Default: Liste (Tablo) Görünümü
+  });
+
+  const [completedCheckoutData, setCompletedCheckoutData] = useState<{
+    room: HotelRoom;
+    guest: any;
+    details: any;
+    paymentMethod: string;
+    timestamp: string;
+  } | null>(null);
+
+  const [checkoutQuickExpense, setCheckoutQuickExpense] = useState<{ title: string; amount: number; category: string }>({
+    title: "",
+    amount: 0,
+    category: "Restoran / Mini Bar"
   });
 
   const handleSetRoomDisplayMode = (mode: 'grid' | 'list') => {
@@ -607,9 +658,10 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
   // Official Law Enforcement (Polis / Jandarma / İçişleri KBS) Guest Manifest Print Function
   const handlePrintKbsManifest = (targetRoomsList?: HotelRoom[]) => {
-    const roomsToExport = targetRoomsList || rooms.filter(r => r.status === 'occupied' && r.current_guest);
+    const safeRooms = Array.isArray(rooms) ? rooms : [];
+    const roomsToExport = targetRoomsList || safeRooms.filter(r => r && r.status === 'occupied' && r.current_guest);
     
-    if (roomsToExport.length === 0) {
+    if ((roomsToExport?.length || 0) === 0) {
       alert("Şu anda tesiste konaklayan kayıtlı misafir bulunmuyor.");
       return;
     }
@@ -624,16 +676,17 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     const dateStr = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
     let guestIndex = 1;
-    const guestRowsHtml = roomsToExport.flatMap(room => {
+    const guestRowsHtml = (roomsToExport || []).flatMap(room => {
+      if (!room) return [];
       const list: string[] = [];
       if (room.current_guest) {
         const cg = room.current_guest;
         list.push(`
           <tr>
             <td style="text-align:center; font-weight:bold;">${guestIndex++}</td>
-            <td><strong>Oda #${room.room_number}</strong><br/><span style="font-size:10px; color:#64748b;">${room.room_type}</span></td>
+            <td><strong>Oda #${room.room_number || ''}</strong><br/><span style="font-size:10px; color:#64748b;">${room.room_type || ''}</span></td>
             <td><strong style="letter-spacing:0.5px;">${cg.identity_no || 'Belirtilmedi'}</strong></td>
-            <td><strong>${cg.first_name} ${cg.last_name}</strong></td>
+            <td><strong>${cg.first_name || ''} ${cg.last_name || ''}</strong></td>
             <td>${cg.gender || 'Belirtilmedi'}</td>
             <td>${formatDisplayDate(cg.birth_date)} (${cg.age || '-'} Yaş)</td>
             <td>${cg.nationality || 'TC - Türkiye'}</td>
@@ -645,14 +698,15 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         `);
       }
 
-      if (room.additional_guests && room.additional_guests.length > 0) {
+      if (Array.isArray(room.additional_guests) && room.additional_guests.length > 0) {
         room.additional_guests.forEach(ag => {
+          if (!ag) return;
           list.push(`
             <tr>
               <td style="text-align:center;">${guestIndex++}</td>
-              <td>Oda #${room.room_number}</td>
+              <td>Oda #${room.room_number || ''}</td>
               <td><strong style="letter-spacing:0.5px;">${ag.identity_no || 'Belirtilmedi'}</strong></td>
-              <td>${ag.first_name} ${ag.last_name}</td>
+              <td>${ag.first_name || ''} ${ag.last_name || ''}</td>
               <td>${ag.gender || 'Belirtilmedi'}</td>
               <td>${formatDisplayDate(ag.birth_date)} (${ag.age || '-'} Yaş)</td>
               <td>${ag.nationality || 'TC - Türkiye'}</td>
@@ -814,7 +868,165 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     let estimatedRevenue = 0;
     const boardCounts: Record<string, number> = { RO: 0, BB: 0, HB: 0, FB: 0, AI: 0, UAI: 0 };
 
-    rooms.forEach(room => {
+    const guestRecords: Array<{
+      id: string;
+      room_id: string;
+      room_number: string;
+      room_type: string;
+      room_status: string;
+      guest_type: 'primary' | 'additional' | 'reservation';
+      role_label: string;
+      first_name: string;
+      last_name: string;
+      full_name: string;
+      age: number;
+      age_category: 'infant' | 'toddler' | 'child' | 'teen' | 'adult' | 'senior';
+      age_category_label: string;
+      birth_date?: string;
+      discount_text: string;
+      discount_rate: number;
+      check_in_date: string;
+      check_out_date: string;
+      board_type: string;
+      identity_no?: string;
+      phone?: string;
+      folio_amount: number;
+      room: HotelRoom;
+    }> = [];
+
+    (Array.isArray(rooms) ? rooms : []).forEach(room => {
+      if (!room) return;
+      const folioAmt = room.folio?.total_amount || 0;
+
+      // In-House Active Staying Guests
+      if (room.current_guest && (room.current_guest.first_name || room.status === 'occupied')) {
+        const cg = room.current_guest;
+        const ageDet = calculateAgeDetails(cg.birth_date, cg.age);
+        guestRecords.push({
+          id: cg.id || `guest-${room.id || 'r'}-primary`,
+          room_id: room.id || '',
+          room_number: room.room_number || '',
+          room_type: room.room_type || '',
+          room_status: room.status || 'vacant',
+          guest_type: 'primary',
+          role_label: 'Asıl Misafir',
+          first_name: cg.first_name || 'Misafir',
+          last_name: cg.last_name || `(Oda ${room.room_number || ''})`,
+          full_name: `${cg.first_name || 'Misafir'} ${cg.last_name || `(Oda ${room.room_number || ''})`}`.trim(),
+          age: ageDet.age,
+          age_category: ageDet.bracket,
+          age_category_label: ageDet.labelTr,
+          birth_date: cg.birth_date,
+          discount_text: ageDet.discountText,
+          discount_rate: ageDet.discountRate,
+          check_in_date: cg.check_in_date || new Date().toISOString().split('T')[0],
+          check_out_date: cg.check_out_date || new Date(Date.now() + 86400000).toISOString().split('T')[0],
+          board_type: cg.board_type || 'BB',
+          identity_no: cg.identity_no || '-',
+          phone: cg.phone || '-',
+          folio_amount: folioAmt,
+          room
+        });
+
+        if (Array.isArray(room.additional_guests) && room.additional_guests.length > 0) {
+          room.additional_guests.forEach((ag, idx) => {
+            if (!ag) return;
+            const agAgeDet = calculateAgeDetails(ag.birth_date, ag.age);
+            guestRecords.push({
+              id: `guest-${room.id || 'r'}-ag-${idx}`,
+              room_id: room.id || '',
+              room_number: room.room_number || '',
+              room_type: room.room_type || '',
+              room_status: room.status || 'vacant',
+              guest_type: 'additional',
+              role_label: agAgeDet.age < 3 ? 'Bebek (0-2)' : agAgeDet.age <= 6 ? 'Küçük Çocuk (3-6)' : agAgeDet.age < 18 ? 'Çocuk / Genç' : 'Ek Misafir',
+              first_name: ag.first_name || '',
+              last_name: ag.last_name || '',
+              full_name: `${ag.first_name || ''} ${ag.last_name || ''}`.trim() || `Ek Misafir ${idx + 1}`,
+              age: agAgeDet.age,
+              age_category: agAgeDet.bracket,
+              age_category_label: agAgeDet.labelTr,
+              birth_date: ag.birth_date,
+              discount_text: agAgeDet.discountText,
+              discount_rate: agAgeDet.discountRate,
+              check_in_date: cg.check_in_date || new Date().toISOString().split('T')[0],
+              check_out_date: cg.check_out_date || new Date(Date.now() + 86400000).toISOString().split('T')[0],
+              board_type: cg.board_type || 'BB',
+              identity_no: ag.identity_no || '-',
+              phone: ag.phone || '-',
+              folio_amount: 0,
+              room
+            });
+          });
+        }
+      }
+
+      // Upcoming / Future Reservations
+      if (Array.isArray(room.reservations) && room.reservations.length > 0) {
+        room.reservations.forEach(r => {
+          if (!r) return;
+          const rAgeDet = calculateAgeDetails(undefined, r.main_guest_age || 30);
+          guestRecords.push({
+            id: r.id || `res-${room.id || 'r'}-${r.check_in_date || 'date'}`,
+            room_id: room.id || '',
+            room_number: room.room_number || '',
+            room_type: room.room_type || '',
+            room_status: 'reserved',
+            guest_type: 'reservation',
+            role_label: 'Gelecek Rezervasyon',
+            first_name: r.first_name || '',
+            last_name: r.last_name || '',
+            full_name: `${r.first_name || ''} ${r.last_name || ''}`.trim() || 'Rezervasyon Misafiri',
+            age: rAgeDet.age,
+            age_category: rAgeDet.bracket,
+            age_category_label: rAgeDet.labelTr,
+            birth_date: undefined,
+            discount_text: rAgeDet.discountText,
+            discount_rate: rAgeDet.discountRate,
+            check_in_date: r.check_in_date || '',
+            check_out_date: r.check_out_date || '',
+            board_type: r.board_type || 'BB',
+            identity_no: r.identity_no || '-',
+            phone: r.phone || '-',
+            folio_amount: 0,
+            room
+          });
+
+          if (Array.isArray(r.guests) && r.guests.length > 0) {
+            r.guests.forEach((g, gIdx) => {
+              if (!g) return;
+              const gAgeDet = calculateAgeDetails(g.birth_date, g.age);
+              guestRecords.push({
+                id: `res-guest-${room.id || 'r'}-${r.id || 'r'}-${gIdx}`,
+                room_id: room.id || '',
+                room_number: room.room_number || '',
+                room_type: room.room_type || '',
+                room_status: 'reserved',
+                guest_type: 'reservation',
+                role_label: gAgeDet.age < 3 ? 'Bebek (0-2)' : gAgeDet.age <= 6 ? 'Küçük Çocuk (3-6)' : gAgeDet.age < 18 ? 'Çocuk / Genç' : 'Ek Misafir',
+                first_name: `Misafir ${gIdx + 1}`,
+                last_name: `(${r.last_name || ''})`,
+                full_name: `Misafir ${gIdx + 1} (${r.last_name || ''})`,
+                age: gAgeDet.age,
+                age_category: gAgeDet.bracket,
+                age_category_label: gAgeDet.labelTr,
+                birth_date: g.birth_date,
+                discount_text: gAgeDet.discountText,
+                discount_rate: gAgeDet.discountRate,
+                check_in_date: r.check_in_date || '',
+                check_out_date: r.check_out_date || '',
+                board_type: r.board_type || 'BB',
+                identity_no: '-',
+                phone: r.phone || '-',
+                folio_amount: 0,
+                room
+              });
+            });
+          }
+        });
+      }
+
+      // Aggregate counts within selected date range
       const list: Array<{
         check_in: string;
         check_out: string;
@@ -829,24 +1041,25 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         list.push({
           check_in: room.current_guest.check_in_date,
           check_out: room.current_guest.check_out_date,
-          first_name: room.current_guest.first_name,
-          last_name: room.current_guest.last_name,
+          first_name: room.current_guest.first_name || '',
+          last_name: room.current_guest.last_name || '',
           main_age: room.current_guest.age,
           board_type: room.current_guest.board_type || 'BB',
-          guests: room.additional_guests?.map(ag => ({ age: ag.age, birth_date: ag.birth_date }))
+          guests: Array.isArray(room.additional_guests) ? room.additional_guests.map(ag => ({ age: ag.age, birth_date: ag.birth_date })) : []
         });
       }
 
-      if (room.reservations && room.reservations.length > 0) {
+      if (Array.isArray(room.reservations) && room.reservations.length > 0) {
         room.reservations.forEach(r => {
+          if (!r) return;
           list.push({
-            check_in: r.check_in_date,
-            check_out: r.check_out_date,
-            first_name: r.first_name,
-            last_name: r.last_name,
+            check_in: r.check_in_date || '',
+            check_out: r.check_out_date || '',
+            first_name: r.first_name || '',
+            last_name: r.last_name || '',
             main_age: r.main_guest_age || 30,
             board_type: r.board_type || 'BB',
-            guests: r.guests
+            guests: Array.isArray(r.guests) ? r.guests : []
           });
         });
       }
@@ -872,8 +1085,9 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
           else if (mAge >= 3) totalToddlers++;
           else totalInfants++;
 
-          if (res.guests && res.guests.length > 0) {
+          if (Array.isArray(res.guests) && res.guests.length > 0) {
             res.guests.forEach(g => {
+              if (!g) return;
               const age = g.age ?? (g.birth_date ? calculateAgeDetails(g.birth_date).age : 30);
               if (age >= 18) totalAdults++;
               else if (age >= 13) totalTeens++;
@@ -888,7 +1102,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
     const totalChildrenAll = totalInfants + totalToddlers + totalChildren + totalTeens;
     const totalGuests = totalAdults + totalChildrenAll;
-    const maxPossibleNights = Math.max(1, rooms.length * days);
+    const maxPossibleNights = Math.max(1, (Array.isArray(rooms) ? rooms.length : 1) * days);
     const occupancyPercentage = Math.min(100, Math.round((totalNightsBooked / maxPossibleNights) * 100));
 
     return {
@@ -901,12 +1115,72 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       totalChildrenAll,
       occupancyPercentage,
       estimatedRevenue,
-      boardCounts
+      boardCounts,
+      guestRecords,
+      adultsList: guestRecords.filter(g => g.age >= 18),
+      infantsList: guestRecords.filter(g => g.age <= 2),
+      toddlersList: guestRecords.filter(g => g.age >= 3 && g.age <= 6),
+      childrenList: guestRecords.filter(g => g.age >= 7 && g.age <= 12),
+      teensList: guestRecords.filter(g => g.age >= 13 && g.age <= 17),
+      schoolAgeList: guestRecords.filter(g => g.age >= 7 && g.age <= 17),
+      childrenAllList: guestRecords.filter(g => g.age < 18)
     };
   };
 
+  // Flexible Form State Types
+  interface RoomFormState {
+    room_number: string;
+    room_type: string;
+    capacity: number;
+    bed_info: string;
+    price_per_night: number;
+    price_room_only?: number;
+    price_half_board?: number;
+    price_full_board?: number;
+    price_all_inclusive?: number;
+    price_ultra_all_inclusive?: number;
+    board_prices?: any;
+    non_refundable_discount?: number;
+    amenitiesStr?: string;
+    amenities?: string[];
+    cover_image?: string;
+    images?: string[];
+    description?: string;
+    status?: HotelRoom['status'];
+    notes?: string;
+  }
+
+  interface GuestFormState {
+    identity_no: string;
+    first_name: string;
+    last_name: string;
+    birth_date: string;
+    phone: string;
+    email?: string;
+    gender?: string;
+    nationality?: string;
+    board_type?: string;
+    advance_payment?: number;
+    payment_method?: string;
+    notes?: string;
+    check_in_date: string;
+    check_out_date: string;
+    additionalGuests?: Array<{
+      identity_no?: string;
+      first_name: string;
+      last_name: string;
+      birth_date: string;
+      age?: number;
+      age_category?: 'infant' | 'child' | 'adult' | 'senior';
+      discount_rate?: number;
+      gender?: string;
+      nationality?: string;
+      phone?: string;
+    }>;
+  }
+
   // New Room Form State (Supports Board Prices, Amenities, Cover Photo & Discounts)
-  const [roomForm, setRoomForm] = useState({
+  const [roomForm, setRoomForm] = useState<RoomFormState>({
     room_number: "",
     room_type: "Standart Deniz Manzaralı",
     capacity: 2,
@@ -927,25 +1201,22 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   });
 
   // Check-In Guest Form State
-  const [guestForm, setGuestForm] = useState({
+  const [guestForm, setGuestForm] = useState<GuestFormState>({
     identity_no: "",
     first_name: "",
     last_name: "",
     birth_date: "",
     phone: "",
+    email: "",
+    gender: "Belirtilmedi",
+    nationality: "TC - Türkiye",
+    board_type: "bed_breakfast",
+    advance_payment: 0,
+    payment_method: "Kredi Kartı",
+    notes: "",
     check_in_date: new Date().toISOString().split('T')[0],
     check_out_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-    additionalGuests: [] as Array<{
-      identity_no: string;
-      first_name: string;
-      last_name: string;
-      birth_date: string;
-      age: number;
-      age_category: 'infant' | 'child' | 'adult' | 'senior';
-      discount_rate: number;
-      gender?: string;
-      nationality?: string;
-    }>
+    additionalGuests: []
   });
 
   // Over Capacity Warning Dialog State
@@ -1123,18 +1394,19 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     if (statusFilter === 'checkout_today') return isTodayCheckOut(room);
     if (statusFilter === 'maintenance') return room.status === 'maintenance' || room.status === 'disabled';
     if (statusFilter === 'vacant') {
-      return room.status === 'vacant' || room.status === 'available' || room.status === 'clean' || (!room.status) || (room.status !== 'occupied' && room.status !== 'maintenance' && room.status !== 'staff' && room.status !== 'disabled');
+      const s = String(room.status || '');
+      return s === 'vacant' || s === 'available' || s === 'clean' || !room.status || (s !== 'occupied' && s !== 'maintenance' && s !== 'staff' && s !== 'disabled');
     }
     return room.status === statusFilter;
   });
 
   // Calculate statistics
-  const totalRooms = rooms.length;
-  const occupiedRooms = rooms.filter(r => r.status === 'occupied').length;
-  const todayCheckOuts = rooms.filter(r => isTodayCheckOut(r)).length;
-  const maintenanceRooms = rooms.filter(r => r.status === 'maintenance' || r.status === 'disabled').length;
-  const staffRooms = rooms.filter(r => r.status === 'staff').length;
-  const availableRooms = rooms.filter(r => r.status === 'vacant').length;
+  const totalRooms = (Array.isArray(rooms) ? rooms : []).length;
+  const occupiedRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && r.status === 'occupied').length;
+  const todayCheckOuts = (Array.isArray(rooms) ? rooms : []).filter(r => r && isTodayCheckOut(r)).length;
+  const maintenanceRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && (r.status === 'maintenance' || r.status === 'disabled')).length;
+  const staffRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && r.status === 'staff').length;
+  const availableRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && r.status === 'vacant').length;
   const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
   // Handle Create / Edit Room
@@ -1156,7 +1428,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       .map(s => s.trim())
       .filter(Boolean);
 
-    const roomImages = (roomForm.images && roomForm.images.length > 0)
+    const roomImages = (Array.isArray(roomForm.images) && roomForm.images.length > 0)
       ? roomForm.images
       : (roomForm.cover_image ? [roomForm.cover_image] : []);
 
@@ -1225,7 +1497,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     e.preventDefault();
     if (!checkInModalRoom || !guestForm.first_name || !guestForm.last_name) return;
 
-    const totalGuestsCount = 1 + guestForm.additionalGuests.length;
+    const totalGuestsCount = 1 + (guestForm.additionalGuests?.length || 0);
     if (totalGuestsCount > checkInModalRoom.capacity) {
       setCapacityWarning(
         isTr 
@@ -1240,9 +1512,9 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       const ageDetails = calculateAgeDetails(ag.birth_date, ag.age);
       return {
         ...ag,
-        identity_no: ag.identity_no.trim(),
-        first_name: ag.first_name.trim(),
-        last_name: ag.last_name.trim(),
+        identity_no: (ag.identity_no || "").trim(),
+        first_name: (ag.first_name || "").trim(),
+        last_name: (ag.last_name || "").trim(),
         birth_date: ag.birth_date,
         age: ageDetails.age,
         age_category: ageDetails.category,
@@ -1254,16 +1526,23 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
     const newGuest = {
       id: `guest-${Date.now()}`,
-      identity_no: guestForm.identity_no.trim(),
-      first_name: guestForm.first_name.trim(),
-      last_name: guestForm.last_name.trim(),
+      identity_no: (guestForm.identity_no || "").trim(),
+      first_name: (guestForm.first_name || "").trim(),
+      last_name: (guestForm.last_name || "").trim(),
       birth_date: guestForm.birth_date,
       age: mainGuestAgeDetails.age,
       age_category: mainGuestAgeDetails.category,
       discount_rate: mainGuestAgeDetails.discountRate,
-      phone: guestForm.phone,
+      phone: guestForm.phone || "",
+      email: guestForm.email || "",
+      gender: guestForm.gender || "Kadın",
+      nationality: guestForm.nationality || "TC - Türkiye",
       check_in_date: guestForm.check_in_date,
-      check_out_date: guestForm.check_out_date
+      check_out_date: guestForm.check_out_date,
+      board_type: guestForm.board_type || "BB",
+      advance_payment: Number(guestForm.advance_payment) || 0,
+      payment_method: guestForm.payment_method || "credit_card",
+      notes: (guestForm.notes || "").trim()
     };
 
     setRooms(rooms.map(r => r.id === checkInModalRoom.id ? {
@@ -1316,11 +1595,14 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   };
 
   // Comprehensive Room & Restaurant Folio Calculator
+  // User Formula: oda fiyatı X kişi sayısı x konaklanacak gün sayısı - (yaş grubu indirimi hesapla) = toplam fiyat
   const computeRoomFolioDetails = (room: HotelRoom) => {
     const guest = room.current_guest;
     if (!guest) {
       return {
         nights: 1,
+        totalPersons: 1,
+        personList: [],
         checkInDate: "-",
         checkOutDate: "-",
         boardTypeLabel: "Sadece Oda (RO)",
@@ -1349,52 +1631,89 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
     const bt = (guest.board_type || 'bed_breakfast').toLowerCase();
     if (bt.includes('room_only') || bt === 'ro') {
-      nightlyRate = room.price_room_only || Math.round(nightlyRate * 0.88);
+      nightlyRate = room.board_prices?.room_only || room.price_room_only || Math.round(nightlyRate * 0.88);
       boardTypeLabel = "Sadece Oda (RO)";
     } else if (bt.includes('half_board') || bt === 'hb') {
-      nightlyRate = room.price_half_board || Math.round(nightlyRate * 1.28);
+      nightlyRate = room.board_prices?.half_board || room.price_half_board || Math.round(nightlyRate * 1.28);
       boardTypeLabel = "Yarım Pansiyon (HB)";
     } else if (bt.includes('full_board') || bt === 'fb') {
-      nightlyRate = room.price_full_board || Math.round(nightlyRate * 1.56);
+      nightlyRate = room.board_prices?.full_board || room.price_full_board || Math.round(nightlyRate * 1.56);
       boardTypeLabel = "Tam Pansiyon (FB)";
     } else if (bt.includes('all_inclusive') || bt === 'ai') {
-      nightlyRate = room.price_all_inclusive || Math.round(nightlyRate * 1.92);
+      nightlyRate = room.board_prices?.all_inclusive || room.price_all_inclusive || Math.round(nightlyRate * 1.92);
       boardTypeLabel = "Her Şey Dahil (AI)";
     } else if (bt.includes('ultra') || bt === 'uai') {
-      nightlyRate = room.price_ultra_all_inclusive || Math.round(nightlyRate * 2.30);
+      nightlyRate = room.board_prices?.ultra_all_inclusive || room.price_ultra_all_inclusive || Math.round(nightlyRate * 2.30);
       boardTypeLabel = "Ultra Her Şey Dahil (UAI)";
     }
 
-    const totalRawRoomRate = nights * nightlyRate;
+    // 3. Person count and individual breakdown
+    // Core Formula: oda fiyatı X kişi sayısı x konaklanacak gün sayısı - (yaş grubu indirimi hesapla) = toplam fiyat
+    const additionalGuests = Array.isArray(room.additional_guests) ? room.additional_guests : [];
+    const totalPersons = 1 + additionalGuests.length;
 
-    // 3. Main Guest & Additional Guest Age Discounts
+    // Main guest calculation
     const mainGuestAgeDetails = calculateAgeDetails(guest.birth_date, guest.age);
-    let roomDiscountAmount = 0;
-
-    if (ageDiscountPolicy.enabled && ageDiscountPolicy.apply_to_room) {
-      if (mainGuestAgeDetails.discountRate > 0) {
-        roomDiscountAmount += (totalRawRoomRate * (mainGuestAgeDetails.discountRate / 100));
-      }
+    const mainGuestRaw = nightlyRate * nights;
+    let mainGuestDiscount = 0;
+    if (ageDiscountPolicy.enabled && ageDiscountPolicy.apply_to_room && mainGuestAgeDetails.discountRate > 0) {
+      mainGuestDiscount = Math.round(mainGuestRaw * (mainGuestAgeDetails.discountRate / 100));
     }
+    const mainGuestNet = Math.max(0, mainGuestRaw - mainGuestDiscount);
 
-    const netRoomRate = Math.max(0, Math.round(totalRawRoomRate - roomDiscountAmount));
+    // Person list breakdown for itemized statements
+    const personList = [
+      {
+        name: `${guest.first_name} ${guest.last_name}`,
+        identityNo: guest.identity_no,
+        isMain: true,
+        age: mainGuestAgeDetails.age,
+        category: mainGuestAgeDetails.labelTr,
+        discountRate: mainGuestAgeDetails.discountRate,
+        rawRate: mainGuestRaw,
+        discountAmount: mainGuestDiscount,
+        netRate: mainGuestNet
+      }
+    ];
 
-    // 4. Restaurant & Cafe Items
+    let totalAdditionalRaw = 0;
+    let totalAdditionalDiscount = 0;
+
+    additionalGuests.forEach(ag => {
+      const agAge = calculateAgeDetails(ag.birth_date, ag.age);
+      const agRaw = nightlyRate * nights;
+      let agDiscount = 0;
+      if (ageDiscountPolicy.enabled && ageDiscountPolicy.apply_to_room && agAge.discountRate > 0) {
+        agDiscount = Math.round(agRaw * (agAge.discountRate / 100));
+      }
+      const agNet = Math.max(0, agRaw - agDiscount);
+      totalAdditionalRaw += agRaw;
+      totalAdditionalDiscount += agDiscount;
+
+      personList.push({
+        name: `${ag.first_name} ${ag.last_name}`,
+        identityNo: ag.identity_no || '-',
+        isMain: false,
+        age: agAge.age,
+        category: agAge.labelTr,
+        discountRate: agAge.discountRate,
+        rawRate: agRaw,
+        discountAmount: agDiscount,
+        netRate: agNet
+      });
+    });
+
+    const totalRawRoomRate = mainGuestRaw + totalAdditionalRaw; // nightlyRate * totalPersons * nights
+    const roomDiscountAmount = mainGuestDiscount + totalAdditionalDiscount;
+    const netRoomRate = Math.max(0, totalRawRoomRate - roomDiscountAmount);
+
+    // 4. Restaurant & Cafe Items (from folio)
     const rawItems = room.folio?.items || [];
     const restaurantItems = rawItems.map(item => {
-      let finalAmount = item.amount;
-      let discountAmt = 0;
-
-      if (ageDiscountPolicy.enabled && ageDiscountPolicy.apply_to_restaurant && mainGuestAgeDetails.discountRate > 0) {
-        discountAmt = Math.round(item.amount * (mainGuestAgeDetails.discountRate / 100));
-        finalAmount = Math.max(0, item.amount - discountAmt);
-      }
-
       return {
         ...item,
         rawAmount: item.amount,
-        discountAmount: discountAmt,
-        finalAmount
+        finalAmount: item.amount
       };
     });
 
@@ -1409,6 +1728,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
     return {
       nights,
+      totalPersons,
+      personList,
       checkInDate: formatDisplayDate(guest.check_in_date),
       checkOutDate: formatDisplayDate(guest.check_out_date),
       boardTypeLabel,
@@ -1429,8 +1750,22 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   const handleExecuteCheckOut = (room: HotelRoom) => {
     if (!room.current_guest) return;
     const details = computeRoomFolioDetails(room);
+    const guestSnapshot = { ...room.current_guest };
+    const roomSnapshot = { ...room };
+    const pMethod = checkoutPaymentMethod || "Kredi Kartı";
+    const timestampStr = new Date().toISOString();
 
-    // Save to checkout history archive in localStorage
+    // 1. Vacate Room and Clear Guest & Folio State in State immediately
+    setRooms(prevRooms => prevRooms.map(r => r.id === room.id ? {
+      ...r,
+      status: 'vacant',
+      current_guest: undefined,
+      additional_guests: undefined,
+      folio: undefined,
+      notes: ''
+    } : r));
+
+    // 2. Save to checkout history archive in localStorage
     try {
       const savedHistoryStr = localStorage.getItem(`hotelCheckoutHistory_${storeId}`);
       const historyList = savedHistoryStr ? JSON.parse(savedHistoryStr) : [];
@@ -1438,37 +1773,43 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         id: `cout-${Date.now()}`,
         room_number: room.room_number,
         room_type: room.room_type,
-        guest_name: `${room.current_guest.first_name} ${room.current_guest.last_name}`,
-        identity_no: room.current_guest.identity_no,
-        phone: room.current_guest.phone || '-',
+        guest_name: `${guestSnapshot.first_name} ${guestSnapshot.last_name}`,
+        identity_no: guestSnapshot.identity_no,
+        phone: guestSnapshot.phone || '-',
         check_in_date: details.checkInDate,
         check_out_date: details.checkOutDate,
         nights: details.nights,
+        total_persons: details.totalPersons,
         board_type: details.boardTypeLabel,
         net_room_rate: details.netRoomRate,
         restaurant_total: details.restaurantTotal,
         gross_total: details.grossTotal,
         advance_payment: details.advancePayment,
         net_collected: details.netPayableBalance,
-        payment_method: checkoutPaymentMethod,
-        timestamp: new Date().toISOString()
+        payment_method: pMethod,
+        timestamp: timestampStr
       };
       historyList.unshift(newArchiveRecord);
       localStorage.setItem(`hotelCheckoutHistory_${storeId}`, JSON.stringify(historyList));
     } catch (e) {}
 
-    // Trigger Print Window for Detailed A4 Receipt
-    handlePrintFolio(room, checkoutPaymentMethod);
+    // 3. Set Completed Checkout Data to show full detailed on-screen statement receipt
+    setCompletedCheckoutData({
+      room: roomSnapshot,
+      guest: guestSnapshot,
+      details,
+      paymentMethod: pMethod,
+      timestamp: timestampStr
+    });
 
-    // Vacate Room and Clear Guest State
-    setRooms(rooms.map(r => r.id === room.id ? {
-      ...r,
-      status: 'vacant',
-      current_guest: undefined,
-      additional_guests: undefined,
-      folio: undefined
-    } : r));
+    // 4. Safely attempt popup / system print window
+    try {
+      handlePrintFolio(roomSnapshot, pMethod);
+    } catch (err) {
+      console.warn("Print window could not be opened automatically, using in-app statement modal", err);
+    }
 
+    // 5. Close Check-out modal
     setCheckOutModalRoom(null);
   };
 
@@ -1522,7 +1863,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     const todayStr = new Date().toLocaleDateString('tr-TR');
     
     // Restaurant items HTML
-    const restaurantRowsHtml = details.restaurantItems.length > 0
+    const restaurantRowsHtml = (Array.isArray(details.restaurantItems) && details.restaurantItems.length > 0)
       ? details.restaurantItems.map((item, idx) => `
         <tr style="border-bottom: 1px solid #e2e8f0;">
           <td style="padding: 10px; font-size: 12px; font-weight: 600; color: #1e293b;">${idx + 1}</td>
@@ -1866,6 +2207,19 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
           <button
             type="button"
+            onClick={() => setActiveViewMode('guests')}
+            className={`px-3.5 sm:px-4 py-2.5 rounded-2xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer flex-1 sm:flex-initial ${
+              activeViewMode === 'guests'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md ring-2 ring-emerald-400 font-black'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Users className="h-4 w-4 text-emerald-300 shrink-0" />
+            <span>{isTr ? "👥 Konaklayan Misafirler & Yaş Dökümü" : "Guests & Age Roster"}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => handlePrintKbsManifest()}
             className="px-3.5 sm:px-4 py-2.5 rounded-2xl font-black text-xs bg-rose-600 hover:bg-rose-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer flex-1 sm:flex-initial active:scale-95"
             title="T.C. İçişleri Bakanlığı Emniyet / Jandarma Konaklayan Kimlik Bildirim Listesi Dökümü"
@@ -1875,9 +2229,28 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
           </button>
         </div>
 
-        <div className="hidden lg:flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700">
-          <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
-          <span>{isTr ? "Bebek (0-2), Çocuk (3-6 / 7-12) & Yetişkin Yaş Analizli" : "With Infant, Child & Adult Age Breakdown"}</span>
+        <div className="flex items-center gap-2">
+          {/* Tarih Görünüm Modeli Seçimi */}
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <Calendar className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span className="text-[10px] font-black uppercase text-slate-400 hidden sm:inline">{isTr ? "Tarih Modeli:" : "Date Format:"}</span>
+            <select
+              value={storeDateFormat}
+              onChange={(e) => saveStoreDateFormat(e.target.value)}
+              className="bg-transparent text-xs font-black text-slate-800 dark:text-slate-200 cursor-pointer focus:outline-none"
+            >
+              <option value="DD/MM/YYYY">GG/AA/YYYY (25/08/2026)</option>
+              <option value="DD.MM.YYYY">GG.AA.YYYY (25.08.2026)</option>
+              <option value="DD-MM-YYYY">GG-AA-YYYY (25-08-2026)</option>
+              <option value="DD MMM YYYY">GG Ay YYYY (25 Ağustos 2026)</option>
+              <option value="YYYY-MM-DD">YYYY-AA-GG (2026-08-25)</option>
+            </select>
+          </div>
+
+          <div className="hidden lg:flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700">
+            <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
+            <span>{isTr ? "Bebek, Çocuk & Yetişkin Yaş Analizli" : "With Age Breakdown"}</span>
+          </div>
         </div>
       </div>
 
@@ -1998,62 +2371,142 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                 </div>
               )}
 
-              {/* ANALYTICS STAT CARDS GRID */}
+              {/* ANALYTICS STAT CARDS GRID - INTERACTIVE DRILLDOWNS */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
                 {/* TOTAL EXPECTED GUESTS */}
-                <div className="p-4 bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-2xl shadow-md space-y-1">
-                  <p className="text-[10px] font-black uppercase text-indigo-300 tracking-wider">Toplam Gelecek Kişi</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAgeCategoryModal({
+                    category: 'all',
+                    title: `Tüm Konaklayacak & Kayıtlı Misafirler (${title})`,
+                    badge: `${stats.totalGuests} Kişi`,
+                    guests: stats.guestRecords
+                  })}
+                  className="p-4 bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-2xl shadow-md space-y-1 text-left transition-all hover:scale-[1.02] hover:ring-2 hover:ring-indigo-400 cursor-pointer group"
+                  title="Tüm kayıtlı misafir listesini görmek için tıklayın"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase text-indigo-300 tracking-wider">Toplam Gelecek</p>
+                    <span className="text-[8px] font-black uppercase bg-white/20 text-white px-1.5 py-0.5 rounded group-hover:bg-amber-400 group-hover:text-slate-950 transition-colors">Listele</span>
+                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-black text-amber-300">{stats.totalGuests} <span className="text-xs text-indigo-200">Kişi</span></span>
-                    <Users className="h-6 w-6 text-indigo-300" />
+                    <Users className="h-6 w-6 text-indigo-300 group-hover:scale-110 transition-transform" />
                   </div>
-                  <p className="text-[10px] text-slate-300 font-medium">({title})</p>
-                </div>
+                  <p className="text-[10px] text-slate-300 font-medium">({title}) • Tıkla & İncele →</p>
+                </button>
 
                 {/* ADULTS */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 space-y-1">
-                  <p className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">👨‍👩‍👧 Yetişkin (18+ Yaş)</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAgeCategoryModal({
+                    category: 'adults',
+                    title: `👨‍👩‍👧 Yetişkin Misafir Kayıtları (18+ Yaş) - ${title}`,
+                    badge: `${stats.totalAdults} Yetişkin`,
+                    guests: stats.adultsList
+                  })}
+                  className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 space-y-1 text-left transition-all hover:scale-[1.02] hover:border-indigo-500 hover:ring-2 hover:ring-indigo-300 cursor-pointer group"
+                  title="Yetişkin misafir kayıtlarını ve oda detaylarını görmek için tıklayın"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">👨‍👩‍👧 Yetişkin (18+ Yaş)</p>
+                    <span className="text-[8px] font-black uppercase bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded">Listele</span>
+                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-black text-slate-900 dark:text-white">{stats.totalAdults} <span className="text-xs text-slate-400">Yetişkin</span></span>
-                    <UserCheck className="h-5 w-5 text-indigo-600" />
+                    <UserCheck className="h-5 w-5 text-indigo-600 group-hover:scale-110 transition-transform" />
                   </div>
-                </div>
+                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">Kişi Kayıtlarını Gör →</p>
+                </button>
 
                 {/* TOTAL CHILDREN & INFANTS */}
-                <div className="p-4 bg-amber-500/10 dark:bg-amber-950/40 rounded-2xl border-2 border-amber-300 dark:border-amber-700 space-y-1">
-                  <p className="text-[10px] font-black uppercase text-amber-900 dark:text-amber-200 tracking-wider">🧒 Toplam Çocuk & Bebek</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAgeCategoryModal({
+                    category: 'children_all',
+                    title: `🧒 Tüm Çocuk ve Bebek Misafir Kayıtları (0-17 Yaş) - ${title}`,
+                    badge: `${stats.totalChildrenAll} Çocuk/Bebek`,
+                    guests: stats.childrenAllList
+                  })}
+                  className="p-4 bg-amber-500/10 dark:bg-amber-950/40 rounded-2xl border-2 border-amber-300 dark:border-amber-700 space-y-1 text-left transition-all hover:scale-[1.02] hover:ring-2 hover:ring-amber-400 cursor-pointer group"
+                  title="Tüm çocuk ve bebek kayıtlarını incelemek için tıklayın"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl font-black text-amber-950 dark:text-amber-100">{stats.totalChildrenAll} <span className="text-xs text-amber-700 dark:text-amber-300">Çocuk/Bebek</span></span>
-                    <Baby className="h-5 w-5 text-amber-600" />
+                    <p className="text-[10px] font-black uppercase text-amber-900 dark:text-amber-200 tracking-wider">🧒 Toplam Çocuk & Bebek</p>
+                    <span className="text-[8px] font-black uppercase bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 px-1.5 py-0.5 rounded">Listele</span>
                   </div>
-                </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-black text-amber-950 dark:text-amber-100">{stats.totalChildrenAll} <span className="text-xs text-amber-700 dark:text-amber-300">Kişi</span></span>
+                    <Baby className="h-5 w-5 text-amber-600 group-hover:scale-110 transition-transform" />
+                  </div>
+                  <p className="text-[10px] text-amber-800 dark:text-amber-300 font-bold">Kişi Kayıtlarını Gör →</p>
+                </button>
 
                 {/* AGE BREAKDOWN DETAIL ITEM 1: INFANTS (0-2 YRS) */}
-                <div className="p-3.5 bg-rose-500/10 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-800 space-y-1">
-                  <p className="text-[10px] font-black uppercase text-rose-800 dark:text-rose-300 tracking-wider">🍼 0 - 2 Yaş (Bebek)</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAgeCategoryModal({
+                    category: 'infants',
+                    title: `🍼 0 - 2 Yaş Bebek Misafirler Listesi - ${title}`,
+                    badge: `${stats.totalInfants} Bebek (%100 Ücretsiz)`,
+                    guests: stats.infantsList
+                  })}
+                  className="p-3.5 bg-rose-500/10 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-800 space-y-1 text-left transition-all hover:scale-[1.02] hover:ring-2 hover:ring-rose-400 cursor-pointer group"
+                  title="0-2 yaş bebek kayıtlarını incelemek için tıklayın"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-xl font-black text-rose-900 dark:text-rose-100">{stats.totalInfants} <span className="text-xs font-bold text-rose-600">Bebek</span></span>
+                    <p className="text-[10px] font-black uppercase text-rose-800 dark:text-rose-300 tracking-wider">🍼 0 - 2 Yaş (Bebek)</p>
                     <span className="px-1.5 py-0.5 bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-200 rounded text-[9px] font-black">%100 Ücretsiz</span>
                   </div>
-                </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-black text-rose-900 dark:text-rose-100">{stats.totalInfants} <span className="text-xs font-bold text-rose-600">Bebek</span></span>
+                    <span className="text-[10px] text-rose-700 dark:text-rose-300 font-bold group-hover:underline">İncele →</span>
+                  </div>
+                </button>
 
                 {/* AGE BREAKDOWN DETAIL ITEM 2: TODDLERS (3-6 YRS) */}
-                <div className="p-3.5 bg-emerald-500/10 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 space-y-1">
-                  <p className="text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-300 tracking-wider">🧸 3 - 6 Yaş (Okul Öncesi)</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAgeCategoryModal({
+                    category: 'toddlers',
+                    title: `🧸 3 - 6 Yaş Okul Öncesi Çocuk Misafirler Listesi - ${title}`,
+                    badge: `${stats.totalToddlers} Çocuk`,
+                    guests: stats.toddlersList
+                  })}
+                  className="p-3.5 bg-emerald-500/10 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 space-y-1 text-left transition-all hover:scale-[1.02] hover:ring-2 hover:ring-emerald-400 cursor-pointer group"
+                  title="3-6 yaş çocuk kayıtlarını incelemek için tıklayın"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-300 tracking-wider">🧸 3 - 6 Yaş (Küçük Çocuk)</p>
+                    <span className="px-1.5 py-0.5 bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 rounded text-[9px] font-black">İndirimli/Ücretsiz</span>
+                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-black text-emerald-900 dark:text-emerald-100">{stats.totalToddlers} <span className="text-xs font-bold text-emerald-600">Çocuk</span></span>
-                    <span className="px-1.5 py-0.5 bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 rounded text-[9px] font-black">Ücretsiz/İndirimli</span>
+                    <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold group-hover:underline">İncele →</span>
                   </div>
-                </div>
+                </button>
 
                 {/* AGE BREAKDOWN DETAIL ITEM 3: SCHOOL AGE (7-12 YRS & TEENS) */}
-                <div className="p-3.5 bg-sky-500/10 dark:bg-sky-950/40 rounded-2xl border border-sky-200 dark:border-sky-800 space-y-1">
-                  <p className="text-[10px] font-black uppercase text-sky-800 dark:text-sky-300 tracking-wider">🎒 7 - 17 Yaş (Okul/Genç)</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAgeCategoryModal({
+                    category: 'school_age',
+                    title: `🎒 7 - 17 Yaş Okul & Genç Misafirler Listesi - ${title}`,
+                    badge: `${stats.totalChildren + stats.totalTeens} Öğrenci/Genç`,
+                    guests: stats.schoolAgeList
+                  })}
+                  className="p-3.5 bg-sky-500/10 dark:bg-sky-950/40 rounded-2xl border border-sky-200 dark:border-sky-800 space-y-1 text-left transition-all hover:scale-[1.02] hover:ring-2 hover:ring-sky-400 cursor-pointer group"
+                  title="7-17 yaş okul ve genç misafir kayıtlarını incelemek için tıklayın"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-xl font-black text-sky-900 dark:text-sky-100">{stats.totalChildren + stats.totalTeens} <span className="text-xs font-bold text-sky-600">Öğrenci</span></span>
+                    <p className="text-[10px] font-black uppercase text-sky-800 dark:text-sky-300 tracking-wider">🎒 7 - 17 Yaş (Okul/Genç)</p>
                     <span className="px-1.5 py-0.5 bg-sky-200 dark:bg-sky-900 text-sky-900 dark:text-sky-200 rounded text-[9px] font-black">%50 İndirimli</span>
                   </div>
-                </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-black text-sky-900 dark:text-sky-100">{stats.totalChildren + stats.totalTeens} <span className="text-xs font-bold text-sky-600">Öğrenci</span></span>
+                    <span className="text-[10px] text-sky-700 dark:text-sky-300 font-bold group-hover:underline">İncele →</span>
+                  </div>
+                </button>
               </div>
 
               {/* ESTIMATED OCCUPANCY & REVENUE SUMMARY */}
@@ -2262,7 +2715,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                                       phone: cg.phone,
                                       check_in_date: cg.check_in_date,
                                       check_out_date: cg.check_out_date,
-                                      board_type: cg.board_type || 'BB',
+                                      board_type: (cg.board_type as any) || 'BB',
                                       main_guest_age: cg.age,
                                       guests: room.additional_guests?.map(ag => ({
                                         first_name: ag.first_name,
@@ -2542,14 +2995,14 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200">
-                {filteredRooms.length === 0 ? (
+                {(filteredRooms?.length || 0) === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-slate-400 font-medium">
                       Arama kriterlerine uygun oda bulunamadı.
                     </td>
                   </tr>
                 ) : (
-                  filteredRooms.map(room => {
+                  (filteredRooms || []).map(room => {
                     const isTodayOut = isTodayCheckOut(room);
                     const folioAmount = room.folio?.total_amount || 0;
 
@@ -2841,7 +3294,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                           {formatDisplayDate(room.current_guest.check_in_date)} ➔ {formatDisplayDate(room.current_guest.check_out_date)}
                         </span>
                       </p>
-                      {room.additional_guests && room.additional_guests.length > 0 && (
+                      {Array.isArray(room.additional_guests) && room.additional_guests.length > 0 && (
                         <p className="flex justify-between">
                           <span>{isTr ? "Ek Misafirler:" : "Extra Guests:"}</span>
                           <span className="font-bold text-indigo-600 dark:text-indigo-400">
@@ -2967,6 +3420,556 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         </div>
       )}
       </div>
+      )}
+
+      {/* VIEW MODE 3: DETAILED IN-HOUSE & BOOKED GUESTS ROSTER */}
+      {activeViewMode === 'guests' && (() => {
+        const stats = calculateAgeBreakdownStats();
+        let filteredGuests = Array.isArray(stats?.guestRecords) ? stats.guestRecords : [];
+
+        // Apply Category Filter Chip
+        if (guestListCategoryFilter === 'adults') {
+          filteredGuests = filteredGuests.filter(g => g && g.age >= 18);
+        } else if (guestListCategoryFilter === 'children_all') {
+          filteredGuests = filteredGuests.filter(g => g && g.age < 18);
+        } else if (guestListCategoryFilter === 'infants') {
+          filteredGuests = filteredGuests.filter(g => g && g.age <= 2);
+        } else if (guestListCategoryFilter === 'toddlers') {
+          filteredGuests = filteredGuests.filter(g => g && g.age >= 3 && g.age <= 6);
+        } else if (guestListCategoryFilter === 'school_teens') {
+          filteredGuests = filteredGuests.filter(g => g && g.age >= 7 && g.age <= 17);
+        } else if (guestListCategoryFilter === 'occupied_only') {
+          filteredGuests = filteredGuests.filter(g => g && g.room_status === 'occupied');
+        }
+
+        // Apply Search Text
+        if (guestListSearch.trim()) {
+          const q = guestListSearch.toLowerCase().trim();
+          filteredGuests = filteredGuests.filter(g => 
+            g && (
+              (g.full_name || '').toLowerCase().includes(q) ||
+              (g.room_number || '').toLowerCase().includes(q) ||
+              (g.room_type || '').toLowerCase().includes(q) ||
+              (g.identity_no && (g.identity_no || '').toLowerCase().includes(q)) ||
+              (g.phone && (g.phone || '').toLowerCase().includes(q))
+            )
+          );
+        }
+
+        return (
+          <div className="space-y-6">
+            {/* TOP ROSTER HEADER BANNER */}
+            <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-inner">
+                    <Users className="h-8 w-8 text-emerald-300" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-black tracking-tight">Konaklayan Misafirler & Yaş Dökümü</h2>
+                      <span className="px-2.5 py-0.5 bg-emerald-400 text-slate-950 rounded-full text-xs font-black">
+                        {stats.totalGuests} Toplam Kayıt
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-100 font-medium">
+                      Oteldeki aktif konaklayan misafirler, ek kişiler, bebek ve çocukların tüm kimlik, oda ve folyo detayları
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePrintKbsManifest()}
+                    className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-xs shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Printer className="h-4 w-4" />
+                    <span>KBS Polis/Jandarma Bildirim Listesi</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAgePolicyModalOpen(true)}
+                    className="px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-2xl font-bold text-xs backdrop-blur-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Settings2 className="h-4 w-4 text-emerald-300" />
+                    <span>Yaş & İndirim Politikası</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* QUICK STATS CARDS */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
+                <div 
+                  onClick={() => setGuestListCategoryFilter('all')}
+                  className={`p-3 rounded-2xl border cursor-pointer transition-all ${guestListCategoryFilter === 'all' ? 'bg-white text-slate-900 border-emerald-400 font-black ring-2 ring-emerald-300' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
+                >
+                  <p className="text-[10px] uppercase font-bold opacity-80">Toplam Misafir</p>
+                  <p className="text-xl font-black">{stats.totalGuests} <span className="text-xs font-normal">Kişi</span></p>
+                </div>
+                <div 
+                  onClick={() => setGuestListCategoryFilter('adults')}
+                  className={`p-3 rounded-2xl border cursor-pointer transition-all ${guestListCategoryFilter === 'adults' ? 'bg-white text-slate-900 border-indigo-400 font-black ring-2 ring-indigo-300' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
+                >
+                  <p className="text-[10px] uppercase font-bold opacity-80">👨‍👩‍👧 Yetişkin (18+)</p>
+                  <p className="text-xl font-black">{stats.totalAdults} <span className="text-xs font-normal">Kişi</span></p>
+                </div>
+                <div 
+                  onClick={() => setGuestListCategoryFilter('children_all')}
+                  className={`p-3 rounded-2xl border cursor-pointer transition-all ${guestListCategoryFilter === 'children_all' ? 'bg-white text-slate-900 border-amber-400 font-black ring-2 ring-amber-300' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
+                >
+                  <p className="text-[10px] uppercase font-bold opacity-80">🧒 Çocuk & Bebek</p>
+                  <p className="text-xl font-black">{stats.totalChildrenAll} <span className="text-xs font-normal">Kişi</span></p>
+                </div>
+                <div 
+                  onClick={() => setGuestListCategoryFilter('infants')}
+                  className={`p-3 rounded-2xl border cursor-pointer transition-all ${guestListCategoryFilter === 'infants' ? 'bg-white text-slate-900 border-rose-400 font-black ring-2 ring-rose-300' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
+                >
+                  <p className="text-[10px] uppercase font-bold opacity-80">🍼 0-2 Yaş Bebek</p>
+                  <p className="text-xl font-black">{stats.totalInfants} <span className="text-xs font-normal">Bebek</span></p>
+                </div>
+                <div 
+                  onClick={() => setGuestListCategoryFilter('toddlers')}
+                  className={`p-3 rounded-2xl border cursor-pointer transition-all ${guestListCategoryFilter === 'toddlers' ? 'bg-white text-slate-900 border-emerald-400 font-black ring-2 ring-emerald-300' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
+                >
+                  <p className="text-[10px] uppercase font-bold opacity-80">🧸 3-6 Yaş Çocuk</p>
+                  <p className="text-xl font-black">{stats.totalToddlers} <span className="text-xs font-normal">Çocuk</span></p>
+                </div>
+                <div 
+                  onClick={() => setGuestListCategoryFilter('school_teens')}
+                  className={`p-3 rounded-2xl border cursor-pointer transition-all ${guestListCategoryFilter === 'school_teens' ? 'bg-white text-slate-900 border-sky-400 font-black ring-2 ring-sky-300' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
+                >
+                  <p className="text-[10px] uppercase font-bold opacity-80">🎒 7-17 Yaş Okul</p>
+                  <p className="text-xl font-black">{stats.totalChildren + stats.totalTeens} <span className="text-xs font-normal">Genç</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* SEARCH & FILTERS CONTROLS */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="relative flex-1">
+                <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Misafir adı, oda no, T.C./Kimlik veya telefon ile ara..."
+                  value={guestListSearch}
+                  onChange={(e) => setGuestListSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                {guestListSearch && (
+                  <button 
+                    onClick={() => setGuestListSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Status Filter Toggle */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGuestListCategoryFilter(guestListCategoryFilter === 'occupied_only' ? 'all' : 'occupied_only')}
+                  className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${guestListCategoryFilter === 'occupied_only' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'}`}
+                >
+                  <Hotel className="h-3.5 w-3.5" />
+                  <span>Sadece Şu An Otelde Kalanlar</span>
+                </button>
+              </div>
+            </div>
+
+            {/* GUEST LIST TABLE */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="p-3.5">Oda No & Tipi</th>
+                      <th className="p-3.5">Misafir Adı & Rolü</th>
+                      <th className="p-3.5">Yaş & Kategori</th>
+                      <th className="p-3.5">Doğum Tarihi</th>
+                      <th className="p-3.5">T.C. / Kimlik</th>
+                      <th className="p-3.5">Telefon</th>
+                      <th className="p-3.5">Giriş - Çıkış</th>
+                      <th className="p-3.5">Pansiyon</th>
+                      <th className="p-3.5 text-right">İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                    {(filteredGuests?.length || 0) === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="p-8 text-center text-slate-400 font-bold">
+                          {guestListSearch ? 'Arama kriterlerine uygun misafir kaydı bulunamadı.' : 'Kayıtlı misafir bulunmuyor.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      (filteredGuests || []).map((g) => (
+                        <tr key={g.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-3.5">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-1 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-lg font-black text-xs">
+                                #{g.room_number}
+                              </span>
+                              <div>
+                                <p className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate max-w-[140px]">{g.room_type}</p>
+                                <span className={`inline-block text-[9px] font-black uppercase px-1 rounded ${g.room_status === 'occupied' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+                                  {g.room_status === 'occupied' ? '🟢 Konaklıyor' : '🟡 Gelecek Rezervasyon'}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="p-3.5">
+                            <p className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <span>{g.full_name}</span>
+                            </p>
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                              {g.role_label}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5">
+                            <div className="space-y-0.5">
+                              <span className={`inline-block px-2 py-0.5 rounded-md font-black text-xs ${
+                                g.age <= 2 
+                                  ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-200' 
+                                  : g.age <= 6 
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200'
+                                  : g.age <= 17 
+                                  ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200' 
+                                  : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                              }`}>
+                                {g.age} Yaş • {g.age_category_label}
+                              </span>
+                              {g.discount_text && (
+                                <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                  {g.discount_text}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-3.5 font-bold text-slate-700 dark:text-slate-300">
+                            {g.birth_date ? formatDisplayDate(g.birth_date) : '-'}
+                          </td>
+
+                          <td className="p-3.5 font-mono text-xs text-slate-600 dark:text-slate-400 font-bold">
+                            {g.identity_no || '-'}
+                          </td>
+
+                          <td className="p-3.5 text-slate-700 dark:text-slate-300 font-bold">
+                            {g.phone || '-'}
+                          </td>
+
+                          <td className="p-3.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                            <div className="space-y-0.5">
+                              <p className="text-emerald-600 dark:text-emerald-400">Giriş: {formatDisplayDate(g.check_in_date)}</p>
+                              <p className="text-rose-600 dark:text-rose-400">Çıkış: {formatDisplayDate(g.check_out_date)}</p>
+                            </div>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded font-black text-xs border border-indigo-200 dark:border-indigo-800">
+                              {g.board_type}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setInspectGuestModal(g)}
+                                className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl font-black text-xs flex items-center gap-1 cursor-pointer transition-all"
+                                title="Tüm Misafir Detaylarını & Künyesini Gör"
+                              >
+                                <Info className="h-3.5 w-3.5" />
+                                <span>Detay</span>
+                              </button>
+
+                              {g.room_status === 'occupied' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setCheckOutModalRoom(g.room)}
+                                  className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs flex items-center gap-1 cursor-pointer shadow-xs transition-all active:scale-95"
+                                  title="Oda Foliosunu Kapat ve Çıkış Yap"
+                                >
+                                  <Receipt className="h-3.5 w-3.5" />
+                                  <span>Folyo & Çıkış</span>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* MODAL: AGE CATEGORY DRILLDOWN MODAL (TRIGGERED FROM AGE CARDS) */}
+      {selectedAgeCategoryModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-3xl w-full border-2 border-indigo-200 dark:border-indigo-800 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-sm">
+                  <Users className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    {selectedAgeCategoryModal.title}
+                  </h3>
+                  <span className="inline-block px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-full mt-0.5">
+                    {selectedAgeCategoryModal.badge}
+                  </span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedAgeCategoryModal(null)} 
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
+              >
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 pr-1">
+              {(selectedAgeCategoryModal.guests?.length || 0) === 0 ? (
+                <div className="p-8 text-center text-slate-400 font-bold">
+                  Bu kategoride kayıtlı misafir bulunamadı.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase">
+                        <th className="p-3">Oda</th>
+                        <th className="p-3">Misafir Adı</th>
+                        <th className="p-3">Yaş & İndirim</th>
+                        <th className="p-3">Tarihler</th>
+                        <th className="p-3 text-right">İşlem</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {(selectedAgeCategoryModal.guests || []).map((g: any) => (
+                        <tr key={g.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                          <td className="p-3 font-bold">
+                            <span className="px-2 py-1 bg-slate-900 text-white rounded-lg font-black text-xs">
+                              #{g.room_number}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <p className="font-black text-slate-900 dark:text-white">{g.full_name}</p>
+                            <span className="text-[10px] text-slate-400">{g.role_label}</span>
+                          </td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold rounded">
+                              {g.age} Yaş • {g.age_category_label}
+                            </span>
+                            {g.discount_text && (
+                              <p className="text-[10px] text-amber-600 font-semibold">{g.discount_text}</p>
+                            )}
+                          </td>
+                          <td className="p-3 font-medium text-slate-600 dark:text-slate-400">
+                            {formatDisplayDate(g.check_in_date)} - {formatDisplayDate(g.check_out_date)}
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedAgeCategoryModal(null);
+                                setInspectGuestModal(g);
+                              }}
+                              className="px-2.5 py-1 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-xs font-black cursor-pointer shadow-xs"
+                            >
+                              Detayları İncele
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-400 font-bold">
+                Toplam {selectedAgeCategoryModal.guests?.length || 0} misafir kaydı listelendi
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedAgeCategoryModal(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs cursor-pointer"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: INSPECT GUEST FULL DOSSIER */}
+      {inspectGuestModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-xl w-full border-2 border-indigo-200 dark:border-indigo-800 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-sm">
+                  <UserCheck className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    {inspectGuestModal.full_name}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
+                      Oda #{inspectGuestModal.room_number} • {inspectGuestModal.room_type}
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-black text-slate-700 dark:text-slate-300">
+                      {inspectGuestModal.role_label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={() => setInspectGuestModal(null)} 
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
+              >
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </div>
+
+            {/* AGE & DISCOUNT HIGHLIGHT CARD */}
+            <div className="p-4 bg-gradient-to-br from-indigo-50 to-emerald-50 dark:from-indigo-950/40 dark:to-emerald-950/40 rounded-2xl border border-indigo-200 dark:border-indigo-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-indigo-900 dark:text-indigo-300 tracking-wider">Yaş Grubu & İndirim Hak Edişi</p>
+                  <p className="text-base font-black text-slate-900 dark:text-white">
+                    {inspectGuestModal.age} Yaş • {inspectGuestModal.age_category_label}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="px-2.5 py-1 bg-indigo-600 text-white rounded-xl text-xs font-black">
+                    %{inspectGuestModal.discount_rate || 0} İndirim
+                  </span>
+                </div>
+              </div>
+              {inspectGuestModal.discount_text && (
+                <p className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                  {inspectGuestModal.discount_text}
+                </p>
+              )}
+            </div>
+
+            {/* DOSSIER GRID */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-black uppercase text-slate-400">Doğum Tarihi</span>
+                <p className="font-bold text-slate-900 dark:text-white mt-0.5">
+                  {inspectGuestModal.birth_date ? formatDisplayDate(inspectGuestModal.birth_date) : 'Belirtilmedi'}
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-black uppercase text-slate-400">T.C. / Kimlik / Pasaport</span>
+                <p className="font-mono font-bold text-slate-900 dark:text-white mt-0.5">
+                  {inspectGuestModal.identity_no || '-'}
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-black uppercase text-slate-400">İletişim Telefonu</span>
+                <p className="font-bold text-slate-900 dark:text-white mt-0.5">
+                  {inspectGuestModal.phone || '-'}
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-black uppercase text-slate-400">Pansiyon Tipi</span>
+                <p className="font-bold text-slate-900 dark:text-white mt-0.5">
+                  {inspectGuestModal.board_type}
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-black uppercase text-slate-400">Giriş Tarihi</span>
+                <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {formatDisplayDate(inspectGuestModal.check_in_date)}
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-black uppercase text-slate-400">Çıkış Tarihi</span>
+                <p className="font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+                  {formatDisplayDate(inspectGuestModal.check_out_date)}
+                </p>
+              </div>
+            </div>
+
+            {/* ROOM FOLIO SUMMARY */}
+            <div className="p-4 bg-slate-900 text-white rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-400">Oda Güncel Folyo Durumu</p>
+                  <p className="text-xl font-black text-amber-300">
+                    ₺{(inspectGuestModal.room?.folio?.total_amount || 0).toLocaleString('tr-TR')}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-bold text-slate-300">
+                    {inspectGuestModal.room?.folio?.items?.length || 0} Adet Adisyon/Harcama
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* MODAL ACTIONS */}
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setInspectGuestModal(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs cursor-pointer"
+              >
+                Kapat
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const r = inspectGuestModal.room;
+                    setInspectGuestModal(null);
+                    setAddExpenseModalRoom(r);
+                  }}
+                  className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Adisyon Ekle</span>
+                </button>
+
+                {inspectGuestModal.room_status === 'occupied' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const r = inspectGuestModal.room;
+                      setInspectGuestModal(null);
+                      setCheckOutModalRoom(r);
+                    }}
+                    className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Receipt className="h-4 w-4" />
+                    <span>Folyo Kapat & Check-Out</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL: CALENDAR RESERVATION DETAIL POPUP */}
@@ -3482,7 +4485,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     <p className="text-[10px] text-slate-500 font-medium">Birden fazla fotoğraf yükleyebilir, ana kapak görselini belirleyebilirsiniz.</p>
                   </div>
                   <span className="text-[10px] font-black bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg">
-                    {roomForm.images.length} Fotoğraf
+                    {roomForm.images?.length || 0} Fotoğraf
                   </span>
                 </div>
 
@@ -3559,7 +4562,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                 {/* MULTI-IMAGE GALLERY GRID */}
                 {roomForm.images && roomForm.images.length > 0 ? (
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1">
-                    {roomForm.images.map((imgUrl, idx) => {
+                    {(roomForm.images || []).map((imgUrl, idx) => {
                       const isCover = roomForm.cover_image === imgUrl || (!roomForm.cover_image && idx === 0);
                       return (
                         <div
@@ -4006,31 +5009,54 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                   <strong className="text-slate-800 dark:text-slate-200">{details.nights} Gece</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-medium block">Giriş / Çıkış</span>
-                  <strong className="text-slate-800 dark:text-slate-200">{details.checkInDate} / {details.checkOutDate}</strong>
+                  <span className="text-slate-400 font-medium block">Kişi Sayısı</span>
+                  <strong className="text-slate-800 dark:text-slate-200">{details.totalPersons} Kişi</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-medium block">Yaş Grubu</span>
-                  <strong className="text-slate-800 dark:text-slate-200">{details.mainGuestAgeDetails.labelTr}</strong>
+                  <span className="text-slate-400 font-medium block">Giriş / Çıkış</span>
+                  <strong className="text-slate-800 dark:text-slate-200">{details.checkInDate} / {details.checkOutDate}</strong>
                 </div>
               </div>
 
               {/* ITEM BREAKDOWN */}
               <div className="space-y-3">
-                {/* 1. ROOM ACCOMMODATION CHARGE */}
-                <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900/50 space-y-1.5">
+                {/* 1. ROOM ACCOMMODATION CHARGE & PERSON BREAKDOWN */}
+                <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900/50 space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold text-blue-900 dark:text-blue-300">
-                    <span>1. Oda Konaklama Hesabı ({details.nights} Gece x ₺{details.nightlyRate.toLocaleString('tr-TR')})</span>
+                    <span>1. Oda Konaklama Hesabı ({details.nights} Gece x {details.totalPersons} Kişi x ₺{details.nightlyRate.toLocaleString('tr-TR')})</span>
                     <span>₺{details.totalRawRoomRate.toLocaleString('tr-TR')}</span>
                   </div>
+
+                  {/* ITEMIZED PERSONS */}
+                  <div className="space-y-1 pt-1">
+                    {details.personList.map((p, pIdx) => (
+                      <div key={pIdx} className="flex items-center justify-between text-[11px] text-slate-700 dark:text-slate-300 bg-white/70 dark:bg-slate-900/50 p-2 rounded-xl border border-blue-100/50 dark:border-blue-900/40">
+                        <div>
+                          <span className="font-bold">{p.name}</span>
+                          {p.isMain && <span className="ml-1 text-[10px] text-blue-600 dark:text-blue-400 font-bold">(Ana Misafir)</span>}
+                          <span className="text-[10px] text-slate-500 block">
+                            Yaş: {p.age} • {p.category} {p.discountRate > 0 ? `(İndirim: %${p.discountRate})` : ''}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-slate-900 dark:text-white">₺{p.netRate.toLocaleString('tr-TR')}</div>
+                          {p.discountAmount > 0 && (
+                            <div className="text-[10px] text-emerald-600 font-semibold">-₺{p.discountAmount.toLocaleString('tr-TR')} indirim</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                   {details.roomDiscountAmount > 0 && (
                     <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pl-2">
-                      <span>(-) Tesis Yaş İndirimi ({details.mainGuestAgeDetails.discountText})</span>
+                      <span>(-) Toplam Tesis Yaş Grubu İndirimi</span>
                       <span>-₺{details.roomDiscountAmount.toLocaleString('tr-TR')}</span>
                     </div>
                   )}
-                  <div className="flex items-center justify-between text-xs font-black text-slate-900 dark:text-white pt-1 border-t border-blue-200/60 dark:border-blue-900/80">
-                    <span>Net Oda Konaklama Tutarı:</span>
+
+                  <div className="flex items-center justify-between text-xs font-black text-slate-900 dark:text-white pt-2 border-t border-blue-200/60 dark:border-blue-900/80">
+                    <span>Net Konaklama Tutarı:</span>
                     <span>₺{details.netRoomRate.toLocaleString('tr-TR')}</span>
                   </div>
                 </div>
@@ -4038,15 +5064,27 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                 {/* 2. RESTAURANT & CAFE HARCAMALARI */}
                 <div className="p-3.5 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
                   <div className="flex items-center justify-between text-xs font-black text-slate-700 dark:text-slate-300 border-b pb-1.5">
-                    <span>2. Açık Restoran & Kafeterya Harcamaları</span>
-                    <span>₺{details.restaurantTotal.toLocaleString('tr-TR')}</span>
+                    <span>2. Açık Restoran & Kafeterya Harcamaları ({details.restaurantItems?.length || 0} Kalem)</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black text-slate-900 dark:text-white">₺{details.restaurantTotal.toLocaleString('tr-TR')}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAddExpenseModalRoom(checkOutModalRoom)}
+                        className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 text-amber-800 dark:text-amber-300 text-[10px] font-bold rounded-lg cursor-pointer transition-all flex items-center gap-0.5"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>Adisyon / Minibar Ekle</span>
+                      </button>
+                    </div>
                   </div>
 
-                  {details.restaurantItems.length === 0 ? (
-                    <p className="text-center text-[11px] text-slate-400 py-2">Odaya yazılmış açık restoran/kafeterya harcaması bulunmuyor.</p>
+                  {(details.restaurantItems?.length || 0) === 0 ? (
+                    <div className="text-center py-2 text-[11px] text-slate-400">
+                      Odaya aktarılmış açık restoran/kafeterya adisyonu bulunmuyor.
+                    </div>
                   ) : (
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                      {details.restaurantItems.map((item, idx) => (
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                      {(details.restaurantItems || []).map((item, idx) => (
                         <div key={item.id || idx} className="flex items-center justify-between text-[11px] text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
                           <div>
                             <span className="font-bold">{item.title}</span>
@@ -4072,7 +5110,10 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
               <div className="p-4 bg-slate-900 dark:bg-slate-950 text-white rounded-2xl flex items-center justify-between shadow-lg">
                 <div>
                   <span className="text-xs font-extrabold text-slate-400 block uppercase">Tahsil Edilecek Net Balans</span>
-                  <span className="text-[10px] text-slate-400">Brüt Toplam: ₺{details.grossTotal.toLocaleString('tr-TR')} {details.advancePayment > 0 ? `(-₺${details.advancePayment.toLocaleString('tr-TR')} Kapora)` : ''}</span>
+                  <span className="text-[10px] text-slate-400">
+                    Net Oda: ₺{details.netRoomRate.toLocaleString('tr-TR')} + Restoran: ₺{details.restaurantTotal.toLocaleString('tr-TR')}
+                    {details.advancePayment > 0 ? ` (-₺${details.advancePayment.toLocaleString('tr-TR')} Kapora)` : ''}
+                  </span>
                 </div>
                 <div className="text-2xl font-black text-amber-400">
                   ₺{details.netPayableBalance.toLocaleString('tr-TR')}
@@ -4132,7 +5173,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5"
                   >
                     <Receipt className="h-4 w-4" />
-                    <span>Tahsil Et & Check-Out Kapat</span>
+                    <span>Folio Kapat & Check-Out</span>
                   </button>
                 </div>
               </div>
@@ -4383,6 +5424,150 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                   Ayarları Kaydet ve Kapat
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL: COMPLETED CHECKOUT & DETAILED CUSTOMER STATEMENT */}
+      {completedCheckoutData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-2xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-10 w-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-black">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Check-Out Tamamlandı & Folio Kapatıldı
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Oda #{completedCheckoutData.room.room_number} başarıyla boşaltıldı ve müşteri ekstresi oluşturuldu.
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setCompletedCheckoutData(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* CUSTOMER & STAY CARD */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+              <div>
+                <span className="text-slate-400 font-medium block">Misafir</span>
+                <strong className="text-slate-800 dark:text-slate-200">{completedCheckoutData.guest.first_name} {completedCheckoutData.guest.last_name}</strong>
+                <span className="text-[10px] text-slate-400 block">{completedCheckoutData.guest.identity_no}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Konaklama</span>
+                <strong className="text-slate-800 dark:text-slate-200">{completedCheckoutData.details.nights} Gece • {completedCheckoutData.details.totalPersons} Kişi</strong>
+                <span className="text-[10px] text-slate-400 block">{completedCheckoutData.details.boardTypeLabel}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Tarihler</span>
+                <strong className="text-slate-800 dark:text-slate-200">{completedCheckoutData.details.checkInDate}</strong>
+                <span className="text-[10px] text-slate-400 block">{completedCheckoutData.details.checkOutDate}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">Ödeme Yöntemi</span>
+                <strong className="text-emerald-600 font-bold">{completedCheckoutData.paymentMethod}</strong>
+                <span className="text-[10px] text-slate-400 block">Tahsil Edildi</span>
+              </div>
+            </div>
+
+            {/* DETAILED STATEMENT BREAKDOWN */}
+            <div className="space-y-2.5">
+              {/* ACCOMMODATION ITEMIZATION */}
+              <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900/40">
+                <div className="flex items-center justify-between text-xs font-bold text-blue-950 dark:text-blue-200 mb-2">
+                  <span>1. Konaklama Dökümü ({completedCheckoutData.details.nights} Gece x {completedCheckoutData.details.totalPersons} Kişi)</span>
+                  <span>₺{completedCheckoutData.details.totalRawRoomRate.toLocaleString('tr-TR')}</span>
+                </div>
+                <div className="space-y-1">
+                  {completedCheckoutData.details.personList.map((p, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-[11px] bg-white/80 dark:bg-slate-900/60 p-2 rounded-xl">
+                      <div>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{p.name}</span>
+                        <span className="text-[10px] text-slate-500 ml-1.5">Yaş: {p.age} ({p.category})</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-slate-900 dark:text-white">₺{p.netRate.toLocaleString('tr-TR')}</span>
+                        {p.discountAmount > 0 && (
+                          <span className="text-[10px] text-emerald-600 ml-1.5 font-semibold">(-₺{p.discountAmount.toLocaleString('tr-TR')})</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-xs font-black text-slate-900 dark:text-white pt-2 mt-2 border-t border-blue-200/60 dark:border-blue-900/60">
+                  <span>Net Oda Bedeli:</span>
+                  <span>₺{completedCheckoutData.details.netRoomRate.toLocaleString('tr-TR')}</span>
+                </div>
+              </div>
+
+              {/* RESTAURANT CHARGES */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                  <span>2. Restoran & Kafeterya Harcamaları ({completedCheckoutData.details.restaurantItems?.length || 0} Kalem)</span>
+                  <span>₺{completedCheckoutData.details.restaurantTotal.toLocaleString('tr-TR')}</span>
+                </div>
+                {(completedCheckoutData.details.restaurantItems?.length || 0) === 0 ? (
+                  <p className="text-[11px] text-slate-400 py-1">Kayıtlı restoran harcaması bulunmuyor.</p>
+                ) : (
+                  <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                    {(completedCheckoutData.details.restaurantItems || []).map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-[11px] bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{item.title}</span>
+                          <span className="text-[10px] text-slate-400 ml-1.5">{item.date} • {item.category}</span>
+                        </div>
+                        <span className="font-bold text-slate-900 dark:text-white">₺{item.finalAmount.toLocaleString('tr-TR')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ADVANCE PAYMENT */}
+              {completedCheckoutData.details.advancePayment > 0 && (
+                <div className="p-2.5 bg-emerald-50/80 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  <span>(-) Girişte Alınan Kapora / Ön Ödeme:</span>
+                  <span>-₺{completedCheckoutData.details.advancePayment.toLocaleString('tr-TR')}</span>
+                </div>
+              )}
+            </div>
+
+            {/* TOTAL COLLECTED BOX */}
+            <div className="p-4 bg-slate-900 dark:bg-slate-950 text-white rounded-2xl flex items-center justify-between shadow-lg">
+              <div>
+                <span className="text-xs font-extrabold text-slate-400 block uppercase">Tahsil Edilen Net Tutar</span>
+                <span className="text-[10px] text-slate-400">
+                  {completedCheckoutData.paymentMethod} ile tahsil edildi • Oda boş ve temizliğe hazır
+                </span>
+              </div>
+              <div className="text-2xl font-black text-emerald-400">
+                ₺{completedCheckoutData.details.netPayableBalance.toLocaleString('tr-TR')}
+              </div>
+            </div>
+
+            {/* ACTION BUTTONS */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => handlePrintFolio(completedCheckoutData.room, completedCheckoutData.paymentMethod)}
+                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Printer className="h-4 w-4" />
+                <span>Müşteri Ekstresini Tekrar Yazdır</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCompletedCheckoutData(null)}
+                className="px-6 py-2.5 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 cursor-pointer shadow-md"
+              >
+                Kapat ve Odaya Dön
+              </button>
             </div>
           </div>
         </div>

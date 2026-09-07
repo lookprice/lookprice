@@ -25,7 +25,11 @@ import {
   Image,
   Building2,
   CheckCircle2,
-  Trash2
+  Trash2,
+  Instagram,
+  Heart,
+  Plus,
+  Calendar
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -46,7 +50,7 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
   saving = false,
   storeId
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<"visual" | "table_order" | "wifi" | "tables_qr">("visual");
+  const [activeSubTab, setActiveSubTab] = useState<"visual" | "table_order" | "wifi" | "tables_qr" | "instagram">("visual");
 
   const txt = (tr: string, en: string, el: string) => {
     if (lang === "tr") return tr;
@@ -260,6 +264,19 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
           >
             <QrCode className="w-4 h-4" />
             <span>{txt("Masa QR Kodları", "Table QR Codes", "Κωδικοί QR Τραπεζιών")}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubTab("instagram")}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+              activeSubTab === "instagram"
+                ? "bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white shadow-md"
+                : "bg-white/5 text-slate-300 hover:bg-white/10"
+            }`}
+          >
+            <Instagram className="w-4 h-4" />
+            <span>{txt("Instagram Izgara Vitrini", "Instagram Showcase Grid", "Βιτρίνα Instagram")}</span>
           </button>
         </div>
       </div>
@@ -617,6 +634,47 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
                   onChange={(e) => onBrandingChange("cancellation_policy", e.target.value)}
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 resize-none"
                 />
+              </div>
+
+              {/* Hotel Date Format Selection */}
+              <div className="md:col-span-2 space-y-3 p-5 bg-indigo-50/70 rounded-2xl border border-indigo-200">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-indigo-600" />
+                    <span>Otel Rezervasyon & Folyo Tarih Görünüm Modeli</span>
+                  </h4>
+                  <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100 px-2 py-0.5 rounded-md">
+                    Seçili: {branding?.hotel_date_format || "DD/MM/YYYY"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 font-medium">
+                  Rezervasyon formlarında, folyo çıktılarında, takvimde ve misafir künyelerinde kullanılacak tarih formatını belirleyin:
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                  {[
+                    { id: 'DD/MM/YYYY', label: 'GG/AA/YYYY', sample: '25/08/2026' },
+                    { id: 'DD.MM.YYYY', label: 'GG.AA.YYYY', sample: '25.08.2026' },
+                    { id: 'DD-MM-YYYY', label: 'GG-AA-YYYY', sample: '25-08-2026' },
+                    { id: 'DD MMM YYYY', label: 'GG Ay YYYY', sample: '25 Ağustos 2026' },
+                    { id: 'YYYY-MM-DD', label: 'YYYY-AA-GG', sample: '2026-08-25' },
+                  ].map(fmt => (
+                    <button
+                      key={fmt.id}
+                      type="button"
+                      onClick={() => onBrandingChange('hotel_date_format', fmt.id)}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        (branding?.hotel_date_format || 'DD/MM/YYYY') === fmt.id
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-400'
+                          : 'bg-white text-slate-800 border-slate-200 hover:bg-indigo-50'
+                      }`}
+                    >
+                      <div className="text-xs font-black">{fmt.label}</div>
+                      <div className={`text-[10px] font-medium mt-0.5 ${
+                        (branding?.hotel_date_format || 'DD/MM/YYYY') === fmt.id ? 'text-indigo-100' : 'text-slate-500'
+                      }`}>{fmt.sample}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Google Maps Location & Embed Settings */}
@@ -988,6 +1046,409 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
               })}
             </div>
           </div>
+        </motion.div>
+      )}
+
+      {/* Tab 5: Instagram Showcase & Photo Grid Management */}
+      {activeSubTab === "instagram" && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          
+          {/* Main Card: Profile Settings & Toggle */}
+          <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white rounded-2xl shadow-md shadow-rose-500/20">
+                  <Instagram className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 uppercase tracking-wider">
+                    {txt("Instagram Izgara Vitrini & Sosyal Akış", "Instagram Showcase & Social Grid", "Βιτρίνα Instagram")}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {txt("Web sitenizde sergilenecek Instagram tarzı 1:1 kare fotoğraf akışını ve profil bilgilerinizi yönetin.", "Manage your 1:1 square photo grid and Instagram handle displayed on your public website.", "Διαχειριστείτε τη ροή φωτογραφιών Instagram στον ιστότοπό σας.")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Master Toggle */}
+              <label className="flex items-center gap-3 cursor-pointer bg-slate-50 hover:bg-slate-100 px-4 py-2 rounded-2xl border border-slate-200 transition-colors shrink-0">
+                <input
+                  type="checkbox"
+                  checked={branding?.instagram_feed_enabled !== false}
+                  onChange={(e) => onBrandingChange("instagram_feed_enabled", e.target.checked)}
+                  className="w-4 h-4 text-rose-600 rounded focus:ring-rose-500"
+                />
+                <span className="text-xs font-black text-slate-800">
+                  {txt("Web Sitesinde Göster", "Show on Website", "Εμφάνιση στον Ιστότοπο")}
+                </span>
+              </label>
+            </div>
+
+            {/* Profile Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Instagram Kullanıcı Adı", "Instagram Username", "Όνομα Χρήστη Instagram")}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">@</span>
+                  <input
+                    type="text"
+                    placeholder="otelveyarestoranadi"
+                    value={(branding?.instagram_username || "").replace(/^@/, "")}
+                    onChange={(e) => onBrandingChange("instagram_username", e.target.value.trim().replace(/^@/, ""))}
+                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-rose-500/10 focus:border-rose-400 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Instagram Profil URL Linki", "Instagram Profile URL", "Σύνδεσμος Προφίλ Instagram")}
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://instagram.com/kullaniciadi"
+                  value={branding?.instagram_url || ""}
+                  onChange={(e) => onBrandingChange("instagram_url", e.target.value.trim())}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-rose-500/10 focus:border-rose-400 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Vitrin Başlığı", "Showcase Title", "Τίτλος Βιτρίνας")}
+                </label>
+                <input
+                  type="text"
+                  placeholder={txt("Örn: Bizi Instagram'da Keşfedin", "e.g. Follow Our Moments", "Ακολουθήστε μας")}
+                  value={branding?.instagram_title || ""}
+                  onChange={(e) => onBrandingChange("instagram_title", e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-rose-500/10 focus:border-rose-400 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Vitrin Alt Açıklaması", "Showcase Subtitle", "Υπότιτλος Βιτρίνας")}
+                </label>
+                <input
+                  type="text"
+                  placeholder={txt("Örn: Otelimizden ve mutfağımızdan en taze kareler", "e.g. Fresh snapshots from our kitchen and suites", "Στιγμιότυπα")}
+                  value={branding?.instagram_subtitle || ""}
+                  onChange={(e) => onBrandingChange("instagram_subtitle", e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-rose-500/10 focus:border-rose-400 transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Posts & Images Management Card */}
+          <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Image className="w-4 h-4 text-rose-500" />
+                  <span>{txt("Vitrin Gönderileri & Fotoğrafları", "Showcase Photos & Posts", "Φωτογραφίες Βιτρίνας")}</span>
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {txt("Web sitenizdeki ızgarada görünecek kareleri düzenleyin veya yeni fotoğraflar yükleyin.", "Edit or upload square photos displayed on your public website grid.", "Επεξεργαστείτε τις φωτογραφίες της βιτρίνας.")}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {/* Preload Default Photos Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const samplePosts = [
+                      {
+                        id: "ig-1",
+                        image_url: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+                        caption: "Huzurlu bir sabaha uyanmanın en güzel yolu ✨",
+                        likes: 384,
+                        post_url: ""
+                      },
+                      {
+                        id: "ig-2",
+                        image_url: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+                        caption: "Akşam yemeği için şefimizin özel imza lezzetleri hazır 🍽️",
+                        likes: 512,
+                        post_url: ""
+                      },
+                      {
+                        id: "ig-3",
+                        image_url: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=800&q=80",
+                        caption: "Gün batımında teras barımızda serinletici kokteyller 🍸",
+                        likes: 429,
+                        post_url: ""
+                      },
+                      {
+                        id: "ig-4",
+                        image_url: "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80",
+                        caption: "Konforlu süitlerimizde kusursuz bir dinlenme deneyimi 🛏️",
+                        likes: 673,
+                        post_url: ""
+                      },
+                      {
+                        id: "ig-5",
+                        image_url: "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=800&q=80",
+                        caption: "Masmavi havuzumuz ve Akdeniz güneşinin tadı ☀️🏊‍♂️",
+                        likes: 891,
+                        post_url: ""
+                      },
+                      {
+                        id: "ig-6",
+                        image_url: "https://images.unsplash.com/photo-1509722747041-616f39b57569?auto=format&fit=crop&w=800&q=80",
+                        caption: "Taze kavrulmuş kahve aromasıyla güne harika bir başlangıç ☕",
+                        likes: 310,
+                        post_url: ""
+                      }
+                    ];
+                    onBrandingChange("instagram_posts", samplePosts);
+                  }}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>{txt("Örnek Fotoğrafları Yükle", "Preload Sample Photos", "Φόρτωση Δειγμάτων")}</span>
+                </button>
+
+                {/* Add New Post */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentPosts: any[] = branding?.instagram_posts || [];
+                    const newPost = {
+                      id: `ig-${Date.now()}`,
+                      image_url: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+                      caption: "Özel bir an ✨",
+                      likes: 250,
+                      post_url: ""
+                    };
+                    onBrandingChange("instagram_posts", [...currentPosts, newPost]);
+                  }}
+                  className="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>{txt("Yeni Gönderi Ekle", "Add New Post", "Προσθήκη")}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Posts Grid Editor */}
+            {(() => {
+              const currentPosts: any[] = (branding?.instagram_posts && branding.instagram_posts.length > 0)
+                ? branding.instagram_posts
+                : [
+                    {
+                      id: "ig-1",
+                      image_url: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+                      caption: "Huzurlu bir sabaha uyanmanın en güzel yolu ✨",
+                      likes: 384,
+                      post_url: ""
+                    },
+                    {
+                      id: "ig-2",
+                      image_url: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+                      caption: "Akşam yemeği için şefimizin özel imza lezzetleri hazır 🍽️",
+                      likes: 512,
+                      post_url: ""
+                    },
+                    {
+                      id: "ig-3",
+                      image_url: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=800&q=80",
+                      caption: "Gün batımında teras barımızda serinletici kokteyller 🍸",
+                      likes: 429,
+                      post_url: ""
+                    },
+                    {
+                      id: "ig-4",
+                      image_url: "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80",
+                      caption: "Konforlu süitlerimizde kusursuz bir dinlenme deneyimi 🛏️",
+                      likes: 673,
+                      post_url: ""
+                    },
+                    {
+                      id: "ig-5",
+                      image_url: "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=800&q=80",
+                      caption: "Masmavi havuzumuz ve Akdeniz güneşinin tadı ☀️🏊‍♂️",
+                      likes: 891,
+                      post_url: ""
+                    },
+                    {
+                      id: "ig-6",
+                      image_url: "https://images.unsplash.com/photo-1509722747041-616f39b57569?auto=format&fit=crop&w=800&q=80",
+                      caption: "Taze kavrulmuş kahve aromasıyla güne harika bir başlangıç ☕",
+                      likes: 310,
+                      post_url: ""
+                    }
+                  ];
+
+              const updatePost = (idx: number, updates: any) => {
+                const updated = [...currentPosts];
+                updated[idx] = { ...updated[idx], ...updates };
+                onBrandingChange("instagram_posts", updated);
+              };
+
+              const removePost = (idx: number) => {
+                const updated = currentPosts.filter((_, i) => i !== idx);
+                onBrandingChange("instagram_posts", updated);
+              };
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {currentPosts.map((post, idx) => (
+                    <div key={post.id || idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 relative group">
+                      
+                      {/* Image Thumbnail & Upload */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-200 border border-slate-300 shrink-0 relative shadow-sm">
+                          <img src={post.image_url} alt="Post preview" className="w-full h-full object-cover" />
+                          <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-black/60 rounded text-[9px] font-black text-white">
+                            #{idx + 1}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <input
+                            type="file"
+                            id={`ig_upload_${idx}`}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 8 * 1024 * 1024) {
+                                alert("Görsel boyutu 8MB'dan küçük olmalıdır");
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                if (typeof reader.result === "string") {
+                                  updatePost(idx, { image_url: reader.result });
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                              e.target.value = "";
+                            }}
+                          />
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => document.getElementById(`ig_upload_${idx}`)?.click()}
+                              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 font-bold border border-slate-200 rounded-lg text-[10px] transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <Upload className="w-3 h-3 text-rose-500" />
+                              <span>{txt("Fotoğraf Yükle", "Upload", "Ανέβασμα")}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => removePost(idx)}
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition-colors ml-auto cursor-pointer"
+                              title={txt("Gönderiyi Sil", "Delete Post", "Διαγραφή")}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <input
+                            type="text"
+                            placeholder="veya Görsel URL'si (https://...)"
+                            value={post.image_url || ""}
+                            onChange={(e) => updatePost(idx, { image_url: e.target.value })}
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] text-slate-700 truncate"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Caption & Likes */}
+                      <div className="space-y-2 pt-1 border-t border-slate-200/60">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                            {txt("Açıklama / Başlık", "Caption", "Λεζάντα")}
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Huzurlu bir sabah ✨"
+                            value={post.caption || ""}
+                            onChange={(e) => updatePost(idx, { caption: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                              {txt("Beğeni", "Likes", "Likes")}
+                            </label>
+                            <input
+                              type="number"
+                              value={post.likes || 350}
+                              onChange={(e) => updatePost(idx, { likes: Number(e.target.value) || 0 })}
+                              className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                              {txt("Post URL (İsteğe Bağlı)", "Post URL (Optional)", "URL")}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="https://instagr.am/p/..."
+                              value={post.post_url || ""}
+                              onChange={(e) => updatePost(idx, { post_url: e.target.value })}
+                              className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[10px] text-slate-700 truncate"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Live Preview Card */}
+          <div className="bg-slate-900 text-white p-6 md:p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Instagram className="w-5 h-5 text-rose-400" />
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                  {txt("Web Sitesi Canlı Izgara Önizlemesi", "Website Live Grid Preview", "Ζωντανή Προεπισκόπηση")}
+                </h4>
+              </div>
+              <span className="text-[10px] font-bold text-slate-400">
+                1:1 Orantılı Kare Izgara
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-2">
+              {((branding?.instagram_posts && branding.instagram_posts.length > 0) ? branding.instagram_posts : [
+                { id: "1", image_url: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=400&q=80", likes: 384 },
+                { id: "2", image_url: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80", likes: 512 },
+                { id: "3", image_url: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=400&q=80", likes: 429 },
+                { id: "4", image_url: "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=400&q=80", likes: 673 },
+                { id: "5", image_url: "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=400&q=80", likes: 891 },
+                { id: "6", image_url: "https://images.unsplash.com/photo-1509722747041-616f39b57569?auto=format&fit=crop&w=400&q=80", likes: 310 }
+              ]).map((post: any, i: number) => (
+                <div key={post.id || i} className="aspect-square rounded-xl overflow-hidden bg-slate-800 relative group border border-slate-700/60 shadow-sm">
+                  <img src={post.image_url} alt="preview" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2 text-center">
+                    <span className="text-[10px] font-black text-rose-300 flex items-center gap-1">
+                      <Heart className="w-3 h-3 fill-current" />
+                      <span>{post.likes || 350}</span>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </motion.div>
       )}
     </div>

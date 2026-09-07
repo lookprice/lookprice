@@ -38,7 +38,8 @@ import {
   Calculator,
   Shield,
   Camera,
-  ChevronLeft
+  ChevronLeft,
+  Heart
 } from "lucide-react";
 import { Store, Product } from "../types";
 import { HotelRoom } from "./horeca/HotelRoomManagement";
@@ -341,6 +342,65 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
     { icon: <Facebook className="w-5 h-5" />, url: store.facebook_url, label: "Facebook" },
     { icon: <Twitter className="w-5 h-5" />, url: store.twitter_url, label: "Twitter" },
   ].filter(link => link.url);
+
+  // Instagram Showcase Configuration & Dynamic Grid
+  const instagramFeedEnabled = store.branding?.instagram_feed_enabled !== false;
+  const rawIgHandle = store.branding?.instagram_username || store.instagram_url?.split("instagram.com/")?.[1]?.replace(/\/$/, "") || store.slug || "lookprice.horeca";
+  const instagramHandle = rawIgHandle.startsWith("@") ? rawIgHandle : `@${rawIgHandle}`;
+  const cleanInstagramHandle = instagramHandle.replace(/^@/, "");
+  const instagramProfileUrl = store.instagram_url || `https://instagram.com/${cleanInstagramHandle}`;
+  const instagramTitle = store.branding?.instagram_title || (isTr ? "Bizi Instagram'da Keşfedin" : "Follow Our Moments on Instagram");
+  const instagramSubtitle = store.branding?.instagram_subtitle || (isTr ? "Otelimizden, mutfağımızdan ve özel anlarımızdan en taze kareler" : "Curated moments, culinary highlights, and stories from our paradise");
+
+  const instagramPosts = React.useMemo(() => {
+    if (store.branding?.instagram_posts && Array.isArray(store.branding.instagram_posts) && store.branding.instagram_posts.length > 0) {
+      return store.branding.instagram_posts;
+    }
+    return [
+      {
+        id: "ig-1",
+        image_url: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+        caption: isTr ? "Huzurlu bir sabaha uyanmanın en güzel yolu ✨" : "Waking up to serene mornings ✨",
+        likes: 384,
+        post_url: instagramProfileUrl
+      },
+      {
+        id: "ig-2",
+        image_url: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+        caption: isTr ? "Akşam yemeği için şefimizin özel imza lezzetleri hazır 🍽️" : "Signature dishes crafted with passion 🍽️",
+        likes: 512,
+        post_url: instagramProfileUrl
+      },
+      {
+        id: "ig-3",
+        image_url: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=800&q=80",
+        caption: isTr ? "Gün batımında teras barımızda serinletici kokteyller 🍸" : "Sunset sips on our panoramic terrace 🍸",
+        likes: 429,
+        post_url: instagramProfileUrl
+      },
+      {
+        id: "ig-4",
+        image_url: "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80",
+        caption: isTr ? "Konforlu süitlerimizde kusursuz bir dinlenme deneyimi 🛏️" : "Unwind in pure luxury and comfort 🛏️",
+        likes: 673,
+        post_url: instagramProfileUrl
+      },
+      {
+        id: "ig-5",
+        image_url: "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=800&q=80",
+        caption: isTr ? "Masmavi havuzumuz ve Akdeniz güneşinin tadı ☀️🏊‍♂️" : "Sun-drenched days by the pool ☀️🏊‍♂️",
+        likes: 891,
+        post_url: instagramProfileUrl
+      },
+      {
+        id: "ig-6",
+        image_url: "https://images.unsplash.com/photo-1509722747041-616f39b57569?auto=format&fit=crop&w=800&q=80",
+        caption: isTr ? "Taze kavrulmuş kahve aromasıyla güne harika bir başlangıç ☕" : "Freshly brewed artisan coffee ☕",
+        likes: 310,
+        post_url: instagramProfileUrl
+      }
+    ];
+  }, [store.branding?.instagram_posts, isTr, instagramProfileUrl]);
 
   // Digital menu path
   const digitalMenuUrl = `/digital-menu/${store.id}/web`;
@@ -1346,6 +1406,134 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
         </div>
       </section>
 
+      {/* INSTAGRAM SHOWCASE & SOCIAL GRID (INSTA-STYLE) */}
+      {instagramFeedEnabled && (
+        <section id="instagram-grid" className="py-16 bg-white border-t border-stone-200/80">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+            
+            {/* Instagram Profile Header */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-stone-100 pb-6">
+              <div className="flex items-center gap-4 text-center sm:text-left">
+                {/* Instagram Gradient Ring Avatar */}
+                <div className="p-0.5 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 shadow-md shrink-0">
+                  <div className="p-0.5 bg-white rounded-full">
+                    {(store.logo_url || store.branding?.logo_url) ? (
+                      <img
+                        src={store.logo_url || store.branding?.logo_url}
+                        alt="Instagram Avatar"
+                        className="w-14 h-14 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-stone-900 flex items-center justify-center text-white font-black text-lg">
+                        <Instagram className="w-7 h-7 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <span className="text-base sm:text-lg font-black text-stone-900 tracking-tight">
+                      {instagramHandle}
+                    </span>
+                    <span className="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                      <Instagram className="w-3 h-3" />
+                      <span>{isTr ? "Resmi Akış" : "Official Feed"}</span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500 font-medium mt-1">
+                    {instagramSubtitle}
+                  </p>
+                </div>
+              </div>
+
+              {/* Follow Button */}
+              <a
+                href={instagramProfileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 hover:from-amber-600 hover:via-rose-600 hover:to-purple-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-500/20 hover:shadow-xl transition-all duration-300 flex items-center gap-2 group cursor-pointer"
+              >
+                <Instagram className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                <span>{isTr ? "Instagram'da Takip Et" : "Follow on Instagram"}</span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+              </a>
+            </div>
+
+            {/* 1:1 Aspect-Square Instagram Photo Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+              {instagramPosts.map((post: any, idx: number) => {
+                const targetUrl = post.post_url || instagramProfileUrl;
+
+                return (
+                  <a
+                    key={post.id || idx}
+                    href={targetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative aspect-square rounded-2xl overflow-hidden bg-stone-100 border border-stone-200 shadow-xs hover:shadow-xl transition-all duration-300 cursor-pointer block"
+                  >
+                    {/* Photo */}
+                    <img
+                      src={post.image_url}
+                      alt={post.caption || `Instagram Post ${idx + 1}`}
+                      className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                      loading="lazy"
+                    />
+
+                    {/* Instagram Badge Tag Top Right */}
+                    <div className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white opacity-80 group-hover:opacity-0 transition-opacity">
+                      <Instagram className="w-3.5 h-3.5" />
+                    </div>
+
+                    {/* Insta Hover Overlay */}
+                    <div className="absolute inset-0 bg-stone-950/75 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center p-3 text-center text-white space-y-2">
+                      <div className="p-2 rounded-full bg-white/20 text-white backdrop-blur-md">
+                        <Instagram className="w-5 h-5 text-white" />
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs font-black">
+                        <span className="flex items-center gap-1 text-rose-300">
+                          <Heart className="w-3.5 h-3.5 fill-current" />
+                          <span>{post.likes || (300 + idx * 47)}</span>
+                        </span>
+                        <span className="flex items-center gap-1 text-stone-300">
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>{Math.floor((post.likes || 300) / 18)}</span>
+                        </span>
+                      </div>
+
+                      {post.caption && (
+                        <p className="text-[10px] font-medium text-stone-200 line-clamp-2 leading-relaxed px-1">
+                          {post.caption}
+                        </p>
+                      )}
+
+                      <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1 pt-1">
+                        <span>{isTr ? "İncele" : "View"}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </span>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+
+            {/* Bottom Caption Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-stone-500 pt-2 font-medium">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>{instagramTitle}</span>
+              </span>
+              <span className="text-[11px] text-stone-400 font-mono">
+                {isTr ? "Karelerimizi etiketleyin:" : "Tag your moments:"} <strong className="text-stone-700 font-sans">{instagramHandle}</strong>
+              </span>
+            </div>
+
+          </div>
+        </section>
+      )}
+
       {/* Footer & Contact */}
       <footer id="contact" className="bg-stone-950 text-stone-400 pt-20 pb-10 border-t border-stone-900">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
@@ -1406,8 +1594,8 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             <div className="space-y-4">
               <h4 className="text-xs font-black text-white uppercase tracking-widest">{isTr ? "KONUMUMUZ" : "LOCATION"}</h4>
               {(() => {
-                const mapsUrl = store.google_maps_url || store.branding?.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address || store.name)}`;
-                const rawEmbed = store.google_maps_embed || store.branding?.google_maps_embed || "";
+                const mapsUrl = (store as any).google_maps_url || store.branding?.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address || store.name)}`;
+                const rawEmbed = (store as any).google_maps_embed || store.branding?.google_maps_embed || "";
                 let embedSrc = "";
                 if (rawEmbed) {
                   const match = rawEmbed.match(/src=["']([^"']+)["']/);

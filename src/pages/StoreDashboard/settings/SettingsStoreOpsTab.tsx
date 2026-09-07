@@ -522,6 +522,44 @@ export const SettingsStoreOpsTab = ({
                   </button>
                 )}
               </div>
+
+              {/* Otel Rezervasyon & Takvim Tarih Görünüm Formatı */}
+              <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                  {lang === 'tr' ? 'Otel Rezervasyon & Folyo Tarih Formatı' : 'Hotel Reservation & Folio Date Format'}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {[
+                    { id: 'DD/MM/YYYY', label: 'GG/AA/YYYY (Örn: 25/08/2026)', badge: 'Varsayılan' },
+                    { id: 'DD.MM.YYYY', label: 'GG.AA.YYYY (Örn: 25.08.2026)', badge: 'Noktalı' },
+                    { id: 'DD-MM-YYYY', label: 'GG-AA-YYYY (Örn: 25-08-2026)', badge: 'Tireli' },
+                    { id: 'DD MMM YYYY', label: 'GG Ay YYYY (Örn: 25 Ağustos 2026)', badge: 'Metin' },
+                    { id: 'YYYY-MM-DD', label: 'YYYY-AA-GG (Örn: 2026-08-25)', badge: 'ISO' },
+                  ].map(fmt => (
+                    <button
+                      key={fmt.id}
+                      type="button"
+                      onClick={() => {
+                        onBrandingChange('hotel_date_format', fmt.id);
+                        try {
+                          localStorage.setItem(`hotelDateFormat_${currentStoreId}`, fmt.id);
+                        } catch (e) {}
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        (branding.hotel_date_format || 'DD/MM/YYYY') === fmt.id
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 ring-2 ring-indigo-500 text-indigo-950 dark:text-indigo-200 shadow-xs'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black">{fmt.id}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold">{fmt.badge}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1">{fmt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
