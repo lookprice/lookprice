@@ -1697,9 +1697,30 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='cancellation_reason') THEN
           ALTER TABLE sales ADD COLUMN cancellation_reason TEXT;
         END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sales' AND column_name='source') THEN
+          ALTER TABLE sales ADD COLUMN source TEXT DEFAULT 'Store';
+        END IF;
       END $$;
     `);
     console.log("Foreign key cascades checked.");
+
+    // Ensure ai_jobs table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ai_jobs (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        property_id INTEGER,
+        store_id INTEGER,
+        job_type TEXT CHECK(job_type IN ('virtual_tour_3d', 'virtual_staging')),
+        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'processing', 'completed', 'failed', 'canceled')),
+        payload JSONB,
+        result_payload JSONB,
+        external_job_id TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        completed_at TIMESTAMP
+      )
+    `);
 
     // Performance optimizations and structural self-heals at startup
     console.log("Applying database optimizations and index schema upgrades...");

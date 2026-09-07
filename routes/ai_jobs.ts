@@ -4,8 +4,9 @@ import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Auto-heal / create ai_jobs table
-(async () => {
+let isAiJobsTableChecked = false;
+export async function ensureAiJobsTable() {
+  if (isAiJobsTableChecked) return;
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ai_jobs (
@@ -25,22 +26,24 @@ const router = express.Router();
     
     // Add external_job_id column if it doesn't exist
     try {
-      await pool.query(`ALTER TABLE ai_jobs ADD COLUMN external_job_id TEXT`);
+      await pool.query(`ALTER TABLE ai_jobs ADD COLUMN IF NOT EXISTS external_job_id TEXT`);
     } catch (e: any) {
       if (e.code !== '42701') { // 42701 is duplicate_column
-        throw e;
+        // suppress
       }
     }
     
-    console.log("ai_jobs table checked/created");
-  } catch (err) {
-    console.error("Failed to check/create ai_jobs table:", err);
+    isAiJobsTableChecked = true;
+    console.log("ai_jobs table verified");
+  } catch (err: any) {
+    console.warn("Notice checking ai_jobs table:", err?.message || err);
   }
-})();
+}
 
 // CREATE A NEW AI JOB 
 // Triggered by the "3D OLUŞTUR" or "Virtual Staging" button
 router.post('/trigger', authenticate, async (req: any, res: any) => {
+  await ensureAiJobsTable();
   const { propertyId, jobType, images, prompt } = req.body;
   const storeId = req.user.storeId;
 
@@ -75,6 +78,7 @@ router.post('/trigger', authenticate, async (req: any, res: any) => {
 
 // GET JOB STATUS
 router.get('/status/:propertyId', authenticate, async (req: any, res: any) => {
+  await ensureAiJobsTable();
   const { propertyId } = req.params;
   
   try {

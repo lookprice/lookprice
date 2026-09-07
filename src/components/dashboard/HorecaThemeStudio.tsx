@@ -20,7 +20,12 @@ import {
   Share2,
   Sliders,
   Layers,
-  ChefHat
+  ChefHat,
+  Upload,
+  Image,
+  Building2,
+  CheckCircle2,
+  Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -388,6 +393,317 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-slate-700"
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* STORE LOGO & FAVICON (KURUMSAL KİMLİK) */}
+          <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 space-y-6">
+            <div className="flex items-center space-x-3 border-b border-slate-100 pb-4">
+              <div className="p-2.5 bg-amber-50 rounded-xl text-amber-600 border border-amber-100">
+                <Image className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 uppercase tracking-wider">
+                  {txt("Mağaza Logosu & Kurumsal Görsel Kimlik", "Store Logo & Corporate Brand Identity", "Λογότυπο & Εταιρική Ταυτότητα")}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {txt("Web sitenizde, adisyonlarda, faturalarda ve QR menünüzde görünecek resmi logonuz.", "Your official logo shown on your website, receipts, invoices, and QR menu.", "Το επίσημο λογότυπό σας στον ιστότοπο και το μενού.")}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* LOGO UPLOADER */}
+              <div className="space-y-3 p-5 bg-slate-50 rounded-2xl border border-slate-200">
+                <label className="text-xs font-black text-slate-800 uppercase tracking-wider block">
+                  {txt("Mağaza Logosu", "Store Logo", "Λογότυπο Καταστήματος")}
+                </label>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-300 bg-white flex items-center justify-center p-2 overflow-hidden shrink-0 shadow-sm">
+                    {branding?.logo_url ? (
+                      <img src={branding.logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
+                    ) : (
+                      <span className="text-[10px] font-black text-slate-400 text-center">Logo Yok</span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 flex-1">
+                    <input
+                      type="file"
+                      id="horeca_store_logo_upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 8 * 1024 * 1024) {
+                          alert("Logo boyutu 8MB'dan küçük olmalıdır");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          if (typeof reader.result === "string") {
+                            onBrandingChange("logo_url", reader.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = "";
+                      }}
+                    />
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById("horeca_store_logo_upload")?.click()}
+                        className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>{txt("Logo Yükle / Çek", "Upload Logo", "Ανέβασμα Λογότυπου")}</span>
+                      </button>
+
+                      {branding?.logo_url && (
+                        <button
+                          type="button"
+                          onClick={() => onBrandingChange("logo_url", "")}
+                          className="px-3 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                        >
+                          Kaldır
+                        </button>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="veya Logo URL adresi girin (https://...)"
+                      value={branding?.logo_url || ""}
+                      onChange={(e) => onBrandingChange("logo_url", e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* FAVICON UPLOADER */}
+              <div className="space-y-3 p-5 bg-slate-50 rounded-2xl border border-slate-200">
+                <label className="text-xs font-black text-slate-800 uppercase tracking-wider block">
+                  {txt("Tarayıcı İkonu (Favicon)", "Browser Icon (Favicon)", "Εικονίδιο Favicon")}
+                </label>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl border-2 border-dashed border-slate-300 bg-white flex items-center justify-center p-2 overflow-hidden shrink-0 shadow-sm">
+                    {branding?.favicon_url ? (
+                      <img src={branding.favicon_url} alt="Favicon" className="w-8 h-8 object-contain" />
+                    ) : (
+                      <span className="text-[9px] font-bold text-slate-400">Favicon</span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 flex-1">
+                    <input
+                      type="file"
+                      id="horeca_store_favicon_upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          if (typeof reader.result === "string") {
+                            onBrandingChange("favicon_url", reader.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = "";
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById("horeca_store_favicon_upload")?.click()}
+                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Favicon Yükle</span>
+                    </button>
+
+                    <input
+                      type="text"
+                      placeholder="Favicon URL adresi..."
+                      value={branding?.favicon_url || ""}
+                      onChange={(e) => onBrandingChange("favicon_url", e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* HOTEL WEB SITE & CONCEPT CUSTOMIZATION */}
+          <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100/50 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 uppercase tracking-wider">
+                    {txt("Otel Web Sitesi & Konsept Özelleştirme", "Hotel Website & Concept Setup", "Ρυθμίσεις Ξενοδοχείου")}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {txt("Giriş/çıkış saatleri, tesis olanakları ve iptal iade politikası tanımları.", "Check-in/out times, property amenities, and cancellation policy.", "Ώρες check-in/out και παροχές ξενοδοχείου.")}
+                  </p>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-200 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={branding?.hotel_module_enabled !== false}
+                  onChange={(e) => onBrandingChange("hotel_module_enabled", e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                />
+                <span className="text-xs font-black text-indigo-950">Otel Konsept Modülü Aktif</span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Check-In / Check-Out Times */}
+              <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-200">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  <span>Resepsiyon Giriş / Çıkış Saatleri</span>
+                </h4>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Giriş Saati (Check-In)</label>
+                    <input
+                      type="text"
+                      placeholder="14:00"
+                      value={branding?.check_in_time || "14:00"}
+                      onChange={(e) => onBrandingChange("check_in_time", e.target.value)}
+                      className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Çıkış Saati (Check-Out)</label>
+                    <input
+                      type="text"
+                      placeholder="12:00"
+                      value={branding?.check_out_time || "12:00"}
+                      onChange={(e) => onBrandingChange("check_out_time", e.target.value)}
+                      className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cancellation Policy */}
+              <div className="space-y-2 p-5 bg-slate-50 rounded-2xl border border-slate-200">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber-500" />
+                  <span>İptal & İade Şartları Politikası</span>
+                </h4>
+
+                <textarea
+                  rows={3}
+                  placeholder="Giriş tarihine 48 saat kalaya kadar yapılan iptallerde %100 kesintisiz iade yapılmaktadır..."
+                  value={branding?.cancellation_policy || ""}
+                  onChange={(e) => onBrandingChange("cancellation_policy", e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 resize-none"
+                />
+              </div>
+
+              {/* Google Maps Location & Embed Settings */}
+              <div className="md:col-span-2 space-y-3 p-5 bg-slate-50 rounded-2xl border border-slate-200">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-indigo-500" />
+                  <span>Google Maps Konum Haritası & Navigasyon Linki</span>
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Google Maps Harita Linki / Pin URL</label>
+                    <input
+                      type="text"
+                      placeholder="https://maps.app.goo.gl/..."
+                      value={branding?.google_maps_url || ""}
+                      onChange={(e) => onBrandingChange("google_maps_url", e.target.value)}
+                      className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">Web sitesindeki 'Haritada Göster' butonunun açacağı direkt Google Harita pini.</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Google Maps iFrame Embed Kodu veya Embed URL</label>
+                    <input
+                      type="text"
+                      placeholder='https://www.google.com/maps/embed?pb=... veya <iframe src="..."></iframe>'
+                      value={branding?.google_maps_embed || ""}
+                      onChange={(e) => onBrandingChange("google_maps_embed", e.target.value)}
+                      className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">Web sitenizin alt kısmında canlı interaktif harita penceresi oluşturur.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* HOTEL AMENITIES TAGS CHECKLIST */}
+            <div className="space-y-3 p-5 bg-slate-50 rounded-2xl border border-slate-200">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center justify-between">
+                <span>Tesis Genel Olanakları & Hizmetleri (Web Sitesinde Rozet Olarak Gösterilir)</span>
+                <span className="text-[10px] text-amber-600 font-bold">Seçili olanakları tıklayarak değiştirebilirsiniz</span>
+              </h4>
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                {[
+                  "Açık Havuz",
+                  "Kapalı Isıtmalı Havuz",
+                  "SPA & Wellness",
+                  "Özel Plaj",
+                  "Ücretsiz Wi-Fi",
+                  "Vale & Otopark",
+                  "Restoran & Bar",
+                  "A La Carte Restoran",
+                  "24/7 Resepsiyon",
+                  "Çocuk Kulübü",
+                  "Havaalanı Transferi",
+                  "Fitness & Gym",
+                  "Oda Servisi",
+                  "Canlı Müzik & Animasyon"
+                ].map((amenityOption) => {
+                  const currentList: string[] = branding?.hotel_amenities || [
+                    "Açık Havuz", "SPA & Wellness", "Özel Plaj", "Ücretsiz Wi-Fi", "Vale & Otopark", "Restoran & Bar", "24/7 Resepsiyon"
+                  ];
+                  const isChecked = currentList.includes(amenityOption);
+
+                  return (
+                    <button
+                      type="button"
+                      key={amenityOption}
+                      onClick={() => {
+                        const updated = isChecked
+                          ? currentList.filter(a => a !== amenityOption)
+                          : [...currentList, amenityOption];
+                        onBrandingChange("hotel_amenities", updated);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isChecked
+                          ? "bg-amber-500 text-slate-950 shadow-sm"
+                          : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      {isChecked && <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />}
+                      <span>{amenityOption}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -679,7 +679,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3.5">
               <div className="md:col-span-5">
                 <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1">
-                  Fiyat <span className="text-emerald-600 font-bold ml-1">(Binlik Ayraçlı)</span>
+                  Fiyat
                 </label>
                 <div className="flex gap-1.5 items-center">
                   <input

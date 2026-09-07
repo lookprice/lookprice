@@ -8,6 +8,18 @@ export const maskOldPiiData = async () => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Check if source column exists in sales table before executing query
+    const colCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales' AND column_name = 'source'
+    `);
+
+    if (colCheck.rows.length === 0) {
+      console.log("[PII-MASKING-CRON] 'source' column not found in 'sales' table yet, skipping PII mask cycle.");
+      return;
+    }
+
     // Update sales table (Masking PII)
     const salesRes = await pool.query(`
       UPDATE sales 

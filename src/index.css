@@ -31,8 +31,33 @@
     --brand-slate: #64748B;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply font-sans text-slate-900 antialiased bg-[#F8F9FA];
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Safari Input Zoom Fix & Form Controls Normalization */
+  input:not([type="checkbox"]):not([type="radio"]), textarea {
+    -webkit-appearance: none;
+    font-size: 16px; /* Prevents iOS Safari from zooming on input focus without breaking inline select font sizes */
+  }
+
+  select {
+    -webkit-appearance: none;
+  }
+
+  input[type="checkbox"], input[type="radio"] {
+    -webkit-appearance: checkbox;
+  }
+
+  /* Safari Touch Scroll Smoothness */
+  .overflow-y-auto, .overflow-x-auto, .overflow-auto {
+    -webkit-overflow-scrolling: touch;
   }
   
   h1, h2, h3, h4, h5, h6 {

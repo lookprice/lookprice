@@ -25,10 +25,83 @@ import {
   X,
   CreditCard,
   Percent,
-  Receipt
+  Receipt,
+  Baby,
+  Plus,
+  Trash2,
+  Printer,
+  Check,
+  AlertCircle,
+  Info,
+  CalendarDays,
+  Banknote,
+  Calculator,
+  Shield,
+  Camera,
+  ChevronLeft
 } from "lucide-react";
 import { Store, Product } from "../types";
 import { HotelRoom } from "./horeca/HotelRoomManagement";
+
+export interface BookingChildGuest {
+  id: string;
+  birth_date: string;
+}
+
+export const calculateGuestAgeInfo = (birthDateStr: string) => {
+  if (!birthDateStr) {
+    return {
+      age: 4,
+      category: 'toddler' as const,
+      discountRate: 50,
+      labelTr: 'Küçük Çocuk (3-6 Yaş)',
+      discountText: '%50 İndirimli'
+    };
+  }
+
+  const birth = new Date(birthDateStr);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  if (isNaN(age) || age < 0) age = 0;
+
+  if (age <= 2) {
+    return {
+      age,
+      category: 'infant' as const,
+      discountRate: 100, // 0-2 Yaş Bebek %100 Ücretsiz
+      labelTr: `Bebek (${age} Yaş)`,
+      discountText: '%100 Ücretsiz'
+    };
+  } else if (age <= 6) {
+    return {
+      age,
+      category: 'toddler' as const,
+      discountRate: 50, // 3-6 Yaş %50 İndirim
+      labelTr: `Küçük Çocuk (${age} Yaş)`,
+      discountText: '%50 İndirimli'
+    };
+  } else if (age <= 12) {
+    return {
+      age,
+      category: 'child' as const,
+      discountRate: 30, // 7-12 Yaş %30 İndirim
+      labelTr: `Çocuk (${age} Yaş)`,
+      discountText: '%30 İndirimli'
+    };
+  } else {
+    return {
+      age,
+      category: 'adult' as const,
+      discountRate: 0,
+      labelTr: `Yetişkin (${age} Yaş)`,
+      discountText: 'Tam Ücret'
+    };
+  }
+};
 
 interface ModernCafeRestaurantLayoutProps {
   store: Store;
@@ -179,35 +252,71 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       setSearchCheckOut(minCheckOut);
     }
   };
+
+  // Dynamic Adults & Children List with Birth Dates
   const [searchAdults, setSearchAdults] = useState(2);
-  const [searchChildren, setSearchChildren] = useState(0);
+  const [searchChildrenList, setSearchChildrenList] = useState<BookingChildGuest[]>([]);
   const [searchBoardType, setSearchBoardType] = useState<string>("all");
+
+  const handleAddChild = () => {
+    const newChild: BookingChildGuest = {
+      id: `child-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      birth_date: "2021-06-15" // Default toddler birth date
+    };
+    setSearchChildrenList(prev => [...prev, newChild]);
+  };
+
+  const handleUpdateChildBirthDate = (id: string, newBirthDate: string) => {
+    setSearchChildrenList(prev => prev.map(c => c.id === id ? { ...c, birth_date: newBirthDate } : c));
+  };
+
+  const handleRemoveChild = (id: string) => {
+    setSearchChildrenList(prev => prev.filter(c => c.id !== id));
+  };
+
+  // Room date availability check against occupied/maintenance dates
+  const isRoomAvailableForDates = (room: HotelRoom, checkIn: string, checkOut: string) => {
+    if (room.status === 'maintenance') return false;
+    if (room.status === 'occupied' && room.current_guest) {
+      const existingIn = room.current_guest.check_in_date;
+      const existingOut = room.current_guest.check_out_date;
+      if (existingIn && existingOut) {
+        if (checkIn < existingOut && checkOut > existingIn) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  // Room Gallery Detail Modal State
+  const [viewDetailRoom, setViewDetailRoom] = useState<HotelRoom | null>(null);
+  const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
 
   // Booking Modal State
   const [selectedBookingRoom, setSelectedBookingRoom] = useState<HotelRoom | null>(null);
   const [selectedBoardOption, setSelectedBoardOption] = useState<'RO' | 'BB' | 'HB' | 'FB' | 'AI'>('BB');
   const [isNonRefundableRate, setIsNonRefundableRate] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'bank_transfer' | 'credit_card' | 'pay_at_hotel'>('pay_at_hotel');
+  
+  const [creditCardForm, setCreditCardForm] = useState({
+    cardHolder: "",
+    cardNumber: "",
+    expiry: "",
+    cvc: ""
+  });
 
   const [bookingGuestForm, setBookingGuestForm] = useState({
     identity_no: "",
     first_name: "",
     last_name: "",
     phone: "",
+    email: "",
     birth_date: "1992-06-15",
     special_requests: ""
   });
 
-  // Calculate age & child discount
-  const calculateAge = (birthDateStr: string) => {
-    if (!birthDateStr) return 30;
-    const birth = new Date(birthDateStr);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age < 0 ? 0 : age;
-  };
+  const [completedReservationVoucher, setCompletedReservationVoucher] = useState<any | null>(null);
 
   // Group food products by category
   const categories = React.useMemo(() => {
@@ -247,7 +356,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
   const currentNights = calculateNights(searchCheckIn, searchCheckOut);
 
-  // Calculate total price for modal
+  // Get base board rate per night
   const getSelectedBoardPrice = (room: HotelRoom, board: 'RO' | 'BB' | 'HB' | 'FB' | 'AI') => {
     const bp = room.board_prices;
     if (!bp) return room.price_per_night || 2500;
@@ -261,44 +370,118 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
     }
   };
 
-  const computeTotalBookingPrice = (room: HotelRoom) => {
-    const basePerNight = getSelectedBoardPrice(room, selectedBoardOption);
-    let total = basePerNight * currentNights;
+  // Detailed transparent price calculation table breakdown
+  const computeDetailedBreakdown = (room: HotelRoom) => {
+    const nights = calculateNights(searchCheckIn, searchCheckOut);
+    const baseNightlyPrice = getSelectedBoardPrice(room, selectedBoardOption);
+    const adultsGrossAmount = searchAdults * baseNightlyPrice * nights;
+
+    // Calculate each child's gross, discount, and net
+    const childrenDetails = searchChildrenList.map((ch, idx) => {
+      const ageInfo = calculateGuestAgeInfo(ch.birth_date);
+      const gross = baseNightlyPrice * nights;
+      const discountAmount = Math.round(gross * (ageInfo.discountRate / 100));
+      const net = gross - discountAmount;
+      return {
+        id: ch.id,
+        index: idx + 1,
+        birthDate: ch.birth_date,
+        age: ageInfo.age,
+        label: ageInfo.labelTr,
+        discountRate: ageInfo.discountRate,
+        discountText: ageInfo.discountText,
+        grossAmount: gross,
+        discountAmount,
+        netAmount: net
+      };
+    });
+
+    const totalChildrenGross = childrenDetails.reduce((acc, c) => acc + c.grossAmount, 0);
+    const totalChildrenDiscount = childrenDetails.reduce((acc, c) => acc + c.discountAmount, 0);
+    const totalChildrenNet = childrenDetails.reduce((acc, c) => acc + c.netAmount, 0);
+
+    const subtotalAfterChildDiscounts = adultsGrossAmount + totalChildrenNet;
+
+    let flexDiscountAmount = 0;
     if (isNonRefundableRate && room.non_refundable_discount) {
-      total = total * (1 - room.non_refundable_discount / 100);
+      flexDiscountAmount = Math.round(subtotalAfterChildDiscounts * (room.non_refundable_discount / 100));
     }
-    return Math.round(total);
+
+    const finalPayableTotal = Math.max(0, subtotalAfterChildDiscounts - flexDiscountAmount);
+
+    return {
+      nights,
+      baseNightlyPrice,
+      adultsCount: searchAdults,
+      adultsGrossAmount,
+      childrenDetails,
+      totalChildrenGross,
+      totalChildrenDiscount,
+      totalChildrenNet,
+      subtotalAfterChildDiscounts,
+      flexDiscountAmount,
+      finalPayableTotal
+    };
   };
 
-  // Execute Reservation Submit
+  const computeTotalBookingPrice = (room: HotelRoom) => {
+    return computeDetailedBreakdown(room).finalPayableTotal;
+  };
+
+  // Execute Reservation Submit & Trigger Payment Workflow
   const handleExecuteReservation = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBookingRoom || !bookingGuestForm.first_name || !bookingGuestForm.last_name) return;
 
-    const nights = calculateNights(searchCheckIn, searchCheckOut);
-    const totalPrice = computeTotalBookingPrice(selectedBookingRoom);
+    const breakdown = computeDetailedBreakdown(selectedBookingRoom);
+    const reservationCode = `REZ-${Date.now().toString().slice(-6)}`;
+
     const boardName = selectedBoardOption === 'RO' ? 'Sadece Oda (RO)' :
                       selectedBoardOption === 'BB' ? 'Oda + Kahvaltı (BB)' :
                       selectedBoardOption === 'HB' ? 'Yarım Pansiyon (HB)' :
                       selectedBoardOption === 'FB' ? 'Tam Pansiyon (FB)' : 'Her Şey Dahil (AI)';
 
+    const paymentLabel = selectedPaymentMethod === 'bank_transfer' ? 'Banka Havalesi / EFT' :
+                         selectedPaymentMethod === 'credit_card' ? 'Kredi Kartı (Sanal POS)' : 'Otelde Öde (Resepsiyonda Ödeme)';
+
+    // Formatted WhatsApp text fallback
     const rawWa = store.whatsapp_number || store.phone || "905488902309";
     const cleanWa = rawWa.replace(/[^0-9+]/g, "");
 
+    const childWaSummary = breakdown.childrenDetails.map(c => 
+      `• ${c.index}. Çocuk: T.Tarihi ${c.birthDate} (${c.label}) -> ${c.discountText}`
+    ).join('\n');
+
     const waText = encodeURIComponent(
-      `Merhaba ${store.name},\n\nWeb siteniz üzerinden otel oda rezervasyonu talebi iletmek istiyorum:\n` +
+      `Merhaba ${store.name},\n\n` +
+      `📌 ONLINE REZERVASYON TALEBİ (#${reservationCode})\n` +
       `🏨 Oda: #${selectedBookingRoom.room_number} (${selectedBookingRoom.room_type})\n` +
-      `📅 Giriş - Çıkış: ${searchCheckIn} ➔ ${searchCheckOut} (${nights} Gece)\n` +
+      `📅 Tarih: ${searchCheckIn} ➔ ${searchCheckOut} (${breakdown.nights} Gece)\n` +
       `🍽️ Pansiyon Tipi: ${boardName}\n` +
-      `👥 Kişi Sayısı: ${searchAdults} Yetişkin${searchChildren > 0 ? `, ${searchChildren} Çocuk` : ''}\n` +
-      `💰 Toplam Tutar: ₺${totalPrice.toLocaleString('tr-TR')}${isNonRefundableRate ? ' (%15 Esnek İndirimli)' : ''}\n` +
-      `👤 Misafir: ${bookingGuestForm.first_name} ${bookingGuestForm.last_name} (TC/Pasaport: ${bookingGuestForm.identity_no || '-'})\n` +
+      `👥 Misafir: ${searchAdults} Yetişkin${breakdown.childrenDetails.length > 0 ? `, ${breakdown.childrenDetails.length} Çocuk` : ''}\n` +
+      (childWaSummary ? `${childWaSummary}\n` : '') +
+      `💰 TOPLAM TUTAR: ₺${breakdown.finalPayableTotal.toLocaleString('tr-TR')}\n` +
+      `💳 Ödeme Yöntemi: ${paymentLabel}\n` +
+      `👤 İletişim: ${bookingGuestForm.first_name} ${bookingGuestForm.last_name} (TC/Pasaport: ${bookingGuestForm.identity_no || '-'})\n` +
       `📞 Tel: ${bookingGuestForm.phone || '-'}\n` +
       (bookingGuestForm.special_requests ? `📝 Özel İstek: ${bookingGuestForm.special_requests}\n` : '') +
-      `\nRezervasyonumu teyit edip müsaitliği onaylar mısınız?`
+      `\nLütfen rezervasyonumu onaylayıp teyit iletiniz.`
     );
 
-    // Save Guest Folio Reservation to local storage for operator dashboard sync
+    // Prepare full guest list for Folio
+    const extraGuests = breakdown.childrenDetails.map(c => ({
+      id: c.id,
+      identity_no: "-",
+      first_name: `${c.index}. Çocuk`,
+      last_name: bookingGuestForm.last_name,
+      birth_date: c.birthDate,
+      age: c.age,
+      age_category: c.age <= 2 ? 'infant' : 'child',
+      discount_rate: c.discountRate,
+      gender: 'Çocuk/Bebek'
+    }));
+
+    // Update local state and operator panel room folio
     try {
       const updatedRooms = rooms.map(r => {
         if (r.id === selectedBookingRoom.id) {
@@ -311,21 +494,22 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
               first_name: bookingGuestForm.first_name,
               last_name: bookingGuestForm.last_name,
               birth_date: bookingGuestForm.birth_date,
-              age: calculateAge(bookingGuestForm.birth_date),
+              age: 30,
               age_category: 'adult' as const,
               discount_rate: 0,
               phone: bookingGuestForm.phone,
               check_in_date: searchCheckIn,
-              check_out_date: searchCheckOut
+              check_out_date: searchCheckOut,
+              additional_guests: extraGuests
             },
             folio: {
               id: `folio-${Date.now()}`,
-              total_amount: totalPrice,
+              total_amount: breakdown.finalPayableTotal,
               items: [
                 {
                   id: `item-${Date.now()}`,
-                  title: `Konaklama (${nights} Gece - ${boardName})`,
-                  amount: totalPrice,
+                  title: `Konaklama (${breakdown.nights} Gece - ${boardName})`,
+                  amount: breakdown.finalPayableTotal,
                   date: searchCheckIn,
                   category: "Room Charge"
                 }
@@ -340,8 +524,22 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       window.dispatchEvent(new CustomEvent('hotel_rooms_updated', { detail: { storeId: store.id, rooms: updatedRooms } }));
     } catch (err) {}
 
-    // Open WhatsApp direct booking request
-    window.open(`https://wa.me/${cleanWa}?text=${waText}`, '_blank');
+    // Show Confirmation Voucher Modal
+    setCompletedReservationVoucher({
+      code: reservationCode,
+      room: selectedBookingRoom,
+      guest: bookingGuestForm,
+      checkIn: searchCheckIn,
+      checkOut: searchCheckOut,
+      nights: breakdown.nights,
+      boardName,
+      adultsCount: searchAdults,
+      breakdown,
+      paymentMethod: selectedPaymentMethod,
+      paymentLabel,
+      waUrl: `https://wa.me/${cleanWa}?text=${waText}`
+    });
+
     setSelectedBookingRoom(null);
   };
 
@@ -354,9 +552,9 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           
           {/* Logo & Store Branding */}
           <div className="flex items-center gap-2.5 min-w-0">
-            {store.logo_url ? (
+            {(store.logo_url || store.branding?.logo_url) ? (
               <img
-                src={store.logo_url}
+                src={store.logo_url || store.branding?.logo_url}
                 alt={store.name}
                 className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl object-cover border border-stone-200/80 shadow-xs shrink-0"
               />
@@ -489,7 +687,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             }
           </motion.p>
 
-          {/* LIVE HOTEL ROOM SEARCH BAR WIDGET */}
+          {/* LIVE HOTEL ROOM SEARCH BAR WIDGET WITH DYNAMIC CHILDREN & AGE DISCOUNTS */}
           {activeMode === 'hotel' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -499,47 +697,62 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             >
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500">Giriş Tarihi</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-amber-600" /> Giriş Tarihi
+                  </label>
                   <input
                     type="date"
                     min={todayStr}
                     value={searchCheckIn}
                     onChange={(e) => handleCheckInChange(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900"
+                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900 shadow-xs focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500">Çıkış Tarihi</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-amber-600" /> Çıkış Tarihi
+                  </label>
                   <input
                     type="date"
                     min={getNextDayString(searchCheckIn)}
                     value={searchCheckOut}
                     onChange={(e) => setSearchCheckOut(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900"
+                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900 shadow-xs focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500">Misafir Sayısı</label>
-                  <select
-                    value={searchAdults}
-                    onChange={(e) => setSearchAdults(Number(e.target.value))}
-                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900"
-                  >
-                    <option value={1}>1 Yetişkin</option>
-                    <option value={2}>2 Yetişkin</option>
-                    <option value={3}>3 Yetişkin</option>
-                    <option value={4}>4+ Aile / Grup</option>
-                  </select>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500 flex items-center gap-1">
+                    <Users className="w-3 h-3 text-amber-600" /> Yetişkin Sayısı
+                  </label>
+                  <div className="flex items-center gap-1.5 mt-1 bg-stone-100 border border-stone-200 rounded-xl p-1">
+                    <button
+                      type="button"
+                      onClick={() => setSearchAdults(prev => Math.max(1, prev - 1))}
+                      className="w-7 h-7 rounded-lg bg-white shadow-xs font-black text-xs text-stone-700 flex items-center justify-center hover:bg-stone-200 cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <span className="flex-1 text-center font-black text-xs text-stone-900">{searchAdults} Yetişkin</span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchAdults(prev => Math.min(8, prev + 1))}
+                      className="w-7 h-7 rounded-lg bg-white shadow-xs font-black text-xs text-stone-700 flex items-center justify-center hover:bg-stone-200 cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500">Pansiyon Tipi</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500 flex items-center gap-1">
+                    <Building2 className="w-3 h-3 text-amber-600" /> Pansiyon Tipi
+                  </label>
                   <select
                     value={searchBoardType}
                     onChange={(e) => setSearchBoardType(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900"
+                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900 shadow-xs focus:ring-2 focus:ring-amber-500"
                   >
                     <option value="all">Tüm Pansiyonlar</option>
                     <option value="BB">Oda + Kahvaltı (BB)</option>
@@ -550,10 +763,86 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 </div>
               </div>
 
+              {/* CHILD GUEST SELECTION WITH BIRTH DATES AND AGE GROUP DISCOUNT BADGES */}
+              <div className="bg-amber-50/70 dark:bg-stone-800/80 p-3.5 rounded-2xl border border-amber-200/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Baby className="w-4 h-4 text-amber-700" />
+                    <span className="text-xs font-black text-stone-900 dark:text-stone-100">
+                      Çocuk Misafir Ekle ({searchChildrenList.length} Çocuk)
+                    </span>
+                    <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md">
+                      Yaş Grubu İndirimli
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddChild}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Çocuk Ekle</span>
+                  </button>
+                </div>
+
+                {/* LIST OF ADDED CHILDREN WITH BIRTH DATES */}
+                {searchChildrenList.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    {searchChildrenList.map((child, idx) => {
+                      const ageInfo = calculateGuestAgeInfo(child.birth_date);
+                      return (
+                        <div key={child.id} className="bg-white dark:bg-stone-900 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between gap-2 shadow-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 font-black text-[10px] flex items-center justify-center shrink-0">
+                              {idx + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <span className="block text-[10px] font-black text-stone-500 uppercase">Doğum Tarihi Gir</span>
+                              <input
+                                type="date"
+                                value={child.birth_date}
+                                onChange={(e) => handleUpdateChildBirthDate(child.id, e.target.value)}
+                                className="px-2 py-1 bg-stone-50 border border-stone-200 rounded-lg text-xs font-bold text-stone-900"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="text-right">
+                              <span className={`block text-[10px] font-black px-1.5 py-0.5 rounded ${
+                                ageInfo.discountRate === 100 ? 'bg-emerald-100 text-emerald-800' :
+                                ageInfo.discountRate === 50 ? 'bg-amber-100 text-amber-800' :
+                                ageInfo.discountRate === 30 ? 'bg-blue-100 text-blue-800' : 'bg-stone-100 text-stone-700'
+                              }`}>
+                                {ageInfo.discountText}
+                              </span>
+                              <span className="text-[10px] text-stone-500 font-semibold">{ageInfo.labelTr}</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveChild(child.id)}
+                              className="text-stone-400 hover:text-red-600 p-1 rounded-lg hover:bg-stone-100 cursor-pointer"
+                              title="Çocuğu Çıkar"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[11px] font-semibold text-stone-600 italic">
+                    💡 0-2 Yaş Bebekler %100 Ücretsiz, 3-6 Yaş %50 İndirimli, 7-12 Yaş %30 İndirimlidir. Çocuk ekleyerek doğum tarihlerini girebilirsiniz.
+                  </p>
+                )}
+              </div>
+
               <div className="flex items-center justify-between border-t border-stone-200/60 pt-3 text-xs font-bold text-stone-600">
-                <span className="flex items-center gap-1.5 text-amber-700">
+                <span className="flex items-center gap-1.5 text-amber-800">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  {currentNights} Gece Konaklama Hesaplanıyor
+                  {currentNights} Gece Konaklama ({searchAdults} Yetişkin{searchChildrenList.length > 0 ? `, ${searchChildrenList.length} Çocuk` : ''})
                 </span>
                 <a
                   href="#rooms"
@@ -601,7 +890,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       {/* LOOKPRICE HOTEL ROOM SHOWCASE SECTION (When activeMode === 'hotel' or scrolled) */}
       {isHotelModuleActive && (
         <section id="rooms" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3 mb-10">
             <div className="text-xs text-amber-700 font-black uppercase tracking-widest flex items-center justify-center gap-2">
               <Building2 className="w-4 h-4 text-amber-600" />
               <span>OTEL KONAKLAMA & SÜİTLER</span>
@@ -615,11 +904,54 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             <div className="w-12 h-1 bg-amber-600 mx-auto rounded-full mt-2" />
           </div>
 
+          {/* HOTEL CONCEPT & AMENITIES BAR */}
+          <div className="mb-10 p-6 bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 rounded-3xl text-white shadow-xl space-y-4 border border-stone-800">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/30">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                    {store.name} Tesis Olanakları & Konsept Hizmetler
+                  </h3>
+                  <p className="text-[11px] text-stone-400">
+                    Giriş: <strong className="text-amber-400">{store.branding?.check_in_time || "14:00"}</strong> • Çıkış: <strong className="text-amber-400">{store.branding?.check_out_time || "12:00"}</strong>
+                  </p>
+                </div>
+              </div>
+
+              {store.branding?.cancellation_policy && (
+                <div className="px-3.5 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs font-bold flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="truncate max-w-xs">{store.branding.cancellation_policy}</span>
+                </div>
+              )}
+            </div>
+
+            {/* AMENITIES PILLS */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              {(store.branding?.hotel_amenities && store.branding.hotel_amenities.length > 0
+                ? store.branding.hotel_amenities
+                : ["Açık Havuz", "SPA & Wellness", "Özel Plaj", "Ücretsiz Wi-Fi", "Vale & Otopark", "Restoran & Bar", "24/7 Resepsiyon"]
+              ).map((amenityItem: string, idx: number) => (
+                <span
+                  key={idx}
+                  className="px-3 py-1 bg-stone-800/80 border border-stone-700 text-stone-200 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />
+                  <span>{amenityItem}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {rooms.filter(r => r.status === 'vacant' || r.status === 'occupied').map((room) => {
               const baseBBPrice = room.price_per_night || 2500;
               const flexDiscountRate = room.non_refundable_discount || 15;
               const nonRefundablePrice = Math.round(baseBBPrice * (1 - flexDiscountRate / 100));
+              const roomPhotoList = room.images && room.images.length > 0 ? room.images : [room.cover_image || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80"];
 
               return (
                 <div
@@ -627,10 +959,10 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   className="bg-white rounded-3xl border border-stone-200/80 hover:border-amber-600/40 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between group"
                 >
                   <div>
-                    {/* PHOTO COVER */}
-                    <div className="relative h-52 w-full bg-stone-100 overflow-hidden">
+                    {/* PHOTO COVER WITH GALLERY BADGE */}
+                    <div className="relative h-56 w-full bg-stone-100 overflow-hidden cursor-pointer" onClick={() => { setViewDetailRoom(room); setActiveDetailImageIndex(0); }}>
                       <img
-                        src={room.cover_image || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80"}
+                        src={roomPhotoList[0]}
                         alt={room.room_type}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
@@ -641,13 +973,19 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                         <CheckCircle2 className="w-3 h-3" />
                         Müsait
                       </div>
+
+                      {/* MULTI PHOTO GALLERY BADGE */}
+                      <div className="absolute bottom-3 left-3 bg-stone-900/80 hover:bg-stone-900 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1.5 rounded-xl border border-white/20 flex items-center gap-1.5 shadow-lg transition-transform group-hover:scale-105">
+                        <Camera className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{roomPhotoList.length} Fotoğraf</span>
+                      </div>
                     </div>
 
                     {/* CONTENT */}
                     <div className="p-5 space-y-3.5">
                       <div>
-                        <h3 className="font-serif font-black text-stone-900 text-lg group-hover:text-amber-700 transition-colors">
-                          {room.room_type}
+                        <h3 className="font-serif font-black text-stone-900 text-lg group-hover:text-amber-700 transition-colors flex items-center justify-between">
+                          <span>{room.room_type}</span>
                         </h3>
                         <div className="flex items-center gap-3 text-xs text-stone-500 font-bold mt-1">
                           <span className="flex items-center gap-1">
@@ -720,23 +1058,37 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   </div>
 
                   {/* ACTION FOOTER */}
-                  <div className="p-5 pt-0 border-t border-stone-100 flex items-center justify-between gap-3 mt-4">
+                  <div className="p-5 pt-0 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
                     <div>
                       <span className="block text-[9px] font-black uppercase text-stone-400">Gecelik Başlangıç</span>
                       <span className="text-lg font-black text-amber-700">₺{baseBBPrice.toLocaleString('tr-TR')}</span>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setSelectedBookingRoom(room);
-                        setSelectedBoardOption('BB');
-                        setIsNonRefundableRate(false);
-                      }}
-                      className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Building2 className="w-4 h-4" />
-                      <span>Hemen Rezerve Et</span>
-                    </button>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setViewDetailRoom(room);
+                          setActiveDetailImageIndex(0);
+                        }}
+                        className="px-3.5 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold text-xs transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-stone-600" />
+                        <span>Detaylar</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setSelectedBookingRoom(room);
+                          setSelectedBoardOption('BB');
+                          setIsNonRefundableRate(false);
+                        }}
+                        className="flex-1 sm:flex-none px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Building2 className="w-4 h-4" />
+                        <span>Rezerve Et</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -1053,19 +1405,64 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
             <div className="space-y-4">
               <h4 className="text-xs font-black text-white uppercase tracking-widest">{isTr ? "KONUMUMUZ" : "LOCATION"}</h4>
-              <div className="h-28 w-full bg-stone-900 rounded-2xl overflow-hidden border border-stone-800">
-                <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
-                  <MapPin className="w-6 h-6 text-amber-500 mb-1.5 animate-bounce" />
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address || store.name)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-amber-500 font-bold hover:underline flex items-center gap-1"
-                  >
-                    {isTr ? "Haritada Göster" : "Show on Google Maps"} <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
+              {(() => {
+                const mapsUrl = store.google_maps_url || store.branding?.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address || store.name)}`;
+                const rawEmbed = store.google_maps_embed || store.branding?.google_maps_embed || "";
+                let embedSrc = "";
+                if (rawEmbed) {
+                  const match = rawEmbed.match(/src=["']([^"']+)["']/);
+                  if (match && match[1]) {
+                    embedSrc = match[1];
+                  } else if (rawEmbed.startsWith("http")) {
+                    embedSrc = rawEmbed;
+                  }
+                }
+
+                if (embedSrc) {
+                  return (
+                    <div className="space-y-2">
+                      <div className="h-36 w-full rounded-2xl overflow-hidden border border-stone-800 bg-stone-900 shadow-inner relative">
+                        <iframe
+                          src={embedSrc}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          allowFullScreen
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                          title="Google Maps Location"
+                          className="w-full h-full"
+                        />
+                      </div>
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-amber-500 font-bold hover:underline flex items-center justify-end gap-1.5 pt-0.5"
+                      >
+                        <span>{isTr ? "Google Haritalar'da Aç / Yol Tarifi Al" : "Open in Google Maps / Directions"}</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="h-28 w-full bg-stone-900 rounded-2xl overflow-hidden border border-stone-800">
+                    <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
+                      <MapPin className="w-6 h-6 text-amber-500 mb-1.5 animate-bounce" />
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-amber-500 font-bold hover:underline flex items-center gap-1"
+                      >
+                        {isTr ? "Haritada Göster & Yol Tarifi" : "Show on Google Maps & Directions"} <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
           </div>
@@ -1080,10 +1477,188 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
         </div>
       </footer>
 
-      {/* MODAL: LOOKPRICE LIVE RESERVATION ENGINE */}
+      {/* MODAL 0: INTERACTIVE ROOM GALLERY & DETAIL MODAL */}
+      {viewDetailRoom && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-3xl w-full border border-stone-200 shadow-2xl space-y-5 max-h-[95vh] overflow-y-auto relative">
+            
+            {/* CLOSE BUTTON */}
+            <button
+              onClick={() => setViewDetailRoom(null)}
+              className="absolute top-4 right-4 z-10 w-9 h-9 bg-stone-900/80 hover:bg-stone-900 text-white rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-105"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* HEADER */}
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3 pr-10">
+              <div>
+                <span className="px-2.5 py-1 bg-amber-100 text-amber-900 text-[10px] font-black uppercase rounded-lg">
+                  Oda #{viewDetailRoom.room_number} • {viewDetailRoom.room_type}
+                </span>
+                <h3 className="text-xl font-serif font-black text-stone-900 mt-1">
+                  Oda Özellikleri & Fotoğraf Galerisi
+                </h3>
+              </div>
+            </div>
+
+            {/* MAIN GALLERY SLIDER */}
+            {(() => {
+              const galleryPhotos = (viewDetailRoom.images && viewDetailRoom.images.length > 0)
+                ? viewDetailRoom.images
+                : [viewDetailRoom.cover_image || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80"];
+              const currentPhotoIndex = activeDetailImageIndex % galleryPhotos.length;
+
+              return (
+                <div className="space-y-3">
+                  <div className="relative h-72 sm:h-96 w-full rounded-2xl overflow-hidden bg-stone-900 shadow-inner group">
+                    <img
+                      src={galleryPhotos[currentPhotoIndex]}
+                      alt={`Room Photo ${currentPhotoIndex + 1}`}
+                      className="w-full h-full object-cover transition-all duration-300"
+                    />
+
+                    {galleryPhotos.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setActiveDetailImageIndex((prev) => (prev - 1 + galleryPhotos.length) % galleryPhotos.length)}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center backdrop-blur-xs cursor-pointer"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setActiveDetailImageIndex((prev) => (prev + 1) % galleryPhotos.length)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center backdrop-blur-xs cursor-pointer"
+                        >
+                          <ChevronRight className="w-6 h-6" />
+                        </button>
+                      </>
+                    )}
+
+                    <div className="absolute bottom-3 right-3 bg-stone-900/80 text-white text-xs font-black px-3 py-1 rounded-xl backdrop-blur-md">
+                      {currentPhotoIndex + 1} / {galleryPhotos.length}
+                    </div>
+                  </div>
+
+                  {/* THUMBNAILS STRIP */}
+                  {galleryPhotos.length > 1 && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                      {galleryPhotos.map((photoUrl, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setActiveDetailImageIndex(idx)}
+                          className={`w-20 h-16 rounded-xl overflow-hidden border-2 cursor-pointer transition-all shrink-0 ${
+                            idx === currentPhotoIndex ? "border-amber-600 ring-2 ring-amber-500/30 scale-105" : "border-stone-200 opacity-60 hover:opacity-100"
+                          }`}
+                        >
+                          <img src={photoUrl} alt={`Thumb ${idx}`} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ROOM SPECIFICATIONS & DESCRIPTION */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="space-y-3 p-4 bg-stone-50 rounded-2xl border border-stone-200">
+                <h4 className="text-xs font-black uppercase tracking-wider text-stone-900 flex items-center gap-1.5">
+                  <BedDouble className="w-4 h-4 text-amber-600" />
+                  <span>Kapasite & Yatak Düzeni</span>
+                </h4>
+                <div className="space-y-1.5 text-xs text-stone-700 font-bold">
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Konaklama Kapasitesi:</span>
+                    <span>Maksimum {viewDetailRoom.capacity} Yetişkin / Çocuk</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Yatak Tipi:</span>
+                    <span>{viewDetailRoom.bed_info || "Çift Kişilik King Yatak"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Durum:</span>
+                    <span className="text-emerald-700 font-black">Hazır & Temiz (Müsait)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4 bg-stone-50 rounded-2xl border border-stone-200">
+                <h4 className="text-xs font-black uppercase tracking-wider text-stone-900 flex items-center gap-1.5">
+                  <Banknote className="w-4 h-4 text-amber-600" />
+                  <span>Başlangıç Fiyat Tarifesi</span>
+                </h4>
+                <div className="space-y-1.5 text-xs text-stone-700 font-bold">
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Oda + Kahvaltı (BB):</span>
+                    <span className="text-amber-700 font-black">₺{(viewDetailRoom.price_per_night || 2500).toLocaleString('tr-TR')} / Gece</span>
+                  </div>
+                  {viewDetailRoom.non_refundable_discount && (
+                    <div className="flex justify-between text-emerald-700 font-black">
+                      <span>Esnek İptalsiz İndirim (%{viewDetailRoom.non_refundable_discount}):</span>
+                      <span>₺{Math.round((viewDetailRoom.price_per_night || 2500) * (1 - viewDetailRoom.non_refundable_discount / 100)).toLocaleString('tr-TR')} / Gece</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* DESCRIPTION */}
+            {viewDetailRoom.description && (
+              <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-200/60 text-xs text-stone-700 leading-relaxed font-medium">
+                <p className="font-bold text-amber-900 mb-1">Oda Tanımı & Detaylar:</p>
+                {viewDetailRoom.description}
+              </div>
+            )}
+
+            {/* AMENITIES TAGS */}
+            {viewDetailRoom.amenities && viewDetailRoom.amenities.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-black uppercase tracking-wider text-stone-500">Oda İçi Sunulan Olanaklar</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {viewDetailRoom.amenities.map((amenity, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-stone-100 border border-stone-200 text-stone-700 rounded-xl text-xs font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
+                      <span>{amenity}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* MODAL FOOTER ACTION */}
+            <div className="pt-3 border-t border-stone-200 flex items-center justify-between gap-3">
+              <div>
+                <span className="block text-[10px] font-black uppercase text-stone-400">Başlangıç Fiyatı</span>
+                <span className="text-xl font-black text-amber-700">₺{(viewDetailRoom.price_per_night || 2500).toLocaleString('tr-TR')}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const roomToBook = viewDetailRoom;
+                  setViewDetailRoom(null);
+                  setSelectedBookingRoom(roomToBook);
+                  setSelectedBoardOption('BB');
+                  setIsNonRefundableRate(false);
+                }}
+                className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Bu Odada Konakla & Rezerve Et</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: LOOKPRICE LIVE RESERVATION ENGINE & TRANSPARENT BREAKDOWN TABLE */}
       {selectedBookingRoom && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 max-w-lg w-full border border-stone-200 dark:border-stone-800 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 rounded-3xl p-5 sm:p-6 max-w-xl w-full border border-stone-200 dark:border-stone-800 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
             
             <div className="flex items-center justify-between border-b border-stone-200 dark:border-stone-800 pb-3">
               <div>
@@ -1091,11 +1666,11 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   <Building2 className="w-5 h-5 text-amber-600" />
                   Oda #{selectedBookingRoom.room_number} Online Rezervasyon
                 </h3>
-                <p className="text-xs text-stone-500">
+                <p className="text-xs text-stone-500 font-bold">
                   {selectedBookingRoom.room_type} • {currentNights} Gece Konaklama
                 </p>
               </div>
-              <button onClick={() => setSelectedBookingRoom(null)} className="text-stone-400 hover:text-stone-600 cursor-pointer">
+              <button onClick={() => setSelectedBookingRoom(null)} className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1109,13 +1684,15 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   <span>{searchCheckIn} ➔ {searchCheckOut}</span>
                 </div>
                 <div className="text-right">
-                  <span className="block text-[10px] text-amber-700 uppercase font-black">Süre</span>
-                  <span className="text-amber-800 dark:text-amber-300 font-extrabold">{currentNights} Gece</span>
+                  <span className="block text-[10px] text-amber-700 uppercase font-black">Süre & Misafir</span>
+                  <span className="text-amber-800 dark:text-amber-300 font-extrabold">
+                    {currentNights} Gece • {searchAdults} Yetişkin{searchChildrenList.length > 0 ? `, ${searchChildrenList.length} Çocuk` : ''}
+                  </span>
                 </div>
               </div>
 
               {/* BOARD OPTION SELECTOR */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-stone-500">1. Pansiyon Tipinizi Seçin</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -1169,15 +1746,65 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 </div>
               )}
 
+              {/* TRANSPARENT CALCULATION BREAKDOWN TABLE (HESAP TABLOSU) */}
+              {(() => {
+                const breakdown = computeDetailedBreakdown(selectedBookingRoom);
+                return (
+                  <div className="p-3.5 bg-stone-50 dark:bg-stone-800/60 rounded-2xl border border-stone-200/80 space-y-2 text-xs">
+                    <div className="flex items-center justify-between border-b border-stone-200 dark:border-stone-700 pb-2">
+                      <span className="font-black text-stone-900 dark:text-stone-100 flex items-center gap-1.5 uppercase text-[10px] tracking-wider">
+                        <Calculator className="w-3.5 h-3.5 text-amber-600" /> Detaylı Hesap Tablosu
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-700">Şeffaf Fiyatlandırma</span>
+                    </div>
+
+                    <div className="space-y-1 text-stone-700 dark:text-stone-300">
+                      {/* Adult line */}
+                      <div className="flex justify-between items-center font-medium">
+                        <span>{breakdown.adultsCount} Yetişkin x ₺{breakdown.baseNightlyPrice.toLocaleString('tr-TR')} x {breakdown.nights} Gece</span>
+                        <span className="font-black">₺{breakdown.adultsGrossAmount.toLocaleString('tr-TR')}</span>
+                      </div>
+
+                      {/* Children lines with explicit age discount rates */}
+                      {breakdown.childrenDetails.map((ch) => (
+                        <div key={ch.id} className="flex justify-between items-center text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 px-2 py-1 rounded-lg">
+                          <span className="flex items-center gap-1">
+                            <Baby className="w-3 h-3 text-emerald-600 shrink-0" />
+                            {ch.index}. Çocuk ({ch.label}): {ch.discountText}
+                          </span>
+                          <span>
+                            <span className="line-through text-stone-400 mr-1.5 text-[10px]">₺{ch.grossAmount.toLocaleString('tr-TR')}</span>
+                            <span className="font-black">₺{ch.netAmount.toLocaleString('tr-TR')}</span>
+                          </span>
+                        </div>
+                      ))}
+
+                      {/* Flex discount line */}
+                      {breakdown.flexDiscountAmount > 0 && (
+                        <div className="flex justify-between items-center font-bold text-emerald-700 dark:text-emerald-400">
+                          <span>Esnek İptalsiz İndirimi (%{selectedBookingRoom.non_refundable_discount})</span>
+                          <span>-₺{breakdown.flexDiscountAmount.toLocaleString('tr-TR')}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-stone-200 dark:border-stone-700 pt-2 flex justify-between items-center font-black text-stone-900 dark:text-white">
+                      <span className="uppercase text-[10px] tracking-wider">Toplam Ödenecek Tutar</span>
+                      <span className="text-base text-amber-600 font-mono">₺{breakdown.finalPayableTotal.toLocaleString('tr-TR')}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* GUEST DETAILS FORM */}
-              <div className="space-y-3 pt-2 border-t border-stone-200 dark:border-stone-800">
-                <label className="text-[10px] font-black uppercase text-stone-500">2. Misafir Kimlik & İletişim Bilgileri</label>
+              <div className="space-y-2.5 pt-2 border-t border-stone-200 dark:border-stone-800">
+                <label className="text-[10px] font-black uppercase text-stone-500">2. İletişim & Konaklayan Bilgileri</label>
                 
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="text"
                     required
-                    placeholder="Adınız"
+                    placeholder="Adınız *"
                     value={bookingGuestForm.first_name}
                     onChange={(e) => setBookingGuestForm({ ...bookingGuestForm, first_name: e.target.value })}
                     className="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold"
@@ -1185,7 +1812,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   <input
                     type="text"
                     required
-                    placeholder="Soyadınız"
+                    placeholder="Soyadınız *"
                     value={bookingGuestForm.last_name}
                     onChange={(e) => setBookingGuestForm({ ...bookingGuestForm, last_name: e.target.value })}
                     className="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold"
@@ -1203,7 +1830,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   <input
                     type="text"
                     required
-                    placeholder="Telefon (+90 5XX)"
+                    placeholder="Telefon (+90 5XX) *"
                     value={bookingGuestForm.phone}
                     onChange={(e) => setBookingGuestForm({ ...bookingGuestForm, phone: e.target.value })}
                     className="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold"
@@ -1212,8 +1839,8 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
                 <div>
                   <textarea
-                    rows={2}
-                    placeholder="Özel İstekler (Genç çift balayı süslemesi, geç check-in vb.)"
+                    rows={1}
+                    placeholder="Özel İstekler (Balayı süslemesi, deniz manzarası vb.)"
                     value={bookingGuestForm.special_requests}
                     onChange={(e) => setBookingGuestForm({ ...bookingGuestForm, special_requests: e.target.value })}
                     className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold"
@@ -1221,25 +1848,196 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 </div>
               </div>
 
-              {/* TOTAL AMOUNT & CONFIRMATION */}
-              <div className="p-4 bg-stone-900 text-white rounded-2xl flex items-center justify-between shadow-lg">
+              {/* PAYMENT METHOD SELECTION */}
+              <div className="space-y-2 pt-2 border-t border-stone-200 dark:border-stone-800">
+                <label className="text-[10px] font-black uppercase text-stone-500">3. Ödeme Yöntemi Seçimi</label>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'pay_at_hotel', label: 'Otelde Öde', icon: <Banknote className="w-3.5 h-3.5" /> },
+                    { id: 'bank_transfer', label: 'Banka / Havale', icon: <Receipt className="w-3.5 h-3.5" /> },
+                    { id: 'credit_card', label: 'Kredi Kartı', icon: <CreditCard className="w-3.5 h-3.5" /> },
+                  ].map(pm => (
+                    <button
+                      key={pm.id}
+                      type="button"
+                      onClick={() => setSelectedPaymentMethod(pm.id as any)}
+                      className={`p-2.5 rounded-xl border text-center text-[11px] font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                        selectedPaymentMethod === pm.id
+                          ? "bg-stone-900 text-white border-stone-900 shadow-xs"
+                          : "bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100"
+                      }`}
+                    >
+                      {pm.icon}
+                      <span>{pm.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* CONDITIONAL PAYMENT INPUTS */}
+                {selectedPaymentMethod === 'credit_card' && (
+                  <div className="p-3 bg-stone-100 dark:bg-stone-800/80 rounded-2xl border border-stone-200 space-y-2">
+                    <span className="text-[10px] font-black uppercase text-stone-500 block">Sanal POS Kredi Kartı Bilgileri</span>
+                    <input
+                      type="text"
+                      placeholder="Kart Üzerindeki İsim"
+                      value={creditCardForm.cardHolder}
+                      onChange={(e) => setCreditCardForm({ ...creditCardForm, cardHolder: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-stone-200 rounded-lg text-xs font-bold"
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        placeholder="4543 **** **** 1234"
+                        value={creditCardForm.cardNumber}
+                        onChange={(e) => setCreditCardForm({ ...creditCardForm, cardNumber: e.target.value })}
+                        className="col-span-2 px-3 py-1.5 bg-white border border-stone-200 rounded-lg text-xs font-bold font-mono"
+                      />
+                      <input
+                        type="text"
+                        placeholder="AA/YY"
+                        value={creditCardForm.expiry}
+                        onChange={(e) => setCreditCardForm({ ...creditCardForm, expiry: e.target.value })}
+                        className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg text-xs font-bold text-center"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedPaymentMethod === 'bank_transfer' && (
+                  <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-xs font-bold text-amber-900 space-y-1">
+                    <span className="block text-[10px] uppercase font-black text-amber-700">Otel Banka Hesap Bilgileri (IBAN)</span>
+                    <p className="font-mono text-[11px] select-all">TR12 0006 2000 0000 0001 2345 67</p>
+                    <p className="text-[10px] font-medium text-amber-800">Açıklamaya adınızı ve oda numaranızı (#101) yazınız.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* TOTAL AMOUNT & CONFIRMATION SUBMIT */}
+              <div className="p-4 bg-stone-900 text-white rounded-2xl flex items-center justify-between shadow-lg pt-3">
                 <div>
-                  <span className="block text-[10px] uppercase font-bold text-stone-400">Toplam Konaklama Borcu</span>
-                  <span className="text-xl font-black text-amber-400">
+                  <span className="block text-[10px] uppercase font-bold text-stone-400">Toplam Konaklama Tutarı</span>
+                  <span className="text-xl font-black text-amber-400 font-mono">
                     ₺{computeTotalBookingPrice(selectedBookingRoom).toLocaleString('tr-TR')}
                   </span>
                 </div>
 
                 <button
                   type="submit"
-                  className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs shadow-md active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>WhatsApp ile Rezerve Et</span>
+                  <Check className="w-4 h-4" />
+                  <span>Rezervasyonu Tamamla</span>
                 </button>
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: COMPLETED RESERVATION VOUCHER MODAL */}
+      {completedReservationVoucher && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 max-w-lg w-full border border-stone-200 dark:border-stone-800 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
+            
+            {/* VOUCHER HEADER */}
+            <div className="text-center space-y-2 border-b border-stone-200 dark:border-stone-800 pb-4">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+                <Check className="w-6 h-6 stroke-[3]" />
+              </div>
+              <h3 className="text-xl font-black text-stone-900 dark:text-white tracking-tight">
+                Rezervasyonunuz Başarıyla Alındı!
+              </h3>
+              <p className="text-xs text-stone-500 font-bold">
+                Rezervasyon Kodunuz: <span className="text-stone-900 dark:text-amber-400 font-mono font-black">{completedReservationVoucher.code}</span>
+              </p>
+            </div>
+
+            {/* VOUCHER SUMMARY DETAILS */}
+            <div className="bg-stone-50 dark:bg-stone-800/80 p-4 rounded-2xl border border-stone-200/80 space-y-3 text-xs">
+              <div className="flex justify-between items-center border-b border-stone-200 pb-2">
+                <span className="text-stone-500 font-bold">Oda & Tipi</span>
+                <span className="font-black text-stone-900 dark:text-stone-100">
+                  Oda #{completedReservationVoucher.room.room_number} ({completedReservationVoucher.room.room_type})
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center border-b border-stone-200 pb-2">
+                <span className="text-stone-500 font-bold">Tarih / Süre</span>
+                <span className="font-bold text-stone-800 dark:text-stone-200">
+                  {completedReservationVoucher.checkIn} ➔ {completedReservationVoucher.checkOut} ({completedReservationVoucher.nights} Gece)
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center border-b border-stone-200 pb-2">
+                <span className="text-stone-500 font-bold">Pansiyon & Ödeme</span>
+                <span className="font-bold text-stone-800 dark:text-stone-200">
+                  {completedReservationVoucher.boardName} • {completedReservationVoucher.paymentLabel}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center border-b border-stone-200 pb-2">
+                <span className="text-stone-500 font-bold">Misafir</span>
+                <span className="font-black text-stone-900 dark:text-stone-100">
+                  {completedReservationVoucher.guest.first_name} {completedReservationVoucher.guest.last_name}
+                </span>
+              </div>
+
+              {/* BREAKDOWN DISPLAY */}
+              <div className="pt-1">
+                <span className="text-[10px] font-black uppercase text-stone-400 block mb-1">Hesap Ekstresi</span>
+                <div className="p-2.5 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 space-y-1">
+                  <div className="flex justify-between font-bold">
+                    <span>{completedReservationVoucher.adultsCount} Yetişkin Konaklama</span>
+                    <span>₺{completedReservationVoucher.breakdown.adultsGrossAmount.toLocaleString('tr-TR')}</span>
+                  </div>
+                  {completedReservationVoucher.breakdown.childrenDetails.map((ch: any) => (
+                    <div key={ch.id} className="flex justify-between text-emerald-700 font-bold text-[11px]">
+                      <span>{ch.index}. Çocuk ({ch.label}): {ch.discountText}</span>
+                      <span>₺{ch.netAmount.toLocaleString('tr-TR')}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-stone-200 pt-1 flex justify-between font-black text-amber-600 text-sm">
+                    <span>Toplam Borç</span>
+                    <span>₺{completedReservationVoucher.breakdown.finalPayableTotal.toLocaleString('tr-TR')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ACTION BUTTONS */}
+            <div className="space-y-2 pt-2">
+              <a
+                href={completedReservationVoucher.waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>WhatsApp İle Teyit İlet</span>
+              </a>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Yazdır / PDF İndir</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCompletedReservationVoucher(null)}
+                  className="px-5 py-2.5 bg-stone-900 text-white hover:bg-stone-800 rounded-xl font-bold text-xs transition-all cursor-pointer"
+                >
+                  Kapat
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
