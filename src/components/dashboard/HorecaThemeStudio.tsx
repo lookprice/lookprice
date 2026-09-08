@@ -614,7 +614,7 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
               <label className="flex items-center gap-2 cursor-pointer bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-200 transition-colors">
                 <input
                   type="checkbox"
-                  checked={branding?.hotel_module_enabled !== false}
+                  checked={Boolean(branding?.hotel_module_enabled)}
                   onChange={(e) => onBrandingChange("hotel_module_enabled", e.target.checked)}
                   className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                 />
@@ -622,7 +622,7 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
               </label>
             </div>
 
-            {branding?.hotel_module_enabled !== false && (
+            {Boolean(branding?.hotel_module_enabled) && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Check-In / Check-Out Times */}

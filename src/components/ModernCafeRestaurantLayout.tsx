@@ -447,14 +447,28 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
   const computeDetailedBreakdown = (room: HotelRoom) => {
     const nights = calculateNights(searchCheckIn, searchCheckOut);
     const baseNightlyPrice = getSelectedBoardPrice(room, selectedBoardOption);
-    const adultsGrossAmount = searchAdults * baseNightlyPrice * nights;
+    const isPerPerson = room.pricing_type !== 'per_room';
+    
+    let adultsGrossAmount = 0;
+    if (isPerPerson) {
+      adultsGrossAmount = searchAdults * baseNightlyPrice * nights;
+    } else {
+      adultsGrossAmount = baseNightlyPrice * nights;
+    }
 
     // Calculate each child's gross, discount, and net
     const childrenDetails = searchChildrenList.map((ch, idx) => {
       const ageInfo = calculateGuestAgeInfo(ch.birth_date);
-      const gross = baseNightlyPrice * nights;
-      const discountAmount = Math.round(gross * (ageInfo.discountRate / 100));
-      const net = gross - discountAmount;
+      let gross = 0;
+      let discountAmount = 0;
+      let net = 0;
+      
+      if (isPerPerson) {
+        gross = baseNightlyPrice * nights;
+        discountAmount = Math.round(gross * (ageInfo.discountRate / 100));
+        net = gross - discountAmount;
+      }
+
       return {
         id: ch.id,
         index: idx + 1,
@@ -483,6 +497,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
     const finalPayableTotal = Math.max(0, subtotalAfterChildDiscounts - flexDiscountAmount);
 
     return {
+      isPerPerson,
       nights,
       baseNightlyPrice,
       adultsCount: searchAdults,
@@ -521,8 +536,10 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
     const rawWa = store.whatsapp_number || store.phone || "905488902309";
     const cleanWa = rawWa.replace(/[^0-9+]/g, "");
 
-    const childWaSummary = breakdown.childrenDetails.map(c => 
+    const childWaSummary = breakdown.isPerPerson ? breakdown.childrenDetails.map(c => 
       `• ${c.index}. Çocuk: T.Tarihi ${c.birthDate} (${c.label}) -> ${c.discountText}`
+    ).join('\n') : breakdown.childrenDetails.map(c => 
+      `• ${c.index}. Çocuk: T.Tarihi ${c.birthDate} (${c.label})`
     ).join('\n');
 
     const waText = encodeURIComponent(
@@ -2028,14 +2045,18 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                     </div>
 
                     <div className="space-y-1 text-stone-700 dark:text-stone-300">
-                      {/* Adult line */}
+                      {/* Adult line / Room line */}
                       <div className="flex justify-between items-center font-medium">
-                        <span>{breakdown.adultsCount} Yetişkin x ₺{breakdown.baseNightlyPrice.toLocaleString('tr-TR')} x {breakdown.nights} Gece</span>
+                        {breakdown.isPerPerson ? (
+                          <span>{breakdown.adultsCount} Yetişkin x ₺{breakdown.baseNightlyPrice.toLocaleString('tr-TR')} x {breakdown.nights} Gece</span>
+                        ) : (
+                          <span>Oda Konaklaması (Sabit Fiyat) x {breakdown.nights} Gece</span>
+                        )}
                         <span className="font-black">₺{breakdown.adultsGrossAmount.toLocaleString('tr-TR')}</span>
                       </div>
 
                       {/* Children lines with explicit age discount rates */}
-                      {breakdown.childrenDetails.map((ch) => (
+                      {breakdown.isPerPerson && breakdown.childrenDetails.map((ch) => (
                         <div key={ch.id} className="flex justify-between items-center text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 px-2 py-1 rounded-lg">
                           <span className="flex items-center gap-1">
                             <Baby className="w-3 h-3 text-emerald-600 shrink-0" />
@@ -2047,6 +2068,16 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                           </span>
                         </div>
                       ))}
+                      
+                      {!breakdown.isPerPerson && breakdown.childrenDetails.length > 0 && (
+                        <div className="flex justify-between items-center text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 px-2 py-1 rounded-lg">
+                          <span className="flex items-center gap-1">
+                            <Baby className="w-3 h-3 text-emerald-600 shrink-0" />
+                            {breakdown.childrenDetails.length} Çocuk Misafir
+                          </span>
+                          <span className="font-black text-[10px]">(Oda Fiyatına Dahil)</span>
+                        </div>
+                      )}
 
                       {/* Flex discount line */}
                       {breakdown.flexDiscountAmount > 0 && (

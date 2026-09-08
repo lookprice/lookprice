@@ -3,7 +3,11 @@ import { api } from "../../services/api";
 import { playHotelReservationChime } from "../../utils/hotelSound";
 import { 
   Building2, 
+  DoorOpen,
   BedDouble, 
+  BedSingle,
+  Bed,
+  User,
   Users, 
   Calendar, 
   Clock, 
@@ -11,6 +15,8 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   Plus, 
+  Minus,
+  Armchair,
   Edit3, 
   Trash2, 
   Search, 
@@ -24,6 +30,7 @@ import {
   UserCheck,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Printer,
   Info,
   SlidersHorizontal,
@@ -100,7 +107,7 @@ export const getDemoRooms = (): HotelRoom[] => {
         discount_rate: 0,
         phone: "+90 532 111 2233",
         check_in_date: todayStr,
-        check_out_date: todayStr
+        check_out_date: tomorrowStr
       },
       additional_guests: [
         {
@@ -237,8 +244,11 @@ export interface HotelRoom {
   room_number: string; // e.g., "101", "202", "SUITE-A", "BUNGLOW-1"
   room_type: string; // e.g., "Standard", "Suite", "Sea View", "Bungalow"
   capacity: number; // Max guest count
+  max_adults?: number; // e.g., 2 adults
+  max_children?: number; // e.g., 1 or 2 children
   bed_info?: string; // e.g., "1 Double + 1 Single"
   status: 'vacant' | 'occupied' | 'maintenance' | 'staff' | 'disabled';
+  pricing_type?: 'per_room' | 'per_person';
   price_per_night?: number;
   price_room_only?: number;
   price_half_board?: number;
@@ -305,6 +315,157 @@ export interface HotelRoom {
     }>;
   };
 }
+
+export interface ParsedBedAndCapacity {
+  doubleBeds: number;
+  singleBeds: number;
+  hasBunk: boolean;
+  bunkCount: number;
+  extraBeds: number;     // Ekstra / Katlanır Yatak
+  floorMattress: number; // Döşek / Yer Yatağı
+  babyCribs: number;     // Bebek Yatağı / Beşik
+  sofaBeds: number;      // Çekyat / Açılır Koltuk
+  adults: number;
+  children: number;
+  totalCapacity: number;
+  rawBedInfo: string;
+}
+
+export const parseBedAndCapacity = (room: {
+  capacity?: number;
+  max_adults?: number;
+  max_children?: number;
+  bed_info?: string;
+}): ParsedBedAndCapacity => {
+  const text = (room.bed_info || "").toLowerCase();
+
+  let doubleBeds = 0;
+  let singleBeds = 0;
+  let bunkCount = 0;
+  let extraBeds = 0;
+  let floorMattress = 0;
+  let babyCribs = 0;
+  let sofaBeds = 0;
+
+  // Extra bed (ekstra yatak, ek yatak, ilave yatak, katlanır yatak, rollaway, extra bed)
+  const extraMatches = text.match(/(\d+)\s*(?:adet\s*)?(?:ekstra|ek\s*yatak|ilave|katlanır|rollaway|extra\s*bed)/i);
+  if (extraMatches && extraMatches[1]) {
+    extraBeds = parseInt(extraMatches[1], 10);
+  } else if (text.includes("ekstra") || text.includes("ek yatak") || text.includes("ilave yatak") || text.includes("katlanır yatak") || text.includes("extra bed")) {
+    extraBeds = 1;
+  }
+
+  // Floor mattress (döşek, yer yatağı, yer döşeği, şilte, yer minderi, floor mattress)
+  const mattressMatches = text.match(/(\d+)\s*(?:adet\s*)?(?:döşek|yer\s*yatağı|yer\s*döşeği|şilte|yer\s*minderi|floor\s*mattress)/i);
+  if (mattressMatches && mattressMatches[1]) {
+    floorMattress = parseInt(mattressMatches[1], 10);
+  } else if (text.includes("döşek") || text.includes("yer yatağı") || text.includes("yer döşeği") || text.includes("şilte") || text.includes("floor mattress")) {
+    floorMattress = 1;
+  }
+
+  // Baby cribs (bebek yatağı, beşik, crib, cot, bebek karyolası)
+  const babyMatches = text.match(/(\d+)\s*(?:adet\s*)?(?:bebek|beşik|crib|cot)/i);
+  if (babyMatches && babyMatches[1]) {
+    babyCribs = parseInt(babyMatches[1], 10);
+  } else if (text.includes("bebek yatağı") || text.includes("beşik") || text.includes("crib") || text.includes("bebek karyolası")) {
+    babyCribs = 1;
+  }
+
+  // Sofa bed (çekyat, açılır koltuk, açılır kanepe, sofa bed, kanepe yatak)
+  const sofaMatches = text.match(/(\d+)\s*(?:adet\s*)?(?:çekyat|açılır|sofa\s*bed|kanepe)/i);
+  if (sofaMatches && sofaMatches[1]) {
+    sofaBeds = parseInt(sofaMatches[1], 10);
+  } else if (text.includes("çekyat") || text.includes("açılır koltuk") || text.includes("açılır kanepe") || text.includes("sofa bed")) {
+    sofaBeds = 1;
+  }
+
+  // Bunk bed (ranza, bunk)
+  const hasBunk = text.includes("ranza") || text.includes("bunk");
+  const bunkMatches = text.match(/(\d+)\s*(?:adet\s*)?ranza/i);
+  if (bunkMatches && bunkMatches[1]) {
+    bunkCount = parseInt(bunkMatches[1], 10);
+  } else if (hasBunk) {
+    bunkCount = 1;
+  }
+
+  // Double bed detection (çift, double, king, queen, french)
+  const doubleMatches = text.match(/(\d+)\s*(?:adet\s*)?(?:çift|double|king|queen|french)/i);
+  if (doubleMatches && doubleMatches[1]) {
+    doubleBeds = parseInt(doubleMatches[1], 10);
+  } else if (text.includes("çift") || text.includes("double") || text.includes("king") || text.includes("queen") || text.includes("french")) {
+    doubleBeds = 1;
+  }
+
+  // Single bed detection (tek, single, twin)
+  const singleMatches = text.match(/(\d+)\s*(?:adet\s*)?(?:tek|single|twin)/i);
+  if (singleMatches && singleMatches[1]) {
+    singleBeds = parseInt(singleMatches[1], 10);
+  } else if (bunkCount > 0 && !text.includes("tek")) {
+    singleBeds = bunkCount * 2;
+  } else if (text.includes("tek") || text.includes("single") || text.includes("twin")) {
+    singleBeds = 1;
+  }
+
+  // Fallback if no bed_info or text matched none
+  if (doubleBeds === 0 && singleBeds === 0 && extraBeds === 0 && floorMattress === 0 && sofaBeds === 0 && bunkCount === 0) {
+    const cap = room.capacity || 2;
+    if (cap === 1) {
+      singleBeds = 1;
+    } else if (cap === 2) {
+      doubleBeds = 1;
+    } else if (cap === 3) {
+      doubleBeds = 1;
+      singleBeds = 1;
+    } else if (cap === 4) {
+      doubleBeds = 2;
+    } else {
+      doubleBeds = Math.max(1, Math.floor(cap / 2));
+      singleBeds = cap % 2;
+    }
+  }
+
+  // Adults and Children Capacity calculation
+  const totalStandardBedCapacity = (doubleBeds * 2) + singleBeds + extraBeds + floorMattress + sofaBeds;
+  const totalCapacity = room.capacity || totalStandardBedCapacity || 2;
+  let adults = room.max_adults ?? 0;
+  let children = room.max_children ?? 0;
+
+  if (!adults) {
+    if (totalCapacity === 1) {
+      adults = 1;
+      children = room.max_children ?? 0;
+    } else if (totalCapacity === 2) {
+      adults = 2;
+      children = room.max_children ?? 1;
+    } else if (totalCapacity === 3) {
+      adults = 2;
+      children = room.max_children ?? 1;
+    } else if (totalCapacity === 4) {
+      adults = 3;
+      children = room.max_children ?? 2;
+    } else {
+      adults = Math.max(2, totalCapacity - 2);
+      children = room.max_children ?? 2;
+    }
+  } else if (room.max_children === undefined) {
+    children = Math.max(0, totalCapacity - adults) + babyCribs;
+  }
+
+  return {
+    doubleBeds,
+    singleBeds,
+    hasBunk,
+    bunkCount,
+    extraBeds,
+    floorMattress,
+    babyCribs,
+    sofaBeds,
+    adults,
+    children,
+    totalCapacity,
+    rawBedInfo: room.bed_info || ""
+  };
+};
 
 interface HotelRoomManagementProps {
   storeId?: number;
@@ -868,6 +1029,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   // Filter & Search States
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<'all' | 'vacant' | 'occupied' | 'checkout_today' | 'maintenance' | 'staff'>('all');
+  const [isPmsExpanded, setIsPmsExpanded] = useState(false);
+  const [isServisDisiDetailsOpen, setIsServisDisiDetailsOpen] = useState(false);
 
   // Modals
   const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false);
@@ -1126,63 +1289,72 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       // In-House Active Staying Guests
       if (room.current_guest && (room.current_guest.first_name || room.status === 'occupied')) {
         const cg = room.current_guest;
-        const ageDet = calculateAgeDetails(cg.birth_date, cg.age);
-        guestRecords.push({
-          id: cg.id || `guest-${room.id || 'r'}-primary`,
-          room_id: room.id || '',
-          room_number: room.room_number || '',
-          room_type: room.room_type || '',
-          room_status: room.status || 'vacant',
-          guest_type: 'primary',
-          role_label: 'Asıl Misafir',
-          first_name: cg.first_name || 'Misafir',
-          last_name: cg.last_name || `(Oda ${room.room_number || ''})`,
-          full_name: `${cg.first_name || 'Misafir'} ${cg.last_name || `(Oda ${room.room_number || ''})`}`.trim(),
-          age: ageDet.age,
-          age_category: ageDet.bracket,
-          age_category_label: ageDet.labelTr,
-          birth_date: cg.birth_date,
-          discount_text: ageDet.discountText,
-          discount_rate: ageDet.discountRate,
-          check_in_date: cg.check_in_date || new Date().toISOString().split('T')[0],
-          check_out_date: cg.check_out_date || new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          board_type: cg.board_type || 'BB',
-          identity_no: cg.identity_no || '-',
-          phone: cg.phone || '-',
-          folio_amount: folioAmt,
-          room
-        });
+        const cgIn = cg.check_in_date || new Date().toISOString().split('T')[0];
+        const cgOut = cg.check_out_date || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+        const isStayingNow = room.status === 'occupied';
+        const inDateWindow = (cgIn <= end && cgOut >= start) || (isStayingNow && cgIn <= end);
 
-        if (Array.isArray(room.additional_guests) && room.additional_guests.length > 0) {
-          room.additional_guests.forEach((ag, idx) => {
-            if (!ag) return;
-            const agAgeDet = calculateAgeDetails(ag.birth_date, ag.age);
-            guestRecords.push({
-              id: `guest-${room.id || 'r'}-ag-${idx}`,
-              room_id: room.id || '',
-              room_number: room.room_number || '',
-              room_type: room.room_type || '',
-              room_status: room.status || 'vacant',
-              guest_type: 'additional',
-              role_label: agAgeDet.age < 3 ? 'Bebek (0-2)' : agAgeDet.age <= 6 ? 'Küçük Çocuk (3-6)' : agAgeDet.age < 18 ? 'Çocuk / Genç' : 'Ek Misafir',
-              first_name: ag.first_name || '',
-              last_name: ag.last_name || '',
-              full_name: `${ag.first_name || ''} ${ag.last_name || ''}`.trim() || `Ek Misafir ${idx + 1}`,
-              age: agAgeDet.age,
-              age_category: agAgeDet.bracket,
-              age_category_label: agAgeDet.labelTr,
-              birth_date: ag.birth_date,
-              discount_text: agAgeDet.discountText,
-              discount_rate: agAgeDet.discountRate,
-              check_in_date: cg.check_in_date || new Date().toISOString().split('T')[0],
-              check_out_date: cg.check_out_date || new Date(Date.now() + 86400000).toISOString().split('T')[0],
-              board_type: cg.board_type || 'BB',
-              identity_no: ag.identity_no || '-',
-              phone: ag.phone || '-',
-              folio_amount: 0,
-              room
-            });
+        if (inDateWindow) {
+          const rawAge = typeof cg.age === 'number' ? cg.age : (Number(cg.age) || 30);
+          const ageDet = calculateAgeDetails(cg.birth_date, rawAge);
+          guestRecords.push({
+            id: cg.id || `guest-${room.id || 'r'}-primary`,
+            room_id: room.id || '',
+            room_number: room.room_number || '',
+            room_type: room.room_type || '',
+            room_status: room.status || 'vacant',
+            guest_type: 'primary',
+            role_label: 'Asıl Misafir',
+            first_name: cg.first_name || 'Misafir',
+            last_name: cg.last_name || `(Oda ${room.room_number || ''})`,
+            full_name: `${cg.first_name || 'Misafir'} ${cg.last_name || `(Oda ${room.room_number || ''})`}`.trim(),
+            age: Number(ageDet.age) || 30,
+            age_category: ageDet.bracket,
+            age_category_label: ageDet.labelTr,
+            birth_date: cg.birth_date,
+            discount_text: ageDet.discountText,
+            discount_rate: ageDet.discountRate,
+            check_in_date: cgIn,
+            check_out_date: cgOut,
+            board_type: cg.board_type || 'BB',
+            identity_no: cg.identity_no || '-',
+            phone: cg.phone || '-',
+            folio_amount: folioAmt,
+            room
           });
+
+          if (Array.isArray(room.additional_guests) && room.additional_guests.length > 0) {
+            room.additional_guests.forEach((ag, idx) => {
+              if (!ag) return;
+              const agAgeNum = typeof ag.age === 'number' ? ag.age : (Number(ag.age) || (ag.age_category === 'infant' ? 1 : 25));
+              const agAgeDet = calculateAgeDetails(ag.birth_date, agAgeNum);
+              guestRecords.push({
+                id: `guest-${room.id || 'r'}-ag-${idx}`,
+                room_id: room.id || '',
+                room_number: room.room_number || '',
+                room_type: room.room_type || '',
+                room_status: room.status || 'vacant',
+                guest_type: 'additional',
+                role_label: agAgeDet.age < 3 ? 'Bebek (0-2)' : agAgeDet.age <= 6 ? 'Küçük Çocuk (3-6)' : agAgeDet.age < 18 ? 'Çocuk / Genç' : 'Ek Misafir',
+                first_name: ag.first_name || '',
+                last_name: ag.last_name || '',
+                full_name: `${ag.first_name || ''} ${ag.last_name || ''}`.trim() || `Ek Misafir ${idx + 1}`,
+                age: Number(agAgeDet.age) || 0,
+                age_category: agAgeDet.bracket,
+                age_category_label: agAgeDet.labelTr,
+                birth_date: ag.birth_date,
+                discount_text: agAgeDet.discountText,
+                discount_rate: agAgeDet.discountRate,
+                check_in_date: cgIn,
+                check_out_date: cgOut,
+                board_type: cg.board_type || 'BB',
+                identity_no: ag.identity_no || '-',
+                phone: ag.phone || '-',
+                folio_amount: 0,
+                room
+              });
+            });
+          }
         }
       }
 
@@ -1190,63 +1362,68 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       if (Array.isArray(room.reservations) && room.reservations.length > 0) {
         room.reservations.forEach(r => {
           if (!r) return;
-          const rAgeDet = calculateAgeDetails(undefined, r.main_guest_age || 30);
-          guestRecords.push({
-            id: r.id || `res-${room.id || 'r'}-${r.check_in_date || 'date'}`,
-            room_id: room.id || '',
-            room_number: room.room_number || '',
-            room_type: room.room_type || '',
-            room_status: 'reserved',
-            guest_type: 'reservation',
-            role_label: 'Gelecek Rezervasyon',
-            first_name: r.first_name || '',
-            last_name: r.last_name || '',
-            full_name: `${r.first_name || ''} ${r.last_name || ''}`.trim() || 'Rezervasyon Misafiri',
-            age: rAgeDet.age,
-            age_category: rAgeDet.bracket,
-            age_category_label: rAgeDet.labelTr,
-            birth_date: undefined,
-            discount_text: rAgeDet.discountText,
-            discount_rate: rAgeDet.discountRate,
-            check_in_date: r.check_in_date || '',
-            check_out_date: r.check_out_date || '',
-            board_type: r.board_type || 'BB',
-            identity_no: r.identity_no || '-',
-            phone: r.phone || '-',
-            folio_amount: 0,
-            room
-          });
+          const rIn = r.check_in_date || '';
+          const rOut = r.check_out_date || '';
 
-          if (Array.isArray(r.guests) && r.guests.length > 0) {
-            r.guests.forEach((g, gIdx) => {
-              if (!g) return;
-              const gAgeDet = calculateAgeDetails(g.birth_date, g.age);
-              guestRecords.push({
-                id: `res-guest-${room.id || 'r'}-${r.id || 'r'}-${gIdx}`,
-                room_id: room.id || '',
-                room_number: room.room_number || '',
-                room_type: room.room_type || '',
-                room_status: 'reserved',
-                guest_type: 'reservation',
-                role_label: gAgeDet.age < 3 ? 'Bebek (0-2)' : gAgeDet.age <= 6 ? 'Küçük Çocuk (3-6)' : gAgeDet.age < 18 ? 'Çocuk / Genç' : 'Ek Misafir',
-                first_name: `Misafir ${gIdx + 1}`,
-                last_name: `(${r.last_name || ''})`,
-                full_name: `Misafir ${gIdx + 1} (${r.last_name || ''})`,
-                age: gAgeDet.age,
-                age_category: gAgeDet.bracket,
-                age_category_label: gAgeDet.labelTr,
-                birth_date: g.birth_date,
-                discount_text: gAgeDet.discountText,
-                discount_rate: gAgeDet.discountRate,
-                check_in_date: r.check_in_date || '',
-                check_out_date: r.check_out_date || '',
-                board_type: r.board_type || 'BB',
-                identity_no: '-',
-                phone: r.phone || '-',
-                folio_amount: 0,
-                room
-              });
+          if (rIn && rOut && rIn <= end && rOut >= start) {
+            const rAgeDet = calculateAgeDetails(undefined, Number(r.main_guest_age) || 30);
+            guestRecords.push({
+              id: r.id || `res-${room.id || 'r'}-${r.check_in_date || 'date'}`,
+              room_id: room.id || '',
+              room_number: room.room_number || '',
+              room_type: room.room_type || '',
+              room_status: 'reserved',
+              guest_type: 'reservation',
+              role_label: 'Gelecek Rezervasyon',
+              first_name: r.first_name || '',
+              last_name: r.last_name || '',
+              full_name: `${r.first_name || ''} ${r.last_name || ''}`.trim() || 'Rezervasyon Misafiri',
+              age: Number(rAgeDet.age) || 30,
+              age_category: rAgeDet.bracket,
+              age_category_label: rAgeDet.labelTr,
+              birth_date: undefined,
+              discount_text: rAgeDet.discountText,
+              discount_rate: rAgeDet.discountRate,
+              check_in_date: rIn,
+              check_out_date: rOut,
+              board_type: r.board_type || 'BB',
+              identity_no: r.identity_no || '-',
+              phone: r.phone || '-',
+              folio_amount: 0,
+              room
             });
+
+            if (Array.isArray(r.guests) && r.guests.length > 0) {
+              r.guests.forEach((g, gIdx) => {
+                if (!g) return;
+                const gAgeDet = calculateAgeDetails(g.birth_date, Number(g.age) || 6);
+                guestRecords.push({
+                  id: `res-guest-${room.id || 'r'}-${r.id || 'r'}-${gIdx}`,
+                  room_id: room.id || '',
+                  room_number: room.room_number || '',
+                  room_type: room.room_type || '',
+                  room_status: 'reserved',
+                  guest_type: 'reservation',
+                  role_label: gAgeDet.age < 3 ? 'Bebek (0-2)' : gAgeDet.age <= 6 ? 'Küçük Çocuk (3-6)' : gAgeDet.age < 18 ? 'Çocuk / Genç' : 'Ek Misafir',
+                  first_name: `Misafir ${gIdx + 1}`,
+                  last_name: `(${r.last_name || ''})`,
+                  full_name: `Misafir ${gIdx + 1} (${r.last_name || ''})`,
+                  age: Number(gAgeDet.age) || 0,
+                  age_category: gAgeDet.bracket,
+                  age_category_label: gAgeDet.labelTr,
+                  birth_date: g.birth_date,
+                  discount_text: gAgeDet.discountText,
+                  discount_rate: gAgeDet.discountRate,
+                  check_in_date: rIn,
+                  check_out_date: rOut,
+                  board_type: r.board_type || 'BB',
+                  identity_no: '-',
+                  phone: r.phone || '-',
+                  folio_amount: 0,
+                  room
+                });
+              });
+            }
           }
         });
       }
@@ -1297,36 +1474,88 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
           totalNightsBooked += nights;
 
           const roomPrice = room.price_per_night || 2500;
-          estimatedRevenue += nights * roomPrice;
+          const personsCount = 1 + (res.guests?.length || 0);
+          const isPerPerson = room.pricing_type !== 'per_room';
+          const applicablePrice = isPerPerson ? (roomPrice * personsCount) : roomPrice;
+          
+          estimatedRevenue += nights * applicablePrice;
 
           if (res.board_type && boardCounts[res.board_type] !== undefined) {
             boardCounts[res.board_type] += 1;
-          }
-
-          const mAge = res.main_age ?? 30;
-          if (mAge >= 18) totalAdults++;
-          else if (mAge >= 13) totalTeens++;
-          else if (mAge >= 7) totalChildren++;
-          else if (mAge >= 3) totalToddlers++;
-          else totalInfants++;
-
-          if (Array.isArray(res.guests) && res.guests.length > 0) {
-            res.guests.forEach(g => {
-              if (!g) return;
-              const age = g.age ?? (g.birth_date ? calculateAgeDetails(g.birth_date).age : 30);
-              if (age >= 18) totalAdults++;
-              else if (age >= 13) totalTeens++;
-              else if (age >= 7) totalChildren++;
-              else if (age >= 3) totalToddlers++;
-              else totalInfants++;
-            });
           }
         }
       });
     });
 
-    const totalChildrenAll = totalInfants + totalToddlers + totalChildren + totalTeens;
-    const totalGuests = totalAdults + totalChildrenAll;
+    // Also incorporate Online Reservations within the selected window if not already attached to rooms
+    if (Array.isArray(onlineReservations) && onlineReservations.length > 0) {
+      onlineReservations.forEach((ores: any) => {
+        if (!ores || ores.status === 'cancelled') return;
+        const alreadyCounted = guestRecords.some(gr => gr.id === ores.id || (gr.phone && ores.phone && gr.phone === ores.phone));
+        if (alreadyCounted) return;
+
+        const rIn = ores.check_in_date || '';
+        const rOut = ores.check_out_date || '';
+        if (rIn && rOut && rIn <= end && rOut >= start) {
+          const mainAge = Number(ores.main_guest_age) || 32;
+          const rAgeDet = calculateAgeDetails(ores.birth_date, mainAge);
+          const matchedRoom = rooms.find(rm => rm.id === ores.room_id || rm.room_number === ores.room_number) || {
+            id: ores.room_id || 'online-res',
+            room_number: ores.room_number || 'Tahsis Bekliyor',
+            room_type: ores.room_type || 'Online Rezervasyon',
+            capacity: 2,
+            status: 'vacant'
+          } as HotelRoom;
+
+          guestRecords.push({
+            id: ores.id || `online-res-${Math.random()}`,
+            room_id: matchedRoom.id,
+            room_number: matchedRoom.room_number,
+            room_type: matchedRoom.room_type,
+            room_status: ores.status === 'checked_in' ? 'occupied' : 'reserved',
+            guest_type: 'reservation',
+            role_label: 'Online Rezervasyon',
+            first_name: ores.first_name || ores.guest_name?.split(' ')[0] || 'Misafir',
+            last_name: ores.last_name || ores.guest_name?.split(' ').slice(1).join(' ') || '',
+            full_name: `${ores.first_name || ''} ${ores.last_name || ''}`.trim() || ores.guest_name || 'Online Misafir',
+            age: Number(rAgeDet.age) || 30,
+            age_category: rAgeDet.bracket,
+            age_category_label: rAgeDet.labelTr,
+            birth_date: ores.birth_date,
+            discount_text: rAgeDet.discountText,
+            discount_rate: rAgeDet.discountRate,
+            check_in_date: rIn,
+            check_out_date: rOut,
+            board_type: ores.board_type || 'BB',
+            identity_no: ores.identity_no || '-',
+            phone: ores.phone || '-',
+            folio_amount: 0,
+            room: matchedRoom
+          });
+
+          if (ores.board_type && boardCounts[ores.board_type] !== undefined) {
+            boardCounts[ores.board_type] += 1;
+          }
+        }
+      });
+    }
+
+    const adultsList = guestRecords.filter(g => Number(g.age) >= 18);
+    const infantsList = guestRecords.filter(g => Number(g.age) <= 2);
+    const toddlersList = guestRecords.filter(g => Number(g.age) >= 3 && Number(g.age) <= 6);
+    const childrenList = guestRecords.filter(g => Number(g.age) >= 7 && Number(g.age) <= 12);
+    const teensList = guestRecords.filter(g => Number(g.age) >= 13 && Number(g.age) <= 17);
+    const schoolAgeList = guestRecords.filter(g => Number(g.age) >= 7 && Number(g.age) <= 17);
+    const childrenAllList = guestRecords.filter(g => Number(g.age) < 18);
+
+    totalAdults = adultsList.length;
+    totalInfants = infantsList.length;
+    totalToddlers = toddlersList.length;
+    totalChildren = childrenList.length;
+    totalTeens = teensList.length;
+    const totalChildrenAll = childrenAllList.length;
+    const totalGuests = guestRecords.length;
+
     const maxPossibleNights = Math.max(1, (Array.isArray(rooms) ? rooms.length : 1) * days);
     const occupancyPercentage = Math.min(100, Math.round((totalNightsBooked / maxPossibleNights) * 100));
 
@@ -1342,13 +1571,13 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       estimatedRevenue,
       boardCounts,
       guestRecords,
-      adultsList: guestRecords.filter(g => g.age >= 18),
-      infantsList: guestRecords.filter(g => g.age <= 2),
-      toddlersList: guestRecords.filter(g => g.age >= 3 && g.age <= 6),
-      childrenList: guestRecords.filter(g => g.age >= 7 && g.age <= 12),
-      teensList: guestRecords.filter(g => g.age >= 13 && g.age <= 17),
-      schoolAgeList: guestRecords.filter(g => g.age >= 7 && g.age <= 17),
-      childrenAllList: guestRecords.filter(g => g.age < 18)
+      adultsList,
+      infantsList,
+      toddlersList,
+      childrenList,
+      teensList,
+      schoolAgeList,
+      childrenAllList
     };
   };
 
@@ -1357,6 +1586,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     room_number: string;
     room_type: string;
     capacity: number;
+    max_adults?: number;
+    max_children?: number;
     bed_info: string;
     price_per_night: number;
     price_room_only?: number;
@@ -1372,6 +1603,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     images?: string[];
     description?: string;
     status?: HotelRoom['status'];
+    pricing_type?: 'per_room' | 'per_person';
     notes?: string;
   }
 
@@ -1410,6 +1642,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     room_type: "Standart Deniz Manzaralı",
     capacity: 2,
     bed_info: "",
+    pricing_type: 'per_person',
     price_per_night: 2500,
     price_room_only: 2200,
     price_half_board: 3200,
@@ -1424,6 +1657,123 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     status: "vacant" as HotelRoom['status'],
     notes: ""
   });
+
+  // Bed & Extra Bed / Floor Mattress Configurator State
+  const [bedConfig, setBedConfig] = useState({
+    doubleBeds: 1,
+    singleBeds: 0,
+    bunkBeds: 0,
+    extraBeds: 0,
+    floorMattress: 0,
+    babyCribs: 0,
+    sofaBeds: 0
+  });
+
+  // Helper to update bedConfig and sync with roomForm.bed_info & capacity
+  const updateBedConfig = (key: 'doubleBeds' | 'singleBeds' | 'bunkBeds' | 'extraBeds' | 'floorMattress' | 'babyCribs' | 'sofaBeds', delta: number) => {
+    setBedConfig(prev => {
+      const nextVal = Math.max(0, (prev[key] || 0) + delta);
+      const nextConfig = { ...prev, [key]: nextVal };
+
+      const parts: string[] = [];
+      if (nextConfig.doubleBeds > 0) parts.push(`${nextConfig.doubleBeds} Çift Kişilik Yatak`);
+      if (nextConfig.singleBeds > 0) parts.push(`${nextConfig.singleBeds} Tek Kişilik Yatak`);
+      if (nextConfig.bunkBeds > 0) parts.push(`${nextConfig.bunkBeds} Ranza`);
+      if (nextConfig.extraBeds > 0) parts.push(`${nextConfig.extraBeds} Ekstra Yatak (Katlanır)`);
+      if (nextConfig.floorMattress > 0) parts.push(`${nextConfig.floorMattress} Döşek / Yer Yatağı`);
+      if (nextConfig.babyCribs > 0) parts.push(`${nextConfig.babyCribs} Bebek Yatağı / Beşik`);
+      if (nextConfig.sofaBeds > 0) parts.push(`${nextConfig.sofaBeds} Açılır Koltuk / Çekyat`);
+
+      const newBedInfo = parts.join(", ");
+
+      const stdCapacity = (nextConfig.doubleBeds * 2) + nextConfig.singleBeds + (nextConfig.bunkBeds * 2) + nextConfig.extraBeds + nextConfig.floorMattress + nextConfig.sofaBeds;
+      const suggestedCap = Math.max(1, stdCapacity);
+      const suggestedAdults = Math.max(1, stdCapacity);
+      const suggestedChildren = nextConfig.babyCribs > 0 ? nextConfig.babyCribs : (suggestedCap > 2 ? 1 : 0);
+
+      setRoomForm(rf => ({
+        ...rf,
+        bed_info: newBedInfo,
+        capacity: suggestedCap,
+        max_adults: suggestedAdults,
+        max_children: suggestedChildren
+      }));
+
+      return nextConfig;
+    });
+  };
+
+  // Helper to open Add or Edit Room modal with synchronized states
+  const openAddOrEditRoomModal = (roomToEdit?: HotelRoom | null) => {
+    if (roomToEdit) {
+      setEditingRoom(roomToEdit);
+      const parsedBed = parseBedAndCapacity(roomToEdit);
+      setBedConfig({
+        doubleBeds: parsedBed.doubleBeds,
+        singleBeds: parsedBed.bunkCount > 0 ? 0 : parsedBed.singleBeds,
+        bunkBeds: parsedBed.bunkCount,
+        extraBeds: parsedBed.extraBeds,
+        floorMattress: parsedBed.floorMattress,
+        babyCribs: parsedBed.babyCribs,
+        sofaBeds: parsedBed.sofaBeds
+      });
+      setRoomForm({
+        room_number: roomToEdit.room_number,
+        room_type: roomToEdit.room_type,
+        capacity: roomToEdit.capacity,
+        max_adults: roomToEdit.max_adults,
+        max_children: roomToEdit.max_children,
+        bed_info: roomToEdit.bed_info || "",
+        pricing_type: roomToEdit.pricing_type || 'per_person',
+        price_per_night: roomToEdit.price_per_night || 2500,
+        price_room_only: roomToEdit.board_prices?.room_only || Math.round((roomToEdit.price_per_night || 2500) * 0.88),
+        price_half_board: roomToEdit.board_prices?.half_board || Math.round((roomToEdit.price_per_night || 2500) * 1.28),
+        price_full_board: roomToEdit.board_prices?.full_board || Math.round((roomToEdit.price_per_night || 2500) * 1.56),
+        price_all_inclusive: roomToEdit.board_prices?.all_inclusive || Math.round((roomToEdit.price_per_night || 2500) * 1.92),
+        price_ultra_all_inclusive: roomToEdit.board_prices?.ultra_all_inclusive || 0,
+        non_refundable_discount: roomToEdit.non_refundable_discount || 10,
+        amenitiesStr: (roomToEdit.amenities || ["WiFi", "Deniz Manzarası", "Balkon", "Klima", "LCD TV"]).join(", "),
+        cover_image: roomToEdit.cover_image || "",
+        images: roomToEdit.images || (roomToEdit.cover_image ? [roomToEdit.cover_image] : []),
+        description: roomToEdit.description || "",
+        status: roomToEdit.status,
+        notes: roomToEdit.notes || ""
+      });
+    } else {
+      setEditingRoom(null);
+      setBedConfig({
+        doubleBeds: 1,
+        singleBeds: 0,
+        bunkBeds: 0,
+        extraBeds: 0,
+        floorMattress: 0,
+        babyCribs: 0,
+        sofaBeds: 0
+      });
+      setRoomForm({
+        room_number: "",
+        room_type: "Standart Deniz Manzaralı",
+        capacity: 2,
+        max_adults: 2,
+        max_children: 0,
+        bed_info: "1 Çift Kişilik Yatak",
+        price_per_night: 2500,
+        price_room_only: 2200,
+        price_half_board: 3200,
+        price_full_board: 3900,
+        price_all_inclusive: 4800,
+        price_ultra_all_inclusive: 0,
+        non_refundable_discount: 10,
+        amenitiesStr: "WiFi, Deniz Manzarası, Balkon, Klima, LCD TV, Minibar",
+        cover_image: "",
+        images: [],
+        description: "",
+        status: "vacant",
+        notes: ""
+      });
+    }
+    setIsAddRoomModalOpen(true);
+  };
 
   // Check-In Guest Form State
   const [guestForm, setGuestForm] = useState<GuestFormState>({
@@ -1663,6 +2013,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         room_number: roomForm.room_number.trim(),
         room_type: roomForm.room_type,
         capacity: Number(roomForm.capacity) || 1,
+        max_adults: roomForm.max_adults,
+        max_children: roomForm.max_children,
         bed_info: roomForm.bed_info,
         price_per_night: Number(roomForm.price_per_night) || 0,
         board_prices: boardPrices,
@@ -1681,6 +2033,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         room_number: roomForm.room_number.trim(),
         room_type: roomForm.room_type,
         capacity: Number(roomForm.capacity) || 1,
+        max_adults: roomForm.max_adults,
+        max_children: roomForm.max_children,
         bed_info: roomForm.bed_info,
         price_per_night: Number(roomForm.price_per_night) || 0,
         board_prices: boardPrices,
@@ -1701,6 +2055,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       room_type: "Standart Deniz Manzaralı",
       capacity: 2,
       bed_info: "",
+      pricing_type: 'per_person',
       price_per_night: 2500,
       price_room_only: 2200,
       price_half_board: 3200,
@@ -1873,7 +2228,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     }
 
     // 3. Person count and individual breakdown
-    // Core Formula: oda fiyatı X kişi sayısı x konaklanacak gün sayısı - (yaş grubu indirimi hesapla) = toplam fiyat
+    // Core Formula: Oda Başı ise -> Toplam fiyat sabittir. Kişi Başı ise -> (fiyat X kişi sayısı x gece) - (yaş indirimleri).
+    const isPerPerson = room.pricing_type !== 'per_room';
     const additionalGuests = Array.isArray(room.additional_guests) ? room.additional_guests : [];
     const totalPersons = 1 + additionalGuests.length;
 
@@ -1881,7 +2237,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     const mainGuestAgeDetails = calculateAgeDetails(guest.birth_date, guest.age);
     const mainGuestRaw = nightlyRate * nights;
     let mainGuestDiscount = 0;
-    if (ageDiscountPolicy.enabled && ageDiscountPolicy.apply_to_room && mainGuestAgeDetails.discountRate > 0) {
+    
+    if (isPerPerson && ageDiscountPolicy.enabled && ageDiscountPolicy.apply_to_room && mainGuestAgeDetails.discountRate > 0) {
       mainGuestDiscount = Math.round(mainGuestRaw * (mainGuestAgeDetails.discountRate / 100));
     }
     const mainGuestNet = Math.max(0, mainGuestRaw - mainGuestDiscount);
@@ -1894,7 +2251,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         isMain: true,
         age: mainGuestAgeDetails.age,
         category: mainGuestAgeDetails.labelTr,
-        discountRate: mainGuestAgeDetails.discountRate,
+        discountRate: isPerPerson ? mainGuestAgeDetails.discountRate : 0,
         rawRate: mainGuestRaw,
         discountAmount: mainGuestDiscount,
         netRate: mainGuestNet
@@ -1906,9 +2263,9 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
     additionalGuests.forEach(ag => {
       const agAge = calculateAgeDetails(ag.birth_date, ag.age);
-      const agRaw = nightlyRate * nights;
+      const agRaw = isPerPerson ? (nightlyRate * nights) : 0;
       let agDiscount = 0;
-      if (ageDiscountPolicy.enabled && ageDiscountPolicy.apply_to_room && agAge.discountRate > 0) {
+      if (isPerPerson && ageDiscountPolicy.enabled && ageDiscountPolicy.apply_to_room && agAge.discountRate > 0) {
         agDiscount = Math.round(agRaw * (agAge.discountRate / 100));
       }
       const agNet = Math.max(0, agRaw - agDiscount);
@@ -1921,14 +2278,14 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         isMain: false,
         age: agAge.age,
         category: agAge.labelTr,
-        discountRate: agAge.discountRate,
+        discountRate: isPerPerson ? agAge.discountRate : 0,
         rawRate: agRaw,
         discountAmount: agDiscount,
         netRate: agNet
       });
     });
 
-    const totalRawRoomRate = mainGuestRaw + totalAdditionalRaw; // nightlyRate * totalPersons * nights
+    const totalRawRoomRate = mainGuestRaw + totalAdditionalRaw; 
     const roomDiscountAmount = mainGuestDiscount + totalAdditionalDiscount;
     const netRoomRate = Math.max(0, totalRawRoomRate - roomDiscountAmount);
 
@@ -2283,99 +2640,97 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
   return (
     <div className="space-y-6 max-w-full overflow-x-clip">
-      {/* HEADER SECTION - RECONSTRUCTED & HIGHLY RELAXED / MINIMALIST */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-emerald-700 text-white rounded-xl shadow-xs shrink-0">
-            <Building2 className="h-5 w-5" />
+      {/* HEADER SECTION - RECONSTRUCTED & COLLAPSIBLE / MINIMALIST */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex flex-col gap-3">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-emerald-700 text-white rounded-xl shadow-xs shrink-0">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <span className="font-extrabold text-xs tracking-wide text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg">
+              Horeca PMS
+            </span>
           </div>
-          <span className="font-extrabold text-xs tracking-wide text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg">
-            Horeca PMS
-          </span>
+
+          <button
+            type="button"
+            onClick={() => setIsPmsExpanded(!isPmsExpanded)}
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 cursor-pointer flex items-center gap-1 text-xs font-bold transition-all border border-slate-200 dark:border-slate-700"
+          >
+            <span className="text-[11px]">{isTr ? (isPmsExpanded ? "İşlemleri Gizle" : "İşlemleri Göster") : (isPmsExpanded ? "Hide Actions" : "Show Actions")}</span>
+            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isPmsExpanded ? "rotate-180" : ""}`} />
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* REZERVASYON EKLE */}
-          <button
-            type="button"
-            onClick={() => {
-              // Find first vacant room or fallback to first room
-              const vacantRoom = rooms.find(r => r.status === 'vacant') || rooms[0];
-              if (vacantRoom) {
-                setCheckInModalRoom(vacantRoom);
-                const todayStr = new Date().toISOString().split('T')[0];
-                setGuestForm({
-                  identity_no: "",
-                  first_name: "",
-                  last_name: "",
-                  birth_date: "1990-01-01",
-                  phone: "",
-                  email: "",
-                  check_in_date: todayStr,
-                  check_out_date: getNextDayString(todayStr),
-                  board_type: "bed_breakfast",
-                  advance_payment: 0,
-                  payment_method: "Kredi Kartı",
-                  notes: "",
-                  additionalGuests: []
-                });
-              }
-            }}
-            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>{isTr ? "Rezervasyon Ekle" : "Add Booking"}</span>
-          </button>
+        {isPmsExpanded && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 transition-all">
+            {/* REZERVASYON EKLE */}
+            <button
+              type="button"
+              onClick={() => {
+                // Find first vacant room or fallback to first room
+                const vacantRoom = rooms.find(r => r.status === 'vacant') || rooms[0];
+                if (vacantRoom) {
+                  setCheckInModalRoom(vacantRoom);
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  setGuestForm({
+                    identity_no: "",
+                    first_name: "",
+                    last_name: "",
+                    birth_date: "1990-01-01",
+                    phone: "",
+                    email: "",
+                    check_in_date: todayStr,
+                    check_out_date: getNextDayString(todayStr),
+                    board_type: "bed_breakfast",
+                    advance_payment: 0,
+                    payment_method: "Kredi Kartı",
+                    notes: "",
+                    additionalGuests: []
+                  });
+                }
+              }}
+              className="p-2.5 sm:px-3 sm:py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              title={isTr ? "Rezervasyon Ekle" : "Add Booking"}
+            >
+              <Plus className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">{isTr ? "Rezervasyon Ekle" : "Add Booking"}</span>
+            </button>
 
-          {/* İNDİRİMLER */}
-          <button
-            type="button"
-            onClick={() => setIsAgePolicyModalOpen(true)}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs border border-slate-200 dark:border-slate-700 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-            title="Tesis Fiyat & Yaş İndirim Politikası Ayarları"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-            <span>{isTr ? "İndirimler" : "Discounts"}</span>
-          </button>
+            {/* İNDİRİMLER */}
+            <button
+              type="button"
+              onClick={() => setIsAgePolicyModalOpen(true)}
+              className="p-2.5 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs border border-slate-200 dark:border-slate-700 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              title={isTr ? "İndirimler (Yaş Politikaları)" : "Discounts"}
+            >
+              <SlidersHorizontal className="h-4 w-4 sm:h-3.5 sm:w-3.5 text-slate-500 shrink-0" />
+              <span className="hidden sm:inline">{isTr ? "İndirimler" : "Discounts"}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700"
-          >
-            <FileText className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Excel Raporu</span>
-          </button>
+            {/* EXCEL RAPORU */}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="p-2.5 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700"
+              title={isTr ? "Excel Raporu Al" : "Export Excel"}
+            >
+              <FileText className="h-4 w-4 sm:h-3.5 sm:w-3.5 text-emerald-600" />
+              <span className="hidden sm:inline">{isTr ? "Excel Raporu" : "Excel"}</span>
+            </button>
 
-          <button
-            onClick={() => {
-              setEditingRoom(null);
-              setRoomForm({
-                room_number: "",
-                room_type: "Standart Deniz Manzaralı",
-                capacity: 2,
-                bed_info: "",
-                price_per_night: 2500,
-                price_room_only: 2200,
-                price_half_board: 3200,
-                price_full_board: 3900,
-                price_all_inclusive: 4800,
-                price_ultra_all_inclusive: 0,
-                non_refundable_discount: 10,
-                amenitiesStr: "WiFi, Deniz Manzarası, Balkon, Klima, LCD TV, Minibar",
-                cover_image: "",
-                description: "",
-                status: "vacant",
-                notes: ""
-              });
-              setIsAddRoomModalOpen(true);
-            }}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Building2 className="h-3.5 w-3.5" />
-            <span>{isTr ? "Yeni Oda Ekle" : "Add Room"}</span>
-          </button>
-        </div>
+            {/* YENİ ODA EKLE */}
+            <button
+              type="button"
+              onClick={() => openAddOrEditRoomModal(null)}
+              className="p-2.5 sm:px-3 sm:py-1.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              title={isTr ? "Yeni Oda Ekle" : "Add Room"}
+            >
+              <Building2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">{isTr ? "Yeni Oda Ekle" : "Add Room"}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* MAIN VIEW MODE SWITCHER TABS */}
@@ -2753,13 +3108,34 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                 <div className="p-3.5 bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl flex items-center justify-between">
                   <div>
                     <p className="text-[10px] font-bold uppercase text-emerald-200">Pansiyon Dağılımı</p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                      <span className="px-2 py-0.5 bg-white/15 text-white border border-white/20 rounded text-[10px] font-bold">BB: {stats.boardCounts.BB}</span>
-                      <span className="px-2 py-0.5 bg-white/15 text-white border border-white/20 rounded text-[10px] font-bold">HB: {stats.boardCounts.HB}</span>
-                      <span className="px-2 py-0.5 bg-white/15 text-white border border-white/20 rounded text-[10px] font-bold">AI: {stats.boardCounts.AI}</span>
+                    <div className="flex flex-col gap-1 mt-2 min-w-[140px]">
+                      {Object.entries({
+                        RO: isTr ? "Sadece Oda" : "Room Only",
+                        BB: isTr ? "Oda Kahvaltı" : "Bed & Breakfast",
+                        HB: isTr ? "Yarım Pansiyon" : "Half Board",
+                        FB: isTr ? "Tam Pansiyon" : "Full Board",
+                        AI: isTr ? "Her Şey Dahil" : "All Inclusive",
+                        UAI: isTr ? "Ultra Her Şey" : "Ultra All Inc."
+                      }).map(([key, label]) => {
+                        const count = stats.boardCounts[key] || 0;
+                        if (count === 0) return null;
+                        return (
+                          <div key={key} className="flex items-center gap-1.5 px-2 py-0.5 bg-white/10 border border-white/15 rounded text-white font-bold text-[10px] justify-between">
+                            <div className="flex items-center gap-1">
+                              <span className="text-emerald-300 font-black text-[9px]">{key}</span>
+                              <span className="text-white/60">•</span>
+                              <span className="text-[9px] font-medium text-white/90">{label}</span>
+                            </div>
+                            <span className="px-1.5 py-0.5 bg-emerald-500 text-white rounded text-[9px] font-black">{count} Oda</span>
+                          </div>
+                        );
+                      })}
+                      {Object.values(stats.boardCounts).reduce((a, b) => a + b, 0) === 0 && (
+                        <p className="text-[9px] text-white/50 italic font-medium">Aktif kayıt bulunmuyor</p>
+                      )}
                     </div>
                   </div>
-                  <PieChart className="h-7 w-7 text-emerald-300" />
+                  <PieChart className="h-7 w-7 text-emerald-300 self-start mt-1" />
                 </div>
               </div>
             </div>
@@ -3099,27 +3475,39 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
       {/* SERVİS DIŞI & ODA KULLANIM BİLGİLENDİRME BANT DÜZEYİ */}
       {showServisDisiInfo && (
-        <div className="p-4 bg-indigo-50/90 dark:bg-indigo-950/60 rounded-2xl border border-indigo-200 dark:border-indigo-800 flex items-start justify-between gap-3 text-xs text-indigo-900 dark:text-indigo-200 shadow-xs">
-          <div className="flex items-start gap-2.5">
-            <Info className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-black text-sm text-indigo-950 dark:text-indigo-100">
+        <div className="p-3 bg-indigo-50/90 dark:bg-indigo-950/60 rounded-2xl border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-900 dark:text-indigo-200 shadow-xs space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setIsServisDisiDetailsOpen(!isServisDisiDetailsOpen)}
+              className="flex items-center gap-2 text-left cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <Info className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span className="font-black text-xs text-indigo-950 dark:text-indigo-100 flex items-center gap-1.5">
                 {isTr ? "💡 Oda Durumu & 'Servis Dışı' Nedir?" : "💡 Room Status & Maintenance Info"}
-              </p>
-              <p className="mt-1 leading-relaxed font-medium">
+                <span className="text-[10px] font-bold text-indigo-500 underline decoration-dotted">
+                  {isServisDisiDetailsOpen ? (isTr ? "(Gizle)" : "(Hide)") : (isTr ? "(Detayları Göster)" : "(Show Details)")}
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowServisDisiInfo(false)}
+              className="p-1 hover:bg-indigo-100 dark:hover:bg-indigo-900 rounded-lg transition-colors shrink-0 text-indigo-500 cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {isServisDisiDetailsOpen && (
+            <div className="pl-6 text-[11px] leading-relaxed font-medium border-l border-indigo-200 dark:border-indigo-700 mt-1">
+              <p>
                 {isTr 
                   ? "Oda üzerindeki 'Servis Dışı' ibaresi; odanın boya, temizlik, arıza veya bakım nedeniyle geçici olarak müşteri satışına kapatıldığını gösterir. Odayı tekrar satışa ve girişe açmak için oda kartındaki durum menüsünden 'Boş / Hazır' seçeneğini tıklamanız yeterlidir."
                   : "The 'Maintenance / Servis Dışı' label means the room is temporarily out of service due to repairs or cleaning. To reactivate it, simply set its status to 'Vacant / Ready'."}
               </p>
             </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowServisDisiInfo(false)}
-            className="p-1 hover:bg-indigo-100 dark:hover:bg-indigo-900 rounded-lg transition-colors shrink-0 text-indigo-500 cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          )}
         </div>
       )}
 
@@ -3142,43 +3530,45 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
             <button
               type="button"
               onClick={() => handleSetRoomDisplayMode('grid')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+              className={`p-2.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 ${
                 roomDisplayMode === 'grid'
                   ? 'bg-white dark:bg-slate-950 text-slate-900 dark:text-white shadow-xs font-black'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
+              title={isTr ? "Kart Görünümü" : "Grid View"}
             >
-              <LayoutGrid className="h-3.5 w-3.5 text-indigo-500" />
-              <span>{isTr ? "Kart" : "Grid"}</span>
+              <LayoutGrid className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-indigo-500" />
+              <span className="hidden sm:inline">{isTr ? "Kart" : "Grid"}</span>
             </button>
             <button
               type="button"
               onClick={() => handleSetRoomDisplayMode('list')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+              className={`p-2.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 ${
                 roomDisplayMode === 'list'
                   ? 'bg-white dark:bg-slate-950 text-slate-900 dark:text-white shadow-xs font-black'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
+              title={isTr ? "Liste Görünümü" : "List View"}
             >
-              <List className="h-3.5 w-3.5 text-indigo-500" />
-              <span>{isTr ? "Liste" : "List"}</span>
+              <List className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-indigo-500" />
+              <span className="hidden sm:inline">{isTr ? "Liste" : "List"}</span>
             </button>
           </div>
 
           {/* HORIZONTAL NON-WRAP SCROLL FILTER ROW */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none pb-1 sm:pb-0 w-full sm:w-auto">
             {[
-              { id: 'all', label: isTr ? 'Tüm Odalar' : 'All' },
-              { id: 'checkout_today', label: isTr ? '⚠️ Bugün Çıkış' : 'Checkouts', alert: true },
-              { id: 'occupied', label: isTr ? '🟢 Dolu' : 'Occupied' },
-              { id: 'vacant', label: isTr ? '🔵 Boş' : 'Vacant' },
-              { id: 'maintenance', label: isTr ? '🛠️ Servis Dışı' : 'Maint.' },
-              { id: 'staff', label: isTr ? '🟣 Personel' : 'Staff' }
+              { id: 'all', label: isTr ? 'Tüm Odalar' : 'All', icon: <BedDouble className="h-5 w-5 sm:h-3.5 sm:w-3.5 shrink-0" /> },
+              { id: 'checkout_today', label: isTr ? '⚠️ Çıkışlar' : 'Checkouts', alert: true, icon: <Clock className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-amber-600 dark:text-amber-400 shrink-0" /> },
+              { id: 'occupied', label: isTr ? 'Dolu' : 'Occupied', icon: <Users className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-emerald-600 shrink-0" /> },
+              { id: 'vacant', label: isTr ? 'Boş' : 'Vacant', icon: <CheckCircle2 className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-blue-600 shrink-0" /> },
+              { id: 'maintenance', label: isTr ? 'Servis' : 'Maint.', icon: <Wrench className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-rose-600 shrink-0" /> },
+              { id: 'staff', label: isTr ? 'Personel' : 'Staff', icon: <ShieldAlert className="h-5 w-5 sm:h-3.5 sm:w-3.5 text-purple-600 shrink-0" /> }
             ].map(f => (
               <button
                 key={f.id}
                 onClick={() => setStatusFilter(f.id as any)}
-                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`p-2.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center min-w-[40px] h-10 sm:h-auto sm:min-w-0 ${
                   statusFilter === f.id
                     ? f.alert 
                       ? 'bg-amber-600 text-white border border-amber-700 shadow-xs font-black ring-1 ring-amber-400' 
@@ -3187,8 +3577,10 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                       ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-950 dark:text-amber-100 border border-amber-300 dark:border-amber-700 font-extrabold hover:bg-amber-200 dark:hover:bg-amber-900'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
+                title={f.label}
               >
-                {f.label}
+                {f.icon}
+                <span className="hidden sm:inline ml-1">{f.label}</span>
               </button>
             ))}
           </div>
@@ -3204,9 +3596,9 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
               <thead>
                 <tr className="bg-slate-100 dark:bg-slate-800/80 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                   <th className="p-3.5 pl-5">Oda No & Tipi</th>
-                  <th className="p-3.5">Kapasite & Yatak</th>
+                  <th className="p-3.5">Kapasite</th>
                   <th className="p-3.5">Gecelik Fiyat</th>
-                  <th className="p-3.5">Oda Durumu (Hızlı Değiştir)</th>
+                  <th className="p-3.5">Oda Durumu</th>
                   <th className="p-3.5">Konaklayan Misafir</th>
                   <th className="p-3.5">Folio / Adisyon</th>
                   <th className="p-3.5 pr-5 text-right">İşlemler</th>
@@ -3241,11 +3633,67 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                             </span>
                           </button>
                         </td>
-                        <td className="p-3.5 text-slate-600 dark:text-slate-400 font-medium">
-                          <div className="flex items-center gap-1.5">
-                            <BedDouble className="h-4 w-4 text-slate-400 shrink-0" />
-                            <span>{room.bed_info ? `${room.bed_info} (Maks ${room.capacity || 2} Kişi)` : `Maks ${room.capacity || 2} Kişi`}</span>
-                          </div>
+                        <td className="p-3.5">
+                          {(() => {
+                            const bedDetails = parseBedAndCapacity(room);
+                            return (
+                              <div className="flex flex-col gap-1.5">
+                                {/* YATAKLAR: ÇİFT VE TEK KİŞİLİK İKONLARI İLE */}
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {Array.from({ length: bedDetails.doubleBeds }).map((_, i) => (
+                                    <span 
+                                      key={`db-${i}`}
+                                      className="inline-flex items-center justify-center w-6 h-6 rounded bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400"
+                                      title="Çift Kişilik Yatak"
+                                    >
+                                      <BedDouble className="h-3.5 w-3.5" />
+                                    </span>
+                                  ))}
+
+                                  {Array.from({ length: bedDetails.singleBeds }).map((_, i) => (
+                                    <span 
+                                      key={`sb-${i}`}
+                                      className="inline-flex items-center justify-center w-6 h-6 rounded bg-sky-50 dark:bg-sky-950/70 border border-sky-200 dark:border-sky-800 text-sky-600 dark:text-sky-400"
+                                      title={`Tek Kişilik Yatak ${bedDetails.hasBunk ? '(Ranza)' : ''}`}
+                                    >
+                                      <BedSingle className="h-3.5 w-3.5" />
+                                    </span>
+                                  ))}
+
+                                  {bedDetails.doubleBeds === 0 && bedDetails.singleBeds === 0 && (
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400" title={bedDetails.rawBedInfo || 'Standart Yatak'}>
+                                      <Bed className="h-3.5 w-3.5" />
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* KAPASİTE: YETİŞKİN VE ÇOCUK İKONLARI İLE */}
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {/* YETİŞKİN İKONU VE SAYISI */}
+                                  {Array.from({ length: bedDetails.adults }).map((_, i) => (
+                                    <span 
+                                      key={`ad-${i}`}
+                                      className="inline-flex items-center justify-center w-6 h-6 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400"
+                                      title="Yetişkin Misafir"
+                                    >
+                                      <User className="h-4 w-4" />
+                                    </span>
+                                  ))}
+
+                                  {/* ÇOCUK İKONU VE SAYISI */}
+                                  {Array.from({ length: bedDetails.children }).map((_, i) => (
+                                    <span 
+                                      key={`ch-${i}`}
+                                      className="inline-flex items-center justify-center w-6 h-6 rounded bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400"
+                                      title="Çocuk / Bebek"
+                                    >
+                                      <Baby className="h-4 w-4" />
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="p-3.5 font-black text-slate-900 dark:text-white">
                           ₺{(room.price_per_night || 2500).toLocaleString('tr-TR')}
@@ -3265,11 +3713,11 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                                   : 'bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border-purple-300'
                               }`}
                             >
-                              <option value="vacant">🟢 Boş / Hazır</option>
-                              <option value="occupied">🔴 Dolu (Misafirli)</option>
-                              <option value="maintenance">🛠️ Servis Dışı / Bakımda</option>
-                              <option value="staff">👤 Personel Tahsisli</option>
-                              <option value="disabled">⛔ Devre Dışı</option>
+                              <option value="vacant">🟢</option>
+                              <option value="occupied">🔴</option>
+                              <option value="maintenance">🛠️</option>
+                              <option value="staff">👤</option>
+                              <option value="disabled">⛔</option>
                             </select>
                             {isTodayOut && (
                               <span className="px-2 py-0.5 bg-amber-500 text-white rounded text-[10px] font-black animate-pulse whitespace-nowrap">
@@ -3325,19 +3773,18 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                             <button
                               type="button"
                               onClick={() => setSelectedRoomDetailModal(room)}
-                              className="px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                              title="Misafir Künyesi & Oda Detayı"
+                              className="p-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg flex items-center justify-center cursor-pointer transition-colors"
+                              title="Detay / Misafirler"
                             >
-                              <Info className="h-3.5 w-3.5" />
-                              <span>Detay / Misafirler</span>
+                              <Info className="h-4 w-4" />
                             </button>
-                            {room.status === 'vacant' && (
+                             {room.status === 'vacant' && (
                               <button
                                 onClick={() => setCheckInModalRoom(room)}
                                 className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
                               >
                                 <UserCheck className="h-3.5 w-3.5" />
-                                <span>Giriş Yap</span>
+                                <span>{isTr ? "Giriş Ekle" : "Check-In"}</span>
                               </button>
                             )}
                             {room.status === 'occupied' && (
@@ -3346,42 +3793,21 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                                 className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
                               >
                                 <Receipt className="h-3.5 w-3.5" />
-                                <span>Folio / Çıkış</span>
+                                <span>{isTr ? "Çıkış" : "Checkout"}</span>
                               </button>
                             )}
                             {room.status === 'maintenance' && (
                               <button
                                 onClick={() => handleQuickStatusChange(room.id, 'vacant')}
                                 className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
-                                title="Odayı Boş & Hazır Yap"
+                                title="Odayı Aktifleştir"
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span>Hazır Yap</span>
+                                <span>{isTr ? "Aktifleştir" : "Activate"}</span>
                               </button>
                             )}
                             <button
-                              onClick={() => {
-                                setEditingRoom(room);
-                                setRoomForm({
-                                  room_number: room.room_number,
-                                  room_type: room.room_type,
-                                  capacity: room.capacity || 2,
-                                  bed_info: room.bed_info || "",
-                                  price_per_night: room.price_per_night || 2500,
-                                  price_room_only: room.board_prices?.room_only || Math.round((room.price_per_night || 2500) * 0.88),
-                                  price_half_board: room.board_prices?.half_board || Math.round((room.price_per_night || 2500) * 1.28),
-                                  price_full_board: room.board_prices?.full_board || Math.round((room.price_per_night || 2500) * 1.56),
-                                  price_all_inclusive: room.board_prices?.all_inclusive || Math.round((room.price_per_night || 2500) * 1.92),
-                                  price_ultra_all_inclusive: room.board_prices?.ultra_all_inclusive || 0,
-                                  non_refundable_discount: room.non_refundable_discount || 10,
-                                  amenitiesStr: (room.amenities || ["WiFi", "Deniz Manzarası", "Balkon", "Klima", "LCD TV"]).join(", "),
-                                  cover_image: room.cover_image || "",
-                                  description: room.description || "",
-                                  status: room.status,
-                                  notes: room.notes || ""
-                                });
-                                setIsAddRoomModalOpen(true);
-                              }}
+                              onClick={() => openAddOrEditRoomModal(room)}
                               className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                               title="Düzenle"
                             >
@@ -3439,20 +3865,63 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     </div>
 
                     {/* SPECS BADGES - CLEAN HORIZONTAL BADGES */}
-                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 whitespace-nowrap">
-                        <Users className="h-3 w-3 text-slate-400 shrink-0" />
-                        <span>Maks {room.capacity || 2}</span>
-                      </span>
+                    <div className="flex items-center gap-1 flex-wrap mt-1.5">
+                      {(() => {
+                        const cardBed = parseBedAndCapacity(room);
+                        return (
+                          <>
+                            {/* YATAKLAR: ÇİFT VE TEK KİŞİLİK İKONLARI İLE */}
+                            {Array.from({ length: cardBed.doubleBeds }).map((_, i) => (
+                              <span 
+                                key={`cdb-${i}`}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400"
+                                title="Çift Kişilik Yatak"
+                              >
+                                <BedDouble className="h-3.5 w-3.5" />
+                              </span>
+                            ))}
 
-                      {room.bed_info && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap truncate max-w-[130px]" title={room.bed_info}>
-                          <BedDouble className="h-3 w-3 text-slate-400 shrink-0" />
-                          <span className="truncate">{room.bed_info}</span>
-                        </span>
-                      )}
+                            {Array.from({ length: cardBed.singleBeds }).map((_, i) => (
+                              <span 
+                                key={`csb-${i}`}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-600 dark:text-sky-400"
+                                title={`Tek Kişilik Yatak ${cardBed.hasBunk ? '(Ranza)' : ''}`}
+                              >
+                                <BedSingle className="h-3.5 w-3.5" />
+                              </span>
+                            ))}
 
-                      <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
+                            {cardBed.doubleBeds === 0 && cardBed.singleBeds === 0 && (
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400" title={cardBed.rawBedInfo || 'Standart Yatak'}>
+                                <Bed className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+
+                            {/* KAPASİTE: YETİŞKİN VE ÇOCUK İKONLARI İLE */}
+                            {Array.from({ length: cardBed.adults }).map((_, i) => (
+                              <span 
+                                key={`cad-${i}`}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400"
+                                title="Yetişkin Misafir"
+                              >
+                                <User className="h-4 w-4" />
+                              </span>
+                            ))}
+
+                            {Array.from({ length: cardBed.children }).map((_, i) => (
+                              <span 
+                                key={`cch-${i}`}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400"
+                                title="Çocuk / Bebek"
+                              >
+                                <Baby className="h-4 w-4" />
+                              </span>
+                            ))}
+                          </>
+                        );
+                      })()}
+
+                      <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 h-6 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
                         ₺{(room.price_per_night || 2500).toLocaleString('tr-TR')}/gece
                       </span>
                     </div>
@@ -3469,7 +3938,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     <select
                       value={room.status}
                       onChange={(e) => handleQuickStatusChange(room.id, e.target.value as any)}
-                      className={`px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer border outline-none transition-all max-w-[120px] ${
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer border outline-none transition-all max-w-[50px] ${
                         room.status === 'occupied'
                           ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
                           : room.status === 'vacant'
@@ -3479,11 +3948,11 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                           : 'bg-purple-50 dark:bg-purple-950 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700'
                       }`}
                     >
-                      <option value="vacant" className="text-slate-900 bg-white">Boş / Hazır</option>
-                      <option value="occupied" className="text-slate-900 bg-white">Dolu</option>
-                      <option value="maintenance" className="text-slate-900 bg-white">Servis Dışı</option>
-                      <option value="staff" className="text-slate-900 bg-white">Personel</option>
-                      <option value="disabled" className="text-slate-900 bg-white">Devre Dışı</option>
+                      <option value="vacant" className="text-slate-900 bg-white">🟢</option>
+                      <option value="occupied" className="text-slate-900 bg-white">🔴</option>
+                      <option value="maintenance" className="text-slate-900 bg-white">🛠️</option>
+                      <option value="staff" className="text-slate-900 bg-white">👤</option>
+                      <option value="disabled" className="text-slate-900 bg-white">⛔</option>
                     </select>
                   </div>
                 </div>
@@ -3555,7 +4024,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                         className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span>Boş & Hazır Yap</span>
+                        <span>{isTr ? "Aktifleştir" : "Activate"}</span>
                       </button>
                     )}
                   </div>
@@ -3566,42 +4035,20 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedRoomDetailModal(room)}
-                    className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                    title="Misafir Künyesi & Oda Detayı"
+                    className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center cursor-pointer transition-colors"
+                    title="Detay / Misafirler"
                   >
-                    <Info className="h-3.5 w-3.5 text-slate-500" />
-                    <span>Detay</span>
+                    <Info className="h-4 w-4 text-slate-500" />
                   </button>
 
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => {
-                        setEditingRoom(room);
-                        setRoomForm({
-                        room_number: room.room_number,
-                        room_type: room.room_type,
-                        capacity: room.capacity || 2,
-                        bed_info: room.bed_info || "",
-                        price_per_night: room.price_per_night || 2500,
-                        price_room_only: room.board_prices?.room_only || Math.round((room.price_per_night || 2500) * 0.88),
-                        price_half_board: room.board_prices?.half_board || Math.round((room.price_per_night || 2500) * 1.28),
-                        price_full_board: room.board_prices?.full_board || Math.round((room.price_per_night || 2500) * 1.56),
-                        price_all_inclusive: room.board_prices?.all_inclusive || Math.round((room.price_per_night || 2500) * 1.92),
-                        price_ultra_all_inclusive: room.board_prices?.ultra_all_inclusive || 0,
-                        non_refundable_discount: room.non_refundable_discount || 10,
-                        amenitiesStr: (room.amenities || ["WiFi", "Deniz Manzarası", "Balkon", "Klima", "LCD TV"]).join(", "),
-                        cover_image: room.cover_image || "",
-                        description: room.description || "",
-                        status: room.status,
-                        notes: room.notes || ""
-                      });
-                      setIsAddRoomModalOpen(true);
-                    }}
-                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                    title="Oda Ayarları"
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                  </button>
+                      onClick={() => openAddOrEditRoomModal(room)}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                      title="Oda Ayarları"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </button>
 
                   <button
                     onClick={() => handleDeleteRoom(room.id)}
@@ -3612,13 +4059,13 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                   </button>
                   </div>
 
-                  {room.status === 'vacant' && (
+                   {room.status === 'vacant' && (
                     <button
                       onClick={() => setCheckInModalRoom(room)}
                       className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <UserCheck className="h-3.5 w-3.5" />
-                      <span>Giriş Yap (Check-In)</span>
+                      <span>{isTr ? "Giriş Ekle" : "Check-In"}</span>
                     </button>
                   )}
 
@@ -3628,7 +4075,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                       className="flex-1 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Receipt className="h-3.5 w-3.5" />
-                      <span>Çıkış & Folyo</span>
+                      <span>{isTr ? "Çıkış" : "Checkout"}</span>
                     </button>
                   )}
                 </div>
@@ -4519,7 +4966,6 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                             <button
                               type="button"
                               onClick={() => {
-                                setSelectedAgeCategoryModal(null);
                                 setInspectGuestModal(g);
                               }}
                               className="px-2.5 py-1 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-xs font-black cursor-pointer shadow-xs"
@@ -4553,7 +4999,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
       {/* MODAL: INSPECT GUEST FULL DOSSIER */}
       {inspectGuestModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[60] p-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-xl w-full border-2 border-indigo-200 dark:border-indigo-800 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
@@ -4682,6 +5128,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                   onClick={() => {
                     const r = inspectGuestModal.room;
                     setInspectGuestModal(null);
+                    setSelectedAgeCategoryModal(null);
                     setAddExpenseModalRoom(r);
                   }}
                   className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
@@ -4696,6 +5143,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     onClick={() => {
                       const r = inspectGuestModal.room;
                       setInspectGuestModal(null);
+                      setSelectedAgeCategoryModal(null);
                       setCheckOutModalRoom(r);
                     }}
                     className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
@@ -4839,9 +5287,46 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                        selectedRoomDetailModal.status === 'maintenance' ? '🛠️ Servis Dışı / Bakımda' : '👤 Personel'}
                     </span>
                   </div>
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">
-                    {selectedRoomDetailModal.room_type} • {selectedRoomDetailModal.bed_info || `Maks ${selectedRoomDetailModal.capacity} Kişi`} • ₺{(selectedRoomDetailModal.price_per_night || 2500).toLocaleString('tr-TR')}/gece
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                      {selectedRoomDetailModal.room_type}
+                    </span>
+                    <span className="text-slate-300 dark:text-slate-700">•</span>
+                    {(() => {
+                      const bed = parseBedAndCapacity(selectedRoomDetailModal);
+                      return (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {bed.doubleBeds > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px] font-black border border-indigo-200 dark:border-indigo-800">
+                              <BedDouble className="h-3 w-3" />
+                              {bed.doubleBeds} Çift Kişilik
+                            </span>
+                          )}
+                          {bed.singleBeds > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 text-[10px] font-black border border-sky-200 dark:border-sky-800">
+                              <BedSingle className="h-3 w-3" />
+                              {bed.singleBeds} Tek Kişilik {bed.hasBunk ? '(Ranza)' : ''}
+                            </span>
+                          )}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-black border border-emerald-200 dark:border-emerald-800">
+                            <User className="h-3 w-3" />
+                            {bed.adults} Yetişkin
+                            {bed.children > 0 && (
+                              <>
+                                <span>+</span>
+                                <Baby className="h-2.5 w-2.5" />
+                                <span>{bed.children} Çocuk</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    <span className="text-slate-300 dark:text-slate-700">•</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white">
+                      ₺{(selectedRoomDetailModal.price_per_night || 2500).toLocaleString('tr-TR')}/gece
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -5012,21 +5497,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                   onClick={() => {
                     const room = selectedRoomDetailModal;
                     setSelectedRoomDetailModal(null);
-                    setEditingRoom(room);
-                    setRoomForm({
-                      room_number: room.room_number,
-                      room_type: room.room_type,
-                      capacity: room.capacity || 2,
-                      bed_info: room.bed_info || "",
-                      price_per_night: room.price_per_night || 2500,
-                      board_prices: room.board_prices || { room_only: 2200, bed_breakfast: 2500, half_board: 3200 },
-                      non_refundable_discount: room.non_refundable_discount || 10,
-                      amenities: room.amenities || ["WiFi", "Klima", "TV"],
-                      cover_image: room.cover_image || "",
-                      description: room.description || "",
-                      notes: room.notes || ""
-                    });
-                    setIsAddRoomModalOpen(true);
+                    openAddOrEditRoomModal(room);
                   }}
                   className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
@@ -5049,185 +5520,693 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
       {/* MODAL: ADD / EDIT ROOM */}
       {isAddRoomModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-xl w-full border-2 border-slate-300 dark:border-slate-700 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b-2 border-slate-200 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  {editingRoom ? (isTr ? `Oda #${editingRoom.room_number} Düzenle` : "Edit Room") : (isTr ? "Yeni Oda & Konaklama Tipi Tanımla" : "Define Room & Board Types")}
-                </h3>
-                <p className="text-xs font-bold text-slate-600 dark:text-slate-300">LookPrice Horeca uyumlu oda tipi, pansiyon fiyatları ve olanaklar</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-7 max-w-4xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-200 dark:border-indigo-800/80">
+                  <Building2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    {editingRoom ? (isTr ? `Oda #${editingRoom.room_number} Düzenle` : "Edit Room") : (isTr ? "Yeni Oda & Konaklama Tipi Tanımla" : "Define Room & Board Types")}
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Oda kapasitesi, yatak & ekstra yatak tanımları, pansiyon fiyatları ve web sitesi görselleri
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setIsAddRoomModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1">
+              <button 
+                type="button"
+                onClick={() => setIsAddRoomModalOpen(false)} 
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors"
+                title="Kapat"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveRoom} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">{isTr ? "Oda Numarası / Kodu" : "Room No"}</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Örn: 101, SUITE-A"
-                    value={roomForm.room_number}
-                    onChange={(e) => setRoomForm({ ...roomForm, room_number: e.target.value })}
-                    className="w-full mt-1 px-3 py-2.5 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+            <form onSubmit={handleSaveRoom} className="space-y-6">
+              {/* BÖLÜM 1: TEMEL ODA BİLGİLERİ VE KAPASİTE */}
+              <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <DoorOpen className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    1. Oda Kimliği & Kapasite
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500">Zorunlu Alanlar</span>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">{isTr ? "Maksimum Kapasite" : "Capacity"}</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    required
-                    value={roomForm.capacity}
-                    onChange={(e) => setRoomForm({ ...roomForm, capacity: Number(e.target.value) })}
-                    className="w-full mt-1 px-3 py-2.5 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
+                  {/* Oda Numarası */}
+                  <div className="sm:col-span-3">
+                    <label className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide">
+                      {isTr ? "Oda No / Kodu" : "Room No"} *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Örn: 101, B-204"
+                      value={roomForm.room_number}
+                      onChange={(e) => setRoomForm({ ...roomForm, room_number: e.target.value })}
+                      className="w-full mt-1 px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
+                  </div>
+
+                  {/* Oda Tipi */}
+                  <div className="sm:col-span-4">
+                    <label className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide">
+                      {isTr ? "Oda Tipi / Kategorisi" : "Room Type"} *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Örn: Standart Deniz Manzaralı"
+                      value={roomForm.room_type}
+                      onChange={(e) => setRoomForm({ ...roomForm, room_type: e.target.value })}
+                      className="w-full mt-1 px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
+                  </div>
+
+                  {/* Kapasite Kutuları */}
+                  <div className="sm:col-span-5 grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-wide flex items-center gap-1">
+                        <Users className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                        {isTr ? "Toplam Kapasite" : "Total"}
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="16"
+                        required
+                        value={roomForm.capacity}
+                        onChange={(e) => setRoomForm({ ...roomForm, capacity: Number(e.target.value) })}
+                        className="w-full mt-1 px-2.5 py-2.5 bg-indigo-50/50 dark:bg-slate-950 border border-indigo-300 dark:border-indigo-800 rounded-xl text-sm font-black text-indigo-900 dark:text-indigo-300 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        title="Yatak sayısına göre otomatik belirlenir, dilerseniz değiştirebilirsiniz"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-emerald-900 dark:text-emerald-300 uppercase tracking-wide flex items-center gap-1">
+                        <User className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                        {isTr ? "Maks Yetişkin" : "Adults"}
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="16"
+                        placeholder="2"
+                        value={roomForm.max_adults || ""}
+                        onChange={(e) => setRoomForm({ ...roomForm, max_adults: e.target.value ? Number(e.target.value) : undefined })}
+                        className="w-full mt-1 px-2.5 py-2.5 bg-emerald-50/50 dark:bg-slate-950 border border-emerald-300 dark:border-emerald-800 rounded-xl text-sm font-black text-emerald-900 dark:text-emerald-300 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-amber-900 dark:text-amber-300 uppercase tracking-wide flex items-center gap-1">
+                        <Baby className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                        {isTr ? "Maks Çocuk" : "Children"}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        placeholder="1"
+                        value={roomForm.max_children !== undefined ? roomForm.max_children : ""}
+                        onChange={(e) => setRoomForm({ ...roomForm, max_children: e.target.value ? Number(e.target.value) : 0 })}
+                        className="w-full mt-1 px-2.5 py-2.5 bg-amber-50/50 dark:bg-slate-950 border border-amber-300 dark:border-amber-800 rounded-xl text-sm font-black text-amber-900 dark:text-amber-300 text-center focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">{isTr ? "Oda Tipi" : "Room Type"}</label>
-                  <input
-                    type="text"
-                    placeholder="Örn: Standart Deniz Manzaralı"
-                    value={roomForm.room_type}
-                    onChange={(e) => setRoomForm({ ...roomForm, room_type: e.target.value })}
-                    className="w-full mt-1 px-3 py-2.5 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+              {/* BÖLÜM 2: GELİŞMİŞ YATAK DÜZENİ, EKSTRA YATAK VE DÖŞEK YAPILANDIRICISI */}
+              <div className="p-4 sm:p-5 bg-gradient-to-br from-indigo-50/60 via-white to-sky-50/60 dark:from-slate-800/60 dark:via-slate-900 dark:to-slate-800/60 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/80 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-indigo-100 dark:border-slate-800 pb-3">
+                  <div>
+                    <span className="text-xs font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-2">
+                      <Bed className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      2. Yatak Düzeni, Ekstra Yatak & Döşek Yapılandırıcısı
+                    </span>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                      Odada bulunan tüm yatakları, katlanır ilave yatakları ve döşek/şilteleri adetleriyle belirleyin.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950 px-2.5 py-1 rounded-lg shrink-0 self-start sm:self-auto">
+                    Çoklu Yatak & Döşek Destekli
+                  </span>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">{isTr ? "Yatak Bilgisi" : "Bed Info"}</label>
+                {/* 7 Tip Yatak & İlave Yatak Kartları Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  {/* 1. Çift Kişilik Yatak */}
+                  <div className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                    bedConfig.doubleBeds > 0 
+                      ? "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-600 shadow-xs" 
+                      : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded-lg">
+                        <BedDouble className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 dark:text-white">Çift Kişilik</div>
+                        <div className="text-[10px] text-slate-500">French / Double</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('doubleBeds', -1)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="text-sm font-black text-indigo-900 dark:text-indigo-200">{bedConfig.doubleBeds}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('doubleBeds', 1)}
+                        className="w-7 h-7 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Tek Kişilik Yatak */}
+                  <div className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                    bedConfig.singleBeds > 0 
+                      ? "bg-sky-50 dark:bg-sky-950/60 border-sky-400 dark:border-sky-600 shadow-xs" 
+                      : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 rounded-lg">
+                        <BedSingle className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 dark:text-white">Tek Kişilik</div>
+                        <div className="text-[10px] text-slate-500">Single / Twin</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('singleBeds', -1)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="text-sm font-black text-sky-900 dark:text-sky-200">{bedConfig.singleBeds}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('singleBeds', 1)}
+                        className="w-7 h-7 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Ranza (2 Katlı) */}
+                  <div className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                    bedConfig.bunkBeds > 0 
+                      ? "bg-purple-50 dark:bg-purple-950/60 border-purple-400 dark:border-purple-600 shadow-xs" 
+                      : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 rounded-lg">
+                        <Layers className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 dark:text-white">Ranza</div>
+                        <div className="text-[10px] text-slate-500">2 Katlı Katlanır / Sabit</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('bunkBeds', -1)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="text-sm font-black text-purple-900 dark:text-purple-200">{bedConfig.bunkBeds}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('bunkBeds', 1)}
+                        className="w-7 h-7 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. Ekstra / Katlanır Yatak */}
+                  <div className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                    bedConfig.extraBeds > 0 
+                      ? "bg-amber-50 dark:bg-amber-950/60 border-amber-400 dark:border-amber-600 shadow-xs" 
+                      : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-lg">
+                        <Plus className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 dark:text-white">Ekstra Yatak</div>
+                        <div className="text-[10px] text-slate-500">Katlanır Portatif Yatak</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('extraBeds', -1)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="text-sm font-black text-amber-900 dark:text-amber-200">{bedConfig.extraBeds}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('extraBeds', 1)}
+                        className="w-7 h-7 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 5. Döşek / Yer Yatağı */}
+                  <div className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                    bedConfig.floorMattress > 0 
+                      ? "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-400 dark:border-emerald-600 shadow-xs" 
+                      : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-lg">
+                        <Bed className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 dark:text-white">Döşek / Şilte</div>
+                        <div className="text-[10px] text-slate-500">Minder / Yer Yatağı</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('floorMattress', -1)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="text-sm font-black text-emerald-900 dark:text-emerald-200">{bedConfig.floorMattress}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('floorMattress', 1)}
+                        className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 6. Bebek Beşiği / Karyola */}
+                  <div className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                    bedConfig.babyCribs > 0 
+                      ? "bg-rose-50 dark:bg-rose-950/60 border-rose-400 dark:border-rose-600 shadow-xs" 
+                      : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 rounded-lg">
+                        <Baby className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 dark:text-white">Bebek Yatağı</div>
+                        <div className="text-[10px] text-slate-500">0-2 Yaş Beşik / Karyola</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('babyCribs', -1)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="text-sm font-black text-rose-900 dark:text-rose-200">{bedConfig.babyCribs}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('babyCribs', 1)}
+                        className="w-7 h-7 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 7. Açılır Koltuk / Çekyat */}
+                  <div className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                    bedConfig.sofaBeds > 0 
+                      ? "bg-teal-50 dark:bg-teal-950/60 border-teal-400 dark:border-teal-600 shadow-xs" 
+                      : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300 rounded-lg">
+                        <Armchair className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 dark:text-white">Çekyat / Koltuk</div>
+                        <div className="text-[10px] text-slate-500">Açılır Yataklı Sofa</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('sofaBeds', -1)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="text-sm font-black text-teal-900 dark:text-teal-200">{bedConfig.sofaBeds}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateBedConfig('sofaBeds', 1)}
+                        className="w-7 h-7 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-black flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hızlı Şablonlar */}
+                <div className="pt-2">
+                  <div className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                    Hızlı Hazır Şablonlar (Tek Tıkla Yükle):
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { label: "1 Çift Kişilik", d: 1, s: 0, b: 0, ex: 0, fl: 0, cb: 0, sf: 0 },
+                      { label: "2 Tek Kişilik", d: 0, s: 2, b: 0, ex: 0, fl: 0, cb: 0, sf: 0 },
+                      { label: "1 Çift + 1 Tek", d: 1, s: 1, b: 0, ex: 0, fl: 0, cb: 0, sf: 0 },
+                      { label: "1 Çift + Ekstra Yatak", d: 1, s: 0, b: 0, ex: 1, fl: 0, cb: 0, sf: 0 },
+                      { label: "1 Çift + Döşek", d: 1, s: 0, b: 0, ex: 0, fl: 1, cb: 0, sf: 0 },
+                      { label: "1 Çift + 1 Tek + Ek Yatak", d: 1, s: 1, b: 0, ex: 1, fl: 0, cb: 0, sf: 0 },
+                      { label: "2 Tek + 1 Döşek", d: 0, s: 2, b: 0, ex: 0, fl: 1, cb: 0, sf: 0 },
+                      { label: "Ranza + 1 Tek", d: 0, s: 1, b: 1, ex: 0, fl: 0, cb: 0, sf: 0 },
+                    ].map(template => (
+                      <button
+                        key={template.label}
+                        type="button"
+                        onClick={() => {
+                          const nextConfig = {
+                            doubleBeds: template.d,
+                            singleBeds: template.s,
+                            bunkBeds: template.b,
+                            extraBeds: template.ex,
+                            floorMattress: template.fl,
+                            babyCribs: template.cb,
+                            sofaBeds: template.sf
+                          };
+                          setBedConfig(nextConfig);
+
+                          const parts: string[] = [];
+                          if (nextConfig.doubleBeds > 0) parts.push(`${nextConfig.doubleBeds} Çift Kişilik Yatak`);
+                          if (nextConfig.singleBeds > 0) parts.push(`${nextConfig.singleBeds} Tek Kişilik Yatak`);
+                          if (nextConfig.bunkBeds > 0) parts.push(`${nextConfig.bunkBeds} Ranza`);
+                          if (nextConfig.extraBeds > 0) parts.push(`${nextConfig.extraBeds} Ekstra Yatak (Katlanır)`);
+                          if (nextConfig.floorMattress > 0) parts.push(`${nextConfig.floorMattress} Döşek / Yer Yatağı`);
+                          if (nextConfig.babyCribs > 0) parts.push(`${nextConfig.babyCribs} Bebek Yatağı / Beşik`);
+                          if (nextConfig.sofaBeds > 0) parts.push(`${nextConfig.sofaBeds} Açılır Koltuk / Çekyat`);
+
+                          const stdCapacity = (nextConfig.doubleBeds * 2) + nextConfig.singleBeds + (nextConfig.bunkBeds * 2) + nextConfig.extraBeds + nextConfig.floorMattress + nextConfig.sofaBeds;
+                          const suggestedCap = Math.max(1, stdCapacity);
+
+                          setRoomForm(rf => ({
+                            ...rf,
+                            bed_info: parts.join(", "),
+                            capacity: suggestedCap,
+                            max_adults: suggestedCap,
+                            max_children: nextConfig.babyCribs > 0 ? nextConfig.babyCribs : (suggestedCap > 2 ? 1 : 0)
+                          }));
+                        }}
+                        className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-white dark:bg-slate-900 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-950 dark:hover:text-indigo-300 border border-slate-200 dark:border-slate-800 cursor-pointer shadow-2xs transition-all active:scale-95"
+                      >
+                        {template.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Oluşturulan Metin ve Canlı Düzenleme Kutusu */}
+                <div className="pt-2 border-t border-indigo-100 dark:border-slate-800">
+                  <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center justify-between mb-1">
+                    <span>Oluşturulan Yatak & Ekstra Yatak Açıklaması (Web & Rezervasyon Fişinde Gösterilir):</span>
+                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">Dilerseniz elle ek açıklama yazabilirsiniz</span>
+                  </label>
                   <input
                     type="text"
-                    placeholder="Örn: 1 Çift Kişilik Yatak"
+                    placeholder="Örn: 1 Çift Kişilik Yatak, 1 Ekstra Katlanır Yatak, 1 Döşek"
                     value={roomForm.bed_info}
                     onChange={(e) => setRoomForm({ ...roomForm, bed_info: e.target.value })}
-                    className="w-full mt-1 px-3 py-2.5 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
-              {/* BOOKING.COM BOARD PRICING ENGINE */}
-              <div className="p-4 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border-2 border-slate-300 dark:border-slate-700 space-y-3">
-                <div className="flex items-center justify-between border-b-2 border-slate-200 dark:border-slate-700 pb-2">
-                  <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Building2 className="h-4 w-4 text-indigo-600" />
-                    Pansiyon Tiplerine Göre Gecelik Fiyatlandırma (₺)
-                  </span>
-                  <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950 px-2.5 py-1 rounded-lg">
-                    Otomatik Binlik Ayraçlı
+              {/* BÖLÜM 3: PANSİYON VE KONAKLAMA FİYATLARI (FERAH 3x2 GRİD - GÖRSEL KAYMASIZ) */}
+              <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200 dark:border-slate-700 pb-3">
+                  <div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Receipt className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      3. Pansiyon Tiplerine Göre Gecelik Fiyatlandırma (₺)
+                    </span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Fiyatlar otomatik binlik ayraçlıdır. Rezervasyon ve check-in işlemlerinde bu baz fiyatlar kullanılır.
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-1 rounded-lg shrink-0 self-start sm:self-auto">
+                    Para Birimi: TRY (₺)
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">Sadece Oda (RO)</label>
-                    <input
-                      type="text"
-                      placeholder="2.200"
-                      value={formatThousand(roomForm.price_room_only)}
-                      onChange={(e) => setRoomForm({ ...roomForm, price_room_only: parseThousand(e.target.value) })}
-                      className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white"
-                    />
-                  </div>
+                <div className="mb-2">
+                  <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide block mb-2">
+                    {isTr ? "Fiyatlandırma Mantığı (Rezervasyon Hesaplaması)" : "Pricing Logic"}
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setRoomForm({ ...roomForm, pricing_type: 'per_room' })}
+                      className={`p-3 rounded-xl border-2 text-left transition-all ${
+                        roomForm.pricing_type === 'per_room'
+                          ? 'bg-emerald-50 dark:bg-emerald-900/40 border-emerald-500 text-emerald-900 dark:text-emerald-100'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="font-black text-sm mb-0.5">Oda Başı (Sabit Fiyat)</div>
+                      <div className="text-[10px] font-medium opacity-80 leading-tight">Odayı kullanan kişi sayısından bağımsız, odanın gecelik satış fiyatı sabittir. (Kapasiteye kadar)</div>
+                    </button>
 
-                  <div>
-                    <label className="text-[10px] font-extrabold text-indigo-800 dark:text-indigo-300">Oda + Kahvaltı (BB - Baz)</label>
-                    <input
-                      type="text"
-                      placeholder="2.500"
-                      value={formatThousand(roomForm.price_per_night)}
-                      onChange={(e) => {
-                        const val = parseThousand(e.target.value);
-                        setRoomForm({ ...roomForm, price_per_night: val });
-                      }}
-                      className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-950 border-2 border-indigo-500 rounded-xl text-xs font-black text-indigo-700 dark:text-indigo-300 shadow-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">Yarım Pansiyon (HB)</label>
-                    <input
-                      type="text"
-                      placeholder="3.200"
-                      value={formatThousand(roomForm.price_half_board)}
-                      onChange={(e) => setRoomForm({ ...roomForm, price_half_board: parseThousand(e.target.value) })}
-                      className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">Tam Pansiyon (FB)</label>
-                    <input
-                      type="text"
-                      placeholder="3.900"
-                      value={formatThousand(roomForm.price_full_board)}
-                      onChange={(e) => setRoomForm({ ...roomForm, price_full_board: parseThousand(e.target.value) })}
-                      className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">Her Şey Dahil (AI)</label>
-                    <input
-                      type="text"
-                      placeholder="4.800"
-                      value={formatThousand(roomForm.price_all_inclusive)}
-                      onChange={(e) => setRoomForm({ ...roomForm, price_all_inclusive: parseThousand(e.target.value) })}
-                      className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300">İptal Edilemez İndirimi (%)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="50"
-                      placeholder="15"
-                      value={roomForm.non_refundable_discount}
-                      onChange={(e) => setRoomForm({ ...roomForm, non_refundable_discount: Number(e.target.value) })}
-                      className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-950 border-2 border-emerald-400 dark:border-emerald-700 rounded-xl text-xs font-black text-emerald-700 dark:text-emerald-300"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setRoomForm({ ...roomForm, pricing_type: 'per_person' })}
+                      className={`p-3 rounded-xl border-2 text-left transition-all ${
+                        roomForm.pricing_type === 'per_person' || !roomForm.pricing_type
+                          ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-500 text-indigo-900 dark:text-indigo-100'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="font-black text-sm mb-0.5">Kişi Başı (Dinamik Fiyat)</div>
+                      <div className="text-[10px] font-medium opacity-80 leading-tight">Girdiğiniz fiyatlar kişi başı 1 yetişkin ücretidir. Yaş indirimleri vb. çocuk kıvrımlarına göre hesaplanır.</div>
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">Oda Özellikleri & Olanaklar (Virgülle Ayırın)</label>
-                <input
-                  type="text"
-                  placeholder="WiFi, Deniz Manzarası, Balkon, Jakuzi, Klima, LCD TV, Minibar"
-                  value={roomForm.amenitiesStr}
-                  onChange={(e) => setRoomForm({ ...roomForm, amenitiesStr: e.target.value })}
-                  className="w-full mt-1 px-3 py-2.5 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              {/* MULTI-IMAGE GALLERY MANAGER */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border-2 border-slate-200 dark:border-slate-700 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
-                  <div>
-                    <label className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wide flex items-center gap-1.5">
-                      <Camera className="h-4 w-4 text-indigo-600" />
-                      <span>{isTr ? "Oda Fotoğraf Galerisi & Kapak Görselleri" : "Room Photo Gallery"}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {/* Sadece Oda (RO) */}
+                  <div className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 block mb-1">
+                      Sadece Oda (RO)
                     </label>
-                    <p className="text-[10px] text-slate-500 font-medium">Birden fazla fotoğraf yükleyebilir, ana kapak görselini belirleyebilirsiniz.</p>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">₺</span>
+                      <input
+                        type="text"
+                        placeholder="2.200"
+                        value={formatThousand(roomForm.price_room_only)}
+                        onChange={(e) => setRoomForm({ ...roomForm, price_room_only: parseThousand(e.target.value) })}
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
                   </div>
-                  <span className="text-[10px] font-black bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg">
+
+                  {/* Oda + Kahvaltı (BB - Temel Fiyat) */}
+                  <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border-2 border-indigo-400 dark:border-indigo-600 shadow-xs">
+                    <label className="text-[11px] font-black text-indigo-900 dark:text-indigo-200 block mb-1">
+                      Oda + Kahvaltı (BB - Baz Fiyat) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs font-bold text-indigo-500">₺</span>
+                      <input
+                        type="text"
+                        placeholder="2.500"
+                        value={formatThousand(roomForm.price_per_night)}
+                        onChange={(e) => {
+                          const val = parseThousand(e.target.value);
+                          setRoomForm({ ...roomForm, price_per_night: val });
+                        }}
+                        className="w-full pl-7 pr-3 py-2 bg-white dark:bg-slate-950 border border-indigo-500 rounded-lg text-sm font-black text-indigo-900 dark:text-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Yarım Pansiyon (HB) */}
+                  <div className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 block mb-1">
+                      Yarım Pansiyon (HB)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">₺</span>
+                      <input
+                        type="text"
+                        placeholder="3.200"
+                        value={formatThousand(roomForm.price_half_board)}
+                        onChange={(e) => setRoomForm({ ...roomForm, price_half_board: parseThousand(e.target.value) })}
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tam Pansiyon (FB) */}
+                  <div className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 block mb-1">
+                      Tam Pansiyon (FB)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">₺</span>
+                      <input
+                        type="text"
+                        placeholder="3.900"
+                        value={formatThousand(roomForm.price_full_board)}
+                        onChange={(e) => setRoomForm({ ...roomForm, price_full_board: parseThousand(e.target.value) })}
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Her Şey Dahil (AI) */}
+                  <div className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 block mb-1">
+                      Her Şey Dahil (AI)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">₺</span>
+                      <input
+                        type="text"
+                        placeholder="4.800"
+                        value={formatThousand(roomForm.price_all_inclusive)}
+                        onChange={(e) => setRoomForm({ ...roomForm, price_all_inclusive: parseThousand(e.target.value) })}
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* İptal Edilemez İndirimi (%) */}
+                  <div className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <label className="text-[11px] font-black text-emerald-800 dark:text-emerald-300 block mb-1">
+                      İptal Edilemez İndirimi (%)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs font-bold text-emerald-600">%</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="50"
+                        placeholder="10"
+                        value={roomForm.non_refundable_discount}
+                        onChange={(e) => setRoomForm({ ...roomForm, non_refundable_discount: Number(e.target.value) })}
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-emerald-300 dark:border-emerald-800 rounded-lg text-sm font-black text-emerald-800 dark:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* BÖLÜM 4: ODA OLANAKLARI & HIZLI SEÇİM */}
+              <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Coffee className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    4. Oda Olanakları & Hizmetler
+                  </span>
+                  <span className="text-[10px] text-slate-500">Tıklayarak ekleyip çıkarabilirsiniz</span>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    "WiFi", "Deniz Manzarası", "Balkon", "Klima", "LCD TV", "Minibar", 
+                    "Jakuzi", "Çay/Kahve Makinesi", "Kasa", "Saç Kurutma Makinesi", "Oda Servisi"
+                  ].map(amenity => {
+                    const currentList = roomForm.amenitiesStr.split(',').map(s => s.trim().toLowerCase());
+                    const isSelected = currentList.includes(amenity.toLowerCase());
+                    return (
+                      <button
+                        key={amenity}
+                        type="button"
+                        onClick={() => {
+                          let arr = roomForm.amenitiesStr.split(',').map(s => s.trim()).filter(Boolean);
+                          if (isSelected) {
+                            arr = arr.filter(item => item.toLowerCase() !== amenity.toLowerCase());
+                          } else {
+                            arr.push(amenity);
+                          }
+                          setRoomForm({ ...roomForm, amenitiesStr: arr.join(", ") });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                            : "bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        {isSelected ? `✓ ${amenity}` : `+ ${amenity}`}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    placeholder="WiFi, Deniz Manzarası, Balkon, Jakuzi, Klima..."
+                    value={roomForm.amenitiesStr}
+                    onChange={(e) => setRoomForm({ ...roomForm, amenitiesStr: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* BÖLÜM 5: FOTOĞRAF GALERİSİ & GÖRSELLER */}
+              <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200 dark:border-slate-700 pb-3">
+                  <div>
+                    <label className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Camera className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      5. Oda Fotoğraf Galerisi & Kapak Görselleri
+                    </label>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Web sitenizde ve rezervasyon sayfasında misafirlerin göreceği fotoğrafları ekleyin.
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-black bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg shrink-0 self-start sm:self-auto">
                     {roomForm.images?.length || 0} Fotoğraf
                   </span>
                 </div>
 
-                {/* File input elements */}
+                {/* Gizli Dosya Inputları */}
                 <input
                   type="file"
                   id="hotel_room_photo_file_input"
@@ -5245,7 +6224,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                   onChange={handleImageFileUpload}
                 />
 
-                {/* Action buttons for Camera & File Upload */}
+                {/* Eylem Butonları */}
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
@@ -5264,49 +6243,48 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     <Upload className="h-4 w-4" />
                     <span>{isTr ? "📁 Dosya / Galeri Seç" : "Upload File"}</span>
                   </button>
+
+                  <div className="flex-1 min-w-[240px] flex gap-1.5">
+                    <input
+                      type="text"
+                      id="hotel_room_custom_url_input"
+                      placeholder="Web görsel linki yapıştırın (https://...)"
+                      className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = document.getElementById('hotel_room_custom_url_input') as HTMLInputElement;
+                        if (input && input.value.trim()) {
+                          const url = input.value.trim();
+                          setRoomForm(prev => {
+                            const currentList = Array.isArray(prev.images) ? prev.images : [];
+                            return {
+                              ...prev,
+                              cover_image: prev.cover_image || url,
+                              images: currentList.includes(url) ? currentList : [...currentList, url]
+                            };
+                          });
+                          input.value = "";
+                        }
+                      }}
+                      className="px-3 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-xl text-xs font-bold cursor-pointer"
+                    >
+                      Ekle
+                    </button>
+                  </div>
                 </div>
 
-                {/* Image URL text input for adding custom web image */}
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    id="hotel_room_custom_url_input"
-                    placeholder="https://images.unsplash.com/photo-..."
-                    className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById('hotel_room_custom_url_input') as HTMLInputElement;
-                      if (input && input.value.trim()) {
-                        const url = input.value.trim();
-                        setRoomForm(prev => {
-                          const currentList = Array.isArray(prev.images) ? prev.images : [];
-                          return {
-                            ...prev,
-                            cover_image: prev.cover_image || url,
-                            images: currentList.includes(url) ? currentList : [...currentList, url]
-                          };
-                        });
-                        input.value = "";
-                      }
-                    }}
-                    className="px-3 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-xl text-xs font-bold cursor-pointer"
-                  >
-                    Ekle
-                  </button>
-                </div>
-
-                {/* MULTI-IMAGE GALLERY GRID */}
+                {/* Görsel Grid */}
                 {roomForm.images && roomForm.images.length > 0 ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
                     {(roomForm.images || []).map((imgUrl, idx) => {
                       const isCover = roomForm.cover_image === imgUrl || (!roomForm.cover_image && idx === 0);
                       return (
                         <div
                           key={idx}
-                          className={`relative group h-24 rounded-xl overflow-hidden border-2 transition-all ${
-                            isCover ? "border-amber-500 ring-2 ring-amber-500/30 shadow-md" : "border-slate-200 dark:border-slate-700"
+                          className={`relative group h-28 rounded-xl overflow-hidden border-2 transition-all ${
+                            isCover ? "border-amber-500 ring-2 ring-amber-500/40 shadow-md" : "border-slate-200 dark:border-slate-700"
                           }`}
                         >
                           <img
@@ -5315,16 +6293,16 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                             className="w-full h-full object-cover"
                           />
                           {isCover && (
-                            <span className="absolute top-1 left-1 bg-amber-500 text-white text-[9px] font-black uppercase px-1.5 py-0.5 rounded shadow-sm">
+                            <span className="absolute top-1.5 left-1.5 bg-amber-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm">
                               Ana Kapak
                             </span>
                           )}
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-2">
                             {!isCover && (
                               <button
                                 type="button"
                                 onClick={() => setRoomForm(prev => ({ ...prev, cover_image: imgUrl }))}
-                                className="px-1.5 py-1 bg-amber-500 text-white text-[9px] font-bold rounded hover:bg-amber-600 transition-colors cursor-pointer w-full text-center"
+                                className="px-2 py-1 bg-amber-500 text-white text-[10px] font-bold rounded-lg hover:bg-amber-600 transition-colors cursor-pointer w-full text-center"
                               >
                                 Kapak Yap
                               </button>
@@ -5341,9 +6319,9 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                                   };
                                 });
                               }}
-                              className="px-1.5 py-1 bg-rose-600 text-white text-[9px] font-bold rounded hover:bg-rose-700 transition-colors cursor-pointer w-full text-center"
+                              className="px-2 py-1 bg-rose-600 text-white text-[10px] font-bold rounded-lg hover:bg-rose-700 transition-colors cursor-pointer w-full text-center"
                             >
-                              Sil
+                              Fotoğrafı Sil
                             </button>
                           </div>
                         </div>
@@ -5351,64 +6329,80 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     })}
                   </div>
                 ) : (
-                  <div className="p-3 text-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl">
+                  <div className="p-4 text-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl">
                     <p className="text-xs text-slate-500 font-bold">Henüz fotoğraf yüklenmedi. Yukarıdaki butonlarla görsel ekleyebilirsiniz.</p>
                   </div>
                 )}
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase">Açıklama (Web Sitesinde Gösterilir)</label>
-                <textarea
-                  rows={2}
-                  placeholder="Akdeniz manzaralı, özel balkonlu ve lüks tasarımlı oda açıklaması..."
-                  value={roomForm.description}
-                  onChange={(e) => setRoomForm({ ...roomForm, description: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase">{isTr ? "Oda Durumu" : "Status"}</label>
-                  <select
-                    value={roomForm.status}
-                    onChange={(e) => setRoomForm({ ...roomForm, status: e.target.value as any })}
-                    className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
-                  >
-                    <option value="vacant">{isTr ? "Boş & Hazır" : "Vacant"}</option>
-                    <option value="occupied">{isTr ? "Dolu" : "Occupied"}</option>
-                    <option value="maintenance">{isTr ? "🔴 Tadilatta / Servis Dışı" : "Maintenance"}</option>
-                    <option value="staff">{isTr ? "🟣 Personel Tahsisli" : "Staff"}</option>
-                    <option value="disabled">{isTr ? "⚪ Pasif / Kapalı" : "Disabled"}</option>
-                  </select>
-                </div>
+              {/* BÖLÜM 6: AÇIKLAMA, ODA DURUMU VE İÇ NOTLAR */}
+              <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-4">
+                <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <SlidersHorizontal className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                  6. Açıklama & Oda Durumu
+                </span>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase">{isTr ? "İç Notlar" : "Internal Notes"}</label>
-                  <input
-                    type="text"
-                    placeholder="Klima bakımı, personel ismi vb."
-                    value={roomForm.notes}
-                    onChange={(e) => setRoomForm({ ...roomForm, notes: e.target.value })}
-                    className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+                  <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide block mb-1">
+                    Web Sitesi Açıklaması
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Akdeniz manzaralı, geniş balkonlu ve ekstra yatak imkanına sahip lüks aile odası..."
+                    value={roomForm.description}
+                    onChange={(e) => setRoomForm({ ...roomForm, description: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide block mb-1">
+                      {isTr ? "Oda Durumu" : "Status"}
+                    </label>
+                    <select
+                      value={roomForm.status}
+                      onChange={(e) => setRoomForm({ ...roomForm, status: e.target.value as any })}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="vacant">🟢 Boş & Hazır</option>
+                      <option value="occupied">🔴 Dolu (Misafir Konaklamada)</option>
+                      <option value="maintenance">🛠️ Tadilatta / Servis Dışı</option>
+                      <option value="staff">🟣 Personel Tahsisli</option>
+                      <option value="disabled">⚪ Pasif / Kapalı</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide block mb-1">
+                      {isTr ? "İç Notlar (Resepsiyon / Kat Hizmetleri)" : "Internal Notes"}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Klima bakımı yapıldı, ek yatak odada hazır vb."
+                      value={roomForm.notes}
+                      onChange={(e) => setRoomForm({ ...roomForm, notes: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              {/* MODAL FOOTER BUTTONS */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsAddRoomModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="px-5 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
                 >
-                  İptal
+                  Vazgeç / İptal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  {editingRoom ? "Güncelle & Web Sitesine İşle" : "Kaydet & Yayınla"}
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{editingRoom ? "Güncellemeleri Kaydet & Yayınla" : "Odayı Kaydet & Sisteme Ekle"}</span>
                 </button>
               </div>
             </form>
