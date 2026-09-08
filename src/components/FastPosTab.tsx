@@ -2377,9 +2377,34 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                             </span>
                           </div>
                         ) : (
-                          <span className="text-xs font-black text-indigo-600 mt-1 whitespace-nowrap">
-                            {product.price} {product.currency || 'TRY'}
-                          </span>
+                          (() => {
+                            let vars: any[] = [];
+                            if (product.variants) {
+                              if (typeof product.variants === "string") {
+                                try { vars = JSON.parse(product.variants); } catch (e) { vars = []; }
+                              } else if (Array.isArray(product.variants)) {
+                                vars = product.variants;
+                              }
+                            }
+                            const varPrices = vars
+                              .map((v: any) => parseFloat(String(v.price || '').replace(',', '.')))
+                              .filter((pr: number) => !isNaN(pr) && pr > 0);
+
+                            if (varPrices.length > 0) {
+                              const minP = Math.min(...varPrices);
+                              const maxP = Math.max(...varPrices);
+                              return (
+                                <span className="text-[11px] font-black text-indigo-600 mt-1 whitespace-nowrap">
+                                  {minP === maxP ? `${minP}` : `${minP} - ${maxP}`} {product.currency || 'TRY'}
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="text-xs font-black text-indigo-600 mt-1 whitespace-nowrap">
+                                {product.price} {product.currency || 'TRY'}
+                              </span>
+                            );
+                          })()
                         )}
                       </div>
 
@@ -2397,7 +2422,27 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                             </span>
                           </div>
                         ) : (
-                          <p className="text-xs text-indigo-300 mt-1 font-black">{product.price} {product.currency || 'TRY'}</p>
+                          (() => {
+                            let vars: any[] = [];
+                            if (product.variants) {
+                              if (typeof product.variants === "string") {
+                                try { vars = JSON.parse(product.variants); } catch (e) { vars = []; }
+                              } else if (Array.isArray(product.variants)) {
+                                vars = product.variants;
+                              }
+                            }
+                            const varPrices = vars
+                              .map((v: any) => parseFloat(String(v.price || '').replace(',', '.')))
+                              .filter((pr: number) => !isNaN(pr) && pr > 0);
+
+                            const displayPrice = varPrices.length > 0
+                              ? (Math.min(...varPrices) === Math.max(...varPrices) ? `${Math.min(...varPrices)}` : `${Math.min(...varPrices)} - ${Math.max(...varPrices)}`)
+                              : product.price;
+
+                            return (
+                              <p className="text-xs text-indigo-300 mt-1 font-black">{displayPrice} {product.currency || 'TRY'}</p>
+                            );
+                          })()
                         )}
                         <span className="text-[9px] bg-indigo-600 text-white font-bold px-2 py-0.5 rounded mt-1 tracking-wider">
                           {lang === 'tr' ? 'SEPETE EKLE' : 'ADD TO CART'}

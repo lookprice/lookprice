@@ -307,9 +307,42 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
             <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
               {!(isRealEstate || isAutomotive) && (
-                  <span className={`text-lg font-bold text-slate-950`}>
-                    {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
-                  </span>
+                (() => {
+                  let vars: any[] = [];
+                  if (product.variants) {
+                    if (typeof product.variants === "string") {
+                      try { vars = JSON.parse(product.variants); } catch (e) { vars = []; }
+                    } else if (Array.isArray(product.variants)) {
+                      vars = product.variants;
+                    }
+                  }
+                  const varPrices = vars
+                    .map((v: any) => parseFloat(String(v.price || '').replace(',', '.')))
+                    .filter((pr: number) => !isNaN(pr) && pr > 0);
+
+                  if (varPrices.length > 0) {
+                    const minP = Math.min(...varPrices);
+                    const maxP = Math.max(...varPrices);
+                    return (
+                      <div className="flex flex-col">
+                        <span className="text-lg font-bold text-slate-950">
+                          {minP === maxP
+                            ? formatPrice(minP, store?.currency || product.currency || '', sector, store?.store_type)
+                            : `${formatPrice(minP, store?.currency || product.currency || '', sector, store?.store_type)} - ${formatPrice(maxP, store?.currency || product.currency || '', sector, store?.store_type)}`
+                          }
+                        </span>
+                        <span className="text-[10px] text-indigo-600 font-bold">
+                          {lang === "tr" ? "Varyant Fiyatları" : "Variant Prices"}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <span className={`text-lg font-bold text-slate-950`}>
+                      {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
+                    </span>
+                  );
+                })()
               )}
               <button
                 onClick={() => {

@@ -340,14 +340,14 @@ export const ProductModal = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? (hasVariants ? "Barkod (Varyantlı)" : "Barkod *") : (hasVariants ? "Barcode (Variants)" : "Barcode *")}
+                  {isTr ? (hasVariants ? "Barkod (Varyantlı)" : `Barkod${isCafeRestaurant ? " (İsteğe Bağlı)" : " *"}`) : (hasVariants ? "Barcode (Variants)" : `Barcode${isCafeRestaurant ? " (Optional)" : " *"}`)}
                 </label>
                 <input
                   type="text"
                   name="barcode"
-                  required={!hasVariants}
+                  required={!hasVariants && !isCafeRestaurant}
                   disabled={hasVariants}
-                  placeholder={hasVariants ? (isTr ? "Varyant barkodları geçerlidir" : "Tracked via variants") : (isTr ? "Barkod girin veya okutun..." : "EAN / Barcode...")}
+                  placeholder={hasVariants ? (isTr ? "Varyant barkodları geçerlidir" : "Tracked via variants") : (isTr ? (isCafeRestaurant ? "Otomatik oluşturulması için boş bırakın..." : "Barkod girin veya okutun...") : (isCafeRestaurant ? "Leave blank to auto-generate..." : "EAN / Barcode..."))}
                   className={`w-full px-4 py-2.5 border-2 rounded-2xl transition-all font-bold text-xs ${
                     hasVariants 
                       ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-80" 
@@ -609,13 +609,13 @@ export const ProductModal = ({
 
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Satış Fiyatı *" : "Sales Price *"}
+                  {isTr ? `Satış Fiyatı${hasVariants || (Array.isArray(variants) && variants.length > 0) ? "" : " *"}` : `Sales Price${hasVariants || (Array.isArray(variants) && variants.length > 0) ? "" : " *"}`}
                 </label>
                 <input
                   type="text"
                   name="price"
-                  required
-                  placeholder="0.00"
+                  required={!(hasVariants || (Array.isArray(variants) && variants.length > 0))}
+                  placeholder={hasVariants || (Array.isArray(variants) && variants.length > 0) ? (isTr ? "Varyant fiyatları geçerlidir (İsteğe bağlı)" : "Tracked via variants (optional)") : "0.00"}
                   className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-black text-emerald-700 text-sm shadow-2xs"
                   defaultValue={editingProduct?.price || ""}
                 />

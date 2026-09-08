@@ -33,7 +33,25 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     });
 
     const hasVariantsRaw: any = rawData.has_variants;
-    const isExplicitlyVariantsOff = hasVariantsRaw === undefined || hasVariantsRaw === false || hasVariantsRaw === 'false';
+    
+    // Parse variants data from rawData safely
+    let parsedVariants: any[] = [];
+    if (rawData.variants_data) {
+      try {
+        parsedVariants = typeof rawData.variants_data === 'string'
+          ? JSON.parse(rawData.variants_data)
+          : rawData.variants_data;
+      } catch (e) {
+        console.error("Variants data parse error:", e);
+        parsedVariants = [];
+      }
+    } else if (Array.isArray(rawData.variants)) {
+      parsedVariants = rawData.variants;
+    }
+
+    const hasExplicitVariants = Array.isArray(parsedVariants) && parsedVariants.length > 0;
+    const isExplicitlyVariantsOff = !hasExplicitVariants && (hasVariantsRaw === false || hasVariantsRaw === 'false' || hasVariantsRaw === 'off');
+    const isVariantsActive = hasExplicitVariants || (!isExplicitlyVariantsOff && (hasVariantsRaw === 'on' || hasVariantsRaw === 'true' || hasVariantsRaw === true));
     
     // Parse allergens list from rawData
     let parsedAllergens: string[] = [];
@@ -75,8 +93,8 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       is_web_sale: rawData.is_web_sale === 'on' || rawData.is_web_sale === 'true',
       is_bestseller: rawData.is_bestseller === 'on' || rawData.is_bestseller === 'true',
       is_sellable: rawData.is_sellable === 'on' || rawData.is_sellable === 'true',
-      has_variants: !isExplicitlyVariantsOff && (hasVariantsRaw === 'on' || hasVariantsRaw === 'true' || hasVariantsRaw === true),
-      variants: [],
+      has_variants: isVariantsActive,
+      variants: isVariantsActive ? parsedVariants : [],
       allergens: parsedAllergens,
       calories: Number(rawData.calories) || 0,
       prep_time_min: Number(rawData.prep_time_min) || 0,
@@ -86,26 +104,24 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       marketplace_data: marketplaceData
     };
 
-    if (data.has_variants && rawData.variants_data) {
-      try {
-        const parsedVariants = JSON.parse(rawData.variants_data as string);
-        if (Array.isArray(parsedVariants) && parsedVariants.length > 0) {
-          data.variants = parsedVariants;
-          data.has_variants = true;
-          // Automatically sum variant stocks so stock_quantity is correctly set and recognized by filters and website publishing
-          const totalVariantStock = data.variants.reduce((acc: number, curr: any) => acc + (Number(curr.stock_quantity) || 0), 0);
-          data.stock_quantity = totalVariantStock;
-        } else {
-          data.has_variants = false;
-          data.variants = [];
-        }
-      } catch (e) {
-        console.error("Variants data parse error:", e);
-        data.variants = [];
+    if (data.has_variants && data.variants.length > 0) {
+      // Automatically sum variant stocks so stock_quantity is correctly set and recognized by filters and website publishing
+      const totalVariantStock = data.variants.reduce((acc: number, curr: any) => acc + (Number(curr.stock_quantity) || 0), 0);
+      if (totalVariantStock > 0 || !data.stock_quantity) {
+        data.stock_quantity = totalVariantStock;
       }
-    } else {
-      data.has_variants = false;
-      data.variants = [];
+      
+      // Automatically set the main product price to the minimum variant price if main price is empty/0
+      const validVariantPrices = data.variants
+        .map((v: any) => Number(String(v.price || '').replace(',', '.')))
+        .filter((p: number) => !isNaN(p) && p > 0);
+      if (validVariantPrices.length > 0) {
+        const minVarPrice = Math.min(...validVariantPrices);
+        const currentPriceNum = Number(String(data.price || '').replace(',', '.'));
+        if (!data.price || isNaN(currentPriceNum) || currentPriceNum <= 0) {
+          data.price = minVarPrice;
+        }
+      }
     }
     ['price', 'price_2', 'old_price', 'cost_price', 'tax_rate', 'volume_ml'].forEach(field => {
       if (data[field]) {
@@ -130,7 +146,13 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       }
     }
 
+    const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
     let barcode = String(data.barcode || '').trim();
+    if (!barcode && isCafeRestaurant) {
+      barcode = 'HRC-' + Date.now().toString().slice(-8);
+      data.barcode = barcode;
+    }
+
     if (!barcode && !data.has_variants && !editingProduct) {
       toast.error(lang === 'tr' ? "Lütfen geçerli bir barkod giriniz." : "Please enter a valid barcode.");
       return;

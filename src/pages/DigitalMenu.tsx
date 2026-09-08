@@ -757,7 +757,29 @@ export default function DigitalMenuPage() {
 
                     <div className="flex justify-between items-center mt-auto pt-1.5 border-t border-slate-100/70">
                       <div>
-                        <p className="text-indigo-600 font-black text-sm leading-tight">{product.price} ₺</p>
+                        <p className="text-indigo-600 font-black text-sm leading-tight">
+                          {(() => {
+                            let vars: any[] = [];
+                            if (product.variants) {
+                              if (typeof product.variants === "string") {
+                                try { vars = JSON.parse(product.variants); } catch (e) { vars = []; }
+                              } else if (Array.isArray(product.variants)) {
+                                vars = product.variants;
+                              }
+                            }
+                            const prices = vars.map((v: any) => parseFloat(v.price)).filter((p: number) => !isNaN(p) && p > 0);
+                            if (prices.length > 0) {
+                              const minPrice = Math.min(...prices);
+                              const maxPrice = Math.max(...prices);
+                              if (minPrice === maxPrice) {
+                                return `${minPrice} ₺`;
+                              } else {
+                                return `${minPrice} - ${maxPrice} ₺`;
+                              }
+                            }
+                            return `${product.price} ₺`;
+                          })()}
+                        </p>
                         {product.portion_size && (
                           <p className="text-[9px] text-slate-400 font-bold leading-none mt-0.5">{product.portion_size}</p>
                         )}

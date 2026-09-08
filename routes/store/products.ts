@@ -387,10 +387,41 @@ router.post("/", async (req: any, res) => {
     marketplace_data
   } = req.body;
   
-  if (!barcode || !name || !price) return res.status(400).json({ error: "Missing fields" });
+  if (!name) return res.status(400).json({ error: "Missing fields: name" });
+
+  let parsedVariants: any[] = [];
+  if (variants) {
+    try {
+      parsedVariants = Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []);
+    } catch (e) {
+      parsedVariants = [];
+    }
+  }
+
+  const hasVariantsVal = has_variants === true || has_variants === 'true' || has_variants === 'on' || (Array.isArray(parsedVariants) && parsedVariants.length > 0);
+
+  let finalPrice = parseFloat(String(price || '').replace(',', '.'));
+  const variantPrices = parsedVariants
+    .map((v: any) => parseFloat(String(v.price || '').replace(',', '.')))
+    .filter((p: number) => !isNaN(p) && p > 0);
+
+  if (isNaN(finalPrice) || finalPrice <= 0) {
+    if (variantPrices.length > 0) {
+      finalPrice = Math.min(...variantPrices);
+    } else if (hasVariantsVal) {
+      finalPrice = 0;
+    } else {
+      return res.status(400).json({ error: "Missing fields: price" });
+    }
+  }
   
+  let finalBarcode = barcode ? String(barcode).trim() : '';
+  if (!finalBarcode) {
+    finalBarcode = 'GEN-' + Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+  }
+
   try {
-    const existing = await pool.query("SELECT id FROM products WHERE store_id = $1 AND barcode = $2", [storeId, String(barcode)]);
+    const existing = await pool.query("SELECT id FROM products WHERE store_id = $1 AND barcode = $2", [storeId, finalBarcode]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: "Bu barkod ile ürün oluşturuldu!" });
     }
@@ -405,8 +436,7 @@ router.post("/", async (req: any, res) => {
 
     const isWebSaleVal = is_web_sale === true || is_web_sale === 'true' || is_web_sale === 'on';
     const isBestsellerVal = is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on';
-    const hasVariantsVal = has_variants === true || has_variants === 'true' || has_variants === 'on';
-    const variantsVal = JSON.stringify(Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []));
+    const variantsVal = JSON.stringify(parsedVariants);
     const allergensVal = JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : []));
     const marketplaceDataVal = JSON.stringify(typeof marketplace_data === 'object' && marketplace_data !== null ? marketplace_data : (typeof marketplace_data === 'string' ? JSON.parse(marketplace_data || '{}') : {}));
     const finalProductCode = (product_code || sku || '').trim() || null;
@@ -422,7 +452,7 @@ router.post("/", async (req: any, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::jsonb, $34, $35, $36, $37::jsonb, CURRENT_TIMESTAMP)
       RETURNING *
     `, [
-      storeId, String(barcode), finalProductCode, finalProductCode, name, parseFloat(price), currency || 'TRY', 
+      storeId, finalBarcode, finalProductCode, finalProductCode, name, finalPrice, currency || 'TRY',  
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
       category || '', sub_category || '', category_2 || '', sub_category_2 || '',
@@ -444,7 +474,7 @@ router.post("/", async (req: any, res) => {
       marketplaceDataVal
     ]);
 
-    if (req.body.sync_group && barcode) {
+    if (req.body.sync_group && finalBarcode) {
       const storeResq = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
       const parentId = storeResq.rows[0]?.parent_id || storeId;
 
@@ -454,14 +484,14 @@ router.post("/", async (req: any, res) => {
       for (const bId of branchIds) {
         if (bId === storeId) continue;
 
-        const existsRes = await pool.query("SELECT id FROM products WHERE store_id = $1 AND barcode = $2", [bId, String(barcode)]);
+        const existsRes = await pool.query("SELECT id FROM products WHERE store_id = $1 AND barcode = $2", [bId, finalBarcode]);
         
         if (existsRes.rows.length === 0) {
           await pool.query(`
             INSERT INTO products (store_id, barcode, name, price, currency, description, unit, category, sub_category, brand, author, image_url, labels, product_type, tax_rate, stock_quantity, is_web_sale, is_sellable, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, false, $16, CURRENT_TIMESTAMP)
           `, [
-            bId, String(barcode), name, parseFloat(price), currency || 'TRY', 
+            bId, finalBarcode, name, parseFloat(price), currency || 'TRY', 
             description || '', unit || 'Adet', category || '', 
             sub_category || '', brand || '', author || '', 
             image_url || '', JSON.stringify(labels || []), product_type || 'product', 
@@ -754,8 +784,32 @@ router.put("/:id", async (req: any, res) => {
     const finalIsSellable = is_sellable !== undefined ? is_sellable : existingIsSellable;
     const finalIsWebSale = is_web_sale !== undefined ? (is_web_sale === true || is_web_sale === 'true' || is_web_sale === 'on') : true;
     const finalIsBestseller = is_bestseller !== undefined ? (is_bestseller === true || is_bestseller === 'true' || is_bestseller === 'on') : existingIsBestseller;
-    const finalHasVariants = has_variants !== undefined ? (has_variants === true || has_variants === 'true' || has_variants === 'on') : false;
-    const finalVariants = JSON.stringify(Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []));
+    let parsedVariants: any[] = [];
+    if (variants) {
+      try {
+        parsedVariants = Array.isArray(variants) ? variants : (typeof variants === 'string' ? JSON.parse(variants || '[]') : []);
+      } catch (e) {
+        parsedVariants = [];
+      }
+    }
+    const finalHasVariants = (has_variants !== undefined ? (has_variants === true || has_variants === 'true' || has_variants === 'on') : false) || (Array.isArray(parsedVariants) && parsedVariants.length > 0);
+    const finalVariants = JSON.stringify(parsedVariants);
+
+    let finalPrice = parseFloat(String(price || '').replace(',', '.'));
+    const variantPrices = parsedVariants
+      .map((v: any) => parseFloat(String(v.price || '').replace(',', '.')))
+      .filter((p: number) => !isNaN(p) && p > 0);
+
+    if (isNaN(finalPrice) || finalPrice <= 0) {
+      if (variantPrices.length > 0) {
+        finalPrice = Math.min(...variantPrices);
+      } else if (finalHasVariants) {
+        finalPrice = 0;
+      } else {
+        finalPrice = parseFloat(existingProductRes.rows[0]?.price || '0');
+      }
+    }
+
     const finalAllergens = allergens !== undefined ? JSON.stringify(Array.isArray(allergens) ? allergens : (typeof allergens === 'string' ? JSON.parse(allergens || '[]') : [])) : JSON.stringify(existingProductRes.rows[0]?.allergens || []);
     const finalProductCode = (product_code !== undefined ? product_code : (sku !== undefined ? sku : existingProductRes.rows[0]?.product_code)) || null;
 
@@ -763,6 +817,8 @@ router.put("/:id", async (req: any, res) => {
     const finalMarketplaceData = marketplace_data !== undefined
       ? (typeof marketplace_data === 'object' && marketplace_data !== null ? marketplace_data : JSON.parse(marketplace_data || '{}'))
       : existingMarketplaceData;
+
+    const finalBarcode = barcode ? String(barcode).trim() : (existingProductRes.rows[0]?.barcode || 'GEN-' + Date.now().toString());
 
     await pool.query(`
       UPDATE products SET 
@@ -777,7 +833,7 @@ router.put("/:id", async (req: any, res) => {
         marketplace_data = $35::jsonb, updated_at = CURRENT_TIMESTAMP 
       WHERE id = $36 AND store_id = $37
     `, [
-      String(barcode), finalProductCode, name, parseFloat(price), currency || 'TRY', 
+      finalBarcode, finalProductCode, name, finalPrice, currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
       parseFloat(stock_quantity) || 0, parseFloat(min_stock_level) || 5, unit || 'Adet', 
       category || '', sub_category || '', category_2 || '', sub_category_2 || '',

@@ -871,9 +871,43 @@ const ProductsTab = ({
                       </td>
                     )}
                     <td className="px-6 py-4">
-                      <span className="text-[15px] font-black text-slate-900 mono-data tracking-tighter">
-                        {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[11px] text-slate-400 font-bold ml-1 tracking-normal">{(p.currency || 'TRY').substring(0, 3)}</span>
-                      </span>
+                      {(() => {
+                        let parsedVars: any[] = [];
+                        if (p.variants) {
+                          if (typeof p.variants === 'string') {
+                            try { parsedVars = JSON.parse(p.variants); } catch (e) { parsedVars = []; }
+                          } else if (Array.isArray(p.variants)) {
+                            parsedVars = p.variants;
+                          }
+                        }
+                        const varPrices = parsedVars
+                          .map((v: any) => parseFloat(String(v.price || '').replace(',', '.')))
+                          .filter((pr: number) => !isNaN(pr) && pr > 0);
+
+                        if (varPrices.length > 0) {
+                          const minP = Math.min(...varPrices);
+                          const maxP = Math.max(...varPrices);
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[14px] font-black text-slate-900 mono-data tracking-tight">
+                                {minP === maxP
+                                  ? minP.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                  : `${minP.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - ${maxP.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                }
+                                <span className="text-[11px] text-slate-400 font-bold ml-1 tracking-normal">{(p.currency || 'TRY').substring(0, 3)}</span>
+                              </span>
+                              <span className="text-[9px] font-extrabold text-indigo-600 uppercase tracking-wider mt-0.5">
+                                {lang === 'tr' ? `${parsedVars.length} Varyant Fiyatı` : `${parsedVars.length} Variants`}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <span className="text-[15px] font-black text-slate-900 mono-data tracking-tighter">
+                            {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[11px] text-slate-400 font-bold ml-1 tracking-normal">{(p.currency || 'TRY').substring(0, 3)}</span>
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       {p.cost_price > 0 ? (

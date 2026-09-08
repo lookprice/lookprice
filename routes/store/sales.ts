@@ -866,11 +866,15 @@ router.post("/:id/cancel", async (req: any, res) => {
     const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [sale.id]);
     for (const item of itemsRes.rows) {
       if (item.product_id) {
-        await client.query(
-          "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
-          [item.quantity, item.product_id]
-        );
-        await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade): ${reason}`, item.unit_price, sale.customer_name, 'TRY', sale.id);
+        // Verify product exists before updating stock or recording stock movement
+        const prodCheck = await client.query("SELECT id FROM products WHERE id = $1", [item.product_id]);
+        if (prodCheck.rows.length > 0) {
+          await client.query(
+            "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
+            [item.quantity, item.product_id]
+          );
+          await addStockMovement(client, storeId, item.product_id, 'in', item.quantity, 'sale', `Satış İptal Edildi #${sale.id} (İade): ${reason}`, item.unit_price, sale.customer_name, 'TRY', sale.id);
+        }
       }
     }
 
@@ -927,10 +931,14 @@ router.delete("/:id", async (req: any, res) => {
       const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [sale.id]);
       for (const item of itemsRes.rows) {
         if (item.product_id) {
-          await client.query(
-            "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
-            [item.quantity, item.product_id]
-          );
+          // Verify product exists before updating stock
+          const prodCheck = await client.query("SELECT id FROM products WHERE id = $1", [item.product_id]);
+          if (prodCheck.rows.length > 0) {
+            await client.query(
+              "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
+              [item.quantity, item.product_id]
+            );
+          }
         }
       }
     }

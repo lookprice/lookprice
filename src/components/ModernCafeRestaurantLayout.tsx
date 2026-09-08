@@ -123,9 +123,21 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
   const isTr = lang === "tr";
   const isHotelModuleActive = Boolean(store.hotel_module_enabled || store.branding?.hotel_module_enabled);
 
-  // Mode state: 'menu' (Restoran) vs 'hotel' (Otel & Konaklama)
-  const [activeMode, setActiveMode] = useState<'menu' | 'hotel'>(isHotelModuleActive ? 'hotel' : 'menu');
+  // Mode state: 'menu' (Restoran & Menü) vs 'hotel' (Otel & Konaklama)
+  // Default to 'menu' so Restaurant & Menu (Seçkin Lezzetlerimiz, Günün Öne Çıkan Menüsü, etc.) is the spotlighted view
+  const [activeMode, setActiveMode] = useState<'menu' | 'hotel'>('menu');
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  // Sync mode if URL contains #rooms or #menu
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (window.location.hash === "#rooms" && isHotelModuleActive) {
+        setActiveMode("hotel");
+      } else if (window.location.hash === "#menu") {
+        setActiveMode("menu");
+      }
+    }
+  }, [isHotelModuleActive]);
 
   // Dynamic Hotel Rooms State synced from store branding or localStorage
   const [rooms, setRooms] = useState<HotelRoom[]>(() => {
@@ -995,7 +1007,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       </section>
 
       {/* LOOKPRICE HOTEL ROOM SHOWCASE SECTION (When activeMode === 'hotel' or scrolled) */}
-      {isHotelModuleActive && (
+      {isHotelModuleActive && activeMode === 'hotel' && (
         <section id="rooms" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center max-w-2xl mx-auto space-y-3 mb-10">
             <div className="text-xs text-amber-700 font-black uppercase tracking-widest flex items-center justify-center gap-2">
@@ -1205,7 +1217,8 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       )}
 
       {/* Culinary Highlights / Menu Section */}
-      <section id="menu" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      {(!isHotelModuleActive || activeMode === 'menu') && (
+        <section id="menu" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center max-w-2xl mx-auto space-y-3 mb-16">
           <div className="text-xs text-amber-700 font-black uppercase tracking-widest">{isTr ? "SEÇKİN LEZZETLERİMİZ" : "OUR DISHES"}</div>
           <h2 className="text-3xl md:text-4xl font-serif font-black text-stone-900 tracking-tight">
@@ -1295,7 +1308,27 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                           {product.name}
                         </h3>
                         <span className="text-amber-700 font-black text-sm whitespace-nowrap shrink-0 ml-2">
-                          {product.price} ₺
+                          {(() => {
+                            let vars: any[] = [];
+                            if (product.variants) {
+                              if (typeof product.variants === "string") {
+                                try { vars = JSON.parse(product.variants); } catch (e) { vars = []; }
+                              } else if (Array.isArray(product.variants)) {
+                                vars = product.variants;
+                              }
+                            }
+                            const prices = vars.map((v: any) => parseFloat(v.price)).filter((p: number) => !isNaN(p) && p > 0);
+                            if (prices.length > 0) {
+                              const minPrice = Math.min(...prices);
+                              const maxPrice = Math.max(...prices);
+                              if (minPrice === maxPrice) {
+                                return `${minPrice} ₺`;
+                              } else {
+                                return `${minPrice} - ${maxPrice} ₺`;
+                              }
+                            }
+                            return `${product.price} ₺`;
+                          })()}
                         </span>
                       </div>
                       <p className="text-xs text-stone-400 font-medium mt-1.5 line-clamp-2 leading-relaxed">
@@ -1324,6 +1357,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           </div>
         )}
       </section>
+      )}
 
       {/* Story Section */}
       <section id="story" className="bg-stone-900 text-stone-200 py-24 relative overflow-hidden">

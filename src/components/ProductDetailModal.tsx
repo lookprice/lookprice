@@ -356,12 +356,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
   }, [selectedVariant, productImages]);
 
+  useEffect(() => {
+    if (hasVariants && productVariants.length > 0 && !selectedVariant) {
+      const firstActive = productVariants.find((v: any) => v.is_active !== false) || productVariants[0];
+      if (firstActive) {
+        setSelectedVariant(firstActive);
+      }
+    }
+  }, [hasVariants, productVariants, selectedVariant]);
+
   const effectiveBasePrice = React.useMemo(() => {
     if (selectedVariant && selectedVariant.price !== undefined && selectedVariant.price !== null && Number(selectedVariant.price) > 0) {
       return Number(selectedVariant.price);
     }
-    return product?.price || 0;
-  }, [product?.price, selectedVariant]);
+    if (productVariants && productVariants.length > 0) {
+      const varPrices = productVariants
+        .map((v: any) => parseFloat(String(v.price || '').replace(',', '.')))
+        .filter((p: number) => !isNaN(p) && p > 0);
+      if (varPrices.length > 0) {
+        return Math.min(...varPrices);
+      }
+    }
+    return Number(product?.price || 0);
+  }, [product?.price, selectedVariant, productVariants]);
 
   useEffect(() => {
     if (
