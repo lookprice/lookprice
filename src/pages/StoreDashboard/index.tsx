@@ -959,44 +959,6 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
           translations={t}
         />
 
-        {activeTab !== 'fast-pos' && activeTab !== 'products' && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center space-x-3"
-            >
-              <div className="bg-indigo-600 rounded-full h-10 w-1" />
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
-                  {currentMenuItem?.label || activeTab.replace(/_/g, ' ')}
-                </h2>
-              </div>
-            </motion.div>
-
-          </div>
-        )}
-
-        {['quotations', 'companies'].includes(activeTab) && (
-          <div className="flex justify-end gap-3 mb-6">
-            {activeTab === 'quotations' && (
-              <button 
-                onClick={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }} 
-                className="os-btn-primary flex items-center space-x-4 px-8 py-4 shadow-2xl shadow-indigo-500/20 active:scale-95 group rounded-2xl bg-indigo-600 text-white font-bold"
-              >
-                <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
-                <span className="text-xs font-black uppercase tracking-[0.2em]">{t.newQuotation}</span>
-              </button>
-            )}
-            {activeTab === 'companies' && (
-              <button onClick={() => { setEditingCompany(null); setShowCompanyModal(true); }} className="flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg uppercase tracking-wider">
-                <Plus className="h-4 w-4" />
-                <span>{t.registerCompany}</span>
-              </button>
-            )}
-          </div>
-        )}
-
         {!dismissedWebSales && notifications?.web_sales > 0 && (
           <div className="mb-6 bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
             <div className="flex items-start gap-3">
@@ -1272,6 +1234,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onExportReport={handleExportQuotations}
                   statusFilter={quotationStatusFilter}
                   onShowQr={() => setShowQrModal(true)}
+                  onNewQuotation={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }}
                 />
               )}
               {activeTab === "companies" && (
@@ -1285,6 +1248,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   includeZero={includeZeroBalance}
                   onIncludeZeroChange={setIncludeZeroBalance}
                   defaultCurrency={branding.default_currency}
+                  onNewCompany={() => { setEditingCompany(null); setShowCompanyModal(true); }}
                 />
               )}
               {activeTab === "procurements" && (

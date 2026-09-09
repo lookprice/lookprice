@@ -630,6 +630,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         totalPages={Math.ceil(invoices.length / itemsPerPage)}
         setPage={setPage}
         onEditProduct={onEditProduct}
+        storeId={role === 'superadmin' ? storeId : undefined}
       />
 
       <PurchaseInvoiceFormModal 

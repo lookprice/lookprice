@@ -1420,7 +1420,11 @@ router.get("/purchase", async (req: any, res) => {
                  'product_id', pii.product_id,
                  'product_name', pii.product_name,
                  'barcode', pii.barcode,
+                 'product_code', pii.product_code,
                  'quantity', pii.quantity,
+                 'unit_code', pii.unit_code,
+                 'system_quantity', pii.system_quantity,
+                 'system_unit_code', pii.system_unit_code,
                  'unit_price', pii.unit_price,
                  'tax_rate', pii.tax_rate,
                  'tax_amount', pii.tax_amount,
@@ -1430,7 +1434,13 @@ router.get("/purchase", async (req: any, res) => {
                ) ORDER BY pii.id), '[]'::json)
                FROM purchase_invoice_items pii 
                WHERE pii.purchase_invoice_id = pi.id
-             ) as items
+             ) as items,
+             EXISTS (
+               SELECT 1 FROM purchase_invoices pi_older
+               WHERE pi_older.store_id = pi.store_id
+                 AND pi_older.created_at < pi.created_at
+                 AND pi_older.invoice_date > pi.invoice_date
+             ) as is_out_of_sequence
       FROM purchase_invoices pi 
       LEFT JOIN companies c ON pi.company_id = c.id 
       WHERE pi.store_id = $1
@@ -1474,7 +1484,7 @@ router.get("/purchase", async (req: any, res) => {
       query += ` AND pi.invoice_date <= $${params.length}`;
     }
 
-    query += ` ORDER BY pi.created_at DESC`;
+    query += ` ORDER BY pi.invoice_date DESC, pi.created_at DESC, pi.id DESC`;
 
     const result = await pool.query(query, params);
     res.json(result.rows);

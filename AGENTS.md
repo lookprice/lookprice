@@ -162,4 +162,13 @@ This file outlines strict engineering, performance, and naming directives that m
   - Herhangi bir bileşen, modal başlığı, kart veya panelde **koyu renk bir arka plan** (`bg-slate-900`, `bg-slate-950`, `bg-blue-900`, vb.) tercih ediliyorsa, üzerindeki tüm yazılar, rakamlar ve ikonlar muhakkak **ters renk, yani açık renk (`text-white`, `text-slate-100`, `text-slate-200`)** olarak set edilmelidir. Hem arka planın hem de metin renginin koyu olması durumunda metinler okunmaz hale gelir (Kritik UI hatası).
   - Benzer şekilde, **açık renk bir arka plan** (`bg-white`, `bg-slate-50`, vb.) üzerinde de yazıların ve rakamların **koyu renkli (`text-slate-900`, `text-slate-950`)** seçilmesi şarttır.
 
+---
+
+## 12. Modül Başlık Tekilliği ve Çift Başlık Yasağı (Single Module Header Rule)
+
+- **Modül ve Sekme Başlıklarının Tekilleştirilmesi**:
+  - Panellerde (`StoreDashboard`, `SuperAdmin`, `StaffDashboard`) ve tüm sektörlerde (shopLP, horecaLP, Gayrimenkul, Otomotiv) modül başlıkları KESİNLİKLE ÇİFTLENEMEZ / TEKRARLANAMAZ.
+  - Ana düzen sarmalayıcısında (`StoreDashboard/index.tsx`) modülün üzerine fazladan genel bir başlık basılıp altında ilgili modülün kendi başlığının tekrar çıkması YASAKTIR. Her modül kendi başlığını, ikonunu, filtrelerini ve aksiyon butonlarını tekil, entegre ve temiz bir başlık/araç çubuğu halinde yönetmelidir.
+  - Yeni bir modül veya sekme eklenirken ya da mevcut bir sekme düzenlenirken, ekran üzerinde aynı başlığın alt alta iki kez görünmediği titizlikle doğrulanmalıdır.
+
 

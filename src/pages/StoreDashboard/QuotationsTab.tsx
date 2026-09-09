@@ -36,6 +36,7 @@ interface QuotationsTabProps {
   onExportReport: () => void;
   statusFilter: string;
   onShowQr: () => void;
+  onNewQuotation?: () => void;
 }
 
 const QuotationsTab = ({ 
@@ -46,14 +47,15 @@ const QuotationsTab = ({
   onGeneratePDF, 
   onApprove, 
   onCancel,
-  onConvertToSale,
+  onConvertToSale, 
   onEdit, 
   onDelete,
   onSearchChange,
   onStatusFilterChange,
   onExportReport,
   statusFilter,
-  onShowQr
+  onShowQr,
+  onNewQuotation
 }: QuotationsTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -97,6 +99,14 @@ const QuotationsTab = ({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {onNewQuotation && !isViewer && (
+            <button 
+              onClick={onNewQuotation}
+              className="flex-1 md:flex-none flex items-center justify-center bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 active:scale-95 transition-all"
+            >
+              <Plus className="h-4 w-4 mr-1.5" /> {t.newQuotation}
+            </button>
+          )}
           <button 
             onClick={onShowQr}
             className="flex-1 md:flex-none flex items-center justify-center bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"

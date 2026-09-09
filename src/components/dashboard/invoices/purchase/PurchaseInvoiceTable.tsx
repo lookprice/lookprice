@@ -33,6 +33,7 @@ interface PurchaseInvoiceTableProps {
   totalPages: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
   onEditProduct?: (item: any) => void;
+  storeId?: number;
 }
 
 export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
@@ -51,7 +52,8 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   page,
   totalPages,
   setPage,
-  onEditProduct
+  onEditProduct,
+  storeId
 }) => {
   const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
   const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
@@ -67,11 +69,12 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
     setExpandedRowIds(prev => [...prev, inv.id]);
 
     // Check if items already present on inv or in cache
-    if ((!inv.items || inv.items.length === 0) && !itemsCache[inv.id]) {
+    const existingItems = itemsCache[inv.id] || (Array.isArray(inv.items) && inv.items.length > 0 ? inv.items : null);
+    if (!existingItems || existingItems.length === 0) {
       try {
         setLoadingRowId(inv.id);
-        const detail = await api.getPurchaseInvoice(inv.id);
-        if (detail && detail.items) {
+        const detail = await api.getPurchaseInvoice(inv.id, storeId);
+        if (detail && Array.isArray(detail.items)) {
           setItemsCache(prev => ({ ...prev, [inv.id]: detail.items }));
         }
       } catch (err) {
@@ -145,7 +148,11 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                   <React.Fragment key={invoice.id}>
                     <tr 
                       className={`hover:bg-slate-50/70 transition-colors ${
-                        invoice.is_read === false ? 'font-bold bg-indigo-50/30' : ''
+                        invoice.is_out_of_sequence 
+                          ? 'bg-amber-50/60 hover:bg-amber-100/70 border-l-4 border-l-amber-500' 
+                          : invoice.is_read === false 
+                            ? 'font-bold bg-indigo-50/30' 
+                            : ''
                       } ${
                         lastEditedId === invoice.id ? 'bg-indigo-100/50 ring-1 ring-inset ring-indigo-200' : ''
                       } ${
@@ -181,7 +188,19 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         </button>
                       </td>
                       <td className="p-4 text-xs text-slate-600 whitespace-nowrap">
-                        {new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-slate-800">
+                            {new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}
+                          </span>
+                          {invoice.is_out_of_sequence && (
+                            <span 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 w-fit" 
+                              title={isTr ? "Bu fatura sisteme sonradan (ara tarihli / geriye dönük) girilmiştir." : "This invoice was entered out of sequence (backdated)."}
+                            >
+                              ⚠️ {isTr ? "Ara Tarihli" : "Backdated"}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 text-xs font-bold text-slate-900">
                         <div className="flex items-center gap-2">

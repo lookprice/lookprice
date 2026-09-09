@@ -86,6 +86,13 @@ router.post("/", async (req: any, res) => {
     updatedBranding.pazarama_settings = mergedPz;
     updatedBranding.n11_settings = mergedN11;
 
+    // Ensure hotel_rooms are NEVER unintentionally wiped out by general branding updates
+    if (cleanedBody.hotel_rooms && Array.isArray(cleanedBody.hotel_rooms) && cleanedBody.hotel_rooms.length > 0) {
+      updatedBranding.hotel_rooms = cleanedBody.hotel_rooms;
+    } else if (existingBranding.hotel_rooms && Array.isArray(existingBranding.hotel_rooms) && existingBranding.hotel_rooms.length > 0) {
+      updatedBranding.hotel_rooms = existingBranding.hotel_rooms;
+    }
+
     // Ensure payment_settings are merged and kept consistent across branding and payment_settings column
     const mergedPaymentSettings = { ...existingPaymentSettings, ...(existingBranding.payment_settings || {}), ...(updatedBranding.payment_settings || {}) };
     updatedBranding.payment_settings = mergedPaymentSettings;

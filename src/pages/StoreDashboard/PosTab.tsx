@@ -163,7 +163,7 @@ const PosTab = ({
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{isHoreca ? (lang === 'tr' ? 'Masa' : 'Table') : (lang === 'tr' ? 'Müşteri / Cari' : 'Customer / Account')}</th>
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.amount}</th>
                 <th className="px-2 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-center w-[50px]">{t.status}</th>
-                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'İptal Sebebi' : 'Cancel Reason'}</th>
+                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'İptal / İkram Notu' : 'Cancel / Treat Note'}</th>
                 <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-right">{t.actions}</th>
               </tr>
             </thead>
@@ -245,6 +245,12 @@ const PosTab = ({
                         <div title={s.cancellation_reason || s.cancel_reason || s.notes || ''}>
                           <p className="text-[11px] font-bold text-rose-600 truncate bg-rose-50/80 px-2.5 py-1.5 rounded-lg border border-rose-100">
                             {s.cancellation_reason || s.cancel_reason || s.notes || (lang === 'tr' ? 'Belirtilmedi' : 'N/A')}
+                          </p>
+                        </div>
+                      ) : (s.notes?.toLowerCase().includes('ikram') || s.notes?.toLowerCase().includes('i̇kram')) ? (
+                        <div title={s.notes}>
+                          <p className="text-[11px] font-bold text-emerald-700 truncate bg-emerald-50/80 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                            🎁 {s.notes}
                           </p>
                         </div>
                       ) : (

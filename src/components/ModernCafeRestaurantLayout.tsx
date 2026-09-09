@@ -163,12 +163,16 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
   // Dynamic Hotel Rooms State synced from store branding or localStorage
   const [rooms, setRooms] = useState<HotelRoom[]>(() => {
-    if (store.branding?.hotel_rooms && Array.isArray(store.branding.hotel_rooms) && store.branding.hotel_rooms.length > 0) {
-      return store.branding.hotel_rooms;
+    const directRooms = (store as any).hotel_rooms || store.branding?.hotel_rooms;
+    if (directRooms && Array.isArray(directRooms) && directRooms.length > 0) {
+      return directRooms;
     }
     try {
       const saved = localStorage.getItem(`hotel_rooms_${store.id}`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch (e) {}
     // Fallback default mock rooms with rich booking options
     return [
@@ -237,10 +241,11 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
   // Sync rooms if store branding or local storage updates
   useEffect(() => {
-    if (store.branding?.hotel_rooms && Array.isArray(store.branding.hotel_rooms) && store.branding.hotel_rooms.length > 0) {
-      setRooms(store.branding.hotel_rooms);
+    const directRooms = (store as any).hotel_rooms || store.branding?.hotel_rooms;
+    if (directRooms && Array.isArray(directRooms) && directRooms.length > 0) {
+      setRooms(directRooms);
     }
-  }, [store.branding?.hotel_rooms]);
+  }, [(store as any).hotel_rooms, store.branding?.hotel_rooms]);
 
   // Listen to window events to automatically sync room additions/edits made by the operator
   useEffect(() => {
@@ -1173,7 +1178,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {rooms.filter(r => r.status === 'vacant' || r.status === 'occupied').map((room) => {
+            {rooms.map((room) => {
               const baseBBPrice = room.price_per_night || 2500;
               const flexDiscountRate = room.non_refundable_discount || 15;
               const nonRefundablePrice = Math.round(baseBBPrice * (1 - flexDiscountRate / 100));
@@ -1195,10 +1200,22 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                       <div className="absolute top-3 left-3 bg-stone-900/90 backdrop-blur-xs text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg border border-stone-700">
                         Oda #{room.room_number}
                       </div>
-                      <div className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Müsait
-                      </div>
+                      {room.status === 'vacant' ? (
+                        <div className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Müsait
+                        </div>
+                      ) : room.status === 'occupied' ? (
+                        <div className="absolute top-3 right-3 bg-amber-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Dolu
+                        </div>
+                      ) : (
+                        <div className="absolute top-3 right-3 bg-slate-700 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {room.status === 'cleaning' ? 'Temizlikte' : 'Bakımda'}
+                        </div>
+                      )}
 
                       {/* MULTI PHOTO GALLERY BADGE */}
                       <div className="absolute bottom-3 left-3 bg-stone-900/80 hover:bg-stone-900 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1.5 rounded-xl border border-white/20 flex items-center gap-1.5 shadow-lg transition-transform group-hover:scale-105">

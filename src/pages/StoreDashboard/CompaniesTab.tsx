@@ -36,6 +36,7 @@ interface CompaniesTabProps {
   onIncludeZeroChange: (val: boolean) => void;
   defaultCurrency?: string;
   branding?: any;
+  onNewCompany?: () => void;
 }
 
 const CompaniesTab = ({ 
@@ -48,7 +49,8 @@ const CompaniesTab = ({
   includeZero,
   onIncludeZeroChange,
   defaultCurrency = 'TRY',
-  branding
+  branding,
+  onNewCompany
 }: CompaniesTabProps) => {
   const { lang } = useLanguage();
   const t = translations[lang].dashboard;
@@ -129,6 +131,15 @@ const CompaniesTab = ({
           />
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {onNewCompany && !isViewer && (
+            <button 
+              onClick={onNewCompany}
+              className="flex items-center gap-2 bg-slate-900 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>{t.registerCompany}</span>
+            </button>
+          )}
           <button 
             onClick={() => {
               handleRefreshRecons();

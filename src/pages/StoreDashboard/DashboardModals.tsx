@@ -5,7 +5,7 @@ import {
   Scan, FileDown, History, Plus, Edit2, Trash2, 
   DollarSign, ChevronRight, PlusCircle, MinusCircle,
   FileText, Clock, AlertCircle, Search, Building, Users, Eye, EyeOff, Calculator, FileCheck,
-  Truck, CheckCircle2
+  Truck, CheckCircle2, Gift
 } from "lucide-react";
 import { api } from "../../services/api";
 import { QRCodeSVG } from "qrcode.react";
@@ -446,6 +446,20 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                     <p className="text-xs font-bold text-rose-900">
                       <span className="font-bold text-rose-600">{lang === 'tr' ? 'İptal Sebebi:' : 'Cancellation Reason:'} </span>
                       {selectedSale.cancellation_reason || selectedSale.cancel_reason || selectedSale.notes || (lang === 'tr' ? 'Neden belirtilmedi' : 'No reason provided')}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {(selectedSale.notes?.toLowerCase().includes('ikram') || selectedSale.notes?.toLowerCase().includes('i̇kram') || (selectedSale.items && selectedSale.items.some((i: any) => Number(i.unit_price) === 0 || i.product_name?.toLowerCase().includes('ikram') || i.note?.toLowerCase().includes('ikram')))) && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3 text-emerald-900">
+                  <Gift className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-black uppercase tracking-wider text-emerald-700">
+                      {lang === 'tr' ? 'İkram Tanımlı Sipariş / Adisyon' : 'Complimentary (Treat) Order'}
+                    </p>
+                    <p className="text-xs font-bold text-emerald-900">
+                      <span className="font-bold text-emerald-700">{lang === 'tr' ? 'İkram / Kişi / Kurum Bilgisi:' : 'Treat Recipient Note:'} </span>
+                      {selectedSale.notes || (lang === 'tr' ? 'İkram olarak uygulandı' : 'Applied as complimentary')}
                     </p>
                   </div>
                 </div>
