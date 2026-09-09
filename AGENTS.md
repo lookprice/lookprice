@@ -171,4 +171,24 @@ This file outlines strict engineering, performance, and naming directives that m
   - Ana düzen sarmalayıcısında (`StoreDashboard/index.tsx`) modülün üzerine fazladan genel bir başlık basılıp altında ilgili modülün kendi başlığının tekrar çıkması YASAKTIR. Her modül kendi başlığını, ikonunu, filtrelerini ve aksiyon butonlarını tekil, entegre ve temiz bir başlık/araç çubuğu halinde yönetmelidir.
   - Yeni bir modül veya sekme eklenirken ya da mevcut bir sekme düzenlenirken, ekran üzerinde aynı başlığın alt alta iki kez görünmediği titizlikle doğrulanmalıdır.
 
+---
+
+## 13. Karakter Sınırı Belli Alanlar (Kompakt Input Kuralı) ve Yüksek Bilgi Yoğunluğu (%80 Zoom Eşdeğeri Minimalist Operatör Standardı)
+
+- **Karakter Sınırı Belli Alanların Kompakt Tasarım Kuralı (Bounded-Width Input Protocol)**:
+  - Maksimum karakter sayısı önceden belli veya sınırlı olan veri alanları (barkod, para birimi, KDV oranı, stok miktarı, birim, iskonto/komisyon vb.) KESİNLİKLE tüm satırı, yarım satırı (%50) veya orantısız geniş grid sütunlarını işgal edemez.
+  - **Barkod (EAN / Barcode)**: Max 13-18 karakter. Asla %50 veya %100 genişlik alamaz; optimum `max-w-[190px]` (veya `w-40 sm:w-48`) olarak sınırlandırılmalıdır.
+  - **Para Birimi (Currency)**: Max 3-5 karakter (`TRY`, `USD`, `EUR`, `GBP`, `₺`). Asla tek başına bağımsız devasa bir kolon (%33, %50 vb.) oluşturamaz; fiyat alanına bitişik entegre grup (addon) veya kompakt `w-24` seçici olarak konumlandırılmalıdır.
+  - **KDV Oranı (VAT Rate)**: Max 2-4 karakter (`%20`, `%10`, `%1`, `%0`). Asla geniş sütun kaplayamaz; `w-20` ila `w-24` arası kompakt genişlikte olmalıdır.
+  - **Stok / Miktar (Quantity)**: Max 4-6 hane. Kompakt `w-20` ila `w-28` arası genişlikte olmalıdır.
+  - **Birim (Unit)**: Max 4-8 karakter (`Adet`, `Kg`, `Lt`, `Porsiyon`). Kompakt `w-24` ila `w-32` genişlikte olmalıdır.
+  - **İskonto / Komisyon (%)**: Max 3-5 karakter. Kompakt `w-20` ila `w-24` genişlikte olmalıdır.
+  - Formlarda bu alanlar, ürün adı/açıklama gibi esnek metin alanları ile aynı satırda mantıksal olarak gruplanarak dikey alan israfı tamamen önlenmelidir.
+
+- **Minimalist ve Yüksek Bilgi Yoğunluğu Standardı (%80 Zoom Eşdeğeri Görünüm - "Web Siteleri Hariç")**:
+  - Dışa açık müşteri web siteleri / vitrinler HARİÇ olmak üzere; tüm operatör panelleri (`StoreDashboard`, `SuperAdmin`, `StaffDashboard`, `FastPosTab`), modallar ve dijital menüler (`DigitalMenu`), operatörün sağa-sola, yukarı-aşağı kaydırma yapmasını en aza indiren yüksek bilgi yoğunluklu (high-density) yapıda olmalıdır.
+  - Masaüstü görünümde operatör panelleri `%80 - %88 zoom` perspektifinde kompakt çalışmalı (`operator-compact-layout`), gereksiz devasa `px-6 py-5` gibi tablo boşlukları yerine `px-3 py-2` veya `px-3.5 py-2.5` padding kullanılmalıdır.
+  - Kartlar, filtre araç çubukları ve başlıklar dikeyde kompakt tutulmalı; tek bir ekranda daha fazla satır ve fonksiyonun görünür olması sağlanmalıdır.
+
+
 

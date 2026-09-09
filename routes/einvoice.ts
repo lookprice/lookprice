@@ -1662,7 +1662,7 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
 // 5. Test Connection
 router.post("/einvoice/test-connection", authenticate, async (req: any, res) => {
   try {
-    const storeId = req.user.store_id;
+    const storeId = req.user.role === 'superadmin' ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
     console.log(`[test-connection] Starting for storeId: ${storeId}`);
     const service = await getEInvoiceService(storeId);
     
@@ -1684,30 +1684,68 @@ router.post("/einvoice/test-connection", authenticate, async (req: any, res) => 
 // 6. Get Invoice HTML
 router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
   try {
-    const storeId = req.user.store_id;
+    const isSuperAdmin = req.user.role === 'superadmin';
+    const requestedStoreId = req.query.storeId ? Number(req.query.storeId) : undefined;
     const invoiceId = req.params.id;
     const invoiceType = req.query.type || 'purchase';
 
     let invoiceRes;
     try {
         if (invoiceType === 'sales') {
-            invoiceRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+            if (isSuperAdmin && !requestedStoreId) {
+                invoiceRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1", [invoiceId]);
+            } else {
+                invoiceRes = await pool.query("SELECT * FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, requestedStoreId || req.user.store_id]);
+            }
         } else {
-            invoiceRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+            if (isSuperAdmin && !requestedStoreId) {
+                invoiceRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1", [invoiceId]);
+            } else {
+                invoiceRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, requestedStoreId || req.user.store_id]);
+            }
         }
     } catch (queryErr) {
         console.error("[DB-ERROR] Error fetching invoice details:", queryErr);
         // Fallback to basic query if full select fails (to avoid crash if columns missing)
         if (invoiceType === 'sales') {
-            invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+            if (isSuperAdmin && !requestedStoreId) {
+                invoiceRes = await pool.query("SELECT id, store_id, ettn, document_number, notes FROM sales_invoices WHERE id = $1", [invoiceId]);
+            } else {
+                invoiceRes = await pool.query("SELECT id, store_id, ettn, document_number, notes FROM sales_invoices WHERE id = $1 AND store_id = $2", [invoiceId, requestedStoreId || req.user.store_id]);
+            }
         } else {
-            invoiceRes = await pool.query("SELECT ettn, document_number, notes FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, storeId]);
+            if (isSuperAdmin && !requestedStoreId) {
+                invoiceRes = await pool.query("SELECT id, store_id, ettn, document_number, notes FROM purchase_invoices WHERE id = $1", [invoiceId]);
+            } else {
+                invoiceRes = await pool.query("SELECT id, store_id, ettn, document_number, notes FROM purchase_invoices WHERE id = $1 AND store_id = $2", [invoiceId, requestedStoreId || req.user.store_id]);
+            }
+        }
+    }
+
+    // Defensive fallback: If invoice not found in requested table, check the alternate table (sales vs purchase)
+    if (!invoiceRes || invoiceRes.rows.length === 0) {
+        const altTable = invoiceType === 'sales' ? 'purchase_invoices' : 'sales_invoices';
+        try {
+            if (isSuperAdmin && !requestedStoreId) {
+                invoiceRes = await pool.query(`SELECT * FROM ${altTable} WHERE id = $1`, [invoiceId]);
+            } else {
+                invoiceRes = await pool.query(`SELECT * FROM ${altTable} WHERE id = $1 AND store_id = $2`, [invoiceId, requestedStoreId || req.user.store_id]);
+            }
+        } catch (altErr) {
+            console.warn(`[DB-WARN] Alternate table check failed for ${altTable}:`, altErr);
         }
     }
     
-    if (invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    if (!invoiceRes || invoiceRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
 
     const invData = invoiceRes.rows[0];
+    const targetStoreId = invData.store_id || requestedStoreId || req.user.store_id;
+
+    // Tenant isolation verification for non-superadmin users
+    if (!isSuperAdmin && invData.store_id && invData.store_id !== req.user.store_id) {
+        return res.status(403).json({ error: "Yetkisiz işlem: Bu faturaya erişim yetkiniz bulunmamaktadır." });
+    }
+
     const { ettn, document_number, notes, currency, exchange_rate } = invData;
     // Map various potential field names for totals to be defensive
     const grand_total = invData.grand_total || invData.payable_amount || invData.total_amount || 0;
@@ -1715,7 +1753,7 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
     const tax_amount = invData.tax_amount || 0;
     if (!ettn && !document_number) return res.status(400).json({ error: "Faturanın ETTN'si veya numarası bulunmuyor." });
 
-    const service = await getEInvoiceService(storeId);
+    const service = await getEInvoiceService(targetStoreId);
     
     if ('getInvoiceHtml' in service) {
       console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}, DocType: ${invData.e_document_type}`);
@@ -3347,9 +3385,15 @@ router.get("/independent-waybills/:id/status", authenticate, async (req: any, re
 // 8. HTML visualization of independent waybill
 router.get("/independent-waybills/:id/html", authenticate, async (req: any, res) => {
   const { id } = req.params;
-  const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.store_id;
+  const isSuperAdmin = req.user.role === 'superadmin';
+  const requestedStoreId = req.query.storeId ? Number(req.query.storeId) : undefined;
   try {
-    const waybillRes = await pool.query("SELECT * FROM e_waybills WHERE id = $1 AND store_id = $2", [id, storeId]);
+    let waybillRes;
+    if (isSuperAdmin && !requestedStoreId) {
+      waybillRes = await pool.query("SELECT * FROM e_waybills WHERE id = $1", [id]);
+    } else {
+      waybillRes = await pool.query("SELECT * FROM e_waybills WHERE id = $1 AND store_id = $2", [id, requestedStoreId || req.user.store_id]);
+    }
     if (waybillRes.rows.length === 0) return res.status(404).json({ error: "İrsaliye bulunamadı." });
     const waybill = waybillRes.rows[0];
 
@@ -3357,7 +3401,7 @@ router.get("/independent-waybills/:id/html", authenticate, async (req: any, res)
       return res.status(400).json({ error: "Bu irsaliye taslaktır. Resmileşmiş görsel alınamaz." });
     }
 
-    const service = await getEInvoiceService(storeId);
+    const service = await getEInvoiceService(waybill.store_id || requestedStoreId || req.user.store_id);
     const htmlContent = await service.getWaybillHtml(waybill.ettn, waybill.notes || "");
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");

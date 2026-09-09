@@ -112,7 +112,7 @@ const ProductMovementModal = ({ product, onClose, branding }: ProductMovementMod
     setHtmlLoading(true);
     setShowHtmlModal(true);
     try {
-      const res = await api.getPurchaseInvoiceHtml(invoiceId);
+      const res = await api.getPurchaseInvoiceHtml(invoiceId, (product as any)?.store_id);
       if (res?.html) {
         setHtmlContent(res.html);
       } else {

@@ -290,7 +290,7 @@ export const api = {
   addPortfolioTransaction: (data: any, storeId?: number) => api.post(`/api/real-estate/transactions${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deletePortfolioTransaction: (id: number, storeId?: number) => api.delete(`/api/real-estate/transactions/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   getAcquisitionLeads: (source: string = "101evler", filter: string = "individual", keywords?: string) => api.post(`/api/real-estate/acquisition-radar`, { source, filter, keywords }),
-  getSalesInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html?type=sales`),
+  getSalesInvoiceHtml: (id: number, storeId?: number) => api.get(`/api/einvoice/${id}/html?type=sales${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   addSalesInvoice: (data: any, storeId?: number) => api.post(`/api/store/sales-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateSalesInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deleteSalesInvoice: (id: number, storeId?: number) => api.delete(`/api/store/sales-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
@@ -303,7 +303,7 @@ export const api = {
     return api.get(url);
   },
   getPurchaseInvoice: (id: number, storeId?: number) => api.get(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
-  getPurchaseInvoiceHtml: (id: number) => api.get(`/api/einvoice/${id}/html`),
+  getPurchaseInvoiceHtml: (id: number, storeId?: number) => api.get(`/api/einvoice/${id}/html?type=purchase${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   addPurchaseInvoice: (data: any, storeId?: number) => api.post(`/api/store/purchase-invoices${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updatePurchaseInvoice: (id: number, data: any, storeId?: number) => api.put(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   deletePurchaseInvoice: (id: number, storeId?: number) => api.delete(`/api/store/purchase-invoices/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),

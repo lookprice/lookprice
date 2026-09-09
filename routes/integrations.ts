@@ -662,16 +662,45 @@ router.post("/hepsiburada/test", authenticate, async (req: any, res) => {
 
 // 4. Sync Hepsiburada Orders
 router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" 
+    ? Number(rawStoreId || req.user.store_id || 1) 
+    : Number(req.user.store_id || rawStoreId);
 
   try {
-    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (Merchant ID, API Key ve Secret Key kaydedilmelidir)" });
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mağaza bulunamadı" });
     }
 
-    const hbService = new HepsiburadaService(settings, storeId);
+    const row = storeRes.rows[0];
+    let settings = row?.hepsiburada_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = row?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.merchantId) {
+      settings = branding?.hepsiburada_settings || settings || {};
+    }
+
+    const merchantId = String(settings?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || "").trim();
+    const apiSecret = String(settings?.apiSecret || "").trim();
+
+    if (!merchantId || !apiKey || !apiSecret) {
+      return res.status(400).json({ 
+        error: "Hepsiburada API bilgileri eksik (Lütfen Ayarlar > E-Mağazalar sekmesinden Satıcı ID / Merchant ID, API Anahtarı ve Gizli Anahtar bilgilerinizi eksiksiz kaydedin)" 
+      });
+    }
+
+    const cleanSettings = {
+      ...settings,
+      merchantId,
+      apiKey,
+      apiSecret,
+      isTestMode: Boolean(settings?.isTestMode)
+    };
+
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
     const { syncedCount, errors } = await hbService.syncOrdersToDatabase();
 
     res.json({ success: true, count: syncedCount, errors });
@@ -680,9 +709,9 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
     await IntegrationService.logIntegrationError(storeId, 'Hepsiburada', 'Sync All Orders', error);
     
     // Provide user-friendly diagnostic guidance
-    let errorDetail = error.message || "Hepsiburada siparişleri senkronize edilemedi.";
-    if (error.response?.status === 401 || error.response?.status === 403 || errorDetail.includes("401") || errorDetail.includes("403")) {
-      errorDetail = "Hepsiburada API Kimlik Doğrulama Reddedildi (401/403). Lütfen Satıcı Paneli Entegratör ayarlarından Merchant ID, API Key ve Secret Key değerlerinizin onaylandığından ve Test/Canlı ortam modunun doğru seçildiğinden emin olun.";
+    let errorDetail = error.response?.data?.message || error.response?.data?.error || error.message || "Hepsiburada siparişleri senkronize edilemedi.";
+    if (error.response?.status === 401 || error.response?.status === 403 || errorDetail.includes("401") || errorDetail.includes("403") || errorDetail.includes("Kimlik Doğrulama")) {
+      errorDetail = "Hepsiburada API Kimlik Doğrulama Reddedildi (401/403). Lütfen Satıcı Paneli (Satıcı Bilgileri > Entegratör) ayarlarından Merchant ID, API Key ve Secret Key değerlerinizin doğru girildiğinden ve onaylandığından emin olun.";
     } else if (error.response?.status === 404 || errorDetail.includes("404")) {
       errorDetail = "Hepsiburada Sipariş API uç noktası bulunamadı (404). Lütfen Merchant ID bilginizi kontrol edin.";
     }

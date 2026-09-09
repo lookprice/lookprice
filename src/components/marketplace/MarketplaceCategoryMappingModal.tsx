@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, Search, Sparkles, Layers, Settings2, CheckCircle2, AlertCircle, 
-  ChevronRight, Save, RefreshCw, SlidersHorizontal, ArrowRight, 
+  ChevronRight, ChevronDown, ChevronUp, Save, RefreshCw, SlidersHorizontal, ArrowRight, 
   HelpCircle, Trash2, Check, Info, ShieldCheck, Tag, Laptop, Smartphone,
   Tv, Shirt, Home, Wrench, LayoutGrid, FolderTree, Filter, Percent
 } from 'lucide-react';
@@ -134,6 +134,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   });
 
   const [showPricingFormulaInfo, setShowPricingFormulaInfo] = useState(false);
+  const [isCommissionOpen, setIsCommissionOpen] = useState(false);
 
   // Helper to update specific category's markup
   const handleUpdateCategoryMarkup = (localCatKey: string, field: 'commissionRate' | 'fixedFee', val: number) => {
@@ -690,40 +691,40 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 md:p-6 overflow-y-auto animate-fade-in">
-      <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-2 md:p-4 overflow-y-auto animate-fade-in">
+      <div className="bg-white w-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[94vh] overflow-hidden my-auto">
         
         {/* MODAL HEADER */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-slate-900 text-white rounded-2xl shadow-sm">
-              <Layers className="h-6 w-6" />
+        <div className="px-4 py-2.5 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/80">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-1.5 bg-slate-900 text-white rounded-xl shadow-xs">
+              <Layers className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 flex items-center gap-1.5">
                 <span>{lang === 'tr' ? 'Pazaryeri Kategori & Özellik Eşleştirme' : 'Marketplace Category & Attribute Mapping'}</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                   Hiyerarşik Alt Kategori Destekli
                 </span>
               </h2>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
+              <p className="text-[11px] text-slate-500 font-medium">
                 {lang === 'tr' 
-                  ? 'Ürünlerinizin alt kategorilerini (Örn: Bellek & Hafıza Kartları > USB Bellek) resmi pazaryeri kategorileriyle sektörel olarak eşleştirin.' 
+                  ? 'Ürünlerinizin alt kategorilerini resmi pazaryeri kategorileriyle sektörel olarak eşleştirin.' 
                   : 'Map store sub-categories with official marketplace categories using sector-based filtering.'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* MARKETPLACE TABS SELECTOR */}
-        <div className="px-6 py-3 bg-white border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center space-x-2 overflow-x-auto py-1">
+        <div className="px-4 py-1.5 bg-white border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5">
             {(['hepsiburada', 'trendyol', 'amazon', 'pazarama'] as MarketplaceType[]).map((m) => {
               const count = localCategories.filter((c) => !!mappings[m]?.[c]).length;
               const isSelected = activeMarketplace === m;
@@ -735,15 +736,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                     setActiveMarketplace(m);
                     setOpenDropdownFor(null);
                   }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
                     isSelected
-                      ? `${activeMarketplaceConfig.activeTabBg} shadow-sm`
+                      ? `${activeMarketplaceConfig.activeTabBg} shadow-xs`
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   <span className="capitalize">{m === 'amazon' ? 'Amazon TR' : m}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                    isSelected ? 'bg-white/20 text-white font-black' : 'bg-slate-200 text-slate-700'
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 text-slate-700'
                   }`}>
                     {count}/{totalCount}
                   </span>
@@ -756,127 +757,146 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             <button
               type="button"
               onClick={handleAutoMatch}
-              className="px-3.5 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5 cursor-pointer"
+              className="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
               title="Alt kategori ve ana kategori isimlerine göre otomatik akıllı eşleme yap"
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              <Sparkles className="h-3 w-3" />
               <span>{lang === 'tr' ? 'Akıllı Otomatik Eşleştir' : 'Auto Match'}</span>
             </button>
           </div>
         </div>
 
-        {/* PRICING STRATEGY & REVERSE MARGIN COMMISSION BANNER */}
-        <div className="px-6 py-3 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white border-b border-slate-700">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-black tracking-wide uppercase text-amber-400">
-                  {lang === 'tr' ? `${activeMarketplaceConfig.title} Fiyatlandırma & Komisyon Formülü` : `${activeMarketplaceConfig.title} Pricing & Commission Strategy`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowPricingFormulaInfo(!showPricingFormulaInfo)}
-                  className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 flex items-center space-x-1 cursor-pointer transition-all"
-                >
-                  <Info className="h-3 w-3 text-amber-300" />
-                  <span>{showPricingFormulaInfo ? (lang === 'tr' ? 'Formülü Gizle' : 'Hide Formula') : (lang === 'tr' ? 'Ters Marj Formülü Detayı' : 'Formula Details')}</span>
-                </button>
-              </div>
-              <p className="text-[11px] text-slate-300">
-                {lang === 'tr' 
-                  ? 'Pazaryeri komisyon ve kargo kesintisi yapıldığında, kasanıza web sitenizdeki net fiyatın kalması için fiyat otomatik yükseltilir.'
-                  : 'Prices are dynamically marked up so your net profit remains 100% equal to your web store price after commission.'}
-              </p>
+        {/* COLLAPSIBLE PRICING STRATEGY & REVERSE MARGIN COMMISSION BANNER (DEFAULT CLOSED) */}
+        <div className="border-b border-slate-700 bg-slate-900 text-white">
+          <div 
+            onClick={() => setIsCommissionOpen(!isCommissionOpen)}
+            className="px-4 py-1.5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-between cursor-pointer select-none transition-all hover:bg-slate-800"
+          >
+            <div className="flex items-center space-x-2 overflow-x-auto py-0.5">
+              <Percent className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span className="text-[11px] font-black uppercase text-amber-400 tracking-wide whitespace-nowrap">
+                {activeMarketplaceConfig.title} {lang === 'tr' ? 'Fiyat & Komisyon Stratejisi' : 'Pricing Strategy'}
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/10 text-slate-200 font-mono whitespace-nowrap border border-white/10">
+                {lang === 'tr' ? 'Genel:' : 'Def:'} %{defaultCommissionRates[activeMarketplace] ?? 18} + {defaultFixedFees[activeMarketplace] ?? 20} TL
+              </span>
+              <span className="hidden md:inline text-[10px] text-amber-300 font-mono whitespace-nowrap">
+                (1.000 TL Web ➔ {calculateSimulatedPrice(1000, defaultCommissionRates[activeMarketplace] ?? 18, defaultFixedFees[activeMarketplace] ?? 20).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL)
+              </span>
             </div>
 
-            <div className="flex items-center space-x-3 shrink-0 bg-white/10 backdrop-blur-md px-3 py-2 rounded-xl border border-white/15">
-              <div className="flex items-center space-x-1.5">
-                <span className="text-[10px] font-bold text-slate-300 uppercase">{lang === 'tr' ? 'Genel Komisyon:' : 'Def. Comm:'}</span>
-                <div className="flex items-center bg-slate-900/80 rounded-lg px-2 py-1 border border-white/20">
-                  <span className="text-xs font-bold text-amber-400 mr-1">%</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    step="0.5"
-                    value={defaultCommissionRates[activeMarketplace] ?? 18}
-                    onChange={(e) => {
-                      const v = parseFloat(e.target.value);
-                      setDefaultCommissionRates((prev) => ({ ...prev, [activeMarketplace]: isNaN(v) ? 0 : v }));
-                    }}
-                    className="w-12 bg-transparent text-xs font-black text-white focus:outline-hidden text-right"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-1.5">
-                <span className="text-[10px] font-bold text-slate-300 uppercase">{lang === 'tr' ? 'Sabit Gider:' : 'Fixed Fee:'}</span>
-                <div className="flex items-center bg-slate-900/80 rounded-lg px-2 py-1 border border-white/20">
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={defaultFixedFees[activeMarketplace] ?? 20}
-                    onChange={(e) => {
-                      const v = parseFloat(e.target.value);
-                      setDefaultFixedFees((prev) => ({ ...prev, [activeMarketplace]: isNaN(v) ? 0 : v }));
-                    }}
-                    className="w-12 bg-transparent text-xs font-black text-white focus:outline-hidden text-right"
-                  />
-                  <span className="text-[11px] font-bold text-slate-300 ml-1">TL</span>
-                </div>
-              </div>
-
-              <div className="hidden lg:flex items-center pl-2 border-l border-white/20 text-[11px] text-amber-300 font-bold whitespace-nowrap">
-                <span>1.000 TL Web ➔ {calculateSimulatedPrice(1000, defaultCommissionRates[activeMarketplace] ?? 18, defaultFixedFees[activeMarketplace] ?? 20).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
-              </div>
+            <div className="flex items-center space-x-1.5 shrink-0 pl-2">
+              <span className="text-[10px] text-slate-300 font-medium">
+                {isCommissionOpen ? (lang === 'tr' ? 'Formülü Gizle' : 'Hide') : (lang === 'tr' ? 'Formülü Düzenle' : 'Edit')}
+              </span>
+              {isCommissionOpen ? (
+                <ChevronUp className="h-3.5 w-3.5 text-amber-300" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 text-amber-300" />
+              )}
             </div>
           </div>
 
-          {/* DETAILED FORMULA EXPLANATION */}
-          {showPricingFormulaInfo && (
-            <div className="mt-3 pt-3 border-t border-white/15 text-xs grid grid-cols-1 md:grid-cols-2 gap-3 text-slate-200">
-              <div className="bg-white/5 p-2.5 rounded-xl border border-white/10 space-y-1">
-                <p className="font-bold text-white flex items-center gap-1.5">
-                  <span className="text-amber-400">📐</span> {lang === 'tr' ? 'Ters Marj (Net Kasa Koruma) Formülü:' : 'Formula:'}
-                </p>
-                <div className="font-mono text-[11px] bg-slate-950/80 p-2 rounded-lg text-emerald-400 border border-white/10 overflow-x-auto">
-                  Fiyat_Pazaryeri = (Fiyat_Web + Sabit_Gider) / (1 - (Komisyon_Oranı / 100))
+          {isCommissionOpen && (
+            <div className="px-4 py-2.5 bg-slate-900 border-t border-slate-700/80 space-y-2 animate-fade-in">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] text-slate-300">
+                    {lang === 'tr' 
+                      ? 'Pazaryeri komisyon ve kargo kesintisi yapıldığında kasanıza net fiyatın kalması için fiyat ters marjla otomatik yükseltilir.'
+                      : 'Prices are marked up dynamically so your net profit remains equal to your store price.'}
+                  </p>
                 </div>
-                <p className="text-[10px] text-slate-300">
-                  {lang === 'tr' 
-                    ? 'Düz yüzde eklemesi yerine ters marj kullanılır. Çünkü pazaryeri komisyonu nihai satış fiyatından keser.'
-                    : 'Reverse margin is applied because marketplaces deduct commission from the final gross selling price.'}
-                </p>
+
+                <div className="flex items-center space-x-2 shrink-0 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
+                  <div className="flex items-center space-x-1">
+                    <span className="text-[10px] font-bold text-slate-300 uppercase">{lang === 'tr' ? 'Komisyon:' : 'Comm:'}</span>
+                    <div className="flex items-center bg-slate-900/90 rounded px-1.5 py-0.5 border border-white/20">
+                      <span className="text-[10px] font-bold text-amber-400 mr-0.5">%</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        step="0.5"
+                        value={defaultCommissionRates[activeMarketplace] ?? 18}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          setDefaultCommissionRates((prev) => ({ ...prev, [activeMarketplace]: isNaN(v) ? 0 : v }));
+                        }}
+                        className="w-10 bg-transparent text-[11px] font-black text-white focus:outline-hidden text-right"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-1">
+                    <span className="text-[10px] font-bold text-slate-300 uppercase">{lang === 'tr' ? 'Sabit Gider:' : 'Fixed:'}</span>
+                    <div className="flex items-center bg-slate-900/90 rounded px-1.5 py-0.5 border border-white/20">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={defaultFixedFees[activeMarketplace] ?? 20}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          setDefaultFixedFees((prev) => ({ ...prev, [activeMarketplace]: isNaN(v) ? 0 : v }));
+                        }}
+                        className="w-10 bg-transparent text-[11px] font-black text-white focus:outline-hidden text-right"
+                      />
+                      <span className="text-[10px] font-bold text-slate-300 ml-0.5">TL</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPricingFormulaInfo(!showPricingFormulaInfo)}
+                    className="text-[10px] px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-slate-200 border border-white/20 flex items-center gap-1 cursor-pointer transition-all"
+                  >
+                    <Info className="h-3 w-3 text-amber-300" />
+                    <span>{showPricingFormulaInfo ? (lang === 'tr' ? 'Kapat' : 'Hide') : (lang === 'tr' ? 'Detay' : 'Details')}</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="bg-white/5 p-2.5 rounded-xl border border-white/10 space-y-1">
-                <p className="font-bold text-white flex items-center gap-1.5">
-                  <span className="text-amber-400">💡</span> {lang === 'tr' ? 'Kategori Bazlı Özel Komisyon Tanımlama:' : 'Category-Specific Overrides:'}
-                </p>
-                <p className="text-[11px] text-slate-300">
-                  {lang === 'tr' 
-                    ? 'Aşağıdaki kategori listesinde her satırın yanındaki komisyon alanından o kategoriye özel komisyon oranı (%) ve kargo payı (TL) girebilirsiniz. Boş bırakılan kategorilerde yukarıdaki genel varsayılan değerler uygulanır.'
-                    : 'You can set category-specific commission rates and fixed fees for individual rows below. Empty rows automatically inherit the default global values.'}
-                </p>
-              </div>
+              {showPricingFormulaInfo && (
+                <div className="pt-2 border-t border-white/10 text-[10px] grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-200">
+                  <div className="bg-white/5 p-2 rounded-lg border border-white/10 space-y-0.5">
+                    <p className="font-bold text-white flex items-center gap-1">
+                      <span className="text-amber-400">📐</span> {lang === 'tr' ? 'Ters Marj Formülü:' : 'Formula:'}
+                    </p>
+                    <div className="font-mono text-[10px] bg-slate-950/80 p-1.5 rounded text-emerald-400 border border-white/10 overflow-x-auto">
+                      Fiyat_Pazaryeri = (Fiyat_Web + Sabit_Gider) / (1 - (Komisyon_Oranı / 100))
+                    </div>
+                  </div>
+
+                  <div className="bg-white/5 p-2 rounded-lg border border-white/10 space-y-0.5">
+                    <p className="font-bold text-white flex items-center gap-1">
+                      <span className="text-amber-400">💡</span> {lang === 'tr' ? 'Kategori Bazlı Özel Komisyon:' : 'Category Overrides:'}
+                    </p>
+                    <p className="text-[10px] text-slate-300">
+                      {lang === 'tr' 
+                        ? 'Aşağıdaki her kategori satırından özel komisyon (%) ve sabit pay (TL) tanımlayabilirsiniz. Boş bırakılanlar bu genel oranları kullanır.'
+                        : 'You can set category-specific rates on individual rows below. Empty rows automatically inherit defaults.'}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {/* SECTOR FILTER BAR (SEKTÖREL KATEGORİ SEÇİMİ) */}
-        <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200/80">
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5">
+        <div className="px-4 py-1.5 bg-slate-50 border-b border-slate-200/80">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
               <Filter className="h-3 w-3 text-indigo-600" />
-              {lang === 'tr' ? 'Pazaryeri Sektör Filtresi (Aradığınız sektöre göre kategori ağacını filtreleyin):' : 'Marketplace Sector Filter:'}
+              {lang === 'tr' ? 'Pazaryeri Sektör Filtresi:' : 'Marketplace Sector Filter:'}
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">
+            <span className="text-[9px] text-slate-400 font-medium">
               {sectorFilteredMarketCats.length} {lang === 'tr' ? 'kategori listeleniyor' : 'categories available'}
             </span>
           </div>
 
-          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex items-center space-x-1.5 overflow-x-auto pb-0.5 scrollbar-none">
             {MARKETPLACE_SECTORS.map((sector) => {
               const isCurrent = selectedSector === sector.id;
               const sectorCatsCount = sector.id === 'all' 
@@ -888,7 +908,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                   key={sector.id}
                   type="button"
                   onClick={() => setSelectedSector(sector.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 whitespace-nowrap cursor-pointer border ${
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center space-x-1 whitespace-nowrap cursor-pointer border ${
                     isCurrent
                       ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                       : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'
@@ -897,7 +917,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                 >
                   {getSectorIcon(sector.id)}
                   <span>{sector.name}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  <span className={`text-[9px] px-1 py-0.2 rounded-full font-mono ${
                     isCurrent ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
                   }`}>
                     {sectorCatsCount}
@@ -909,13 +929,13 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         </div>
 
         {/* PROGRESS, SEARCH & SCOPE TABS */}
-        <div className="px-6 py-3 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="px-4 py-1.5 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
           {/* SCOPE TABS */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5">
+          <div className="flex items-center space-x-1 overflow-x-auto py-0.5">
             <button
               type="button"
               onClick={() => setLocalScopeFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
                 localScopeFilter === 'all' 
                   ? 'bg-slate-200 text-slate-900' 
                   : 'text-slate-600 hover:bg-slate-100'
@@ -926,7 +946,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             <button
               type="button"
               onClick={() => setLocalScopeFilter('sub')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors flex items-center space-x-1 cursor-pointer ${
                 localScopeFilter === 'sub' 
                   ? 'bg-purple-100 text-purple-900' 
                   : 'text-purple-700 hover:bg-purple-50'
@@ -938,18 +958,18 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             <button
               type="button"
               onClick={() => setLocalScopeFilter('main')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
                 localScopeFilter === 'main' 
                   ? 'bg-blue-100 text-blue-900' 
                   : 'text-blue-700 hover:bg-blue-50'
               }`}
             >
-              {lang === 'tr' ? 'Ana Kategoriler' : 'Main'} ({mainCategoryCount})
+              {lang === 'tr' ? 'Ana' : 'Main'} ({mainCategoryCount})
             </button>
             <button
               type="button"
               onClick={() => setLocalScopeFilter('unmapped')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
                 localScopeFilter === 'unmapped' 
                   ? 'bg-rose-100 text-rose-900' 
                   : 'text-rose-700 hover:bg-rose-50'
@@ -959,15 +979,15 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             </button>
           </div>
 
-          <div className="flex items-center space-x-3 shrink-0">
-            <div className="flex items-center space-x-2">
-              <div className="w-28 bg-slate-200 rounded-full h-2 overflow-hidden">
+          <div className="flex items-center space-x-2.5 shrink-0">
+            <div className="flex items-center space-x-1.5">
+              <div className="w-24 bg-slate-200 rounded-full h-1.5 overflow-hidden">
                 <div 
-                  className="bg-emerald-500 h-2 rounded-full transition-all duration-500" 
+                  className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" 
                   style={{ width: `${completionPercent}%` }}
                 />
               </div>
-              <span className="font-mono font-bold text-slate-800 text-[11px]">
+              <span className="font-mono font-bold text-slate-800 text-[10px]">
                 %{completionPercent} ({mappedCount}/{totalCount})
               </span>
             </div>
@@ -978,29 +998,29 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                 placeholder={lang === 'tr' ? 'Kategori ara...' : 'Filter categories...'}
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
-                className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 w-40 transition-all"
+                className="pl-7 pr-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium focus:ring-2 focus:ring-indigo-500/20 w-36 transition-all"
               />
-              <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2" />
+              <Search className="h-3 w-3 text-slate-400 absolute left-2 top-1.5" />
             </div>
           </div>
         </div>
 
         {/* MAPPING TABLE / LIST */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-3">
+        <div className="px-4 py-2.5 overflow-y-auto flex-1 space-y-1.5">
           {localCategoryItems.length === 0 ? (
-            <div className="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-              <AlertCircle className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-              <p className="text-sm font-bold text-slate-700">
+            <div className="text-center py-10 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <AlertCircle className="h-6 w-6 text-slate-400 mx-auto mb-1.5" />
+              <p className="text-xs font-bold text-slate-700">
                 {lang === 'tr' ? 'Envanterinizde henüz kategorize edilmiş ürün bulunmuyor.' : 'No categorized products found.'}
               </p>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              <p className="text-[11px] text-slate-500 mt-0.5 max-w-sm mx-auto">
                 {lang === 'tr' 
                   ? 'Ürün eklerken kategori veya alt kategori belirlediğinizde burada listelenecektir.' 
                   : 'Categories and sub-categories will appear here once you assign categories to your products.'}
               </p>
             </div>
           ) : filteredLocalCategoryItems.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 text-xs font-medium bg-slate-50 rounded-2xl border border-slate-100">
+            <div className="text-center py-6 text-slate-500 text-xs font-medium bg-slate-50 rounded-xl border border-slate-100">
               {lang === 'tr' ? 'Seçilen filtre ve aramayla eşleşen kategori bulunamadı.' : 'No matching categories found.'}
             </div>
           ) : (
@@ -1034,46 +1054,46 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               return (
                 <div 
                   key={localCat}
-                  className={`p-4 rounded-2xl border transition-all ${
+                  className={`p-2.5 rounded-xl border transition-all ${
                     mappedId 
                       ? 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs' 
                       : 'bg-slate-50/60 border-slate-200/80'
                   }`}
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
                     
                     {/* STORE CATEGORY COLUMN (HIERARCHICAL & SUBCATEGORY AWARE) */}
-                    <div className="lg:w-1/3 space-y-1">
+                    <div className="lg:w-1/3 space-y-0.5">
                       {item.isSubCategory ? (
                         <div>
-                          <div className="flex items-center space-x-1 text-[11px] font-semibold text-slate-400">
-                            <FolderTree className="h-3 w-3 text-purple-500 shrink-0" />
+                          <div className="flex items-center space-x-1 text-[10px] font-semibold text-slate-400">
+                            <FolderTree className="h-2.5 w-2.5 text-purple-500 shrink-0" />
                             <span>{item.mainCategory}</span>
                             <span>&gt;</span>
                           </div>
-                          <div className="flex items-center space-x-2 mt-0.5">
-                            <span className="font-black text-slate-900 text-sm">{item.subCategory}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+                          <div className="flex items-center space-x-1.5 mt-0.5">
+                            <span className="font-black text-slate-900 text-xs">{item.subCategory}</span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
                               {lang === 'tr' ? 'Alt Kategori' : 'Sub-Category'}
                             </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
-                              {prodCount} {lang === 'tr' ? 'Ürün' : 'Products'}
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                              {prodCount} {lang === 'tr' ? 'Ürün' : 'Prod'}
                             </span>
                           </div>
                         </div>
                       ) : (
                         <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="font-bold text-slate-900 text-sm">{item.mainCategory}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-bold text-slate-900 text-xs">{item.mainCategory}</span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
                               {lang === 'tr' ? 'Ana Kategori' : 'Main'}
                             </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
-                              {prodCount} {lang === 'tr' ? 'Ürün' : 'Products'}
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                              {prodCount} {lang === 'tr' ? 'Ürün' : 'Prod'}
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {lang === 'tr' ? 'Mağaza ana ürün kategorisi' : 'Store category'}
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            {lang === 'tr' ? 'Mağaza ana kategorisi' : 'Store category'}
                           </p>
                         </div>
                       )}
@@ -1082,23 +1102,23 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                     {/* MARKETPLACE MAPPING SELECTOR COLUMN */}
                     <div className="lg:w-1/2 relative">
                       {mappedId && matchedMarketCat ? (
-                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-                          <div className="space-y-0.5 pr-2">
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                              <span className="text-xs font-bold text-slate-900">
+                        <div className="flex items-center justify-between p-1.5 px-2.5 bg-slate-50/90 rounded-lg border border-slate-200">
+                          <div className="space-y-0.5 pr-2 min-w-0">
+                            <div className="flex items-center space-x-1.5 truncate">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                              <span className="text-[11px] font-bold text-slate-900 truncate">
                                 {matchedMarketCat.displayName || matchedMarketCat.name}
                               </span>
                             </div>
                             {matchedMarketCat.paths && matchedMarketCat.paths.length > 0 && (
-                              <p className="text-[10px] text-slate-500 font-medium pl-6">
+                              <p className="text-[9px] text-slate-500 font-medium pl-5 truncate max-w-xs md:max-w-md">
                                 {matchedMarketCat.paths.join(' > ')}
                               </p>
                             )}
                           </div>
                           
-                          <div className="flex items-center space-x-1.5 shrink-0">
-                            <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-white text-slate-600 border border-slate-200">
+                          <div className="flex items-center space-x-1 shrink-0">
+                            <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-white text-slate-600 border border-slate-200">
                               #{mappedId}
                             </span>
                             <button
@@ -1107,7 +1127,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                                 setOpenDropdownFor(localCat);
                                 setCatSearchTerm('');
                               }}
-                              className="text-xs text-indigo-600 font-bold hover:underline px-2 py-1 cursor-pointer"
+                              className="text-[10px] text-indigo-600 font-bold hover:underline px-1.5 py-0.5 cursor-pointer"
                             >
                               {lang === 'tr' ? 'Değiştir' : 'Change'}
                             </button>
@@ -1117,43 +1137,43 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                               className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
                               title={lang === 'tr' ? 'Eşleştirmeyi Kaldır' : 'Remove'}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3 w-3" />
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                           <button
                             type="button"
                             onClick={() => {
                               setOpenDropdownFor(isDropdownOpen ? null : localCat);
                               setCatSearchTerm('');
                             }}
-                            className="w-full text-left px-4 py-2.5 bg-white border border-dashed border-slate-300 hover:border-indigo-400 rounded-xl text-xs font-bold text-slate-600 flex items-center justify-between cursor-pointer transition-all"
+                            className="w-full text-left px-3 py-1.5 bg-white border border-dashed border-slate-300 hover:border-indigo-400 rounded-lg text-[11px] font-bold text-slate-600 flex items-center justify-between cursor-pointer transition-all"
                           >
-                            <span className="flex items-center gap-1.5">
+                            <span className="flex items-center gap-1 truncate">
                               <span>{lang === 'tr' ? `${activeMarketplaceConfig.title} Kategorisi Seç...` : 'Select category...'}</span>
                               {selectedSector !== 'all' && (
-                                <span className="text-[10px] font-normal text-indigo-600">
+                                <span className="text-[10px] font-normal text-indigo-600 truncate">
                                   ({MARKETPLACE_SECTORS.find((s) => s.id === selectedSector)?.name})
                                 </span>
                               )}
                             </span>
-                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                            <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
                           </button>
 
                           {/* SMART SUGGESTION PILL */}
                           {suggestion && (
-                            <div className="flex items-center space-x-2 text-[11px]">
+                            <div className="flex items-center space-x-1.5 text-[10px]">
                               <span className="text-slate-400 font-medium">
-                                {lang === 'tr' ? 'Akıllı Öneri:' : 'Suggestion:'}
+                                {lang === 'tr' ? 'Öneri:' : 'Suggestion:'}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleSelectMapping(localCat, suggestion.id)}
-                                className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg font-bold flex items-center space-x-1 cursor-pointer transition-colors"
+                                className="px-2 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded font-bold flex items-center space-x-1 cursor-pointer transition-colors"
                               >
-                                <Sparkles className="h-3 w-3 text-purple-600" />
+                                <Sparkles className="h-2.5 w-2.5 text-purple-600" />
                                 <span>{suggestion.displayName || suggestion.name} (#{suggestion.id})</span>
                               </button>
                             </div>
@@ -1163,16 +1183,16 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
                       {/* DROPDOWN SEARCH MENU WITH SECTOR QUICK SWITCH */}
                       {isDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 space-y-2 max-h-80 flex flex-col">
+                        <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 space-y-1.5 max-h-72 flex flex-col">
                           
                           {/* Mini Sector Switcher inside dropdown */}
-                          <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-[10px] font-bold border-b border-slate-100">
+                          <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-[9px] font-bold border-b border-slate-100">
                             {MARKETPLACE_SECTORS.map((s) => (
                               <button
                                 key={s.id}
                                 type="button"
                                 onClick={() => setSelectedSector(s.id)}
-                                className={`px-2 py-0.5 rounded-md cursor-pointer whitespace-nowrap ${
+                                className={`px-1.5 py-0.5 rounded cursor-pointer whitespace-nowrap ${
                                   selectedSector === s.id
                                     ? 'bg-slate-900 text-white'
                                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1187,25 +1207,25 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                             <input
                               type="text"
                               autoFocus
-                              placeholder={lang === 'tr' ? 'Kategori ara (örn: USB Bellek, Kart Okuyucu, SSD)...' : 'Search category name or ID...'}
+                              placeholder={lang === 'tr' ? 'Kategori ara (örn: USB Bellek, Kart Okuyucu)...' : 'Search category...'}
                               value={catSearchTerm}
                               onChange={(e) => setCatSearchTerm(e.target.value)}
-                              className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20"
+                              className="w-full pl-7 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium focus:ring-2 focus:ring-indigo-500/20"
                             />
-                            <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                            <Search className="h-3 w-3 text-slate-400 absolute left-2 top-2" />
                           </div>
 
-                          <div className="overflow-y-auto flex-1 space-y-1 max-h-52 pr-1">
+                          <div className="overflow-y-auto flex-1 space-y-1 max-h-48 pr-1">
                             {filteredMarketCats.length === 0 ? (
-                              <div className="text-center py-4 space-y-1">
-                                <p className="text-xs text-slate-400">
+                              <div className="text-center py-3 space-y-1">
+                                <p className="text-[11px] text-slate-400">
                                   {lang === 'tr' ? 'Seçili sektörde uygun kategori bulunamadı' : 'No categories found'}
                                 </p>
                                 {selectedSector !== 'all' && (
                                   <button
                                     type="button"
                                     onClick={() => setSelectedSector('all')}
-                                    className="text-[11px] text-indigo-600 font-bold hover:underline cursor-pointer"
+                                    className="text-[10px] text-indigo-600 font-bold hover:underline cursor-pointer"
                                   >
                                     {lang === 'tr' ? 'Tüm sektörleri göster' : 'Show all sectors'}
                                   </button>
@@ -1217,30 +1237,30 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                                   key={c.id}
                                   type="button"
                                   onClick={() => handleSelectMapping(localCat, c.id)}
-                                  className="w-full text-left p-2 hover:bg-slate-50 rounded-xl text-xs transition-colors flex items-center justify-between group cursor-pointer"
+                                  className="w-full text-left p-1.5 hover:bg-slate-50 rounded-lg text-[11px] transition-colors flex items-center justify-between group cursor-pointer"
                                 >
-                                  <div>
-                                    <p className="font-bold text-slate-900 group-hover:text-indigo-600">
+                                  <div className="truncate pr-2">
+                                    <p className="font-bold text-slate-900 group-hover:text-indigo-600 truncate">
                                       {c.displayName || c.name}
                                     </p>
                                     {c.paths && c.paths.length > 0 && (
-                                      <p className="text-[10px] text-slate-400">{c.paths.join(' > ')}</p>
+                                      <p className="text-[9px] text-slate-400 truncate">{c.paths.join(' > ')}</p>
                                     )}
                                   </div>
-                                  <span className="font-mono text-[10px] bg-slate-100 group-hover:bg-indigo-50 text-slate-600 group-hover:text-indigo-700 px-2 py-0.5 rounded border border-slate-200 shrink-0 ml-2">
-                                    ID: {c.id}
+                                  <span className="font-mono text-[9px] bg-slate-100 group-hover:bg-indigo-50 text-slate-600 group-hover:text-indigo-700 px-1.5 py-0.2 rounded border border-slate-200 shrink-0 ml-1">
+                                    #{c.id}
                                   </span>
                                 </button>
                               ))
                             )}
                           </div>
 
-                          <div className="border-t border-slate-100 pt-2 flex justify-between items-center text-[11px] text-slate-400">
+                          <div className="border-t border-slate-100 pt-1.5 flex justify-between items-center text-[10px] text-slate-400">
                             <span>{filteredMarketCats.length} {lang === 'tr' ? 'kategori' : 'categories'}</span>
                             <button
                               type="button"
                               onClick={() => setOpenDropdownFor(null)}
-                              className="text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-1 cursor-pointer"
+                              className="text-[10px] font-bold text-slate-500 hover:text-slate-800 px-2 py-0.5 cursor-pointer"
                             >
                               {lang === 'tr' ? 'Kapat' : 'Close'}
                             </button>
@@ -1255,22 +1275,32 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                         <button
                           type="button"
                           onClick={() => handleOpenAttributes(localCat, mappedId)}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer border ${
+                          title={
+                            configuredAttrCount > 0 
+                              ? `${configuredAttrCount} özellik ayarlandı. Düzenlemek için tıklayın.` 
+                              : 'Pazaryeri zorunlu özelliklerini ayarla'
+                          }
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center space-x-1 cursor-pointer border ${
                             configuredAttrCount > 0
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                               : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                           }`}
                         >
-                          <SlidersHorizontal className="h-3.5 w-3.5" />
-                          <span>
+                          <SlidersHorizontal className="h-3 w-3" />
+                          <span className="hidden sm:inline">
                             {configuredAttrCount > 0 
-                              ? `${configuredAttrCount} ${lang === 'tr' ? 'Özellik Ayarlandı' : 'Attributes Configured'}`
-                              : (lang === 'tr' ? 'Zorunlu Alanları Ayarla' : 'Configure Attributes')}
+                              ? `${configuredAttrCount} ${lang === 'tr' ? 'Özellik' : 'Attrs'}` 
+                              : (lang === 'tr' ? 'Özellikler' : 'Attributes')}
+                          </span>
+                          <span className={`text-[9px] px-1 py-0.2 rounded-full font-mono font-bold ${
+                            configuredAttrCount > 0 ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'
+                          }`}>
+                            {configuredAttrCount}
                           </span>
                         </button>
                       ) : (
-                        <span className="text-[11px] text-slate-400 italic">
-                          {lang === 'tr' ? 'Önce kategori eşleyin' : 'Map category first'}
+                        <span className="text-[10px] text-slate-400 italic">
+                          {lang === 'tr' ? 'Önce kategori eşleyin' : 'Map first'}
                         </span>
                       )}
                     </div>
@@ -1278,17 +1308,17 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                   </div>
 
                   {/* CATEGORY COMMISSION & REVERSE MARGIN PRICING BAR */}
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 text-xs">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                        <Percent className="h-3 w-3 text-indigo-500" />
-                        <span>{lang === 'tr' ? 'Bu Kategoriye Özel Komisyon & Gider:' : 'Category Markup:'}</span>
+                  <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-1.5 text-[10px]">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                        <Percent className="h-2.5 w-2.5 text-indigo-500" />
+                        <span>{lang === 'tr' ? 'Özel Komisyon:' : 'Category Markup:'}</span>
                       </span>
                       
-                      <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">{lang === 'tr' ? 'Komisyon' : 'Comm'}</span>
+                      <div className="flex items-center space-x-1 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">{lang === 'tr' ? 'Kom' : 'Comm'}</span>
                         <div className="flex items-center">
-                          <span className="text-xs font-bold text-indigo-600 mr-0.5">%</span>
+                          <span className="text-[10px] font-bold text-indigo-600 mr-0.5">%</span>
                           <input
                             type="number"
                             min="0"
@@ -1297,13 +1327,13 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                             placeholder={String(defaultCommissionRates[activeMarketplace] ?? 18)}
                             value={categoryMarkups[activeMarketplace]?.[localCat]?.commissionRate ?? ''}
                             onChange={(e) => handleUpdateCategoryMarkup(localCat, 'commissionRate', parseFloat(e.target.value))}
-                            className="w-11 bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden text-right"
+                            className="w-9 bg-transparent text-[10px] font-bold text-slate-800 focus:outline-hidden text-right"
                           />
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">{lang === 'tr' ? 'Sabit Pay' : 'Fixed'}</span>
+                      <div className="flex items-center space-x-1 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">{lang === 'tr' ? 'Sabit' : 'Fixed'}</span>
                         <div className="flex items-center">
                           <input
                             type="number"
@@ -1312,14 +1342,14 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                             placeholder={String(defaultFixedFees[activeMarketplace] ?? 20)}
                             value={categoryMarkups[activeMarketplace]?.[localCat]?.fixedFee ?? ''}
                             onChange={(e) => handleUpdateCategoryMarkup(localCat, 'fixedFee', parseFloat(e.target.value))}
-                            className="w-11 bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden text-right"
+                            className="w-9 bg-transparent text-[10px] font-bold text-slate-800 focus:outline-hidden text-right"
                           />
-                          <span className="text-[10px] font-bold text-slate-500 ml-0.5">TL</span>
+                          <span className="text-[9px] font-bold text-slate-500 ml-0.5">TL</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 text-[11px]">
+                    <div className="flex items-center space-x-1.5 text-[9px]">
                       {(() => {
                         const customComm = categoryMarkups[activeMarketplace]?.[localCat]?.commissionRate;
                         const customFee = categoryMarkups[activeMarketplace]?.[localCat]?.fixedFee;
@@ -1328,12 +1358,12 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                         const sim = calculateSimulatedPrice(1000, comm, fee);
                         const hasCustom = customComm !== undefined || customFee !== undefined;
                         return (
-                          <span className={`px-2.5 py-1 rounded-md font-mono font-bold flex items-center space-x-1 border ${
+                          <span className={`px-1.5 py-0.5 rounded font-mono font-bold flex items-center space-x-1 border ${
                             hasCustom 
                               ? 'bg-purple-50 text-purple-700 border-purple-200' 
                               : 'bg-slate-100 text-slate-600 border-slate-200'
                           }`}>
-                            <span className="text-[10px] uppercase">{hasCustom ? 'Özel Formül:' : 'Varsayılan:'}</span>
+                            <span className="text-[8px] uppercase">{hasCustom ? 'Özel:' : 'Varsayılan:'}</span>
                             <span>1.000 TL ➔ {sim.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
                           </span>
                         );
@@ -1347,9 +1377,9 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         </div>
 
         {/* MODAL FOOTER */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-2 text-xs text-slate-500">
-            <Info className="h-4 w-4 text-slate-400 shrink-0" />
+        <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
+            <Info className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <span>
               {lang === 'tr' 
                 ? 'Eşleştirmeler kaydedildiğinde ürün senkronizasyonlarında otomatik olarak kullanılır.' 
@@ -1357,11 +1387,11 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             </span>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer"
             >
               {lang === 'tr' ? 'Vazgeç' : 'Cancel'}
             </button>
@@ -1369,9 +1399,9 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               type="button"
               disabled={saving}
               onClick={handleSaveAll}
-              className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-md flex items-center space-x-2 disabled:opacity-50 cursor-pointer transition-all"
+              className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs shadow-xs flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer transition-all"
             >
-              <Save className="h-4 w-4" />
+              <Save className="h-3.5 w-3.5" />
               <span>{saving ? (lang === 'tr' ? 'Kaydediliyor...' : 'Saving...') : (lang === 'tr' ? 'Tüm Eşleştirmeleri Kaydet' : 'Save All Mappings')}</span>
             </button>
           </div>

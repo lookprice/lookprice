@@ -714,27 +714,27 @@ const ProductsTab = ({
                   </th>
                 )}
                 {!isCafe && (
-                  <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.barcode}</th>
+                  <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.barcode}</th>
                 )}
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.productName}</th>
-                {showStoreName && <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.branch}</th>}
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.price}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.cost}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.stock}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-right">{t.actions}</th>
+                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.productName}</th>
+                {showStoreName && <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.branch}</th>}
+                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.price}</th>
+                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.cost}</th>
+                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.stock}</th>
+                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-right">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {(loading && products.length === 0) ? (
                 <tr>
-                  <td colSpan={isCafe ? (showStoreName ? 8 : 7) : (showStoreName ? 9 : 8)} className="px-6 py-20 text-center">
-                    <div className="animate-spin h-10 w-10 border-4 border-slate-900 border-t-transparent rounded-full mx-auto mb-5 shadow-2xl shadow-slate-200"></div>
+                  <td colSpan={isCafe ? (showStoreName ? 8 : 7) : (showStoreName ? 9 : 8)} className="px-3.5 py-12 text-center">
+                    <div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full mx-auto mb-3 shadow-2xl shadow-slate-200"></div>
                     <p className="text-slate-500 text-xs font-black uppercase tracking-[0.2em]">{t.loading}</p>
                   </td>
                 </tr>
               ) : paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={isCafe ? (showStoreName ? 8 : 7) : (showStoreName ? 9 : 8)} className="px-6 py-24 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic">
+                  <td colSpan={isCafe ? (showStoreName ? 8 : 7) : (showStoreName ? 9 : 8)} className="px-3.5 py-16 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic">
                     {t.noProducts}
                   </td>
                 </tr>
@@ -744,7 +744,7 @@ const ProductsTab = ({
                   return (
                       <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors group cursor-default ${selectedIds.includes(p.id) ? 'bg-indigo-50/30' : (Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') ? 'bg-amber-50/50' : '')}`}>
                         {!isViewer && (
-                          <td className="pl-6 py-4">
+                          <td className="pl-3.5 py-2">
                             <input 
                               type="checkbox" 
                               className="h-4 w-4 border-2 border-slate-300 rounded-md text-indigo-600 focus:ring-indigo-500 cursor-pointer"
@@ -754,13 +754,13 @@ const ProductsTab = ({
                           </td>
                         )}
                         {!isCafe && (
-                          <td className="px-6 py-4">
-                            <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
+                          <td className="px-3.5 py-2">
+                            <span className="font-mono text-[10px] bg-white px-2 py-0.5 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-2xs">
                               {p.barcode}
                             </span>
                           </td>
                         )}
-                        <td className="px-6 py-4">
+                        <td className="px-3.5 py-2">
                           <div className="flex items-center gap-4">
                             <div className="relative group shrink-0">
                               {p.image_url ? (

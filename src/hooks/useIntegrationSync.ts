@@ -19,13 +19,13 @@ export const useIntegrationSync = (integrationName: string, t: any) => {
       setLastSync(new Date());
       onSuccess(res);
     } catch (error: any) {
-      const errorMessage = error.message || t.errorOccurred || "Sync failed";
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || t.errorOccurred || "Sync failed";
       setLastError(errorMessage);
       Logger.error(`Sync failed for ${integrationName}`, { 
-        error: error.message, 
+        error: errorMessage, 
         stack: error.stack 
       });
-      alert(`${t.errorOccurred || 'Error'}: ${errorMessage}`);
+      alert(`${t.errorOccurred || 'Hata'}: ${errorMessage}`);
     } finally {
       setIsSyncing(false);
     }

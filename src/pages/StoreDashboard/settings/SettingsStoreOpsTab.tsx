@@ -419,13 +419,13 @@ export const SettingsStoreOpsTab = ({
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
+        <div className="flex flex-wrap gap-6 items-start">
+          <div className="space-y-2 w-full sm:w-52 max-w-[200px]">
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultCurrency}</label>
             <div className="relative">
-              <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
               <select 
-                className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
+                className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-xs text-slate-900 appearance-none cursor-pointer"
                 value={branding.default_currency || "TRY"}
                 onChange={(e) => onBrandingChange('default_currency', e.target.value)}
               >
@@ -437,12 +437,12 @@ export const SettingsStoreOpsTab = ({
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 w-full sm:w-52 max-w-[200px]">
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultLanguage}</label>
             <div className="relative">
-              <Languages className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Languages className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
               <select 
-                className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 appearance-none cursor-pointer"
+                className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-xs text-slate-900 appearance-none cursor-pointer"
                 value={branding.default_language || branding.language || "tr"}
                 onChange={(e) => onBrandingChange('language', e.target.value)}
               >
@@ -580,14 +580,14 @@ export const SettingsStoreOpsTab = ({
             </div>
             <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{txt('Vergi Ayarları', 'Tax Settings', 'Ρυθμίσεις Φόρων')}</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
+          <div className="flex flex-wrap gap-6 items-start">
+            <div className="space-y-2 w-full sm:w-48 max-w-[180px]">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Varsayılan KDV Oranı (%)', 'Default VAT Rate (%)', 'Προεπιλεγμένος Συντελεστής ΦΠΑ (%)')}</label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
                 <input 
                   type="text" 
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-xs text-slate-900"
                   value={branding.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : '20'}
                   onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
                 />

@@ -212,3 +212,50 @@
   }
 }
 
+/* High-Density Compact Operator Workspace & Digital Menu (%80 Zoom Equivalent Feel) */
+.operator-compact-layout {
+  --compact-density: 1;
+}
+
+@media (min-width: 1024px) {
+  .operator-compact-layout {
+    zoom: 0.88;
+  }
+}
+
+.digital-menu-compact {
+  --menu-density: 1;
+}
+
+@media (min-width: 768px) {
+  .digital-menu-compact {
+    zoom: 0.90;
+  }
+}
+
+/* Utility classes for bounded-character fields (Rule 13) */
+.input-compact-barcode {
+  max-width: 190px !important;
+}
+
+.input-compact-currency {
+  max-width: 110px !important;
+}
+
+.input-compact-tax {
+  max-width: 100px !important;
+}
+
+.input-compact-qty {
+  max-width: 110px !important;
+}
+
+.input-compact-unit {
+  max-width: 130px !important;
+}
+
+.input-compact-discount {
+  max-width: 100px !important;
+}
+
+

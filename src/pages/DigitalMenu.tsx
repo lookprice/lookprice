@@ -406,8 +406,8 @@ export default function DigitalMenuPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100/50 flex justify-center py-0 md:py-8">
-      <div className="w-full max-w-xl md:max-w-md min-h-screen md:min-h-0 bg-slate-50 p-4 pb-28 relative shadow-2xl md:border md:border-slate-200 md:rounded-[3rem] overflow-hidden">
+    <div className="min-h-screen bg-slate-100/50 flex justify-center py-0 md:py-8 digital-menu-compact">
+      <div className="w-full max-w-xl md:max-w-md min-h-screen md:min-h-0 bg-slate-50 p-3.5 pb-24 relative shadow-2xl md:border md:border-slate-200 md:rounded-[2.5rem] overflow-hidden">
         {/* Top Right Language Switcher */}
         <div className="absolute top-4 right-4 z-30 flex items-center gap-1 bg-white p-1 rounded-2xl shadow-md border border-slate-200">
           <button

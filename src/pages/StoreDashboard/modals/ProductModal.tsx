@@ -337,40 +337,8 @@ export const ProductModal = ({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? (hasVariants ? "Barkod (Varyantlı)" : `Barkod${isCafeRestaurant ? " (İsteğe Bağlı)" : " *"}`) : (hasVariants ? "Barcode (Variants)" : `Barcode${isCafeRestaurant ? " (Optional)" : " *"}`)}
-                </label>
-                <input
-                  type="text"
-                  name="barcode"
-                  required={!hasVariants && !isCafeRestaurant}
-                  disabled={hasVariants}
-                  placeholder={hasVariants ? (isTr ? "Varyant barkodları geçerlidir" : "Tracked via variants") : (isTr ? (isCafeRestaurant ? "Otomatik oluşturulması için boş bırakın..." : "Barkod girin veya okutun...") : (isCafeRestaurant ? "Leave blank to auto-generate..." : "EAN / Barcode..."))}
-                  className={`w-full px-4 py-2.5 border-2 rounded-2xl transition-all font-bold text-xs ${
-                    hasVariants 
-                      ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-80" 
-                      : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 focus:ring-0 shadow-2xs"
-                  }`}
-                  defaultValue={editingProduct?.barcode || ""}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Ürün Kodu / Model / SKU" : "Product Code / Model / SKU"}
-                </label>
-                <input
-                  type="text"
-                  name="product_code"
-                  placeholder={isTr ? "örn: MZ-V9P1T0BW, TRU16977..." : "e.g. SKU-12345, MODEL-X"}
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.product_code || editingProduct?.sku || ""}
-                />
-              </div>
-
-              <div className="space-y-1 sm:col-span-2">
+            <div className="flex flex-col sm:flex-row gap-3 items-start">
+              <div className="space-y-1 flex-1 w-full">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
                   {isTr ? "Ürün / Hizmet Adı *" : "Product / Service Name *"}
                 </label>
@@ -379,8 +347,40 @@ export const ProductModal = ({
                   name="name"
                   required
                   placeholder={isTr ? "örn: Samsung 990 Pro 1TB SSD" : "Product name"}
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-extrabold text-slate-900 text-sm shadow-2xs"
+                  className="w-full px-3.5 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-extrabold text-slate-900 text-xs sm:text-sm shadow-2xs"
                   defaultValue={editingProduct?.name || ""}
+                />
+              </div>
+
+              <div className="space-y-1 w-full sm:w-48 sm:max-w-[190px] shrink-0">
+                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
+                  {isTr ? (hasVariants ? "Barkod" : `Barkod${isCafeRestaurant ? " (İsteğe)" : " *"}`) : (hasVariants ? "Barcode" : `Barcode${isCafeRestaurant ? " (Opt)" : " *"}`)}
+                </label>
+                <input
+                  type="text"
+                  name="barcode"
+                  required={!hasVariants && !isCafeRestaurant}
+                  disabled={hasVariants}
+                  placeholder={hasVariants ? (isTr ? "Varyantta" : "In variants") : (isTr ? (isCafeRestaurant ? "Oto boş bırak..." : "Barkod (13 hane)") : "EAN / Barcode")}
+                  className={`w-full px-3 py-2 border-2 rounded-xl transition-all font-mono font-bold text-xs ${
+                    hasVariants 
+                      ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-80" 
+                      : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 focus:ring-0 shadow-2xs"
+                  }`}
+                  defaultValue={editingProduct?.barcode || ""}
+                />
+              </div>
+
+              <div className="space-y-1 w-full sm:w-44 sm:max-w-[170px] shrink-0">
+                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
+                  {isTr ? "Kod / SKU" : "SKU / Code"}
+                </label>
+                <input
+                  type="text"
+                  name="product_code"
+                  placeholder={isTr ? "SKU-12345" : "e.g. SKU-12345"}
+                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-mono font-bold text-slate-900 text-xs shadow-2xs"
+                  defaultValue={editingProduct?.product_code || editingProduct?.sku || ""}
                 />
               </div>
             </div>
@@ -577,106 +577,103 @@ export const ProductModal = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Maliyet Fiyatı" : "Cost Price"}
-                </label>
-                <input
-                  type="text"
-                  name="cost_price"
-                  placeholder="0.00"
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.cost_price || ""}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Para Birimi" : "Currency"}
-                </label>
-                <select
-                  name="cost_currency"
-                  className="w-full px-3 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
-                  defaultValue={editingProduct?.cost_currency || branding?.default_currency || "TRY"}
-                >
-                  <option value="TRY">TRY (₺)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                </select>
-              </div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Satış Fiyatı + Para Birimi Entegre Grup */}
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
                   {isTr ? `Satış Fiyatı${hasVariants || (Array.isArray(variants) && variants.length > 0) ? "" : " *"}` : `Sales Price${hasVariants || (Array.isArray(variants) && variants.length > 0) ? "" : " *"}`}
                 </label>
-                <input
-                  type="text"
-                  name="price"
-                  required={!(hasVariants || (Array.isArray(variants) && variants.length > 0))}
-                  placeholder={hasVariants || (Array.isArray(variants) && variants.length > 0) ? (isTr ? "Varyant fiyatları geçerlidir (İsteğe bağlı)" : "Tracked via variants (optional)") : "0.00"}
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-black text-emerald-700 text-sm shadow-2xs"
-                  defaultValue={editingProduct?.price || ""}
-                />
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    name="price"
+                    required={!(hasVariants || (Array.isArray(variants) && variants.length > 0))}
+                    placeholder={hasVariants || (Array.isArray(variants) && variants.length > 0) ? (isTr ? "Varyantta" : "In variants") : "0.00"}
+                    className="flex-1 min-w-0 px-3 py-2 bg-white border-2 border-r-0 border-slate-200 rounded-l-xl focus:border-indigo-600 focus:ring-0 transition-all font-black text-emerald-700 text-xs sm:text-sm shadow-2xs"
+                    defaultValue={editingProduct?.price || ""}
+                  />
+                  <select
+                    name="currency"
+                    className="w-20 shrink-0 px-2 py-2 bg-slate-100 border-2 border-slate-200 rounded-r-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs text-center cursor-pointer"
+                    defaultValue={editingProduct?.currency || branding?.default_currency || "TRY"}
+                  >
+                    <option value="TRY">TRY (₺)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </select>
+                </div>
               </div>
 
+              {/* 2. Fiyat */}
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Eski Fiyat (Üstü Çizili)" : "Old Price"}
-                </label>
-                <input
-                  type="text"
-                  name="old_price"
-                  placeholder="0.00"
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.old_price || ""}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "2. Fiyat" : "2nd Price"}
+                  {isTr ? "2. Fiyat (Toptan)" : "2nd Price"}
                 </label>
                 <input
                   type="text"
                   name="price_2"
                   placeholder="0.00"
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
                   defaultValue={editingProduct?.price_2 || ""}
                 />
               </div>
 
+              {/* Eski Fiyat */}
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Para Birimi" : "Currency"}
+                  {isTr ? "Eski Fiyat (Çizili)" : "Old Price"}
                 </label>
-                <select
-                  name="currency"
-                  className="w-full px-3 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
-                  defaultValue={editingProduct?.currency || branding?.default_currency || "TRY"}
-                >
-                  <option value="TRY">TRY (₺)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                </select>
+                <input
+                  type="text"
+                  name="old_price"
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+                  defaultValue={editingProduct?.old_price || ""}
+                />
               </div>
 
+              {/* KDV Oranı (Kompakt w-24) */}
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Varsayılan KDV Oranı" : "VAT Rate"}
+                  {isTr ? "KDV Oranı" : "VAT Rate"}
                 </label>
                 <select
                   name="tax_rate"
-                  className="w-full px-3 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
+                  className="w-full px-2.5 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs cursor-pointer shadow-2xs"
                   defaultValue={editingProduct?.tax_rate !== undefined ? String(editingProduct.tax_rate) : "20"}
                 >
-                  <option value="20">%20</option>
-                  <option value="10">%10</option>
-                  <option value="1">%1</option>
-                  <option value="0">%0</option>
+                  <option value="20">%20 (Genel)</option>
+                  <option value="10">%10 (Gıda/Tıbbi)</option>
+                  <option value="1">%1 (Temel)</option>
+                  <option value="0">%0 (Muaf)</option>
                 </select>
+              </div>
+
+              {/* Maliyet Fiyatı + Maliyet Para Birimi Entegre Grup */}
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
+                  {isTr ? "Maliyet Fiyatı & Para Birimi" : "Cost Price & Currency"}
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    name="cost_price"
+                    placeholder="0.00"
+                    className="flex-1 min-w-0 px-3 py-2 bg-white border-2 border-r-0 border-slate-200 rounded-l-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+                    defaultValue={editingProduct?.cost_price || ""}
+                  />
+                  <select
+                    name="cost_currency"
+                    className="w-24 shrink-0 px-2 py-2 bg-slate-100 border-2 border-slate-200 rounded-r-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs text-center cursor-pointer"
+                    defaultValue={editingProduct?.cost_currency || branding?.default_currency || "TRY"}
+                  >
+                    <option value="TRY">TRY (₺)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>

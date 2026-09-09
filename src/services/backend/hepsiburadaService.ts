@@ -109,8 +109,13 @@ export class HepsiburadaService {
         `${this.omsBaseUrl}/orders/merchantid/${this.config.merchantId}?limit=1`,
         { headers, timeout: 10000 }
       );
-      if (res.status === 200) omsOk = true;
+      if (res.status === 200 && res.data && typeof res.data === 'object' && !String(res.data).includes('<!DOCTYPE')) {
+        omsOk = true;
+      }
     } catch (e: any) {
+      if (e.response?.status === 401 || e.response?.status === 403) {
+        lastError = "Hepsiburada OMS API yetkilendirme hatası (401/403): Merchant ID, API Key veya Secret Key geçersiz.";
+      }
       // Fallback test with legacy merchant api if OMS fails
       try {
         const legacyRes = await axios.get(
@@ -120,9 +125,13 @@ export class HepsiburadaService {
             timeout: 10000,
           }
         );
-        if (legacyRes.status === 200) omsOk = true;
+        if (legacyRes.status === 200 && typeof legacyRes.data === 'object' && !String(legacyRes.data).includes('<!DOCTYPE') && legacyRes.data?.orders) {
+          omsOk = true;
+        }
       } catch (err2: any) {
-        lastError = e.response?.data?.message || e.message || "OMS Bağlantı hatası";
+        if (!lastError) {
+          lastError = e.response?.data?.message || e.message || "OMS Bağlantı hatası";
+        }
       }
     }
 
@@ -184,6 +193,12 @@ export class HepsiburadaService {
       const orders = response.data?.items || response.data?.orders || response.data || [];
       return Array.isArray(orders) ? orders : [];
     } catch (error: any) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        throw new Error(
+          `Hepsiburada API Kimlik Doğrulama Hatası (401/403): Satıcı ID (${this.config.merchantId}) ve API Anahtarı/Secret kombinasyonu Hepsiburada tarafından reddedildi. Lütfen Satıcı Paneli (Satıcı Bilgileri > Entegratör) ayarlarından API anahtarlarınızı güncelleyin.`
+        );
+      }
+
       // Try fallback to legacy merchant endpoint if OMS endpoint returns 404/500
       try {
         const legacyRes = await axios.get(
@@ -193,7 +208,11 @@ export class HepsiburadaService {
             timeout: 30000,
           }
         );
-        return legacyRes.data?.orders || legacyRes.data || [];
+        if (typeof legacyRes.data === 'string' && (legacyRes.data.includes('<!DOCTYPE') || legacyRes.data.includes('<html'))) {
+          throw new Error("Hepsiburada API geçersiz yanıt döndürdü (Giriş sayfası).");
+        }
+        const orders = legacyRes.data?.orders || legacyRes.data?.items || [];
+        return Array.isArray(orders) ? orders : [];
       } catch (legacyErr: any) {
         throw new Error(
           `Hepsiburada siparişleri alınamadı: ${
