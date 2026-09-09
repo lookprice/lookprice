@@ -37,7 +37,7 @@ router.get("/", async (req: any, res) => {
 
 // Create Company
 router.post("/", async (req: any, res) => {
-  const { tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative } = req.body;
+  const { tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative, is_expense, expense_category, expense_center } = req.body;
   const title = String(req.body.title || "").trim();
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
@@ -55,9 +55,10 @@ router.post("/", async (req: any, res) => {
       return res.status(400).json({ error: "Bu isimde bir cari hesap zaten mevcut." });
     }
 
+    const finalIsExpense = is_expense === true || is_expense === 'true';
     const result = await pool.query(
-      "INSERT INTO companies (store_id, title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
-      [storeId, title, tax_office, tax_number, address, delivery_address || null, phone, email, contact_person, representative]
+      "INSERT INTO companies (store_id, title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative, is_expense, expense_category, expense_center) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *",
+      [storeId, title, tax_office, tax_number, address, delivery_address || null, phone, email, contact_person, representative, finalIsExpense, expense_category || null, expense_center || null]
     );
     res.json(result.rows[0]);
   } catch (err: any) {
@@ -67,7 +68,7 @@ router.post("/", async (req: any, res) => {
 
 // Update Company
 router.put("/:id", async (req: any, res) => {
-  const { title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative } = req.body;
+  const { title, tax_office, tax_number, address, delivery_address, phone, email, contact_person, representative, is_expense, expense_category, expense_center } = req.body;
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
   try {
     const existing = await pool.query("SELECT id FROM companies WHERE store_id = $1 AND LOWER(title) = LOWER($2) AND id != $3", [storeId, title, req.params.id]);
@@ -75,9 +76,10 @@ router.put("/:id", async (req: any, res) => {
       return res.status(400).json({ error: "Bu isimde bir cari hesap zaten mevcut." });
     }
 
+    const finalIsExpense = is_expense === true || is_expense === 'true';
     const result = await pool.query(
-      "UPDATE companies SET title = $1, tax_office = $2, tax_number = $3, address = $4, delivery_address = $5, phone = $6, email = $7, contact_person = $8, representative = $9 WHERE id = $10 AND store_id = $11 RETURNING *",
-      [title, tax_office, tax_number, address, delivery_address || null, phone, email, contact_person, representative, req.params.id, storeId]
+      "UPDATE companies SET title = $1, tax_office = $2, tax_number = $3, address = $4, delivery_address = $5, phone = $6, email = $7, contact_person = $8, representative = $9, is_expense = $10, expense_category = $11, expense_center = $12 WHERE id = $13 AND store_id = $14 RETURNING *",
+      [title, tax_office, tax_number, address, delivery_address || null, phone, email, contact_person, representative, finalIsExpense, expense_category || null, expense_center || null, req.params.id, storeId]
     );
     res.json(result.rows[0]);
   } catch (err: any) {

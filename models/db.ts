@@ -425,6 +425,15 @@ export async function initDb() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='delivery_address') THEN
           ALTER TABLE companies ADD COLUMN delivery_address TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='is_expense') THEN
+          ALTER TABLE companies ADD COLUMN is_expense BOOLEAN DEFAULT FALSE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='expense_category') THEN
+          ALTER TABLE companies ADD COLUMN expense_category TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='expense_center') THEN
+          ALTER TABLE companies ADD COLUMN expense_center TEXT;
+        END IF;
       END $$;
 
       CREATE TABLE IF NOT EXISTS current_account_transactions (

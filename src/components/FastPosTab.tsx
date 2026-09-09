@@ -28,13 +28,20 @@ import {
   Divide,
   Bell,
   Building2,
-  Gift
+  Gift,
+  Tag
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useNetwork } from "../contexts/NetworkContext";
 import { translateText } from "../utils/translator";
-import { TableGrid } from './TableGrid';
+import { 
+  TableGrid, 
+  getStoredTableNicknames, 
+  saveTableNickname, 
+  clearStoredTableNickname, 
+  transferStoredTableNickname 
+} from './TableGrid';
 import { api } from "../services/api";
 import { matchesSearch, normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";
@@ -236,6 +243,22 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   }, [branding]);
 
   const [storeTableCalls, setStoreTableCalls] = useState<any[]>([]);
+  const [tableNicknames, setTableNicknames] = useState<Record<string, string>>({});
+  const [activeNicknameModal, setActiveNicknameModal] = useState<string | null>(null);
+  const [activeNicknameInput, setActiveNicknameInput] = useState('');
+
+  useEffect(() => {
+    if (!storeId) return;
+    const loadNicks = () => {
+      setTableNicknames(getStoredTableNicknames(storeId));
+    };
+    loadNicks();
+    const handleUpdated = () => loadNicks();
+    window.addEventListener(`table-nicknames-updated-${storeId}`, handleUpdated);
+    return () => {
+      window.removeEventListener(`table-nicknames-updated-${storeId}`, handleUpdated);
+    };
+  }, [storeId]);
   useEffect(() => {
     const fetchTableCalls = () => {
       try {
@@ -416,7 +439,38 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       const endStr = endDateStr || startDateStr;
       const data = await api.getPosDailyReport(startDateStr, storeId, endStr);
       if (data && data.success) {
-        setReportData(data);
+        // Aggregate identical products regardless of notes appended in parentheses, numeric prefixes, or casing
+        const aggregatedMap = new Map<string, { product_name: string; total_quantity: number; total_revenue: number }>();
+        (data.products || []).forEach((p: any) => {
+          let cleanName = (p.product_name || '').trim();
+          // Strip leading numeric indexing if present (e.g. "1. ", "3. ", "14. ")
+          cleanName = cleanName.replace(/^[0-9]+[.)\s-]+/, '').trim();
+          // Strip trailing parenthetical notes repeatedly (e.g. "(Özgür)", "(Selçuk 1 ...)", "(İkram)")
+          while (/\s*\([^)]*\)\s*$/.test(cleanName)) {
+            cleanName = cleanName.replace(/\s*\([^)]*\)\s*$/, '').trim();
+          }
+          if (!cleanName) cleanName = (p.product_name || '').trim();
+
+          const key = cleanName.toLowerCase();
+          const qty = Number(p.total_quantity) || 0;
+          const rev = Number(p.total_revenue) || 0;
+          if (aggregatedMap.has(key)) {
+            const existing = aggregatedMap.get(key)!;
+            existing.total_quantity += qty;
+            existing.total_revenue += rev;
+          } else {
+            aggregatedMap.set(key, {
+              product_name: cleanName,
+              total_quantity: qty,
+              total_revenue: rev
+            });
+          }
+        });
+        const aggregatedProducts = Array.from(aggregatedMap.values()).sort((a, b) => b.total_quantity - a.total_quantity);
+        setReportData({
+          ...data,
+          products: aggregatedProducts
+        });
       } else {
         setReportData(null);
       }
@@ -1345,6 +1399,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           if (autoPrintOnPay) {
             handlePrintReceipt();
           }
+          if (selectedTable && storeId) {
+            clearStoredTableNickname(storeId, selectedTable);
+          }
           setLastSaleId(activeSaleId);
           setLastFiscal(res.fiscal);
           setLastCart(cart.map(item => ({ ...item, price: parseFloat(item.price) || 0, name: item.note ? `${item.name} (${item.note})` : item.name })));
@@ -1381,6 +1438,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         if (res.success) {
           if (autoPrintOnPay) {
             handlePrintReceipt();
+          }
+          if (selectedTable && storeId) {
+            clearStoredTableNickname(storeId, selectedTable);
           }
           setLastSaleId(res.saleId);
           setLastFiscal(res.fiscal);
@@ -1512,6 +1572,10 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
     if (printSlip) {
       handlePrintRoomSlip(room, guestName, notes);
+    }
+
+    if (selectedTable && storeId) {
+      clearStoredTableNickname(storeId, selectedTable);
     }
 
     toast.success(
@@ -1658,6 +1722,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             paymentMethod: partialPayMethod,
             items: paidItems
           }, storeId);
+        }
+        if (selectedTable && storeId) {
+          clearStoredTableNickname(storeId, selectedTable);
         }
         setCart([]);
         setActiveSaleId(null);
@@ -1810,6 +1877,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         }, storeId);
 
         if (res.success) {
+          if (selectedTable && storeId) {
+            clearStoredTableNickname(storeId, selectedTable);
+          }
           setLastSaleId(activeSaleId);
           setLastFiscal(res.fiscal);
           setLastCart(cart.map(item => ({ ...item, price: parseFloat(item.price) || 0, name: item.note ? `${item.name} (${item.note})` : item.name })));
@@ -1848,6 +1918,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           }, storeId);
 
           if (resComplete.success) {
+            if (selectedTable && storeId) {
+              clearStoredTableNickname(storeId, selectedTable);
+            }
             setLastSaleId(resCreate.saleId);
             setLastFiscal(resComplete.fiscal);
             setLastCart(currentCart);
@@ -1892,6 +1965,9 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       });
 
       if (res && res.success) {
+        if (storeId) {
+          transferStoredTableNickname(storeId, selectedTable, targetTableNumber);
+        }
         toast.success(lang === 'tr' ? `Adisyon ${targetTableNumber} masasına başarıyla taşındı.` : `Order transferred to table ${targetTableNumber} successfully.`);
         setIsChangingTable(false);
         setSelectedTable(null);
@@ -2096,9 +2172,33 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             )}
           </div>
           <div>
-            <h2 className="text-xs font-black text-slate-800 uppercase tracking-tight leading-tight">
+            <h2 className="text-xs font-black text-slate-800 uppercase tracking-tight leading-tight flex items-center gap-2 flex-wrap">
               {isCafeRestaurant && selectedTable !== null ? (
-                <span>{selectedTable} {activeSaleId !== null ? `(${lang === 'tr' ? 'Açık Adisyon' : 'Open Bill'})` : `(${lang === 'tr' ? 'Yeni Sipariş' : 'New Order'})`}</span>
+                <>
+                  <span>{selectedTable} {activeSaleId !== null ? `(${lang === 'tr' ? 'Açık Adisyon' : 'Open Bill'})` : `(${lang === 'tr' ? 'Yeni Sipariş' : 'New Order'})`}</span>
+                  {(() => {
+                    const cleanNum = selectedTable.replace(/^Masa\s+/i, '').trim();
+                    const nick = tableNicknames[cleanNum] || tableNicknames[selectedTable];
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveNicknameModal(selectedTable);
+                          setActiveNicknameInput(nick || '');
+                        }}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer ${
+                          nick 
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 shadow-2xs' 
+                            : 'bg-slate-100 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200'
+                        }`}
+                        title={lang === 'tr' ? "Masa Takma Adı / Müşteri Notu Düzenle" : "Edit Table Nickname / Note"}
+                      >
+                        <Tag className="h-2.5 w-2.5 text-amber-600" />
+                        <span>{nick ? nick : (lang === 'tr' ? '+ Not / İsim Ekle' : '+ Add Name')}</span>
+                      </button>
+                    );
+                  })()}
+                </>
               ) : (
                 branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Mağaza" : "Premium Store")
               )}
@@ -5054,6 +5154,149 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 >
                   {lang === 'tr' ? 'Kaydet ve Devam Et' : 'Save & Continue'}
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Active Table Nickname Modal */}
+        {activeNicknameModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+            onClick={() => setActiveNicknameModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 overflow-hidden"
+            >
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 border border-amber-200">
+                    <Tag className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      {activeNicknameModal} — {lang === 'tr' ? 'Geçici Masa Takma Adı' : 'Table Nickname / Note'}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-semibold">
+                      {lang === 'tr' ? 'Hesap kapatılana kadar masayı kolayca tanımanızı sağlar' : 'Helps identify the table until checkout'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveNicknameModal(null)}
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 mb-4">
+                <label className="block text-xs font-bold text-slate-700">
+                  {lang === 'tr' ? 'Masa Takma Adı / Müşteri Notu (Örn: Selçuk Bey, VIP Köşe):' : 'Table Nickname / Note (e.g. Selçuk Bey, VIP Corner):'}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder={lang === 'tr' ? 'Örn: Selçuk Bey, Mavi Gömlekli...' : 'e.g. Selçuk Bey, Blue Shirt...'}
+                    value={activeNicknameInput}
+                    onChange={(e) => setActiveNicknameInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (storeId) saveTableNickname(storeId, activeNicknameModal, activeNicknameInput);
+                        setActiveNicknameModal(null);
+                      }
+                      if (e.key === 'Escape') setActiveNicknameModal(null);
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
+                  />
+                  {activeNicknameInput && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveNicknameInput('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick suggestions */}
+              <div className="mb-5">
+                <div className="flex items-center gap-1.5 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <Tag className="h-3 w-3 text-amber-500" />
+                  <span>{lang === 'tr' ? 'Hızlı Seçenekler:' : 'Quick Suggestions:'}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {['Selçuk Bey', 'Ahmet Bey', 'Mehmet Bey', 'VIP Grup', 'Balkon Köşe', 'Bahçe 4\'lü', 'Mavi Gömlekli', 'Aile Masası', 'Toplantı', 'Rezervasyon'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setActiveNicknameInput(preset)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer border ${
+                        activeNicknameInput === preset
+                          ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
+                          : 'bg-slate-100 hover:bg-amber-50 hover:border-amber-200 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions footer */}
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
+                {(() => {
+                  const cleanNum = activeNicknameModal.replace(/^Masa\s+/i, '').trim();
+                  const hasNick = tableNicknames[cleanNum] || tableNicknames[activeNicknameModal];
+                  if (hasNick) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (storeId) clearStoredTableNickname(storeId, activeNicknameModal);
+                          setActiveNicknameModal(null);
+                        }}
+                        className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>{lang === 'tr' ? 'İsmi Kaldır' : 'Remove Name'}</span>
+                      </button>
+                    );
+                  }
+                  return <div />;
+                })()}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveNicknameModal(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    {lang === 'tr' ? 'Vazgeç' : 'Cancel'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (storeId) saveTableNickname(storeId, activeNicknameModal, activeNicknameInput);
+                      setActiveNicknameModal(null);
+                    }}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm shadow-indigo-200 cursor-pointer active:scale-95"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>{lang === 'tr' ? 'Kaydet' : 'Save'}</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

@@ -138,7 +138,14 @@ const ProductsTab = ({
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isAiMenuModalOpen, setIsAiMenuModalOpen] = useState(false);
 
-  const isCafe = isCafeRestaurant || branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+  const isCafe = isCafeRestaurant || 
+    branding?.store_type === 'cafe_restaurant' || 
+    branding?.store_type === 'horeca' || 
+    branding?.store_type === 'restaurant' || 
+    branding?.store_type === 'cafe' || 
+    branding?.store_type === 'hotel' || 
+    branding?.page_layout_settings?.sector === 'cafe_restaurant' ||
+    branding?.page_layout_settings?.sector === 'horeca';
   const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
   const isShopLp = !isCafe && !isPortfolio;
 
@@ -611,7 +618,7 @@ const ProductsTab = ({
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
             <input 
               type="text" 
-              placeholder={lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode...")}
+              placeholder={isCafe ? (lang === 'tr' ? "Ürün / Menü adı ile ara..." : (t.searchProduct || "Search menu product...")) : (lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode..."))}
               className="os-input w-full pr-10 py-2.5 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 shadow-xs"
               style={{ paddingLeft: '2.75rem' }}
               value={search}
@@ -706,7 +713,9 @@ const ProductsTab = ({
                     />
                   </th>
                 )}
-                <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.barcode}</th>
+                {!isCafe && (
+                  <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.barcode}</th>
+                )}
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.productName}</th>
                 {showStoreName && <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.branch}</th>}
                 <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.price}</th>
@@ -718,14 +727,14 @@ const ProductsTab = ({
             <tbody className="divide-y divide-slate-100">
               {(loading && products.length === 0) ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-20 text-center">
+                  <td colSpan={isCafe ? (showStoreName ? 8 : 7) : (showStoreName ? 9 : 8)} className="px-6 py-20 text-center">
                     <div className="animate-spin h-10 w-10 border-4 border-slate-900 border-t-transparent rounded-full mx-auto mb-5 shadow-2xl shadow-slate-200"></div>
                     <p className="text-slate-500 text-xs font-black uppercase tracking-[0.2em]">{t.loading}</p>
                   </td>
                 </tr>
               ) : paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-24 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic">
+                  <td colSpan={isCafe ? (showStoreName ? 8 : 7) : (showStoreName ? 9 : 8)} className="px-6 py-24 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic">
                     {t.noProducts}
                   </td>
                 </tr>
@@ -744,11 +753,13 @@ const ProductsTab = ({
                             />
                           </td>
                         )}
-                        <td className="px-6 py-4">
-                          <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
-                            {p.barcode}
-                          </span>
-                        </td>
+                        {!isCafe && (
+                          <td className="px-6 py-4">
+                            <span className="font-mono text-[10px] bg-white px-2 py-1 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-sm">
+                              {p.barcode}
+                            </span>
+                          </td>
+                        )}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-4">
                             <div className="relative group shrink-0">

@@ -1213,7 +1213,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                       ) : (
                         <div className="absolute top-3 right-3 bg-slate-700 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {room.status === 'cleaning' ? 'Temizlikte' : 'Bakımda'}
+                          {(room.status as string) === 'cleaning' ? 'Temizlikte' : 'Bakımda'}
                         </div>
                       )}
 

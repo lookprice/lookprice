@@ -2,7 +2,7 @@ import express from "express";
 import { pool, addStockMovement } from "../../models/db";
 import { getEInvoiceService } from "../einvoice";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
-import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode } from "./invoiceMatching";
+import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, revertInvoiceStockAndProducts, detectExpenseCategory } from "./invoiceMatching";
 import { mergeProducts } from "./products";
 
 const router = express.Router();
@@ -1533,6 +1533,32 @@ router.get("/purchase/:id", async (req: any, res) => {
          if (service) {
            const details = await service.getInvoiceDetailsByUuid(invoice.ettn);
            if (details) {
+              // Verify expense classification first
+              let isInvoiceExpense = invoice.is_expense === true;
+              let invExpenseCategory = invoice.expense_category;
+              let invExpenseCenter = invoice.expense_center;
+
+              if (!isInvoiceExpense) {
+                const expenseCheck = await resolveExpenseClassification(pool, invoice.store_id, {
+                  supplierTitle: invoice.supplier_name,
+                  supplierVkn: invoice.tax_number,
+                  companyId: invoice.company_id,
+                  pinToCompany: true
+                });
+                if (expenseCheck.isExpense) {
+                  isInvoiceExpense = true;
+                  invExpenseCategory = expenseCheck.expenseCategory;
+                  invExpenseCenter = expenseCheck.expenseCenter;
+                  await pool.query(
+                    "UPDATE purchase_invoices SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE id = $3",
+                    [invExpenseCategory, invExpenseCenter, invoice.id]
+                  );
+                  invoice.is_expense = true;
+                  invoice.expense_category = invExpenseCategory;
+                  invoice.expense_center = invExpenseCenter;
+                }
+              }
+
               let rawLines = details.detailList || details.InvoiceLines || details.lines || details.InvoiceLine || details.Lines || details.invoiceLines || [];
               if (rawLines && !Array.isArray(rawLines)) {
                 rawLines = [rawLines];
@@ -1561,6 +1587,17 @@ router.get("/purchase/:id", async (req: any, res) => {
                    
                    const lineTotal = qty * up;
                    const taxAmount = (lineTotal * tr) / 100;
+
+                   if (isInvoiceExpense) {
+                     // EXPENSE INVOICE: NEVER match/create products, NEVER alter stock!
+                     await pool.query(
+                       `INSERT INTO purchase_invoice_items 
+                        (purchase_invoice_id, product_id, product_name, barcode, product_code, quantity, unit_price, tax_rate, tax_amount, total_price) 
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                       [invoice.id, null, productName, null, null, qty, up, tr, taxAmount, lineTotal]
+                     );
+                     continue;
+                   }
 
                    // 5-Tier Intelligent matching:
                    const match = await findMatchingProduct(pool, invoice.store_id, {
@@ -1693,44 +1730,36 @@ router.post("/purchase", async (req: any, res) => {
     let finalExpenseCategory = expense_category || null;
     let finalExpenseCenter = expense_center || null;
 
-    const sTitle = (supplier_name || '').toLowerCase();
     if (!finalIsExpense) {
-      if (sTitle.includes('ttnet') || sTitle.includes('tt net') || sTitle.includes('türk telekom') || sTitle.includes('turk telekom') || sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
+      const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+        supplierTitle: supplier_name,
+        supplierVkn: tax_number,
+        companyId: company_id,
+        pinToCompany: true
+      });
+      if (expenseCheck.isExpense) {
         finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'TELEKOM';
-        finalExpenseCenter = finalExpenseCenter || 'office';
-      } else if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'ELEKTRIK';
-        finalExpenseCenter = finalExpenseCenter || 'office';
-      } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'SU';
-        finalExpenseCenter = finalExpenseCenter || 'office';
-      } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'DOGALGAZ';
-        finalExpenseCenter = finalExpenseCenter || 'office';
-      } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'AKARYAKIT';
-        finalExpenseCenter = finalExpenseCenter || 'logistics';
-      } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'KARGO';
-        finalExpenseCenter = finalExpenseCenter || 'logistics';
-      } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'KIRA';
-        finalExpenseCenter = finalExpenseCenter || 'management';
-      } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'PERSONEL_YEMEK';
-        finalExpenseCenter = finalExpenseCenter || 'hr';
-      } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'SIGORTA';
-        finalExpenseCenter = finalExpenseCenter || 'office';
+        finalExpenseCategory = finalExpenseCategory || expenseCheck.expenseCategory;
+        finalExpenseCenter = finalExpenseCenter || expenseCheck.expenseCenter;
+      }
+    } else {
+      // Pin manual expense to company
+      if (company_id || tax_number) {
+        try {
+          if (company_id) {
+            await pool.query(
+              "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE id = $3",
+              [finalExpenseCategory, finalExpenseCenter, company_id]
+            );
+          } else if (tax_number) {
+            await pool.query(
+              "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE store_id = $3 AND tax_number = $4",
+              [finalExpenseCategory, finalExpenseCenter, storeId, tax_number]
+            );
+          }
+        } catch (e) {
+          console.error("Error pinning manual expense to company:", e);
+        }
       }
     }
 
@@ -1937,52 +1966,50 @@ router.put("/purchase/:id", async (req: any, res) => {
       payment_method, payment_status
     } = req.body;
 
-    const checkRes = await pool.query("SELECT id FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const checkRes = await pool.query("SELECT id, is_expense FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
+    const wasExpense = checkRes.rows[0]?.is_expense === true;
 
     let finalIsExpense = is_expense === true || is_expense === 'true';
     let finalExpenseCategory = expense_category || null;
     let finalExpenseCenter = expense_center || null;
 
-    const sTitle = (supplier_name || '').toLowerCase();
     if (!finalIsExpense) {
-      if (sTitle.includes('ttnet') || sTitle.includes('tt net') || sTitle.includes('türk telekom') || sTitle.includes('turk telekom') || sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
+      const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+        supplierTitle: supplier_name,
+        supplierVkn: tax_number,
+        companyId: company_id,
+        pinToCompany: true
+      });
+      if (expenseCheck.isExpense) {
         finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'TELEKOM';
-        finalExpenseCenter = finalExpenseCenter || 'office';
-      } else if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'ELEKTRIK';
-        finalExpenseCenter = finalExpenseCenter || 'office';
-      } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'SU';
-        finalExpenseCenter = finalExpenseCenter || 'office';
-      } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'DOGALGAZ';
-        finalExpenseCenter = finalExpenseCenter || 'office';
-      } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'AKARYAKIT';
-        finalExpenseCenter = finalExpenseCenter || 'logistics';
-      } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'KARGO';
-        finalExpenseCenter = finalExpenseCenter || 'logistics';
-      } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'KIRA';
-        finalExpenseCenter = finalExpenseCenter || 'management';
-      } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'PERSONEL_YEMEK';
-        finalExpenseCenter = finalExpenseCenter || 'hr';
-      } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || 'SIGORTA';
-        finalExpenseCenter = finalExpenseCenter || 'office';
+        finalExpenseCategory = finalExpenseCategory || expenseCheck.expenseCategory;
+        finalExpenseCenter = finalExpenseCenter || expenseCheck.expenseCenter;
       }
+    } else {
+      // Pin manual expense to company
+      if (company_id || tax_number) {
+        try {
+          if (company_id) {
+            await pool.query(
+              "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE id = $3",
+              [finalExpenseCategory, finalExpenseCenter, company_id]
+            );
+          } else if (tax_number) {
+            await pool.query(
+              "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE store_id = $3 AND tax_number = $4",
+              [finalExpenseCategory, finalExpenseCenter, storeId, tax_number]
+            );
+          }
+        } catch (e) {
+          console.error("Error pinning manual expense to company:", e);
+        }
+      }
+    }
+
+    // If invoice converted from regular to expense, clean up any stock and auto-created products:
+    if (!wasExpense && finalIsExpense) {
+      await revertInvoiceStockAndProducts(pool, storeId, Number(id));
     }
 
     const finalIsTaxInclusive = is_tax_inclusive === true || is_tax_inclusive === 'true';
@@ -2440,6 +2467,123 @@ router.patch("/purchase/:id/payment-status", async (req: any, res) => {
     res.json(invoice);
   } catch (e: any) {
     res.status(400).json({ error: e.message });
+  }
+});
+
+// Explicitly convert an existing invoice to an expense, cleanly reverting stocks and pinning supplier
+router.post("/purchase/:id/convert-to-expense", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { id } = req.params;
+  const { expense_category, expense_center } = req.body;
+
+  try {
+    const invRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    const inv = invRes.rows[0];
+
+    const detected = detectExpenseCategory(inv.supplier_name, inv.tax_number, null);
+    const finalCategory = expense_category || inv.expense_category || detected.expenseCategory || 'diger';
+    const finalCenter = expense_center || inv.expense_center || detected.expenseCenter || 'office';
+
+    // 1. Revert any stock movements and auto-created products
+    const { revertedCount, deletedProductsCount } = await revertInvoiceStockAndProducts(pool, storeId, Number(id));
+
+    // 2. Unlink item records from products so they are purely expense lines
+    await pool.query(
+      "UPDATE purchase_invoice_items SET product_id = NULL, barcode = NULL, product_code = NULL WHERE purchase_invoice_id = $1",
+      [id]
+    );
+
+    // 3. Mark invoice as expense
+    await pool.query(
+      "UPDATE purchase_invoices SET is_expense = true, expense_category = $1, expense_center = $2 WHERE id = $3",
+      [finalCategory, finalCenter, id]
+    );
+
+    // 4. Pin supplier company as permanent expense
+    if (inv.company_id) {
+      await pool.query(
+        "UPDATE companies SET is_expense = true, expense_category = $1, expense_center = $2 WHERE id = $3",
+        [finalCategory, finalCenter, inv.company_id]
+      );
+    }
+    if (inv.tax_number) {
+      await pool.query(
+        "UPDATE companies SET is_expense = true, expense_category = $1, expense_center = $2 WHERE store_id = $3 AND tax_number = $4",
+        [finalCategory, finalCenter, storeId, inv.tax_number]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: "Fatura başarıyla gidere dönüştürüldü, açılan stoklar iptal edildi ve tedarikçi gider olarak sabitlendi.",
+      revertedStockMovements: revertedCount,
+      deletedProductsCount: deletedProductsCount,
+      is_expense: true,
+      expense_category: finalCategory,
+      expense_center: finalCenter
+    });
+  } catch (err: any) {
+    console.error("Error converting invoice to expense:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Auto-repair all historical expense invoices in the store that were mistakenly treated as inventory
+router.post("/purchase/auto-repair-expenses", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+
+  try {
+    const invRes = await pool.query(
+      "SELECT id, invoice_number, supplier_name, tax_number, company_id, is_expense, expense_category, expense_center FROM purchase_invoices WHERE store_id = $1",
+      [storeId]
+    );
+
+    let repairedInvoices = 0;
+    let totalRevertedMovements = 0;
+    let totalDeletedProducts = 0;
+
+    for (const inv of invRes.rows) {
+      const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+        supplierTitle: inv.supplier_name,
+        supplierVkn: inv.tax_number,
+        companyId: inv.company_id,
+        pinToCompany: true
+      });
+
+      if (expenseCheck.isExpense) {
+        const finalCategory = inv.expense_category || expenseCheck.expenseCategory || 'diger';
+        const finalCenter = inv.expense_center || expenseCheck.expenseCenter || 'office';
+
+        // Revert stock and products if it wasn't marked as expense or still has products/stock
+        const { revertedCount, deletedProductsCount } = await revertInvoiceStockAndProducts(pool, storeId, Number(inv.id));
+        
+        await pool.query(
+          "UPDATE purchase_invoice_items SET product_id = NULL, barcode = NULL, product_code = NULL WHERE purchase_invoice_id = $1",
+          [inv.id]
+        );
+
+        await pool.query(
+          "UPDATE purchase_invoices SET is_expense = true, expense_category = $1, expense_center = $2 WHERE id = $3",
+          [finalCategory, finalCenter, inv.id]
+        );
+
+        repairedInvoices++;
+        totalRevertedMovements += revertedCount;
+        totalDeletedProducts += deletedProductsCount;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `${repairedInvoices} adet gider faturası tespit edildi ve onarıldı.`,
+      repairedInvoices,
+      totalRevertedMovements,
+      totalDeletedProducts
+    });
+  } catch (err: any) {
+    console.error("Error auto-repairing expense invoices:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 

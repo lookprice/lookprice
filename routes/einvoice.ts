@@ -6,7 +6,7 @@ import { MySoftService } from "../src/services/backend/mysoftService";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { UNIT_CODES, TAX_CODES } from "../src/lib/ubl-codes";
 import { numberToTurkishWords } from "../src/utils/formatUtils";
-import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode } from "./store/invoiceMatching";
+import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification } from "./store/invoiceMatching";
 
 const router = express.Router();
 
@@ -1410,48 +1410,16 @@ router.post("/einvoice/sync-inbox", authenticate, async (req: any, res) => {
           const taxAmt = Number(invoiceDetails.taxAmount) || 0;
           const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
 
-          let isExpense = false;
-          let expenseCategory = null;
-          let expenseCenter = null;
-          const sTitle = (invoiceDetails.senderTitle || '').toLowerCase();
-          
-          if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
-            isExpense = true;
-            expenseCategory = 'ELEKTRIK';
-            expenseCenter = 'office';
-          } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
-            isExpense = true;
-            expenseCategory = 'SU';
-            expenseCenter = 'office';
-          } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
-            isExpense = true;
-            expenseCategory = 'DOGALGAZ';
-            expenseCenter = 'office';
-          } else if (sTitle.includes('ttnet') || sTitle.includes('tt net') || sTitle.includes('türk telekom') || sTitle.includes('turk telekom') || sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
-            isExpense = true;
-            expenseCategory = 'TELEKOM';
-            expenseCenter = 'office';
-          } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
-            isExpense = true;
-            expenseCategory = 'AKARYAKIT';
-            expenseCenter = 'logistics';
-          } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
-            isExpense = true;
-            expenseCategory = 'KARGO';
-            expenseCenter = 'logistics';
-          } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
-            isExpense = true;
-            expenseCategory = 'KIRA';
-            expenseCenter = 'management';
-          } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
-            isExpense = true;
-            expenseCategory = 'PERSONEL_YEMEK';
-            expenseCenter = 'hr';
-          } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
-            isExpense = true;
-            expenseCategory = 'SIGORTA';
-            expenseCenter = 'office';
-          }
+          const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+            supplierTitle: invoiceDetails.senderTitle,
+            supplierVkn: invoiceDetails.senderVkn,
+            companyId,
+            pinToCompany: true
+          });
+
+          const isExpense = expenseCheck.isExpense;
+          const expenseCategory = expenseCheck.expenseCategory;
+          const expenseCenter = expenseCheck.expenseCenter;
 
           const invInsertRes = await pool.query(
             `INSERT INTO purchase_invoices 
@@ -1952,48 +1920,16 @@ export const runGlobalEInvoiceSync = async () => {
            const taxAmt = Number(invoiceDetails.taxAmount) || 0;
            const grandAmt = Number(invoiceDetails.payableAmount) || (baseAmt + taxAmt);
 
-           let isExpense = false;
-           let expenseCategory = null;
-           let expenseCenter = null;
-           const sTitle = (invoiceDetails.senderTitle || '').toLowerCase();
-           
-           if (sTitle.includes('enerjisa') || sTitle.includes('elektrik') || sTitle.includes('ayedaş') || sTitle.includes('ck boğaziçi') || sTitle.includes('gediz')) {
-             isExpense = true;
-             expenseCategory = 'ELEKTRIK';
-             expenseCenter = 'office';
-           } else if (sTitle.includes('iski') || sTitle.includes('aski') || sTitle.includes('su ve kana') || sTitle.includes('izsu') || sTitle.includes('buski')) {
-             isExpense = true;
-             expenseCategory = 'SU';
-             expenseCenter = 'office';
-           } else if (sTitle.includes('botaş') || sTitle.includes('gaz') || sTitle.includes('igdaş') || sTitle.includes('başkentgaz') || sTitle.includes('enerya')) {
-             isExpense = true;
-             expenseCategory = 'DOGALGAZ';
-             expenseCenter = 'office';
-           } else if (sTitle.includes('ttnet') || sTitle.includes('tt net') || sTitle.includes('türk telekom') || sTitle.includes('turk telekom') || sTitle.includes('turkcell') || sTitle.includes('vodafone') || sTitle.includes('telekom') || sTitle.includes('turknet') || sTitle.includes('millenicom') || sTitle.includes('superonline')) {
-             isExpense = true;
-             expenseCategory = 'TELEKOM';
-             expenseCenter = 'office';
-           } else if (sTitle.includes('shell') || sTitle.includes('opet') || sTitle.includes('petrol') || sTitle.includes('bp ') || sTitle.includes('total') || sTitle.includes('aytemiz')) {
-             isExpense = true;
-             expenseCategory = 'AKARYAKIT';
-             expenseCenter = 'logistics';
-           } else if (sTitle.includes('aras') || sTitle.includes('yurtiçi') || sTitle.includes('mng') || sTitle.includes('kargo') || sTitle.includes('sürat') || sTitle.includes('ptt') || sTitle.includes('ups')) {
-             isExpense = true;
-             expenseCategory = 'KARGO';
-             expenseCenter = 'logistics';
-           } else if (sTitle.includes('kira') || sTitle.includes('kiralama') || sTitle.includes('rent a car')) {
-             isExpense = true;
-             expenseCategory = 'KIRA';
-             expenseCenter = 'management';
-           } else if (sTitle.includes('yemek') || sTitle.includes('ticket') || sTitle.includes('sodexo') || sTitle.includes('multinet') || sTitle.includes('metropol')) {
-             isExpense = true;
-             expenseCategory = 'PERSONEL_YEMEK';
-             expenseCenter = 'hr';
-           } else if (sTitle.includes('sigorta') || sTitle.includes('aksigorta') || sTitle.includes('allianz') || sTitle.includes('anadolu sigorta')) {
-             isExpense = true;
-             expenseCategory = 'SIGORTA';
-             expenseCenter = 'office';
-           }
+           const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+             supplierTitle: invoiceDetails.senderTitle,
+             supplierVkn: invoiceDetails.senderVkn,
+             companyId,
+             pinToCompany: true
+           });
+
+           const isExpense = expenseCheck.isExpense;
+           const expenseCategory = expenseCheck.expenseCategory;
+           const expenseCenter = expenseCheck.expenseCenter;
 
             await pool.query(
               `INSERT INTO purchase_invoices 

@@ -87,15 +87,16 @@ router.get("/pos-daily", async (req: any, res) => {
 
     const productQuery = `
       SELECT 
-        si.product_name, 
+        COALESCE(NULLIF(TRIM(p.name), ''), NULLIF(TRIM(REGEXP_REPLACE(REGEXP_REPLACE(si.product_name, '^[0-9]+[.)\\s-]+', ''), '\\s*\\([^()]*\\)\\s*$', '')), ''), TRIM(si.product_name)) as product_name, 
         SUM(si.quantity)::FLOAT as total_quantity, 
         SUM(si.quantity * si.unit_price)::FLOAT as total_revenue
       FROM sale_items si
       JOIN sales s ON si.sale_id = s.id
+      LEFT JOIN products p ON si.product_id = p.id
       WHERE s.store_id = $1 
         AND s.status IN ('completed', 'paid')
         AND (s.created_at::date >= $2::date AND s.created_at::date <= $3::date)
-      GROUP BY si.product_name
+      GROUP BY COALESCE(NULLIF(TRIM(p.name), ''), NULLIF(TRIM(REGEXP_REPLACE(REGEXP_REPLACE(si.product_name, '^[0-9]+[.)\\s-]+', ''), '\\s*\\([^()]*\\)\\s*$', '')), ''), TRIM(si.product_name))
       ORDER BY total_quantity DESC
     `;
     const productRes = await pool.query(productQuery, [storeId, targetStart, targetEnd]);
@@ -397,7 +398,7 @@ router.get("/analytics", async (req: any, res) => {
 
       const menuRes = await pool.query(`
         SELECT 
-          COALESCE(p.name, si.product_name) as name,
+          COALESCE(p.name, NULLIF(REGEXP_REPLACE(si.product_name, '\\s*\\(.*?\\)\\s*$', ''), ''), si.product_name) as name,
           COALESCE(p.category, 'Menü') as category,
           SUM(si.quantity)::INT as count,
           SUM(si.total_price)::FLOAT as revenue
@@ -405,7 +406,7 @@ router.get("/analytics", async (req: any, res) => {
         JOIN sales s ON si.sale_id = s.id
         LEFT JOIN products p ON si.product_id = p.id
         WHERE s.store_id = $1 AND s.status = 'completed' AND s.created_at BETWEEN $2 AND $3
-        GROUP BY COALESCE(p.name, si.product_name), COALESCE(p.category, 'Menü')
+        GROUP BY COALESCE(p.name, NULLIF(REGEXP_REPLACE(si.product_name, '\\s*\\(.*?\\)\\s*$', ''), ''), si.product_name), COALESCE(p.category, 'Menü')
         ORDER BY revenue DESC
         LIMIT 10
       `, [storeId, currentMonthStart, currentMonthEnd]);
