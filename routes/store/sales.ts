@@ -601,6 +601,11 @@ router.post("/:id/complete", async (req: any, res) => {
       ? (payments.length > 1 ? 'multiple' : payments[0].method)
       : (sale.status === 'processing' && sale.payment_method ? sale.payment_method : (paymentMethod || 'cash'));
     
+    if (req.body.notes) {
+      await client.query("UPDATE sales SET notes = $1 WHERE id = $2", [req.body.notes, id]);
+      sale.notes = req.body.notes;
+    }
+
     await client.query(
       "UPDATE sales SET status = 'completed', payment_method = $1 WHERE id = $2",
       [primaryMethod, id]

@@ -28,6 +28,7 @@ import brandingRouter from "./store/branding";
 import supplierApisRouter from "./store/supplier-apis";
 import transactionsRouter from "./store/transactions";
 import hotelReservationsRouter from "./store/hotelReservations";
+import hotelRoomsRouter from "./store/hotelRooms";
 
 const router = express.Router();
 
@@ -58,6 +59,7 @@ router.use("/customers", customersRouter);
 router.use("/transactions", transactionsRouter);
 router.use("/restaurant", restaurantRouter);
 router.use("/hotel-reservations", hotelReservationsRouter);
+router.use("/hotel-rooms", hotelRoomsRouter);
 router.use("/seo", seoRouter);
 router.use("/blog", blogRouter);
 router.use("/ai", aiRouter);

@@ -220,7 +220,12 @@ export interface Store {
     payoneer_enabled: boolean;
     cod_enabled?: boolean;
     bank_transfer_enabled?: boolean;
+    credit_card_enabled?: boolean;
     bank_details?: string;
+    hotel_pay_at_hotel_enabled?: boolean;
+    hotel_bank_transfer_enabled?: boolean;
+    hotel_credit_card_enabled?: boolean;
+    hotel_bank_details?: string;
     iyzico_api_key?: string;
     iyzico_secret_key?: string;
     iyzico_sandbox?: boolean;

@@ -588,14 +588,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }
     };
 
+    const handleHotelRoomsUpdated = (e: any) => {
+      if (e.detail?.storeId === currentStoreId) {
+        fetchNotifications();
+        if (e.detail?.rooms && Array.isArray(e.detail.rooms)) {
+          setBranding((prev: any) => prev ? { ...prev, hotel_rooms: e.detail.rooms } : prev);
+        }
+      }
+    };
+
     window.addEventListener('hotel_reservation_created', handleHotelReservationCreated);
     window.addEventListener('hotel_reservations_updated', handleHotelReservationsUpdated);
-    window.addEventListener('hotel_rooms_updated', handleHotelReservationsUpdated);
+    window.addEventListener('hotel_rooms_updated', handleHotelRoomsUpdated);
 
     return () => {
       window.removeEventListener('hotel_reservation_created', handleHotelReservationCreated);
       window.removeEventListener('hotel_reservations_updated', handleHotelReservationsUpdated);
-      window.removeEventListener('hotel_rooms_updated', handleHotelReservationsUpdated);
+      window.removeEventListener('hotel_rooms_updated', handleHotelRoomsUpdated);
     };
   }, [currentStoreId, fetchNotifications]);
 
@@ -1368,7 +1377,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                 <GoogleMerchantTab />
               )}
               {activeTab === "hotel-rooms" && isHotelModuleActive && (
-                <HotelRoomManagement storeId={currentStoreId!} isTr={isTr} initialRooms={branding?.hotel_rooms} />
+                <HotelRoomManagement 
+                  storeId={currentStoreId!} 
+                  isTr={isTr} 
+                  initialRooms={branding?.hotel_rooms} 
+                  onRoomsUpdated={(updatedRooms) => {
+                    setBranding((prev: any) => prev ? { ...prev, hotel_rooms: updatedRooms } : prev);
+                  }}
+                />
               )}
               {activeTab === "notifications" && (
                 <PortfolioNotificationsTab analytics={analytics} />

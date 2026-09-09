@@ -27,7 +27,8 @@ import {
   Split,
   Divide,
   Bell,
-  Building2
+  Building2,
+  Gift
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -130,6 +131,25 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     setAutoPrintOnPay(nextVal);
     localStorage.setItem(`pos_auto_print_pay_${storeId}`, JSON.stringify(nextVal));
     toast.info(nextVal ? "Ödeme alındığında otomatik fiş yazdırılacak." : "Otomatik ödeme fişi yazdırımı kapatıldı.");
+  };
+
+  const [showIkramNoteModal, setShowIkramNoteModal] = useState(false);
+  const [ikramNote, setIkramNote] = useState('');
+  const [pendingIkramAction, setPendingIkramAction] = useState<(() => void) | null>(null);
+
+  const getFinalNote = (baseNote: string) => baseNote + (ikramNote ? ` | İkram Açıklaması: ${ikramNote}` : '');
+
+  const executeWithIkramCheck = (action: () => void) => {
+    if (cart.length === 0) return;
+    const hasIkram = cart.some(item => parseFloat(item.price) === 0 || (item.note && item.note.toLowerCase().includes('i̇kram')) || (item.note && item.note.toLowerCase().includes('ikram')));
+    if (hasIkram) {
+      if (!ikramNote || ikramNote.trim().length < 3) {
+        setPendingIkramAction(() => action);
+        setShowIkramNoteModal(true);
+        return;
+      }
+    }
+    action();
   };
 
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
@@ -1180,6 +1200,27 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     }));
   };
 
+  const markAsIkram = (index: number) => {
+    setCart(prev => prev.map((item, idx) => {
+      if (idx === index) {
+        return { 
+          ...item, 
+          price: "0", 
+          note: item.note ? (item.note.includes('İkram') ? item.note : `${item.note} - İkram`) : 'İkram'
+        };
+      }
+      return item;
+    }));
+  };
+
+  const markCartAsIkram = () => {
+    setCart(prev => prev.map((item) => ({
+      ...item,
+      price: "0",
+      note: item.note ? (item.note.includes('İkram') ? item.note : `${item.note} - İkram`) : 'İkram'
+    })));
+  };
+
   const updateNote = (index: number, note: string) => {
     setCart(prev => prev.map((item, idx) => {
       if (idx === index) {
@@ -1191,7 +1232,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
   const total = cart.reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * item.quantity), 0);
 
-  const handleFinalizeSale = async () => {
+  const processFinalizeSale = async () => {
     if (cart.length === 0) return;
     
     if (paymentMethod === 'room') {
@@ -1206,7 +1247,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         total,
         paymentMethod,
         customerName: selectedTable || 'Hızlı Satış',
-        notes: selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu',
+        notes: getFinalNote(selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu'),
         timestamp: new Date().toISOString()
       };
       const pendingSales = JSON.parse(localStorage.getItem(`pendingSales_${storeId}`) || '[]');
@@ -1332,7 +1373,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           total,
           paymentMethod,
           customerName: selectedTable || 'Hızlı Satış',
-          notes: selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu',
+          notes: getFinalNote(selectedTable ? `${selectedTable} Satışı` : 'Hızlı POS Modu'),
           currency: branding?.default_currency || 'TRY',
           exchangeRate: 1
         }, storeId);
@@ -1366,6 +1407,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       setPosStatus('idle');
     }
   };
+
+  const handleFinalizeSale = () => executeWithIkramCheck(processFinalizeSale);
 
   const handlePrintRoomSlip = (room: HotelRoom, guestName: string, notes: string) => {
     const itemsToPrint = cart.map(it => ({
@@ -1441,7 +1484,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       await api.completeSale(activeSaleId, {
         paymentMethod: 'room',
         customerName: customerLabel,
-        notes: transferLog,
+        notes: getFinalNote(transferLog),
         items: cart.map(item => ({
           product_id: item.id,
           product_name: item.note ? `${item.name} (${item.note})` : item.name,
@@ -1461,7 +1504,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         total,
         paymentMethod: 'room',
         customerName: customerLabel,
-        notes: transferLog,
+        notes: getFinalNote(transferLog),
         currency: branding?.default_currency || 'TRY',
         exchangeRate: 1
       }, storeId);
@@ -2606,14 +2649,24 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                 </div>
                 <div className="flex items-center gap-2">
                   {cart.length > 0 && (
-                    <button 
-                      onClick={() => setCart([])} 
-                      className="text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer" 
-                      title={lang === 'tr' ? "Sepeti Temizle" : "Clear Cart"}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">{lang === 'tr' ? "Temizle" : "Clear"}</span>
-                    </button>
+                    <>
+                      <button 
+                        onClick={markCartAsIkram} 
+                        className="text-xs font-bold text-amber-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer" 
+                        title={lang === 'tr' ? "Tüm Sepeti İkram Yap" : "Mark Cart as Complimentary"}
+                      >
+                        <Gift className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{lang === 'tr' ? "İkram Yap" : "Gift All"}</span>
+                      </button>
+                      <button 
+                        onClick={() => setCart([])} 
+                        className="text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer" 
+                        title={lang === 'tr' ? "Sepeti Temizle" : "Clear Cart"}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{lang === 'tr' ? "Temizle" : "Clear"}</span>
+                      </button>
+                    </>
                   )}
                   <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-xs font-black">
                     {cart.length} {lang === 'tr' ? 'Kalem' : 'Items'}
@@ -2663,6 +2716,13 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
+                          <button
+                            onClick={() => markAsIkram(index)}
+                            className="p-1.5 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all cursor-pointer"
+                            title={lang === 'tr' ? 'İkram Olarak İşaretle' : 'Mark as Complimentary'}
+                          >
+                            <Gift className="h-3.5 w-3.5" />
+                          </button>
                           <button 
                             onClick={() => removeFromCart(index)}
                             className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
@@ -2834,19 +2894,18 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                         <button 
                           type="button"
                           disabled={cart.length === 0 || completing}
-                          onClick={openSplitPaymentModal}
+                          onClick={() => executeWithIkramCheck(openSplitPaymentModal)}
                           className="py-2 px-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 rounded-xl font-bold text-[11px] transition-all flex flex-col sm:flex-row items-center justify-center gap-1 disabled:opacity-40 cursor-pointer active:scale-95"
                           title={lang === 'tr' ? "Alman usulü veya parçalı ödeme yap" : "Split payment"}
                         >
                           <Split className="h-3.5 w-3.5 text-amber-600 shrink-0" />
                           <span className="truncate">{lang === 'tr' ? 'Parçalı' : 'Split'}</span>
                         </button>
-
                         {isHotelActive && (
                           <button 
                             type="button"
                             disabled={cart.length === 0 || completing}
-                            onClick={() => setShowRoomTransferModal(true)}
+                            onClick={() => executeWithIkramCheck(() => setShowRoomTransferModal(true))}
                             className="py-2 px-1 bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 text-slate-950 border border-amber-500/80 rounded-xl font-black text-[11px] transition-all flex flex-col sm:flex-row items-center justify-center gap-1 disabled:opacity-40 cursor-pointer active:scale-95 shadow-xs"
                             title={lang === 'tr' ? "Masa adisyonunu otele / odaya aktar" : "Transfer table bill to hotel room"}
                           >
@@ -2860,18 +2919,17 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                         <button 
                           type="button"
                           disabled={cart.length === 0 || completing}
-                          onClick={openSplitPaymentModal}
+                          onClick={() => executeWithIkramCheck(openSplitPaymentModal)}
                           className="py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 cursor-pointer active:scale-95"
                         >
                           <Split className="h-3.5 w-3.5 text-amber-600 shrink-0" />
                           <span>{lang === 'tr' ? 'Alman Usulü / Parçalı Ödeme' : 'Split / Partial Payment'}</span>
                         </button>
-
                         {isHotelActive && (
                           <button 
                             type="button"
                             disabled={cart.length === 0 || completing}
-                            onClick={() => setShowRoomTransferModal(true)}
+                            onClick={() => executeWithIkramCheck(() => setShowRoomTransferModal(true))}
                             className="py-2 px-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 cursor-pointer active:scale-95 shadow-xs"
                           >
                             <Building2 className="h-3.5 w-3.5 text-slate-950 shrink-0" />
@@ -4938,6 +4996,67 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
             lang={lang}
             onConfirmTransfer={handleTransferToRoom}
           />
+        )}
+
+        {/* İkram Notu Zorunluluğu Modalı */}
+        {showIkramNoteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: -10 }}
+              className="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-sm w-full overflow-hidden"
+            >
+              <div className="p-5 flex flex-col gap-3">
+                <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-1">
+                  <Gift className="w-6 h-6" />
+                </div>
+                <h3 className="text-center text-lg font-black text-slate-800 tracking-tight">
+                  {lang === 'tr' ? 'İkram Detayı Gerekli' : 'Complimentary Note Required'}
+                </h3>
+                <p className="text-center text-xs font-medium text-slate-500 px-2">
+                  {lang === 'tr' 
+                    ? 'Adisyonda ikram ürün bulunuyor. Lütfen ikramın kime/hangi kuruma yapıldığını belirtin.' 
+                    : 'Cart contains complimentary items. Please provide details (who received it).'}
+                </p>
+                <textarea
+                  value={ikramNote}
+                  onChange={(e) => setIkramNote(e.target.value)}
+                  placeholder={lang === 'tr' ? 'Örn: Ahmet Bey (Müdür) veya X Firması için...' : 'e.g. Mr. John (Manager)...'}
+                  className="w-full mt-2 p-3 text-sm border border-slate-300 rounded-xl outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all min-h-[80px]"
+                />
+              </div>
+              <div className="flex bg-slate-50 border-t border-slate-100 p-3 gap-2">
+                <button
+                  onClick={() => {
+                    setShowIkramNoteModal(false);
+                    setPendingIkramAction(null);
+                  }}
+                  className="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs transition-all cursor-pointer"
+                >
+                  {lang === 'tr' ? 'İptal' : 'Cancel'}
+                </button>
+                <button
+                  disabled={ikramNote.trim().length < 3}
+                  onClick={() => {
+                    setShowIkramNoteModal(false);
+                    if (pendingIkramAction) {
+                      pendingIkramAction();
+                      setPendingIkramAction(null);
+                    }
+                  }}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs transition-all cursor-pointer"
+                >
+                  {lang === 'tr' ? 'Kaydet ve Devam Et' : 'Save & Continue'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

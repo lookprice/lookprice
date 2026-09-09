@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CreditCard, Truck, Building2, Cpu } from "lucide-react";
+import { CreditCard, Truck, Building2, Cpu, Hotel, Banknote, Receipt } from "lucide-react";
 import { motion } from "motion/react";
 import { HotelUpgradeModal } from "../../../components/modals/HotelUpgradeModal";
 
@@ -85,71 +85,184 @@ export const SettingsPosTab = ({
         storeName={branding.store_name || branding.name}
       />
 
-      {/* Online Payment Gateways */}
+      {/* Online Payment Gateways & Reservation Methods */}
       <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-        <div className="flex items-center space-x-3 mb-8">
-          <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
-            <CreditCard className="h-6 w-6" />
-          </div>
-          <div>
-            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{lang === 'tr' ? 'Ödeme Yöntemleri' : 'Payment Gateways'}</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Online Tahsilat Seçenekleri' : 'Online Collection Options'}</p>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-3">
+            <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
+              <CreditCard className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">
+                  {lang === 'tr' ? 'Ödeme Yöntemleri' : 'Payment Gateways'}
+                </h3>
+                {(isCafeRestaurant || branding.hotel_module_enabled) && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-800 border border-amber-200">
+                    {lang === 'tr' ? 'Rezervasyon & Adisyon' : 'Booking & POS'}
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                {lang === 'tr' ? 'Online Tahsilat & Web Sitesi Seçenekleri' : 'Online Collection & Storefront Options'}
+              </p>
+            </div>
           </div>
         </div>
 
         <div className="space-y-6">
-          {/* Cash on Delivery */}
-          <div className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
-            <div className="flex items-center gap-4">
-              <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-600">
-                <Truck className="h-5 w-5" />
+          {/* 1. Cash on Delivery / Pay at Hotel */}
+          {(() => {
+            const isCodActive = branding.payment_settings?.cod_enabled !== false && branding.payment_settings?.hotel_pay_at_hotel_enabled !== false;
+            return (
+              <div className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${isCodActive ? 'bg-amber-50/30 border-amber-200/70 shadow-xs' : 'bg-slate-50/50 border-slate-100 opacity-80'}`}>
+                <div className="flex items-center gap-4">
+                  <div className={`p-2.5 rounded-xl border ${isCodActive ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-400 border-slate-200'}`}>
+                    {(isCafeRestaurant || branding.hotel_module_enabled) ? <Banknote className="h-5 w-5" /> : <Truck className="h-5 w-5" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-slate-900 font-sans">
+                        {(isCafeRestaurant || branding.hotel_module_enabled)
+                          ? (lang === 'tr' ? 'Otelde / Kapıda Ödeme (Resepsiyon)' : 'Pay at Hotel / Cash on Delivery (Front Desk)')
+                          : (lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery')}
+                      </h4>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${isCodActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                        {isCodActive ? (lang === 'tr' ? 'Aktif' : 'Active') : (lang === 'tr' ? 'Pasif' : 'Inactive')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-normal mt-0.5">
+                      {(isCafeRestaurant || branding.hotel_module_enabled)
+                        ? (lang === 'tr' ? 'Otel rezervasyonlarında girişte resepsiyonda veya sipariş tesliminde nakit/kart ile tahsilat.' : 'Cash or card collection at front desk check-in or delivery.')
+                        : (lang === 'tr' ? 'Nakit veya POS Cihazı ile Kapıda Ödeme' : 'Cash or Card on Delivery')}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextVal = !isCodActive;
+                    onBrandingChange('payment_settings', {
+                      ...(branding.payment_settings || {}),
+                      cod_enabled: nextVal,
+                      hotel_pay_at_hotel_enabled: nextVal
+                    });
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer shrink-0 ${isCodActive ? 'bg-amber-500' : 'bg-slate-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCodActive ? 'translate-x-[1.4rem]' : 'translate-x-[0.2rem]'}`} />
+                </button>
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 font-sans">{lang === 'tr' ? 'Kapıda Ödeme' : 'Cash on Delivery'}</h4>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{lang === 'tr' ? 'Nakit veya Kart' : 'Cash or Card'}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), cod_enabled: !branding.payment_settings?.cod_enabled })}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${branding.payment_settings?.cod_enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.cod_enabled ? 'translate-x-[1.4rem]' : 'translate-x-[0.2rem]'}`} />
-            </button>
-          </div>
+            );
+          })()}
 
-          {/* Bank Transfer */}
-          <div className={`p-5 rounded-2xl border transition-all ${branding.payment_settings?.bank_transfer_enabled ? 'bg-indigo-50/30 border-indigo-100' : 'bg-slate-50/50 border-slate-100'}`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-600">
-                  <Building2 className="h-5 w-5" />
+          {/* 2. Bank Transfer / EFT */}
+          {(() => {
+            const isBankActive = branding.payment_settings?.bank_transfer_enabled !== false && branding.payment_settings?.hotel_bank_transfer_enabled !== false;
+            return (
+              <div className={`p-5 rounded-2xl border transition-all ${isBankActive ? 'bg-indigo-50/30 border-indigo-200/70 shadow-xs' : 'bg-slate-50/50 border-slate-100 opacity-80'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2.5 rounded-xl border ${isBankActive ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-400 border-slate-200'}`}>
+                      <Building2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-slate-900 font-sans">
+                          {lang === 'tr' ? 'Banka Havalesi / EFT' : 'Bank Transfer / EFT'}
+                        </h4>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${isBankActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                          {isBankActive ? (lang === 'tr' ? 'Aktif' : 'Active') : (lang === 'tr' ? 'Pasif' : 'Inactive')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 font-normal mt-0.5">
+                        {(isCafeRestaurant || branding.hotel_module_enabled)
+                          ? (lang === 'tr' ? 'IBAN ile Ödeme (Web sitesi oda rezervasyonu ön ödemeleri ve online siparişler için)' : 'Payment via IBAN (For room reservations & online orders)')
+                          : (lang === 'tr' ? 'IBAN ile Ödeme' : 'Payment via IBAN')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextVal = !isBankActive;
+                      onBrandingChange('payment_settings', {
+                        ...(branding.payment_settings || {}),
+                        bank_transfer_enabled: nextVal,
+                        hotel_bank_transfer_enabled: nextVal
+                      });
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer shrink-0 ${isBankActive ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBankActive ? 'translate-x-[1.4rem]' : 'translate-x-[0.2rem]'}`} />
+                  </button>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 font-sans">{lang === 'tr' ? 'Banka Havalesi / EFT' : 'Bank Transfer / EFT'}</h4>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{lang === 'tr' ? 'IBAN ile Ödeme' : 'Payment via IBAN'}</p>
+                {isBankActive && (
+                  <div className="mt-4 space-y-2 border-t border-indigo-100/80 pt-3">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 flex items-center justify-between">
+                      <span>{lang === 'tr' ? 'BANKA HESAP VE IBAN BİLGİLERİ' : 'BANK ACCOUNT & IBAN DETAILS'}</span>
+                      <span className="text-[9px] text-indigo-600 font-bold lowercase">(web sitesinde misafirlere gösterilir)</span>
+                    </label>
+                    <textarea 
+                      className="w-full h-24 p-4 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-500/10 outline-none resize-none"
+                      placeholder={lang === 'tr' ? 'Örn: Ziraat Bankası - TR12 0001 0000 0000 0000 0000 00 - Alıcı: İşletme Adı (Açıklamaya Sipariş / Rezervasyon Kodunu Yazınız)' : 'e.g. Bank Name - IBAN - Account Name...'}
+                      value={branding.payment_settings?.bank_details || branding.payment_settings?.hotel_bank_details || ''}
+                      onChange={(e) => onBrandingChange('payment_settings', {
+                        ...(branding.payment_settings || {}),
+                        bank_details: e.target.value,
+                        hotel_bank_details: e.target.value
+                      })}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* 3. Direct Credit Card (Online / Sanal POS) */}
+          {(() => {
+            const isCardActive = branding.payment_settings?.credit_card_enabled !== false && branding.payment_settings?.hotel_credit_card_enabled !== false;
+            return (
+              <div className={`p-5 rounded-2xl border transition-all ${isCardActive ? 'bg-blue-50/30 border-blue-200/70 shadow-xs' : 'bg-slate-50/50 border-slate-100 opacity-80'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2.5 rounded-xl border ${isCardActive ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-slate-400 border-slate-200'}`}>
+                      <CreditCard className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-slate-900 font-sans">
+                          {lang === 'tr' ? 'Kredi Kartı (Online / Sanal POS)' : 'Credit Card (Online Virtual POS)'}
+                        </h4>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${isCardActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                          {isCardActive ? (lang === 'tr' ? 'Aktif' : 'Active') : (lang === 'tr' ? 'Pasif' : 'Inactive')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 font-normal mt-0.5">
+                        {lang === 'tr'
+                          ? 'Web sitenizde kredi kartı ile güvenli online ödeme seçeneğini etkinleştirin veya kapatın.'
+                          : 'Enable or disable secure online credit card payments on your website.'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextVal = !isCardActive;
+                      onBrandingChange('payment_settings', {
+                        ...(branding.payment_settings || {}),
+                        credit_card_enabled: nextVal,
+                        hotel_credit_card_enabled: nextVal
+                      });
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer shrink-0 ${isCardActive ? 'bg-blue-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCardActive ? 'translate-x-[1.4rem]' : 'translate-x-[0.2rem]'}`} />
+                  </button>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), bank_transfer_enabled: !branding.payment_settings?.bank_transfer_enabled })}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${branding.payment_settings?.bank_transfer_enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${branding.payment_settings?.bank_transfer_enabled ? 'translate-x-[1.4rem]' : 'translate-x-[0.2rem]'}`} />
-              </button>
-            </div>
-            {branding.payment_settings?.bank_transfer_enabled && (
-              <div className="mt-4 space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{lang === 'tr' ? 'BANKA HESAP BİLGİLERİ' : 'BANK ACCOUNT DETAILS'}</label>
-                <textarea 
-                  className="w-full h-24 p-4 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-500/5 outline-none resize-none"
-                  placeholder={lang === 'tr' ? 'IBAN, Banka Adı ve Alıcı ismini buraya yazın...' : 'Write IBAN, Bank Name and Receiver name here...'}
-                  value={branding.payment_settings?.bank_details || ''}
-                  onChange={(e) => onBrandingChange('payment_settings', { ...(branding.payment_settings || {}), bank_details: e.target.value })}
-                />
-              </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* PayPal */}
           <div className={`p-5 rounded-2xl border transition-all ${branding.payment_settings?.paypal_enabled ? 'bg-indigo-50/30 border-indigo-100' : 'bg-slate-50/50 border-slate-100'}`}>

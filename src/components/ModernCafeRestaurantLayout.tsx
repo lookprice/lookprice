@@ -50,14 +50,23 @@ export interface BookingChildGuest {
   birth_date: string;
 }
 
-export const calculateGuestAgeInfo = (birthDateStr: string) => {
+export const calculateGuestAgeInfo = (birthDateStr: string, customPolicy?: any) => {
+  const policy = customPolicy || {
+    enabled: true,
+    apply_to_room: true,
+    infant_0_2_rate: 100,
+    toddler_3_6_rate: 50,
+    child_7_12_rate: 30
+  };
+
   if (!birthDateStr) {
+    const defaultInfantRate = policy.infant_0_2_rate ?? 100;
     return {
-      age: 4,
-      category: 'toddler' as const,
-      discountRate: 50,
-      labelTr: 'Küçük Çocuk (3-6 Yaş)',
-      discountText: '%50 İndirimli'
+      age: 2,
+      category: 'infant' as const,
+      discountRate: defaultInfantRate,
+      labelTr: 'Bebek (0-2 Yaş)',
+      discountText: defaultInfantRate === 100 ? '%100 Ücretsiz' : defaultInfantRate > 0 ? `%${defaultInfantRate} İndirimli` : 'Standart'
     };
   }
 
@@ -70,29 +79,42 @@ export const calculateGuestAgeInfo = (birthDateStr: string) => {
   }
   if (isNaN(age) || age < 0) age = 0;
 
+  if (!policy.enabled || policy.apply_to_room === false) {
+    return {
+      age,
+      category: (age <= 2 ? 'infant' : age <= 6 ? 'toddler' : age <= 12 ? 'child' : 'adult') as any,
+      discountRate: 0,
+      labelTr: age <= 2 ? `Bebek (${age} Yaş)` : age <= 6 ? `Küçük Çocuk (${age} Yaş)` : age <= 12 ? `Çocuk (${age} Yaş)` : `Yetişkin (${age} Yaş)`,
+      discountText: 'Standart (İndirimsiz)'
+    };
+  }
+
   if (age <= 2) {
+    const rate = policy.infant_0_2_rate ?? 100;
     return {
       age,
       category: 'infant' as const,
-      discountRate: 100, // 0-2 Yaş Bebek %100 Ücretsiz
+      discountRate: rate,
       labelTr: `Bebek (${age} Yaş)`,
-      discountText: '%100 Ücretsiz'
+      discountText: rate === 100 ? '%100 Ücretsiz' : rate > 0 ? `%${rate} İndirimli` : 'İndirimsiz'
     };
   } else if (age <= 6) {
+    const rate = policy.toddler_3_6_rate ?? 50;
     return {
       age,
       category: 'toddler' as const,
-      discountRate: 50, // 3-6 Yaş %50 İndirim
+      discountRate: rate,
       labelTr: `Küçük Çocuk (${age} Yaş)`,
-      discountText: '%50 İndirimli'
+      discountText: rate === 100 ? '%100 Ücretsiz' : rate > 0 ? `%${rate} İndirimli` : 'İndirimsiz'
     };
   } else if (age <= 12) {
+    const rate = policy.child_7_12_rate ?? 30;
     return {
       age,
       category: 'child' as const,
-      discountRate: 30, // 7-12 Yaş %30 İndirim
+      discountRate: rate,
       labelTr: `Çocuk (${age} Yaş)`,
-      discountText: '%30 İndirimli'
+      discountText: rate === 100 ? '%100 Ücretsiz' : rate > 0 ? `%${rate} İndirimli` : 'İndirimsiz'
     };
   } else {
     return {
@@ -222,11 +244,15 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
   // Listen to window events to automatically sync room additions/edits made by the operator
   useEffect(() => {
-    const handleSync = () => {
+    const handleSync = (e?: any) => {
+      if (e?.detail?.rooms && Array.isArray(e.detail.rooms) && (e.detail.storeId === store.id || !e.detail.storeId)) {
+        setRooms(e.detail.rooms);
+        return;
+      }
       try {
         const saved = localStorage.getItem(`hotel_rooms_${store.id}`);
         if (saved) setRooms(JSON.parse(saved));
-      } catch (e) {}
+      } catch (err) {}
     };
     window.addEventListener("hotel_rooms_updated", handleSync);
     window.addEventListener("storage", handleSync);
@@ -312,7 +338,71 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
   const [selectedBoardOption, setSelectedBoardOption] = useState<'RO' | 'BB' | 'HB' | 'FB' | 'AI'>('BB');
   const [isNonRefundableRate, setIsNonRefundableRate] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'bank_transfer' | 'credit_card' | 'pay_at_hotel'>('pay_at_hotel');
+
+  // Active Hotel Reservation Payment Methods configured in Adisyon / POS settings (Unified with store payment_settings)
+  const hotelPaymentSettings = store.payment_settings || store.branding?.payment_settings || {};
+  const isHotelPayAtHotelActive = hotelPaymentSettings.cod_enabled !== false && hotelPaymentSettings.hotel_pay_at_hotel_enabled !== false;
+  const isHotelBankTransferActive = hotelPaymentSettings.bank_transfer_enabled !== false && hotelPaymentSettings.hotel_bank_transfer_enabled !== false;
+  const isHotelCreditCardActive = (hotelPaymentSettings.credit_card_enabled !== false && hotelPaymentSettings.hotel_credit_card_enabled !== false) ||
+    !!hotelPaymentSettings.iyzico_enabled || !!hotelPaymentSettings.paypal_enabled || !!hotelPaymentSettings.payoneer_enabled;
+  const hotelBankDetailsText = hotelPaymentSettings.bank_details || hotelPaymentSettings.hotel_bank_details || "TR12 0006 2000 0000 0001 2345 67 (Ziraat Bankası - Otel İşletmesi)";
+
+  const availableHotelPaymentMethods = React.useMemo(() => {
+    const methods: { id: 'pay_at_hotel' | 'bank_transfer' | 'credit_card'; label: string; icon: React.ReactNode }[] = [];
+    if (isHotelPayAtHotelActive) {
+      methods.push({ id: 'pay_at_hotel', label: 'Otelde Öde', icon: <Banknote className="w-3.5 h-3.5" /> });
+    }
+    if (isHotelBankTransferActive) {
+      methods.push({ id: 'bank_transfer', label: 'Banka / Havale', icon: <Receipt className="w-3.5 h-3.5" /> });
+    }
+    if (isHotelCreditCardActive) {
+      methods.push({ id: 'credit_card', label: 'Kredi Kartı', icon: <CreditCard className="w-3.5 h-3.5" /> });
+    }
+    return methods;
+  }, [isHotelPayAtHotelActive, isHotelBankTransferActive, isHotelCreditCardActive]);
+
+  // Keep selectedPaymentMethod valid if currently chosen method is disabled
+  useEffect(() => {
+    if (availableHotelPaymentMethods.length > 0) {
+      const isCurrentValid = availableHotelPaymentMethods.some(m => m.id === selectedPaymentMethod);
+      if (!isCurrentValid) {
+        setSelectedPaymentMethod(availableHotelPaymentMethods[0].id);
+      }
+    }
+  }, [availableHotelPaymentMethods, selectedPaymentMethod]);
   
+  // Dynamic Hotel Age & Child Discount Policy (Configured in Hotel Management)
+  const dynamicAgePolicy = React.useMemo(() => {
+    try {
+      if (store.branding?.hotel_age_policy) return store.branding.hotel_age_policy;
+      const saved = localStorage.getItem(`hotelAgePolicy_${store.id}`);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      enabled: true,
+      apply_to_room: true,
+      infant_0_2_rate: 100, // 0-2 Yaş Bebek %
+      toddler_3_6_rate: 50,  // 3-6 Yaş Küçük Çocuk %
+      child_7_12_rate: 30,   // 7-12 Yaş Çocuk %
+      senior_65_plus_rate: 15
+    };
+  }, [store.id, store.branding?.hotel_age_policy]);
+
+  const childPolicyDescriptionText = React.useMemo(() => {
+    if (!dynamicAgePolicy.enabled || dynamicAgePolicy.apply_to_room === false) {
+      return "💡 Çocuk misafirler için standart konaklama tarifesi uygulanmaktadır. Çocuk ekleyerek doğum tarihlerini girebilirsiniz.";
+    }
+    const infRate = dynamicAgePolicy.infant_0_2_rate ?? 100;
+    const todRate = dynamicAgePolicy.toddler_3_6_rate ?? 50;
+    const chRate = dynamicAgePolicy.child_7_12_rate ?? 30;
+
+    const infantText = infRate === 100 ? "%100 Ücretsiz" : infRate > 0 ? `%${infRate} İndirimli` : "İndirimsiz";
+    const toddlerText = todRate === 100 ? "%100 Ücretsiz" : todRate > 0 ? `%${todRate} İndirimli` : "İndirimsiz";
+    const childText = chRate === 100 ? "%100 Ücretsiz" : chRate > 0 ? `%${chRate} İndirimli` : "İndirimsiz";
+
+    return `💡 0-2 Yaş Bebekler ${infantText}, 3-6 Yaş ${toddlerText}, 7-12 Yaş ${childText}. Çocuk ekleyerek doğum tarihlerini girebilirsiniz.`;
+  }, [dynamicAgePolicy]);
+
   const [creditCardForm, setCreditCardForm] = useState({
     cardHolder: "",
     cardNumber: "",
@@ -458,7 +548,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
     // Calculate each child's gross, discount, and net
     const childrenDetails = searchChildrenList.map((ch, idx) => {
-      const ageInfo = calculateGuestAgeInfo(ch.birth_date);
+      const ageInfo = calculateGuestAgeInfo(ch.birth_date, dynamicAgePolicy);
       let gross = 0;
       let discountAmount = 0;
       let net = 0;
@@ -925,7 +1015,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 {searchChildrenList.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                     {searchChildrenList.map((child, idx) => {
-                      const ageInfo = calculateGuestAgeInfo(child.birth_date);
+                      const ageInfo = calculateGuestAgeInfo(child.birth_date, dynamicAgePolicy);
                       return (
                         <div key={child.id} className="bg-white dark:bg-stone-900 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between gap-2 shadow-xs">
                           <div className="flex items-center gap-2 min-w-0">
@@ -970,7 +1060,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   </div>
                 ) : (
                   <p className="text-[11px] font-semibold text-stone-600 italic">
-                    💡 0-2 Yaş Bebekler %100 Ücretsiz, 3-6 Yaş %50 İndirimli, 7-12 Yaş %30 İndirimlidir. Çocuk ekleyerek doğum tarihlerini girebilirsiniz.
+                    {childPolicyDescriptionText}
                   </p>
                 )}
               </div>
@@ -2152,30 +2242,32 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
               <div className="space-y-2 pt-2 border-t border-stone-200 dark:border-stone-800">
                 <label className="text-[10px] font-black uppercase text-stone-500">3. Ödeme Yöntemi Seçimi</label>
                 
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'pay_at_hotel', label: 'Otelde Öde', icon: <Banknote className="w-3.5 h-3.5" /> },
-                    { id: 'bank_transfer', label: 'Banka / Havale', icon: <Receipt className="w-3.5 h-3.5" /> },
-                    { id: 'credit_card', label: 'Kredi Kartı', icon: <CreditCard className="w-3.5 h-3.5" /> },
-                  ].map(pm => (
-                    <button
-                      key={pm.id}
-                      type="button"
-                      onClick={() => setSelectedPaymentMethod(pm.id as any)}
-                      className={`p-2.5 rounded-xl border text-center text-[11px] font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                        selectedPaymentMethod === pm.id
-                          ? "bg-stone-900 text-white border-stone-900 shadow-xs"
-                          : "bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100"
-                      }`}
-                    >
-                      {pm.icon}
-                      <span>{pm.label}</span>
-                    </button>
-                  ))}
-                </div>
+                {availableHotelPaymentMethods.length > 0 ? (
+                  <div className={`grid ${availableHotelPaymentMethods.length === 1 ? 'grid-cols-1' : availableHotelPaymentMethods.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
+                    {availableHotelPaymentMethods.map(pm => (
+                      <button
+                        key={pm.id}
+                        type="button"
+                        onClick={() => setSelectedPaymentMethod(pm.id)}
+                        className={`p-2.5 rounded-xl border text-center text-[11px] font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                          selectedPaymentMethod === pm.id
+                            ? "bg-stone-900 text-white border-stone-900 shadow-xs"
+                            : "bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100"
+                        }`}
+                      >
+                        {pm.icon}
+                        <span>{pm.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 font-medium">
+                    Rezervasyon ve ödeme yöntemleri için lütfen işletmemizle doğrudan iletişime geçiniz.
+                  </div>
+                )}
 
                 {/* CONDITIONAL PAYMENT INPUTS */}
-                {selectedPaymentMethod === 'credit_card' && (
+                {selectedPaymentMethod === 'credit_card' && isHotelCreditCardActive && (
                   <div className="p-3 bg-stone-100 dark:bg-stone-800/80 rounded-2xl border border-stone-200 space-y-2">
                     <span className="text-[10px] font-black uppercase text-stone-500 block">Sanal POS Kredi Kartı Bilgileri</span>
                     <input
@@ -2204,10 +2296,10 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   </div>
                 )}
 
-                {selectedPaymentMethod === 'bank_transfer' && (
-                  <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-xs font-bold text-amber-900 space-y-1">
+                {selectedPaymentMethod === 'bank_transfer' && isHotelBankTransferActive && (
+                  <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-xs font-bold text-amber-900 space-y-1.5">
                     <span className="block text-[10px] uppercase font-black text-amber-700">Otel Banka Hesap Bilgileri (IBAN)</span>
-                    <p className="font-mono text-[11px] select-all">TR12 0006 2000 0000 0001 2345 67</p>
+                    <p className="font-mono text-[11px] whitespace-pre-line select-all bg-white/80 p-2.5 rounded-xl border border-amber-200/80 font-semibold text-slate-800 leading-relaxed">{hotelBankDetailsText}</p>
                     <p className="text-[10px] font-medium text-amber-800">Açıklamaya adınızı ve oda numaranızı (#101) yazınız.</p>
                   </div>
                 )}

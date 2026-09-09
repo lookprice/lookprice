@@ -815,9 +815,14 @@ router.get("/store/:slug", async (req, res) => {
       paypal_sandbox: !!ps.paypal_sandbox,
       payoneer_enabled: !!ps.payoneer_enabled,
       payoneer_sandbox: !!ps.payoneer_sandbox,
-      bank_transfer_enabled: !!ps.bank_transfer_enabled,
-      bank_details: ps.bank_details || '',
-      cod_enabled: !!ps.cod_enabled
+      bank_transfer_enabled: ps.bank_transfer_enabled !== false && ps.hotel_bank_transfer_enabled !== false,
+      bank_details: ps.bank_details || ps.hotel_bank_details || '',
+      cod_enabled: ps.cod_enabled !== false && ps.hotel_pay_at_hotel_enabled !== false,
+      credit_card_enabled: ps.credit_card_enabled !== false && ps.hotel_credit_card_enabled !== false,
+      hotel_pay_at_hotel_enabled: ps.hotel_pay_at_hotel_enabled !== false && ps.cod_enabled !== false,
+      hotel_bank_transfer_enabled: ps.hotel_bank_transfer_enabled !== false && ps.bank_transfer_enabled !== false,
+      hotel_credit_card_enabled: ps.hotel_credit_card_enabled !== false && ps.credit_card_enabled !== false,
+      hotel_bank_details: ps.hotel_bank_details || ps.bank_details || ''
     };
   }
 

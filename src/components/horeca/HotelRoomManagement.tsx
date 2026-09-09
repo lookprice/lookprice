@@ -471,6 +471,7 @@ interface HotelRoomManagementProps {
   storeId?: number;
   isTr: boolean;
   initialRooms?: HotelRoom[];
+  onRoomsUpdated?: (rooms: HotelRoom[]) => void;
   onChargeOrderToRoom?: (roomNumber: string, amount: number, orderTitle: string) => void;
 }
 
@@ -478,8 +479,10 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   storeId,
   isTr,
   initialRooms,
+  onRoomsUpdated,
   onChargeOrderToRoom
 }) => {
+  const isInitialMount = React.useRef(true);
   // Initial Rooms state synced from props, storage or default mock rooms
   const [rooms, setRooms] = useState<HotelRoom[]>(() => {
     if (initialRooms && Array.isArray(initialRooms) && initialRooms.length > 0) {
@@ -641,23 +644,41 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     ];
   });
 
-  // Save to localStorage, dispatch custom window sync event & persist to backend database
+  // Fetch authoritative rooms directly from backend on mount
   useEffect(() => {
+    if (storeId) {
+      api.getHotelRooms(storeId).then((res: any) => {
+        if (res && res.success && Array.isArray(res.rooms) && res.rooms.length > 0) {
+          setRooms(res.rooms);
+          localStorage.setItem(`hotel_rooms_${storeId}`, JSON.stringify(res.rooms));
+          onRoomsUpdated?.(res.rooms);
+        }
+      }).catch((e) => {
+        console.warn("Could not fetch hotel rooms from API:", e);
+      });
+    }
+  }, [storeId]);
+
+  // Save to localStorage, dispatch custom window sync event & persist to backend database upon user modification
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     localStorage.setItem(`hotel_rooms_${storeId || 'default'}`, JSON.stringify(rooms));
     try {
       window.dispatchEvent(new CustomEvent('hotel_rooms_updated', { detail: { storeId, rooms } }));
     } catch (e) {}
 
+    onRoomsUpdated?.(rooms);
+
     if (storeId) {
-      api.updateBranding({ hotel_rooms: rooms }, storeId).catch(() => {});
+      api.updateHotelRooms(rooms, storeId).catch(() => {
+        api.updateBranding({ hotel_rooms: rooms }, storeId).catch(() => {});
+      });
     }
   }, [rooms, storeId]);
-
-  useEffect(() => {
-    if (initialRooms && Array.isArray(initialRooms) && initialRooms.length > 0) {
-      setRooms(initialRooms);
-    }
-  }, [initialRooms]);
 
   // Date helper for Check-In / Check-Out constraints
   const getNextDayString = (dateStr: string) => {
@@ -4704,7 +4725,11 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-xl">
-                            {res.payment_method === 'hotel_pay' ? (isTr ? '🏨 Otelde Ödeme' : 'Pay at Hotel') : (isTr ? '💳 Kredi Kartı / Online' : 'Credit Card')}
+                            {res.payment_method === 'pay_at_hotel' || res.payment_method === 'hotel_pay'
+                              ? (isTr ? '🏨 Otelde Öde' : 'Pay at Hotel')
+                              : res.payment_method === 'bank_transfer'
+                              ? (isTr ? '🏦 Banka / Havale' : 'Bank Transfer')
+                              : (isTr ? '💳 Kredi Kartı' : 'Credit Card')}
                           </span>
                           <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
                             ₺{formatThousand(res.total_amount)}
