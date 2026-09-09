@@ -752,46 +752,46 @@ export const ProductModal = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1">
+            <div className="flex flex-wrap sm:flex-nowrap gap-3 items-end">
+              <div className="space-y-1 w-28 sm:w-32 shrink-0">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
                   {isTr ? "Birim *" : "Unit *"}
                 </label>
                 <select
                   name="unit"
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
+                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[38px] shadow-2xs"
                   defaultValue={editingProduct?.unit || "Adet"}
                 >
                   <option value="Adet">{isTr ? "Adet (pcs)" : "Pieces (pcs)"}</option>
-                  <option value="Paket">{isTr ? "Paket (Pack)" : "Pack"}</option>
-                  <option value="Kutu">{isTr ? "Kutu (Box)" : "Box"}</option>
-                  <option value="Koli">{isTr ? "Koli (Carton)" : "Carton"}</option>
-                  <option value="Çift">{isTr ? "Çift (Pair)" : "Pair"}</option>
-                  <option value="Takım">{isTr ? "Takım / Set" : "Set"}</option>
-                  <option value="Metre">{isTr ? "Metre (m)" : "Meter (m)"}</option>
-                  <option value="m²">{isTr ? "Metrekare (m²)" : "Square Meter (m²)"}</option>
-                  <option value="kg">{isTr ? "Kilogram (kg)" : "Kilogram (kg)"}</option>
-                  <option value="gr">{isTr ? "Gram (gr)" : "Gram (g)"}</option>
-                  <option value="L">{isTr ? "Litre (L)" : "Liter (L)"}</option>
-                  <option value="ml">{isTr ? "Mililitre (ml)" : "Milliliter (ml)"}</option>
-                  <option value="Rulo">{isTr ? "Rulo (Roll)" : "Roll"}</option>
-                  <option value="Palet">{isTr ? "Palet (Pallet)" : "Pallet"}</option>
-                  <option value="Demet">{isTr ? "Demet (Bundle)" : "Bundle"}</option>
-                  <option value="Düzine">{isTr ? "Düzine (Dozen)" : "Dozen"}</option>
+                  <option value="Paket">{isTr ? "Paket" : "Pack"}</option>
+                  <option value="Kutu">{isTr ? "Kutu" : "Box"}</option>
+                  <option value="Koli">{isTr ? "Koli" : "Carton"}</option>
+                  <option value="Çift">{isTr ? "Çift" : "Pair"}</option>
+                  <option value="Takım">{isTr ? "Takım" : "Set"}</option>
+                  <option value="Metre">{isTr ? "Metre" : "Meter"}</option>
+                  <option value="m²">{isTr ? "m²" : "m²"}</option>
+                  <option value="kg">{isTr ? "kg" : "kg"}</option>
+                  <option value="gr">{isTr ? "gr" : "g"}</option>
+                  <option value="L">{isTr ? "Litre" : "Liter"}</option>
+                  <option value="ml">{isTr ? "ml" : "ml"}</option>
+                  <option value="Rulo">{isTr ? "Rulo" : "Roll"}</option>
+                  <option value="Palet">{isTr ? "Palet" : "Pallet"}</option>
+                  <option value="Demet">{isTr ? "Demet" : "Bundle"}</option>
+                  <option value="Düzine">{isTr ? "Düzine" : "Dozen"}</option>
                   {isCafeRestaurant && <option value="Porsiyon">{isTr ? "Porsiyon" : "Portion"}</option>}
-                  {isCafeRestaurant && <option value="Şişe">{isTr ? "Şişe (Bottle)" : "Bottle"}</option>}
-                  {isCafeRestaurant && <option value="Kasa">{isTr ? "Kasa (Case)" : "Case"}</option>}
+                  {isCafeRestaurant && <option value="Şişe">{isTr ? "Şişe" : "Bottle"}</option>}
+                  {isCafeRestaurant && <option value="Kasa">{isTr ? "Kasa" : "Case"}</option>}
                 </select>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 w-24 sm:w-28 shrink-0">
                 <div className="flex items-center justify-between ml-1">
                   <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                    {isTr ? "Mevcut Stok" : "Stock Quantity"}
+                    {isTr ? "Stok" : "Stock"}
                   </label>
                   {hasVariants && (
-                    <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
-                      {isTr ? "Varyant Toplamı" : "Variant Total"}
+                    <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 px-1 py-0.5 rounded border border-amber-200">
+                      {isTr ? "Varyant" : "Variant"}
                     </span>
                   )}
                 </div>
@@ -801,7 +801,7 @@ export const ProductModal = ({
                   readOnly={hasVariants}
                   disabled={hasVariants}
                   placeholder="0"
-                  className={`w-full px-4 py-2.5 border-2 rounded-2xl transition-all font-bold text-xs ${
+                  className={`w-full px-3 py-2 border-2 rounded-xl transition-all font-bold text-xs h-[38px] ${
                     hasVariants 
                       ? "bg-slate-100 text-slate-700 border-slate-200 cursor-not-allowed opacity-90 font-black" 
                       : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 focus:ring-0 shadow-2xs"
@@ -811,55 +811,52 @@ export const ProductModal = ({
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 w-20 sm:w-24 shrink-0">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Kritik Stok" : "Min Stock Level"}
+                  {isTr ? "Kritik" : "Min"}
                 </label>
                 <input
                   type="number"
                   name="min_stock_level"
                   placeholder="0"
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-[38px] shadow-2xs"
                   defaultValue={editingProduct?.min_stock_level !== undefined ? String(editingProduct.min_stock_level) : "5"}
                 />
               </div>
 
               {isCafeRestaurant && (
-                <div className="space-y-1 sm:col-span-3">
+                <div className="space-y-1 w-28 sm:w-32 shrink-0">
                   <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                    {isTr ? "Birim Hacmi (ml/gr)" : "Volume per Unit (ml/gr)"}
+                    {isTr ? "Hacim (ml/gr)" : "Vol (ml/g)"}
                   </label>
                   <input
                     type="number"
                     name="volume_ml"
-                    placeholder={isTr ? "örn: 700" : "e.g. 700"}
-                    className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+                    placeholder="700"
+                    className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-[38px] shadow-2xs"
                     defaultValue={editingProduct?.volume_ml || ""}
                   />
-                  <p className="text-[10px] text-slate-600 font-bold ml-1">
-                    {isTr ? "Şişe/Kasa/Paket alımlarını ML/GR takip için." : "Required for tracking Bottle/Case purchases in ML/GR."}
-                  </p>
                 </div>
               )}
 
-              <div className="space-y-1 sm:col-span-3">
+              <div className="space-y-1 flex-1 min-w-[180px]">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Kargo Seçeneği / Kargo Profili" : "Shipping Profile"}
+                  {isTr ? "Kargo" : "Shipping"}
                 </label>
                 <div className="relative">
                   <select
                     name="shipping_profile_id"
-                    className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
+                    className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[38px] shadow-2xs"
                     defaultValue={editingProduct?.shipping_profile_id || ""}
                   >
-                    <option value="">{isTr ? "Varsayılan (Kategori / Alt Kategori veya Ücretsiz)" : "Default (Category / Sub Category or Free)"}</option>
+                    <option value="">{isTr ? "Varsayılan" : "Default"}</option>
                     {(branding?.shipping_profiles || []).map((profile: any) => (
                       <option key={profile.id} value={profile.id}>
-                        {profile.name || (isTr ? "İsimsiz Profil" : "Unnamed Profile")} - {profile.cost} {profile.currency}
+                        {profile.name || (isTr ? "Profil" : "Profile")} - {profile.cost} {profile.currency}
                       </option>
                     ))}
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
                     <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                       <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
                     </svg>
@@ -870,7 +867,7 @@ export const ProductModal = ({
           </div>
 
           {/* SECTION 5: Görsel, Açıklama ve Etiketler */}
-          <div className="p-4 bg-slate-50/80 rounded-3xl border border-slate-200 space-y-4">
+          <div className="p-4 bg-slate-50/80 rounded-3xl border border-slate-200 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-slate-500"></span>
@@ -878,70 +875,73 @@ export const ProductModal = ({
               </span>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-1.5">
+            <div className="space-y-3">
+              {/* Row 1: Görsel Tek Satırda Görsel + URL Input + Kompakt Butonlar */}
+              <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Ürün Görseli (Canlı Fotoğraf veya URL)" : "Product Image"}
+                  {isTr ? "Görsel" : "Image"}
                 </label>
-                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-3 bg-white rounded-2xl border-2 border-slate-200 shadow-2xs">
-                  <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs bg-cover bg-center">
+                <div className="flex items-center gap-2 p-1.5 bg-white rounded-xl border-2 border-slate-200 shadow-2xs">
+                  <div className="w-9 h-9 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs bg-cover bg-center">
                     {productImageUrl ? (
                       <img src={productImageUrl} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-[10px] text-slate-400 font-bold">{isTr ? "Yok" : "Blank"}</span>
+                      <span className="text-[9px] text-slate-400 font-bold">{isTr ? "Yok" : "Blank"}</span>
                     )}
                   </div>
-                  <div className="flex-1 w-full space-y-2">
-                    <input
-                      type="text"
-                      name="image_url"
-                      placeholder="https://example.com/image.jpg"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-semibold text-xs text-slate-900"
-                      value={productImageUrl}
-                      onChange={(e) => setProductImageUrl(e.target.value)}
+                  <input
+                    type="text"
+                    name="image_url"
+                    placeholder="https://..."
+                    className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-semibold text-xs text-slate-900 h-8"
+                    value={productImageUrl}
+                    onChange={(e) => setProductImageUrl(e.target.value)}
+                  />
+                  <div className="shrink-0">
+                    <MultiImageUploader 
+                      compact={true}
+                      onImagesUploaded={(urls) => {
+                        if (urls && urls.length > 0) {
+                          setProductImageUrl(urls[0]);
+                        }
+                      }} 
+                      lang={lang} 
                     />
-                    <div className="pt-0.5">
-                      <MultiImageUploader 
-                        onImagesUploaded={(urls) => {
-                          if (urls && urls.length > 0) {
-                            setProductImageUrl(urls[0]);
-                          }
-                        }} 
-                        lang={lang} 
-                      />
-                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Ürün Detaylı Açıklaması" : "Detailed Description"}
-                </label>
-                <textarea
-                  name="description"
-                  rows={2}
-                  placeholder={isTr ? "Ürün teknik özellikleri ve detayları" : "Detailed specs"}
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-semibold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.description || ""}
-                />
-              </div>
+              {/* Row 2: Açıklama ve Etiketler Yan Yana */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
+                    {isTr ? "Açıklama" : "Description"}
+                  </label>
+                  <textarea
+                    name="description"
+                    rows={1}
+                    placeholder={isTr ? "Ürün teknik özellikleri ve detayları" : "Detailed specs"}
+                    className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-semibold text-slate-900 text-xs shadow-2xs resize-none"
+                    defaultValue={editingProduct?.description || ""}
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Etiketler (Virgülle Ayırın)" : "Labels"}
-                </label>
-                <input
-                  type="text"
-                  name="labels"
-                  placeholder={isTr ? "Örn: Kampanya, Fırsat, Yeni" : "e.g. Campaign, Deal, New"}
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-semibold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={
-                    Array.isArray(editingProduct?.labels) 
-                      ? editingProduct.labels.join(", ") 
-                      : (typeof editingProduct?.labels === 'string' ? editingProduct.labels.replace(/[\[\]"]/g, '') : "")
-                  }
-                />
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
+                    {isTr ? "Etiketler" : "Labels"}
+                  </label>
+                  <input
+                    type="text"
+                    name="labels"
+                    placeholder={isTr ? "Örn: Kampanya, Fırsat, Yeni" : "e.g. Campaign, Deal, New"}
+                    className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-semibold text-slate-900 text-xs shadow-2xs h-[38px]"
+                    defaultValue={
+                      Array.isArray(editingProduct?.labels) 
+                        ? editingProduct.labels.join(", ") 
+                        : (typeof editingProduct?.labels === 'string' ? editingProduct.labels.replace(/[\[\]"]/g, '') : "")
+                    }
+                  />
+                </div>
               </div>
             </div>
           </div>

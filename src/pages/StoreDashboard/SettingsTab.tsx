@@ -423,7 +423,7 @@ const SettingsTab = ({
   return (
     <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto pb-24">
         {/* Apple/Mercedes Minimalist Sub-tab Navigation */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl p-1.5 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs sticky top-2 z-30 flex overflow-x-auto whitespace-nowrap scrollbar-none gap-1.5 transition-all">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl p-1.5 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex overflow-x-auto whitespace-nowrap scrollbar-none gap-1.5 transition-all">
           <button 
             onClick={() => setActiveSubTab('integrations')}
             className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'integrations' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}

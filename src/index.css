@@ -212,25 +212,13 @@
   }
 }
 
-/* High-Density Compact Operator Workspace & Digital Menu (%80 Zoom Equivalent Feel) */
+/* High-Density Compact Operator Workspace & Digital Menu */
 .operator-compact-layout {
   --compact-density: 1;
 }
 
-@media (min-width: 1024px) {
-  .operator-compact-layout {
-    zoom: 0.88;
-  }
-}
-
 .digital-menu-compact {
   --menu-density: 1;
-}
-
-@media (min-width: 768px) {
-  .digital-menu-compact {
-    zoom: 0.90;
-  }
 }
 
 /* Utility classes for bounded-character fields (Rule 13) */

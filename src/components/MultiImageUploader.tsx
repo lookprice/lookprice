@@ -6,10 +6,11 @@ import { compressImageToWebP } from '../utils/imageUtils';
 interface MultiImageUploaderProps {
   onImagesUploaded: (urls: string[]) => void;
   lang?: string;
+  compact?: boolean;
 }
 
 
-export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({ onImagesUploaded, lang = 'tr' }) => {
+export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({ onImagesUploaded, lang = 'tr', compact = false }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -89,20 +90,24 @@ export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({ onImages
         capture="environment"
       />
 
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full">
+      <div className={`grid grid-cols-2 sm:flex sm:flex-wrap gap-2 ${compact ? 'w-auto' : 'w-full'}`}>
         {/* Live Camera Button */}
         <button
           type="button"
           disabled={isUploading}
           onClick={() => cameraInputRef.current?.click()}
-          className={`flex items-center justify-center gap-2 h-11 px-4 ${
+          className={`flex items-center justify-center gap-1.5 ${compact ? 'h-8 px-2.5 text-[11px]' : 'h-11 px-4 text-xs'} ${
             isUploading 
               ? 'bg-rose-50 text-rose-300 border-rose-100 cursor-not-allowed' 
               : 'bg-rose-50 text-rose-600 hover:bg-rose-100 border-rose-200 active:scale-95'
-          } rounded-2xl border font-black text-xs uppercase tracking-wider transition-all w-full sm:w-auto`}
+          } rounded-xl border font-black uppercase tracking-wider transition-all cursor-pointer`}
         >
-          <Camera className={`w-4 h-4 ${isUploading ? 'animate-pulse' : ''}`} />
-          {isUploading ? (lang === 'tr' ? 'Yükleniyor...' : 'Uploading...') : (lang === 'tr' ? 'Canlı Foto Çek 📸' : 'Take Photo 📸')}
+          <Camera className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} ${isUploading ? 'animate-pulse' : ''}`} />
+          {isUploading 
+            ? (lang === 'tr' ? '...' : '...') 
+            : compact 
+              ? (lang === 'tr' ? 'Canlı' : 'Live') 
+              : (lang === 'tr' ? 'Canlı Foto Çek 📸' : 'Take Photo 📸')}
         </button>
 
         {/* Gallery Pick Button */}
@@ -110,14 +115,16 @@ export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({ onImages
           type="button"
           disabled={isUploading}
           onClick={() => fileInputRef.current?.click()}
-          className={`flex items-center justify-center gap-2 h-11 px-4 ${
+          className={`flex items-center justify-center gap-1.5 ${compact ? 'h-8 px-2.5 text-[11px]' : 'h-11 px-4 text-xs'} ${
             isUploading 
               ? 'bg-slate-100 text-slate-300 border-slate-100 cursor-not-allowed' 
               : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 active:scale-95'
-          } rounded-2xl border font-black text-xs uppercase tracking-wider transition-all w-full sm:w-auto`}
+          } rounded-xl border font-black uppercase tracking-wider transition-all cursor-pointer`}
         >
-          <ImageIcon className="w-4 h-4" />
-          {lang === 'tr' ? 'Galeri / Dosyalar' : 'From Gallery'}
+          <ImageIcon className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
+          {compact 
+            ? (lang === 'tr' ? 'Yükle' : 'Upload') 
+            : (lang === 'tr' ? 'Galeri / Dosyalar' : 'From Gallery')}
         </button>
       </div>
     </div>

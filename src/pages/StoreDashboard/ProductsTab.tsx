@@ -492,7 +492,7 @@ const ProductsTab = ({
           branding={branding}
         />
       )}
-      <div className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3.5 md:py-4 bg-slate-50/95 backdrop-blur-xl border-b border-slate-200 flex flex-col gap-3 shadow-xs">
+      <div className="flex flex-col gap-3.5 pb-2">
         {/* Row 1: Header ("| ÜRÜNLER") on left, Action Icons on right */}
         <div className="flex items-center justify-between gap-3 w-full">
           <div className="flex items-center space-x-3 min-w-0">
