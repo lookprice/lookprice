@@ -12,6 +12,9 @@ export async function initPurchaseInvoiceSchema() {
     await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(255);`);
     await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_name VARCHAR(255);`);
     await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS product_code VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS variant_name VARCHAR(255);`);
+    await pool.query(`ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS product_code VARCHAR(255);`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_code VARCHAR(255);`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku VARCHAR(255);`);
     await pool.query(`ALTER TABLE supplier_product_mappings ADD COLUMN IF NOT EXISTS supplier_product_code VARCHAR(255);`);
@@ -23,29 +26,37 @@ export async function initPurchaseInvoiceSchema() {
   }
 
   try {
-    // 1. Auto-repair sales_invoice_items missing product_id where barcode exists
+    // 1. Auto-repair sales_invoice_items missing product_id where barcode, code or exact name exists
     await pool.query(`
       UPDATE sales_invoice_items sii
       SET product_id = p.id
       FROM sales_invoices si, products p
       WHERE sii.sales_invoice_id = si.id
         AND p.store_id = si.store_id
-        AND p.barcode = sii.barcode
         AND (sii.product_id IS NULL OR sii.product_id = 0)
-        AND sii.barcode IS NOT NULL AND sii.barcode != ''
+        AND (
+          (p.barcode = sii.barcode AND sii.barcode IS NOT NULL AND sii.barcode != '')
+          OR (p.product_code IS NOT NULL AND p.product_code != '' AND (p.product_code = sii.product_code OR p.product_code = sii.barcode))
+          OR (p.sku IS NOT NULL AND p.sku != '' AND (p.sku = sii.product_code OR p.sku = sii.barcode))
+          OR (LOWER(TRIM(p.name)) = LOWER(TRIM(sii.product_name)) AND LENGTH(TRIM(p.name)) >= 3)
+        )
     `);
 
-    // 2. Auto-repair purchase_invoice_items missing product_id where barcode exists
+    // 2. Auto-repair purchase_invoice_items missing product_id where barcode, code or exact name exists
     await pool.query(`
       UPDATE purchase_invoice_items pii
       SET product_id = p.id
       FROM purchase_invoices pi, products p
       WHERE pii.purchase_invoice_id = pi.id
         AND p.store_id = pi.store_id
-        AND p.barcode = pii.barcode
         AND (pii.product_id IS NULL OR pii.product_id = 0)
-        AND pii.barcode IS NOT NULL AND pii.barcode != ''
         AND COALESCE(pi.is_expense, FALSE) = FALSE
+        AND (
+          (p.barcode = pii.barcode AND pii.barcode IS NOT NULL AND pii.barcode != '')
+          OR (p.product_code IS NOT NULL AND p.product_code != '' AND (p.product_code = pii.product_code OR p.product_code = pii.barcode))
+          OR (p.sku IS NOT NULL AND p.sku != '' AND (p.sku = pii.product_code OR p.sku = pii.barcode))
+          OR (LOWER(TRIM(p.name)) = LOWER(TRIM(pii.product_name)) AND LENGTH(TRIM(p.name)) >= 3)
+        )
     `);
 
     // 3. Auto-repair missing sales_invoice stock_movements
@@ -59,7 +70,7 @@ export async function initPurchaseInvoiceSchema() {
         'sales_invoice',
         'Satış Faturası: ' || COALESCE(NULLIF(si.document_number, ''), si.invoice_number),
         sii.unit_price,
-        COALESCE(c.title, cust.full_name, 'Müşteri'),
+        COALESCE(c.title, cust.full_name, si.customer_name, 'Müşteri'),
         COALESCE(si.currency, 'TRY'),
         COALESCE(si.invoice_date::timestamp, si.created_at),
         si.id,
@@ -75,8 +86,9 @@ export async function initPurchaseInvoiceSchema() {
           WHERE sm.product_id = sii.product_id
             AND sm.source = 'sales_invoice'
             AND (
-              sm.description LIKE '%' || si.invoice_number || '%'
-              OR (si.document_number IS NOT NULL AND si.document_number != '' AND sm.description LIKE '%' || si.document_number || '%')
+              sm.invoice_id = si.id
+              OR (NULLIF(si.invoice_number, '') IS NOT NULL AND (sm.invoice_number = si.invoice_number OR sm.description LIKE '%' || si.invoice_number || '%'))
+              OR (NULLIF(si.document_number, '') IS NOT NULL AND (sm.invoice_number = si.document_number OR sm.description LIKE '%' || si.document_number || '%'))
             )
         )
     `);
@@ -108,8 +120,9 @@ export async function initPurchaseInvoiceSchema() {
           WHERE sm.product_id = pii.product_id
             AND sm.source = 'purchase_invoice'
             AND (
-              sm.description LIKE '%' || pi.invoice_number || '%'
-              OR (pi.document_number IS NOT NULL AND pi.document_number != '' AND sm.description LIKE '%' || pi.document_number || '%')
+              sm.invoice_id = pi.id
+              OR (NULLIF(pi.invoice_number, '') IS NOT NULL AND (sm.invoice_number = pi.invoice_number OR sm.description LIKE '%' || pi.invoice_number || '%'))
+              OR (NULLIF(pi.document_number, '') IS NOT NULL AND (sm.invoice_number = pi.document_number OR sm.description LIKE '%' || pi.document_number || '%'))
             )
         )
     `);

@@ -29,11 +29,13 @@ const AMAZON_API_ENDPOINT = "https://sellingpartnerapi-eu.amazon.com";
 
 // 1. Get Amazon Auth URL
 router.get("/amazon/auth-url", authenticate, async (req: any, res) => {
-  const appId = process.env.AMAZON_APP_ID;
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const storeRes = await pool.query("SELECT amazon_settings FROM stores WHERE id = $1", [storeId]);
+  const storeSettings = storeRes.rows[0]?.amazon_settings || {};
+  const appId = storeSettings.appId || process.env.AMAZON_APP_ID;
   
   if (!appId) {
-    return res.status(400).json({ error: "Amazon App ID is not configured. Please use manual configuration." });
+    return res.status(400).json({ error: "Amazon App ID bulunamadı. Lütfen Amazon App ID'nizi veya LWA kimlik bilgilerinizi tanımlayınız." });
   }
 
   const state = Buffer.from(JSON.stringify({ storeId })).toString('base64');
@@ -46,7 +48,7 @@ router.get("/amazon/auth-url", authenticate, async (req: any, res) => {
 // Amazon Settings Endpoint
 router.post("/amazon/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryAttributes, isSandbox } = req.body;
+  const { appId, clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryAttributes, isSandbox } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -56,6 +58,7 @@ router.post("/amazon/settings", authenticate, async (req: any, res) => {
       try { br = JSON.parse(br); } catch (e) { br = {}; }
     }
 
+    const finalAppId = appId ? String(appId).trim() : (prev.appId || "");
     const finalClientId = clientId ? String(clientId).trim() : (prev.clientId || "");
     const finalClientSecret = clientSecret ? String(clientSecret).trim() : (prev.clientSecret || "");
     const finalRefreshToken = refreshToken ? String(refreshToken).trim() : (prev.refresh_token || "");
@@ -64,6 +67,7 @@ router.post("/amazon/settings", authenticate, async (req: any, res) => {
     const settings = {
       ...prev,
       connected: !!((finalClientId && finalClientSecret && finalRefreshToken) || (finalClientId && finalSellerId)),
+      appId: finalAppId,
       clientId: finalClientId,
       clientSecret: finalClientSecret,
       refresh_token: finalRefreshToken,

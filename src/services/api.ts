@@ -475,7 +475,7 @@ export const api = {
   // Amazon Integration
   getAmazonAuthUrl: () => api.get("/api/integrations/amazon/auth-url"),
   getAmazonSettings: (storeId?: number) => api.get(`/api/integrations/amazon/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  saveAmazonSettings: (data: { clientId: string, clientSecret: string, refreshToken: string, sellerId: string, categoryMappings?: any, categoryAttributes?: any, storeId?: number }) => api.post("/api/integrations/amazon/settings", data),
+  saveAmazonSettings: (data: { appId?: string, clientId: string, clientSecret: string, refreshToken: string, sellerId: string, isSandbox?: boolean, connected?: boolean, categoryMappings?: any, categoryAttributes?: any, storeId?: number }) => api.post("/api/integrations/amazon/settings", data),
   testAmazonConnection: (storeId?: number, data?: any) => api.post("/api/integrations/amazon/test-connection", { storeId, ...data }),
   bulkSyncAmazon: (storeId?: number) => api.post("/api/integrations/amazon/bulk-sync", { storeId }),
   syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),

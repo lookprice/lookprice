@@ -921,6 +921,8 @@ const ProductsTab = ({
                                     if (!target.dataset.fallback && p.image_url?.startsWith('http')) {
                                       target.dataset.fallback = '1';
                                       target.src = `/api/proxy-image?url=${encodeURIComponent(p.image_url)}`;
+                                    } else {
+                                      target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21 8-9-4-9 4v8l9 4 9-4V8z'/%3E%3Cpath d='M3.27 6.96 12 12.01l8.73-5.05'/%3E%3Cpath d='M12 22.08V12'/%3E%3C/svg%3E";
                                     }
                                   }}
                                 />

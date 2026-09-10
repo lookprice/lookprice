@@ -625,7 +625,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                   referrerPolicy="no-referrer"
                                   className="w-full h-full object-cover"
                                   onError={(e: any) => {
-                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21 8-9-4-9 4v8l9 4 9-4V8z'/%3E%3Cpath d='M3.27 6.96 12 12.01l8.73-5.05'/%3E%3Cpath d='M12 22.08V12'/%3E%3C/svg%3E";
                                   }}
                                 />
                               ) : (

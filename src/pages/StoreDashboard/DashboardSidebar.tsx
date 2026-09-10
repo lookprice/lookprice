@@ -105,21 +105,22 @@ export const DashboardSidebar = ({
       </AnimatePresence>
 
       <aside className={`
-        fixed ${!desktopSidebarCollapsed ? 'lg:static' : ''} inset-y-0 left-0 w-72 bg-slate-950 text-slate-400 z-50 transition-transform duration-300 ease-in-out
+        fixed ${!desktopSidebarCollapsed ? 'lg:static' : ''} inset-y-0 left-0 w-64 bg-slate-950 text-slate-400 z-50 transition-transform duration-300 ease-in-out shrink-0 border-r border-slate-800/80 select-none
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
         ${!desktopSidebarCollapsed && !sidebarOpen ? 'lg:translate-x-0' : ''}
       `}>
         <div className="flex flex-col h-full">
-          <div className="p-8 border-b border-indigo-500/10 flex items-center justify-between">
-            <div className="flex items-center space-x-4 min-w-0">
-              <StoreLogo logoUrl={storeLogoUrl} storeName={displayName} size="md" />
+          {/* Header Block */}
+          <div className="px-4 py-3.5 border-b border-white/5 flex items-center justify-between shrink-0">
+            <div className="flex items-center space-x-2.5 min-w-0">
+              <StoreLogo logoUrl={storeLogoUrl} storeName={displayName} size="xs" />
               <div className="min-w-0">
-                <h1 className="text-lg font-black text-white tracking-tighter leading-none truncate" title={displayName}>
+                <h1 className="text-sm font-black text-white tracking-tight leading-none truncate" title={displayName}>
                   {displayName}
                 </h1>
-                <div className="flex items-center space-x-1.5 mt-2">
+                <div className="flex items-center space-x-1.5 mt-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{lang === 'tr' ? 'Bulut Panel' : 'Cloud POS'}</p>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Bulut Panel' : 'Cloud POS'}</p>
                 </div>
               </div>
             </div>
@@ -127,21 +128,21 @@ export const DashboardSidebar = ({
             {/* Desktop Collapse Button */}
             <button
               onClick={() => setDesktopSidebarCollapsed(true)}
-              className="hidden lg:flex items-center justify-center p-2 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+              className="hidden lg:flex items-center justify-center p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
               title={t?.collapseSidebar || "Menüyü Gizle"}
             >
-              <PanelLeftClose className="h-5 w-5" />
+              <PanelLeftClose className="h-4 w-4" />
             </button>
           </div>
           
-          <nav className="flex-1 overflow-y-auto p-5 space-y-1.5 custom-scrollbar">
+          <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1 custom-scrollbar">
             {navItems.map((navItem) => {
               if (navItem.type === 'category') {
                 return (
-                  <div key={navItem.key} className="mb-2">
+                  <div key={navItem.key} className="mb-1.5">
                     <button
                        onClick={() => setOpenCategories({...openCategories, [navItem.key]: !openCategories[navItem.key]})}
-                       className="flex items-center justify-between w-full text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-4 py-2 hover:text-indigo-400 transition-colors"
+                       className="flex items-center justify-between w-full text-[9px] font-black text-slate-500 uppercase tracking-wider px-2 py-1.5 hover:text-indigo-400 transition-colors cursor-pointer"
                     >
                       <span>{navItem.title}</span>
                       {openCategories[navItem.key] ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -152,7 +153,7 @@ export const DashboardSidebar = ({
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
+                          className="overflow-hidden space-y-0.5"
                         >
                           {navItem.items.map((item: any) => (
                             <button
@@ -163,18 +164,18 @@ export const DashboardSidebar = ({
                                 });
                                 setSidebarOpen(false);
                               }}
-                              className={`w-full group flex items-center justify-between px-4 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-300 ${
+                              className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
                                 activeTab === item.id 
-                                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                                  ? 'bg-indigo-600 text-white shadow-xs' 
                                   : 'text-slate-400 hover:bg-white/5 hover:text-white'
                               }`}
                             >
-                              <div className="flex items-center space-x-3.5">
-                                <item.icon className={`h-4.5 w-4.5 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
-                                <span className="tracking-tight">{item.label}</span>
+                              <div className="flex items-center space-x-2.5 min-w-0">
+                                <item.icon className={`h-4 w-4 shrink-0 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                                <span className="truncate tracking-tight">{item.label}</span>
                               </div>
                               {item.badge > 0 && (
-                                <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black ${
+                                <span className={`flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[9px] font-black shrink-0 ${
                                   item.badgeType === 'error' 
                                     ? (activeTab === item.id ? 'bg-white text-rose-600' : 'bg-rose-600 text-white animate-pulse')
                                     : (activeTab === item.id ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white animate-pulse')
@@ -199,18 +200,18 @@ export const DashboardSidebar = ({
                       });
                       setSidebarOpen(false);
                     }}
-                    className={`w-full group flex items-center justify-between px-4 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-300 ${
+                    className={`w-full group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
                       activeTab === navItem.id 
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                        ? 'bg-indigo-600 text-white shadow-xs' 
                         : 'text-slate-400 hover:bg-white/5 hover:text-white'
                     }`}
                   >
-                    <div className="flex items-center space-x-3.5">
-                      <navItem.icon className={`h-4.5 w-4.5 transition-colors ${activeTab === navItem.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
-                      <span className="tracking-tight">{navItem.label}</span>
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <navItem.icon className={`h-4 w-4 shrink-0 transition-colors ${activeTab === navItem.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                      <span className="truncate tracking-tight">{navItem.label}</span>
                     </div>
                     {navItem.badge > 0 && (
-                      <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black ${
+                      <span className={`flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[9px] font-black shrink-0 ${
                         navItem.badgeType === 'error' 
                           ? (activeTab === navItem.id ? 'bg-white text-rose-600' : 'bg-rose-600 text-white animate-pulse')
                           : (activeTab === navItem.id ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white animate-pulse')
@@ -223,29 +224,28 @@ export const DashboardSidebar = ({
               }
             })}
 
-
-            <div className="pt-6 mt-6 border-t border-white/5">
-              <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] px-4 py-3 mb-1">
+            <div className="pt-3 mt-3 border-t border-white/5 space-y-0.5">
+              <div className="text-[9px] font-black text-slate-600 uppercase tracking-wider px-2 py-1">
                 {lang === 'tr' ? 'HARİCİ BAĞLANTILAR' : 'EXTERNAL ACCESS'}
               </div>
               <a
                 href={publicUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
+                className="w-full flex items-center space-x-2.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all cursor-pointer"
               >
-                <Globe className="h-4.5 w-4.5 text-slate-500" />
-                <span className="tracking-tight">{t.storeWebsite}</span>
+                <Globe className="h-4 w-4 text-slate-500" />
+                <span className="truncate tracking-tight">{t.storeWebsite}</span>
               </a>
               {!isPortfolio && !isCafeRestaurant && (
                 <a
                   href={scanUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
+                  className="w-full flex items-center space-x-2.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all cursor-pointer"
                 >
-                  <Scan className="h-4.5 w-4.5 text-slate-500" />
-                  <span className="tracking-tight">{t.barcodeScanner}</span>
+                  <Scan className="h-4 w-4 text-slate-500" />
+                  <span className="truncate tracking-tight">{t.barcodeScanner}</span>
                 </a>
               )}
               {isCafeRestaurant && currentStoreId && (
@@ -253,24 +253,24 @@ export const DashboardSidebar = ({
                   href={`${window.location.origin}/digital-menu/${currentStoreId}/garson`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
+                  className="w-full flex items-center space-x-2.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all cursor-pointer"
                 >
-                  <UtensilsCrossed className="h-4.5 w-4.5 text-slate-500" />
-                  <span className="tracking-tight">{t.barcodeScanner === 'Barcode Scanner' ? 'Menu / Order Screen' : 'Menü / Sipariş Ekranı'}</span>
+                  <UtensilsCrossed className="h-4 w-4 text-slate-500" />
+                  <span className="truncate tracking-tight">{t.barcodeScanner === 'Barcode Scanner' ? 'Menu / Order Screen' : 'Menü / Sipariş Ekranı'}</span>
                 </a>
               )}
             </div>
           </nav>
           
-          <div className="p-3 md:p-4 border-t border-white/5 bg-slate-900/30 space-y-2">
+          <div className="p-2.5 border-t border-white/5 bg-slate-900/40 space-y-1.5 shrink-0">
             {isCafeRestaurant && onOpenRoleModal && (
               <button
                 onClick={onOpenRoleModal}
-                className="flex w-full items-center justify-between px-3 py-2.5 rounded-xl text-xs font-extrabold text-amber-400 hover:bg-amber-500/10 transition-all border border-amber-500/20 group cursor-pointer"
+                className="flex w-full items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-400 hover:bg-amber-500/10 transition-all border border-amber-500/20 group cursor-pointer"
               >
                 <div className="flex items-center space-x-2">
-                  <UserCheck className="h-4 w-4 text-amber-400" />
-                  <span>
+                  <UserCheck className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="text-[11px]">
                     {activeStaffRole === 'manager' 
                       ? '👑 Yönetici' 
                       : activeStaffRole === 'cashier' 
@@ -278,17 +278,17 @@ export const DashboardSidebar = ({
                         : '🍽️ Garson'}
                   </span>
                 </div>
-                <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                  Rol Değiştir
+                <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded uppercase font-mono">
+                  Değiştir
                 </span>
               </button>
             )}
 
             <button
               onClick={onLogout}
-              className="flex w-full items-center space-x-2.5 px-3 py-2.5 rounded-xl text-xs font-extrabold text-rose-400 hover:bg-rose-500/10 transition-all border border-rose-500/20 group cursor-pointer"
+              className="flex w-full items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-bold text-rose-400 hover:bg-rose-500/10 transition-all border border-rose-500/20 group cursor-pointer"
             >
-              <LogOut className="h-4 w-4 text-rose-500" />
+              <LogOut className="h-3.5 w-3.5 text-rose-500" />
               <span>{t.logout}</span>
             </button>
           </div>

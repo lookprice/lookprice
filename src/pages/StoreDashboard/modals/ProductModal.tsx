@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 import { compressImageToWebP } from "../../../utils/imageUtils";
 import { VariantMatrixManager } from "../../../components/dashboard/VariantMatrixManager";
 import { MarketplaceProductFields } from "../../../components/marketplace/MarketplaceProductFields";
+import ProductMovementModal from "../../../components/ProductMovementModal";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -61,6 +62,7 @@ export const ProductModal = ({
   const [showMatrixGenerator, setShowMatrixGenerator] = useState(false);
   const [matrixColors, setMatrixColors] = useState("");
   const [matrixSizes, setMatrixSizes] = useState("");
+  const [showMovementModal, setShowMovementModal] = useState(false);
 
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
@@ -305,16 +307,29 @@ export const ProductModal = ({
                 : "Define new product or service in inventory."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setShowProductModal(false);
-              setEditingProduct(null);
-            }}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-300 hover:text-white border-0 outline-none cursor-pointer"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {editingProduct?.id && (
+              <button
+                type="button"
+                onClick={() => setShowMovementModal(true)}
+                className="px-3.5 py-1.5 bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-400/30 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                title={isTr ? "Ürün Hareketleri & Ekstresi" : "Product Movement & Statement"}
+              >
+                <History className="h-4 w-4" />
+                <span>{isTr ? "Stok Ekstresi" : "Statement"}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setShowProductModal(false);
+                setEditingProduct(null);
+              }}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-300 hover:text-white border-0 outline-none cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <form
@@ -894,6 +909,8 @@ export const ProductModal = ({
                           if (!target.dataset.fallback && productImageUrl.startsWith('http')) {
                             target.dataset.fallback = '1';
                             target.src = `/api/proxy-image?url=${encodeURIComponent(productImageUrl)}`;
+                          } else {
+                            target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21 8-9-4-9 4v8l9 4 9-4V8z'/%3E%3Cpath d='M3.27 6.96 12 12.01l8.73-5.05'/%3E%3Cpath d='M12 22.08V12'/%3E%3C/svg%3E";
                           }
                         }}
                       />
@@ -1282,6 +1299,16 @@ export const ProductModal = ({
           </div>
         </form>
       </motion.div>
+
+      {showMovementModal && editingProduct && (
+        <ProductMovementModal
+          isOpen={showMovementModal}
+          onClose={() => setShowMovementModal(false)}
+          product={editingProduct}
+          branding={branding}
+          storeId={branding?.id}
+        />
+      )}
     </div>
   );
 };

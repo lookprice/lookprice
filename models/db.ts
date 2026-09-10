@@ -782,6 +782,9 @@ export async function initDb() {
       );
 
       ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS unit_code TEXT DEFAULT 'Adet';
+      ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS product_code TEXT;
+      ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS variant_id TEXT;
+      ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS variant_name TEXT;
 
       -- Update stores table if needed
       ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS is_tax_inclusive BOOLEAN DEFAULT TRUE;

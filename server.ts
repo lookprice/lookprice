@@ -29,6 +29,21 @@ import fs from "fs";
 import { generateMetaTags } from "./src/utils/metaTags";
 import axios from "axios";
 import sharp from "sharp";
+import https from "https";
+import http from "http";
+
+const FALLBACK_IMAGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="4" fill="#f8fafc"/><path d="m21 8-9-4-9 4v8l9 4 9-4V8z"/><path d="M3.27 6.96 12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg>`;
+const FALLBACK_IMAGE_BUFFER = Buffer.from(FALLBACK_IMAGE_SVG);
+
+const proxyHttpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+  keepAlive: true,
+  timeout: 10000
+});
+const proxyHttpAgent = new http.Agent({
+  keepAlive: true,
+  timeout: 10000
+});
 
 // Optimize sharp for low-memory container environments (such as Render.com)
 // This disables libvips caching and limits image processing threads to avoid memory overhead spikes
@@ -236,31 +251,65 @@ async function startServer() {
     }
   });
 
-  // Generic High-Performance CORS-Safe Image Proxy for Posters & Share Templates
+  // Generic High-Performance CORS-Safe Image Proxy for Posters, Listings & Product Cards
   app.get("/api/proxy-image", async (req, res) => {
     const { url, format } = req.query;
     if (!url || typeof url !== 'string') {
-      return res.status(400).send("Missing url parameter");
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Content-Type', 'image/svg+xml');
+      return res.send(FALLBACK_IMAGE_BUFFER);
+    }
+
+    let targetUrl = url.trim();
+    if (targetUrl.startsWith('//')) {
+      targetUrl = 'https:' + targetUrl;
+    }
+
+    // Safely decode percent encoding without crashing on malformed strings
+    try {
+      if (targetUrl.includes('%3A') || targetUrl.includes('%2F') || targetUrl.includes('%20')) {
+        targetUrl = decodeURIComponent(targetUrl);
+      }
+    } catch (_) {}
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(targetUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        throw new Error('Invalid URL protocol');
+      }
+    } catch {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Content-Type', 'image/svg+xml');
+      return res.send(FALLBACK_IMAGE_BUFFER);
     }
 
     try {
-      const targetUrl = decodeURIComponent(url.trim());
-      const parsedUrl = new URL(targetUrl);
-      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-        return res.status(400).send("Invalid URL protocol");
-      }
-
       const response = await axios.get(targetUrl, {
         responseType: 'arraybuffer',
-        timeout: 15000,
+        timeout: 12000,
+        maxRedirects: 5,
+        httpsAgent: proxyHttpsAgent,
+        httpAgent: proxyHttpAgent,
+        validateStatus: (status) => status >= 200 && status < 400,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          'Referer': `${parsedUrl.origin}/`,
+          'Origin': parsedUrl.origin,
+          'Sec-Fetch-Dest': 'image',
+          'Sec-Fetch-Mode': 'no-cors',
+          'Sec-Fetch-Site': 'cross-site'
         }
       });
 
-      const contentType = response.headers['content-type'] || 'image/png';
+      const rawContentType = (response.headers['content-type'] || 'image/jpeg').split(';')[0].trim();
+      const contentType = rawContentType.toLowerCase().startsWith('image/') ? rawContentType : 'image/jpeg';
       const imageBuffer = Buffer.from(response.data);
+
+      if (imageBuffer.length === 0) {
+        throw new Error('Empty image received');
+      }
 
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -274,10 +323,22 @@ async function startServer() {
 
       res.set('Cache-Control', 'public, max-age=86400');
       res.set('Content-Type', contentType);
-      res.send(imageBuffer);
+      return res.send(imageBuffer);
     } catch (err: any) {
-      console.error("Proxy image fetch error:", err?.message || err);
-      res.status(500).send("Error fetching image via proxy");
+      // Graceful fallback: return a clean SVG placeholder instead of throwing 500
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.set('Access-Control-Allow-Headers', '*');
+      res.set('Cache-Control', 'public, max-age=300');
+
+      if (format === 'dataurl' || format === 'base64' || format === 'json') {
+        const base64 = FALLBACK_IMAGE_BUFFER.toString('base64');
+        const dataUrl = `data:image/svg+xml;base64,${base64}`;
+        return res.json({ dataUrl, contentType: 'image/svg+xml' });
+      }
+
+      res.set('Content-Type', 'image/svg+xml');
+      return res.status(200).send(FALLBACK_IMAGE_BUFFER);
     }
   });
 

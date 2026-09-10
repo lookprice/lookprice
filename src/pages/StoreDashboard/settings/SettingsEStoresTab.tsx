@@ -84,11 +84,12 @@ export const SettingsEStoresTab = ({
   const pzSync = useIntegrationSync('Pazarama', t);
 
   // Amazon State
+  const [amazonAppId, setAmazonAppId] = useState(branding.amazon_settings?.appId || "");
   const [amazonClientId, setAmazonClientId] = useState(branding.amazon_settings?.clientId || "");
   const [amazonClientSecret, setAmazonClientSecret] = useState(branding.amazon_settings?.clientSecret || "");
   const [amazonRefreshToken, setAmazonRefreshToken] = useState(branding.amazon_settings?.refresh_token || "");
   const [amazonSellerId, setAmazonSellerId] = useState(branding.amazon_settings?.sellerId || "");
-  const [amazonIsSandbox, setAmazonIsSandbox] = useState<boolean>(branding.amazon_settings?.isSandbox || false);
+  const [amazonIsSandbox, setAmazonIsSandbox] = useState<boolean>(branding.amazon_settings?.isSandbox ?? true);
   const [showAmazonSecret, setShowAmazonSecret] = useState(false);
   const [showAmazonRefresh, setShowAmazonRefresh] = useState(false);
   const [testingAmazon, setTestingAmazon] = useState(false);
@@ -206,10 +207,12 @@ export const SettingsEStoresTab = ({
       if (amzRes.status === 'fulfilled' && amzRes.value) {
         const amz = amzRes.value.data || amzRes.value;
         if (amz && typeof amz === 'object' && Object.keys(amz).length > 0) {
+          if (amz.appId) setAmazonAppId(amz.appId);
           if (amz.clientId) setAmazonClientId(amz.clientId);
           if (amz.clientSecret) setAmazonClientSecret(amz.clientSecret);
           if (amz.refresh_token) setAmazonRefreshToken(amz.refresh_token);
           if (amz.sellerId) setAmazonSellerId(amz.sellerId);
+          if (amz.isSandbox !== undefined) setAmazonIsSandbox(amz.isSandbox);
           if (onBrandingChange) onBrandingChange('amazon_settings', amz);
         }
       }
@@ -312,6 +315,7 @@ export const SettingsEStoresTab = ({
     setTestingAmazon(true);
     try {
       const res = await api.testAmazonConnection(currentStoreId, {
+        appId: amazonAppId,
         clientId: amazonClientId,
         clientSecret: amazonClientSecret,
         refreshToken: amazonRefreshToken,
@@ -322,15 +326,17 @@ export const SettingsEStoresTab = ({
       if (data.success) {
         toast.success(
           lang === 'tr' 
-            ? `Amazon SP-API Bağlantısı Başarılı! (Satıcı ID: ${data.sellerId || 'Doğrulandı'}, Ortam: Amazon.com.tr)` 
+            ? `Amazon SP-API Bağlantısı Başarılı! (Satıcı ID: ${data.sellerId || 'Doğrulandı'}, Ortam: ${amazonIsSandbox ? 'Sandbox (Test)' : 'Amazon.com.tr'})` 
             : `Amazon SP-API Connection Successful! (${data.sellerId || 'Verified'})`
         );
         onBrandingChange('amazon_settings', {
           ...branding.amazon_settings,
+          appId: amazonAppId,
           clientId: amazonClientId,
           clientSecret: amazonClientSecret,
           refresh_token: amazonRefreshToken,
           sellerId: amazonSellerId || data.sellerId,
+          isSandbox: amazonIsSandbox,
           connected: true
         });
         if (onRefresh) onRefresh();
@@ -370,20 +376,24 @@ export const SettingsEStoresTab = ({
     try {
       const isConn = !!(amazonClientId && amazonClientSecret && (amazonRefreshToken || amazonSellerId));
       const payload = { 
+        appId: amazonAppId,
         clientId: amazonClientId, 
         clientSecret: amazonClientSecret, 
         refreshToken: amazonRefreshToken, 
         sellerId: amazonSellerId, 
+        isSandbox: amazonIsSandbox,
         connected: isConn,
         storeId: currentStoreId 
       };
       const res = await api.saveAmazonSettings(payload);
       const savedData = res.data?.settings || res.settings || payload;
 
+      if (savedData.appId !== undefined) setAmazonAppId(savedData.appId || "");
       if (savedData.clientId !== undefined) setAmazonClientId(savedData.clientId || "");
       if (savedData.clientSecret !== undefined) setAmazonClientSecret(savedData.clientSecret || "");
       if (savedData.refresh_token !== undefined) setAmazonRefreshToken(savedData.refresh_token || "");
       if (savedData.sellerId !== undefined) setAmazonSellerId(savedData.sellerId || "");
+      if (savedData.isSandbox !== undefined) setAmazonIsSandbox(savedData.isSandbox ?? true);
 
       onBrandingChange('amazon_settings', savedData);
       toast.success(isConn ? (lang === 'tr' ? "Amazon hesabı başarıyla bağlandı ve kaydedildi" : "Amazon account connected successfully") : (t.saveSuccess || "Kaydedildi"));
@@ -1506,61 +1516,164 @@ export const SettingsEStoresTab = ({
             </div>
           </div>
 
-          {currentUser?.role === 'superadmin' && (
-            <div className="mb-4">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                  checked={amazonIsSandbox}
-                  onChange={(e) => {
-                    const val = e.target.checked;
-                    setAmazonIsSandbox(val);
+          {/* Sandbox & Production Environment Selector */}
+          <div className="mb-4 p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div>
+                <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${amazonIsSandbox ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                  {amazonIsSandbox ? (lang === 'tr' ? 'SP-API Sandbox (Test) Modu Aktif' : 'SP-API Sandbox Mode Active') : (lang === 'tr' ? 'Canlı (Production) Modu Aktif' : 'Live Production Mode Active')}
+                </span>
+                <p className="text-[11px] text-amber-800/90 mt-0.5">
+                  {amazonIsSandbox 
+                    ? (lang === 'tr' ? "Uygulamanız Amazon Portal'da 'Status: Sandbox' durumunda iken test uç noktalarını kullanır. Canlı satışa geçtiğinizde canlı moda alınız." : "Uses test endpoints while your app status is Sandbox. Switch to production when published.")
+                    : (lang === 'tr' ? "Canlı Amazon.com.tr (EU Endpoint) mağaza verileri ve siparişleri işlenir." : "Live Amazon.com.tr marketplace data & orders are processed.")}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newVal = !amazonIsSandbox;
+                    setAmazonIsSandbox(newVal);
                     onBrandingChange('amazon_settings', {
                       ...(branding.amazon_settings || {}),
+                      appId: amazonAppId,
                       clientId: amazonClientId,
                       clientSecret: amazonClientSecret,
                       refresh_token: amazonRefreshToken,
                       sellerId: amazonSellerId,
-                      isSandbox: val
+                      isSandbox: newVal
                     });
                   }}
-                />
-                <span className="text-xs font-medium text-slate-700">SP-API Sandbox (Test) Ortamı</span>
-              </label>
-              <p className="text-[10px] text-slate-500 mt-0.5 ml-6">Amazon SP-API onay sürecindeki statik testler için Sandbox uç noktalarını kullanır.</p>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors border ${
+                    amazonIsSandbox 
+                      ? 'bg-amber-600 text-white border-amber-700 shadow-xs' 
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {amazonIsSandbox ? (lang === 'tr' ? '✓ Sandbox Aktif' : '✓ Sandbox Active') : (lang === 'tr' ? 'Sandbox Moduna Al' : 'Switch to Sandbox')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAmazonIsSandbox(false);
+                    onBrandingChange('amazon_settings', {
+                      ...(branding.amazon_settings || {}),
+                      appId: amazonAppId,
+                      clientId: amazonClientId,
+                      clientSecret: amazonClientSecret,
+                      refresh_token: amazonRefreshToken,
+                      sellerId: amazonSellerId,
+                      isSandbox: false
+                    });
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors border ${
+                    !amazonIsSandbox 
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs' 
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {!amazonIsSandbox ? (lang === 'tr' ? '✓ Canlı (Prod) Aktif' : '✓ Live Active') : (lang === 'tr' ? 'Canlı Moda Geç' : 'Switch to Live')}
+                </button>
+              </div>
             </div>
-          )}
+          </div>
 
+          {/* Credentials Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {/* LWA Client ID */}
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.amazonSellerId || "Amazon Seller ID (Merchant ID)"}</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+                  <span>LWA Client Identifier (Client ID)</span>
+                  <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[10px] text-slate-400 font-mono">amzn1.application-oa2-client...</span>
+              </div>
               <input 
                 type="text" 
-                id="amz-seller-id-input"
-                name="amz_seller_id_no_autofill"
+                id="amz-client-id-input"
+                name="amz_client_id_no_autofill"
                 autoComplete="off"
                 data-lpignore="true"
                 data-form-type="other"
                 className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={amazonSellerId}
+                value={amazonClientId}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setAmazonSellerId(val);
+                  setAmazonClientId(val);
                   onBrandingChange('amazon_settings', {
                     ...(branding.amazon_settings || {}),
-                    clientId: amazonClientId,
+                    appId: amazonAppId,
+                    clientId: val,
                     clientSecret: amazonClientSecret,
                     refresh_token: amazonRefreshToken,
-                    sellerId: val,
+                    sellerId: amazonSellerId,
                     isSandbox: amazonIsSandbox
                   });
                 }}
-                placeholder="A3..."
+                placeholder="amzn1.application-oa2-client.61775aeb..."
               />
             </div>
+
+            {/* LWA Client Secret */}
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.amazonRefreshToken || "SP-API Refresh Token"}</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+                  <span>LWA Client Secret</span>
+                  <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[10px] text-slate-400 font-mono">amzn1.oa2-cs.v1...</span>
+              </div>
+              <div className="relative">
+                <input 
+                  type={showAmazonSecret ? "text" : "password"} 
+                  id="amz-client-secret-input"
+                  name="amz_client_secret_no_autofill"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
+                  className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
+                  value={amazonClientSecret}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAmazonClientSecret(val);
+                    onBrandingChange('amazon_settings', {
+                      ...(branding.amazon_settings || {}),
+                      appId: amazonAppId,
+                      clientId: amazonClientId,
+                      clientSecret: val,
+                      refresh_token: amazonRefreshToken,
+                      sellerId: amazonSellerId,
+                      isSandbox: amazonIsSandbox
+                    });
+                  }}
+                  placeholder="amzn1.oa2-cs.v1.c2384dd..."
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAmazonSecret(!showAmazonSecret)}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {showAmazonSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* SP-API Refresh Token */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+                  <span>SP-API Refresh Token</span>
+                  <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[10px] text-indigo-600 font-medium cursor-pointer hover:underline" onClick={() => setShowAmazonGuideModal(true)}>
+                  Nasıl Alınır?
+                </span>
+              </div>
               <div className="relative">
                 <input 
                   type={showAmazonRefresh ? "text" : "password"} 
@@ -1576,6 +1689,7 @@ export const SettingsEStoresTab = ({
                     setAmazonRefreshToken(val);
                     onBrandingChange('amazon_settings', {
                       ...(branding.amazon_settings || {}),
+                      appId: amazonAppId,
                       clientId: amazonClientId,
                       clientSecret: amazonClientSecret,
                       refresh_token: val,
@@ -1583,7 +1697,7 @@ export const SettingsEStoresTab = ({
                       isSandbox: amazonIsSandbox
                     });
                   }}
-                  placeholder="Atzr|..."
+                  placeholder="Atzr|IQEBLzAtAhUA..."
                 />
                 <button
                   type="button"
@@ -1594,6 +1708,75 @@ export const SettingsEStoresTab = ({
                   {showAmazonRefresh ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+            </div>
+
+            {/* Amazon Seller ID (Merchant Token) */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+                  <span>{t.amazonSellerId || "Amazon Satıcı Kimliği (Seller ID / Merchant Token)"}</span>
+                </label>
+                <span className="text-[10px] text-slate-400">Seller Central &gt; Hesap Bilgileri</span>
+              </div>
+              <input 
+                type="text" 
+                id="amz-seller-id-input"
+                name="amz_seller_id_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
+                value={amazonSellerId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAmazonSellerId(val);
+                  onBrandingChange('amazon_settings', {
+                    ...(branding.amazon_settings || {}),
+                    appId: amazonAppId,
+                    clientId: amazonClientId,
+                    clientSecret: amazonClientSecret,
+                    refresh_token: amazonRefreshToken,
+                    sellerId: val,
+                    isSandbox: amazonIsSandbox
+                  });
+                }}
+                placeholder="Örn: A3J..."
+              />
+            </div>
+
+            {/* Amazon App ID (Solution ID) */}
+            <div className="md:col-span-2">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+                  <span>Amazon App ID (Solution ID)</span>
+                  <span className="text-[10px] text-slate-400 font-normal">(İsteğe Bağlı / Referans)</span>
+                </label>
+                <span className="text-[10px] text-slate-400 font-mono">amzn1.sp.solution...</span>
+              </div>
+              <input 
+                type="text" 
+                id="amz-app-id-input"
+                name="amz_app_id_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
+                value={amazonAppId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAmazonAppId(val);
+                  onBrandingChange('amazon_settings', {
+                    ...(branding.amazon_settings || {}),
+                    appId: val,
+                    clientId: amazonClientId,
+                    clientSecret: amazonClientSecret,
+                    refresh_token: amazonRefreshToken,
+                    sellerId: amazonSellerId,
+                    isSandbox: amazonIsSandbox
+                  });
+                }}
+                placeholder="amzn1.sp.solution.201c524b-1384-4d46-8d65-acfcef0e4c24"
+              />
             </div>
           </div>
 
@@ -2113,8 +2296,8 @@ export const SettingsEStoresTab = ({
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start space-x-3 text-emerald-800">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-xs">LookPrice Amazon SP-API Entegrasyonu (Geliştirici İzni)</p>
-                  <p className="text-[11px] mt-0.5 text-emerald-700">LookPrice resmi bir Amazon SP-API geliştiricisidir. Aşağıdaki adımları uygulayarak mağazanızı saniyeler içinde LookPrice'a bağlayabilirsiniz.</p>
+                  <p className="font-semibold text-xs">Amazon Selling Partner API (SP-API) Kurulum Rehberi</p>
+                  <p className="text-[11px] mt-0.5 text-emerald-700">Amazon Solution Provider Portal veya Seller Central hesabınızdan aldığınız kimlik bilgileriyle mağazanızı LookPrice'a doğrudan bağlayabilirsiniz.</p>
                 </div>
               </div>
 
@@ -2122,40 +2305,60 @@ export const SettingsEStoresTab = ({
                 <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">1</div>
                   <div>
-                    <h5 className="font-semibold text-slate-900">Uygulama Yetkilendirme Sayfasına Gidin</h5>
-                    <p className="mt-1 text-slate-600">Amazon Seller Central hesabınıza giriş yapın. Üst menüden <span className="font-semibold">Partner Network (İş Ortağı Ağı) &gt; Manage Your Apps (Uygulamalarınızı Yönetin)</span> bölümüne tıklayın.</p>
+                    <h5 className="font-semibold text-slate-900">LWA (Login with Amazon) Kimlik Bilgilerini Girin</h5>
+                    <p className="mt-1 text-slate-600">
+                      Solution Provider Portal'da uygulamanızın altındaki <span className="font-semibold">LWA Credentials</span> bölümünde yer alan:
+                    </p>
+                    <ul className="mt-1.5 list-disc list-inside space-y-1 text-[11px] text-slate-700">
+                      <li><span className="font-semibold">Client identifier:</span> <code className="font-mono bg-white px-1 py-0.5 border rounded">amzn1.application-oa2-client...</code> değerini <span className="font-semibold">Client ID</span> alanına yapıştırın.</li>
+                      <li><span className="font-semibold">Client secret:</span> <code className="font-mono bg-white px-1 py-0.5 border rounded">amzn1.oa2-cs.v1...</code> değerini <span className="font-semibold">Client Secret</span> alanına yapıştırın.</li>
+                    </ul>
                   </div>
                 </div>
 
                 <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">2</div>
+                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0">2</div>
                   <div>
-                    <h5 className="font-semibold text-slate-900">Yeni Geliştiriciyi Yetkilendirin</h5>
-                    <p className="mt-1 text-slate-600">Açılan sayfada <span className="font-semibold text-indigo-700">"Authorize new developer" (Yeni bir geliştiriciyi yetkilendir)</span> butonuna tıklayın.</p>
+                    <h5 className="font-semibold text-slate-900">"Create Token" veya "Authorize" ile Refresh Token Alın</h5>
+                    <p className="mt-1 text-slate-600">
+                      Portalda uygulamanızın yanındaki açılır menüden veya butonlardan <span className="font-semibold text-indigo-700">"Create Token" / "Authorize App" (Uygulamayı Yetkilendir)</span> işlemine tıklayın:
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-600 leading-normal">
+                      Kendi satıcı hesabınızı seçip onayladığınızda Amazon size <span className="font-mono bg-white px-1 py-0.5 border rounded font-semibold text-indigo-900">Atzr|...</span> ile başlayan bir <span className="font-semibold">Refresh Token</span> verecektir. Bu token'ı kopyalayıp paneldeki <span className="font-semibold">SP-API Refresh Token</span> alanına yapıştırın.
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">3</div>
                   <div>
-                    <h5 className="font-semibold text-slate-900">LookPrice Geliştirici ID'sini Girin</h5>
-                    <p className="mt-1 text-slate-600">Geliştirici Adı (Developer Name) alanına <span className="font-mono bg-white px-1.5 py-0.5 border rounded">LookPrice</span>, Geliştirici Kimliği (Developer ID) alanına ise <span className="font-mono bg-white px-1.5 py-0.5 border rounded">7243-7643-9821</span> değerini girin ve İleri'ye tıklayın.</p>
+                    <h5 className="font-semibold text-slate-900">Amazon Satıcı Kimliğinizi (Seller ID / Merchant Token) Alın</h5>
+                    <p className="mt-1 text-slate-600">
+                      Amazon Seller Central (<span className="font-mono">sellercentral.amazon.com.tr</span>) hesabınıza girin.
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-600 leading-normal">
+                      Sağ üstteki <span className="font-semibold">Ayarlar (Dişli simgesi) &gt; Hesap Bilgileri (Account Info)</span> sayfasına gidin. <span className="font-semibold">İşletme Bilgileri</span> kutusu altındaki <span className="font-semibold text-indigo-700">"Satıcı Kimliğiniz" (Merchant Token / Seller ID)</span> kodunu kopyalayın (Örn: <code className="font-mono bg-white px-1 py-0.5 border rounded">A3J...</code>).
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">4</div>
+                <div className="flex items-start space-x-3 p-3 bg-amber-50/80 rounded-xl border border-amber-200">
+                  <div className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs shrink-0">4</div>
                   <div>
-                    <h5 className="font-semibold text-slate-900">Refresh Token ve Seller ID Bilgilerini Alın</h5>
-                    <p className="mt-1 text-slate-600">Koşulları onayladıktan sonra ekranda görünecek olan <span className="font-mono bg-white px-1.5 py-0.5 border rounded">Satıcı Kimliği (Seller ID)</span> ve <span className="font-mono bg-white px-1.5 py-0.5 border rounded">MWS Auth Token / Refresh Token</span> değerlerini kopyalayın.</p>
+                    <h5 className="font-semibold text-amber-950">Ortam Tercihi (Sandbox veya Canlı)</h5>
+                    <p className="mt-1 text-amber-900 leading-normal">
+                      Uygulama durumunuz <span className="font-semibold">"Status: Sandbox"</span> ise, paneldeki <span className="font-semibold">SP-API Sandbox (Test) Modu</span>'nu aktif tutun. Amazon uygulamanızı canlıya aldığında <span className="font-semibold">"Canlı (Prod) Aktif"</span> butonuna basarak canlı pazaryerine geçebilirsiniz.
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">5</div>
                   <div>
-                    <h5 className="font-semibold text-slate-900">LookPrice Paneline Kaydedin</h5>
-                    <p className="mt-1 text-slate-600">Kopyaladığınız bilgileri bu ekrandaki <span className="font-semibold">Amazon Seller ID</span> ve <span className="font-semibold">SP-API Refresh Token</span> alanlarına yapıştırarak <span className="font-semibold text-indigo-700">"Bağlantıyı Test Et"</span> butonuna tıklayın.</p>
+                    <h5 className="font-semibold text-slate-900">Kaydedin ve Bağlantıyı Test Edin</h5>
+                    <p className="mt-1 text-slate-600">
+                      Bilgileri girdikten sonra <span className="font-semibold text-indigo-700">"Bağlantıyı Test Et"</span> butonuna tıklayın. Doğrulama başarılı olduğunda <span className="font-semibold text-slate-900">"Amazon Hesabını Bağla"</span> butonu ile ayarlarınızı kalıcı olarak kaydedin.
+                    </p>
                   </div>
                 </div>
               </div>
