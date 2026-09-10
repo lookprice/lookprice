@@ -117,8 +117,8 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[1050px]">
           <thead>
-            <tr className="bg-slate-50/50">
-              <th className="px-3 py-4 text-center w-10">
+            <tr className="bg-slate-50/70 border-b border-slate-200">
+              <th className="px-3 py-2.5 text-center w-10">
                 <input 
                   type="checkbox" 
                   checked={selectedIds.length === invoices.length && invoices.length > 0}
@@ -132,18 +132,18 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                   className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
                 />
               </th>
-              <th className="px-2 py-4 text-center w-8">
+              <th className="px-2 py-2.5 text-center w-8">
                 <span className="sr-only">Detay</span>
               </th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center w-[110px]">{isTr ? 'Durum' : 'Status'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest max-w-[200px]">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{isTr ? 'Döviz' : 'Curr'}</th>
-              <th className="px-3 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{isTr ? 'İşlemler' : 'Actions'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{isTr ? 'Tarih' : 'Date'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{isTr ? 'Fatura No' : 'Invoice No'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center w-[110px]">{isTr ? 'Durum' : 'Status'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest max-w-[200px]">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Matrah' : 'Subtotal'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">{isTr ? 'Döviz' : 'Curr'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'İşlemler' : 'Actions'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -177,13 +177,13 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                       className={`transition-colors group ${
                         lastEditedId === inv.id ? 'bg-indigo-100/50 ring-1 ring-inset ring-indigo-300' :
                         isExpanded ? 'bg-indigo-50/40 border-l-2 border-l-indigo-600' :
-                        isApproved ? 'bg-emerald-50' : 
-                        isQueued ? 'bg-amber-50' : 
-                        isRejected ? 'bg-rose-50' : 
+                        isApproved ? 'bg-emerald-50/50' : 
+                        isQueued ? 'bg-amber-50/50' : 
+                        isRejected ? 'bg-rose-50/50' : 
                         'hover:bg-slate-50'
                       }`}
                     >
-                      <td className="px-3 py-4 text-center">
+                      <td className="px-3 py-2.5 text-center">
                         <input 
                           type="checkbox" 
                           checked={selectedIds.includes(inv.id)}
@@ -193,11 +193,11 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
                         />
                       </td>
-                      <td className="px-2 py-4 text-center">
+                      <td className="px-2 py-2.5 text-center">
                         <button
                           type="button"
                           onClick={() => toggleRow(inv)}
-                          className={`p-1.5 rounded-lg transition-all duration-200 ${
+                          className={`p-1 rounded-lg transition-all duration-200 ${
                             isExpanded 
                               ? 'bg-indigo-600 text-white shadow-xs' 
                               : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
@@ -205,19 +205,19 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           title={isExpanded ? (isTr ? "Ürün Kalemlerini Gizle" : "Hide Items") : (isTr ? "Ürün Kalemlerini Göster" : "Show Items")}
                         >
                           {isRowLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
                           ) : isExpanded ? (
-                            <ChevronDown className="w-4 h-4 transition-transform duration-200" />
+                            <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200" />
                           ) : (
-                            <ChevronRight className="w-4 h-4 transition-transform duration-200" />
+                            <ChevronRight className="w-3.5 h-3.5 transition-transform duration-200" />
                           )}
                         </button>
                       </td>
-                      <td className="px-3 py-4 text-xs font-bold text-slate-500">
+                      <td className="px-3 py-2.5 text-xs font-bold text-slate-600 whitespace-nowrap">
                         {new Date(inv.invoice_date).toLocaleDateString('tr-TR')}
                       </td>
-                      <td className="px-3 py-4">
-                        <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
                           <button
                             type="button"
                             onClick={() => toggleRow(inv)}
@@ -226,41 +226,41 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             #{inv.invoice_number}
                           </button>
                           {(inv.gi_invoice_type === 'IADE' || inv.invoice_type === 'IADE') && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-700 border border-rose-200">
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-black bg-rose-100 text-rose-700 border border-rose-200">
                               - İADE -
                             </span>
                           )}
                           {items && items.length > 0 && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                              <Package className="w-3 h-3 text-slate-400" />
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[8px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                              <Package className="w-2.5 h-2.5 text-slate-400" />
                               {items.length} {isTr ? 'kalem' : 'items'}
                             </span>
                           )}
                         </div>
                         {inv.document_number && (
-                           <div className="text-[10px] text-indigo-600 font-bold tracking-widest mt-0.5">{inv.document_number}</div>
+                           <div className="text-[9px] text-indigo-600 font-bold tracking-widest mt-0.5">{inv.document_number}</div>
                         )}
-                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{inv.payment_method}</div>
+                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{inv.payment_method}</div>
                       </td>
-                      <td className="px-3 py-4 text-center">
-                        <div className="flex justify-center mb-1">
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                        <div className="flex justify-center mb-0.5">
                           {inv.status === 'draft' ? (
-                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
-                              <Clock className="w-3 h-3 text-amber-500 shrink-0" />
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
+                              <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
                               {isTr ? 'TASLAK' : 'DRAFT'}
                             </div>
                           ) : inv.status === 'approved' ? (
-                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
-                              <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0" />
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
+                              <CheckCircle className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
                               {isTr ? 'ONAYLI' : 'APPROVED'}
                             </div>
                           ) : inv.status === 'cancelled' ? (
-                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black tracking-wider bg-rose-50 text-rose-700 border border-rose-200 shadow-xs">
-                              <XCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider bg-rose-50 text-rose-700 border border-rose-200 shadow-xs">
+                              <XCircle className="w-2.5 h-2.5 text-rose-500 shrink-0" />
                               {isTr ? 'İPTAL' : 'CANCELLED'}
                             </div>
                           ) : (
-                            <span className="text-[10px] font-bold text-slate-600">{inv.status}</span>
+                            <span className="text-[9px] font-bold text-slate-600">{inv.status}</span>
                           )}
                         </div>
                         {(() => {
@@ -283,85 +283,74 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           const isEFatura = computedDocType === 'E-FATURA';
 
                           return (
-                            <div className="flex flex-col gap-1 mt-1 font-sans">
-                              <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
+                            <div className="flex flex-col gap-0.5 mt-0.5 font-sans items-center">
+                              <div className={`inline-flex px-1.5 py-0.2 rounded text-[8px] font-bold tracking-widest border w-fit ${
                                 isEFatura ? 'border-purple-200 bg-purple-50 text-purple-700' : 
                                 'border-blue-200 bg-blue-50 text-blue-700'
                               }`}>
                                 {computedDocType}
                               </div>
                               {(inv.integration_status || isApproved || isUnknown) && (
-                                <div className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold tracking-widest border w-fit ${
+                                <div className={`inline-flex px-1.5 py-0.2 rounded text-[8px] font-bold tracking-widest border w-fit ${
                                   isQueued ? 'border-amber-200 bg-amber-50 text-amber-700' :
                                   isApproved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
                                   isRejected ? 'border-rose-200 bg-rose-50 text-rose-700' :
                                   'border-slate-200 bg-slate-100 text-slate-600'
                                 }`}>
-                                  {isQueued ? (isTr ? 'GİB KUYRUĞUNDA' : 'QUEUED') :
-                                   isApproved ? (isTr ? 'GİB ONAYLI' : 'APPROVED') : 
-                                   isRejected ? (isTr ? 'REDDEDİLDİ/İPTAL' : 'REJECTED/CANCELLED') :
-                                   isUnknown ? (inv.document_number ? (isTr ? 'GİB\'E İLETİLDİ' : 'SENT TO GIB') : (isTr ? 'GÖNDERİLMEDİ' : 'NOT SENT')) :
+                                  {isQueued ? (isTr ? 'GİB KUYRUK' : 'QUEUED') :
+                                   isApproved ? (isTr ? 'GİB ONAY' : 'APPROVED') : 
+                                   isRejected ? (isTr ? 'REDDEDİLDİ' : 'REJECTED') :
+                                   isUnknown ? (inv.document_number ? (isTr ? 'GİB\'E GİTTİ' : 'SENT') : (isTr ? 'GÖNDERİLMEDİ' : 'NOT SENT')) :
                                    inv.integration_status}
                                 </div>
                               )}
                               {inv.waybill_number && (
-                                <div className="flex flex-col gap-1.5 mt-1 pt-1 border-t border-slate-100">
-                                  <span className="text-[8px] font-bold tracking-wider text-slate-400 uppercase">
-                                    {isTr ? 'SEVK İRSALİYESİ' : 'WAYBILL'}
-                                  </span>
-                                  <div className="inline-flex px-1.5 py-0.5 rounded text-[9px] font-black tracking-widest border border-indigo-200 bg-indigo-50 text-indigo-700">
+                                <div className="flex flex-col gap-0.5 mt-0.5 pt-0.5 border-t border-slate-100 items-center">
+                                  <div className="inline-flex px-1 py-0.2 rounded text-[8px] font-black tracking-widest border border-indigo-200 bg-indigo-50 text-indigo-700">
                                     {inv.waybill_number}
                                   </div>
-                                  {inv.waybill_status && (
-                                    <div className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold tracking-tight border w-fit ${
-                                      inv.waybill_status === 'SUCCESS' ? 'border-emerald-200 bg-emerald-50 text-emerald-600' :
-                                      inv.waybill_status === 'QUEUED' ? 'border-amber-200 bg-amber-50 text-amber-600' :
-                                      inv.waybill_status === 'ERROR' ? 'border-rose-200 bg-rose-50 text-rose-600' :
-                                      'border-slate-200 bg-slate-50 text-slate-600'
-                                    }`}>
-                                      {inv.waybill_status === 'SUCCESS' ? (isTr ? 'BAŞARILI' : 'SUCCESS') :
-                                       inv.waybill_status === 'QUEUED' ? (isTr ? 'İLETİLİYOR' : 'QUEUED') :
-                                       inv.waybill_status === 'ERROR' ? (isTr ? 'HATA' : 'ERROR') :
-                                       inv.waybill_status}
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </div>
                           );
                         })()}
                       </td>
-                      <td className="px-3 py-4">
-                        <div className="flex items-center gap-2">
-                          {inv.company_id ? <Building2 className="h-3.5 w-3.5 text-indigo-500" /> : <UserIcon className="h-3.5 w-3.5 text-slate-400" />}
-                          <div className="text-sm font-medium text-slate-700">{inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}</div>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1.5">
+                          {inv.company_id ? <Building2 className="h-3.5 w-3.5 text-indigo-500 shrink-0" /> : <UserIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                          <div 
+                            className="text-xs font-semibold text-slate-800 max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate"
+                            title={inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}
+                          >
+                            {inv.customer_name || inv.company_title || inv.sale_customer_name || '-'}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-right">
-                        <div className="text-sm font-medium text-slate-700 font-mono tabular-nums">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        <div className="text-xs font-medium text-slate-700 font-mono tabular-nums">
                           {Number(inv.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-right">
-                        <div className="text-sm font-medium text-slate-600 font-mono tabular-nums">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        <div className="text-xs font-medium text-slate-600 font-mono tabular-nums">
                           {Number(inv.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-right">
-                        <div className="text-sm font-medium text-slate-800 font-mono tabular-nums">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        <div className="text-xs font-bold text-slate-900 font-mono tabular-nums">
                           {Number(inv.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-center text-xs font-bold text-slate-400">
+                      <td className="px-3 py-2.5 text-center text-xs font-bold text-slate-500 whitespace-nowrap">
                         {inv.currency}
                       </td>
-                      <td className="px-3 py-4 text-right">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
                         <div className="flex justify-end gap-1 flex-wrap">
                           {!isPortfolio && branding?.einvoice_settings?.is_active && inv.status !== 'draft' && !isApproved && !isQueued && !isRejected && (
                             <div className="flex gap-1">
                               <button 
                                 onClick={() => handleSendToGIB(inv.id)}
-                                className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                                className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
                                 title={isTr ? "GİB'e Gönder (E-Fatura/Arşiv)" : "Push to Document Integrator (Invoice)"}
                               >
                                 <CloudUpload className="h-4 w-4" />
@@ -369,7 +358,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               {branding?.einvoice_settings?.is_ewaybill_active && (
                                 <button 
                                   onClick={() => handleOpenWaybillModal && handleOpenWaybillModal(inv)}
-                                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                                   title={isTr ? "Sevk İrsaliyesi Oluştur" : "Create Shipment Waybill"}
                                 >
                                   <Truck className="h-4 w-4" />
@@ -380,21 +369,21 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           {!isPortfolio && (isApproved || isQueued) && (
                             <button 
                               onClick={() => handleCancelGIB(inv.id)}
-                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all"
+                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
                               title={isTr ? "E-Arşiv İptal Et" : "Cancel E-Archive Invoice"}
                             >
                               <XCircle className="h-4 w-4" />
                             </button>
                           )}
                           {!isPortfolio && isRejected && (
-                            <div className="p-2 text-rose-500" title={inv.integration_message || (isTr ? "Faturalama hatası / İptal edildi" : "Invoicing error / Cancelled")}>
+                            <div className="p-1.5 text-rose-500" title={inv.integration_message || (isTr ? "Faturalama hatası / İptal edildi" : "Invoicing error / Cancelled")}>
                               <XCircle className="h-4 w-4" />
                             </div>
                           )}
                           {!isPortfolio && isQueued && branding?.einvoice_settings?.is_active && (
                             <button 
                               onClick={() => handleCheckEInvoiceStatus(inv.id)}
-                              className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all"
+                              className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-all"
                               title={isTr ? "GİB Durumunu Sorgula" : "Check Integrator Status"}
                             >
                               <RefreshCw className="h-4 w-4" />
@@ -404,7 +393,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           {!isPortfolio && (
                             <button 
                               onClick={() => handleViewHtml(inv.id)}
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                               title={isTr ? "E-Fatura Görselini Aç" : "View E-Invoice HTML"}
                             >
                               <Eye className="h-4 w-4" />
@@ -414,7 +403,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           {inv.invoice_type === 'marketplace' && handleMarketplaceShip && (
                             <button 
                               onClick={() => handleMarketplaceShip(inv)}
-                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                              className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                               title={isTr ? "Kargo Bildirimi (Pazar Yeri)" : "Marketplace Shipment"}
                             >
                               <Truck className="h-4 w-4" />
@@ -423,27 +412,29 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
 
                           <button 
                             onClick={() => handleEdit(inv.id)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                            title={isTr ? "Düzenle" : "Edit"}
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button 
                             onClick={() => handleViewDetails(inv)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                             title={isTr ? "Sistem Kayıt Detayları" : "Internal System Details"}
                           >
                             <FileSearch className="h-4 w-4" />
                           </button>
                           <button 
                             onClick={() => handleViewDetails(inv, true)}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                             title={isTr ? "Yazdır / PDF" : "Print / PDF"}
                           >
                             <Printer className="h-4 w-4" />
                           </button>
                           <button 
                             onClick={() => handleDelete(inv.id)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            title={isTr ? "Sil" : "Delete"}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

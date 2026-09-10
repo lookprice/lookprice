@@ -21,52 +21,52 @@ export const PurchaseInvoiceStats: React.FC<PurchaseInvoiceStatsProps> = ({
   const currency = branding?.default_currency || 'TRY';
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-        <div className="p-3 bg-indigo-50 rounded-xl">
-          <Percent className="h-6 w-6 text-indigo-600" />
-        </div>
-        <div>
-          <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{isTr ? "KDV TOPLAM" : "TOTAL TAX"}</p>
-          <p className="text-xl font-semibold text-slate-800 tracking-tighter">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider truncate">{isTr ? "KDV TOPLAM" : "TOTAL TAX"}</p>
+          <p className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mt-0.5 truncate">
             {totalDeductibleTax.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
+        <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg shrink-0 ml-2">
+          <Percent className="h-4 w-4" />
+        </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-        <div className="p-3 bg-emerald-50 rounded-xl">
-          <TrendingUp className="h-6 w-6 text-emerald-600" />
-        </div>
-        <div>
-          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{isTr ? "ALIŞ MATRAH" : "PURCHASE MATRAH"}</p>
-          <p className="text-xl font-semibold text-slate-800 tracking-tighter">
+      <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider truncate">{isTr ? "ALIŞ MATRAH" : "PURCHASE MATRAH"}</p>
+          <p className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mt-0.5 truncate">
             {totalPurchaseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
+        <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg shrink-0 ml-2">
+          <TrendingUp className="h-4 w-4" />
+        </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-        <div className="p-3 bg-rose-50 rounded-xl">
-          <CreditCard className="h-6 w-6 text-rose-600" />
-        </div>
-        <div>
-          <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">{isTr ? "GİDERLER" : "EXPENSES"}</p>
-          <p className="text-xl font-semibold text-slate-800 tracking-tighter">
+      <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider truncate">{isTr ? "GİDERLER" : "EXPENSES"}</p>
+          <p className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mt-0.5 truncate">
             {totalExpenseAmount.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
         </div>
+        <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg shrink-0 ml-2">
+          <CreditCard className="h-4 w-4" />
+        </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-        <div className="p-3 bg-slate-950 rounded-xl shadow-lg shadow-slate-200">
-          <Package className="h-6 w-6 text-white" />
-        </div>
-        <div>
-          <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
-          <p className="text-xl font-semibold text-slate-800 tracking-tighter">
+      <div className="bg-white px-3.5 py-2.5 rounded-xl border border-indigo-200/80 shadow-xs flex items-center justify-between bg-gradient-to-br from-white to-indigo-50/30">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider truncate">{isTr ? "GENEL TOPLAM" : "GRAND TOTAL"}</p>
+          <p className="text-sm sm:text-base font-black text-indigo-950 tracking-tight mt-0.5 truncate">
             {totalGrandTotal.toLocaleString(isTr ? 'tr-TR' : 'en-US', { style: 'currency', currency })}
           </p>
+        </div>
+        <div className="p-1.5 bg-indigo-600 text-white rounded-lg shrink-0 ml-2 shadow-xs">
+          <Package className="h-4 w-4" />
         </div>
       </div>
     </div>

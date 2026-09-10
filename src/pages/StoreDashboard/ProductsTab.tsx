@@ -32,7 +32,8 @@ import {
   Zap,
   Sparkles,
   Image as ImageIcon,
-  Cloud
+  Cloud,
+  Barcode
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "@/translations";
@@ -141,6 +142,7 @@ const ProductsTab = ({
   const [bestsellerStateMap, setBestsellerStateMap] = useState<Record<number, boolean>>({});
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isAiMenuModalOpen, setIsAiMenuModalOpen] = useState(false);
+  const [showBarcodeColumn, setShowBarcodeColumn] = useState(true);
 
   const isCafe = isCafeRestaurant || 
     branding?.store_type === 'cafe_restaurant' || 
@@ -523,43 +525,43 @@ const ProductsTab = ({
           </div>
 
           {/* Action icons sitting right next to the title on the right */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {!isViewer && (
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1.5">
                 {isCafe && (
                   <button
                     onClick={() => setIsAiMenuModalOpen(true)}
-                    className="os-btn-secondary p-2.5 sm:p-3 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                    className="os-btn-secondary p-2 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95 shadow-xs flex items-center gap-1.5"
                     title={lang === 'tr' ? "Yapay Zeka ile Menü Oku (Görselden)" : "Scan Menu with AI (From Image)"}
                   >
-                    <Sparkles className="h-4.5 w-4.5 shrink-0" />
+                    <Sparkles className="h-4 w-4 shrink-0" />
                     <span className="text-[11px] font-bold hidden md:inline whitespace-nowrap">
-                      {lang === 'tr' ? "Menü Fotoğrafı Oku" : "AI Menu Scan"}
+                      {lang === 'tr' ? "Menü Tara" : "AI Menu"}
                     </span>
                   </button>
                 )}
                 <button 
                   onClick={onImport}
-                  className="os-btn-secondary p-2.5 sm:p-3 text-slate-500 hover:text-indigo-600 rounded-xl transition-all border border-slate-200 hover:border-indigo-200 active:scale-95 shadow-xs"
+                  className="os-btn-secondary p-2 text-slate-500 hover:text-indigo-600 rounded-lg transition-all border border-slate-200 hover:border-indigo-200 active:scale-95 shadow-xs"
                   title={t.importBtn}
                 >
-                  <Upload className="h-4.5 w-4.5" />
+                  <Upload className="h-4 w-4" />
                 </button>
                 <button 
                   onClick={onAddNew}
-                  className="os-btn-primary p-2.5 sm:p-3 text-white rounded-xl transition-all border border-indigo-600 hover:bg-indigo-700 active:scale-95 shadow-xs"
+                  className="os-btn-primary p-2 text-white rounded-lg transition-all border border-indigo-600 hover:bg-indigo-700 active:scale-95 shadow-xs"
                   title={t.addEntry}
                 >
-                  <Plus className="h-4.5 w-4.5" />
+                  <Plus className="h-4 w-4" />
                 </button>
 
                 {selectedIds.length > 0 && (
                   <button 
                     onClick={handleBulkDeleteSelected}
-                    className="p-2.5 sm:p-3 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl transition-all border border-rose-200 hover:border-rose-700 active:scale-95 font-black flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300 shadow-xs"
+                    className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-200 hover:border-rose-700 active:scale-95 font-bold flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300 shadow-xs text-xs"
                     title={lang === 'tr' ? "Seçilenleri Sil" : "Delete Selected"}
                   >
-                    <Trash2 className="h-4.5 w-4.5" />
+                    <Trash2 className="h-4 w-4" />
                     <span className="text-[10px] tracking-tight uppercase hidden xs:inline sm:inline">
                       {lang === 'tr' ? `SİL (${selectedIds.length})` : `DEL (${selectedIds.length})`}
                     </span>
@@ -569,10 +571,10 @@ const ProductsTab = ({
             )}
             <button 
               onClick={onExportReport}
-              className="os-btn-secondary p-2.5 sm:p-3 text-slate-500 hover:text-indigo-600 rounded-xl transition-all border border-slate-200 hover:border-indigo-200 active:scale-95 shadow-xs"
+              className="os-btn-secondary p-2 text-slate-500 hover:text-indigo-600 rounded-lg transition-all border border-slate-200 hover:border-indigo-200 active:scale-95 shadow-xs"
               title={t.report}
             >
-              <Download className="h-4.5 w-4.5" />
+              <Download className="h-4 w-4" />
             </button>
 
             {!isViewer && isShopLp && (
@@ -582,20 +584,20 @@ const ProductsTab = ({
                   setMarketplaceModalStatus('all');
                   setShowMarketplaceListingsModal(true);
                 }}
-                className="os-btn-secondary p-2.5 sm:p-3 text-orange-600 hover:text-orange-700 bg-orange-50/90 hover:bg-orange-100 rounded-xl transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                className="os-btn-secondary p-2 text-orange-600 hover:text-orange-700 bg-orange-50/90 hover:bg-orange-100 rounded-lg transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
                 title={lang === 'tr' ? "Pazaryeri İlan Takibi & Canlı İlanlar" : "Marketplace Listings & Monitoring"}
               >
-                <Store className="h-4.5 w-4.5 text-orange-600 shrink-0" />
+                <Store className="h-4 w-4 text-orange-600 shrink-0" />
                 <span className="text-[11px] font-bold text-orange-950 hidden md:inline whitespace-nowrap">
-                  {lang === 'tr' ? "Pazaryeri İlanları" : "Marketplace Listings"}
+                  {lang === 'tr' ? "Pazaryeri" : "Marketplace"}
                 </span>
                 {hbActiveCount > 0 && (
-                  <span className="text-[9px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded-full" title={lang === 'tr' ? `${hbActiveCount} ürün Hepsiburada'da yayında` : `${hbActiveCount} products on HB`}>
+                  <span className="text-[9px] font-bold bg-emerald-600 text-white px-1.5 py-0.2 rounded-full" title={lang === 'tr' ? `${hbActiveCount} ürün Hepsiburada'da yayında` : `${hbActiveCount} products on HB`}>
                     {hbActiveCount}
                   </span>
                 )}
                 {marketplaceErrorCount > 0 && (
-                  <span className="text-[9px] font-black bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse" title={lang === 'tr' ? `${marketplaceErrorCount} ürün pazaryeri hatası aldı` : `${marketplaceErrorCount} marketplace errors`}>
+                  <span className="text-[9px] font-bold bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse" title={lang === 'tr' ? `${marketplaceErrorCount} ürün pazaryeri hatası aldı` : `${marketplaceErrorCount} marketplace errors`}>
                     {marketplaceErrorCount}
                   </span>
                 )}
@@ -605,14 +607,14 @@ const ProductsTab = ({
             {!isViewer && isShopLp && (
               <button 
                 onClick={() => setShowBulkPublishModal(true)}
-                className="os-btn-secondary p-2.5 sm:p-3 text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-xl transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                className="os-btn-secondary p-2 text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
                 title={lang === 'tr' ? "Hepsiburada'da Toplu İlan Aç & Satışa Gönder" : "Bulk Publish to Hepsiburada"}
               >
-                <UploadCloud className="h-4.5 w-4.5 text-orange-600 shrink-0" />
+                <UploadCloud className="h-4 w-4 text-orange-600 shrink-0" />
                 <span className="text-[11px] font-bold text-orange-950 hidden md:inline whitespace-nowrap">
                   {selectedIds.length > 0 
-                    ? (lang === 'tr' ? `HB'de İlana Aç (${selectedIds.length})` : `Publish HB (${selectedIds.length})`)
-                    : (lang === 'tr' ? "HB Toplu İlan Aç" : "Bulk Publish HB")}
+                    ? (lang === 'tr' ? `HB (${selectedIds.length})` : `HB (${selectedIds.length})`)
+                    : (lang === 'tr' ? "HB İlan" : "HB Publish")}
                 </span>
               </button>
             )}
@@ -620,12 +622,12 @@ const ProductsTab = ({
             {!isViewer && (
               <button 
                 onClick={() => setIsMergeModalOpen(true)}
-                className="os-btn-secondary p-2.5 sm:p-3 text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-all border border-amber-200 hover:border-amber-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                className="os-btn-secondary p-2 text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-all border border-amber-200 hover:border-amber-300 active:scale-95 shadow-xs flex items-center gap-1.5"
                 title={lang === 'tr' ? "Mükerrer Ürünleri Birleştir / Envanter Temizliği" : "Merge Duplicate Products / Clean Inventory"}
               >
-                <Sparkles className="h-4.5 w-4.5 text-amber-600 shrink-0" />
+                <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
                 <span className="text-[11px] font-bold text-amber-900 hidden lg:inline whitespace-nowrap">
-                  {lang === 'tr' ? "Envanter Temizliği" : "Clean Inventory"}
+                  {lang === 'tr' ? "Temizle" : "Clean"}
                 </span>
               </button>
             )}
@@ -649,25 +651,25 @@ const ProductsTab = ({
                   }
                 }}
                 disabled={isBackupLoading}
-                className="os-btn-secondary p-2.5 sm:p-3 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95 shadow-xs"
+                className="os-btn-secondary p-2 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all border border-emerald-200 hover:border-emerald-300 active:scale-95 shadow-xs"
                 title={lang === 'tr' ? "Google Drive'a Yedekle" : "Backup to Google Drive"}
               >
-                <Cloud className="h-4.5 w-4.5 text-emerald-600" />
+                <Cloud className="h-4 w-4 text-emerald-600" />
               </button>
             )}
           </div>
         </div>
 
         {/* Row 2: Search Bar & Filters */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
           {/* Search Input: FULL WIDTH on mobile, flex-1 on desktop - no squishing! */}
           <div className="relative w-full sm:flex-1 group min-w-0">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
             <input 
               type="text" 
               placeholder={isCafe ? (lang === 'tr' ? "Ürün / Menü adı ile ara..." : (t.searchProduct || "Search menu product...")) : (lang === 'tr' ? "Ürün adı veya barkod ile ara..." : (t.searchProduct || "Search product name or barcode..."))}
-              className="os-input w-full pr-10 py-2.5 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 shadow-xs"
-              style={{ paddingLeft: '2.75rem' }}
+              className="os-input w-full pr-8 py-1.5 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 shadow-xs"
+              style={{ paddingLeft: '2.25rem' }}
               value={search}
               onChange={(e) => { 
                 setSearch(e.target.value);
@@ -677,21 +679,21 @@ const ProductsTab = ({
             {search && (
               <button 
                 onClick={() => { setSearch(''); setPage(1); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
                 title="Temizle"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
 
-          {/* Filters: Category & 0 Stock Checkbox */}
-          <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-start">
-            <div className="relative flex-1 sm:w-48 sm:flex-initial shrink-0 group min-w-[130px]">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
+          {/* Filters: Category & 0 Stock Checkbox & Barcode Toggle */}
+          <div className="flex items-center gap-2 shrink-0 justify-between sm:justify-start">
+            <div className="relative flex-1 sm:w-44 sm:flex-initial shrink-0 group min-w-[120px]">
+              <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
               <select 
-                className="os-input w-full pr-8 py-2.5 text-xs font-bold appearance-none cursor-pointer truncate shadow-xs"
-                style={{ paddingLeft: '2.25rem' }}
+                className="os-input w-full pr-7 py-1.5 text-xs font-medium appearance-none cursor-pointer truncate shadow-xs"
+                style={{ paddingLeft: '2rem' }}
                 value={selectedCategory}
                 onChange={(e) => {
                   setSelectedCategory(e.target.value);
@@ -714,30 +716,46 @@ const ProductsTab = ({
                   setSelectedCategory(selectedCategory === 'bestsellers' ? 'all' : 'bestsellers');
                   setPage(1);
                 }}
-                className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shrink-0 border cursor-pointer select-none active:scale-95 ${
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all shrink-0 border cursor-pointer select-none active:scale-95 ${
                   selectedCategory === 'bestsellers'
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-xs'
                     : 'bg-orange-50/80 text-orange-800 hover:bg-orange-100 border-orange-200/80'
                 }`}
                 title={lang === 'tr' ? 'En Çok Satan Ürünleri Filtrele' : 'Filter Bestsellers'}
               >
-                <Flame className={`w-4 h-4 ${selectedCategory === 'bestsellers' ? 'fill-white text-white animate-bounce' : 'text-orange-500 fill-orange-500'}`} />
-                <span className="hidden md:inline">{lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</span>
-                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${selectedCategory === 'bestsellers' ? 'bg-white/20 text-white' : 'bg-orange-200/60 text-orange-900'}`}>
+                <Flame className={`w-3.5 h-3.5 ${selectedCategory === 'bestsellers' ? 'fill-white text-white' : 'text-orange-500 fill-orange-500'}`} />
+                <span className="hidden md:inline">{lang === 'tr' ? 'Çok Satan' : 'Bestseller'}</span>
+                <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${selectedCategory === 'bestsellers' ? 'bg-white/20 text-white' : 'bg-orange-200/60 text-orange-900'}`}>
                   {products.filter(p => getIsBestseller(p)).length}
                 </span>
               </button>
             )}
 
-            <label className="flex items-center cursor-pointer group shrink-0 select-none px-2 py-1.5 rounded-xl hover:bg-slate-200/60 transition-colors">
+            {!isCafe && (
+              <button
+                type="button"
+                onClick={() => setShowBarcodeColumn(!showBarcodeColumn)}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border shrink-0 flex items-center gap-1 cursor-pointer select-none ${
+                  showBarcodeColumn
+                    ? 'bg-slate-100 text-slate-700 border-slate-300 shadow-xs'
+                    : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                }`}
+                title={showBarcodeColumn ? (lang === 'tr' ? 'Barkod Sütununu Gizle' : 'Hide Barcode') : (lang === 'tr' ? 'Barkod Sütununu Göster' : 'Show Barcode')}
+              >
+                <Barcode className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">{lang === 'tr' ? 'Barkod' : 'Barcode'}</span>
+              </button>
+            )}
+
+            <label className="flex items-center cursor-pointer group shrink-0 select-none px-2 py-1 rounded-lg hover:bg-slate-200/60 transition-colors">
               <input 
                 type="checkbox" 
-                className="peer h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                className="peer h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
                 checked={includeZeroStock}
                 onChange={(e) => setIncludeZeroStock(e.target.checked)}
               />
-              <span className="ml-2 text-xs font-bold text-slate-600 group-hover:text-slate-800 transition-colors whitespace-nowrap">
-                {lang === 'tr' ? '0 Stokları Göster' : 'Show Zero Stock'}
+              <span className="ml-1.5 text-xs font-medium text-slate-600 group-hover:text-slate-800 transition-colors whitespace-nowrap">
+                {lang === 'tr' ? '0 Stok' : '0 Stock'}
               </span>
             </label>
           </div>
@@ -849,72 +867,71 @@ const ProductsTab = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
+              <tr className="bg-slate-50/80 border-b border-slate-200">
                 {!isViewer && (
-                  <th className="pl-6 py-5 w-10">
+                  <th className="pl-3 py-2 w-8">
                     <input 
                       type="checkbox" 
-                      className="h-4 w-4 border-2 border-slate-300 rounded-md text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      className="h-3.5 w-3.5 border-2 border-slate-300 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       checked={paginatedProducts.length > 0 && paginatedProducts.every(p => selectedIds.includes(p.id))}
                       onChange={toggleSelectAll}
                     />
                   </th>
                 )}
-                {!isCafe && (
-                  <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.barcode}</th>
+                {!isCafe && showBarcodeColumn && (
+                  <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.barcode}</th>
                 )}
-                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.productName}</th>
-                {showStoreName && <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.branch}</th>}
-                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.price}</th>
-                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.cost}</th>
-                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.stock}</th>
-                <th className="px-3.5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-right">{t.actions}</th>
+                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.productName}</th>
+                {showStoreName && <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.branch}</th>}
+                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.price}</th>
+                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.cost}</th>
+                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.stock}</th>
+                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {(loading && products.length === 0) ? (
                 <tr>
-                  <td colSpan={isCafe ? (showStoreName ? 8 : 7) : (showStoreName ? 9 : 8)} className="px-3.5 py-12 text-center">
-                    <div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full mx-auto mb-3 shadow-2xl shadow-slate-200"></div>
-                    <p className="text-slate-500 text-xs font-black uppercase tracking-[0.2em]">{t.loading}</p>
+                  <td colSpan={isCafe ? (showStoreName ? 7 : 6) : (showBarcodeColumn ? (showStoreName ? 8 : 7) : (showStoreName ? 7 : 6))} className="px-3.5 py-8 text-center">
+                    <div className="animate-spin h-6 w-6 border-2 border-slate-900 border-t-transparent rounded-full mx-auto mb-2 shadow-xs"></div>
+                    <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider">{t.loading}</p>
                   </td>
                 </tr>
               ) : paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={isCafe ? (showStoreName ? 8 : 7) : (showStoreName ? 9 : 8)} className="px-3.5 py-16 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic">
+                  <td colSpan={isCafe ? (showStoreName ? 7 : 6) : (showBarcodeColumn ? (showStoreName ? 8 : 7) : (showStoreName ? 7 : 6))} className="px-3.5 py-10 text-center text-slate-400 text-[11px] font-bold uppercase tracking-wider italic">
                     {t.noProducts}
                   </td>
                 </tr>
               ) : (
                 paginatedProducts.map((p, pIdx) => {
-                  const isNearBottom = pIdx >= paginatedProducts.length - 4;
                   return (
-                      <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors group cursor-default ${selectedIds.includes(p.id) ? 'bg-indigo-50/30' : (Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') ? 'bg-amber-50/50' : '')}`}>
+                      <tr key={p.id} className={`hover:bg-slate-50/70 transition-colors group cursor-default ${selectedIds.includes(p.id) ? 'bg-indigo-50/30' : (Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') ? 'bg-amber-50/50' : '')}`}>
                         {!isViewer && (
-                          <td className="pl-3.5 py-2">
+                          <td className="pl-3 py-1.5">
                             <input 
                               type="checkbox" 
-                              className="h-4 w-4 border-2 border-slate-300 rounded-md text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              className="h-3.5 w-3.5 border-2 border-slate-300 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                               checked={selectedIds.includes(p.id)}
                               onChange={() => toggleSelect(p.id)}
                             />
                           </td>
                         )}
-                        {!isCafe && (
-                          <td className="px-3.5 py-2">
-                            <span className="font-mono text-[10px] bg-white px-2 py-0.5 rounded-lg text-slate-600 border border-slate-200 font-bold tracking-widest shadow-2xs">
-                              {p.barcode}
+                        {!isCafe && showBarcodeColumn && (
+                          <td className="px-2.5 py-1.5 whitespace-nowrap">
+                            <span className="font-mono text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200 font-medium">
+                              {p.barcode || '-'}
                             </span>
                           </td>
                         )}
-                        <td className="px-3.5 py-2">
-                          <div className="flex items-center gap-4">
-                            <div className="relative group shrink-0">
+                        <td className="px-2.5 py-1.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="relative group/img shrink-0">
                               {p.image_url ? (
                                 <img 
                                   src={p.image_url} 
                                   alt={p.name} 
-                                  className="w-12 h-12 rounded-2xl object-contain p-2 bg-white border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300"
+                                  className="w-8 h-8 rounded-lg object-contain p-0.5 bg-white border border-slate-200 shadow-2xs"
                                   referrerPolicy="no-referrer"
                                   onError={(e) => {
                                     const target = e.currentTarget;
@@ -927,41 +944,40 @@ const ProductsTab = ({
                                   }}
                                 />
                               ) : (
-                                <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                                  <Package className="w-6 h-6 text-slate-300" />
+                                <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200">
+                                  <Package className="w-4 h-4 text-slate-400" />
                                   {!isViewer && (
                                     <button 
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleAutoFindImages({ id: p.id });
                                       }}
-                                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl"
+                                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity rounded-lg"
                                       title={lang === 'tr' ? 'Resim bul' : 'Find image'}
                                     >
-                                      <Sparkles className="h-4 w-4 text-white" />
+                                      <Sparkles className="h-3 w-3 text-white" />
                                     </button>
                                   )}
                                 </div>
                               )}
-                              <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/5 pointer-events-none" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className="text-[13px] font-black text-slate-900 truncate max-w-[150px] md:max-w-[200px] lg:max-w-[250px] leading-none" title={p.name}>
-                                  {p.name.length > 40 ? p.name.substring(0, 40) + '...' : p.name}
+                              <div className="flex items-center gap-1.5">
+                                <div className="text-xs font-semibold text-slate-900 truncate max-w-[180px] sm:max-w-[240px] md:max-w-[320px] leading-tight" title={p.name}>
+                                  {p.name}
                                 </div>
                                 {p.description && (
-                                  <div className="group/desc relative hover:z-[60]">
-                                    <div className="p-1 text-indigo-500 bg-indigo-50 rounded-lg cursor-help">
+                                  <div className="group/desc relative hover:z-[60] shrink-0">
+                                    <div className="p-0.5 text-indigo-500 hover:bg-indigo-50 rounded cursor-help">
                                       <FileText className="h-3 w-3" />
                                     </div>
-                                    <div className="invisible group-hover/desc:visible absolute left-0 top-full mt-2 w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl z-50 text-[11px] text-slate-600 leading-relaxed max-h-48 overflow-y-auto">
+                                    <div className="invisible group-hover/desc:visible absolute left-0 top-full mt-1 w-64 p-2.5 bg-white border border-slate-200 rounded-lg shadow-lg z-50 text-[11px] text-slate-600 leading-relaxed max-h-40 overflow-y-auto">
                                       {p.description}
                                     </div>
                                   </div>
                                 )}
                               </div>
-                              <div className="flex flex-wrap items-center gap-1.5">
+                              <div className="flex flex-wrap items-center gap-1 mt-0.5">
                                 {(() => {
                                   if (!p.updated_at) return null;
                                   const date = new Date(p.updated_at);
@@ -969,8 +985,7 @@ const ProductsTab = ({
                                   const diffDays = (now.getTime() - date.getTime()) / (1000 * 3600 * 24);
                                   if (diffDays < 3) {
                                     return (
-                                      <span className="text-[8px] font-black text-white bg-indigo-600 border border-indigo-700 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm animate-pulse">
-                                        <Zap className="h-2.5 w-2.5" />
+                                      <span className="text-[8px] font-bold text-white bg-indigo-600 px-1 py-0.2 rounded uppercase">
                                         {lang === 'tr' ? 'YENİ' : 'NEW'}
                                       </span>
                                     );
@@ -983,12 +998,11 @@ const ProductsTab = ({
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
-                                    className="text-[8px] font-black text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all group/hblink"
-                                    title={lang === 'tr' ? "Hepsiburada'da Canlı İlana Git (Yeni Sekme)" : "Open Live on Hepsiburada"}
+                                    className="text-[8px] font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5"
+                                    title={lang === 'tr' ? "Hepsiburada Canlı İlan" : "HB Live"}
                                   >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 group-hover/hblink:scale-125 transition-transform"></span>
-                                    HB SATIŞTA
-                                    <ExternalLink className="w-2.5 h-2.5 text-orange-600 opacity-70 group-hover/hblink:opacity-100" />
+                                    <span className="w-1 h-1 rounded-full bg-orange-500"></span>
+                                    HB
                                   </a>
                                 )}
                                 {isShopLp && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
@@ -1000,96 +1014,42 @@ const ProductsTab = ({
                                       setMarketplaceModalStatus('error');
                                       setShowMarketplaceListingsModal(true);
                                     }}
-                                    className="text-[8px] font-black text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all cursor-pointer"
-                                    title={`Hepsiburada Hatası: ${p.hepsiburada_last_error} - Tıklayarak Detayı Gör`}
+                                    className="text-[8px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5 cursor-pointer"
+                                    title={`Hepsiburada Hatası: ${p.hepsiburada_last_error}`}
                                   >
                                     <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
-                                    HB HATASI
+                                    HB Hata
                                   </button>
                                 )}
                                 {isShopLp && p.is_trendyol_active && (
-                                  <a
-                                    href={`https://www.trendyol.com/sr?q=${encodeURIComponent(p.barcode || p.name)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-[8px] font-black text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all"
-                                    title="Trendyol İlanına Git"
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-                                    TY SATIŞTA
-                                    <ExternalLink className="w-2.5 h-2.5 text-amber-700" />
-                                  </a>
+                                  <span className="text-[8px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded uppercase">
+                                    TY
+                                  </span>
                                 )}
                                 {isShopLp && p.is_n11_active && (
-                                  <a
-                                    href={`https://www.n11.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-[8px] font-black text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all"
-                                    title="N11 İlanına Git"
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
-                                    N11 SATIŞTA
-                                    <ExternalLink className="w-2.5 h-2.5 text-red-700" />
-                                  </a>
-                                )}
-                                {isShopLp && p.is_pazarama_active && (
-                                  <a
-                                    href={`https://www.pazarama.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-[8px] font-black text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all"
-                                    title="Pazarama İlanına Git"
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                                    PAZARAMA SATIŞTA
-                                    <ExternalLink className="w-2.5 h-2.5 text-blue-700" />
-                                  </a>
+                                  <span className="text-[8px] font-bold text-red-800 bg-red-50 border border-red-200 px-1 py-0.2 rounded uppercase">
+                                    N11
+                                  </span>
                                 )}
                                 {p.category && (
-                                  <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none">
+                                  <span className="text-[9px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
                                     {p.category}
                                   </span>
                                 )}
-                                {p.sub_category && (
-                                  <span className="text-[9px] font-black text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none">
-                                    {p.sub_category}
-                                  </span>
-                                )}
                                 {p.brand && (
-                                  <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest bg-white">
+                                  <span className="text-[9px] font-medium text-slate-400 bg-white border border-slate-200 px-1 py-0.2 rounded">
                                     {p.brand}
                                   </span>
                                 )}
-                                {p.product_type === 'service' && (
-                                  <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
-                                    SERV
-                                  </span>
-                                )}
                                 {isCafe && getIsBestseller(p) && (
-                                  <span className="text-[9px] font-black text-white bg-gradient-to-r from-orange-500 to-amber-500 border border-orange-400 px-2 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm shadow-orange-500/20 animate-pulse" title={lang === 'tr' ? 'En Çok Satan Ürün (Dijital Menüde Öne Çıkarılır)' : 'Bestseller Product'}>
-                                    <Flame className="h-3 w-3 fill-white text-white" />
-                                    {lang === 'tr' ? 'EN ÇOK SATAN' : 'BESTSELLER'}
+                                  <span className="text-[8px] font-bold text-white bg-orange-500 px-1.5 py-0.2 rounded uppercase inline-flex items-center gap-0.5">
+                                    <Flame className="h-2.5 w-2.5 fill-white text-white" />
+                                    {lang === 'tr' ? 'ÇOK SATAN' : 'BESTSELLER'}
                                   </span>
                                 )}
                                 {p.is_web_sale === false && (
-                                  <span className="text-[8px] font-black text-rose-500 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
-                                    {lang === 'tr' ? 'ÇEVRİM DIŞI' : 'OFFLINE'}
-                                  </span>
-                                )}
-                                {p.is_pazarama_active && (
-                                  <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm">
-                                    <CheckCircle2 className="h-2.5 w-2.5" />
-                                    PAZARAMA
-                                  </span>
-                                )}
-                                {Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') && (
-                                  <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-sm">
-                                    <AlertTriangle className="h-2.5 w-2.5" />
-                                    {lang === 'tr' ? 'YENİ (Fat.)' : 'NEW (Inv.)'}
+                                  <span className="text-[8px] font-bold text-rose-500 bg-rose-50 border border-rose-100 px-1 py-0.2 rounded uppercase">
+                                    {lang === 'tr' ? 'KAPALI' : 'OFFLINE'}
                                   </span>
                                 )}
                               </div>
@@ -1097,13 +1057,13 @@ const ProductsTab = ({
                           </div>
                         </td>
                     {showStoreName && (
-                      <td className="px-6 py-4">
-                        <span className="text-[9px] font-black text-slate-500 bg-slate-100/50 px-2.5 py-1.5 rounded-xl border border-slate-200 uppercase tracking-widest">
+                      <td className="px-2.5 py-1.5 whitespace-nowrap">
+                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                           {p.store_name}
                         </span>
                       </td>
                     )}
-                    <td className="px-6 py-4">
+                    <td className="px-2.5 py-1.5 whitespace-nowrap">
                       {(() => {
                         let parsedVars: any[] = [];
                         if (p.variants) {
@@ -1122,50 +1082,50 @@ const ProductsTab = ({
                           const maxP = Math.max(...varPrices);
                           return (
                             <div className="flex flex-col">
-                              <span className="text-[14px] font-black text-slate-900 mono-data tracking-tight">
+                              <span className="text-xs font-bold text-slate-900 tabular-nums">
                                 {minP === maxP
                                   ? minP.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                                   : `${minP.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - ${maxP.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                 }
-                                <span className="text-[11px] text-slate-400 font-bold ml-1 tracking-normal">{(p.currency || 'TRY').substring(0, 3)}</span>
+                                <span className="text-[10px] text-slate-400 font-medium ml-1">{(p.currency || 'TRY').substring(0, 3)}</span>
                               </span>
-                              <span className="text-[9px] font-extrabold text-indigo-600 uppercase tracking-wider mt-0.5">
-                                {lang === 'tr' ? `${parsedVars.length} Varyant Fiyatı` : `${parsedVars.length} Variants`}
+                              <span className="text-[8px] font-semibold text-indigo-600">
+                                {lang === 'tr' ? `${parsedVars.length} Varyant` : `${parsedVars.length} Vars`}
                               </span>
                             </div>
                           );
                         }
                         return (
-                          <span className="text-[15px] font-black text-slate-900 mono-data tracking-tighter">
-                            {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[11px] text-slate-400 font-bold ml-1 tracking-normal">{(p.currency || 'TRY').substring(0, 3)}</span>
+                          <span className="text-xs font-bold text-slate-900 tabular-nums">
+                            {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.currency || 'TRY').substring(0, 3)}</span>
                           </span>
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-2.5 py-1.5 whitespace-nowrap">
                       {p.cost_price > 0 ? (
                         <div className="flex flex-col">
-                          <span className="text-[13px] font-black text-slate-600 mono-data">
-                            {Number(p.cost_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-bold ml-1">{(p.cost_currency || 'TRY').substring(0, 3)}</span>
+                          <span className="text-xs font-medium text-slate-600 tabular-nums">
+                            {Number(p.cost_price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 ml-0.5">{(p.cost_currency || 'TRY').substring(0, 3)}</span>
                           </span>
                           {(() => {
                             const profit = calculateProfitMargin(p);
                             if (!profit) return null;
                             const isLoss = profit.margin < 0;
                             return (
-                              <span className={`text-[9px] font-black uppercase tracking-widest mt-0.5 ${isLoss ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                {isLoss ? (lang === 'tr' ? 'DÜŞÜK MARJ' : 'LOW MARGIN') : (lang === 'tr' ? `%${profit.margin.toFixed(0)} KÂR` : `+${profit.margin.toFixed(0)}% PROFIT`)}
+                              <span className={`text-[8px] font-bold uppercase ${isLoss ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                {isLoss ? (lang === 'tr' ? 'DÜŞÜK' : 'LOW') : `%${profit.margin.toFixed(0)} KÂR`}
                               </span>
                             );
                           })()}
                         </div>
                       ) : (
-                        <span className="text-[10px] font-black text-slate-300 uppercase letter-wider">{lang === 'tr' ? 'MALİYET BİLGİSİ YOK' : 'NO COST DATA'}</span>
+                        <span className="text-[10px] text-slate-300">-</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-2.5 py-1.5 whitespace-nowrap">
                       {p.product_type === 'service' ? (
-                        <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-2 py-1.5 rounded-xl uppercase tracking-widest leading-none">{lang === 'tr' ? 'DİJİTAL / HİZMET' : 'VIRTUAL / SERVICE'}</span>
+                        <span className="text-[8px] font-medium text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded uppercase">{lang === 'tr' ? 'HİZMET' : 'SRV'}</span>
                       ) : (() => {
                         let vars: any[] = [];
                         if (p.variants) {
@@ -1182,84 +1142,62 @@ const ProductsTab = ({
                         const isLowStock = effectiveStock <= Number(p.min_stock_level || 0);
 
                         return (
-                          <div className="flex flex-col">
-                            <div className="flex items-center space-x-3">
-                              <span className={`text-[15px] font-black mono-data ${isLowStock ? 'text-rose-600' : 'text-slate-900'}`}>
-                                {Math.floor(effectiveStock)}
-                              </span>
-                              {isLowStock && (
-                                <div className="flex items-center px-2 py-1 bg-rose-50 text-[8px] font-black text-rose-600 border border-rose-100 rounded-lg uppercase tracking-[0.15em] animate-pulse">
-                                  {lang === 'tr' ? 'DÜŞÜK STOK' : 'LOW STOCK'}
-                                </div>
-                              )}
-                            </div>
-                            {hasVariants && (
-                              <span className="text-[9px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-md mt-1 inline-block w-fit">
-                                {vars.length} {lang === 'tr' ? 'Varyant' : 'Variants'}
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-bold tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
+                              {Math.floor(effectiveStock)}
+                            </span>
+                            {isLowStock && (
+                              <span className="px-1 py-0.2 bg-rose-50 text-[8px] font-bold text-rose-600 border border-rose-100 rounded uppercase">
+                                !
                               </span>
                             )}
                           </div>
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
                       {!isViewer && (
-                        <div className="flex justify-end items-center gap-1">
-
-
-                          {isShopLp && p.is_hepsiburada_active && (
-                            <a 
-                              href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-2.5 text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-xl transition-all border border-orange-200 hover:border-orange-300 active:scale-90 flex items-center justify-center"
-                              title={lang === 'tr' ? "Hepsiburada Canlı İlanına Git (Yeni Sekme)" : "Open Live on Hepsiburada"}
-                            >
-                              <ExternalLink className="h-4.5 w-4.5" />
-                            </a>
-                          )}
-
+                        <div className="flex justify-end items-center gap-0.5">
                           {isShopLp && (
                             <button 
                               onClick={(e) => handlePublishToHepsiburada(p, e)}
                               disabled={publishingId === p.id}
-                              className={`p-2.5 rounded-xl transition-all border active:scale-90 flex items-center justify-center ${
+                              className={`p-1.5 rounded-md transition-all border active:scale-90 flex items-center justify-center ${
                                 p.is_hepsiburada_active
-                                  ? "text-orange-600 bg-orange-50 hover:bg-orange-100 border-orange-200 hover:border-orange-300"
-                                  : "text-slate-400 hover:text-orange-600 hover:bg-orange-50 border-transparent hover:border-orange-200"
+                                  ? "text-orange-600 bg-orange-50 hover:bg-orange-100 border-orange-200"
+                                  : "text-slate-400 hover:text-orange-600 hover:bg-orange-50 border-transparent"
                               }`}
                               title={
                                 p.is_hepsiburada_active 
-                                  ? (lang === 'tr' ? "Hepsiburada'da Yayında - Güncelle" : "Active on HB - Update")
-                                  : (lang === 'tr' ? "Hepsiburada'da İlana Aç / Satışa Gönder" : "Publish to Hepsiburada")
+                                  ? (lang === 'tr' ? "HB Yayında - Güncelle" : "Active on HB - Update")
+                                  : (lang === 'tr' ? "HB'de İlana Aç" : "Publish to HB")
                               }
                             >
-                              <UploadCloud className="h-4.5 w-4.5" />
+                              <UploadCloud className="h-3.5 w-3.5" />
                             </button>
                           )}
 
                           <button 
                             onClick={() => setSelectedProduct(p)}
-                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100 active:scale-90"
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
                             title={t.movementHistory}
                           >
-                            <History className="h-4.5 w-4.5" />
+                            <History className="h-3.5 w-3.5" />
                           </button>
                           <button 
                             onClick={() => setRecipeProduct(p)}
-                            className={`p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all border border-transparent hover:border-amber-100 active:scale-90 ${!isCafeRestaurant ? "hidden" : ""}`}
+                            className={`p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all ${!isCafeRestaurant ? "hidden" : ""}`}
                             title={lang === "tr" ? "Ürün Reçetesi" : "Product Recipe"}
                           >
-                            <Sparkles className="h-4.5 w-4.5" />
+                            <Sparkles className="h-3.5 w-3.5" />
                           </button>
                           {!isCafeRestaurant && (
                             <button 
                               onClick={() => setSharingProduct(p)}
-                              className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100 active:scale-90"
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
                               title={lang === "tr" ? "Sosyal Medya Afişi" : "Social Media Poster"}
                             >
-                              <Share2 className="h-4.5 w-4.5" />
+                              <Share2 className="h-3.5 w-3.5" />
                             </button>
                           )}
                           {isCafe && (
@@ -1274,8 +1212,8 @@ const ProductsTab = ({
                                 try {
                                   await api.toggleBestsellerProduct(p.id, currentStoreId);
                                   toast.success(nextVal 
-                                    ? (lang === "tr" ? `"${p.name}" En Çok Satanlar listesine eklendi 🔥` : `"${p.name}" marked as Bestseller 🔥`)
-                                    : (lang === "tr" ? `"${p.name}" En Çok Satanlar listesinden çıkarıldı` : `"${p.name}" removed from Bestsellers`)
+                                    ? (lang === "tr" ? `"${p.name}" Çok Satanlara eklendi 🔥` : `"${p.name}" marked as Bestseller 🔥`)
+                                    : (lang === "tr" ? `"${p.name}" Çok Satanlardan çıkarıldı` : `"${p.name}" removed from Bestsellers`)
                                   );
                                 } catch (err: any) {
                                   p.is_bestseller = currentVal;
@@ -1283,27 +1221,23 @@ const ProductsTab = ({
                                   toast.error(err.message || "Hata oluştu.");
                                 }
                               }}
-                              className={`px-3 py-2 rounded-xl transition-all border active:scale-95 flex items-center gap-1.5 cursor-pointer select-none ${
+                              className={`p-1.5 rounded-md transition-all border active:scale-95 flex items-center cursor-pointer ${
                                 getIsBestseller(p)
-                                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-md shadow-orange-500/30 ring-2 ring-orange-300 ring-offset-1 font-black text-xs' 
-                                  : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50 border-slate-200 hover:border-orange-300'
+                                  ? 'bg-orange-500 text-white border-orange-500' 
+                                  : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50 border-transparent'
                               }`}
-                              title={getIsBestseller(p) ? (lang === 'tr' ? 'En Çok Satan (Çıkar)' : 'Bestseller (Remove)') : (lang === 'tr' ? 'En Çok Satan Yap' : 'Mark as Bestseller')}
+                              title={getIsBestseller(p) ? (lang === 'tr' ? 'Çok Satan (Çıkar)' : 'Bestseller (Remove)') : (lang === 'tr' ? 'Çok Satan Yap' : 'Mark as Bestseller')}
                             >
-                              <Flame className={`h-4.5 w-4.5 shrink-0 ${getIsBestseller(p) ? 'fill-white text-white animate-bounce' : 'text-slate-400 hover:text-orange-500'}`} />
-                              {getIsBestseller(p) && (
-                                <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">
-                                  {lang === 'tr' ? 'SEÇİLİ' : 'ACTIVE'}
-                                </span>
-                              )}
+                              <Flame className={`h-3.5 w-3.5 shrink-0 ${getIsBestseller(p) ? 'fill-white text-white' : 'text-slate-400'}`} />
                             </button>
                           )}
 
                           <button 
                             onClick={() => onEdit(p)}
-                            className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-300 active:scale-90"
+                            className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all"
+                            title={t.edit}
                           >
-                            <Edit2 className="h-4.5 w-4.5" />
+                            <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button 
                             onClick={() => {
@@ -1311,10 +1245,10 @@ const ProductsTab = ({
                                 onDelete(p.id);
                               }
                             }}
-                            className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-200 active:scale-90"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all"
                             title={t.deleteEntry}
                           >
-                            <Trash2 className="h-4.5 w-4.5" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       )}
@@ -1328,30 +1262,29 @@ const ProductsTab = ({
         </div>
 
         {totalPages > 1 && (
-          <div className="px-8 py-5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-              {filteredProducts.length} {lang === 'tr' ? 'ÜRÜN BULUNDU' : 'RECORDS LOCATED'}
+          <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              {filteredProducts.length} {lang === 'tr' ? 'ürün' : 'products'}
             </p>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1.5">
               <button 
                 disabled={page === 1}
                 onClick={() => setPage(p => p - 1)}
-                className="p-2.5 text-slate-400 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-xl transition-all active:scale-90 disabled:opacity-20"
+                className="p-1 text-slate-400 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-lg transition-all active:scale-90 disabled:opacity-20"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-4 w-4" />
               </button>
               
-              <div className="text-[11px] font-black text-slate-900 tabular-nums tracking-widest flex items-center">
-                <span>PAGE</span>
-                <span className="mx-2 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-inner">{page} <span className="text-slate-300 mx-1">/</span> {totalPages}</span>
+              <div className="text-xs font-semibold text-slate-700 tabular-nums flex items-center">
+                <span className="px-2 py-0.5 bg-white border border-slate-200 rounded shadow-2xs">{page} <span className="text-slate-300 mx-0.5">/</span> {totalPages}</span>
               </div>
 
               <button 
                 disabled={page === totalPages}
                 onClick={() => setPage(p => p + 1)}
-                className="p-2.5 text-slate-400 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-xl transition-all active:scale-90 disabled:opacity-20"
+                className="p-1 text-slate-400 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-lg transition-all active:scale-90 disabled:opacity-20"
               >
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>

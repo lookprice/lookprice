@@ -96,8 +96,8 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[1050px]">
           <thead>
-            <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider">
-              <th className="p-4 w-10 text-center">
+            <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-200">
+              <th className="px-3 py-2.5 w-10 text-center">
                 <input 
                   type="checkbox" 
                   checked={invoices.length > 0 && selectedIds.length === invoices.length}
@@ -111,30 +111,30 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                   className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
                 />
               </th>
-              <th className="px-2 py-4 text-center w-8">
+              <th className="px-2 py-2.5 text-center w-8">
                 <span className="sr-only">Detay</span>
               </th>
-              <th className="p-4 font-bold">{isTr ? "Tarih" : "Date"}</th>
-              <th className="p-4 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
-              <th className="p-4 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
-              <th className="p-4 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
-              <th className="p-4 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
-              <th className="p-4 font-bold text-right">{isTr ? "Toplam" : "Total"}</th>
-              <th className="p-4 font-bold text-center">{isTr ? "Döviz" : "Curr"}</th>
-              <th className="p-4 font-bold text-center">{isTr ? "Ödeme" : "Payment"}</th>
-              <th className="p-4 font-bold text-right">{isTr ? "İşlemler" : "Actions"}</th>
+              <th className="px-3 py-2.5 font-bold">{isTr ? "Tarih" : "Date"}</th>
+              <th className="px-3 py-2.5 font-bold">{isTr ? "Fatura No" : "Inv No"}</th>
+              <th className="px-3 py-2.5 font-bold">{isTr ? "Satıcı" : "Supplier"}</th>
+              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "Matrah" : "Subtotal"}</th>
+              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "KDV" : "VAT"}</th>
+              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "Toplam" : "Total"}</th>
+              <th className="px-3 py-2.5 font-bold text-center">{isTr ? "Döviz" : "Curr"}</th>
+              <th className="px-3 py-2.5 font-bold text-center">{isTr ? "Ödeme" : "Payment"}</th>
+              <th className="px-3 py-2.5 font-bold text-right">{isTr ? "İşlemler" : "Actions"}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={11} className="p-12 text-center text-slate-400">
+                <td colSpan={11} className="px-3 py-12 text-center text-slate-400">
                   <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-indigo-600" /></div>
                 </td>
               </tr>
             ) : invoices.length === 0 ? (
               <tr>
-                <td colSpan={11} className="p-12 text-center text-slate-400 font-medium">
+                <td colSpan={11} className="px-3 py-12 text-center text-slate-400 font-medium">
                   {isTr ? "Fatura bulunamadı" : "No invoices found"}
                 </td>
               </tr>
@@ -159,7 +159,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         isExpanded ? 'bg-indigo-50/20' : ''
                       }`}
                     >
-                      <td className="p-4 text-center">
+                      <td className="px-3 py-2.5 text-center">
                         <input 
                           type="checkbox" 
                           checked={selectedIds.includes(invoice.id)}
@@ -169,7 +169,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
                         />
                       </td>
-                      <td className="px-2 py-4 text-center">
+                      <td className="px-2 py-2.5 text-center">
                         <button
                           type="button"
                           onClick={() => toggleRow(invoice)}
@@ -187,14 +187,14 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           )}
                         </button>
                       </td>
-                      <td className="p-4 text-xs text-slate-600 whitespace-nowrap">
-                        <div className="flex flex-col gap-1">
+                      <td className="px-3 py-2.5 text-xs text-slate-600 whitespace-nowrap">
+                        <div className="flex flex-col gap-0.5">
                           <span className="font-semibold text-slate-800">
                             {new Date(invoice.invoice_date).toLocaleDateString('tr-TR')}
                           </span>
                           {invoice.is_out_of_sequence && (
                             <span 
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 w-fit" 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 w-fit" 
                               title={isTr ? "Bu fatura sisteme sonradan (ara tarihli / geriye dönük) girilmiştir." : "This invoice was entered out of sequence (backdated)."}
                             >
                               ⚠️ {isTr ? "Ara Tarihli" : "Backdated"}
@@ -202,63 +202,65 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           )}
                         </div>
                       </td>
-                      <td className="p-4 text-xs font-bold text-slate-900">
-                        <div className="flex items-center gap-2">
+                      <td className="px-3 py-2.5 text-xs font-bold text-slate-900 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
                            {invoice.is_read === false && (
                              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title={isTr ? "Yeni (Okunmadı)" : "New (Unread)"}></span>
                            )}
                            <span>{invoice.invoice_number}</span>
                         </div>
                         {invoice.e_document_type && (
-                           <div className="flex items-center gap-2 mt-0.5">
+                           <div className="flex items-center gap-1.5 mt-0.5">
                              <div className="text-[9px] text-indigo-600 font-bold uppercase">{invoice.e_document_type}</div>
                              {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toUpperCase() === 'APPROVED' && (
-                                <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">{isTr ? 'Kabul Edildi' : 'Approved'}</span>
+                                <span className="text-[8px] bg-emerald-100 text-emerald-700 px-1 py-0.2 rounded font-black uppercase tracking-wider">{isTr ? 'Kabul Edildi' : 'Approved'}</span>
                              )}
                              {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toUpperCase() === 'REJECTED' && (
-                                <span className="text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">{isTr ? 'Reddedildi' : 'Rejected'}</span>
+                                <span className="text-[8px] bg-rose-100 text-rose-700 px-1 py-0.2 rounded font-black uppercase tracking-wider">{isTr ? 'Reddedildi' : 'Rejected'}</span>
                              )}
                              {invoice.e_document_type?.toUpperCase() === 'TICARIFATURA' && invoice.status?.toLowerCase() === 'pending' && (() => {
                                const arrivalDate = new Date(invoice.created_at || invoice.invoice_date);
                                const diffDays = (new Date().getTime() - arrivalDate.getTime()) / (1000 * 3600 * 24);
                                return diffDays > 8;
                              })() && (
-                                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider" title={isTr ? "8 günlük süreyi aştığı için yasal olarak otomatik kabul edilmiştir." : "Auto accepted legally over 8 days limit."}>{isTr ? 'Oto Kabul (8 Gün)' : 'Auto Accepted'}</span>
+                                <span className="text-[8px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded font-black uppercase tracking-wider" title={isTr ? "8 günlük süreyi aştığı için yasal olarak otomatik kabul edilmiştir." : "Auto accepted legally over 8 days limit."}>{isTr ? 'Oto Kabul' : 'Auto'}</span>
                              )}
                            </div>
                         )}
                       </td>
-                      <td className="p-4 text-xs font-medium text-slate-700">
-                        <div>{invoice.company_name || invoice.supplier_name || '-'}</div>
+                      <td className="px-3 py-2.5 text-xs font-medium text-slate-700">
+                        <div className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-semibold" title={invoice.company_name || invoice.supplier_name || '-'}>
+                          {invoice.company_name || invoice.supplier_name || '-'}
+                        </div>
                         {invoice.is_expense && (
-                          <div className="mt-1">
-                            <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                          <div className="mt-0.5">
+                            <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-black uppercase tracking-wider inline-block">
                               {isTr ? `GİDER: ${invoice.expense_category || 'DİĞER'}` : `EXPENSE: ${invoice.expense_category || 'OTHER'}`}
                             </span>
                           </div>
                         )}
                       </td>
-                      <td className="p-4 text-xs text-slate-600 text-right font-medium">
+                      <td className="px-3 py-2.5 text-xs text-slate-600 text-right font-medium whitespace-nowrap">
                         {Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="p-4 text-xs text-slate-600 text-right font-medium">
+                      <td className="px-3 py-2.5 text-xs text-slate-600 text-right font-medium whitespace-nowrap">
                         {Number(invoice.tax_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="p-4 text-xs font-semibold text-slate-800 text-right">
+                      <td className="px-3 py-2.5 text-xs font-bold text-slate-900 text-right whitespace-nowrap">
                         {Number(invoice.grand_total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="p-4 text-xs text-slate-500 text-center font-bold">
+                      <td className="px-3 py-2.5 text-xs text-slate-500 text-center font-bold">
                         {invoice.currency}
                       </td>
-                      <td className="p-4 text-center">
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
                         {invoice.payment_method && invoice.payment_method !== 'term' && invoice.payment_method !== 'vadeli' ? (
-                          <span className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-100">
+                          <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-100">
                             {isTr ? 'Ödendi' : 'Paid'}
                           </span>
                         ) : (
                           <button
                             onClick={() => handleUpdatePaymentStatus(invoice.id, invoice.payment_status === 'paid' ? 'unpaid' : 'paid')}
-                            className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
+                            className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all border ${
                               invoice.payment_status === 'paid' 
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
                                 : 'bg-rose-50 text-rose-700 border-rose-100'
@@ -268,7 +270,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           </button>
                         )}
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
                         <div className="flex justify-end gap-1">
                           {(() => {
                             if (invoice.status?.toLowerCase() !== 'pending' || invoice.e_document_type?.toUpperCase() !== 'TICARIFATURA') return false;
