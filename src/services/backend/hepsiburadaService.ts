@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from "axios";
+import FormData from "form-data";
 import { pool, logAction } from "../../../models/db";
 import { IntegrationService } from "../IntegrationService";
 import { processMarketplaceOrderLines } from "../marketplaceSync";
@@ -821,6 +822,60 @@ export class HepsiburadaService {
       return response.data?.data || response.data || {};
     } catch (error: any) {
       throw new Error(`Kategori özellikleri alınamadı: ${error.message}`);
+    }
+  }
+
+  async getCategoryAttributeValues(categoryId: number | string, attributeId: string): Promise<any[]> {
+    const headers = this.getHeaders();
+    try {
+      const url = `${this.catalogBaseUrl}/categories/${categoryId}/attribute/${attributeId}/values?page=0&size=100`;
+      const response = await axios.get(url, { headers, timeout: 15000 });
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return response.data?.data || [];
+    } catch (error: any) {
+      return [];
+    }
+  }
+
+  /**
+   * Hepsiburada Katalog İçe Aktarım (Multipart Form-Data POST /products/import)
+   */
+  async importCatalogProducts(products: any[]): Promise<{ success: boolean; trackingId?: string; message?: string }> {
+    if (!products || products.length === 0) {
+      return { success: false, message: "Kataloğa aktarılacak ürün bulunamadı" };
+    }
+
+    const payload = products.map((p) => ({
+      categoryId: Number(p.categoryId),
+      merchant: this.config.merchantId,
+      attributes: p.attributes || {}
+    }));
+
+    const form = new FormData();
+    form.append("file", Buffer.from(JSON.stringify(payload)), {
+      filename: "products.json",
+      contentType: "application/json"
+    });
+
+    const headers = {
+      ...this.getHeaders(),
+      ...form.getHeaders()
+    };
+
+    const url = `${this.catalogBaseUrl}/products/import`;
+    try {
+      const response = await axios.post(url, form, { headers, timeout: 30000 });
+      const trackingId = response.data?.data?.trackingId || response.data?.trackingId;
+      return {
+        success: true,
+        trackingId,
+        message: trackingId ? `Katalog içe aktarımı başlatıldı (Takip No: ${trackingId})` : "Katalog aktarıldı"
+      };
+    } catch (error: any) {
+      const detail = error.response?.data?.message || error.response?.data?.description || error.message;
+      throw new Error(`Hepsiburada katalog aktarımı başarısız: ${detail}`);
     }
   }
 

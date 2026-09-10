@@ -26,7 +26,9 @@ import {
   Loader2, 
   XCircle,
   Truck,
-  Clock
+  Clock,
+  AlertTriangle,
+  Check
 } from "lucide-react";
 import { normalizeSearch } from "../lib/searchUtils";
 import { motion, AnimatePresence } from "motion/react";

@@ -5,7 +5,7 @@ import { authenticate } from "../middleware/auth";
 import { IntegrationService } from "../src/services/IntegrationService";
 import { HepsiburadaService } from "../src/services/backend/hepsiburadaService";
 import { HepsiburadaServiceV3 } from "../src/services/backend/HepsiburadaServiceV3";
-import { AmazonService, AMAZON_TR_MARKETPLACE_ID, AMAZON_TOKEN_ENDPOINT, AMAZON_API_ENDPOINT } from "../src/services/backend/amazonService";
+import { AmazonService } from "../src/services/backend/amazonService";
 import { 
   processMarketplaceOrderLines, 
   syncN11Orders, 
@@ -870,10 +870,92 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: `"${p.name}" ürününün barkodu eksik. Hepsiburada'da satışa açmak için geçerli bir barkod gereklidir.` });
     }
 
+    let mpData: any = p.marketplace_data;
+    if (typeof mpData === "string") {
+      try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+    }
+    mpData = mpData || {};
+    const hbData = mpData.hepsiburada || {};
+
+    // Determine category ID with live Hepsiburada catalog mappings
+    let categoryId = hbData.categoryId || settings.categoryMappings?.[p.category]?.hepsiburada || settings.categoryMappings?.[p.sub_category]?.hepsiburada;
+    
+    // Normalize deprecated/virtual category IDs to live active Hepsiburada categories
+    const catSearchStr = `${p.name} ${p.category || ""} ${p.sub_category || ""}`.toLowerCase();
+    if (
+      String(categoryId) === "1000101" ||
+      !categoryId ||
+      catSearchStr.includes("usb flash") ||
+      catSearchStr.includes("flash bellek") ||
+      (catSearchStr.includes("usb") && catSearchStr.includes("bellek"))
+    ) {
+      categoryId = 970; // Active HB Leaf: Usb Bellek
+    } else if (String(categoryId) === "1000102" || catSearchStr.includes("kart okuyucu")) {
+      categoryId = 698; // Active HB Leaf: Kart Okuyucular
+    } else if (String(categoryId) === "1000103" || catSearchStr.includes("sd kart")) {
+      categoryId = 1100011; // Active HB Leaf: Sd Kartlar
+    }
+
     const hbService = new HepsiburadaService(settings, storeId);
     const rawPrice = parseFloat(p.price || "0");
     const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
 
+    // Prepare catalog attributes
+    const userAttrs = hbData.attributes || {};
+    const attributes: Record<string, any> = {
+      merchantSku: p.barcode.trim(),
+      VaryantGroupID: `GRP-${p.barcode.trim()}`,
+      Barcode: p.barcode.trim(),
+      UrunAdi: p.name,
+      UrunAciklamasi: `<p>${p.description || p.name}</p>`,
+      Marka: p.brand || userAttrs.Marka || "Kingston",
+      GarantiSuresi: userAttrs.GarantiSuresi ? parseInt(userAttrs.GarantiSuresi, 10) : 24,
+      tax_vat_rate: String(p.tax_rate || userAttrs.tax_vat_rate || 20),
+      price: effectivePrice.toFixed(2),
+      stock: String(p.stock_quantity || 0),
+      kg: String(p.desi || 1),
+      ...userAttrs
+    };
+
+    if (p.image_url) {
+      attributes.Image1 = p.image_url;
+    }
+
+    // Category 970 (Usb Bellek) specific defaults
+    if (Number(categoryId) === 970) {
+      if (!attributes.kapasite_) {
+        const capMatch = p.name.match(/(\d+)\s*(gb|tb|mb)/i);
+        attributes.kapasite_ = capMatch ? `${capMatch[1]} ${capMatch[2].toUpperCase()}` : "64 GB";
+      }
+      if (!attributes.usb_3_0) {
+        attributes.usb_3_0 = /3\.2/i.test(p.name) ? "Var (USB 3.2)" : (/3\.1/i.test(p.name) ? "Var (USB 3.1)" : "Var");
+      }
+      if (!attributes["00000PGR"]) {
+        attributes["00000PGR"] = ["Type A", "USB 3.0"];
+      }
+      if (!attributes.okuma_hizi_) attributes.okuma_hizi_ = "100 MB/s";
+      if (!attributes.yazma_hizi) attributes.yazma_hizi = "10 MB/s";
+      if (!attributes.sifre_koruma) attributes.sifre_koruma = "Yok";
+      if (!attributes["000017ZC"]) attributes["000017ZC"] = ["Windows"];
+    }
+
+    // 1. Send to Hepsiburada Catalog Import (Multipart Form-Data)
+    let catalogTrackingId: string | undefined;
+    let catalogMsg: string | undefined;
+    try {
+      const catRes = await hbService.importCatalogProducts([
+        {
+          categoryId: Number(categoryId),
+          attributes
+        }
+      ]);
+      catalogTrackingId = catRes.trackingId;
+      catalogMsg = catRes.message;
+    } catch (catErr: any) {
+      console.warn("[HB Publish] Catalog import warning:", catErr.message);
+    }
+
+    // 2. Send to Listing Price & Stock Inventory Update
     const result = await hbService.updatePriceAndStock([
       {
         HepsiburadaSku: p.hepsiburada_sku || "",
@@ -884,12 +966,33 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       }
     ]);
 
+    // Update product marketplace metadata
+    mpData.hepsiburada = {
+      ...hbData,
+      categoryId: Number(categoryId),
+      attributes,
+      catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId,
+      listingTrackingId: result.trackingId,
+      lastSync: new Date().toISOString()
+    };
+
     await pool.query(
-      "UPDATE products SET is_hepsiburada_active = true, hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL WHERE id = $1",
-      [productId]
+      "UPDATE products SET is_hepsiburada_active = true, hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL, marketplace_data = $1 WHERE id = $2",
+      [JSON.stringify(mpData), productId]
     );
 
-    res.json({ success: true, message: result.message, effectivePrice, trackingId: result.trackingId });
+    const message = catalogTrackingId
+      ? `"${p.name}" Hepsiburada kataloğuna aktarıldı ve satışa açıldı! (Katalog Takip No: ${catalogTrackingId})`
+      : result.message;
+
+    res.json({
+      success: true,
+      message,
+      effectivePrice,
+      trackingId: catalogTrackingId || result.trackingId,
+      catalogTrackingId,
+      listingTrackingId: result.trackingId
+    });
   } catch (e: any) {
     const errMsg = e.message || "Hepsiburada ürün aktarımı başarısız.";
     if (productId) {
@@ -1018,7 +1121,15 @@ async function getMergedHepsiburadaCategories(storeId?: number) {
             // Merge defaults if not in live
             for (const def of HEPSIBURADA_DEFAULT_CATEGORIES) {
               if (!existingIds.has(String(def.id))) {
-                liveNormalized.push(def);
+                liveNormalized.push({
+                  ...def,
+                  displayName: def.displayName || def.name,
+                  paths: def.paths || [],
+                  leaf: def.leaf ?? true,
+                  available: def.available ?? true,
+                  status: def.status || "ACTIVE",
+                  sector: def.sector || "general"
+                });
                 existingIds.add(String(def.id));
               }
             }
@@ -1097,7 +1208,13 @@ router.get("/hepsiburada/categories/search", authenticate, async (req: any, res)
 // 8. Get Category Attributes (Live API + Verified Fallback)
 router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
-  const categoryId = req.params.categoryId;
+  const rawCategoryId = String(req.params.categoryId || "").trim();
+
+  // Normalize virtual category IDs to live Hepsiburada IDs
+  let categoryId = rawCategoryId;
+  if (categoryId === "1000101" || categoryId === "1000101.0") categoryId = "970";
+  else if (categoryId === "1000102") categoryId = "698";
+  else if (categoryId === "1000103") categoryId = "1100011";
 
   try {
     const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
@@ -1107,21 +1224,53 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
       try {
         const hbService = new HepsiburadaService(settings, storeId);
         const liveAttrs = await hbService.getCategoryAttributes(categoryId);
-        const rawList = Array.isArray(liveAttrs) ? liveAttrs : (liveAttrs?.data || liveAttrs?.attributes || []);
+        const dataObj = liveAttrs?.data || liveAttrs;
+
+        let rawList: any[] = [];
+        if (Array.isArray(liveAttrs)) {
+          rawList = liveAttrs;
+        } else if (dataObj && typeof dataObj === "object") {
+          const base = Array.isArray(dataObj.baseAttributes) ? dataObj.baseAttributes : [];
+          const attrs = Array.isArray(dataObj.attributes) ? dataObj.attributes : [];
+          const variant = Array.isArray(dataObj.variantAttributes) ? dataObj.variantAttributes : [];
+
+          // Retain user-customizable fields (exclude system internal fields)
+          const filteredBase = base.filter((b: any) => 
+            !["merchantSku", "Barcode", "UrunAdi", "UrunAciklamasi", "price", "stock", "VaryantGroupID", "Image1", "Image2", "Image3", "Image4", "Image5", "Image6", "Image7", "Image8", "Image9", "Image10", "Video1"].includes(b.id)
+          );
+
+          rawList = [...filteredBase, ...attrs, ...variant];
+        }
 
         if (Array.isArray(rawList) && rawList.length > 0) {
-          // Normalize live Hepsiburada attribute structure
-          const normalized = rawList.map((attr: any) => ({
-            id: String(attr.id || attr.attributeId || attr.name || "").toLowerCase(),
-            name: attr.name || attr.attributeName || attr.id,
-            mandatory: !!(attr.mandatory || attr.required || attr.isMandatory),
-            type: (attr.type || attr.attributeType || "text").toLowerCase().includes("select") || Array.isArray(attr.values) ? "select" : "text",
-            values: Array.isArray(attr.values) ? attr.values.map((v: any) => typeof v === 'object' ? (v.value || v.name) : v) : [],
-            description: attr.description || attr.tooltip || "",
-            defaultValue: attr.defaultValue || ""
-          }));
+          // Fetch enum values for top mandatory select attributes if missing
+          const normalized = await Promise.all(
+            rawList.map(async (attr: any) => {
+              let vals = Array.isArray(attr.values) ? attr.values.map((v: any) => (typeof v === "object" ? v.value || v.name : v)) : [];
+              if (vals.length === 0 && (attr.type === "enum" || attr.type === "select")) {
+                try {
+                  const fetchedVals = await hbService.getCategoryAttributeValues(categoryId, attr.id);
+                  if (Array.isArray(fetchedVals) && fetchedVals.length > 0) {
+                    vals = fetchedVals.map((v: any) => (typeof v === "object" ? v.value || v.name : v));
+                  }
+                } catch (e) {
+                  // ignore
+                }
+              }
 
-          return res.json({ success: true, attributes: normalized, source: "live_api" });
+              return {
+                id: String(attr.id || attr.attributeId || attr.name || ""),
+                name: attr.name || attr.attributeName || attr.id,
+                mandatory: !!(attr.mandatory || attr.required || attr.isMandatory),
+                type: (attr.type || attr.attributeType || "text").toLowerCase().includes("select") || attr.type === "enum" || vals.length > 0 ? "select" : (attr.type === "integer" || attr.type === "number" ? "number" : "text"),
+                values: vals,
+                description: attr.description || attr.tooltip || "",
+                defaultValue: attr.defaultValue || ""
+              };
+            })
+          );
+
+          return res.json({ success: true, attributes: normalized, source: "live_api", categoryId });
         }
       } catch (hbErr: any) {
         console.warn("[Hepsiburada Attributes] Live API fetch failed, falling back to verified attributes:", hbErr.message);
@@ -1130,19 +1279,19 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
 
     // Fallback: Rich Calculated Category Attributes
     const { getAttributesForCategory, HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
-    const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId));
-    const catName = matchedCat?.name || String(categoryId);
-    const catPaths = matchedCat?.paths || [];
+    const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId));
+    const catName = matchedCat?.name || (categoryId === "970" ? "USB Flash Bellekler" : String(categoryId));
+    const catPaths = matchedCat?.paths || (categoryId === "970" ? ["Bilgisayar", "Veri Depolama", "Usb Bellek"] : []);
     const verifiedAttrs = getAttributesForCategory(catName, catPaths);
 
-    res.json({ success: true, attributes: verifiedAttrs, source: "verified_catalog" });
+    res.json({ success: true, attributes: verifiedAttrs, source: "verified_catalog", categoryId });
   } catch (error: any) {
     try {
       const { getAttributesForCategory, HEPSIBURADA_DEFAULT_CATEGORIES } = await import("../src/data/marketplaceCategoriesData");
-      const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId));
-      const catName = matchedCat?.name || String(categoryId);
-      const catPaths = matchedCat?.paths || [];
-      res.json({ success: true, attributes: getAttributesForCategory(catName, catPaths), source: "verified_catalog" });
+      const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId));
+      const catName = matchedCat?.name || (categoryId === "970" ? "USB Flash Bellekler" : String(categoryId));
+      const catPaths = matchedCat?.paths || (categoryId === "970" ? ["Bilgisayar", "Veri Depolama", "Usb Bellek"] : []);
+      res.json({ success: true, attributes: getAttributesForCategory(catName, catPaths), source: "verified_catalog", categoryId });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

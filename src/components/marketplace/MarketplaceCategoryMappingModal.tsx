@@ -1091,7 +1091,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                 const normSearch = normalizeCategoryText(catSearchTerm);
                 if (!normSearch) return true;
 
-                const catIdStr = String(c.id || c.categoryId || '');
+                const catIdStr = String(c.id || (c as any).categoryId || '');
                 if (catIdStr === catSearchTerm.trim()) return true;
 
                 const fullTextNorm = normalizeCategoryText(`${c.name || ''} ${c.displayName || ''} ${(c.paths || []).join(' ')}`);

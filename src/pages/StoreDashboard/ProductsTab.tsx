@@ -44,6 +44,7 @@ import ProductsFilterBar from "../../components/dashboard/ProductsFilterBar";
 import { DuplicateMergeModal } from "../../components/DuplicateMergeModal";
 import AiMenuScanModal from "./modals/AiMenuScanModal";
 import { MarketplaceBulkPublishModal } from "../../components/marketplace/MarketplaceBulkPublishModal";
+import { MarketplaceListingsModal } from "../../components/marketplace/MarketplaceListingsModal";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { getLabels } from "../../utils/showcase";
@@ -131,6 +132,9 @@ const ProductsTab = ({
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
+  const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(false);
+  const [marketplaceModalTab, setMarketplaceModalTab] = useState<'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama'>('hepsiburada');
+  const [marketplaceModalStatus, setMarketplaceModalStatus] = useState<'all' | 'active' | 'error' | 'inactive'>('all');
   const [isFindingImages, setIsFindingImages] = useState(false);
   const [sharingProduct, setSharingProduct] = useState<any>(null);
   const [recipeProduct, setRecipeProduct] = useState<any>(null);
@@ -338,6 +342,14 @@ const ProductsTab = ({
   const isSelectedCategoryValid = selectedCategory === "all" || selectedCategory === "bestsellers" || categories.includes(selectedCategory);
   const effectiveCategory = isSelectedCategoryValid ? selectedCategory : "all";
 
+  const hbActiveCount = products.filter(p => p.is_hepsiburada_active).length;
+  const marketplaceActiveCount = products.filter(p => 
+    p.is_hepsiburada_active || p.is_trendyol_active || p.is_n11_active || p.is_amazon_active || p.is_pazarama_active
+  ).length;
+  const marketplaceErrorCount = products.filter(p => 
+    p.hepsiburada_last_error || p.trendyol_last_error || p.n11_last_error || p.amazon_last_error || p.pazarama_last_error
+  ).length;
+
   const filteredProducts = products.filter(p => {
     const searchTerms = normalizeSearch(deferredSearch || "").split(/\s+/).filter(Boolean);
     const matchesSearch = searchTerms.length === 0 ? true : searchTerms.every(term => 
@@ -346,9 +358,17 @@ const ProductsTab = ({
     const matchesCategory = effectiveCategory === "bestsellers" 
       ? getIsBestseller(p) 
       : (effectiveCategory === "all" || p.category === effectiveCategory);
-    const matchesMarketplace = marketplaceFilter === "all" || 
-                              (marketplaceFilter === "listed" && p.is_pazarama_active) ||
-                              (marketplaceFilter === "not_listed" && !p.is_pazarama_active);
+
+    const isAnyMpActive = Boolean(p.is_hepsiburada_active || p.is_trendyol_active || p.is_n11_active || p.is_amazon_active || p.is_pazarama_active);
+    const hasAnyMpError = Boolean(p.hepsiburada_last_error || p.trendyol_last_error || p.n11_last_error || p.amazon_last_error || p.pazarama_last_error);
+
+    const matchesMarketplace = 
+      marketplaceFilter === "all" ? true :
+      marketplaceFilter === "listed" ? isAnyMpActive :
+      marketplaceFilter === "hepsiburada" ? Boolean(p.is_hepsiburada_active) :
+      marketplaceFilter === "errors" ? hasAnyMpError :
+      marketplaceFilter === "not_listed" ? !isAnyMpActive :
+      true;
     
     // Stok adetleri 0 ve altı olanları gizle, ancak arama yapılıyorsa veya includeZeroStock aktifse göster
     if (!includeZeroStock && searchTerms.length === 0) {
@@ -557,6 +577,33 @@ const ProductsTab = ({
 
             {!isViewer && isShopLp && (
               <button 
+                onClick={() => {
+                  setMarketplaceModalTab('hepsiburada');
+                  setMarketplaceModalStatus('all');
+                  setShowMarketplaceListingsModal(true);
+                }}
+                className="os-btn-secondary p-2.5 sm:p-3 text-orange-600 hover:text-orange-700 bg-orange-50/90 hover:bg-orange-100 rounded-xl transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                title={lang === 'tr' ? "Pazaryeri İlan Takibi & Canlı İlanlar" : "Marketplace Listings & Monitoring"}
+              >
+                <Store className="h-4.5 w-4.5 text-orange-600 shrink-0" />
+                <span className="text-[11px] font-bold text-orange-950 hidden md:inline whitespace-nowrap">
+                  {lang === 'tr' ? "Pazaryeri İlanları" : "Marketplace Listings"}
+                </span>
+                {hbActiveCount > 0 && (
+                  <span className="text-[9px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded-full" title={lang === 'tr' ? `${hbActiveCount} ürün Hepsiburada'da yayında` : `${hbActiveCount} products on HB`}>
+                    {hbActiveCount}
+                  </span>
+                )}
+                {marketplaceErrorCount > 0 && (
+                  <span className="text-[9px] font-black bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse" title={lang === 'tr' ? `${marketplaceErrorCount} ürün pazaryeri hatası aldı` : `${marketplaceErrorCount} marketplace errors`}>
+                    {marketplaceErrorCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {!isViewer && isShopLp && (
+              <button 
                 onClick={() => setShowBulkPublishModal(true)}
                 className="os-btn-secondary p-2.5 sm:p-3 text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-xl transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
                 title={lang === 'tr' ? "Hepsiburada'da Toplu İlan Aç & Satışa Gönder" : "Bulk Publish to Hepsiburada"}
@@ -695,6 +742,106 @@ const ProductsTab = ({
             </label>
           </div>
         </div>
+
+        {/* E-Marketplace Quick Filter Chips for shopLP */}
+        {isShopLp && (
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60 overflow-x-auto pb-1 scrollbar-none text-xs">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[11px] font-bold text-slate-400 mr-1 hidden sm:inline">Pazaryeri:</span>
+              
+              <button
+                type="button"
+                onClick={() => { setMarketplaceFilter('all'); setPage(1); }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 ${
+                  marketplaceFilter === 'all'
+                    ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {lang === 'tr' ? 'Tümü' : 'All'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setMarketplaceFilter('listed'); setPage(1); }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 ${
+                  marketplaceFilter === 'listed'
+                    ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
+                    : 'bg-white text-orange-800 border-orange-200 hover:bg-orange-50'
+                }`}
+              >
+                <Store className="w-3 h-3" />
+                {lang === 'tr' ? 'Pazaryerinde Satışta' : 'In Marketplace'}
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                  marketplaceFilter === 'listed' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
+                }`}>
+                  {marketplaceActiveCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 ${
+                  marketplaceFilter === 'hepsiburada'
+                    ? 'bg-orange-600 text-white border-orange-600 shadow-xs'
+                    : 'bg-white text-orange-900 border-orange-200 hover:bg-orange-50'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                Hepsiburada
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                  marketplaceFilter === 'hepsiburada' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
+                }`}>
+                  {hbActiveCount}
+                </span>
+              </button>
+
+              {marketplaceErrorCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setMarketplaceFilter('errors'); setPage(1); }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 ${
+                    marketplaceFilter === 'errors'
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                      : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                  }`}
+                >
+                  <AlertTriangle className="w-3 h-3 text-rose-500" />
+                  {lang === 'tr' ? 'Hatalı Ürünler' : 'Marketplace Errors'}
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-200 text-rose-900 animate-pulse">
+                    {marketplaceErrorCount}
+                  </span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => { setMarketplaceFilter('not_listed'); setPage(1); }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 ${
+                  marketplaceFilter === 'not_listed'
+                    ? 'bg-slate-700 text-white border-slate-700 shadow-xs'
+                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {lang === 'tr' ? 'Henüz Açılmamış' : 'Not Listed'}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMarketplaceModalTab('hepsiburada');
+                setMarketplaceModalStatus('all');
+                setShowMarketplaceListingsModal(true);
+              }}
+              className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline flex items-center gap-1 shrink-0 ml-auto"
+            >
+              <ExternalLink className="w-3 h-3" />
+              {lang === 'tr' ? 'Tüm Pazaryeri İlanlarını Yönet' : 'Manage All Marketplace Listings'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="os-panel overflow-hidden">
@@ -769,6 +916,13 @@ const ProductsTab = ({
                                   alt={p.name} 
                                   className="w-12 h-12 rounded-2xl object-contain p-2 bg-white border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300"
                                   referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    if (!target.dataset.fallback && p.image_url?.startsWith('http')) {
+                                      target.dataset.fallback = '1';
+                                      target.src = `/api/proxy-image?url=${encodeURIComponent(p.image_url)}`;
+                                    }
+                                  }}
                                 />
                               ) : (
                                 <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center border border-slate-200 shadow-sm group-hover:scale-110 transition-transform duration-300">
@@ -822,10 +976,76 @@ const ProductsTab = ({
                                   return null;
                                 })()}
                                 {isShopLp && p.is_hepsiburada_active && (
-                                  <span className="text-[8px] font-black text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1" title="Hepsiburada Listing Aktif">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                  <a
+                                    href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[8px] font-black text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all group/hblink"
+                                    title={lang === 'tr' ? "Hepsiburada'da Canlı İlana Git (Yeni Sekme)" : "Open Live on Hepsiburada"}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 group-hover/hblink:scale-125 transition-transform"></span>
                                     HB SATIŞTA
-                                  </span>
+                                    <ExternalLink className="w-2.5 h-2.5 text-orange-600 opacity-70 group-hover/hblink:opacity-100" />
+                                  </a>
+                                )}
+                                {isShopLp && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setMarketplaceModalTab('hepsiburada');
+                                      setMarketplaceModalStatus('error');
+                                      setShowMarketplaceListingsModal(true);
+                                    }}
+                                    className="text-[8px] font-black text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all cursor-pointer"
+                                    title={`Hepsiburada Hatası: ${p.hepsiburada_last_error} - Tıklayarak Detayı Gör`}
+                                  >
+                                    <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
+                                    HB HATASI
+                                  </button>
+                                )}
+                                {isShopLp && p.is_trendyol_active && (
+                                  <a
+                                    href={`https://www.trendyol.com/sr?q=${encodeURIComponent(p.barcode || p.name)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[8px] font-black text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all"
+                                    title="Trendyol İlanına Git"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                                    TY SATIŞTA
+                                    <ExternalLink className="w-2.5 h-2.5 text-amber-700" />
+                                  </a>
+                                )}
+                                {isShopLp && p.is_n11_active && (
+                                  <a
+                                    href={`https://www.n11.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[8px] font-black text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all"
+                                    title="N11 İlanına Git"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                                    N11 SATIŞTA
+                                    <ExternalLink className="w-2.5 h-2.5 text-red-700" />
+                                  </a>
+                                )}
+                                {isShopLp && p.is_pazarama_active && (
+                                  <a
+                                    href={`https://www.pazarama.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[8px] font-black text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none flex items-center gap-1 transition-all"
+                                    title="Pazarama İlanına Git"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                    PAZARAMA SATIŞTA
+                                    <ExternalLink className="w-2.5 h-2.5 text-blue-700" />
+                                  </a>
                                 )}
                                 {p.category && (
                                   <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-lg uppercase tracking-widest leading-none">
@@ -984,6 +1204,19 @@ const ProductsTab = ({
                       {!isViewer && (
                         <div className="flex justify-end items-center gap-1">
 
+
+                          {isShopLp && p.is_hepsiburada_active && (
+                            <a 
+                              href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-2.5 text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-xl transition-all border border-orange-200 hover:border-orange-300 active:scale-90 flex items-center justify-center"
+                              title={lang === 'tr' ? "Hepsiburada Canlı İlanına Git (Yeni Sekme)" : "Open Live on Hepsiburada"}
+                            >
+                              <ExternalLink className="h-4.5 w-4.5" />
+                            </a>
+                          )}
 
                           {isShopLp && (
                             <button 
@@ -1148,6 +1381,24 @@ const ProductsTab = ({
           currentStoreId={currentStoreId}
           onSuccess={onRefresh}
           lang={lang}
+        />
+      )}
+
+      {isShopLp && (
+        <MarketplaceListingsModal
+          isOpen={showMarketplaceListingsModal}
+          onClose={() => setShowMarketplaceListingsModal(false)}
+          products={products}
+          storeBranding={branding}
+          currentStoreId={currentStoreId}
+          onRefresh={onRefresh}
+          onEditProduct={(p) => {
+            setShowMarketplaceListingsModal(false);
+            onEdit(p);
+          }}
+          lang={lang}
+          initialMarketplace={marketplaceModalTab}
+          initialStatus={marketplaceModalStatus}
         />
       )}
     </div>

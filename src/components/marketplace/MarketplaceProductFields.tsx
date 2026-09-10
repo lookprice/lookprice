@@ -55,11 +55,34 @@ export const MarketplaceProductFields = ({
     (subCatKey && storeSettings?.categoryMappings?.[subCatKey]) ||
     (catKey && storeSettings?.categoryMappings?.[catKey]) ||
     "";
-  const effectiveCatId = marketData.categoryId || storeMappedCatId || "";
 
-  const activeCategory = [...searchResults, ...categories].find(
+  // Normalize deprecated / infer category if empty
+  const prodSearchStr = `${product?.name || ''} ${catKey} ${subCatKey}`.toLowerCase();
+  let resolvedCatId = marketData.categoryId || storeMappedCatId || "";
+  if (resolvedCatId === "1000101" || (!resolvedCatId && (prodSearchStr.includes("usb") && (prodSearchStr.includes("bellek") || prodSearchStr.includes("flash"))))) {
+    resolvedCatId = "970";
+  } else if (resolvedCatId === "1000102" || (!resolvedCatId && prodSearchStr.includes("kart okuyucu"))) {
+    resolvedCatId = "698";
+  } else if (resolvedCatId === "1000103" || (!resolvedCatId && prodSearchStr.includes("sd kart"))) {
+    resolvedCatId = "1100011";
+  }
+
+  const effectiveCatId = resolvedCatId;
+
+  let activeCategory = [...searchResults, ...categories].find(
     (c) => String(c.id || c.categoryId) === String(effectiveCatId)
   );
+
+  if (!activeCategory && effectiveCatId === "970") {
+    activeCategory = {
+      id: 970,
+      name: "USB Flash Bellekler",
+      displayName: "Bilgisayar > Veri Depolama > Usb Bellek",
+      paths: ["Bilgisayar", "Veri Depolama", "Usb Bellek"],
+      leaf: true,
+      available: true
+    };
+  }
 
   // Load Dynamic Category Attributes from API whenever effectiveCatId changes
   useEffect(() => {
@@ -366,10 +389,51 @@ export const MarketplaceProductFields = ({
                     }
                   }
 
+                  const prodName = String(product?.name || "").trim();
+
                   // If still empty, check if this is Brand / Marka
                   const isBrandAttr = attr.id.toLowerCase() === "marka" || attr.id.toLowerCase().includes("brand");
                   if (!effectiveVal && isBrandAttr) {
                     effectiveVal = product?.brand || product?.brand_name || "";
+                    if (!effectiveVal && prodName) {
+                      const knownBrands = ["Kingston", "SanDisk", "Sandisk", "Samsung", "Toshiba", "Kioxia", "Philips", "Hikvision", "Lexar", "Sony", "Adata", "Western Digital", "WD", "Seagate", "Apple", "Xiaomi", "Logitech", "HP", "Lenovo", "Asus", "Dell", "TP-Link", "Baseus", "Anker", "Ugreen"];
+                      const foundBrand = knownBrands.find(b => new RegExp(`\\b${b}\\b`, 'i').test(prodName));
+                      if (foundBrand) {
+                        effectiveVal = foundBrand;
+                      } else {
+                        const firstWord = prodName.split(" ")[0];
+                        if (firstWord && firstWord.length > 2) effectiveVal = firstWord;
+                      }
+                    }
+                  }
+
+                  // Smart Capacity Extraction (e.g., "64 Gb" -> "64 GB")
+                  const isCapacityAttr = attr.id.toLowerCase() === "kapasite" || attr.id.toLowerCase().includes("capacity");
+                  if (!effectiveVal && isCapacityAttr && prodName) {
+                    const capMatch = prodName.match(/(\d+)\s*(gb|tb|mb)/i);
+                    if (capMatch) {
+                      const detected = `${capMatch[1]} ${capMatch[2].toUpperCase()}`;
+                      const matchedOption = attr.values?.find((v: string) => v.toLowerCase().replace(/\s+/g, '') === detected.toLowerCase().replace(/\s+/g, ''));
+                      if (matchedOption) {
+                        effectiveVal = matchedOption;
+                      }
+                    }
+                  }
+
+                  // Smart USB Version Extraction (e.g., "Usb 3.2" -> "USB 3.2 Gen 1")
+                  const isUsbVerAttr = attr.id.toLowerCase() === "usbversiyonu" || attr.id.toLowerCase().includes("usbver");
+                  if (!effectiveVal && isUsbVerAttr && prodName) {
+                    if (/usb\s*3\.2/i.test(prodName)) {
+                      effectiveVal = attr.values?.find((v: string) => v.includes("3.2")) || "USB 3.2 Gen 1";
+                    } else if (/usb\s*3\.1/i.test(prodName)) {
+                      effectiveVal = attr.values?.find((v: string) => v.includes("3.1")) || "USB 3.1";
+                    } else if (/usb\s*3\.0/i.test(prodName)) {
+                      effectiveVal = attr.values?.find((v: string) => v.includes("3.0")) || "USB 3.0";
+                    } else if (/usb\s*2\.0/i.test(prodName)) {
+                      effectiveVal = attr.values?.find((v: string) => v.includes("2.0")) || "USB 2.0";
+                    } else if (/type-?c/i.test(prodName)) {
+                      effectiveVal = attr.values?.find((v: string) => /type-?c/i.test(v)) || "Type-C";
+                    }
                   }
 
                   // If still empty, check if this is Origin / Menşei (Default to 'Çin')

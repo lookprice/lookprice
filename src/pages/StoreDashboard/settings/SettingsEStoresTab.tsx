@@ -34,6 +34,7 @@ import { api } from "@/services/api";
 import { useIntegrationSync } from "@/hooks/useIntegrationSync";
 import { toast } from "sonner";
 import { MarketplaceCategoryMappingModal } from "@/components/marketplace/MarketplaceCategoryMappingModal";
+import { MarketplaceListingsModal } from "@/components/marketplace/MarketplaceListingsModal";
 
 interface SettingsEStoresTabProps {
   branding: any;
@@ -119,6 +120,23 @@ export const SettingsEStoresTab = ({
   // Global Marketplace Category Mapping Modal
   const [categoryMappingModalOpen, setCategoryMappingModalOpen] = useState(false);
   const [selectedMappingMarketplace, setSelectedMappingMarketplace] = useState<'hepsiburada' | 'trendyol' | 'amazon' | 'pazarama'>('hepsiburada');
+
+  // Unified Marketplace Listings & Error Modal
+  const [showListingsModal, setShowListingsModal] = useState(false);
+  const [listingsModalTab, setListingsModalTab] = useState<'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama'>('hepsiburada');
+
+  // Product counts per marketplace
+  const hbLiveCount = products.filter(p => p.is_hepsiburada_active).length;
+  const hbErrCount = products.filter(p => p.hepsiburada_last_error).length;
+  const tyLiveCount = products.filter(p => p.is_trendyol_active).length;
+  const tyErrCount = products.filter(p => p.trendyol_last_error).length;
+  const n11LiveCount = products.filter(p => p.is_n11_active).length;
+  const n11ErrCount = products.filter(p => p.n11_last_error).length;
+  const amzLiveCount = products.filter(p => p.is_amazon_active).length;
+  const amzErrCount = products.filter(p => p.amazon_last_error).length;
+  const pzLiveCount = products.filter(p => p.is_pazarama_active).length;
+  const pzErrCount = products.filter(p => p.pazarama_last_error).length;
+  const totalMarketplaceErrors = hbErrCount + tyErrCount + n11ErrCount + amzErrCount + pzErrCount;
 
   // Trendyol State
   const [tyApiKey, setTyApiKey] = useState(branding.trendyol_settings?.apiKey || "");
@@ -831,19 +849,46 @@ export const SettingsEStoresTab = ({
             </div>
           </div>
 
-          {/* Quick Mapping Hub Modal Trigger */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedMappingMarketplace(activeTab === 'all' ? 'hepsiburada' : (activeTab as any));
-              setCategoryMappingModalOpen(true);
-            }}
-            id="open-mapping-hub-header-btn"
-            className="inline-flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200/80 text-slate-800 transition-colors border border-slate-200/70 cursor-pointer shrink-0 self-start sm:self-auto"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5 text-slate-600" />
-            <span>{lang === 'tr' ? 'Kategori & Nitelik Eşleme' : 'Category Mapping'}</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+            {/* Unified Marketplace Listings & Error Modal Trigger */}
+            <button
+              type="button"
+              onClick={() => {
+                setListingsModalTab(activeTab === 'all' ? 'hepsiburada' : (activeTab as any));
+                setShowListingsModal(true);
+              }}
+              id="open-listings-monitoring-btn"
+              className="inline-flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-800 transition-colors border border-orange-200 cursor-pointer shadow-xs"
+              title={lang === 'tr' ? "Pazaryerlerinde Satışta Olan & Hatalı Ürünleri İzle" : "Monitor Marketplace Listings & Errors"}
+            >
+              <Store className="h-3.5 w-3.5 text-orange-600" />
+              <span>{lang === 'tr' ? 'İlan Takibi & Hatalar' : 'Listings & Errors'}</span>
+              {hbLiveCount > 0 && (
+                <span className="text-[10px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded-full" title={`${hbLiveCount} ürün HB'de yayında`}>
+                  {hbLiveCount}
+                </span>
+              )}
+              {totalMarketplaceErrors > 0 && (
+                <span className="text-[10px] font-black bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse" title={`${totalMarketplaceErrors} ürün hata aldı`}>
+                  {totalMarketplaceErrors}
+                </span>
+              )}
+            </button>
+
+            {/* Quick Mapping Hub Modal Trigger */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMappingMarketplace(activeTab === 'all' ? 'hepsiburada' : (activeTab as any));
+                setCategoryMappingModalOpen(true);
+              }}
+              id="open-mapping-hub-header-btn"
+              className="inline-flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200/80 text-slate-800 transition-colors border border-slate-200/70 cursor-pointer"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-slate-600" />
+              <span>{lang === 'tr' ? 'Kategori & Nitelik Eşleme' : 'Category Mapping'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Minimalist Segmented Tabs (Executive Pill Design) */}
@@ -1137,6 +1182,30 @@ export const SettingsEStoresTab = ({
               <button 
                 type="button"
                 onClick={() => {
+                  setListingsModalTab('hepsiburada');
+                  setShowListingsModal(true);
+                }}
+                id="hb-view-listings-btn"
+                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-orange-50 hover:bg-orange-100 text-orange-900 border border-orange-200/90 shadow-xs transition-colors cursor-pointer"
+                title={lang === 'tr' ? "Hepsiburada'da Satışta Olan ve Hata Alan Ürünleri Listele" : "List active and failed Hepsiburada products"}
+              >
+                <Store className="h-3.5 w-3.5 text-orange-600" />
+                <span>{lang === 'tr' ? 'İlanlar & Hatalar' : 'Listings & Errors'}</span>
+                {hbLiveCount > 0 && (
+                  <span className="text-[10px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded-full">
+                    {hbLiveCount}
+                  </span>
+                )}
+                {hbErrCount > 0 && (
+                  <span className="text-[10px] font-black bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse">
+                    {hbErrCount}
+                  </span>
+                )}
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => {
                   setSelectedMappingMarketplace('hepsiburada');
                   setCategoryMappingModalOpen(true);
                 }}
@@ -1333,6 +1402,30 @@ export const SettingsEStoresTab = ({
               >
                 <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${tySync.isSyncing ? 'animate-spin' : ''}`} />
                 <span>{tySync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => {
+                  setListingsModalTab('trendyol');
+                  setShowListingsModal(true);
+                }}
+                id="ty-view-listings-btn"
+                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90 shadow-xs transition-colors cursor-pointer"
+                title={lang === 'tr' ? "Trendyol'da Satışta Olan ve Hata Alan Ürünleri Listele" : "List active and failed Trendyol products"}
+              >
+                <Store className="h-3.5 w-3.5 text-amber-600" />
+                <span>{lang === 'tr' ? 'İlanlar & Hatalar' : 'Listings & Errors'}</span>
+                {tyLiveCount > 0 && (
+                  <span className="text-[10px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded-full">
+                    {tyLiveCount}
+                  </span>
+                )}
+                {tyErrCount > 0 && (
+                  <span className="text-[10px] font-black bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse">
+                    {tyErrCount}
+                  </span>
+                )}
               </button>
 
               <button 
@@ -2093,6 +2186,21 @@ export const SettingsEStoresTab = ({
           initialMarketplace={selectedMappingMarketplace}
           lang={lang}
           onRefresh={onRefresh}
+        />
+      )}
+
+      {/* Unified Marketplace Listings & Error Modal */}
+      {showListingsModal && (
+        <MarketplaceListingsModal
+          isOpen={showListingsModal}
+          onClose={() => setShowListingsModal(false)}
+          products={products}
+          storeBranding={branding}
+          currentStoreId={currentStoreId}
+          onRefresh={onRefresh}
+          lang={lang}
+          initialMarketplace={listingsModalTab}
+          initialStatus="all"
         />
       )}
     </motion.div>

@@ -884,7 +884,19 @@ export const ProductModal = ({
                 <div className="flex items-center gap-2 p-1.5 bg-white rounded-xl border-2 border-slate-200 shadow-2xs">
                   <div className="w-9 h-9 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs bg-cover bg-center">
                     {productImageUrl ? (
-                      <img src={productImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <img 
+                        src={productImageUrl} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover" 
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (!target.dataset.fallback && productImageUrl.startsWith('http')) {
+                            target.dataset.fallback = '1';
+                            target.src = `/api/proxy-image?url=${encodeURIComponent(productImageUrl)}`;
+                          }
+                        }}
+                      />
                     ) : (
                       <span className="text-[9px] text-slate-400 font-bold">{isTr ? "Yok" : "Blank"}</span>
                     )}

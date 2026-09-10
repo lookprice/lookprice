@@ -98,30 +98,40 @@ export interface MarketplaceAttribute {
 export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   // --- BİLGİSAYAR & VERİ DEPOLAMA (USB BELLEK, KART OKUYUCU, HAFIZA KARTLARI, SSD, RAM) ---
   {
-    id: 1000101,
+    id: 970, // Hepsiburada Live Category ID: 970 (Usb Bellek)
     name: "USB Flash Bellekler",
-    displayName: "Bilgisayar > Veri Depolama > USB Flash Bellekler",
-    paths: ["Bilgisayar", "Veri Depolama", "USB Flash Bellekler"],
+    displayName: "Bilgisayar > Veri Depolama > Usb Bellek",
+    paths: ["Bilgisayar", "Veri Depolama", "Usb Bellek"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "computer"
   },
   {
-    id: 1000102,
+    id: 698, // Hepsiburada Live Category ID: 698 (Kart Okuyucular)
     name: "Kart Okuyucular",
-    displayName: "Bilgisayar > Veri Depolama > Kart Okuyucular",
-    paths: ["Bilgisayar", "Veri Depolama", "Kart Okuyucular"],
+    displayName: "Foto / Kamera > Aksesuarlar > Hafıza Kartı ve Kart Okuyucuları > Kart Okuyucular",
+    paths: ["Foto / Kamera", "Aksesuarlar", "Hafıza Kartı ve Kart Okuyucuları", "Kart Okuyucular"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "computer"
   },
   {
-    id: 1000103,
+    id: 1100011, // Hepsiburada Live Category ID: 1100011 (Sd Kartlar)
+    name: "Sd Kartlar",
+    displayName: "Foto / Kamera > Aksesuarlar > Hafıza Kartı ve Kart Okuyucuları > Sd Kartlar",
+    paths: ["Foto / Kamera", "Aksesuarlar", "Hafıza Kartı ve Kart Okuyucuları", "Sd Kartlar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 60003724, // Hepsiburada Live Category ID: 60003724 (Micro Sd Kartlar)
     name: "Hafıza Kartları (MicroSD / SD)",
-    displayName: "Bilgisayar > Veri Depolama > Hafıza Kartları (MicroSD & SD)",
-    paths: ["Bilgisayar", "Veri Depolama", "Hafıza Kartları"],
+    displayName: "Foto / Kamera > Aksesuarlar > Hafıza Kartı ve Kart Okuyucuları > Micro Sd Kartlar",
+    paths: ["Foto / Kamera", "Aksesuarlar", "Hafıza Kartı ve Kart Okuyucuları", "Micro Sd Kartlar"],
     leaf: true,
     available: true,
     status: "ACTIVE",
@@ -1191,17 +1201,31 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.presenter_remote;
   }
 
-  // 3. Fotoğrafçılık, Kameralar, Tripod, Lens, Aksiyon Kamera, Kamera Çantası
+  // 3. USB Flash Bellek & Veri Depolama (MUST match BEFORE photography/camera to avoid false positives on 'flas'/'flash')
+  if (
+    text.includes("usb flash") ||
+    text.includes("flash bellek") ||
+    text.includes("flash drive") ||
+    text.includes("usb drive") ||
+    text.includes("usb bellek") ||
+    (text.includes("usb") && text.includes("bellek")) ||
+    (text.includes("veri depolama") && (text.includes("usb") || text.includes("flash") || text.includes("bellek")))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.usb_storage;
+  }
+
+  // 4. Fotoğrafçılık, Kameralar, Tripod, Lens, Aksiyon Kamera, Kamera Çantası
   if (
     text.includes("fotoğraf") ||
     text.includes("fotograf") ||
-    text.includes("kamera") ||
     text.includes("tripod") ||
     text.includes("monopod") ||
     text.includes("gimbal") ||
     text.includes("lens") ||
-    text.includes("flaş") ||
-    text.includes("flas")
+    text.includes("tepe flaş") ||
+    text.includes("stüdyo flaş") ||
+    (text.includes("flaş") && !text.includes("flash") && !text.includes("bellek")) ||
+    (text.includes("kamera") && !text.includes("webcam") && !text.includes("web kamerası"))
   ) {
     if (text.includes("webcam") || text.includes("web kamerası")) {
       return COMMON_MARKETPLACE_ATTRIBUTES.electronics;
@@ -1209,11 +1233,10 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.photography_camera;
   }
 
-  // 4. USB Flash Bellek & Veri Depolama
+  // 5. Diğer USB Bellek & Veri Depolama Fallback
   if (
-    text.includes("usb") ||
-    text.includes("flash bellek") ||
-    text.includes("flash drive") ||
+    (text.includes("usb") && !text.includes("kablo") && !text.includes("şarj")) ||
+    text.includes("flash") ||
     text.includes("bellekler")
   ) {
     return COMMON_MARKETPLACE_ATTRIBUTES.usb_storage;
