@@ -67,10 +67,29 @@ router.post("/", async (req: any, res) => {
 
     // Helper to safely merge marketplace settings without wiping out existing credentials
     const mergeMarketplaceSettings = (existing: any, incoming: any) => {
-      if (!incoming || typeof incoming !== 'object' || Object.keys(incoming).length === 0) {
-        return existing || {};
+      const ex = (existing && typeof existing === 'object') ? existing : {};
+      const inc = (incoming && typeof incoming === 'object') ? incoming : {};
+      
+      if (Object.keys(inc).length === 0) {
+        return ex;
       }
-      return { ...(existing || {}), ...incoming };
+
+      const merged = { ...ex, ...inc };
+
+      // Defensive guard: Never replace non-empty existing credentials with empty/blank strings
+      const credKeys = ['merchantId', 'apiSecret', 'apiKey', 'appKey', 'appSecret', 'sellerId', 'refresh_token', 'clientId', 'clientSecret'];
+      for (const k of credKeys) {
+        if (!inc[k] && ex[k]) {
+          merged[k] = ex[k];
+        }
+      }
+
+      // Preserve connected state if credentials remain intact
+      if (ex.connected && (merged.merchantId || merged.apiSecret || merged.appKey || merged.refresh_token)) {
+        merged.connected = true;
+      }
+
+      return merged;
     };
 
     // Ensure marketplace settings are preserved and synchronized

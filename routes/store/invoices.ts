@@ -424,6 +424,30 @@ export async function initPurchaseInvoiceSchema() {
         FROM companies c
         WHERE cat.company_id = c.id AND (cat.store_id IS NULL OR cat.store_id = 0)
       `);
+
+      // h) Auto-repair products with stock_quantity that lack initial stock_movements records
+      await pool.query(`
+        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+        SELECT 
+          p.store_id,
+          p.id,
+          'in',
+          p.stock_quantity - COALESCE(sm_sum.net_qty, 0),
+          'initial_stock',
+          'Açılış Stok / Devir Kaydı',
+          COALESCE(NULLIF(p.cost_price, 0), p.price, 0),
+          COALESCE(p.currency, 'TRY'),
+          COALESCE(p.created_at, CURRENT_TIMESTAMP)
+        FROM products p
+        LEFT JOIN (
+          SELECT 
+            product_id, 
+            SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net_qty
+          FROM stock_movements
+          GROUP BY product_id
+        ) sm_sum ON p.id = sm_sum.product_id
+        WHERE (p.stock_quantity - COALESCE(sm_sum.net_qty, 0)) > 0
+      `);
   } catch (e) {
     console.error("Failed to alter purchase_invoice_items schema / stock sync:", e);
   }

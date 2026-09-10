@@ -474,6 +474,17 @@ router.post("/", async (req: any, res) => {
       marketplaceDataVal
     ]);
 
+    if (parseFloat(stock_quantity) > 0 && result.rows[0]?.id) {
+      try {
+        await pool.query(`
+          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+          VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok Girişi', $4, $5, CURRENT_TIMESTAMP)
+        `, [storeId, result.rows[0].id, parseFloat(stock_quantity), parseFloat(cost_price) || finalPrice || 0, currency || 'TRY']);
+      } catch (smErr) {
+        console.error("Failed to log initial stock movement:", smErr);
+      }
+    }
+
     if (req.body.sync_group && finalBarcode) {
       const storeResq = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
       const parentId = storeResq.rows[0]?.parent_id || storeId;
@@ -767,8 +778,9 @@ router.put("/:id", async (req: any, res) => {
   } = req.body;
 
   try {
-    const existingProductRes = await pool.query("SELECT labels, barcode, product_code, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size, marketplace_data FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
+    const existingProductRes = await pool.query("SELECT labels, barcode, product_code, is_sellable, is_bestseller, allergens, calories, prep_time_min, portion_size, marketplace_data, stock_quantity, price, cost_price, currency FROM products WHERE id = $1 AND store_id = $2", [id, storeId]);
     if (existingProductRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
+    const oldStock = parseFloat(existingProductRes.rows[0]?.stock_quantity || '0');
     let existingLabels = existingProductRes.rows[0]?.labels || [];
     let existingIsSellable = existingProductRes.rows[0]?.is_sellable;
     if (existingIsSellable === undefined || existingIsSellable === null) existingIsSellable = true;
@@ -855,6 +867,27 @@ router.put("/:id", async (req: any, res) => {
       JSON.stringify(finalMarketplaceData),
       id, storeId
     ]);
+
+    const newStock = parseFloat(stock_quantity !== undefined ? stock_quantity : oldStock) || 0;
+    const diff = newStock - oldStock;
+    if (Math.abs(diff) > 0.001) {
+      try {
+        await pool.query(`
+          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+          VALUES ($1, $2, $3, $4, 'manual_adjustment', $5, $6, $7, CURRENT_TIMESTAMP)
+        `, [
+          storeId, 
+          id, 
+          diff > 0 ? 'in' : 'out', 
+          Math.abs(diff), 
+          diff > 0 ? 'Stok Miktarı Güncellendi (Manuel Artış)' : 'Stok Miktarı Güncellendi (Manuel Azalış)',
+          parseFloat(cost_price) || finalPrice || parseFloat(existingProductRes.rows[0]?.cost_price) || parseFloat(existingProductRes.rows[0]?.price) || 0, 
+          currency || existingProductRes.rows[0]?.currency || 'TRY'
+        ]);
+      } catch (smErr) {
+        console.error("Failed to log product update stock movement:", smErr);
+      }
+    }
 
     if (sync_group && barcode) {
       const storeRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
@@ -1097,6 +1130,132 @@ router.delete("/:id", async (req: any, res) => {
   }
 });
 
+export async function ensureProductMovements(productId: number, storeId: number) {
+  try {
+    const prodRes = await pool.query("SELECT id, store_id, barcode, stock_quantity, cost_price, price, currency, created_at FROM products WHERE id = $1", [productId]);
+    if (prodRes.rows.length === 0) return;
+    const prod = prodRes.rows[0];
+    const prodBarcode = prod.barcode ? String(prod.barcode).trim() : '';
+
+    // 1. Sync missing purchase_invoice_items for this product/barcode
+    await pool.query(`
+      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
+      SELECT 
+        pi.store_id,
+        $1,
+        'in',
+        pii.quantity,
+        'purchase_invoice',
+        'Alış Faturası: ' || COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number),
+        pii.unit_price,
+        COALESCE(pi.supplier_name, c.title, 'Tedarikçi'),
+        COALESCE(pi.currency, 'TRY'),
+        COALESCE(pi.invoice_date::timestamp, pi.created_at),
+        pi.id,
+        'purchase',
+        COALESCE(NULLIF(pi.document_number, ''), pi.invoice_number)
+      FROM purchase_invoice_items pii
+      JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+      LEFT JOIN companies c ON pi.company_id = c.id
+      WHERE (pii.product_id = $1 OR ($2 != '' AND pii.barcode = $2))
+        AND COALESCE(pi.is_expense, FALSE) = FALSE
+        AND NOT EXISTS (
+          SELECT 1 FROM stock_movements sm
+          WHERE sm.product_id = $1
+            AND sm.source = 'purchase_invoice'
+            AND (
+              sm.description LIKE '%' || pi.invoice_number || '%'
+              OR (pi.document_number IS NOT NULL AND pi.document_number != '' AND sm.description LIKE '%' || pi.document_number || '%')
+            )
+        )
+    `, [productId, prodBarcode]);
+
+    // 2. Sync missing sales_invoice_items for this product/barcode
+    await pool.query(`
+      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
+      SELECT 
+        si.store_id,
+        $1,
+        'out',
+        sii.quantity,
+        'sales_invoice',
+        'Satış Faturası: ' || COALESCE(NULLIF(si.document_number, ''), si.invoice_number),
+        sii.unit_price,
+        COALESCE(c.title, cust.full_name, 'Müşteri'),
+        COALESCE(si.currency, 'TRY'),
+        COALESCE(si.invoice_date::timestamp, si.created_at),
+        si.id,
+        'sales',
+        COALESCE(NULLIF(si.document_number, ''), si.invoice_number)
+      FROM sales_invoice_items sii
+      JOIN sales_invoices si ON sii.sales_invoice_id = si.id
+      LEFT JOIN companies c ON si.company_id = c.id
+      LEFT JOIN customers cust ON si.customer_id = cust.id
+      WHERE (sii.product_id = $1 OR ($2 != '' AND sii.barcode = $2))
+        AND NOT EXISTS (
+          SELECT 1 FROM stock_movements sm
+          WHERE sm.product_id = $1
+            AND sm.source = 'sales_invoice'
+            AND (
+              sm.description LIKE '%' || si.invoice_number || '%'
+              OR (si.document_number IS NOT NULL AND si.document_number != '' AND sm.description LIKE '%' || si.document_number || '%')
+            )
+        )
+    `, [productId, prodBarcode]);
+
+    // 3. Sync missing sale_items (POS) for this product/barcode
+    await pool.query(`
+      INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, sale_id)
+      SELECT 
+        s.store_id,
+        $1,
+        'out',
+        si.quantity,
+        'pos_sale',
+        'POS Satışı: #' || s.id,
+        si.unit_price,
+        COALESCE(c.full_name, 'Perakende Müşteri'),
+        'TRY',
+        s.created_at,
+        s.id
+      FROM sale_items si
+      JOIN sales s ON si.sale_id = s.id
+      LEFT JOIN customers c ON s.customer_id = c.id
+      WHERE (si.product_id = $1 OR ($2 != '' AND si.barcode = $2))
+        AND NOT EXISTS (
+          SELECT 1 FROM stock_movements sm
+          WHERE sm.product_id = $1
+            AND sm.sale_id = s.id
+        )
+    `, [productId, prodBarcode]);
+
+    // 4. Calculate net movements vs product stock_quantity
+    const smSumRes = await pool.query(`
+      SELECT SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net_qty
+      FROM stock_movements
+      WHERE product_id = $1
+    `, [productId]);
+
+    const netQty = parseFloat(smSumRes.rows[0]?.net_qty || '0');
+    const currentStock = parseFloat(prod.stock_quantity || '0');
+    const diff = currentStock - netQty;
+
+    if (diff > 0.001) {
+      await pool.query(`
+        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+        VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok / Devir Kaydı', $4, $5, COALESCE($6, CURRENT_TIMESTAMP))
+      `, [prod.store_id, prod.id, diff, parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY', prod.created_at]);
+    } else if (diff < -0.001) {
+      await pool.query(`
+        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+        VALUES ($1, $2, 'out', $3, 'manual_adjustment', 'Stok Düzeltme / Manuel Düşüş', $4, $5, CURRENT_TIMESTAMP)
+      `, [prod.store_id, prod.id, Math.abs(diff), parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY']);
+    }
+  } catch (err) {
+    console.error("ensureProductMovements error for product", productId, err);
+  }
+}
+
 router.get("/:id/movements", async (req: any, res) => {
   try {
     const { id } = req.params;
@@ -1119,6 +1278,9 @@ router.get("/:id/movements", async (req: any, res) => {
     if (!allowedStoreIds.includes(productStoreId) && req.user.role !== "superadmin") {
       return res.status(403).json({ error: "Unauthorized to view this product's movements" });
     }
+
+    // Auto-repair movements for this product if needed before returning
+    await ensureProductMovements(Number(id), productStoreId);
 
     const movementsRes = await pool.query(
       "SELECT * FROM stock_movements WHERE product_id = $1 ORDER BY created_at DESC",

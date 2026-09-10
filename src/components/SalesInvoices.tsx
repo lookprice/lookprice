@@ -79,6 +79,13 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'rejected'>('all');
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
+  
+  // Marketplace Shipment States
+  const [showMarketplaceShipModal, setShowMarketplaceShipModal] = useState(false);
+  const [selectedMarketplaceInv, setSelectedMarketplaceInv] = useState<any>(null);
+  const [carrierCode, setCarrierCode] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [shippingSubmitting, setShippingSubmitting] = useState(false);
 
   // Form States
   const [customerId, setCustomerId] = useState("");
@@ -176,6 +183,51 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
 
   const selectedCompany = companies.find((c: any) => String(c.id) === String(companyId));
   const selectedCustomer = customers.find((c: any) => String(c.id) === String(customerId));
+
+  const handleMarketplaceShip = (inv: any) => {
+    setSelectedMarketplaceInv(inv);
+    setCarrierCode("");
+    setTrackingNumber("");
+    setShowMarketplaceShipModal(true);
+  };
+
+  const submitMarketplaceShipment = async () => {
+    if (!carrierCode || !trackingNumber) {
+      toast.error(isTr ? "Kargo firması ve takip numarası zorunludur." : "Carrier and tracking number are required.");
+      return;
+    }
+    
+    setShippingSubmitting(true);
+    try {
+      const notes = selectedMarketplaceInv?.notes || "";
+      let platform = "unknown";
+      if (notes.toLowerCase().includes("amazon")) platform = "amazon";
+      
+      if (platform === "amazon") {
+        const orderIdMatch = notes.match(/Amazon Siparişi:\s*([A-Za-z0-9\-]+)/i);
+        const orderIdStr = orderIdMatch ? orderIdMatch[1] : null;
+        
+        if (orderIdStr) {
+          await api.post(`/api/integrations/amazon/orders/${orderIdStr.trim()}/ship`, {
+            carrierCode,
+            trackingNumber,
+            storeId: role === 'superadmin' ? (storeId || undefined) : undefined
+          });
+          toast.success(isTr ? "Kargo bildirimi Amazon'a başarıyla iletildi." : "Shipment tracking submitted to Amazon.");
+          setShowMarketplaceShipModal(false);
+          fetchInvoicesData();
+        } else {
+          toast.error(isTr ? "Sipariş ID bulunamadı." : "Order ID not found in notes.");
+        }
+      } else {
+        toast.error(isTr ? "Bu platform için kargo bildirimi aktif değil." : "Shipment tracking not active for this platform.");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || "Kargo bildirimi sırasında hata oluştu.");
+    } finally {
+      setShippingSubmitting(false);
+    }
+  };
 
   // Data Fetching
   const fetchInvoicesData = async (searchStr?: string, sDate?: string, eDate?: string, silent = false) => {
@@ -925,6 +977,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         handleViewDetails={handleViewDetails}
         handleDelete={handleDelete}
         handleOpenWaybillModal={handleOpenWaybillModal}
+        handleMarketplaceShip={handleMarketplaceShip}
         page={page}
         totalPages={Math.ceil((() => {
           let filtered = invoices;
@@ -1183,6 +1236,99 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
           ))}
         </div>
       )}
+
+      {/* Marketplace Shipment Modal */}
+      <AnimatePresence>
+        {showMarketplaceShipModal && selectedMarketplaceInv && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {isTr ? "Kargo Bildirimi (Pazar Yeri)" : "Marketplace Shipment"}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium">{selectedMarketplaceInv.invoice_number}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMarketplaceShipModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                    {isTr ? "Kargo Firması (Carrier Code)" : "Carrier Code"}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full h-11 px-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl text-sm transition-all"
+                    placeholder="Aras, MNG, Yurtici vs."
+                    value={carrierCode}
+                    onChange={(e) => setCarrierCode(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                    {isTr ? "Takip Numarası" : "Tracking Number"}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full h-11 px-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl text-sm transition-all font-mono"
+                    placeholder="TR123456789"
+                    value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(e.target.value)}
+                  />
+                </div>
+                
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-2">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                    <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                      {isTr 
+                        ? "Kargo bildirimini yaptıktan sonra pazar yeri tarafında siparişin durumu 'Kargolandı' olarak güncellenecektir. Hatalı bilgi gönderimi sipariş puanınızı etkileyebilir." 
+                        : "Submitting tracking info will update the order status to 'Shipped' on the marketplace. Incorrect information may affect your seller metrics."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+                <button
+                  onClick={() => setShowMarketplaceShipModal(false)}
+                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-all"
+                >
+                  {isTr ? "İptal" : "Cancel"}
+                </button>
+                <button
+                  onClick={submitMarketplaceShipment}
+                  disabled={shippingSubmitting || !carrierCode || !trackingNumber}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all flex items-center gap-2"
+                >
+                  {shippingSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                  {isTr ? "Kargolandı Olarak Bildir" : "Mark as Shipped"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

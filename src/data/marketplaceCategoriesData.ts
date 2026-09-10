@@ -318,14 +318,224 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     sector: "computer"
   },
   {
-    id: 1000123,
-    name: "Laptop Çantaları & Kılıfları",
-    displayName: "Bilgisayar > Aksesuarlar > Notebook Çantaları & Kılıflar",
-    paths: ["Bilgisayar", "Aksesuarlar", "Laptop Çantaları"],
+    id: 1000181,
+    name: "Kablo Switch Çoklayıcılar",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Kablo Switch Çoklayıcılar",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Kablo Switch Çoklayıcılar"],
     leaf: true,
     available: true,
     status: "ACTIVE",
     sector: "computer"
+  },
+  {
+    id: 1000182,
+    name: "Kablo ve Dönüştürücüler",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Kablo ve Dönüştürücüler",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Kablo ve Dönüştürücüler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000183,
+    name: "HDMI, DisplayPort & VGA Görüntü Kabloları",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > HDMI, DisplayPort & VGA Kablolar",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Görüntü Kabloları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000184,
+    name: "Ağ & Ethernet Kabloları (Patch & Cat6 / Cat7 / Cat8)",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Ağ & Ethernet Kabloları",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Ethernet Kabloları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000185,
+    name: "USB Şarj, Data Kablo & Adaptörler",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > USB Kablo & Adaptörler",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "USB Kabloları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000186,
+    name: "Güç, Kasa & SATA Adaptör Kabloları",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Güç & Adaptör Kabloları",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Güç Kabloları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000187,
+    name: "Ses & Müzik Bağlantı Kabloları (3.5mm Aux / RCA / Optik)",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Ses & Müzik Kabloları",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Ses Kabloları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000188,
+    name: "Bilgisayar Aksesuarları (Genel)",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Bilgisayar Aksesuarları",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000189,
+    name: "Bilgisayar Donanım & Çevre Birimi Aksesuarları",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Çevre Birimleri > Aksesuarlar",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Çevre Birimleri", "Aksesuarlar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000123,
+    name: "Laptop Çantaları & Kılıfları",
+    displayName: "Bilgisayar > Aksesuarlar > Notebook Çantaları & Kılıflar > Laptop Çantaları & Kılıfları",
+    paths: ["Bilgisayar", "Aksesuarlar", "Notebook Çantaları & Kılıflar", "Laptop Çantaları & Kılıfları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000135,
+    name: "Notebook Sırt Çantaları (15-16 inç / 17 inç)",
+    displayName: "Bilgisayar > Aksesuarlar > Notebook Çantaları & Kılıflar > Notebook Sırt Çantaları",
+    paths: ["Bilgisayar", "Aksesuarlar", "Notebook Çantaları & Kılıflar", "Notebook Sırt Çantaları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000136,
+    name: "Notebook El & Evrak Çantaları",
+    displayName: "Bilgisayar > Aksesuarlar > Notebook Çantaları & Kılıflar > Notebook Evrak Çantaları",
+    paths: ["Bilgisayar", "Aksesuarlar", "Notebook Çantaları & Kılıflar", "Notebook Evrak Çantaları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000137,
+    name: "Laptop Kılıf & Sleeve",
+    displayName: "Bilgisayar > Aksesuarlar > Notebook Çantaları & Kılıflar > Laptop Kılıf & Sleeve",
+    paths: ["Bilgisayar", "Aksesuarlar", "Notebook Çantaları & Kılıflar", "Laptop Kılıf & Sleeve"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000138,
+    name: "Sunum Kumandaları & Lazer Pointer (Presenter)",
+    displayName: "Bilgisayar > Aksesuarlar > Sunum Kumandaları & Lazer Pointer (Presenter)",
+    paths: ["Bilgisayar", "Aksesuarlar", "Sunum Kumandaları & Lazer Pointer"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000139,
+    name: "Projeksiyon Cihazları & Sunum Ekipmanları",
+    displayName: "Bilgisayar > Çevre Birimleri > Projeksiyon Cihazları & Sunum Ekipmanları",
+    paths: ["Bilgisayar", "Çevre Birimleri", "Projeksiyon Cihazları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 2000201,
+    name: "Dijital Fotoğraf Makineleri & Kameralar (DSLR / Aynasız)",
+    displayName: "Fotoğraf & Kamera > Fotoğraf Makineleri > Dijital Fotoğraf Makineleri",
+    paths: ["Fotoğraf & Kamera", "Fotoğraf Makineleri", "Dijital Fotoğraf Makineleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+  {
+    id: 2000202,
+    name: "Tripod & Monopodlar",
+    displayName: "Fotoğraf & Kamera > Fotoğrafçılık Aksesuarları > Tripod & Monopodlar",
+    paths: ["Fotoğraf & Kamera", "Fotoğrafçılık Aksesuarları", "Tripod & Monopodlar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+  {
+    id: 2000203,
+    name: "Fotoğraf Makinesi & Kamera Çantaları",
+    displayName: "Fotoğraf & Kamera > Fotoğrafçılık Aksesuarları > Kamera Çantaları & Kılıflar",
+    paths: ["Fotoğraf & Kamera", "Fotoğrafçılık Aksesuarları", "Kamera Çantaları & Kılıflar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+  {
+    id: 2000204,
+    name: "Lens & Kamera Filtreleri",
+    displayName: "Fotoğraf & Kamera > Fotoğrafçılık Aksesuarları > Lens & Filtreler",
+    paths: ["Fotoğraf & Kamera", "Fotoğrafçılık Aksesuarları", "Lens & Filtreler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+  {
+    id: 2000205,
+    name: "Tepe Flaş, Stüdyo Işık & Ring Light",
+    displayName: "Fotoğraf & Kamera > Fotoğrafçılık Aksesuarları > Stüdyo & Flaş Aydınlatma",
+    paths: ["Fotoğraf & Kamera", "Fotoğrafçılık Aksesuarları", "Stüdyo & Flaş Aydınlatma"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+  {
+    id: 2000206,
+    name: "Gimbal & Kamera Sabitleyiciler",
+    displayName: "Fotoğraf & Kamera > Fotoğrafçılık Aksesuarları > Gimbal & Sabitleyiciler",
+    paths: ["Fotoğraf & Kamera", "Fotoğrafçılık Aksesuarları", "Gimbal & Sabitleyiciler"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
+  },
+  {
+    id: 2000207,
+    name: "Aksiyon Kameralar & Aksesuarları",
+    displayName: "Fotoğraf & Kamera > Kameralar > Aksiyon Kameralar",
+    paths: ["Fotoğraf & Kamera", "Kameralar", "Aksiyon Kameralar"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "electronics"
   },
   {
     id: 1000124,
@@ -809,6 +1019,37 @@ export const MARKETPLACE_ORIGIN_COUNTRIES = [
 
 // Common Category Attribute Definitions (by sector & product category keywords)
 export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[]> = {
+  laptop_bags: [
+    { id: "Marka", name: "Marka (Brand)", description: "Çanta veya kılıf üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "EkranBoyutu", name: "Uyumlu Ekran Boyutu (İnç)", description: "Laptop / tablet ekran boyutu desteği", mandatory: true, type: "select", values: ["15.6 inç", "16 inç", "13.3 inç", "14 inç", "17.3 inç", "11 - 12.9 inç", "Evrensel / Tüm Boyutlar"], defaultValue: "15.6 inç" },
+    { id: "CantaTipi", name: "Çanta & Kılıf Türü", description: "Taşıma tipi veya form faktörü", mandatory: true, type: "select", values: ["Sırt Çantası", "Omuz / El Çantası", "Evrak Çantası", "Kılıf / Sleeve", "Sert Kapak / Hardcase"], defaultValue: "Sırt Çantası" },
+    { id: "Renk", name: "Renk (Color)", description: "Çanta ana rengi", mandatory: true, type: "select", values: ["Siyah", "Gri", "Koyu Gri / Antrasit", "Lacivert", "Mavi", "Haki / Yeşil", "Kahverengi", "Kırmızı", "Pembe"], defaultValue: "Siyah" },
+    { id: "Malzeme", name: "Malzeme & Su Geçirmezlik", description: "Dış yüzey materyali", mandatory: false, type: "select", values: ["Su Geçirmez Polyester", "Su İtici Kumaş", "Deri / Suni Deri", "Neopren", "Kanvas / Keten"], defaultValue: "Su Geçirmez Polyester" },
+    { id: "BolmeSayisi", name: "Bölme Sayısı", description: "Göz ve cep sayısı", mandatory: false, type: "select", values: ["1 Bölmeli", "2 Bölmeli", "3 Bölmeli", "4+ Bölmeli"], defaultValue: "2 Bölmeli" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Türkiye" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  presenter_remote: [
+    { id: "Marka", name: "Marka (Brand)", description: "Presenter markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "BaglantiTipi", name: "Bağlantı Tipi / Alıcı", description: "Kablosuz bağlantı türü", mandatory: true, type: "select", values: ["2.4 GHz USB Alıcı", "Bluetooth", "2.4 GHz + Bluetooth (Çift Mod)"], defaultValue: "2.4 GHz USB Alıcı" },
+    { id: "LazerRengi", name: "Lazer Işık Rengi", description: "Lazer işaretçi rengi", mandatory: false, type: "select", values: ["Kırmızı Lazer", "Yeşil Lazer", "Sanal / Ekran Üstü Lazer", "Lazer Yok"], defaultValue: "Kırmızı Lazer" },
+    { id: "Menzil", name: "Kablosuz Kullanım Menzili", description: "Maksimum kapsama alanı", mandatory: false, type: "select", values: ["10 Metre", "15 Metre", "20 Metre", "30 Metre", "50+ Metre"], defaultValue: "15 Metre" },
+    { id: "PilTipi", name: "Pil Türü / Güç Kaynağı", description: "Çalışma gücü", mandatory: false, type: "select", values: ["AAA İnce Pil", "Şarj Edilebilir Dahili Batarya (Type-C)", "AA Kalem Pil"], defaultValue: "AAA İnce Pil" },
+    { id: "Renk", name: "Renk (Color)", description: "Ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Gri", "Gümüş", "Beyaz"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  photography_camera: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ürün veya aksesuar markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "UrunTipi", name: "Aksesuar & Ürün Türü", description: "Kategori tipi", mandatory: true, type: "select", values: ["Tripod & Monopod", "Kamera Çantası & Kılıfı", "Lens & Filtre", "Tepe Flaş & Stüdyo Işığı", "Gimbal & Sabitleyici", "Aksiyon Kamera Aksesuarı", "Fotoğraf Makinesi"], defaultValue: "Tripod & Monopod" },
+    { id: "UyumluMarkaModel", name: "Uyumlu Kamera / Cihaz Markası", description: "Uyumlu cihaz türü veya markası", mandatory: false, type: "select", values: ["Evrensel (Tüm Kameralar)", "Canon", "Nikon", "Sony", "Fujifilm", "Panasonic", "GoPro / Aksiyon Kamera", "Akıllı Telefon"], defaultValue: "Evrensel (Tüm Kameralar)" },
+    { id: "Renk", name: "Renk (Color)", description: "Ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Gümüş", "Gri", "Kırmızı"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
   usb_storage: [
     { id: "Marka", name: "Marka (Brand)", description: "Ürün markası veya üretici", mandatory: true, type: "text", defaultValue: "$product.brand" },
     { id: "Kapasite", name: "Kapasite / Hafıza", description: "Depolama kapasitesi", mandatory: true, type: "select", values: ["8 GB", "16 GB", "32 GB", "64 GB", "128 GB", "256 GB", "512 GB", "1 TB", "2 TB"], defaultValue: "64 GB" },
@@ -836,7 +1077,7 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
   ],
   phone_accessories: [
     { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
-    { id: "UyumluMarka", name: "Uyumlu Telefon Markası", description: "Aksesuarın uyumlu olduğu telefon markası", mandatory: true, type: "select", values: ["Apple iPhone", "Samsung", "Xiaomi", "Huawei", "Oppo", "Evrensel (Tüm Markalar)"], defaultValue: "Apple iPhone" },
+    { id: "UyumluMarka", name: "Uyumlu Telefon Markası", description: "Aksesuarın uyumlu olduğu telefon markası", mandatory: false, type: "select", values: ["Apple iPhone", "Samsung", "Xiaomi", "Huawei", "Oppo", "Evrensel (Tüm Markalar)"], defaultValue: "Apple iPhone" },
     { id: "UyumluModel", name: "Uyumlu Model", description: "Uyumlu telefon model adı (Örn: iPhone 15 Pro, S24)", mandatory: false, type: "text", placeholder: "Örn: iPhone 15 Pro / Galaxy S24" },
     { id: "BaglantiTipi", name: "Bağlantı / Şarj Tipi", description: "Kablo / adaptör çıkışı", mandatory: false, type: "select", values: ["Type-C", "Lightning", "Micro USB", "Kablosuz (MagSafe / Qi)", "Yok"], defaultValue: "Type-C" },
     { id: "GucWatt", name: "Güç Çıkışı (Watt)", description: "Şarj adaptörü veya kablo kapasitesi", mandatory: false, type: "select", values: ["20W", "25W", "30W", "45W", "65W", "100W", "Yok"], defaultValue: "20W" },
@@ -921,7 +1162,54 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
 export function getAttributesForCategory(catName: string, paths: string[] = []): MarketplaceAttribute[] {
   const text = `${catName} ${paths.join(" ")}`.toLowerCase();
 
-  // 1. USB Flash Bellek & Veri Depolama
+  // 1. Laptop & Notebook Çantaları, Kılıfları, Sleeveler (MUST match BEFORE phone accessories!)
+  if (
+    text.includes("notebook çanta") ||
+    text.includes("laptop çanta") ||
+    text.includes("notebook kılıf") ||
+    text.includes("laptop kılıf") ||
+    text.includes("evrak çanta") ||
+    text.includes("sırt çanta") ||
+    text.includes("sleeve") ||
+    text.includes("laptop çantaları") ||
+    text.includes("notebook çantaları") ||
+    (text.includes("laptop") && (text.includes("çanta") || text.includes("kılıf"))) ||
+    (text.includes("notebook") && (text.includes("çanta") || text.includes("kılıf")))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags;
+  }
+
+  // 2. Sunum Kumandaları, Presenter, Lazer Pointer
+  if (
+    text.includes("sunum kumanda") ||
+    text.includes("presenter") ||
+    text.includes("lazer pointer") ||
+    text.includes("laser pointer") ||
+    text.includes("sunum kumandasi") ||
+    text.includes("sunum ekipman")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.presenter_remote;
+  }
+
+  // 3. Fotoğrafçılık, Kameralar, Tripod, Lens, Aksiyon Kamera, Kamera Çantası
+  if (
+    text.includes("fotoğraf") ||
+    text.includes("fotograf") ||
+    text.includes("kamera") ||
+    text.includes("tripod") ||
+    text.includes("monopod") ||
+    text.includes("gimbal") ||
+    text.includes("lens") ||
+    text.includes("flaş") ||
+    text.includes("flas")
+  ) {
+    if (text.includes("webcam") || text.includes("web kamerası")) {
+      return COMMON_MARKETPLACE_ATTRIBUTES.electronics;
+    }
+    return COMMON_MARKETPLACE_ATTRIBUTES.photography_camera;
+  }
+
+  // 4. USB Flash Bellek & Veri Depolama
   if (
     text.includes("usb") ||
     text.includes("flash bellek") ||
@@ -931,7 +1219,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.usb_storage;
   }
 
-  // 2. Kart Okuyucu & Hafıza Kartları
+  // 5. Kart Okuyucu & Hafıza Kartları
   if (
     text.includes("kart okuyucu") ||
     text.includes("hafıza kart") ||
@@ -941,7 +1229,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.memory_cards;
   }
 
-  // 3. SSD & Sabit Disk & PC Donanım
+  // 6. SSD & Sabit Disk & PC Donanım
   if (
     text.includes("ssd") ||
     text.includes("harddisk") ||
@@ -956,19 +1244,20 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware;
   }
 
-  // 4. Telefon Aksesuar / Kılıf / Şarj
+  // 7. Telefon Aksesuar / Telefon Kılıfı / Şarj (Ensure laptop/notebook/bags/camera are excluded!)
   if (
     text.includes("telefon") ||
-    text.includes("kılıf") ||
-    text.includes("şarj") ||
+    text.includes("cep telefonu") ||
     text.includes("powerbank") ||
-    text.includes("kablo") ||
-    text.includes("ekran koruyucu")
+    text.includes("ekran koruyucu") ||
+    (text.includes("kılıf") && !text.includes("laptop") && !text.includes("notebook") && !text.includes("kamera") && !text.includes("fotoğraf")) ||
+    (text.includes("şarj") && !text.includes("pil") && !text.includes("laptop")) ||
+    text.includes("kablo")
   ) {
     return COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories;
   }
 
-  // 5. Kulaklık & Ses
+  // 8. Kulaklık & Ses
   if (
     text.includes("kulaklık") ||
     text.includes("headphone") ||
@@ -980,7 +1269,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone;
   }
 
-  // 6. Akıllı Saat & Bileklik
+  // 9. Akıllı Saat & Bileklik
   if (
     text.includes("akıllı saat") ||
     text.includes("smart watch") ||
@@ -990,7 +1279,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.smartwatch;
   }
 
-  // 7. Giyim & Ayakkabı
+  // 10. Giyim & Ayakkabı
   if (
     text.includes("ayakkabı") ||
     text.includes("giyim") ||
@@ -1006,7 +1295,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.apparel;
   }
 
-  // 8. Oto Aksesuar
+  // 11. Oto Aksesuar
   if (
     text.includes("oto") ||
     text.includes("araba") ||
@@ -1016,7 +1305,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.auto;
   }
 
-  // 9. Ev & Mutfak
+  // 12. Ev & Mutfak
   if (
     text.includes("mutfak") ||
     text.includes("kahve") ||
@@ -1027,7 +1316,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.home_kitchen;
   }
 
-  // 10. Kozmetik
+  // 13. Kozmetik
   if (
     text.includes("kozmetik") ||
     text.includes("parfüm") ||
@@ -1039,7 +1328,7 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.cosmetics;
   }
 
-  // 11. Genel Elektronik
+  // 14. Genel Elektronik
   if (
     text.includes("elektronik") ||
     text.includes("tv") ||
@@ -1071,6 +1360,34 @@ export function normalizeCategoryText(str: string): string {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// Extracts root stem for Turkish suffix variations in category search
+export function getCategorySearchStem(token: string): string {
+  if (!token) return "";
+  let stem = token.toLowerCase();
+  const suffixes = ["cilik", "çılık", "cilik", "culuk", "çülük", "lari", "leri", "lar", "ler", "sasi", "sasi", "sida", "sinde", "si", "si", "su", "su", "i", "i", "u", "u"];
+  for (const suf of suffixes) {
+    if (stem.length > 4 && stem.endsWith(suf)) {
+      stem = stem.slice(0, stem.length - suf.length);
+      break;
+    }
+  }
+  return stem;
+}
+
+// Flexible Turkish category search matcher supporting stemmed tokens and prefixes
+export function matchCategorySearchToken(catText: string, token: string): boolean {
+  if (!token || !catText) return false;
+  if (catText.includes(token)) return true;
+
+  const stem = getCategorySearchStem(token);
+  if (stem && stem.length >= 3 && catText.includes(stem)) {
+    return true;
+  }
+
+  const words = catText.split(" ");
+  return words.some(w => w.startsWith(token) || (stem.length >= 3 && w.startsWith(stem)));
 }
 
 // Smart Auto-Match Algorithm

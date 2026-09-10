@@ -190,5 +190,15 @@ This file outlines strict engineering, performance, and naming directives that m
   - Masaüstü görünümde operatör panelleri `%80 - %88 zoom` perspektifinde kompakt çalışmalı (`operator-compact-layout`), gereksiz devasa `px-6 py-5` gibi tablo boşlukları yerine `px-3 py-2` veya `px-3.5 py-2.5` padding kullanılmalıdır.
   - Kartlar, filtre araç çubukları ve başlıklar dikeyde kompakt tutulmalı; tek bir ekranda daha fazla satır ve fonksiyonun görünür olması sağlanmalıdır.
 
+---
+
+## 14. Çapraz Alan ve Çoklu Modül Proaktif Düzeltme Standardı (Horizontal Resolution Protocol)
+
+- **Proaktif Çapraz Tarama ve Tüm Kardeş Modüllere Uygulama Şartı**:
+  - Bir hatanın veya sorunun tespiti ve çözümü sırasında (örneğin pazar yeri API anahtarlarının ve kimlik bilgilerinin kaydedilememesi, tarayıcı otomatik doldurma / autofill müdahalesi, veri kaybı veya form senkronizasyon hatalarında), tespit edilen kök neden SADECE bildirilen tek bir alan veya tek bir pazar yeri (örn. Hepsiburada) ile sınırlı bırakılamaz.
+  - Aynı veri yapısına, arayüze, form giriş mantığına ve API entegrasyonuna sahip TÜM kardeş modüller (**Trendyol, N11, Amazon TR, Pazarama, Hepsiburada, Çiçeksepeti vb.**) kullanıcı ek bir komut vermeden PROAKTİF OLARAK taranmalı ve tespit edilen düzeltmeler ISTENMEDEN TÜM KARDES ALANLARA EŞZAMANLI OLARAK UYGULANMALIDIR.
+  - Tüm pazar yeri giriş alanlarında tarayıcı şifre/e-posta otomatik doldurma (autofill) müdahalelerine karşı koruma (`autoComplete="new-password"`, `data-lpignore="true"`, benzersiz name nitelikleri, `autoComplete="off"`) ve hem istemci (React state) hem sunucu (database merger) seviyesinde koruyucu veri birleştirme (defensive merge) standart kılınmıştır.
+
+
 
 

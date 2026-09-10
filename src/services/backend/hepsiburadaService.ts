@@ -78,12 +78,18 @@ export class HepsiburadaService {
   }
 
   // Generate Base64 Auth header and mandatory User-Agent
-  private getHeaders(): Record<string, string> {
-    const rawCredentials = `${this.config.apiKey.trim()}:${this.config.apiSecret.trim()}`;
+  private getHeaders(customUsername?: string, customUserAgent?: string): Record<string, string> {
+    const apiKey = (this.config.apiKey || "lookprice_dev").trim();
+    const apiSecret = (this.config.apiSecret || "").trim();
+    const merchantId = (this.config.merchantId || "").trim();
+
+    const username = (customUsername || apiKey || merchantId).trim();
+    const rawCredentials = `${username}:${apiSecret}`;
     const base64Auth = Buffer.from(rawCredentials).toString("base64");
     const userAgent =
+      customUserAgent ||
       this.config.userAgent ||
-      `${this.config.merchantId} - LookPrice Marketplace Manager`;
+      `lookprice_dev - ${merchantId} - LookPrice Marketplace Manager`;
 
     return {
       Authorization: `Basic ${base64Auth}`,
@@ -95,69 +101,118 @@ export class HepsiburadaService {
 
   /**
    * 1. Test Connection:
-   * Verifies credentials against both OMS and Listing endpoints
+   * Verifies credentials against both OMS and Listing endpoints with multiple candidate combinations
    */
-  async testConnection(): Promise<{ success: boolean; message: string; details?: any }> {
-    const headers = this.getHeaders();
+  async testConnection(): Promise<{ success: boolean; message: string; error?: string; details?: any }> {
+    const apiKey = (this.config.apiKey || "lookprice_dev").trim();
+    const apiSecret = (this.config.apiSecret || "").trim();
+    const merchantId = (this.config.merchantId || "").trim();
+
+    if (!merchantId || !apiSecret) {
+      return {
+        success: false,
+        message: "Hepsiburada API bilgileri eksik (Merchant ID veya API Secret şifresi girilmemiş).",
+        error: "Merchant ID veya API Secret şifresi eksik."
+      };
+    }
+
+    // Standard candidate auth options used by Hepsiburada integrations
+    const candidates = [
+      { username: merchantId, userAgent: "lookprice_dev" },
+      { username: apiKey, userAgent: "lookprice_dev" },
+      { username: merchantId, userAgent: `lookprice_dev - ${merchantId}` },
+      { username: apiKey, userAgent: `lookprice_dev - ${merchantId}` },
+      { username: merchantId, userAgent: `${merchantId} - lookprice_dev` },
+    ];
+
+    let workingCandidate: { username: string; userAgent: string } | null = null;
     let omsOk = false;
     let listingOk = false;
     let lastError = "";
 
-    // Test OMS endpoint
-    try {
-      const res = await axios.get(
-        `${this.omsBaseUrl}/orders/merchantid/${this.config.merchantId}?limit=1`,
-        { headers, timeout: 10000 }
-      );
-      if (res.status === 200 && res.data && typeof res.data === 'object' && !String(res.data).includes('<!DOCTYPE')) {
-        omsOk = true;
-      }
-    } catch (e: any) {
-      if (e.response?.status === 401 || e.response?.status === 403) {
-        lastError = "Hepsiburada OMS API yetkilendirme hatası (401/403): Merchant ID, API Key veya Secret Key geçersiz.";
-      }
-      // Fallback test with legacy merchant api if OMS fails
+    // Test candidates against OMS
+    for (const cand of candidates) {
+      const headers = this.getHeaders(cand.username, cand.userAgent);
       try {
-        const legacyRes = await axios.get(
-          `https://merchant.hepsiburada.com/api/orders/merchantid/${this.config.merchantId}`,
-          {
-            auth: { username: this.config.apiKey, password: this.config.apiSecret },
-            timeout: 10000,
-          }
+        const res = await axios.get(
+          `${this.omsBaseUrl}/orders/merchantid/${merchantId}?limit=1`,
+          { headers, timeout: 8000 }
         );
-        if (legacyRes.status === 200 && typeof legacyRes.data === 'object' && !String(legacyRes.data).includes('<!DOCTYPE') && legacyRes.data?.orders) {
+        if (res.status === 200 && res.data && typeof res.data === 'object' && !String(res.data).includes('<!DOCTYPE')) {
           omsOk = true;
+          workingCandidate = cand;
+          break;
         }
-      } catch (err2: any) {
-        if (!lastError) {
-          lastError = e.response?.data?.message || e.message || "OMS Bağlantı hatası";
+      } catch (e: any) {
+        if (e.response?.status === 401 || e.response?.status === 403) {
+          lastError = "Hepsiburada Yetkilendirme Hatası (401/403): Merchant ID veya Servis Anahtarı Hepsiburada tarafından henüz onaylanmamış veya geçersiz.";
+        } else {
+          lastError = e.response?.data?.message || e.response?.data?.error || e.message || "OMS API Bağlantı hatası";
         }
       }
     }
 
-    // Test Listing endpoint
+    if (!workingCandidate) {
+      // Test candidates against legacy merchant API
+      for (const cand of candidates) {
+        try {
+          const legacyRes = await axios.get(
+            `https://merchant.hepsiburada.com/api/orders/merchantid/${merchantId}`,
+            {
+              auth: { username: cand.username, password: apiSecret },
+              headers: { "User-Agent": cand.userAgent },
+              timeout: 8000,
+            }
+          );
+          if (legacyRes.status === 200 && typeof legacyRes.data === 'object' && !String(legacyRes.data).includes('<!DOCTYPE') && legacyRes.data?.orders) {
+            omsOk = true;
+            workingCandidate = cand;
+            lastError = "";
+            break;
+          }
+        } catch (err2: any) {}
+      }
+    }
+
+    if (workingCandidate) {
+      this.config.apiKey = workingCandidate.username;
+      this.config.userAgent = workingCandidate.userAgent;
+    }
+
+    // Test Listing endpoint using working candidate or default
+    const testHeaders = workingCandidate
+      ? this.getHeaders(workingCandidate.username, workingCandidate.userAgent)
+      : this.getHeaders();
+
     try {
       const res = await axios.get(
-        `${this.listingBaseUrl}/inventory/import/status/${this.config.merchantId}/task/test-ping`,
-        { headers, timeout: 10000 }
+        `${this.listingBaseUrl}/inventory/import/status/${merchantId}/task/test-ping`,
+        { headers: testHeaders, timeout: 8000 }
       );
-      // Even a 404 for a dummy task indicates auth succeeded
-      if (res.status === 200 || res.status === 404) listingOk = true;
+      if (res.status === 200) listingOk = true;
     } catch (e: any) {
       if (e.response?.status === 404 || e.response?.status === 400) {
-        listingOk = true; // Authorized, but resource not found
+        if (!lastError.includes("401") && !lastError.includes("403")) {
+          listingOk = true;
+        }
       } else if (e.response?.status === 401 || e.response?.status === 403) {
-        lastError = "Listing API yetkilendirme hatası (API Key veya Secret geçersiz).";
+        if (!omsOk) {
+          lastError = "Listing API yetkilendirme hatası (401/403): API Key veya Secret geçersiz.";
+        }
       }
     }
 
-    const success = omsOk || listingOk;
+    const hasAuthError = lastError.includes("401") || lastError.includes("403");
+    const success = (omsOk || listingOk) && !hasAuthError;
+    const errMsg = lastError || (success ? undefined : "Hepsiburada API sunucusu istek yetkisini reddetti.");
+
     return {
       success,
       message: success
         ? "Hepsiburada API bağlantısı başarılı."
-        : `Bağlantı başarısız: ${lastError || "Kimlik doğrulama reddedildi"}`,
-      details: { omsOk, listingOk, isTestMode: this.config.isTestMode },
+        : `Bağlantı başarısız: ${errMsg}`,
+      error: success ? undefined : errMsg,
+      details: { omsOk, listingOk, workingCandidate, isTestMode: this.config.isTestMode, error: lastError },
     };
   }
 
@@ -172,11 +227,13 @@ export class HepsiburadaService {
     beginDate?: string;
     endDate?: string;
   }): Promise<any[]> {
-    const headers = this.getHeaders();
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
+    const merchantId = (this.config.merchantId || "").trim();
+    const apiKey = (this.config.apiKey || "lookprice_dev").trim();
+    const apiSecret = (this.config.apiSecret || "").trim();
 
-    let url = `${this.omsBaseUrl}/orders/merchantid/${this.config.merchantId}?limit=${limit}&offset=${offset}`;
+    let url = `${this.omsBaseUrl}/orders/merchantid/${merchantId}?limit=${limit}&offset=${offset}`;
 
     if (options?.status && options.status !== "all") {
       url += `&status=${options.status}`;
@@ -188,39 +245,68 @@ export class HepsiburadaService {
       url += `&enddate=${encodeURIComponent(options.endDate)}`;
     }
 
-    try {
-      const response = await axios.get(url, { headers, timeout: 30000 });
-      const orders = response.data?.items || response.data?.orders || response.data || [];
-      return Array.isArray(orders) ? orders : [];
-    } catch (error: any) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        throw new Error(
-          `Hepsiburada API Kimlik Doğrulama Hatası (401/403): Satıcı ID (${this.config.merchantId}) ve API Anahtarı/Secret kombinasyonu Hepsiburada tarafından reddedildi. Lütfen Satıcı Paneli (Satıcı Bilgileri > Entegratör) ayarlarından API anahtarlarınızı güncelleyin.`
-        );
-      }
+    const candidates = [
+      { username: merchantId, userAgent: "lookprice_dev" },
+      { username: apiKey, userAgent: "lookprice_dev" },
+      { username: merchantId, userAgent: `lookprice_dev - ${merchantId}` },
+      { username: apiKey, userAgent: `lookprice_dev - ${merchantId}` },
+      { username: merchantId, userAgent: `${merchantId} - lookprice_dev` },
+    ];
 
-      // Try fallback to legacy merchant endpoint if OMS endpoint returns 404/500
+    let lastError: any = null;
+
+    // Attempt candidates against OMS API
+    for (const cand of candidates) {
+      const headers = this.getHeaders(cand.username, cand.userAgent);
+      try {
+        const response = await axios.get(url, { headers, timeout: 30000 });
+        const orders = response.data?.items || response.data?.orders || response.data || [];
+        if (Array.isArray(orders)) {
+          this.config.apiKey = cand.username;
+          this.config.userAgent = cand.userAgent;
+          return orders;
+        }
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    // Attempt candidates against legacy Merchant API
+    for (const cand of candidates) {
       try {
         const legacyRes = await axios.get(
-          `https://merchant.hepsiburada.com/api/orders/merchantid/${this.config.merchantId}`,
+          `https://merchant.hepsiburada.com/api/orders/merchantid/${merchantId}`,
           {
-            auth: { username: this.config.apiKey, password: this.config.apiSecret },
+            auth: { username: cand.username, password: apiSecret },
+            headers: { "User-Agent": cand.userAgent },
             timeout: 30000,
           }
         );
         if (typeof legacyRes.data === 'string' && (legacyRes.data.includes('<!DOCTYPE') || legacyRes.data.includes('<html'))) {
-          throw new Error("Hepsiburada API geçersiz yanıt döndürdü (Giriş sayfası).");
+          continue;
         }
         const orders = legacyRes.data?.orders || legacyRes.data?.items || [];
-        return Array.isArray(orders) ? orders : [];
+        if (Array.isArray(orders)) {
+          this.config.apiKey = cand.username;
+          this.config.userAgent = cand.userAgent;
+          return orders;
+        }
       } catch (legacyErr: any) {
-        throw new Error(
-          `Hepsiburada siparişleri alınamadı: ${
-            error.response?.data?.message || error.message
-          }`
-        );
+        lastError = legacyErr;
       }
     }
+
+    if (lastError?.response?.status === 401 || lastError?.response?.status === 403) {
+      throw new Error(
+        `Hepsiburada API Kimlik Doğrulama Hatası (401/403): Satıcı ID (${merchantId}) ve Servis Anahtarı kombinasyonu Hepsiburada tarafından reddedildi.`
+      );
+    }
+
+    throw new Error(
+      `Hepsiburada siparişleri alınamadı: ${
+        lastError?.response?.data?.message || lastError?.message || "Bilinmeyen API hatası"
+      }`
+    );
   }
 
   /**

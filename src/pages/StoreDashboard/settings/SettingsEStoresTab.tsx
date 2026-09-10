@@ -25,7 +25,8 @@ import {
   Eye,
   EyeOff,
   Link,
-  Store
+  Store,
+  UploadCloud
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -41,6 +42,7 @@ interface SettingsEStoresTabProps {
   currentStoreId?: number;
   products?: any[];
   onRefresh?: () => void;
+  currentUser?: any;
 }
 
 type MarketplaceTabId = 'hepsiburada' | 'trendyol' | 'amazon' | 'pazarama' | 'n11' | 'all';
@@ -51,7 +53,8 @@ export const SettingsEStoresTab = ({
   lang,
   currentStoreId,
   products = [],
-  onRefresh
+  onRefresh,
+  currentUser
 }: SettingsEStoresTabProps) => {
   const t = translations[lang]?.dashboard || {};
 
@@ -84,8 +87,12 @@ export const SettingsEStoresTab = ({
   const [amazonClientSecret, setAmazonClientSecret] = useState(branding.amazon_settings?.clientSecret || "");
   const [amazonRefreshToken, setAmazonRefreshToken] = useState(branding.amazon_settings?.refresh_token || "");
   const [amazonSellerId, setAmazonSellerId] = useState(branding.amazon_settings?.sellerId || "");
+  const [amazonIsSandbox, setAmazonIsSandbox] = useState<boolean>(branding.amazon_settings?.isSandbox || false);
   const [showAmazonSecret, setShowAmazonSecret] = useState(false);
   const [showAmazonRefresh, setShowAmazonRefresh] = useState(false);
+  const [testingAmazon, setTestingAmazon] = useState(false);
+  const [bulkSyncingAmazon, setBulkSyncingAmazon] = useState(false);
+  const [showAmazonGuideModal, setShowAmazonGuideModal] = useState(false);
   
   // N11 State
   const [n11AppKey, setN11AppKey] = useState(branding.n11_settings?.appKey || "");
@@ -152,59 +159,64 @@ export const SettingsEStoresTab = ({
       // Hepsiburada
       if (hbRes.status === 'fulfilled' && hbRes.value) {
         const h = hbRes.value.data || hbRes.value;
-        if (h) {
-          if (h.apiKey) setHbApiKey(h.apiKey);
-          if (h.apiSecret) setHbApiSecret(h.apiSecret);
-          if (h.merchantId) setHbMerchantId(h.merchantId);
+        if (h && typeof h === 'object' && Object.keys(h).length > 0) {
+          if (h.apiKey !== undefined) setHbApiKey(h.apiKey || "lookprice_dev");
+          if (h.apiSecret !== undefined) setHbApiSecret(h.apiSecret || "");
+          if (h.merchantId !== undefined) setHbMerchantId(h.merchantId || "");
           if (h.isTestMode !== undefined) setHbIsTestMode(h.isTestMode);
           if (h.defaultDispatchTime !== undefined) setHbDefaultDispatchTime(h.defaultDispatchTime);
           if (h.defaultCargoCompany) setHbDefaultCargoCompany(h.defaultCargoCompany);
           if (h.autoSyncOrders !== undefined) setHbAutoSyncOrders(h.autoSyncOrders);
           if (h.autoStockSync !== undefined) setHbAutoStockSync(h.autoStockSync);
           if (h.webhookSecret) setHbWebhookSecret(h.webhookSecret);
+          if (onBrandingChange) onBrandingChange('hepsiburada_settings', h);
         }
       }
 
       // Trendyol
       if (tyRes.status === 'fulfilled' && tyRes.value) {
         const ty = tyRes.value.data || tyRes.value;
-        if (ty) {
+        if (ty && typeof ty === 'object' && Object.keys(ty).length > 0) {
           if (ty.apiKey) setTyApiKey(ty.apiKey);
           if (ty.apiSecret) setTyApiSecret(ty.apiSecret);
           if (ty.merchantId) setTyMerchantId(ty.merchantId);
+          if (onBrandingChange) onBrandingChange('trendyol_settings', ty);
         }
       }
 
       // Amazon
       if (amzRes.status === 'fulfilled' && amzRes.value) {
         const amz = amzRes.value.data || amzRes.value;
-        if (amz) {
+        if (amz && typeof amz === 'object' && Object.keys(amz).length > 0) {
           if (amz.clientId) setAmazonClientId(amz.clientId);
           if (amz.clientSecret) setAmazonClientSecret(amz.clientSecret);
           if (amz.refresh_token) setAmazonRefreshToken(amz.refresh_token);
           if (amz.sellerId) setAmazonSellerId(amz.sellerId);
+          if (onBrandingChange) onBrandingChange('amazon_settings', amz);
         }
       }
 
       // Pazarama
       if (pzRes.status === 'fulfilled' && pzRes.value) {
         const pz = pzRes.value.data || pzRes.value;
-        if (pz) {
+        if (pz && typeof pz === 'object' && Object.keys(pz).length > 0) {
           if (pz.apiKey) setPzApiKey(pz.apiKey);
           if (pz.apiSecret) setPzApiSecret(pz.apiSecret);
           if (pz.merchantId) setPzMerchantId(pz.merchantId);
           if (pz.commissionRate !== undefined) setPzCommissionRate(pz.commissionRate);
           if (pz.categoryMappings) setPzCategoryMappings(pz.categoryMappings);
           if (pz.brandMappings) setPzBrandMappings(pz.brandMappings);
+          if (onBrandingChange) onBrandingChange('pazarama_settings', pz);
         }
       }
 
       // N11
       if (n11Res.status === 'fulfilled' && n11Res.value) {
         const n11 = n11Res.value.data || n11Res.value;
-        if (n11) {
+        if (n11 && typeof n11 === 'object' && Object.keys(n11).length > 0) {
           if (n11.appKey) setN11AppKey(n11.appKey);
           if (n11.appSecret) setN11AppSecret(n11.appSecret);
+          if (onBrandingChange) onBrandingChange('n11_settings', n11);
         }
       }
     }).catch(err => {
@@ -221,15 +233,16 @@ export const SettingsEStoresTab = ({
     if (amz.clientSecret) setAmazonClientSecret(amz.clientSecret);
     if (amz.refresh_token) setAmazonRefreshToken(amz.refresh_token);
     if (amz.sellerId) setAmazonSellerId(amz.sellerId);
+    if (amz.isSandbox !== undefined) setAmazonIsSandbox(amz.isSandbox);
 
     const n = branding.n11_settings || {};
     if (n.appKey) setN11AppKey(n.appKey);
     if (n.appSecret) setN11AppSecret(n.appSecret);
 
     const h = branding.hepsiburada_settings || {};
-    if (h.apiKey) setHbApiKey(h.apiKey);
-    if (h.apiSecret) setHbApiSecret(h.apiSecret);
-    if (h.merchantId) setHbMerchantId(h.merchantId);
+    if (h.apiKey !== undefined) setHbApiKey(h.apiKey || "lookprice_dev");
+    if (h.apiSecret !== undefined) setHbApiSecret(h.apiSecret || "");
+    if (h.merchantId !== undefined) setHbMerchantId(h.merchantId || "");
     if (h.isTestMode !== undefined) setHbIsTestMode(h.isTestMode);
     if (h.defaultDispatchTime !== undefined) setHbDefaultDispatchTime(h.defaultDispatchTime);
     if (h.defaultCargoCompany) setHbDefaultCargoCompany(h.defaultCargoCompany);
@@ -277,6 +290,64 @@ export const SettingsEStoresTab = ({
     }
   };
 
+  const handleTestAmazon = async () => {
+    setTestingAmazon(true);
+    try {
+      const res = await api.testAmazonConnection(currentStoreId, {
+        clientId: amazonClientId,
+        clientSecret: amazonClientSecret,
+        refreshToken: amazonRefreshToken,
+        sellerId: amazonSellerId,
+        isSandbox: amazonIsSandbox
+      });
+      const data = res.data || res;
+      if (data.success) {
+        toast.success(
+          lang === 'tr' 
+            ? `Amazon SP-API Bağlantısı Başarılı! (Satıcı ID: ${data.sellerId || 'Doğrulandı'}, Ortam: Amazon.com.tr)` 
+            : `Amazon SP-API Connection Successful! (${data.sellerId || 'Verified'})`
+        );
+        onBrandingChange('amazon_settings', {
+          ...branding.amazon_settings,
+          clientId: amazonClientId,
+          clientSecret: amazonClientSecret,
+          refresh_token: amazonRefreshToken,
+          sellerId: amazonSellerId || data.sellerId,
+          connected: true
+        });
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(`${lang === 'tr' ? 'Amazon SP-API Hatası' : 'Amazon SP-API Error'}: ${data.error || 'Yetkilendirme başarısız'}`);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || error.message || t.errorOccurred || 'Bir hata oluştu');
+    } finally {
+      setTestingAmazon(false);
+    }
+  };
+
+  const handleBulkSyncAmazon = async () => {
+    setBulkSyncingAmazon(true);
+    try {
+      const res = await api.bulkSyncAmazon(currentStoreId);
+      const data = res.data || res;
+      if (data.success) {
+        toast.success(
+          lang === 'tr'
+            ? `Amazon SP-API Stok & Fiyat Güncellendi! (${data.syncedCount || 0} Başarılı / ${data.total || 0} Toplam)`
+            : `Amazon Stock & Price Updated! (${data.syncedCount || 0} Synced)`
+        );
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(data.error || 'Güncelleme başarısız');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || error.message || 'Stok güncellenemedi');
+    } finally {
+      setBulkSyncingAmazon(false);
+    }
+  };
+
   const handleSaveAmazonSettings = async () => {
     try {
       const isConn = !!(amazonClientId && amazonClientSecret && (amazonRefreshToken || amazonSellerId));
@@ -288,8 +359,15 @@ export const SettingsEStoresTab = ({
         connected: isConn,
         storeId: currentStoreId 
       };
-      await api.saveAmazonSettings(payload);
-      onBrandingChange('amazon_settings', payload);
+      const res = await api.saveAmazonSettings(payload);
+      const savedData = res.data?.settings || res.settings || payload;
+
+      if (savedData.clientId !== undefined) setAmazonClientId(savedData.clientId || "");
+      if (savedData.clientSecret !== undefined) setAmazonClientSecret(savedData.clientSecret || "");
+      if (savedData.refresh_token !== undefined) setAmazonRefreshToken(savedData.refresh_token || "");
+      if (savedData.sellerId !== undefined) setAmazonSellerId(savedData.sellerId || "");
+
+      onBrandingChange('amazon_settings', savedData);
       toast.success(isConn ? (lang === 'tr' ? "Amazon hesabı başarıyla bağlandı ve kaydedildi" : "Amazon account connected successfully") : (t.saveSuccess || "Kaydedildi"));
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -324,8 +402,13 @@ export const SettingsEStoresTab = ({
     try {
       const isConn = !!(n11AppKey && n11AppSecret);
       const payload = { appKey: n11AppKey, appSecret: n11AppSecret, connected: isConn, storeId: currentStoreId };
-      await api.saveN11Settings(payload);
-      onBrandingChange('n11_settings', payload);
+      const res = await api.saveN11Settings(payload);
+      const savedData = res.data?.settings || res.settings || payload;
+
+      if (savedData.appKey !== undefined) setN11AppKey(savedData.appKey || "");
+      if (savedData.appSecret !== undefined) setN11AppSecret(savedData.appSecret || "");
+
+      onBrandingChange('n11_settings', savedData);
       toast.success(isConn ? (lang === 'tr' ? "N11 hesabı başarıyla bağlandı ve kaydedildi" : "N11 account connected successfully") : (t.saveSuccess || "Kaydedildi"));
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -389,8 +472,14 @@ export const SettingsEStoresTab = ({
         connected: isConn,
         storeId: currentStoreId 
       };
-      await api.saveHepsiburadaSettings(payload as any);
-      onBrandingChange('hepsiburada_settings', payload);
+      const res = await api.saveHepsiburadaSettings(payload as any);
+      const savedData = res.data?.settings || res.settings || payload;
+
+      if (savedData.apiKey !== undefined) setHbApiKey(savedData.apiKey || "lookprice_dev");
+      if (savedData.apiSecret !== undefined) setHbApiSecret(savedData.apiSecret || "");
+      if (savedData.merchantId !== undefined) setHbMerchantId(savedData.merchantId || "");
+
+      onBrandingChange('hepsiburada_settings', savedData);
       toast.success(isConn ? (lang === 'tr' ? "HB hesabı başarıyla bağlandı ve kaydedildi" : "HB account connected and saved successfully") : (t.saveSuccess || "Kaydedildi"));
       if (onRefresh) onRefresh();
     } catch (error: any) {
@@ -457,7 +546,11 @@ export const SettingsEStoresTab = ({
 
   const handleTestHb = async () => {
     try {
-      const res = await api.testHepsiburadaConnection(currentStoreId);
+      const res = await api.testHepsiburadaConnection(currentStoreId, {
+        merchantId: hbMerchantId,
+        apiSecret: hbApiSecret,
+        apiKey: hbApiKey || "lookprice_dev"
+      });
       const data = res.data || res;
       if (data.success) {
         toast.success(
@@ -467,16 +560,17 @@ export const SettingsEStoresTab = ({
         );
         onBrandingChange('hepsiburada_settings', {
           ...branding.hepsiburada_settings,
-          apiKey: hbApiKey,
+          apiKey: hbApiKey || "lookprice_dev",
           apiSecret: hbApiSecret,
           merchantId: hbMerchantId,
           connected: true
         });
       } else {
-        toast.error(`${lang === 'tr' ? 'Hepsiburada Bağlantı Hatası' : 'Hepsiburada Connection Error'}: ${data.error || 'Bilinmeyen hata'}`);
+        const errMsg = data.error || data.message || (lang === 'tr' ? 'Yetkilendirme reddedildi' : 'Auth failed');
+        toast.error(`${lang === 'tr' ? 'Hepsiburada Bağlantı Hatası' : 'Hepsiburada Connection Error'}: ${errMsg}`);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || t.errorOccurred || 'Bir hata oluştu');
+      toast.error(error.response?.data?.error || error.message || t.errorOccurred || 'Bir hata oluştu');
     }
   };
 
@@ -491,8 +585,14 @@ export const SettingsEStoresTab = ({
         connected: isConn,
         storeId: currentStoreId 
       };
-      await api.saveTrendyolSettings(tyPayload);
-      onBrandingChange('trendyol_settings', tyPayload);
+      const res = await api.saveTrendyolSettings(tyPayload);
+      const savedData = res.data?.settings || res.settings || tyPayload;
+
+      if (savedData.apiKey !== undefined) setTyApiKey(savedData.apiKey || "");
+      if (savedData.apiSecret !== undefined) setTyApiSecret(savedData.apiSecret || "");
+      if (savedData.merchantId !== undefined) setTyMerchantId(savedData.merchantId || "");
+
+      onBrandingChange('trendyol_settings', savedData);
       toast.success(isConn ? (lang === 'tr' ? "Trendyol hesabı başarıyla bağlandı ve kaydedildi" : "Trendyol account connected successfully") : (t.saveSuccess || "Kaydedildi"));
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -575,11 +675,17 @@ export const SettingsEStoresTab = ({
         brandMappings: pzBrandMappings,
         connected: isConn
       };
-      await api.savePazaramaSettings({ 
+      const res = await api.savePazaramaSettings({ 
         ...pzData,
         storeId: currentStoreId 
       } as any);
-      onBrandingChange('pazarama_settings', pzData);
+      const savedData = res.data?.settings || res.settings || pzData;
+
+      if (savedData.apiKey !== undefined) setPzApiKey(savedData.apiKey || "");
+      if (savedData.apiSecret !== undefined) setPzApiSecret(savedData.apiSecret || "");
+      if (savedData.merchantId !== undefined) setPzMerchantId(savedData.merchantId || "");
+
+      onBrandingChange('pazarama_settings', savedData);
       toast.success(isConn ? (lang === 'tr' ? "Pazarama hesabı başarıyla bağlandı ve kaydedildi" : "Pazarama account connected successfully") : (t.saveSuccess || 'Kaydedildi'));
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -827,10 +933,23 @@ export const SettingsEStoresTab = ({
               <input 
                 type="text" 
                 id="hb-merchant-id-input"
+                name="hb_merchant_id_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                 value={hbMerchantId}
-                onChange={(e) => setHbMerchantId(e.target.value)}
-                placeholder="örn. 984d720b-22b6-45ef-89a3-..."
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setHbMerchantId(val);
+                  onBrandingChange('hepsiburada_settings', {
+                    ...(branding.hepsiburada_settings || {}),
+                    merchantId: val,
+                    apiSecret: hbApiSecret,
+                    apiKey: hbApiKey || "lookprice_dev"
+                  });
+                }}
+                placeholder="örn. ea3f02b7-ef8c-439b-ac03-9e2ed38a4deb"
               />
             </div>
 
@@ -844,9 +963,22 @@ export const SettingsEStoresTab = ({
                 <input 
                   type={showHbSecret ? "text" : "password"} 
                   id="hb-api-secret-input"
+                  name="hb_api_secret_no_autofill"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
                   className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                   value={hbApiSecret}
-                  onChange={(e) => setHbApiSecret(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setHbApiSecret(val);
+                    onBrandingChange('hepsiburada_settings', {
+                      ...(branding.hepsiburada_settings || {}),
+                      merchantId: hbMerchantId,
+                      apiSecret: val,
+                      apiKey: hbApiKey || "lookprice_dev"
+                    });
+                  }}
                   placeholder="Hepsiburada API Şifresi"
                 />
                 <button
@@ -868,9 +1000,22 @@ export const SettingsEStoresTab = ({
               <input 
                 type="text" 
                 id="hb-api-key-input"
+                name="hb_api_key_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                 value={hbApiKey}
-                onChange={(e) => setHbApiKey(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setHbApiKey(val);
+                  onBrandingChange('hepsiburada_settings', {
+                    ...(branding.hepsiburada_settings || {}),
+                    merchantId: hbMerchantId,
+                    apiSecret: hbApiSecret,
+                    apiKey: val || "lookprice_dev"
+                  });
+                }}
                 placeholder="lookprice_dev"
               />
             </div>
@@ -1089,9 +1234,23 @@ export const SettingsEStoresTab = ({
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.trendyolApiKey || "API Key"}</label>
               <input 
                 type="text" 
+                id="ty-api-key-input"
+                name="ty_api_key_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                 value={tyApiKey}
-                onChange={(e) => setTyApiKey(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTyApiKey(val);
+                  onBrandingChange('trendyol_settings', {
+                    ...(branding.trendyol_settings || {}),
+                    apiKey: val,
+                    apiSecret: tyApiSecret,
+                    merchantId: tyMerchantId
+                  });
+                }}
                 placeholder="API Key"
               />
             </div>
@@ -1100,9 +1259,23 @@ export const SettingsEStoresTab = ({
               <div className="relative">
                 <input 
                   type={showTySecret ? "text" : "password"} 
+                  id="ty-api-secret-input"
+                  name="ty_api_secret_no_autofill"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
                   className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                   value={tyApiSecret}
-                  onChange={(e) => setTyApiSecret(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTyApiSecret(val);
+                    onBrandingChange('trendyol_settings', {
+                      ...(branding.trendyol_settings || {}),
+                      apiKey: tyApiKey,
+                      apiSecret: val,
+                      merchantId: tyMerchantId
+                    });
+                  }}
                   placeholder="API Secret"
                 />
                 <button
@@ -1119,9 +1292,23 @@ export const SettingsEStoresTab = ({
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.trendyolMerchantId || "Satıcı ID (Supplier ID)"}</label>
               <input 
                 type="text" 
+                id="ty-merchant-id-input"
+                name="ty_merchant_id_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                 value={tyMerchantId}
-                onChange={(e) => setTyMerchantId(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTyMerchantId(val);
+                  onBrandingChange('trendyol_settings', {
+                    ...(branding.trendyol_settings || {}),
+                    apiKey: tyApiKey,
+                    apiSecret: tyApiSecret,
+                    merchantId: val
+                  });
+                }}
                 placeholder="Satıcı ID"
               />
             </div>
@@ -1226,45 +1413,83 @@ export const SettingsEStoresTab = ({
             </div>
           </div>
 
+          {currentUser?.role === 'superadmin' && (
+            <div className="mb-4">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                  checked={amazonIsSandbox}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setAmazonIsSandbox(val);
+                    onBrandingChange('amazon_settings', {
+                      ...(branding.amazon_settings || {}),
+                      clientId: amazonClientId,
+                      clientSecret: amazonClientSecret,
+                      refresh_token: amazonRefreshToken,
+                      sellerId: amazonSellerId,
+                      isSandbox: val
+                    });
+                  }}
+                />
+                <span className="text-xs font-medium text-slate-700">SP-API Sandbox (Test) Ortamı</span>
+              </label>
+              <p className="text-[10px] text-slate-500 mt-0.5 ml-6">Amazon SP-API onay sürecindeki statik testler için Sandbox uç noktalarını kullanır.</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.amazonClientId || "LWA Client ID"}</label>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.amazonSellerId || "Amazon Seller ID (Merchant ID)"}</label>
               <input 
                 type="text" 
+                id="amz-seller-id-input"
+                name="amz_seller_id_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={amazonClientId}
-                onChange={(e) => setAmazonClientId(e.target.value)}
-                placeholder="amzn1.application-oa2-client..."
+                value={amazonSellerId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAmazonSellerId(val);
+                  onBrandingChange('amazon_settings', {
+                    ...(branding.amazon_settings || {}),
+                    clientId: amazonClientId,
+                    clientSecret: amazonClientSecret,
+                    refresh_token: amazonRefreshToken,
+                    sellerId: val,
+                    isSandbox: amazonIsSandbox
+                  });
+                }}
+                placeholder="A3..."
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.amazonClientSecret || "LWA Client Secret"}</label>
-              <div className="relative">
-                <input 
-                  type={showAmazonSecret ? "text" : "password"} 
-                  className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                  value={amazonClientSecret}
-                  onChange={(e) => setAmazonClientSecret(e.target.value)}
-                  placeholder="Client Secret"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowAmazonSecret(!showAmazonSecret)}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  tabIndex={-1}
-                >
-                  {showAmazonSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.amazonRefreshToken || "LWA Refresh Token"}</label>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.amazonRefreshToken || "SP-API Refresh Token"}</label>
               <div className="relative">
                 <input 
                   type={showAmazonRefresh ? "text" : "password"} 
+                  id="amz-refresh-token-input"
+                  name="amz_refresh_token_no_autofill"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
                   className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                   value={amazonRefreshToken}
-                  onChange={(e) => setAmazonRefreshToken(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAmazonRefreshToken(val);
+                    onBrandingChange('amazon_settings', {
+                      ...(branding.amazon_settings || {}),
+                      clientId: amazonClientId,
+                      clientSecret: amazonClientSecret,
+                      refresh_token: val,
+                      sellerId: amazonSellerId,
+                      isSandbox: amazonIsSandbox
+                    });
+                  }}
                   placeholder="Atzr|..."
                 />
                 <button
@@ -1277,27 +1502,19 @@ export const SettingsEStoresTab = ({
                 </button>
               </div>
             </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.amazonSellerId || "Amazon Seller ID (Merchant ID)"}</label>
-              <input 
-                type="text" 
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={amazonSellerId}
-                onChange={(e) => setAmazonSellerId(e.target.value)}
-                placeholder="A3..."
-              />
-            </div>
           </div>
 
           <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
             <div className="flex flex-wrap items-center gap-2">
               <button 
                 type="button"
-                onClick={handleConnectAmazon}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
+                onClick={handleTestAmazon}
+                disabled={testingAmazon}
+                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                title="Amazon SP-API Bağlantısını Ve İzinlerini Test Et"
               >
-                <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
-                <span>{t.amazonConnectOAuth || "OAuth ile Bağlan"}</span>
+                <CheckCircle2 className={`h-3.5 w-3.5 text-indigo-600 ${testingAmazon ? 'animate-spin' : ''}`} />
+                <span>{testingAmazon ? (lang === 'tr' ? 'Test Ediliyor...' : 'Testing...') : (lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test Connection')}</span>
               </button>
 
               <button 
@@ -1312,6 +1529,17 @@ export const SettingsEStoresTab = ({
 
               <button 
                 type="button"
+                onClick={handleBulkSyncAmazon}
+                disabled={bulkSyncingAmazon}
+                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                title="Tüm Ürünlerin Stok ve Fiyatlarını Amazon SP-API ile Eşitle"
+              >
+                <UploadCloud className={`h-3.5 w-3.5 text-emerald-600 ${bulkSyncingAmazon ? 'animate-spin' : ''}`} />
+                <span>{bulkSyncingAmazon ? (lang === 'tr' ? 'Güncelleniyor...' : 'Syncing...') : (lang === 'tr' ? 'Stok & Fiyat Gönder' : 'Push Inventory')}</span>
+              </button>
+
+              <button 
+                type="button"
                 onClick={() => {
                   setSelectedMappingMarketplace('amazon');
                   setCategoryMappingModalOpen(true);
@@ -1320,6 +1548,15 @@ export const SettingsEStoresTab = ({
               >
                 <Layers className="h-3.5 w-3.5 text-slate-500" />
                 <span>{lang === 'tr' ? 'Kategori & Nitelik Eşle' : 'Category Mapping'}</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => setShowAmazonGuideModal(true)}
+                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 shadow-xs transition-colors cursor-pointer"
+              >
+                <HelpCircle className="h-3.5 w-3.5 text-amber-600" />
+                <span>{lang === 'tr' ? 'SP-API Kurulum Rehberi' : 'SP-API Setup Guide'}</span>
               </button>
             </div>
 
@@ -1348,7 +1585,7 @@ export const SettingsEStoresTab = ({
                 ) : (
                   <>
                     <Save className="h-3.5 w-3.5 text-slate-300" />
-                    <span>{lang === 'tr' ? 'Amazon Hesabını Bağla' : 'Connect Amazon'}</span>
+                    <span>{lang === 'tr' ? 'Amazon Hesabını Kaydet' : 'Save Amazon Settings'}</span>
                   </>
                 )}
               </button>
@@ -1393,9 +1630,23 @@ export const SettingsEStoresTab = ({
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">Pazarama API Key</label>
               <input 
                 type="text" 
+                id="pz-api-key-input"
+                name="pz_api_key_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                 value={pzApiKey}
-                onChange={(e) => setPzApiKey(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPzApiKey(val);
+                  onBrandingChange('pazarama_settings', {
+                    ...(branding.pazarama_settings || {}),
+                    apiKey: val,
+                    apiSecret: pzApiSecret,
+                    merchantId: pzMerchantId
+                  });
+                }}
                 placeholder="API Key"
               />
             </div>
@@ -1404,9 +1655,23 @@ export const SettingsEStoresTab = ({
               <div className="relative">
                 <input 
                   type={showPzSecret ? "text" : "password"} 
+                  id="pz-api-secret-input"
+                  name="pz_api_secret_no_autofill"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
                   className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                   value={pzApiSecret}
-                  onChange={(e) => setPzApiSecret(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPzApiSecret(val);
+                    onBrandingChange('pazarama_settings', {
+                      ...(branding.pazarama_settings || {}),
+                      apiKey: pzApiKey,
+                      apiSecret: val,
+                      merchantId: pzMerchantId
+                    });
+                  }}
                   placeholder="API Secret"
                 />
                 <button
@@ -1423,9 +1688,23 @@ export const SettingsEStoresTab = ({
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">Pazarama Merchant ID</label>
               <input 
                 type="text" 
+                id="pz-merchant-id-input"
+                name="pz_merchant_id_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                 value={pzMerchantId}
-                onChange={(e) => setPzMerchantId(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPzMerchantId(val);
+                  onBrandingChange('pazarama_settings', {
+                    ...(branding.pazarama_settings || {}),
+                    apiKey: pzApiKey,
+                    apiSecret: pzApiSecret,
+                    merchantId: val
+                  });
+                }}
                 placeholder="Satıcı Kodu"
               />
             </div>
@@ -1535,9 +1814,22 @@ export const SettingsEStoresTab = ({
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.n11AppKey || "N11 App Key"}</label>
               <input 
                 type="text" 
+                id="n11-app-key-input"
+                name="n11_app_key_no_autofill"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                 value={n11AppKey}
-                onChange={(e) => setN11AppKey(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setN11AppKey(val);
+                  onBrandingChange('n11_settings', {
+                    ...(branding.n11_settings || {}),
+                    appKey: val,
+                    appSecret: n11AppSecret
+                  });
+                }}
                 placeholder="N11 App Key"
               />
             </div>
@@ -1546,9 +1838,22 @@ export const SettingsEStoresTab = ({
               <div className="relative">
                 <input 
                   type={showN11Secret ? "text" : "password"} 
+                  id="n11-app-secret-input"
+                  name="n11_app_secret_no_autofill"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
                   className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
                   value={n11AppSecret}
-                  onChange={(e) => setN11AppSecret(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setN11AppSecret(val);
+                    onBrandingChange('n11_settings', {
+                      ...(branding.n11_settings || {}),
+                      appKey: n11AppKey,
+                      appSecret: val
+                    });
+                  }}
                   placeholder="N11 App Secret"
                 />
                 <button
@@ -1685,6 +1990,91 @@ export const SettingsEStoresTab = ({
                 className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-medium cursor-pointer"
               >
                 Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Amazon SP-API Setup Guide Modal */}
+      {showAmazonGuideModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
+                  a
+                </div>
+                <h4 className="font-semibold text-sm text-white">Amazon Selling Partner API (SP-API) Kurulum Rehberi</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAmazonGuideModal(false)}
+                className="p-1 rounded text-slate-400 hover:text-white cursor-pointer"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto flex-1 space-y-4 text-xs text-slate-700 leading-relaxed">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start space-x-3 text-emerald-800">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-xs">LookPrice Amazon SP-API Entegrasyonu (Geliştirici İzni)</p>
+                  <p className="text-[11px] mt-0.5 text-emerald-700">LookPrice resmi bir Amazon SP-API geliştiricisidir. Aşağıdaki adımları uygulayarak mağazanızı saniyeler içinde LookPrice'a bağlayabilirsiniz.</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">1</div>
+                  <div>
+                    <h5 className="font-semibold text-slate-900">Uygulama Yetkilendirme Sayfasına Gidin</h5>
+                    <p className="mt-1 text-slate-600">Amazon Seller Central hesabınıza giriş yapın. Üst menüden <span className="font-semibold">Partner Network (İş Ortağı Ağı) &gt; Manage Your Apps (Uygulamalarınızı Yönetin)</span> bölümüne tıklayın.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">2</div>
+                  <div>
+                    <h5 className="font-semibold text-slate-900">Yeni Geliştiriciyi Yetkilendirin</h5>
+                    <p className="mt-1 text-slate-600">Açılan sayfada <span className="font-semibold text-indigo-700">"Authorize new developer" (Yeni bir geliştiriciyi yetkilendir)</span> butonuna tıklayın.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">3</div>
+                  <div>
+                    <h5 className="font-semibold text-slate-900">LookPrice Geliştirici ID'sini Girin</h5>
+                    <p className="mt-1 text-slate-600">Geliştirici Adı (Developer Name) alanına <span className="font-mono bg-white px-1.5 py-0.5 border rounded">LookPrice</span>, Geliştirici Kimliği (Developer ID) alanına ise <span className="font-mono bg-white px-1.5 py-0.5 border rounded">7243-7643-9821</span> değerini girin ve İleri'ye tıklayın.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">4</div>
+                  <div>
+                    <h5 className="font-semibold text-slate-900">Refresh Token ve Seller ID Bilgilerini Alın</h5>
+                    <p className="mt-1 text-slate-600">Koşulları onayladıktan sonra ekranda görünecek olan <span className="font-mono bg-white px-1.5 py-0.5 border rounded">Satıcı Kimliği (Seller ID)</span> ve <span className="font-mono bg-white px-1.5 py-0.5 border rounded">MWS Auth Token / Refresh Token</span> değerlerini kopyalayın.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shrink-0">5</div>
+                  <div>
+                    <h5 className="font-semibold text-slate-900">LookPrice Paneline Kaydedin</h5>
+                    <p className="mt-1 text-slate-600">Kopyaladığınız bilgileri bu ekrandaki <span className="font-semibold">Amazon Seller ID</span> ve <span className="font-semibold">SP-API Refresh Token</span> alanlarına yapıştırarak <span className="font-semibold text-indigo-700">"Bağlantıyı Test Et"</span> butonuna tıklayın.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowAmazonGuideModal(false)}
+                className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+              >
+                Anladım, Kapat
               </button>
             </div>
           </div>

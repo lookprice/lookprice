@@ -476,6 +476,8 @@ export const api = {
   getAmazonAuthUrl: () => api.get("/api/integrations/amazon/auth-url"),
   getAmazonSettings: (storeId?: number) => api.get(`/api/integrations/amazon/settings${storeId ? `?storeId=${storeId}` : ""}`),
   saveAmazonSettings: (data: { clientId: string, clientSecret: string, refreshToken: string, sellerId: string, categoryMappings?: any, categoryAttributes?: any, storeId?: number }) => api.post("/api/integrations/amazon/settings", data),
+  testAmazonConnection: (storeId?: number, data?: any) => api.post("/api/integrations/amazon/test-connection", { storeId, ...data }),
+  bulkSyncAmazon: (storeId?: number) => api.post("/api/integrations/amazon/bulk-sync", { storeId }),
   syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),
   disconnectAmazon: (storeId?: number) => api.post("/api/integrations/amazon/disconnect", { storeId }),
   getAmazonCategories: () => api.get("/api/integrations/amazon/categories"),
@@ -567,7 +569,7 @@ export const api = {
 
   // Integration Test Methods
   testN11Connection: (storeId?: number) => api.post("/api/integrations/n11/test", { storeId }),
-  testHepsiburadaConnection: (storeId?: number) => api.post("/api/integrations/hepsiburada/test", { storeId }),
+  testHepsiburadaConnection: (storeId?: number, extraData?: any) => api.post("/api/integrations/hepsiburada/test", { storeId, ...(extraData || {}) }),
   testTrendyolConnection: (storeId?: number) => api.post("/api/integrations/trendyol/test", { storeId }),
   testPazaramaConnection: (storeId?: number) => api.post("/api/integrations/pazarama/test", { storeId }),
   

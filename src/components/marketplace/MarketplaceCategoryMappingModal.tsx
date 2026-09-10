@@ -18,7 +18,9 @@ import {
   AMAZON_DEFAULT_CATEGORIES,
   PAZARAMA_DEFAULT_CATEGORIES,
   getAttributesForCategory,
-  suggestMarketplaceCategory
+  suggestMarketplaceCategory,
+  normalizeCategoryText,
+  matchCategorySearchToken
 } from '@/data/marketplaceCategoriesData';
 
 export type MarketplaceType = 'hepsiburada' | 'trendyol' | 'amazon' | 'pazarama';
@@ -236,6 +238,46 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         });
     }
   }, [isOpen, activeMarketplace, currentStoreId]);
+
+  // Live Category Search when user types in category search box
+  useEffect(() => {
+    if (!isOpen || !catSearchTerm || catSearchTerm.trim().length < 2) return;
+
+    const term = catSearchTerm.trim();
+    const timer = setTimeout(() => {
+      if (activeMarketplace === 'hepsiburada') {
+        api.get(`/api/integrations/hepsiburada/categories/search?q=${encodeURIComponent(term)}${currentStoreId ? `&storeId=${currentStoreId}` : ''}`)
+          .then((res: any) => {
+            const list = res.data?.categories || res.categories || [];
+            if (Array.isArray(list) && list.length > 0) {
+              setMarketCategories((prev) => {
+                const existing = prev.hepsiburada || [];
+                const existingIds = new Set(existing.map((c) => String(c.id)));
+                const newItems = list
+                  .map((c: any) => ({
+                    id: c.id || c.categoryId,
+                    name: c.name || c.displayName,
+                    displayName: c.displayName || c.name,
+                    paths: c.paths || [],
+                    leaf: c.leaf !== false,
+                    sector: c.sector || detectCategorySector(c.name || c.displayName, c.paths || [])
+                  }))
+                  .filter((c: any) => !existingIds.has(String(c.id)));
+
+                if (newItems.length === 0) return prev;
+                return {
+                  ...prev,
+                  hepsiburada: [...existing, ...newItems]
+                };
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, catSearchTerm, activeMarketplace, currentStoreId]);
 
   // Extract all unique local categories and sub-categories from store's products
   const localCategoryItems = useMemo<LocalCategoryItem[]>(() => {
@@ -1039,16 +1081,22 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               const suggestionPool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : currentAvailableMarketCats;
               const suggestion = !mappedId ? suggestMarketplaceCategory(localCat, suggestionPool).bestMatch : null;
 
-              // Filter marketplace categories for dropdown (sector filtered first)
-              const filteredMarketCats = sectorFilteredMarketCats.filter((c) => {
-                if (!catSearchTerm) return true;
-                const s = catSearchTerm.toLowerCase();
-                return (
-                  c.name.toLowerCase().includes(s) ||
-                  String(c.id).includes(s) ||
-                  (c.displayName && c.displayName.toLowerCase().includes(s)) ||
-                  (c.paths || []).some((p) => p.toLowerCase().includes(s))
-                );
+              // Filter marketplace categories for dropdown (sector filtered first, fallback to all if search term used)
+              const candidatePool = (catSearchTerm.trim() && selectedSector !== 'all')
+                ? currentAvailableMarketCats
+                : sectorFilteredMarketCats;
+
+              const filteredMarketCats = candidatePool.filter((c) => {
+                if (!catSearchTerm.trim()) return true;
+                const normSearch = normalizeCategoryText(catSearchTerm);
+                if (!normSearch) return true;
+
+                const catIdStr = String(c.id || c.categoryId || '');
+                if (catIdStr === catSearchTerm.trim()) return true;
+
+                const fullTextNorm = normalizeCategoryText(`${c.name || ''} ${c.displayName || ''} ${(c.paths || []).join(' ')}`);
+                const tokens = normSearch.split(' ').filter(Boolean);
+                return tokens.every((token) => matchCategorySearchToken(fullTextNorm, token));
               });
 
               return (

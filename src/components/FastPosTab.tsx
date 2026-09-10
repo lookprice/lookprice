@@ -65,6 +65,8 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const t = translations[lang].dashboard;
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [showCafeTools, setShowCafeTools] = useState(false);
+
   useEffect(() => {
     if (isOnline) {
       const pendingSales = JSON.parse(localStorage.getItem(`pendingSales_${storeId}`) || '[]');
@@ -2216,53 +2218,63 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         <div className="flex items-center gap-2">
           {/* Cafe Restaurant Specific Tools */}
           {isCafeRestaurant && (
-            <>
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowQrModal(true)}
-                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
-                title={lang === 'tr' ? "Masalara Özel QR ve Barkodları Üret / Yazdır" : "Generate / Print Table QR & Barcodes"}
-              >
-                <QrCode className="h-3.5 w-3.5 text-rose-600" />
-                <span>{lang === 'tr' ? 'Masa QR & Barkod' : 'Table QR & Barcodes'}</span>
-              </button>
-
-              <button
-                onClick={() => setShowReportModal(true)}
-                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
-              >
-                <Calendar className="h-3.5 w-3.5 text-indigo-600" />
-                <span>{lang === 'tr' ? 'Gün Sonu Raporu' : 'End of Day Report'}</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setPrinterDiagStep('idle');
-                  setShowPrinterDiagnosticModal(true);
-                }}
-                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
-                title={lang === 'tr' ? "Mutfak/Bar Yazıcı Sorun Giderici ve Tanı Modülü" : "Kitchen/Bar Printer Troubleshooter & Diagnostics"}
-              >
-                <Printer className="h-3.5 w-3.5 text-amber-600" />
-                <span>{lang === 'tr' ? 'Yazıcı Tanısı' : 'Printer Diagnosis'}</span>
-              </button>
-
-              <button
-                onClick={() => setShowHappyHourModal(true)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer border ${
-                  isHappyHourActive
-                    ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 animate-pulse'
-                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                onClick={() => setShowCafeTools(!showCafeTools)}
+                className={`p-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center justify-center ${
+                  showCafeTools ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
-                title={lang === 'tr' ? "Happy Hour (Mutlu Saatler) Kampanya Yapılandırması" : "Happy Hour Campaign Config"}
+                title={lang === 'tr' ? "İşlemler (Masa QR, Gün Sonu, vb.)" : "Actions (Table QR, Z-Report, etc.)"}
               >
-                <Flame className={`h-3.5 w-3.5 ${isHappyHourActive ? 'text-white font-bold' : 'text-indigo-600'}`} />
-                <span>
-                  {isHappyHourActive
-                    ? (lang === 'tr' ? 'Happy Hour Aktif!' : 'Happy Hour Active!')
-                    : (lang === 'tr' ? 'Happy Hour' : 'Happy Hour')}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="px-1">{lang === 'tr' ? "İşlemler" : "Actions"}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showCafeTools ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6"/></svg>
+                </div>
               </button>
-            </>
+
+              {showCafeTools && (
+                <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
+                  <button
+                    onClick={() => setShowQrModal(true)}
+                    className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
+                    title={lang === 'tr' ? "Masa QR & Barkod" : "Table QR & Barcodes"}
+                  >
+                    <QrCode className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
+                    title={lang === 'tr' ? "Gün Sonu Raporu" : "End of Day Report"}
+                  >
+                    <Calendar className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setPrinterDiagStep('idle');
+                      setShowPrinterDiagnosticModal(true);
+                    }}
+                    className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
+                    title={lang === 'tr' ? "Yazıcı Tanısı" : "Printer Diagnosis"}
+                  >
+                    <Printer className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    onClick={() => setShowHappyHourModal(true)}
+                    className={`p-1.5 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer border ${
+                      isHappyHourActive
+                        ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 animate-pulse'
+                        : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                    }`}
+                    title={lang === 'tr' ? "Happy Hour" : "Happy Hour"}
+                  >
+                    <Flame className={`h-4 w-4 ${isHappyHourActive ? 'text-white' : ''}`} />
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Bridge Status Indicator */}

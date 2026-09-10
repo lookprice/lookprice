@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal, Info, X } from "lucide-react";
+import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal, Info, X, Loader2 } from "lucide-react";
 import { getAttributesForCategory, MarketplaceAttribute } from "@/data/marketplaceCategoriesData";
+import { api } from "@/services/api";
 
 interface MarketplaceProductFieldsProps {
   product: any;
@@ -33,6 +34,10 @@ export const MarketplaceProductFields = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showAttributesEditor, setShowAttributesEditor] = useState(false);
+  const [dynamicAttributes, setDynamicAttributes] = useState<any[]>([]);
+  const [loadingAttributes, setLoadingAttributes] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchingCategories, setSearchingCategories] = useState(false);
 
   // Sync state if product changes
   useEffect(() => {
@@ -40,7 +45,7 @@ export const MarketplaceProductFields = ({
     setMarketData(currentHb);
   }, [product?.id, JSON.stringify(product?.marketplace_data)]);
 
-  // Check store-level category mapping (checks hierarchical sub-category first, then sub_category, then main category)
+  // Check store-level category mapping
   const catKey = product?.category ? String(product.category).trim() : "";
   const subCatKey = product?.sub_category ? String(product.sub_category).trim() : "";
   const hierarchicalKey = catKey && subCatKey ? `${catKey} > ${subCatKey}` : "";
@@ -52,23 +57,82 @@ export const MarketplaceProductFields = ({
     "";
   const effectiveCatId = marketData.categoryId || storeMappedCatId || "";
 
-  const activeCategory = categories.find(
+  const activeCategory = [...searchResults, ...categories].find(
     (c) => String(c.id || c.categoryId) === String(effectiveCatId)
   );
 
-  // Get relevant attributes for active category
-  const categoryAttributes = activeCategory 
-    ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [])
-    : [];
+  // Load Dynamic Category Attributes from API whenever effectiveCatId changes
+  useEffect(() => {
+    if (!effectiveCatId) {
+      setDynamicAttributes([]);
+      return;
+    }
+
+    setLoadingAttributes(true);
+    const storeId = storeSettings?.id || product?.store_id;
+
+    api.getHepsiburadaCategoryAttributes(effectiveCatId, storeId)
+      .then((res: any) => {
+        const attrs = res.data?.attributes || res.attributes || [];
+        if (Array.isArray(attrs) && attrs.length > 0) {
+          setDynamicAttributes(attrs);
+        } else {
+          // Fallback to local calculated attributes
+          const fallback = activeCategory 
+            ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [])
+            : [];
+          setDynamicAttributes(fallback);
+        }
+      })
+      .catch((err) => {
+        console.warn("Dynamic HB Attributes Fetch Error:", err);
+        const fallback = activeCategory 
+          ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [])
+          : [];
+        setDynamicAttributes(fallback);
+      })
+      .finally(() => setLoadingAttributes(false));
+  }, [effectiveCatId, activeCategory?.name]);
+
+  // Live Category Search Handler with debounce
+  useEffect(() => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setSearchingCategories(true);
+      const storeId = storeSettings?.id || product?.store_id;
+      
+      api.get(`/api/integrations/hepsiburada/categories/search?q=${encodeURIComponent(searchTerm)}${storeId ? `&storeId=${storeId}` : ''}`)
+        .then((res: any) => {
+          const list = res.data?.categories || res.categories || [];
+          if (Array.isArray(list)) {
+            setSearchResults(list);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setSearchingCategories(false));
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const categoryAttributes = dynamicAttributes.length > 0 
+    ? dynamicAttributes 
+    : (activeCategory ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || []) : []);
 
   const storeCategoryAttrs = storeSettings?.categoryAttributes?.[String(effectiveCatId)] || {};
 
-  const filteredCategories = categories.filter((c) => {
-    if (!searchTerm) return true;
-    const name = (c.displayName || c.name || "").toLowerCase();
-    const id = String(c.id || c.categoryId || "").toLowerCase();
-    return name.includes(searchTerm.toLowerCase()) || id.includes(searchTerm.toLowerCase());
-  });
+  const displayCategories = searchResults.length > 0 
+    ? searchResults 
+    : categories.filter((c) => {
+        if (!searchTerm) return true;
+        const name = (c.displayName || c.name || "").toLowerCase();
+        const id = String(c.id || c.categoryId || "").toLowerCase();
+        return name.includes(searchTerm.toLowerCase()) || id.includes(searchTerm.toLowerCase());
+      });
 
   const handleCategorySelect = (categoryId: string) => {
     const updated = { ...marketData, categoryId };
@@ -209,13 +273,18 @@ export const MarketplaceProductFields = ({
           </div>
 
           {showCategoryDropdown && (
-            <div className="max-h-48 overflow-y-auto bg-white border border-rose-200 rounded-xl shadow-xl space-y-1 p-1 z-20 relative">
-              {filteredCategories.length === 0 ? (
+            <div className="max-h-56 overflow-y-auto bg-white border border-rose-200 rounded-xl shadow-xl space-y-1 p-1 z-20 relative">
+              {searchingCategories ? (
+                <div className="p-3 text-center text-xs text-rose-600 font-medium flex items-center justify-center gap-1.5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-rose-500" />
+                  <span>{isTr ? "Kategoriler aranıyor..." : "Searching categories..."}</span>
+                </div>
+              ) : displayCategories.length === 0 ? (
                 <div className="p-3 text-center text-xs text-slate-400">
                   {isTr ? "Eşleşen kategori bulunamadı." : "No matching categories found."}
                 </div>
               ) : (
-                filteredCategories.slice(0, 30).map((cat) => {
+                displayCategories.slice(0, 40).map((cat) => {
                   const catId = String(cat.id || cat.categoryId);
                   const isSelected = String(effectiveCatId) === catId;
                   return (
@@ -233,7 +302,7 @@ export const MarketplaceProductFields = ({
                           <p className="text-[10px] text-slate-400">{cat.paths.join(" > ")}</p>
                         )}
                       </div>
-                      <span className="font-mono text-[10px] bg-white text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                      <span className="font-mono text-[10px] bg-white text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 shrink-0 ml-2">
                         #{catId}
                       </span>
                     </button>
@@ -258,8 +327,8 @@ export const MarketplaceProductFields = ({
               <span>
                 {isTr ? "Kategori Zorunlu Özellikleri & Nitelikler" : "Category Attributes & Specifications"}
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-rose-100 text-rose-700 rounded-md">
-                {categoryAttributes.length}
+              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-rose-100 text-rose-700 rounded-md flex items-center gap-1">
+                {loadingAttributes ? <Loader2 className="h-3 w-3 animate-spin text-rose-600" /> : categoryAttributes.length}
               </span>
             </div>
             <ChevronDown className={`h-4 w-4 transition-transform ${showAttributesEditor ? "rotate-180" : ""}`} />

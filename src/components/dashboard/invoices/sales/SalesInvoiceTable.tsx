@@ -40,6 +40,7 @@ interface SalesInvoiceTableProps {
   handleViewDetails: (inv: any, print?: boolean) => void;
   handleDelete: (id: number) => void;
   handleOpenWaybillModal?: (inv: any) => void;
+  handleMarketplaceShip?: (inv: any) => void;
   page: number;
   totalPages: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
@@ -63,6 +64,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   handleViewDetails,
   handleDelete,
   handleOpenWaybillModal,
+  handleMarketplaceShip,
   page,
   totalPages,
   setPage,
@@ -408,6 +410,17 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               <Eye className="h-4 w-4" />
                             </button>
                           )}
+                          
+                          {inv.invoice_type === 'marketplace' && handleMarketplaceShip && (
+                            <button 
+                              onClick={() => handleMarketplaceShip(inv)}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                              title={isTr ? "Kargo Bildirimi (Pazar Yeri)" : "Marketplace Shipment"}
+                            >
+                              <Truck className="h-4 w-4" />
+                            </button>
+                          )}
+
                           <button 
                             onClick={() => handleEdit(inv.id)}
                             className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"

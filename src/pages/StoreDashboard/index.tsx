@@ -107,6 +107,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const { slug } = useParams();
   const { lang } = useLanguage();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPasswordBanner, setShowPasswordBanner] = useState(false);
   const isTr = lang === 'tr';
   const txt = (tr: string, en: string, el: string) => {
     if (lang === 'tr') return tr;
@@ -923,24 +924,41 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     >
       <div className={activeTab === 'fast-pos' ? "space-y-0" : "space-y-8"}>
         {user?.password_needs_update && (
-          <div className="mb-6 bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-black shrink-0 shadow text-xl">
-                🛡️
+          <div className="mb-6">
+            {!showPasswordBanner ? (
+              <button 
+                onClick={() => setShowPasswordBanner(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors shadow-sm"
+              >
+                <span className="text-sm">🛡️</span> {isTr ? 'Şifre Güvenlik Uyarısı' : 'Password Security Alert'}
+              </button>
+            ) : (
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm relative">
+                <button 
+                  onClick={() => setShowPasswordBanner(false)}
+                  className="absolute top-2 right-2 text-rose-400 hover:text-rose-600 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="flex items-start gap-2.5 pr-6">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center font-black shrink-0 text-lg">
+                    🛡️
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-rose-700 text-xs uppercase tracking-tight">{isTr ? 'Güvenlik Uyarısı' : 'Security Alert'}</h4>
+                    <p className="text-rose-600 font-medium text-[11px] mt-0.5 leading-tight max-w-lg">
+                      {isTr ? 'Hesabınızın güvenliği için lütfen şifrenizi güncelleyiniz. (En az 12 karakter, büyük/küçük harf, rakam ve sembol).' : 'Please update your password for your account security. (Min 12 characters, uppercase/lowercase, numbers and symbols).'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowPasswordModal(true)}
+                  className="px-3 py-1.5 bg-rose-600 text-white text-[11px] font-bold uppercase tracking-wider rounded-lg hover:bg-rose-700 transition-colors shrink-0 cursor-pointer"
+                >
+                  {isTr ? 'Şifremi Değiştir' : 'Change Password'}
+                </button>
               </div>
-              <div>
-                <h4 className="font-bold text-rose-700 text-sm md:text-base tracking-tight uppercase">LookPrice Kurumsal Güvenlik Standartları</h4>
-                <p className="text-rose-600 font-medium text-xs md:text-sm mt-0.5">
-                  Hesabınızın güvenliği için lütfen "Ayarlar" sayfasından profil şifrenizi güncelleyiniz. (En az 12 karakter, büyük/küçük harf, rakam ve sembol).
-                </p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setShowPasswordModal(true)}
-              className="px-4 py-2 bg-rose-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-rose-700 transition-colors shrink-0 cursor-pointer"
-            >
-              Şifremi Değiştir
-            </button>
+            )}
           </div>
         )}
 
