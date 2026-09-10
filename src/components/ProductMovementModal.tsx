@@ -237,11 +237,15 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
         totalOutAmount += amount;
       }
 
-      if (m.source === 'purchase_invoice' || m.invoice_type === 'purchase') {
+      const isPurchase = m.source === 'purchase_invoice' || m.invoice_type === 'purchase' || m.source === 'purchase' || (m.type === 'in' && m.source !== 'initial_stock');
+      const isSales = m.source === 'sales_invoice' || m.invoice_type === 'sales' || m.source === 'sales' || m.source === 'web_sale' || ['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(m.source);
+      const isPos = m.source === 'pos_sale' || m.source === 'pos';
+
+      if (isPurchase) {
         purchaseCount++;
-      } else if (m.source === 'sales_invoice' || m.invoice_type === 'sales') {
+      } else if (isSales) {
         salesCount++;
-      } else if (m.source === 'pos_sale' || m.source === 'pos') {
+      } else if (isPos) {
         posCount++;
       } else {
         otherCount++;
@@ -267,15 +271,19 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
   // Filtered movements
   const filteredMovements = useMemo(() => {
     return movements.filter(m => {
+      const isPurchase = m.source === 'purchase_invoice' || m.invoice_type === 'purchase' || m.source === 'purchase' || (m.type === 'in' && m.source !== 'initial_stock');
+      const isSales = m.source === 'sales_invoice' || m.invoice_type === 'sales' || m.source === 'sales' || m.source === 'web_sale' || ['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(m.source);
+      const isPos = m.source === 'pos_sale' || m.source === 'pos';
+
       // Type Filter
       if (selectedFilter === 'purchase') {
-        if (m.source !== 'purchase_invoice' && m.invoice_type !== 'purchase') return false;
+        if (!isPurchase) return false;
       } else if (selectedFilter === 'sales') {
-        if (m.source !== 'sales_invoice' && m.invoice_type !== 'sales') return false;
+        if (!isSales) return false;
       } else if (selectedFilter === 'pos') {
-        if (m.source !== 'pos_sale' && m.source !== 'pos') return false;
+        if (!isPos) return false;
       } else if (selectedFilter === 'other') {
-        if (m.source === 'purchase_invoice' || m.source === 'sales_invoice' || m.source === 'pos_sale' || m.source === 'pos') return false;
+        if (isPurchase || isSales || isPos) return false;
       }
 
       // Search Query
@@ -301,17 +309,24 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
   const formatSourceBadge = (source: string, type: string) => {
     switch (source) {
       case 'purchase_invoice':
+      case 'purchase':
         return { label: isTr ? 'Alış Faturası' : 'Purchase Invoice', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
       case 'sales_invoice':
+      case 'sales':
         return { label: isTr ? 'Satış Faturası' : 'Sales Invoice', color: 'bg-blue-100 text-blue-800 border-blue-200' };
       case 'pos_sale':
       case 'pos':
         return { label: isTr ? 'POS / Kasa Satışı' : 'POS Sale', color: 'bg-violet-100 text-violet-800 border-violet-200' };
+      case 'web_sale':
+        return { label: isTr ? 'E-Ticaret / Web Satışı' : 'Web Sale', color: 'bg-sky-100 text-sky-800 border-sky-200' };
       case 'initial_stock':
         return { label: isTr ? 'Açılış / Devir Stok' : 'Opening Stock', color: 'bg-amber-100 text-amber-800 border-amber-200' };
       case 'manual_adjustment':
         return { label: isTr ? 'Manuel Stok Sayım/Düzeltme' : 'Manual Adjustment', color: 'bg-slate-100 text-slate-800 border-slate-200' };
       default:
+        if (['hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti'].includes(source)) {
+          return { label: `Pazaryeri (${source.toUpperCase()})`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
+        }
         return { 
           label: type === 'in' ? (isTr ? 'Stok Girişi' : 'Stock In') : (isTr ? 'Stok Çıkışı' : 'Stock Out'),
           color: type === 'in' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'

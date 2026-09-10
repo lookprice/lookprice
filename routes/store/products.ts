@@ -1132,6 +1132,9 @@ router.delete("/:id", async (req: any, res) => {
 
 export async function ensureProductMovements(productId: number, storeId: number) {
   try {
+    // Clean up any bad/orphaned stock movements with product_id 0 or NULL
+    await pool.query("DELETE FROM stock_movements WHERE product_id IS NULL OR product_id = 0");
+
     const prodRes = await pool.query(
       "SELECT id, store_id, barcode, product_code, sku, name, stock_quantity, cost_price, price, currency, created_at FROM products WHERE id = $1",
       [productId]
@@ -1144,37 +1147,37 @@ export async function ensureProductMovements(productId: number, storeId: number)
     const prodName = prod.name ? String(prod.name).trim().toLowerCase() : '';
 
     // 0. Auto-link unlinked purchase_invoice_items and sales_invoice_items for this product
-    if (prodBarcode || prodCode || prodSku || prodName.length >= 3) {
+    if (prodBarcode || prodCode || prodSku || prodName.length >= 2) {
       await pool.query(`
         UPDATE purchase_invoice_items pii
         SET product_id = $1
         FROM purchase_invoices pi
         WHERE pii.purchase_invoice_id = pi.id
-          AND pi.store_id = $2
           AND (pii.product_id IS NULL OR pii.product_id = 0)
           AND COALESCE(pi.is_expense, FALSE) = FALSE
           AND (
-            ($3 != '' AND pii.barcode = $3)
+            ($2 != '' AND pii.barcode = $2)
+            OR ($3 != '' AND (pii.product_code = $3 OR pii.barcode = $3))
             OR ($4 != '' AND (pii.product_code = $4 OR pii.barcode = $4))
-            OR ($5 != '' AND (pii.product_code = $5 OR pii.barcode = $5))
-            OR ($6 != '' AND LOWER(TRIM(pii.product_name)) = $6)
+            OR ($5 != '' AND LOWER(TRIM(pii.product_name)) = $5)
+            OR ($5 != '' AND LENGTH($5) >= 4 AND LOWER(pii.product_name) LIKE '%' || $5 || '%')
           )
-      `, [prod.id, prod.store_id, prodBarcode, prodCode, prodSku, prodName]);
+      `, [prod.id, prodBarcode, prodCode, prodSku, prodName]);
 
       await pool.query(`
         UPDATE sales_invoice_items sii
         SET product_id = $1
         FROM sales_invoices si
         WHERE sii.sales_invoice_id = si.id
-          AND si.store_id = $2
           AND (sii.product_id IS NULL OR sii.product_id = 0)
           AND (
-            ($3 != '' AND sii.barcode = $3)
+            ($2 != '' AND sii.barcode = $2)
+            OR ($3 != '' AND sii.barcode = $3)
             OR ($4 != '' AND sii.barcode = $4)
-            OR ($5 != '' AND sii.barcode = $5)
-            OR ($6 != '' AND LOWER(TRIM(sii.product_name)) = $6)
+            OR ($5 != '' AND LOWER(TRIM(sii.product_name)) = $5)
+            OR ($5 != '' AND LENGTH($5) >= 4 AND LOWER(sii.product_name) LIKE '%' || $5 || '%')
           )
-      `, [prod.id, prod.store_id, prodBarcode, prodCode, prodSku, prodName]);
+      `, [prod.id, prodBarcode, prodCode, prodSku, prodName]);
     }
 
     // 1. Sync missing purchase_invoice_items for this product
@@ -1209,11 +1212,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = $1
             AND sm.source = 'purchase_invoice'
-            AND (
-              sm.invoice_id = pi.id
-              OR (NULLIF(pi.invoice_number, '') IS NOT NULL AND (sm.invoice_number = pi.invoice_number OR sm.description LIKE '%' || pi.invoice_number || '%'))
-              OR (NULLIF(pi.document_number, '') IS NOT NULL AND (sm.invoice_number = pi.document_number OR sm.description LIKE '%' || pi.document_number || '%'))
-            )
+            AND sm.invoice_id = pi.id
         )
     `, [productId, prodBarcode, prodCode, prodSku, prodName]);
 
@@ -1249,11 +1248,7 @@ export async function ensureProductMovements(productId: number, storeId: number)
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = $1
             AND sm.source = 'sales_invoice'
-            AND (
-              sm.invoice_id = si.id
-              OR (NULLIF(si.invoice_number, '') IS NOT NULL AND (sm.invoice_number = si.invoice_number OR sm.description LIKE '%' || si.invoice_number || '%'))
-              OR (NULLIF(si.document_number, '') IS NOT NULL AND (sm.invoice_number = si.document_number OR sm.description LIKE '%' || si.document_number || '%'))
-            )
+            AND sm.invoice_id = si.id
         )
     `, [productId, prodBarcode, prodCode, prodSku, prodName]);
 

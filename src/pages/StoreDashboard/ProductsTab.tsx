@@ -1,4 +1,4 @@
-import React, { useState, useDeferredValue, useEffect } from "react";
+import React, { useState, useDeferredValue, useEffect, useMemo } from "react";
 import { normalizeSearch } from "../../lib/searchUtils";
 import { 
   Plus, 
@@ -9,6 +9,7 @@ import {
   FileText,
   ChevronRight, 
   ChevronLeft,
+  ChevronDown,
   Filter,
   AlertTriangle,
   Download,
@@ -33,7 +34,8 @@ import {
   Sparkles,
   Image as ImageIcon,
   Cloud,
-  Barcode
+  Barcode,
+  Layers
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "@/translations";
@@ -46,6 +48,8 @@ import { DuplicateMergeModal } from "../../components/DuplicateMergeModal";
 import AiMenuScanModal from "./modals/AiMenuScanModal";
 import { MarketplaceBulkPublishModal } from "../../components/marketplace/MarketplaceBulkPublishModal";
 import { MarketplaceListingsModal } from "../../components/marketplace/MarketplaceListingsModal";
+import { TableManager } from "../../components/common/TableManager";
+import { useTableManager, ColumnDefinition } from "../../hooks/useTableManager";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { getLabels } from "../../utils/showcase";
@@ -142,7 +146,6 @@ const ProductsTab = ({
   const [bestsellerStateMap, setBestsellerStateMap] = useState<Record<number, boolean>>({});
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isAiMenuModalOpen, setIsAiMenuModalOpen] = useState(false);
-  const [showBarcodeColumn, setShowBarcodeColumn] = useState(true);
 
   const isCafe = isCafeRestaurant || 
     branding?.store_type === 'cafe_restaurant' || 
@@ -154,6 +157,29 @@ const ProductsTab = ({
     branding?.page_layout_settings?.sector === 'horeca';
   const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
   const isShopLp = !isCafe && !isPortfolio;
+
+  const productColumns = useMemo<ColumnDefinition[]>(() => {
+    const cols: ColumnDefinition[] = [];
+    if (!isCafe) {
+      cols.push({ id: 'barcode', label: t.barcode || (lang === 'tr' ? 'Barkod' : 'Barcode'), defaultVisible: true, category: 'primary' });
+    }
+    cols.push({ id: 'image', label: lang === 'tr' ? 'Görsel' : 'Image', defaultVisible: true, category: 'primary' });
+    cols.push({ id: 'product', label: t.productName || (lang === 'tr' ? 'Ürün Adı' : 'Product Name'), required: true, category: 'primary' });
+    if (showStoreName) {
+      cols.push({ id: 'branch', label: t.branch || (lang === 'tr' ? 'Şube' : 'Branch'), defaultVisible: true, category: 'primary' });
+    }
+    cols.push({ id: 'price', label: t.price || (lang === 'tr' ? 'Satış Fiyatı' : 'Price'), defaultVisible: true, category: 'pricing' });
+    cols.push({ id: 'cost', label: t.cost || (lang === 'tr' ? 'Maliyet' : 'Cost'), defaultVisible: true, category: 'pricing' });
+    cols.push({ id: 'stock', label: t.stock || (lang === 'tr' ? 'Stok' : 'Stock'), defaultVisible: true, category: 'inventory' });
+    cols.push({ id: 'actions', label: t.actions || (lang === 'tr' ? 'İşlemler' : 'Actions'), required: true, category: 'actions' });
+    return cols;
+  }, [t, lang, isCafe, showStoreName]);
+
+  const tableManager = useTableManager({
+    tableKey: `products_${branding?.id || currentStoreId || 'default'}`,
+    columns: productColumns,
+    defaultMetadataMode: 'inline'
+  });
 
   const getIsBestseller = (p: any) => bestsellerStateMap[p.id] !== undefined ? bestsellerStateMap[p.id] : !!p.is_bestseller;
 
@@ -731,21 +757,11 @@ const ProductsTab = ({
               </button>
             )}
 
-            {!isCafe && (
-              <button
-                type="button"
-                onClick={() => setShowBarcodeColumn(!showBarcodeColumn)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border shrink-0 flex items-center gap-1 cursor-pointer select-none ${
-                  showBarcodeColumn
-                    ? 'bg-slate-100 text-slate-700 border-slate-300 shadow-xs'
-                    : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
-                }`}
-                title={showBarcodeColumn ? (lang === 'tr' ? 'Barkod Sütununu Gizle' : 'Hide Barcode') : (lang === 'tr' ? 'Barkod Sütununu Göster' : 'Show Barcode')}
-              >
-                <Barcode className="w-3.5 h-3.5" />
-                <span className="hidden lg:inline">{lang === 'tr' ? 'Barkod' : 'Barcode'}</span>
-              </button>
-            )}
+            <TableManager 
+              manager={tableManager} 
+              lang={lang} 
+              allRowIds={paginatedProducts.map(p => p.id)} 
+            />
 
             <label className="flex items-center cursor-pointer group shrink-0 select-none px-2 py-1 rounded-lg hover:bg-slate-200/60 transition-colors">
               <input 
@@ -878,35 +894,52 @@ const ProductsTab = ({
                     />
                   </th>
                 )}
-                {!isCafe && showBarcodeColumn && (
+                {tableManager.metadataMode === 'expandable' && (
+                  <th className="w-7 py-2 px-1 text-center text-[10px] text-slate-400 font-bold">
+                    <span className="sr-only">Expand</span>
+                  </th>
+                )}
+                {!isCafe && tableManager.isColumnVisible('barcode') && (
                   <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.barcode}</th>
                 )}
                 <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.productName}</th>
-                {showStoreName && <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.branch}</th>}
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.price}</th>
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.cost}</th>
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.stock}</th>
-                <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
+                {showStoreName && tableManager.isColumnVisible('branch') && (
+                  <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.branch}</th>
+                )}
+                {tableManager.isColumnVisible('price') && (
+                  <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.price}</th>
+                )}
+                {tableManager.isColumnVisible('cost') && (
+                  <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.cost}</th>
+                )}
+                {tableManager.isColumnVisible('stock') && (
+                  <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.stock}</th>
+                )}
+                {tableManager.isColumnVisible('actions') && (
+                  <th className="px-2.5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {(loading && products.length === 0) ? (
                 <tr>
-                  <td colSpan={isCafe ? (showStoreName ? 7 : 6) : (showBarcodeColumn ? (showStoreName ? 8 : 7) : (showStoreName ? 7 : 6))} className="px-3.5 py-8 text-center">
+                  <td colSpan={10} className="px-3.5 py-8 text-center">
                     <div className="animate-spin h-6 w-6 border-2 border-slate-900 border-t-transparent rounded-full mx-auto mb-2 shadow-xs"></div>
                     <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider">{t.loading}</p>
                   </td>
                 </tr>
               ) : paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={isCafe ? (showStoreName ? 7 : 6) : (showBarcodeColumn ? (showStoreName ? 8 : 7) : (showStoreName ? 7 : 6))} className="px-3.5 py-10 text-center text-slate-400 text-[11px] font-bold uppercase tracking-wider italic">
+                  <td colSpan={10} className="px-3.5 py-10 text-center text-slate-400 text-[11px] font-bold uppercase tracking-wider italic">
                     {t.noProducts}
                   </td>
                 </tr>
               ) : (
-                paginatedProducts.map((p, pIdx) => {
+                paginatedProducts.map((p) => {
+                  const isRowOpen = tableManager.isRowExpanded(p.id);
                   return (
-                      <tr key={p.id} className={`hover:bg-slate-50/70 transition-colors group cursor-default ${selectedIds.includes(p.id) ? 'bg-indigo-50/30' : (Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') ? 'bg-amber-50/50' : '')}`}>
+                    <React.Fragment key={p.id}>
+                      <tr className={`hover:bg-slate-50/70 transition-colors group cursor-default ${selectedIds.includes(p.id) ? 'bg-indigo-50/30' : (Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') ? 'bg-amber-50/50' : '')}`}>
                         {!isViewer && (
                           <td className="pl-3 py-1.5">
                             <input 
@@ -917,7 +950,19 @@ const ProductsTab = ({
                             />
                           </td>
                         )}
-                        {!isCafe && showBarcodeColumn && (
+                        {tableManager.metadataMode === 'expandable' && (
+                          <td className="w-7 py-1.5 px-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => tableManager.toggleRowExpansion(p.id)}
+                              className="p-1 rounded hover:bg-slate-200/70 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                              title={isRowOpen ? (lang === 'tr' ? 'Detayları Gizle' : 'Collapse Details') : (lang === 'tr' ? 'Detayları Göster' : 'Expand Details')}
+                            >
+                              <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-150 ${isRowOpen ? 'rotate-90 text-indigo-600' : ''}`} />
+                            </button>
+                          </td>
+                        )}
+                        {!isCafe && tableManager.isColumnVisible('barcode') && (
                           <td className="px-2.5 py-1.5 whitespace-nowrap">
                             <span className="font-mono text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200 font-medium">
                               {p.barcode || '-'}
@@ -926,6 +971,7 @@ const ProductsTab = ({
                         )}
                         <td className="px-2.5 py-1.5">
                           <div className="flex items-center gap-2.5">
+                            {tableManager.isColumnVisible('image') && (
                             <div className="relative group/img shrink-0">
                               {p.image_url ? (
                                 <img 
@@ -961,6 +1007,7 @@ const ProductsTab = ({
                                 </div>
                               )}
                             </div>
+                            )}
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
                                 <div className="text-xs font-semibold text-slate-900 truncate max-w-[180px] sm:max-w-[240px] md:max-w-[320px] leading-tight" title={p.name}>
@@ -977,92 +1024,95 @@ const ProductsTab = ({
                                   </div>
                                 )}
                               </div>
-                              <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                                {(() => {
-                                  if (!p.updated_at) return null;
-                                  const date = new Date(p.updated_at);
-                                  const now = new Date();
-                                  const diffDays = (now.getTime() - date.getTime()) / (1000 * 3600 * 24);
-                                  if (diffDays < 3) {
-                                    return (
-                                      <span className="text-[8px] font-bold text-white bg-indigo-600 px-1 py-0.2 rounded uppercase">
-                                        {lang === 'tr' ? 'YENİ' : 'NEW'}
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                                {isShopLp && p.is_hepsiburada_active && (
-                                  <a
-                                    href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-[8px] font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5"
-                                    title={lang === 'tr' ? "Hepsiburada Canlı İlan" : "HB Live"}
-                                  >
-                                    <span className="w-1 h-1 rounded-full bg-orange-500"></span>
-                                    HB
-                                  </a>
-                                )}
-                                {isShopLp && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setMarketplaceModalTab('hepsiburada');
-                                      setMarketplaceModalStatus('error');
-                                      setShowMarketplaceListingsModal(true);
-                                    }}
-                                    className="text-[8px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5 cursor-pointer"
-                                    title={`Hepsiburada Hatası: ${p.hepsiburada_last_error}`}
-                                  >
-                                    <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
-                                    HB Hata
-                                  </button>
-                                )}
-                                {isShopLp && p.is_trendyol_active && (
-                                  <span className="text-[8px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded uppercase">
-                                    TY
-                                  </span>
-                                )}
-                                {isShopLp && p.is_n11_active && (
-                                  <span className="text-[8px] font-bold text-red-800 bg-red-50 border border-red-200 px-1 py-0.2 rounded uppercase">
-                                    N11
-                                  </span>
-                                )}
-                                {p.category && (
-                                  <span className="text-[9px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
-                                    {p.category}
-                                  </span>
-                                )}
-                                {p.brand && (
-                                  <span className="text-[9px] font-medium text-slate-400 bg-white border border-slate-200 px-1 py-0.2 rounded">
-                                    {p.brand}
-                                  </span>
-                                )}
-                                {isCafe && getIsBestseller(p) && (
-                                  <span className="text-[8px] font-bold text-white bg-orange-500 px-1.5 py-0.2 rounded uppercase inline-flex items-center gap-0.5">
-                                    <Flame className="h-2.5 w-2.5 fill-white text-white" />
-                                    {lang === 'tr' ? 'ÇOK SATAN' : 'BESTSELLER'}
-                                  </span>
-                                )}
-                                {p.is_web_sale === false && (
-                                  <span className="text-[8px] font-bold text-rose-500 bg-rose-50 border border-rose-100 px-1 py-0.2 rounded uppercase">
-                                    {lang === 'tr' ? 'KAPALI' : 'OFFLINE'}
-                                  </span>
-                                )}
-                              </div>
+                              {tableManager.metadataMode === 'inline' && (
+                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                  {(() => {
+                                    if (!p.updated_at) return null;
+                                    const date = new Date(p.updated_at);
+                                    const now = new Date();
+                                    const diffDays = (now.getTime() - date.getTime()) / (1000 * 3600 * 24);
+                                    if (diffDays < 3) {
+                                      return (
+                                        <span className="text-[8px] font-bold text-white bg-indigo-600 px-1 py-0.2 rounded uppercase">
+                                          {lang === 'tr' ? 'YENİ' : 'NEW'}
+                                        </span>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                  {isShopLp && p.is_hepsiburada_active && (
+                                    <a
+                                      href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-[8px] font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5"
+                                      title={lang === 'tr' ? "Hepsiburada Canlı İlan" : "HB Live"}
+                                    >
+                                      <span className="w-1 h-1 rounded-full bg-orange-500"></span>
+                                      HB
+                                    </a>
+                                  )}
+                                  {isShopLp && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setMarketplaceModalTab('hepsiburada');
+                                        setMarketplaceModalStatus('error');
+                                        setShowMarketplaceListingsModal(true);
+                                      }}
+                                      className="text-[8px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5 cursor-pointer"
+                                      title={`Hepsiburada Hatası: ${p.hepsiburada_last_error}`}
+                                    >
+                                      <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
+                                      HB Hata
+                                    </button>
+                                  )}
+                                  {isShopLp && p.is_trendyol_active && (
+                                    <span className="text-[8px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded uppercase">
+                                      TY
+                                    </span>
+                                  )}
+                                  {isShopLp && p.is_n11_active && (
+                                    <span className="text-[8px] font-bold text-red-800 bg-red-50 border border-red-200 px-1 py-0.2 rounded uppercase">
+                                      N11
+                                    </span>
+                                  )}
+                                  {p.category && (
+                                    <span className="text-[9px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
+                                      {p.category}
+                                    </span>
+                                  )}
+                                  {p.brand && (
+                                    <span className="text-[9px] font-medium text-slate-400 bg-white border border-slate-200 px-1 py-0.2 rounded">
+                                      {p.brand}
+                                    </span>
+                                  )}
+                                  {isCafe && getIsBestseller(p) && (
+                                    <span className="text-[8px] font-bold text-white bg-orange-500 px-1.5 py-0.2 rounded uppercase inline-flex items-center gap-0.5">
+                                      <Flame className="h-2.5 w-2.5 fill-white text-white" />
+                                      {lang === 'tr' ? 'ÇOK SATAN' : 'BESTSELLER'}
+                                    </span>
+                                  )}
+                                  {p.is_web_sale === false && (
+                                    <span className="text-[8px] font-bold text-rose-500 bg-rose-50 border border-rose-100 px-1 py-0.2 rounded uppercase">
+                                      {lang === 'tr' ? 'KAPALI' : 'OFFLINE'}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
-                    {showStoreName && (
+                    {showStoreName && tableManager.isColumnVisible('branch') && (
                       <td className="px-2.5 py-1.5 whitespace-nowrap">
                         <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                           {p.store_name}
                         </span>
                       </td>
                     )}
+                    {tableManager.isColumnVisible('price') && (
                     <td className="px-2.5 py-1.5 whitespace-nowrap">
                       {(() => {
                         let parsedVars: any[] = [];
@@ -1102,6 +1152,8 @@ const ProductsTab = ({
                         );
                       })()}
                     </td>
+                    )}
+                    {tableManager.isColumnVisible('cost') && (
                     <td className="px-2.5 py-1.5 whitespace-nowrap">
                       {p.cost_price > 0 ? (
                         <div className="flex flex-col">
@@ -1123,6 +1175,8 @@ const ProductsTab = ({
                         <span className="text-[10px] text-slate-300">-</span>
                       )}
                     </td>
+                    )}
+                    {tableManager.isColumnVisible('stock') && (
                     <td className="px-2.5 py-1.5 whitespace-nowrap">
                       {p.product_type === 'service' ? (
                         <span className="text-[8px] font-medium text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded uppercase">{lang === 'tr' ? 'HİZMET' : 'SRV'}</span>
@@ -1155,6 +1209,8 @@ const ProductsTab = ({
                         );
                       })()}
                     </td>
+                    )}
+                    {tableManager.isColumnVisible('actions') && (
                     <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
                       {!isViewer && (
                         <div className="flex justify-end items-center gap-0.5">
@@ -1253,9 +1309,75 @@ const ProductsTab = ({
                         </div>
                       )}
                     </td>
+                    )}
                   </tr>
-                  );
-                 })
+
+                  {/* Nested / Expandable Sub-Row for Grouped Auxiliary Metadata */}
+                  {(tableManager.metadataMode === 'nested' || (tableManager.metadataMode === 'expandable' && isRowOpen)) && (
+                    <tr className="bg-slate-50/80 border-b border-slate-100">
+                      <td colSpan={10} className="px-3 py-1.5 pl-8 sm:pl-10">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                          {p.category && (
+                            <span className="font-semibold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs flex items-center gap-1">
+                              <span className="text-slate-400 font-normal">{lang === 'tr' ? 'Kategori:' : 'Category:'}</span>
+                              {p.category}
+                              {p.sub_category && <span className="text-slate-400">/ {p.sub_category}</span>}
+                            </span>
+                          )}
+                          {p.brand && (
+                            <span className="font-semibold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs flex items-center gap-1">
+                              <span className="text-slate-400 font-normal">{lang === 'tr' ? 'Marka:' : 'Brand:'}</span>
+                              {p.brand}
+                            </span>
+                          )}
+                          {p.cost_price > 0 && (() => {
+                            const profit = calculateProfitMargin(p);
+                            if (!profit) return null;
+                            return (
+                              <span className={`font-bold px-2 py-0.5 rounded border shadow-2xs ${profit.margin < 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                %{profit.margin.toFixed(1)} {lang === 'tr' ? 'Kâr Marjı' : 'Margin'}
+                              </span>
+                            );
+                          })()}
+                          {isShopLp && (
+                            <div className="flex items-center gap-1">
+                              {p.is_hepsiburada_active && (
+                                <a
+                                  href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1"
+                                  title={lang === 'tr' ? "Hepsiburada Canlı İlan" : "HB Live"}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                  Hepsiburada Yayında
+                                </a>
+                              )}
+                              {p.is_trendyol_active && (
+                                <span className="font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase">
+                                  Trendyol Yayında
+                                </span>
+                              )}
+                              {p.is_n11_active && (
+                                <span className="font-bold text-red-800 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded uppercase">
+                                  N11 Yayında
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {p.description && (
+                            <span className="text-slate-500 italic truncate max-w-xs sm:max-w-md" title={p.description}>
+                              &ldquo;{p.description}&rdquo;
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+             })
                )}
             </tbody>
           </table>

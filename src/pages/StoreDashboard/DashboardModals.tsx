@@ -1280,7 +1280,7 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                                       return (
                                         <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
                                           <td className="py-2 px-3.5 whitespace-nowrap text-slate-600 font-mono text-[11px]">
-                                            {formatDate(new Date(tx.transaction_date || tx.date))}
+                                            {new Date(tx.transaction_date || tx.date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US')}
                                           </td>
                                           <td className="py-2 px-3.5 text-slate-900 font-medium max-w-xs sm:max-w-md truncate">
                                             {tx.description || (isDebt ? (isTr ? 'Borç Hareketi' : 'Debit') : (isTr ? 'Alacak Hareketi' : 'Credit'))}

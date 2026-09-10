@@ -59,6 +59,9 @@ export async function initPurchaseInvoiceSchema() {
         )
     `);
 
+    // 2.5 Clean up bad or orphaned stock movements with product_id 0 or NULL
+    await pool.query("DELETE FROM stock_movements WHERE product_id IS NULL OR product_id = 0");
+
     // 3. Auto-repair missing sales_invoice stock_movements
     await pool.query(`
       INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, invoice_id, invoice_type, invoice_number)
@@ -80,16 +83,12 @@ export async function initPurchaseInvoiceSchema() {
       JOIN sales_invoices si ON sii.sales_invoice_id = si.id
       LEFT JOIN companies c ON si.company_id = c.id
       LEFT JOIN customers cust ON si.customer_id = cust.id
-      WHERE sii.product_id IS NOT NULL
+      WHERE sii.product_id IS NOT NULL AND sii.product_id > 0
         AND NOT EXISTS (
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = sii.product_id
             AND sm.source = 'sales_invoice'
-            AND (
-              sm.invoice_id = si.id
-              OR (NULLIF(si.invoice_number, '') IS NOT NULL AND (sm.invoice_number = si.invoice_number OR sm.description LIKE '%' || si.invoice_number || '%'))
-              OR (NULLIF(si.document_number, '') IS NOT NULL AND (sm.invoice_number = si.document_number OR sm.description LIKE '%' || si.document_number || '%'))
-            )
+            AND sm.invoice_id = si.id
         )
     `);
 
@@ -113,17 +112,13 @@ export async function initPurchaseInvoiceSchema() {
       FROM purchase_invoice_items pii
       JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
       LEFT JOIN companies c ON pi.company_id = c.id
-      WHERE pii.product_id IS NOT NULL
+      WHERE pii.product_id IS NOT NULL AND pii.product_id > 0
         AND COALESCE(pi.is_expense, FALSE) = FALSE
         AND NOT EXISTS (
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = pii.product_id
             AND sm.source = 'purchase_invoice'
-            AND (
-              sm.invoice_id = pi.id
-              OR (NULLIF(pi.invoice_number, '') IS NOT NULL AND (sm.invoice_number = pi.invoice_number OR sm.description LIKE '%' || pi.invoice_number || '%'))
-              OR (NULLIF(pi.document_number, '') IS NOT NULL AND (sm.invoice_number = pi.document_number OR sm.description LIKE '%' || pi.document_number || '%'))
-            )
+            AND sm.invoice_id = pi.id
         )
     `);
 
@@ -1700,10 +1695,10 @@ router.get("/purchase/:id", async (req: any, res) => {
                      [invoice.id, productId, productName, finalBarcode, finalProductCode, qty, up, tr, taxAmount, lineTotal]
                    );
 
-                   // Check if stock movement already recorded for this invoice to prevent double addition
+                   // Check if stock movement already recorded for this product on this invoice to prevent double addition
                    const existingMov = await pool.query(
-                     "SELECT 1 FROM stock_movements WHERE store_id = $1 AND related_id = $2 AND movement_type = 'purchase_invoice' LIMIT 1",
-                     [invoice.store_id, invoice.id]
+                     "SELECT 1 FROM stock_movements WHERE store_id = $1 AND invoice_id = $2 AND source = 'purchase_invoice' AND product_id = $3 LIMIT 1",
+                     [invoice.store_id, invoice.id, productId]
                    );
                    if (productId && existingMov.rows.length === 0) {
                      await pool.query(
