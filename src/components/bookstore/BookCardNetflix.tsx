@@ -22,6 +22,7 @@ import {
 import { Product, Store as StoreInfo } from "../../types";
 import { api } from "../../services/api";
 import { getBookCoverFallbackSvg } from "../../utils/imageFallback";
+import { bookstoreInteraction } from "../../services/bookstoreInteractionService";
 
 interface BookCardNetflixProps {
   product: Product;
@@ -49,7 +50,17 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
   const [addedAnimation, setAddedAnimation] = useState(false);
   const [branchStocks, setBranchStocks] = useState<any[]>([]);
   const [hasLoadedStocks, setHasLoadedStocks] = useState(false);
+  const [isFav, setIsFav] = useState<boolean>(() => bookstoreInteraction.isFavorite(product.id, store?.id));
   const isTr = lang === "tr";
+
+  // Sync favorites state
+  useEffect(() => {
+    const updateFav = () => {
+      setIsFav(bookstoreInteraction.isFavorite(product.id, store?.id));
+    };
+    window.addEventListener("bookstore-favorites-changed", updateFav);
+    return () => window.removeEventListener("bookstore-favorites-changed", updateFav);
+  }, [product.id, store?.id]);
 
   // Parse sector_data
   const sectorData = React.useMemo(() => {
@@ -212,6 +223,18 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        bookstoreInteraction.toggleFavorite(product.id, store?.id);
+                      }}
+                      title={isFav ? (isTr ? "Favorilerden Çıkar" : "Remove Favorite") : (isTr ? "Favorilere Ekle" : "Add to Favorites")}
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-rose-500 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
+                    </button>
+
                     <button
                       type="button"
                       onClick={handleQuickAdd}

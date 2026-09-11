@@ -19,7 +19,8 @@ import {
   Quote,
   X,
   Building2,
-  Layers
+  Layers,
+  Heart
 } from "lucide-react";
 import { Product, Store as StoreInfo } from "../types";
 import { NetflixBookRow } from "./bookstore/NetflixBookRow";
@@ -27,6 +28,7 @@ import { BookCardNetflix } from "./bookstore/BookCardNetflix";
 import { StoreFooter } from "./showcase/StoreFooter";
 import { getBookCoverFallbackSvg } from "../utils/imageFallback";
 import { BOOKSTORE_CATEGORIES, getBookstoreSubcategories } from "../data/bookstoreCategories";
+import { bookstoreInteraction } from "../services/bookstoreInteractionService";
 
 interface BookstoreNetflixLayoutProps {
   store: StoreInfo | null;
@@ -76,6 +78,17 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   const [selectedAuthor, setSelectedAuthor] = useState<string>("all");
   const [selectedPublisher, setSelectedPublisher] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"home" | "catalog" | "bestsellers">("home");
+  const [favCount, setFavCount] = useState<number>(() => bookstoreInteraction.getFavorites(store?.id).length);
+
+  // Sync favorites count
+  useEffect(() => {
+    const updateFavs = () => {
+      setFavCount(bookstoreInteraction.getFavorites(store?.id).length);
+    };
+    updateFavs();
+    window.addEventListener("bookstore-favorites-changed", updateFavs);
+    return () => window.removeEventListener("bookstore-favorites-changed", updateFavs);
+  }, [store?.id]);
 
   const storeName = store?.branding?.store_name || store?.name || (isTr ? "Seçkin Kitabevi" : "Elite Bookstore");
   const storeLogo = store?.branding?.logo_url || store?.logo_url;
@@ -148,12 +161,12 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   const [currentHeroIdx, setCurrentHeroIdx] = useState(0);
   const [isHeroHovered, setIsHeroHovered] = useState(false);
 
-  // Auto rotate weekly picks every 6 seconds
+  // Auto rotate weekly picks (faster dynamic rotation every 3.5 seconds)
   useEffect(() => {
     if (weeklyBooks.length <= 1 || isHeroHovered) return;
     const interval = setInterval(() => {
       setCurrentHeroIdx((prev) => (prev + 1) % weeklyBooks.length);
-    }, 6000);
+    }, 3500);
     return () => clearInterval(interval);
   }, [weeklyBooks.length, isHeroHovered]);
 
@@ -282,6 +295,27 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 </button>
               )}
             </div>
+
+            {/* Favorites Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (customer) {
+                  onOpenProfile("favorites");
+                } else {
+                  setShowAuthModal(true);
+                }
+              }}
+              className="relative p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-rose-500 hover:border-rose-500/40 transition-all cursor-pointer"
+              title={isTr ? "Favori Kitaplarım" : "My Favorites"}
+            >
+              <Heart className={`w-4 h-4 ${favCount > 0 ? 'text-rose-500 fill-rose-500/30' : ''}`} />
+              {favCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-md">
+                  {favCount}
+                </span>
+              )}
+            </button>
 
             {/* Account Profile Button */}
             {customer ? (
@@ -441,7 +475,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                       </motion.div>
                     </AnimatePresence>
 
-                    {/* Action Buttons & Weekly Switcher Controls */}
+                    {/* Action Buttons */}
                     <div className="flex flex-wrap items-center gap-3 pt-2">
                       <button
                         type="button"
@@ -460,46 +494,6 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                         <ShoppingBag className="w-4 h-4" />
                         <span>{isTr ? "Sepete Ekle" : "Add to Cart"}</span>
                       </button>
-
-                      {/* Multi-Book Arrow Controls */}
-                      {weeklyBooks.length > 1 && (
-                        <div className="flex items-center gap-1.5 ml-auto sm:ml-2 bg-slate-900/90 border border-slate-800 p-1 rounded-xl">
-                          <button
-                            type="button"
-                            onClick={() => setCurrentHeroIdx((prev) => (prev - 1 + weeklyBooks.length) % weeklyBooks.length)}
-                            className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-                            title={isTr ? "Önceki Eser" : "Previous"}
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                          </button>
-                          
-                          {/* Dot / Pill Indicators */}
-                          <div className="flex items-center gap-1 px-1">
-                            {weeklyBooks.map((_, idx) => (
-                              <button
-                                key={`hero-dot-${idx}`}
-                                type="button"
-                                onClick={() => setCurrentHeroIdx(idx)}
-                                className={`h-2 rounded-full transition-all cursor-pointer ${
-                                  idx === currentHeroIdx 
-                                    ? "w-6 bg-red-600 shadow-sm shadow-red-600/50" 
-                                    : "w-2 bg-slate-700 hover:bg-slate-500"
-                                }`}
-                                title={`Eser ${idx + 1}`}
-                              />
-                            ))}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setCurrentHeroIdx((prev) => (prev + 1) % weeklyBooks.length)}
-                            className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-                            title={isTr ? "Sonraki Eser" : "Next"}
-                          >
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -772,6 +766,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
         lang={lang}
         setShowAboutModal={setShowAboutModal}
         setShowStoreLocatorModal={setShowStoreLocatorModal}
+        onOpenProfile={(tab) => onOpenProfile(tab)}
       />
     </div>
   );

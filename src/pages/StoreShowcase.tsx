@@ -817,7 +817,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               t={t}
               customer={customer}
               onOpenProfile={(tab) => {
-                setProfileModalTab(tab === 'orders' ? 'orders' : 'profile');
+                setProfileModalTab(tab as any);
                 setShowProfileModal(true);
               }}
               onLogout={() => {
@@ -841,7 +841,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               t={t} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
               accountMenuRef={accountMenuRef} setShowBlog={setShowBlog}
               onOpenProfile={(tab) => {
-                setProfileModalTab(tab);
+                setProfileModalTab(tab as any);
                 setShowProfileModal(true);
               }}
             />
@@ -852,7 +852,16 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               handleProfileUpdate={async () => {}} orders={orders} loadingOrders={loadingOrders}
               lang={lang} t={t} navigate={navigate} handleLogout={() => {}} getStorePath={getStorePath}
             />
-            <StoreFooter store={store} lang={lang} setShowAboutModal={setShowAboutModal} setShowStoreLocatorModal={setShowStoreLocatorModal} />
+            <StoreFooter 
+              store={store} 
+              lang={lang} 
+              setShowAboutModal={setShowAboutModal} 
+              setShowStoreLocatorModal={setShowStoreLocatorModal} 
+              onOpenProfile={(tab) => {
+                setProfileModalTab(tab as any);
+                setShowProfileModal(true);
+              }}
+            />
           </>
         )}
 
@@ -862,6 +871,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
           customer={customer}
           lang={lang}
           initialTab={profileModalTab}
+          products={products}
+          storeId={store?.id}
+          addToBasket={addToBasket}
+          onViewProduct={(p) => setSelectedProduct(p)}
           onLogout={() => {
             setCustomer(null);
             localStorage.removeItem("customer");
