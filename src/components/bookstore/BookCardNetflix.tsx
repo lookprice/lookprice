@@ -66,9 +66,11 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
       const barcode = product.barcode;
       const slug = store?.slug;
       if (barcode && slug) {
-        api.get(`/api/public/stores/${slug}/products/${barcode}/branch-stock`)
+        api.getPublicProductBranchStock(slug, barcode)
           .then((res: any) => {
-            if (res && res.stocks && Array.isArray(res.stocks)) {
+            if (Array.isArray(res)) {
+              setBranchStocks(res);
+            } else if (res && Array.isArray(res.stocks)) {
               setBranchStocks(res.stocks);
             }
           })

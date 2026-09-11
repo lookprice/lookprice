@@ -9,6 +9,7 @@ import { MarketplaceProductFields } from "../../../components/marketplace/Market
 import ProductMovementModal from "../../../components/ProductMovementModal";
 import { BookstoreSectorSpecs } from "../../../components/bookstore/BookstoreSectorSpecs";
 import { getConnectedMarketplaces } from "../../../utils/marketplaceEStores";
+import { BOOKSTORE_CATEGORIES } from "../../../data/bookstoreCategories";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -180,17 +181,27 @@ export const ProductModal = ({
   };
 
   const categoriesList = React.useMemo(() => {
-    if (!products || !Array.isArray(products)) return [];
     const cats = new Set<string>();
-    products.forEach((p: any) => {
-      if (p.category) cats.add(p.category.trim());
-      if (p.category_2) cats.add(p.category_2.trim());
-    });
+    if (isBookstore) {
+      BOOKSTORE_CATEGORIES.forEach((c) => cats.add(c.mainCategory));
+    }
+    if (products && Array.isArray(products)) {
+      products.forEach((p: any) => {
+        if (p.category) cats.add(p.category.trim());
+        if (p.category_2) cats.add(p.category_2.trim());
+      });
+    }
     return Array.from(cats).sort((a, b) => a.localeCompare(b, "tr"));
-  }, [products]);
+  }, [products, isBookstore]);
 
   const subCategoriesMap = React.useMemo(() => {
     const map = new Map<string, Set<string>>();
+    if (isBookstore) {
+      BOOKSTORE_CATEGORIES.forEach((c) => {
+        if (!map.has(c.mainCategory)) map.set(c.mainCategory, new Set());
+        c.subCategories.forEach((s) => map.get(c.mainCategory)!.add(s));
+      });
+    }
     if (products && Array.isArray(products)) {
       products.forEach((p: any) => {
         if (p.category && p.sub_category) {
@@ -208,7 +219,7 @@ export const ProductModal = ({
       });
     }
     return map;
-  }, [products]);
+  }, [products, isBookstore]);
 
   useEffect(() => {
     if (showProductModal) {

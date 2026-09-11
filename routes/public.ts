@@ -2027,8 +2027,8 @@ router.get("/store/:slug/collections/:type", async (req, res) => {
   }
 });
 
-// Public: Get product stock across all branches of a store group
-router.get("/store/:slug/products/:barcode/stock", async (req, res) => {
+// Public: Get product stock across all branches of a store group (supporting /store and /stores, /stock and /branch-stock)
+const handleBranchStock = async (req: any, res: any) => {
   const { slug, barcode } = req.params;
   try {
     // 1. Find the store by slug to get its parent_id
@@ -2052,7 +2052,12 @@ router.get("/store/:slug/products/:barcode/stock", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Stok bilgisi alınamadı" });
   }
-});
+};
+
+router.get("/store/:slug/products/:barcode/stock", handleBranchStock);
+router.get("/store/:slug/products/:barcode/branch-stock", handleBranchStock);
+router.get("/stores/:slug/products/:barcode/stock", handleBranchStock);
+router.get("/stores/:slug/products/:barcode/branch-stock", handleBranchStock);
 
 // Update Public Sales to handle customer_id
 router.post("/sales", async (req, res) => {

@@ -18,13 +18,15 @@ import {
   ChevronRight,
   Quote,
   X,
-  Building2
+  Building2,
+  Layers
 } from "lucide-react";
 import { Product, Store as StoreInfo } from "../types";
 import { NetflixBookRow } from "./bookstore/NetflixBookRow";
 import { BookCardNetflix } from "./bookstore/BookCardNetflix";
 import { StoreFooter } from "./showcase/StoreFooter";
 import { getBookCoverFallbackSvg } from "../utils/imageFallback";
+import { BOOKSTORE_CATEGORIES, getBookstoreSubcategories } from "../data/bookstoreCategories";
 
 interface BookstoreNetflixLayoutProps {
   store: StoreInfo | null;
@@ -81,21 +83,29 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   // Extract distinct categories, subcategories, authors, publishers
   const categories = useMemo(() => {
     const set = new Set<string>();
+    // First include the official book taxonomy in standard order
+    BOOKSTORE_CATEGORIES.forEach((c) => set.add(c.mainCategory));
+    // Also include any custom category present in products
     products.forEach((p) => {
       if (p.category && p.category.trim()) set.add(p.category.trim());
     });
-    return Array.from(set).sort();
+    return Array.from(set);
   }, [products]);
 
   const subCategories = useMemo(() => {
     const set = new Set<string>();
+    // If a main category is selected, get its defined subcategories first
+    if (selectedCategory && selectedCategory !== "all") {
+      getBookstoreSubcategories(selectedCategory).forEach((sub) => set.add(sub));
+    }
+    // Also add any subcategory from existing products matching this scope
     products.forEach((p) => {
       if (selectedCategory === "all" || p.category === selectedCategory) {
         const sub = p.sub_category || (p as any).sub_category_2 || (p as any).sector_data?.genre || (p as any).genre;
         if (sub && typeof sub === "string" && sub.trim()) set.add(sub.trim());
       }
     });
-    return Array.from(set).sort();
+    return Array.from(set);
   }, [products, selectedCategory]);
 
   const authors = useMemo(() => {
