@@ -21,7 +21,8 @@ import {
   Clock, 
   ChevronRight,
   TrendingUp,
-  Percent
+  Percent,
+  StopCircle
 } from 'lucide-react';
 import { api } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -338,6 +339,71 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
   };
 
+  const handleUnpublishSingle = async (product: any, mpKey: MarketplaceKey) => {
+    if (publishingId === product.id) return;
+    try {
+      setPublishingId(product.id);
+      const targetMp = mpKey === 'all' ? 'hepsiburada' : mpKey;
+
+      if (targetMp === 'hepsiburada') {
+        const res = await api.unpublishHepsiburadaProduct(product.id, currentStoreId);
+        if (res && (res.data?.success || res?.success)) {
+          toast.success(isTr ? `"${product.name}" Hepsiburada'da yayından kaldırıldı (satışa kapatıldı)!` : "Unpublished from Hepsiburada!");
+          if (onRefresh) onRefresh();
+        } else {
+          toast.error(res?.data?.error || res?.error || (isTr ? "Yayından kaldırma başarısız." : "Unpublish failed."));
+        }
+      } else if (targetMp === 'trendyol') {
+        const res = await api.unpublishTrendyolProduct(product.id, currentStoreId);
+        if (res && (res.data?.success || res?.success)) {
+          toast.success(isTr ? `"${product.name}" Trendyol'da yayından kaldırıldı!` : "Unpublished from Trendyol!");
+          if (onRefresh) onRefresh();
+        } else {
+          toast.error(res?.error || "İşlem başarısız.");
+        }
+      } else if (targetMp === 'n11') {
+        const res = await api.unpublishN11Product(product.id, currentStoreId);
+        if (res && (res.data?.success || res?.success)) {
+          toast.success(isTr ? `"${product.name}" N11'de yayından kaldırıldı!` : "Unpublished from N11!");
+          if (onRefresh) onRefresh();
+        } else {
+          toast.error(res?.error || "İşlem başarısız.");
+        }
+      } else if (targetMp === 'pazarama') {
+        const res = await api.unpublishPazaramaProduct(product.id, currentStoreId);
+        if (res && (res.data?.success || res?.success)) {
+          toast.success(isTr ? `"${product.name}" Pazarama'da yayından kaldırıldı!` : "Unpublished from Pazarama!");
+          if (onRefresh) onRefresh();
+        } else {
+          toast.error(res?.error || "İşlem başarısız.");
+        }
+      }
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || e.message || (isTr ? "Yayından kaldırma hatası" : "Unpublish error"));
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const handleBulkUnpublishSelected = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      setIsBulkPublishing(true);
+      const res = await api.bulkUnpublishHepsiburadaProducts(selectedIds, currentStoreId);
+      toast.success(
+        isTr 
+          ? `Hepsiburada'da ${res.data?.unpublishedCount || selectedIds.length} ürün yayından kaldırıldı!` 
+          : `Unpublished ${res.data?.unpublishedCount || selectedIds.length} products from Hepsiburada!`
+      );
+      setSelectedIds([]);
+      if (onRefresh) onRefresh();
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || (isTr ? "Toplu yayından kaldırma hatası" : "Bulk unpublish error"));
+    } finally {
+      setIsBulkPublishing(false);
+    }
+  };
+
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
@@ -492,16 +558,28 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               </button>
             </div>
 
-            {/* Bulk Publish Button */}
+            {/* Bulk Publish & Unpublish Buttons */}
             {selectedIds.length > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
+                  type="button"
                   onClick={handleBulkPublishSelected}
                   disabled={isBulkPublishing}
-                  className="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <UploadCloud className="w-3.5 h-3.5" />
                   {isTr ? `Seçilenleri Hepsiburada'da Satışa Aç (${selectedIds.length})` : `Publish Selected (${selectedIds.length})`}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBulkUnpublishSelected}
+                  disabled={isBulkPublishing}
+                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  title={isTr ? "Seçilen ürünleri Hepsiburada'da yayından kaldır / satışa kapat" : "Unpublish selected from Hepsiburada"}
+                >
+                  <StopCircle className="w-3.5 h-3.5" />
+                  {isTr ? `Seçilenleri Yayından Kaldır (${selectedIds.length})` : `Unpublish Selected (${selectedIds.length})`}
                 </button>
               </div>
             )}
@@ -819,6 +897,19 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                             >
                               <UploadCloud className={`w-3.5 h-3.5 ${publishingId === p.id ? 'animate-bounce text-orange-600' : ''}`} />
                             </button>
+
+                            {/* Yayından Kaldır / Satıştan Kapat Button */}
+                            {isHbActive && (
+                              <button
+                                type="button"
+                                onClick={() => handleUnpublishSingle(p, selectedMarketplace)}
+                                disabled={publishingId === p.id}
+                                className="p-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all active:scale-95 cursor-pointer"
+                                title={isTr ? "Hepsiburada'da Yayından Kaldır (Satışa Kapat)" : "Unpublish from Hepsiburada"}
+                              >
+                                <StopCircle className={`w-3.5 h-3.5 ${publishingId === p.id ? 'animate-bounce text-rose-600' : ''}`} />
+                              </button>
+                            )}
 
                             {/* Düzelt & Pazaryeri Bilgilerini Düzenle */}
                             {onEditProduct && (

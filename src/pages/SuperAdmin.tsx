@@ -524,6 +524,24 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
     }
   };
 
+  const handleToggleBookstore = async (store: any) => {
+    const currentStatus = Boolean(store.bookstore_module_enabled);
+    const newStatus = !currentStatus;
+    try {
+      setStores(prev => prev.map(s => s.id === store.id ? { ...s, bookstore_module_enabled: newStatus } : s));
+      const res = await api.toggleStoreBookstore(store.id, newStatus);
+      if (res && res.success) {
+        alert(lang === 'tr' 
+          ? `"${store.name}" mağazası için Kitap Konsepti ${newStatus ? 'AKTİF EDİLDİ' : 'PASİFE ALINDI'}.` 
+          : `Bookstore module ${newStatus ? 'ACTIVATED' : 'DEACTIVATED'} for "${store.name}".`);
+      }
+      fetchData();
+    } catch (err: any) {
+      alert("İşlem başarısız: " + (err?.message || err));
+      fetchData();
+    }
+  };
+
   const handleDeleteStore = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -742,6 +760,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
               setEditingStore={setEditingStore}
               setStoreToDelete={setStoreToDelete}
               onToggleHotel={handleToggleHotel}
+              onToggleBookstore={handleToggleBookstore}
             />
           </>
         )}

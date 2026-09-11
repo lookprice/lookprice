@@ -17,6 +17,7 @@ export interface Store {
   store_type?: 'product' | 'real_estate' | 'motor_vehicle' | 'cafe_restaurant' | 'portfolio' | string;
   sub_sector?: string;
   hotel_module_enabled?: boolean;
+  bookstore_module_enabled?: boolean;
   hotel_license_enabled?: boolean;
   branding?: any;
   status?: string;

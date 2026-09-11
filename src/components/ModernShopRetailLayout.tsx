@@ -219,6 +219,22 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
     sortBy: "default"
   });
 
+  const isFiltersActive = Boolean(
+    filters.search ||
+    filters.category ||
+    filters.subCategory ||
+    filters.brand ||
+    filters.color ||
+    (filters.minPrice && filters.minPrice !== "") ||
+    (filters.maxPrice && filters.maxPrice !== "") ||
+    filters.size ||
+    Object.keys(filters.selectedAttributes || {}).length > 0 ||
+    filters.inStockOnly ||
+    filters.onSaleOnly ||
+    filters.bestsellerOnly ||
+    filters.sortBy !== "default"
+  );
+
   const handleFilterChange = (key: keyof ShopFilterState, value: any) => {
     setFilters((prev) => {
       const next = { ...prev, [key]: value };
@@ -970,18 +986,20 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
       <section id="catalog" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Desktop Filter Sidebar */}
-          <div className="hidden lg:block w-64 shrink-0 sticky top-28 z-10">
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
-              <ShopFilterSidebar
+          {themeConfig.preset_name !== "bookstore_netflix" && (
+            <div className="hidden lg:block w-64 shrink-0 sticky top-28 z-10">
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
+                <ShopFilterSidebar
                 products={products}
                 filterState={filters}
                 onFilterChange={handleFilterChange}
                 onResetFilters={handleResetFilters}
                 lang={lang}
                 currency={store.currency || "TRY"}
-              />
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Product Grid & Controls */}
           <div className="flex-1 min-w-0">
@@ -1124,29 +1142,82 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
                 </button>
               </div>
             ) : (
-              <div
-                className={`grid grid-cols-1 sm:grid-cols-2 ${
-                  gridColumns === 3 ? "lg:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4"
-                } gap-4 sm:gap-6`}
-              >
-                {filteredProducts.map((prod, pIdx) => (
-                  <ShopRetailProductCard
-                    key={`shop-prod-${prod.id || pIdx}-${pIdx}`}
-                    product={prod}
-                    store={store}
-                    themeConfig={themeConfig}
-                    t={t}
-                    lang={lang}
-                    onView={onViewProduct}
-                    addToBasket={(p) => {
-                      addToBasket(p);
-                      setIsDrawerCartOpen(true);
-                    }}
-                    isWishlisted={wishlist.has(prod.id)}
-                    onToggleWishlist={toggleWishlist}
-                  />
-                ))}
-              </div>
+              <>
+                {(!isFiltersActive && themeConfig.showcase_rows && themeConfig.showcase_rows.length > 0) ? (
+                  <div className="space-y-12 w-full max-w-[100vw] overflow-hidden">
+                    {themeConfig.showcase_rows.map((row, rIdx) => {
+                      let rowProducts = [];
+                      if (row.type === "new_arrivals") {
+                        rowProducts = [...filteredProducts].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).slice(0, 15);
+                      } else if (row.type === "trending") {
+                        rowProducts = [...filteredProducts].sort((a, b) => (b.price || 0) - (a.price || 0)).slice(0, 15);
+                      } else if (row.type === "category" && row.tag_or_category) {
+                        rowProducts = filteredProducts.filter(p => p.category?.toLowerCase() === row.tag_or_category?.toLowerCase() || p.tags?.some(t => t.toLowerCase() === row.tag_or_category?.toLowerCase()));
+                      }
+                      
+                      if (rowProducts.length === 0) return null;
+                      
+                      return (
+                        <div key={row.id || rIdx} className="w-full">
+                          <div className="flex items-center justify-between mb-4 px-1">
+                            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">{row.title}</h3>
+                            <button 
+                              onClick={() => setFilters(prev => ({ ...prev, category: row.type === 'category' ? row.tag_or_category || null : null }))}
+                              className="text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1"
+                            >
+                              {lang === "tr" ? "Tümünü Gör" : "View All"} <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x px-1" style={{ scrollBehavior: 'smooth' }}>
+                            {rowProducts.map((prod, pIdx) => (
+                              <div key={`shop-row-prod-${prod.id || pIdx}`} className="w-[180px] sm:w-[220px] md:w-[260px] snap-start shrink-0">
+                                <ShopRetailProductCard
+                                  product={prod}
+                                  store={store}
+                                  themeConfig={themeConfig}
+                                  t={t}
+                                  lang={lang}
+                                  onView={onViewProduct}
+                                  addToBasket={(p) => {
+                                    addToBasket(p);
+                                    setIsDrawerCartOpen(true);
+                                  }}
+                                  isWishlisted={wishlist.has(prod.id)}
+                                  onToggleWishlist={toggleWishlist}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div
+                    className={`grid grid-cols-1 sm:grid-cols-2 ${
+                      gridColumns === 3 ? "lg:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4"
+                    } gap-4 sm:gap-6`}
+                  >
+                    {filteredProducts.map((prod, pIdx) => (
+                      <ShopRetailProductCard
+                        key={`shop-prod-${prod.id || pIdx}-${pIdx}`}
+                        product={prod}
+                        store={store}
+                        themeConfig={themeConfig}
+                        t={t}
+                        lang={lang}
+                        onView={onViewProduct}
+                        addToBasket={(p) => {
+                          addToBasket(p);
+                          setIsDrawerCartOpen(true);
+                        }}
+                        isWishlisted={wishlist.has(prod.id)}
+                        onToggleWishlist={toggleWishlist}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -1215,7 +1286,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
       {/* 10. Mobile Filter Drawer */}
       <AnimatePresence>
         {isMobileFiltersOpen && (
-          <div className="fixed inset-0 z-[110] lg:hidden overflow-hidden">
+          <div className={`fixed inset-0 z-[110] ${themeConfig.preset_name === 'bookstore_netflix' ? '' : 'lg:hidden'} overflow-hidden`}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

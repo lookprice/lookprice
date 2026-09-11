@@ -1,0 +1,39 @@
+--- src/pages/StoreDashboard/settings/SettingsLayoutTab.tsx
++++ src/pages/StoreDashboard/settings/SettingsLayoutTab.tsx
+@@ -308,6 +308,36 @@
+               <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white border border-slate-300 dark:border-slate-600">Tipografi/Neon</span>
+             </div>
+           </div>
++
++          {/* Preset 5: Bookstore Netflix */}
++          <div
++            onClick={() => applyPreset("bookstore_netflix")}
++            className={`p-6 rounded-3xl border-2 transition-all cursor-pointer relative ${
++              themeConfig.preset_name === "bookstore_netflix"
++                ? "border-red-600 bg-red-50/20 shadow-md ring-4 ring-red-500/10"
++                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
++            }`}
++          >
++            {themeConfig.preset_name === "bookstore_netflix" && (
++              <div className="absolute top-4 right-4 p-1.5 bg-red-600 text-white rounded-full">
++                <Check className="w-3.5 h-3.5" />
++              </div>
++            )}
++            <div className="flex items-center gap-2 mb-3">
++              <div className="p-2 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-xl">
++                <Type className="w-5 h-5" />
++              </div>
++              <h4 className="font-bold text-slate-900 dark:text-white">Kitap / Medya (Netflix)</h4>
++            </div>
++            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
++              Kitap ve medya satışına özel dikey (portrait) kapak görünümleri ve Netflix stili yatay kaydırılabilir vitrin şeritleri.
++            </p>
++            <div className="flex items-center gap-2 flex-wrap">
++              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">Dikey Kartlar</span>
++              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">Koyu Tema</span>
++              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white border border-slate-300 dark:border-slate-600">Yatay Vitrin</span>
++            </div>
++          </div>
+         </div>
+       )}
+ 

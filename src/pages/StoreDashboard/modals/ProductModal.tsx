@@ -556,14 +556,27 @@ export const ProductModal = ({
 
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Marka / Üretici" : "Brand"}
+                  {isTr ? "Marka / Yayınevi" : "Brand / Publisher"}
                 </label>
                 <input
                   type="text"
                   name="brand"
-                  placeholder={isTr ? "örn: Knauf, Gap" : "Brand name"}
+                  placeholder={isTr ? "örn: İş Bankası, Apple" : "Brand or Publisher"}
                   className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
                   defaultValue={editingProduct?.brand || ""}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
+                  {isTr ? "Yazar / Yönetmen (Opsiyonel)" : "Author / Director"}
+                </label>
+                <input
+                  type="text"
+                  name="author"
+                  placeholder={isTr ? "örn: F. Dostoyevski" : "Author name"}
+                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+                  defaultValue={editingProduct?.author || ""}
                 />
               </div>
 

@@ -156,6 +156,7 @@ export interface Store {
   email: string;
   store_type?: 'product' | 'real_estate' | 'motor_vehicle';
   hotel_module_enabled?: boolean;
+  bookstore_module_enabled?: boolean;
   sub_sector?: 'car' | 'motorcycle' | 'marine' | 'construction' | 'agricultural' | 'other';
   sector?: string;
   emails?: string[];

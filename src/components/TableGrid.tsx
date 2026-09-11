@@ -256,9 +256,9 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 p-2 select-none">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 p-1.5 select-none">
         {filteredTables.length === 0 ? (
-          <div className="col-span-full py-8 text-center text-slate-400 text-xs font-bold">
+          <div className="col-span-full py-6 text-center text-slate-400 text-xs font-bold">
             {t('Aramanıza uygun masa bulunamadı.', 'No tables found matching your search.', 'Δεν βρέθηκαν τραπέζια.')}
           </div>
         ) : filteredTables.map((table) => {
@@ -273,30 +273,29 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => onTableSelect(table)}
-                className={`p-3.5 rounded-xl border-2 flex flex-col items-center justify-between gap-2 transition-all relative cursor-pointer min-h-[110px] ${
+                className={`p-2 sm:p-2.5 rounded-xl border-2 flex flex-col items-center justify-between gap-1 transition-all relative cursor-pointer min-h-[68px] sm:min-h-[72px] shadow-2xs ${
                   table.status === 'occupied'
-                    ? 'border-amber-400 bg-amber-50/90 text-amber-900 shadow-sm ring-2 ring-amber-300'
-                    : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-amber-300'
+                    ? 'border-amber-400 bg-amber-50/90 text-amber-900 ring-1 ring-amber-300'
+                    : 'border-amber-200 bg-amber-50/50 text-amber-900 hover:border-amber-400 hover:bg-amber-50/90'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
-                    <UserCheck className="h-4 w-4" />
+                <div className="flex items-center gap-1.5 w-full justify-center">
+                  <div className="p-1 rounded-md bg-amber-100 text-amber-800 shrink-0">
+                    <UserCheck className="h-3.5 w-3.5" />
                   </div>
-                  <span className="font-extrabold text-sm tracking-tight">{table.table_number}</span>
+                  <span className="font-extrabold text-xs sm:text-sm tracking-tight truncate">{table.table_number}</span>
                 </div>
                 
                 {table.status === 'occupied' ? (
-                  <div className="flex flex-col items-center gap-0.5 w-full">
-                    <span className="text-[11px] font-black bg-amber-200/90 text-amber-950 px-2 py-0.5 rounded-md w-full truncate">
-                      {table.orderCount} {t('Sipariş', 'Orders', 'Παραγγελίες')} ({table.totalAmount?.toFixed(2)} ₺)
+                  <div className="w-full flex items-center justify-center">
+                    <span className="text-[10px] font-black bg-amber-200/90 text-amber-950 px-1.5 py-0.5 rounded border border-amber-300/80 w-full truncate text-center">
+                      {table.orderCount} {t('Sipariş', 'Orders', 'Παρ.')} ({table.totalAmount?.toFixed(2)} ₺)
                     </span>
-                    <span className="text-[9px] font-extrabold text-amber-700 uppercase tracking-wider">{t('Adisyonu İncele', 'View Bill', 'Προβολή Λογαριασμού')}</span>
                   </div>
                 ) : (
-                  <span className="text-[10px] bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded-md font-bold">
-                    {t('Ayakta / Masa Seçilmemiş', 'Walk-up / No Table', 'Όρθιοι / Χωρίς Τραπέζι')}
-                  </span>
+                  <div className="flex items-center justify-center py-0.5 bg-amber-100/70 text-amber-800 rounded border border-amber-300/60 w-full text-center">
+                    <UserCheck className="h-3 w-3 text-amber-700" />
+                  </div>
                 )}
               </motion.button>
             );
@@ -313,12 +312,12 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
               onTouchCancel={cancelLongPress}
               onClick={() => handleTableClick(table)}
               onDoubleClick={(e) => handleOpenNicknameModal(table, e as any)}
-              className={`p-3 rounded-xl border-2 flex flex-col items-center justify-between gap-1.5 transition-all cursor-pointer min-h-[110px] relative group select-none ${
+              className={`p-2 sm:p-2.5 rounded-xl border-2 flex flex-col items-center justify-between gap-1 transition-all cursor-pointer min-h-[68px] sm:min-h-[72px] relative group select-none ${
                 isPressing
                   ? 'ring-4 ring-amber-400 border-amber-500 scale-98 bg-amber-50'
                   : table.status === 'empty'
-                    ? 'border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100/80 text-emerald-800 shadow-2xs'
-                    : 'border-rose-300 bg-rose-50 hover:bg-rose-100/80 text-rose-800 shadow-xs'
+                    ? 'border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100/80 text-emerald-900 shadow-2xs'
+                    : 'border-rose-300 bg-rose-50 hover:bg-rose-100/80 text-rose-900 shadow-xs'
               }`}
             >
               {/* Touch Long-Press Progress / Active Indicator */}
@@ -333,19 +332,19 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
                 type="button"
                 title={t('Masa Takma Adı / Nickname Ata (Çift Tıkla veya Basılı Tut)', 'Assign Table Nickname (Double-click or Long-press)', 'Ορισμός ψευδωνύμου τραπεζιού')}
                 onClick={(e) => handleOpenNicknameModal(table, e)}
-                className={`absolute top-1.5 right-1.5 p-1 rounded-md transition-all z-10 cursor-pointer ${
+                className={`absolute top-1 right-1 p-0.5 rounded transition-all z-10 cursor-pointer ${
                   tableNick 
                     ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 shadow-2xs' 
-                    : 'bg-white/70 text-slate-400 hover:text-indigo-600 hover:bg-white opacity-40 group-hover:opacity-100'
+                    : 'bg-white/70 text-slate-400 hover:text-indigo-600 hover:bg-white opacity-0 group-hover:opacity-100'
                 }`}
               >
-                <Tag className="h-3.5 w-3.5" />
+                <Tag className="h-3 w-3" />
               </button>
 
               {/* Table Title Header */}
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Coffee className={`h-4 w-4 ${table.status === 'empty' ? 'text-emerald-600' : 'text-rose-600'}`} />
-                <span className="font-black text-sm sm:text-base tracking-tight">{table.table_number}</span>
+              <div className="flex items-center gap-1">
+                <Coffee className={`h-3.5 w-3.5 shrink-0 ${table.status === 'empty' ? 'text-emerald-600' : 'text-rose-600'}`} />
+                <span className="font-black text-xs sm:text-sm tracking-tight truncate">{table.table_number}</span>
               </div>
 
               {/* Prominent Nickname Badge if defined */}
@@ -353,22 +352,22 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
                 <div 
                   onClick={(e) => handleOpenNicknameModal(table, e)}
                   title={t('Takma adı düzenle', 'Edit nickname', 'Επεξεργασία ψευδωνύμου')}
-                  className="w-full flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100/95 text-amber-900 border border-amber-300 text-[11px] font-black truncate shadow-2xs hover:bg-amber-200 transition-colors"
+                  className="w-full flex items-center justify-center gap-1 px-1 py-0.2 rounded bg-amber-100/95 text-amber-900 border border-amber-300 text-[9.5px] font-bold truncate shadow-2xs hover:bg-amber-200 transition-colors"
                 >
-                  <Tag className="h-2.5 w-2.5 shrink-0 text-amber-700" />
+                  <Tag className="h-2 w-2 shrink-0 text-amber-700" />
                   <span className="truncate">{tableNick}</span>
                 </div>
               )}
 
               {/* Table Status Badge */}
               {table.status === 'empty' && (
-                <span className="text-[10px] sm:text-[11px] bg-emerald-100/90 text-emerald-800 font-bold px-2 py-0.5 rounded-md border border-emerald-200/60 text-center w-full truncate">
-                  {t('Adisyon Aç', 'Open Bill', 'Άνοιγμα')}
+                <span className="text-[10px] bg-emerald-100/90 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-200/60 text-center w-full truncate">
+                  {t('Boş', 'Empty', 'Άδειο')}
                 </span>
               )}
               {table.status === 'occupied' && (
-                <span className="text-[10px] sm:text-[11px] bg-rose-200/90 text-rose-900 font-extrabold px-2 py-0.5 rounded-md border border-rose-300 text-center w-full truncate">
-                  {t('Dolu / İncele', 'Occupied / View', 'Κατειλημμένο')}
+                <span className="text-[10px] bg-rose-200/90 text-rose-950 font-extrabold px-1.5 py-0.5 rounded border border-rose-300 text-center w-full truncate">
+                  {table.totalAmount && table.totalAmount > 0 ? `${table.totalAmount.toFixed(2)} ₺` : t('Dolu', 'Occupied', 'Dolu')}
                 </span>
               )}
             </motion.div>

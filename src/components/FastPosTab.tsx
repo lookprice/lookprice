@@ -29,7 +29,8 @@ import {
   Bell,
   Building2,
   Gift,
-  Tag
+  Tag,
+  UserCheck
 } from "lucide-react";
 import { translations } from "../translations";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -2149,152 +2150,152 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         </div>
       )}
 
-      {/* Sleek Ultra-Compact Header Bar */}
-      <div className="bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-2.5">
-          {isCafeRestaurant && selectedTable !== null && (
-            <button
-              onClick={() => {
-                setSelectedTable(null);
-                setActiveSaleId(null);
-                setCart([]);
-                fetchPendingSales();
-              }}
-              className="p-1 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg transition-all flex items-center justify-center border border-slate-200 shadow-2xs cursor-pointer"
-              title={lang === 'tr' ? "Masalara Geri Dön" : "Back to Tables"}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-          )}
-          <div className="h-7 w-7 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
-            {isCafeRestaurant && selectedTable !== null ? (
-              <Coffee className="h-3.5 w-3.5 text-rose-500" />
-            ) : (
-              <ShoppingCart className="h-3.5 w-3.5" />
-            )}
-          </div>
-          <div>
-            <h2 className="text-xs font-black text-slate-800 uppercase tracking-tight leading-tight flex items-center gap-2 flex-wrap">
-              {isCafeRestaurant && selectedTable !== null ? (
-                <>
-                  <span>{selectedTable} {activeSaleId !== null ? `(${lang === 'tr' ? 'Açık Adisyon' : 'Open Bill'})` : `(${lang === 'tr' ? 'Yeni Sipariş' : 'New Order'})`}</span>
-                  {(() => {
-                    const cleanNum = selectedTable.replace(/^Masa\s+/i, '').trim();
-                    const nick = tableNicknames[cleanNum] || tableNicknames[selectedTable];
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveNicknameModal(selectedTable);
-                          setActiveNicknameInput(nick || '');
-                        }}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer ${
-                          nick 
-                            ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 shadow-2xs' 
-                            : 'bg-slate-100 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200'
-                        }`}
-                        title={lang === 'tr' ? "Masa Takma Adı / Müşteri Notu Düzenle" : "Edit Table Nickname / Note"}
-                      >
-                        <Tag className="h-2.5 w-2.5 text-amber-600" />
-                        <span>{nick ? nick : (lang === 'tr' ? '+ Not / İsim Ekle' : '+ Add Name')}</span>
-                      </button>
-                    );
-                  })()}
-                </>
-              ) : (
-                branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Mağaza" : "Premium Store")
-              )}
-            </h2>
-            <p className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">
-              {isCafeRestaurant && selectedTable !== null ? (
-                <span>{branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Restoran" : "Premium Restaurant")}</span>
-              ) : (
-                lang === 'tr' ? "Hızlı Satış & POS Terminali" : "Quick Sales & POS Terminal"
-              )}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {/* Cafe Restaurant Specific Tools */}
-          {isCafeRestaurant && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowCafeTools(!showCafeTools)}
-                className={`p-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center justify-center ${
-                  showCafeTools ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                }`}
-                title={lang === 'tr' ? "İşlemler (Masa QR, Gün Sonu, vb.)" : "Actions (Table QR, Z-Report, etc.)"}
-              >
-                <div className="flex items-center gap-1">
-                  <span className="px-1">{lang === 'tr' ? "İşlemler" : "Actions"}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showCafeTools ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6"/></svg>
-                </div>
-              </button>
-
-              {showCafeTools && (
-                <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
-                  <button
-                    onClick={() => setShowQrModal(true)}
-                    className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
-                    title={lang === 'tr' ? "Masa QR & Barkod" : "Table QR & Barcodes"}
-                  >
-                    <QrCode className="h-4 w-4" />
-                  </button>
-
-                  <button
-                    onClick={() => setShowReportModal(true)}
-                    className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
-                    title={lang === 'tr' ? "Gün Sonu Raporu" : "End of Day Report"}
-                  >
-                    <Calendar className="h-4 w-4" />
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setPrinterDiagStep('idle');
-                      setShowPrinterDiagnosticModal(true);
-                    }}
-                    className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
-                    title={lang === 'tr' ? "Yazıcı Tanısı" : "Printer Diagnosis"}
-                  >
-                    <Printer className="h-4 w-4" />
-                  </button>
-
-                  <button
-                    onClick={() => setShowHappyHourModal(true)}
-                    className={`p-1.5 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer border ${
-                      isHappyHourActive
-                        ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 animate-pulse'
-                        : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
-                    }`}
-                    title={lang === 'tr' ? "Happy Hour" : "Happy Hour"}
-                  >
-                    <Flame className={`h-4 w-4 ${isHappyHourActive ? 'text-white' : ''}`} />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Bridge Status Indicator */}
-          {branding?.pos_bridge_enabled && (
-            <div className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 ${
-              bridgeDetected 
-                ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
-                : 'bg-rose-50 border-rose-100 text-rose-700'
-            }`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${bridgeDetected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
-              {bridgeDetected ? (lang === 'tr' ? 'POS Köprüsü' : 'POS Bridge') : (lang === 'tr' ? 'Köprü Yok' : 'Disconnected')}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Main High-Density Split Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0 overflow-hidden">
         {/* Left Column: Tables or Product Selection */}
         <div className="lg:col-span-7 xl:col-span-7 flex flex-col space-y-2 h-full min-h-0 overflow-hidden">
+          {/* Sleek Ultra-Compact Header Bar */}
+          <div className="bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2.5">
+              {isCafeRestaurant && selectedTable !== null && (
+                <button
+                  onClick={() => {
+                    setSelectedTable(null);
+                    setActiveSaleId(null);
+                    setCart([]);
+                    fetchPendingSales();
+                  }}
+                  className="p-1 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg transition-all flex items-center justify-center border border-slate-200 shadow-2xs cursor-pointer"
+                  title={lang === 'tr' ? "Masalara Geri Dön" : "Back to Tables"}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+              )}
+              <div className="h-7 w-7 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
+                {isCafeRestaurant && selectedTable !== null ? (
+                  <Coffee className="h-3.5 w-3.5 text-rose-500" />
+                ) : (
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                )}
+              </div>
+              <div>
+                <h2 className="text-xs font-black text-slate-800 uppercase tracking-tight leading-tight flex items-center gap-2 flex-wrap">
+                  {isCafeRestaurant && selectedTable !== null ? (
+                    <>
+                      <span>{selectedTable} {activeSaleId !== null ? `(${lang === 'tr' ? 'Açık Adisyon' : 'Open Bill'})` : `(${lang === 'tr' ? 'Yeni Sipariş' : 'New Order'})`}</span>
+                      {(() => {
+                        const cleanNum = selectedTable.replace(/^Masa\s+/i, '').trim();
+                        const nick = tableNicknames[cleanNum] || tableNicknames[selectedTable];
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveNicknameModal(selectedTable);
+                              setActiveNicknameInput(nick || '');
+                            }}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer ${
+                              nick 
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 shadow-2xs' 
+                                : 'bg-slate-100 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200'
+                            }`}
+                            title={lang === 'tr' ? "Masa Takma Adı / Müşteri Notu Düzenle" : "Edit Table Nickname / Note"}
+                          >
+                            <Tag className="h-2.5 w-2.5 text-amber-600" />
+                            <span>{nick ? nick : (lang === 'tr' ? '+ Not / İsim Ekle' : '+ Add Name')}</span>
+                          </button>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Mağaza" : "Premium Store")
+                  )}
+                </h2>
+                <p className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">
+                  {isCafeRestaurant && selectedTable !== null ? (
+                    <span>{branding?.store_name || branding?.name || (lang === 'tr' ? "Seçkin Restoran" : "Premium Restaurant")}</span>
+                  ) : (
+                    lang === 'tr' ? "Hızlı Satış & POS Terminali" : "Quick Sales & POS Terminal"
+                  )}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {/* Cafe Restaurant Specific Tools */}
+              {isCafeRestaurant && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowCafeTools(!showCafeTools)}
+                    className={`p-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center justify-center ${
+                      showCafeTools ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                    title={lang === 'tr' ? "İşlemler (Masa QR, Gün Sonu, vb.)" : "Actions (Table QR, Z-Report, etc.)"}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="px-1">{lang === 'tr' ? "İşlemler" : "Actions"}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showCafeTools ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </button>
+
+                  {showCafeTools && (
+                    <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
+                      <button
+                        onClick={() => setShowQrModal(true)}
+                        className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
+                        title={lang === 'tr' ? "Masa QR & Barkod" : "Table QR & Barcodes"}
+                      >
+                        <QrCode className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        onClick={() => setShowReportModal(true)}
+                        className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
+                        title={lang === 'tr' ? "Gün Sonu Raporu" : "End of Day Report"}
+                      >
+                        <Calendar className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setPrinterDiagStep('idle');
+                          setShowPrinterDiagnosticModal(true);
+                        }}
+                        className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
+                        title={lang === 'tr' ? "Yazıcı Tanısı" : "Printer Diagnosis"}
+                      >
+                        <Printer className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        onClick={() => setShowHappyHourModal(true)}
+                        className={`p-1.5 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer border ${
+                          isHappyHourActive
+                            ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 animate-pulse'
+                            : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                        }`}
+                        title={lang === 'tr' ? "Happy Hour" : "Happy Hour"}
+                      >
+                        <Flame className={`h-4 w-4 ${isHappyHourActive ? 'text-white' : ''}`} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Bridge Status Indicator */}
+              {branding?.pos_bridge_enabled && (
+                <div className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 ${
+                  bridgeDetected 
+                    ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                    : 'bg-rose-50 border-rose-100 text-rose-700'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${bridgeDetected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                  {bridgeDetected ? (lang === 'tr' ? 'POS Köprüsü' : 'POS Bridge') : (lang === 'tr' ? 'Köprü Yok' : 'Disconnected')}
+                </div>
+              )}
+            </div>
+          </div>
+
           {isCafeRestaurant && selectedTable === null ? (
             /* Cafe / Restaurant Main Table Grid View */
             <>
@@ -2741,10 +2742,10 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                         setCart([]);
                       }
                     }}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-xs active:scale-95 cursor-pointer"
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer px-3"
                   >
-                    <Plus className="h-4 w-4" />
-                    <span>{lang === 'tr' ? 'Garson Masası / Hızlı Ayakta Satış' : 'Quick Walk-up Order'}</span>
+                    <UserCheck className="h-4 w-4 text-amber-300 shrink-0" />
+                    <span className="truncate">{lang === 'tr' ? 'Garson Masası (Hızlı Ayakta Satış)' : 'Quick Walk-up Order'}</span>
                   </button>
                 </div>
               </div>
@@ -4954,20 +4955,20 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
               </div>
 
               <div className="flex-1 overflow-y-auto p-6">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 xl:grid-cols-8 gap-2">
                   {allTables.map((table) => (
                     <button
                       key={table.id}
                       disabled={table.status === 'occupied' || table.table_number === selectedTable || transferLoading}
                       onClick={() => handleTableTransfer(table.table_number)}
-                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 group relative ${
+                      className={`p-2.5 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 group relative cursor-pointer ${
                         table.table_number === selectedTable ? 'border-indigo-600 bg-indigo-50 opacity-50' :
                         table.status === 'occupied' ? 'border-rose-100 bg-rose-50 opacity-50 cursor-not-allowed' :
-                        'border-slate-100 bg-white hover:border-indigo-500 hover:bg-indigo-50/30'
+                        'border-slate-200 bg-white hover:border-indigo-500 hover:bg-indigo-50/40'
                       }`}
                     >
-                      <span className={`text-sm font-black ${table.status === 'occupied' ? 'text-rose-600' : 'text-slate-900'}`}>{table.table_number}</span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                      <span className={`text-xs font-black truncate w-full text-center ${table.status === 'occupied' ? 'text-rose-600' : 'text-slate-900'}`}>{table.table_number}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate">
                         {table.status === 'occupied' ? (lang === 'tr' ? 'DOLU' : 'FULL') : (lang === 'tr' ? 'BOŞ' : 'EMPTY')}
                       </span>
                     </button>

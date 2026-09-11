@@ -267,6 +267,54 @@ router.post("/stores/:id/toggle-hotel", async (req: any, res) => {
   }
 });
 
+// SuperAdmin: 1-click Toggle Bookstore Concept
+router.post("/stores/:id/toggle-bookstore", async (req: any, res) => {
+  const storeId = req.params.id;
+  const { enabled } = req.body;
+  try {
+    const existing = await pool.query("SELECT bookstore_module_enabled, branding FROM stores WHERE id = $1", [storeId]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: "Store not found" });
+
+    let br = existing.rows[0].branding;
+    if (typeof br === 'string') {
+      try { br = JSON.parse(br); } catch(e) { br = {}; }
+    } else if (!br) {
+      br = {};
+    }
+
+    const currentBookstore = Boolean(existing.rows[0].bookstore_module_enabled || br.bookstore_module_enabled || br.bookstore_license_enabled);
+    const newStatus = enabled !== undefined ? Boolean(enabled) : !currentBookstore;
+
+    br.bookstore_module_enabled = newStatus;
+    br.bookstore_license_enabled = newStatus;
+    
+    // Automatically apply bookstore preset theme when enabled
+    if (newStatus) {
+      br.page_layout_settings = br.page_layout_settings || {};
+      br.page_layout_settings.active_preset = 'bookstore_netflix';
+      br.page_layout_settings.hero_layout = 'netflix_hero';
+      br.page_layout_settings.section_style = 'horizontal_scroll';
+      br.page_layout_settings.dark_mode = true;
+    } else if (br.page_layout_settings?.active_preset === 'bookstore_netflix') {
+      // Revert if explicitly disabling bookstore concept while bookstore theme is active
+      br.page_layout_settings.active_preset = 'shoplp_minimal';
+      br.page_layout_settings.hero_layout = 'grid_bento';
+      br.page_layout_settings.section_style = 'grid_cards';
+      br.page_layout_settings.dark_mode = false;
+    }
+
+    await pool.query(`
+      UPDATE stores 
+      SET bookstore_module_enabled = $1, branding = $2 
+      WHERE id = $3
+    `, [newStatus, JSON.stringify(br), storeId]);
+
+    res.json({ success: true, bookstore_module_enabled: newStatus });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post("/stores", async (req: any, res) => {
   const { 
     name, slug, address, contact_person, phone, country, email, subscription_end, 

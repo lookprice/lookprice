@@ -346,6 +346,7 @@ export const api = {
   addStore: (data: any) => api.post("/api/admin/stores", data),
   updateStore: (id: number, data: any) => api.put(`/api/admin/stores/${id}`, data),
   toggleStoreHotel: (id: number, enabled?: boolean) => api.post(`/api/admin/stores/${id}/toggle-hotel`, { enabled }),
+  toggleStoreBookstore: (id: number, enabled?: boolean) => api.post(`/api/admin/stores/${id}/toggle-bookstore`, { enabled }),
   deleteStore: (id: number, password: any) => api.post(`/api/admin/stores/${id}/delete`, { password }),
 
   // Enrakipsiz Portal & Ad Management Methods
@@ -539,6 +540,11 @@ export const api = {
   publishN11Product: (productId: number, storeId?: number) => api.post("/api/integrations/n11/publish", { productId, storeId }),
   publishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/publish", { productId, storeId }),
   bulkPublishHepsiburadaProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/hepsiburada/bulk-publish", { productIds, storeId }),
+  unpublishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/unpublish", { productId, storeId }),
+  bulkUnpublishHepsiburadaProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/hepsiburada/bulk-unpublish", { productIds, storeId }),
+  unpublishTrendyolProduct: (productId: number, storeId?: number) => api.post("/api/integrations/trendyol/unpublish", { productId, storeId }),
+  unpublishN11Product: (productId: number, storeId?: number) => api.post("/api/integrations/n11/unpublish", { productId, storeId }),
+  unpublishPazaramaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/pazarama/unpublish", { productId, storeId }),
   getTrendyolCategories: () => api.get("/api/integrations/trendyol/categories"),
   getTrendyolBrands: (page?: number, size?: number) => api.get(`/api/integrations/trendyol/brands${(page !== undefined || size !== undefined) ? `?${page !== undefined ? `page=${page}` : ''}${size !== undefined ? `&size=${size}` : ''}` : ''}`),
   getPazaramaCategories: (storeId?: number) => api.get(`/api/integrations/pazarama/categories${storeId ? `?storeId=${storeId}` : ""}`),

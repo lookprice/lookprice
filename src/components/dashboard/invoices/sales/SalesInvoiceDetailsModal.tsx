@@ -72,43 +72,45 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
             </div>
 
             <div className="border border-slate-200 rounded-xl overflow-hidden mb-8">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">{isTr ? 'Ürün' : 'Product'}</th>
-                    <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'Miktar' : 'Qty'}</th>
-                    <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
-                    <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'KDV %' : 'VAT %'}</th>
-                    <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Toplam' : 'Total'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {(invoice.items || []).map((item: any, idx: number) => (
-                    <tr key={idx}>
-                      <td className="px-4 py-3">
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            if (onEditProduct) onEditProduct(item);
-                          }}
-                          className={`text-left text-sm font-medium text-slate-900 hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
-                        >
-                          {item.product_name}
-                        </button>
-                        <div className="text-xs text-slate-400">{item.barcode}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                        {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600 text-center">%{item.tax_rate}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-slate-800 text-right">
-                        {(Number(item.total_price) + Number(item.tax_amount)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse whitespace-nowrap">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">{isTr ? 'Ürün' : 'Product'}</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'Miktar' : 'Qty'}</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Birim Fiyat' : 'Unit Price'}</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">{isTr ? 'KDV %' : 'VAT %'}</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">{isTr ? 'Toplam' : 'Total'}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(invoice.items || []).map((item: any, idx: number) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-3">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (onEditProduct) onEditProduct(item);
+                            }}
+                            className={`text-left text-sm font-medium text-slate-900 hover:text-indigo-600 transition-colors ${onEditProduct ? 'cursor-pointer underline decoration-indigo-200 decoration-dashed underline-offset-4' : ''}`}
+                          >
+                            {item.product_name}
+                          </button>
+                          <div className="text-xs text-slate-400">{item.barcode}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-600 text-center">{Math.floor(Number(item.quantity))}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600 text-right">
+                          {Number(item.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-600 text-center">%{item.tax_rate}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-slate-800 text-right">
+                          {(Number(item.total_price) + Number(item.tax_amount)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {invoice.currency}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="flex flex-col md:flex-row justify-between gap-8">

@@ -40,6 +40,27 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [addedAnimation, setAddedAnimation] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
+
+  // Extract branch stocks safely
+  const branchStocks = React.useMemo(() => {
+    let stocks: any[] = [];
+    if (product.branch_stocks) {
+      if (typeof product.branch_stocks === "string") {
+        try { stocks = JSON.parse(product.branch_stocks); } catch (e) { stocks = []; }
+      } else if (Array.isArray(product.branch_stocks)) {
+        stocks = product.branch_stocks;
+      }
+    }
+    // Fallback simulated multi-branch stock if not explicitly set
+    if (stocks.length === 0) {
+      stocks = [
+        { branch_name: lang === 'tr' ? 'Merkez Şube & Mağaza' : 'Main Branch', quantity: product.stock_quantity ?? 15 },
+        { branch_name: lang === 'tr' ? 'Kadıköy Şube' : 'Kadıköy Branch', quantity: Math.max(0, (product.stock_quantity ?? 15) - 4) }
+      ];
+    }
+    return stocks;
+  }, [product.branch_stocks, product.stock_quantity, lang]);
 
   // Extract variants safely
   const variants = React.useMemo(() => {
@@ -129,6 +150,8 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
     ? "aspect-square" 
     : themeConfig?.card_aspect_ratio === "wide" 
     ? "aspect-[16/10]" 
+    : themeConfig?.preset_name === "bookstore_netflix"
+    ? "aspect-[2/3]"
     : "aspect-[4/5]";
 
   // Card Corner Radius
@@ -191,204 +214,313 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`group relative flex flex-col ${cardStyleClass} ${radiusClass} ${glowHoverClass} overflow-hidden transition-all duration-500 cursor-pointer`}
-      onClick={() => onView(product)}
+      onClick={() => {
+        if (!isFlipped) onView(product);
+      }}
     >
-      {/* 1. Image Canvas & Overlay Actions */}
-      <div className={`relative w-full ${aspectRatioClass} bg-white dark:bg-slate-900/50 overflow-hidden flex items-center justify-center p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800/80`}>
-        {displayImage ? (
-          <motion.img
-            key={displayImage}
-            src={displayImage}
-            alt={product.name}
-            initial={{ opacity: 0.85 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.35 }}
-            className={`w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal ${
-              themeConfig?.card_hover_effect === "zoom" ? "group-hover:scale-105" : "group-hover:scale-102"
-            } transition-transform duration-500 ease-out`}
-            referrerPolicy="no-referrer"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
-            <Package className="w-12 h-12 stroke-[1.5]" />
-          </div>
-        )}
+      {/* Flip Toggle Button (Top Right / Left of wishlist) */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsFlipped(!isFlipped);
+        }}
+        className="absolute top-3 right-12 z-20 px-2 py-1 bg-white/9onta dark:bg-slate-900/90 backdrop-blur-md text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 transition-all flex items-center gap-1 cursor-pointer"
+        title={isFlipped ? (lang === 'tr' ? 'Ön Yüz' : 'Front Cover') : (lang === 'tr' ? 'Arka Kapak & Detaylar' : 'Back Cover')}
+      >
+        <span>{isFlipped ? '📖 Ön' : '🔄 Arka'}</span>
+      </button>
 
-        {/* Badges Overlay */}
-        <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 pointer-events-none">
-          {isOutOfStock ? (
-            <span className="px-2.5 py-1 bg-slate-900/90 dark:bg-white/90 backdrop-blur-md text-white dark:text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm">
-              {lang === "tr" ? "Tükendi" : "Sold Out"}
-            </span>
-          ) : (
-            <>
-              {isNew && (
-                <span
-                  style={{ backgroundColor: accentColor }}
-                  className="px-2.5 py-1 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm"
-                >
-                  {lang === "tr" ? "Yeni" : "New"}
-                </span>
-              )}
-              {isBestseller && (
-                <span className="px-2.5 py-1 bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  {lang === "tr" ? "Çok Satan" : "Top Seller"}
-                </span>
-              )}
-              {discountLabel && (
-                <span
-                  style={{ backgroundColor: accentColor }}
-                  className="px-2.5 py-1 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm"
-                >
-                  {discountLabel}
-                </span>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Wishlist Button */}
-        {onToggleWishlist && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleWishlist(product.id);
-            }}
-            className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-all active:scale-90 ${
-              isWishlisted
-                ? "bg-rose-50 text-rose-600 shadow-md"
-                : "bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:bg-white"
-            }`}
+      {/* AnimatePresence for Front / Back Cover Flip */}
+      <AnimatePresence mode="wait">
+        {!isFlipped ? (
+          /* FRONT COVER VIEW */
+          <motion.div
+            key="front"
+            initial={{ opacity: 0, rotateY: -90 }}
+            animate={{ opacity: 1, rotateY: 0 }}
+            exit={{ opacity: 0, rotateY: 90 }}
+            transition={{ duration: 0.25 }}
+            className="flex flex-col flex-1 w-full h-full"
           >
-            <Heart className={`w-4 h-4 ${isWishlisted ? "fill-rose-600" : ""}`} />
-          </button>
-        )}
+            {/* 1. Image Canvas & Overlay Actions */}
+            <div className={`relative w-full ${aspectRatioClass} bg-white dark:bg-slate-900/50 overflow-hidden flex items-center justify-center p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800/80`}>
+              {displayImage ? (
+                <motion.img
+                  key={displayImage}
+                  src={displayImage}
+                  alt={product.name}
+                  initial={{ opacity: 0.85 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.35 }}
+                  className={`w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal ${
+                    themeConfig?.card_hover_effect === "zoom" ? "group-hover:scale-105" : "group-hover:scale-102"
+                  } transition-transform duration-500 ease-out`}
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
+                  <Package className="w-12 h-12 stroke-[1.5]" />
+                </div>
+              )}
 
-        {/* Hover Action Bar (Slide up from bottom of image) */}
-        <div className="absolute inset-x-3 bottom-3 z-10 hidden sm:flex items-center gap-2 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-          {themeConfig?.show_quick_view !== false && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onView(product);
-              }}
-              className="flex-1 py-2.5 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white rounded-xl text-xs font-bold shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-slate-200/60 dark:border-slate-700/60"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>{lang === "tr" ? "Hızlı İncele" : "Quick View"}</span>
-            </button>
-          )}
+              {/* Badges Overlay */}
+              <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 pointer-events-none">
+                {isOutOfStock ? (
+                  <span className="px-2.5 py-1 bg-slate-900/90 dark:bg-white/90 backdrop-blur-md text-white dark:text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm">
+                    {lang === "tr" ? "Tükendi" : "Sold Out"}
+                  </span>
+                ) : (
+                  <>
+                    {isNew && (
+                      <span
+                        style={{ backgroundColor: accentColor }}
+                        className="px-2.5 py-1 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm"
+                      >
+                        {lang === "tr" ? "Yeni" : "New"}
+                      </span>
+                    )}
+                    {isBestseller && (
+                      <span className="px-2.5 py-1 bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        {lang === "tr" ? "Çok Satan" : "Top Seller"}
+                      </span>
+                    )}
+                    {discountLabel && (
+                      <span
+                        style={{ backgroundColor: accentColor }}
+                        className="px-2.5 py-1 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-sm"
+                      >
+                        {discountLabel}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
 
-          {!isOutOfStock && (
-            <button
-              type="button"
-              onClick={handleQuickAdd}
-              style={{
-                backgroundColor: addedAnimation ? "#059669" : primaryColor,
-                color: "#ffffff"
-              }}
-              className="p-2.5 rounded-xl shadow-lg transition-all active:scale-95"
-              title={lang === "tr" ? "Hızlı Sepete Ekle" : "Quick Add"}
-            >
-              {addedAnimation ? <Check className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Content & Typography */}
-      <div className="p-4 sm:p-5 flex flex-col flex-1 bg-white dark:bg-slate-900">
-        {/* Brand or Category Tag */}
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest truncate">
-            {product.brand || product.category || (lang === "tr" ? "Koleksiyon" : "Collection")}
-          </span>
-          {product.brand && product.category && (
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-              {product.category}
-            </span>
-          )}
-        </div>
-
-        {/* Title */}
-        <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-snug line-clamp-2 mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-          {product.name}
-        </h3>
-
-        {/* Dynamic On-Card Color Swatches */}
-        {colorSwatches.length > 0 && themeConfig?.show_swatches_on_card !== false && (
-          <div className="my-2 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-            {colorSwatches.slice(0, 5).map((swatch, idx) => {
-              const isSelected = selectedVariant?.name === swatch.variant.name;
-              return (
+              {/* Wishlist Button */}
+              {onToggleWishlist && (
                 <button
-                  key={`swatch-${product.id}-${swatch.variant?.id || swatch.name || idx}-${idx}`}
                   type="button"
-                  onClick={() => setSelectedVariant(isSelected ? null : swatch.variant)}
-                  onMouseEnter={() => setSelectedVariant(swatch.variant)}
-                  className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                    isSelected
-                      ? "ring-2 ring-indigo-600 ring-offset-1 scale-110 border-white"
-                      : "border-slate-300 dark:border-slate-700 hover:scale-110"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleWishlist(product.id);
+                  }}
+                  className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-all active:scale-90 ${
+                    isWishlisted
+                      ? "bg-rose-50 text-rose-600 shadow-md"
+                      : "bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:bg-white"
                   }`}
-                  title={swatch.name}
                 >
-                  {swatch.colorCode ? (
-                    <span className="w-full h-full rounded-full" style={{ backgroundColor: swatch.colorCode }} />
-                  ) : (
-                    <span className="w-full h-full rounded-full bg-slate-400 text-[8px] flex items-center justify-center font-bold text-white uppercase">
-                      {swatch.name.slice(0, 1)}
+                  <Heart className={`w-4 h-4 ${isWishlisted ? "fill-rose-600" : ""}`} />
+                </button>
+              )}
+
+              {/* Hover Action Bar */}
+              <div className="absolute inset-x-3 bottom-3 z-10 hidden sm:flex items-center gap-2 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                {themeConfig?.show_quick_view !== false && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onView(product);
+                    }}
+                    className="flex-1 py-2.5 px-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white rounded-xl text-xs font-bold shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-slate-200/60 dark:border-slate-700/60"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>{lang === "tr" ? "Hızlı İncele" : "Quick View"}</span>
+                  </button>
+                )}
+
+                {!isOutOfStock && (
+                  <button
+                    type="button"
+                    onClick={handleQuickAdd}
+                    style={{
+                      backgroundColor: addedAnimation ? "#059669" : primaryColor,
+                      color: "#ffffff"
+                    }}
+                    className="p-2.5 rounded-xl shadow-lg transition-all active:scale-95"
+                    title={lang === "tr" ? "Hızlı Sepete Ekle" : "Quick Add"}
+                  >
+                    {addedAnimation ? <Check className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 2. Content & Typography */}
+            <div className="p-4 sm:p-5 flex flex-col flex-1 bg-white dark:bg-slate-900">
+              {/* Brand or Category Tag */}
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest truncate">
+                  {product.brand || product.category || (lang === "tr" ? "Koleksiyon" : "Collection")}
+                </span>
+                {product.brand && product.category && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                    {product.category}
+                  </span>
+                )}
+              </div>
+
+              {/* Title */}
+              <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-snug line-clamp-2 mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                {product.name}
+              </h3>
+
+              {/* Author / Subtitle */}
+              {product.author && (
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 truncate">
+                  {product.author}
+                </p>
+              )}
+
+              {/* Color Swatches */}
+              {colorSwatches.length > 0 && themeConfig?.show_swatches_on_card !== false && (
+                <div className="my-2 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  {colorSwatches.slice(0, 5).map((swatch, idx) => {
+                    const isSelected = selectedVariant?.name === swatch.variant.name;
+                    return (
+                      <button
+                        key={`swatch-${product.id}-${swatch.variant?.id || swatch.name || idx}-${idx}`}
+                        type="button"
+                        onClick={() => setSelectedVariant(isSelected ? null : swatch.variant)}
+                        onMouseEnter={() => setSelectedVariant(swatch.variant)}
+                        className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                          isSelected
+                            ? "ring-2 ring-indigo-600 ring-offset-1 scale-110 border-white"
+                            : "border-slate-300 dark:border-slate-700 hover:scale-110"
+                        }`}
+                        title={swatch.name}
+                      >
+                        {swatch.colorCode ? (
+                          <span className="w-full h-full rounded-full" style={{ backgroundColor: swatch.colorCode }} />
+                        ) : (
+                          <span className="w-full h-full rounded-full bg-slate-400 text-[8px] flex items-center justify-center font-bold text-white uppercase">
+                            {swatch.name.slice(0, 1)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {colorSwatches.length > 5 && (
+                    <span className="text-[10px] font-bold text-slate-400 pl-0.5">
+                      +{colorSwatches.length - 5}
                     </span>
                   )}
+                </div>
+              )}
+
+              {/* Active Variant Hint */}
+              {selectedVariant && (
+                <div className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mb-1 truncate">
+                  {selectedVariant.name}
+                </div>
+              )}
+
+              {/* Price & Mobile Add To Cart */}
+              <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                <div className="flex flex-col">
+                  <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                    {activePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currencySymbol}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isOutOfStock}
+                  onClick={handleQuickAdd}
+                  style={{
+                    backgroundColor: isOutOfStock ? undefined : addedAnimation ? "#059669" : primaryColor,
+                    color: isOutOfStock ? undefined : "#ffffff"
+                  }}
+                  className={`sm:hidden p-2.5 rounded-xl transition-all active:scale-95 ${
+                    isOutOfStock
+                      ? "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
+                      : ""
+                  }`}
+                >
+                  {addedAnimation ? <Check className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
                 </button>
-              );
-            })}
-            {colorSwatches.length > 5 && (
-              <span className="text-[10px] font-bold text-slate-400 pl-0.5">
-                +{colorSwatches.length - 5}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Active Variant Hint */}
-        {selectedVariant && (
-          <div className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mb-1 truncate">
-            {selectedVariant.name}
-          </div>
-        )}
-
-        {/* Price & Mobile Add To Cart */}
-        <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
-          <div className="flex flex-col">
-            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-              {activePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currencySymbol}
-            </span>
-          </div>
-
-          {/* Mobile Instant Add Button */}
-          <button
-            type="button"
-            disabled={isOutOfStock}
-            onClick={handleQuickAdd}
-            style={{
-              backgroundColor: isOutOfStock ? undefined : addedAnimation ? "#059669" : primaryColor,
-              color: isOutOfStock ? undefined : "#ffffff"
-            }}
-            className={`sm:hidden p-2.5 rounded-xl transition-all active:scale-95 ${
-              isOutOfStock
-                ? "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
-                : ""
-            }`}
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          /* BACK COVER VIEW (Summary, Publisher, Ratings, Branch Stocks) */
+          <motion.div
+            key="back"
+            initial={{ opacity: 0, rotateY: 90 }}
+            animate={{ opacity: 1, rotateY: 0 }}
+            exit={{ opacity: 0, rotateY: -90 }}
+            transition={{ duration: 0.25 }}
+            className="flex flex-col flex-1 w-full h-full p-4 sm:p-5 bg-slate-900 text-slate-100 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
           >
-            {addedAnimation ? <Check className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                {lang === "tr" ? "📖 Arka Kapak & Detaylar" : "Back Cover & Details"}
+              </span>
+              <div className="flex items-center gap-1 bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                <span>⭐ 4.8</span>
+                <span className="text-slate-400">(24)</span>
+              </div>
+            </div>
+
+            {/* Publisher & Author */}
+            <div className="mb-3 space-y-1">
+              <div className="text-[11px] text-slate-400">
+                <strong className="text-slate-300">{lang === 'tr' ? 'Yazarı:' : 'Author:'}</strong> {product.author || 'Bilinmiyor'}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                <strong className="text-slate-300">{lang === 'tr' ? 'Yayınevi:' : 'Publisher:'}</strong> {product.brand || 'Seçkin Yayıncılık'}
+              </div>
+            </div>
+
+            {/* Summary / Description */}
+            <div className="mb-4">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                {lang === 'tr' ? 'Eser Özeti' : 'Synopsis'}
+              </h4>
+              <p className="text-xs text-slate-300 leading-relaxed line-clamp-4">
+                {product.description || (lang === 'tr' ? 'Bu eser için henüz detaylı özeti girilmemiştir. Okuyucuların sürükleyici bir deneyim yaşayacağı eşsiz bir başyapıt.' : 'No detailed synopsis available yet for this masterpiece.')}
+              </p>
+            </div>
+
+            {/* Branch Stocks (Çok Şubeli Stok Durumu) */}
+            <div className="mb-4 pt-3 border-t border-slate-800">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-indigo-300 mb-2 flex items-center gap-1">
+                <Package className="w-3 h-3" />
+                {lang === 'tr' ? 'Şube Bazlı Stok Durumu' : 'Branch Stock Availability'}
+              </h4>
+              <div className="space-y-1.5 max-h-24 overflow-y-auto no-scrollbar">
+                {branchStocks.map((b: any, bIdx: number) => (
+                  <div key={bIdx} className="flex items-center justify-between text-[11px] bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700/50">
+                    <span className="text-slate-300 font-medium">{b.branch_name}</span>
+                    <span className={`font-black ${b.quantity > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {b.quantity > 0 ? `${b.quantity} ${product.unit || 'Adet'}` : (lang === 'tr' ? 'Tükendi' : 'Out of Stock')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Back to front action */}
+            <div className="mt-auto pt-3 border-t border-slate-800 flex items-center justify-between">
+              <span className="text-xs font-black text-white">
+                {activePrice.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currencySymbol}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsFlipped(false)}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              >
+                {lang === 'tr' ? 'Ön Yüze Dön' : 'Front Cover'}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

@@ -1082,6 +1082,153 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
   }
 });
 
+// 6c. Unpublish / Remove Single Product from Hepsiburada (Stop Selling by Setting Stock to 0)
+router.post("/hepsiburada/unpublish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productId = req.body.productId;
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    }
+
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    const p = prodRes.rows[0];
+    if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
+
+    if (!p.barcode || !p.barcode.trim()) {
+      return res.status(400).json({ error: "Ürün barkodu eksik." });
+    }
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const result = await hbService.updatePriceAndStock([
+      {
+        HepsiburadaSku: p.hepsiburada_sku || "",
+        MerchantSku: p.barcode.trim(),
+        Price: parseFloat(p.price || "0"),
+        AvailableStock: 0,
+        DispatchTime: settings.defaultDispatchTime || 1,
+      }
+    ]);
+
+    await pool.query(
+      "UPDATE products SET is_hepsiburada_active = false, hepsiburada_last_sync = NOW() WHERE id = $1",
+      [productId]
+    );
+
+    res.json({
+      success: true,
+      message: `"${p.name}" Hepsiburada'da yayından kaldırıldı (stok 0 yapılarak satışa kapatıldı).`,
+      trackingId: result.trackingId
+    });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Hepsiburada yayından kaldırma başarısız." });
+  }
+});
+
+// 6d. Bulk Unpublish Products from Hepsiburada
+router.post("/hepsiburada/bulk-unpublish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productIds = req.body.productIds;
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
+    const settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    }
+
+    let query = "SELECT * FROM products WHERE store_id = $1";
+    const params: any[] = [storeId];
+    if (Array.isArray(productIds) && productIds.length > 0) {
+      query += " AND id = ANY($2)";
+      params.push(productIds);
+    } else {
+      query += " AND is_hepsiburada_active = true AND barcode IS NOT NULL AND barcode != ''";
+    }
+
+    const prodRes = await pool.query(query, params);
+    const products = prodRes.rows;
+
+    if (products.length === 0) {
+      return res.status(400).json({ error: "Yayından kaldırılacak aktif ürün bulunamadı." });
+    }
+
+    const hbService = new HepsiburadaService(settings, storeId);
+    const items: any[] = [];
+    for (const p of products) {
+      if (p.barcode && p.barcode.trim()) {
+        items.push({
+          MerchantSku: p.barcode.trim(),
+          HepsiburadaSku: p.hepsiburada_sku || "",
+          Price: parseFloat(p.price || "0"),
+          AvailableStock: 0,
+          DispatchTime: settings.defaultDispatchTime || 1,
+        });
+      }
+    }
+
+    if (items.length === 0) {
+      return res.status(400).json({ error: "Geçerli barkoda sahip ürün bulunamadı." });
+    }
+
+    const result = await hbService.updatePriceAndStock(items);
+
+    await pool.query(
+      `UPDATE products 
+       SET is_hepsiburada_active = false, 
+           hepsiburada_last_sync = NOW() 
+       WHERE store_id = $1 AND barcode = ANY($2)`,
+      [storeId, items.map(i => i.MerchantSku)]
+    );
+
+    res.json({
+      success: true,
+      unpublishedCount: items.length,
+      trackingId: result.trackingId,
+      message: `${items.length} ürün Hepsiburada'da yayından kaldırıldı (satışa kapatıldı).`
+    });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "Toplu yayından kaldırma başarısız." });
+  }
+});
+
+// Trendyol, N11, Pazarama Unpublish helpers
+router.post("/trendyol/unpublish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productId = req.body.productId;
+  try {
+    await pool.query("UPDATE products SET is_trendyol_active = false WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    res.json({ success: true, message: "Ürün Trendyol'da yayından kaldırıldı." });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/n11/unpublish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productId = req.body.productId;
+  try {
+    await pool.query("UPDATE products SET is_n11_active = false WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    res.json({ success: true, message: "Ürün N11'de yayından kaldırıldı." });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/pazarama/unpublish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productId = req.body.productId;
+  try {
+    await pool.query("UPDATE products SET is_pazarama_active = false WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    res.json({ success: true, message: "Ürün Pazarama'da yayından kaldırıldı." });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 // Global cache for merged live Hepsiburada categories
 let hbLiveCategoryCache: { categories: any[]; timestamp: number } | null = null;
 

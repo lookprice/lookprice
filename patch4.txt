@@ -1,0 +1,9 @@
+--- src/components/ModernShopRetailLayout.tsx
++++ src/components/ModernShopRetailLayout.tsx
+@@ -1286,7 +1286,7 @@
+       {/* 10. Mobile Filter Drawer */}
+       <AnimatePresence>
+         {isMobileFiltersOpen && (
+-          <div className="fixed inset-0 z-[110] lg:hidden overflow-hidden">
++          <div className={`fixed inset-0 z-[110] ${themeConfig.preset_name === 'bookstore_netflix' ? '' : 'lg:hidden'} overflow-hidden`}>
+             <motion.div

@@ -336,69 +336,65 @@ export const ProductMovementModal = ({ product, onClose, branding, storeId, isOp
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
+      <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
+        <div className="bg-white rounded-none sm:rounded-3xl shadow-2xl w-full max-w-4xl h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col overflow-hidden border border-slate-200">
           
           {/* HEADER */}
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
-                <Layers className="h-5 w-5" />
+          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white shrink-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0">
+                <Layers className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-black uppercase tracking-wide text-white">
-                    {isTr ? 'Ürün Ekstresi & Hareket Takibi' : 'Product Statement & Movements'}
+                  <h2 className="text-xs sm:text-base font-black uppercase tracking-wide text-white truncate">
+                    {isTr ? 'Ürün Ekstresi' : 'Product Statement'}
                   </h2>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                    ID #{product.id}
+                  <span className="text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                    #{product.id}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-slate-300 mt-0.5">
-                  <span className="font-bold text-white max-w-[280px] sm:max-w-md truncate">{product.name}</span>
+                <div className="flex items-center gap-2 text-xs text-slate-300 mt-0.5 truncate">
+                  <span className="font-bold text-white truncate max-w-[160px] sm:max-w-md">{product.name}</span>
                   {product.barcode && (
-                    <span className="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 text-[10px]">
+                    <span className="font-mono bg-slate-800 px-1 py-0.5 rounded text-slate-300 text-[10px] hidden sm:inline">
                       {product.barcode}
-                    </span>
-                  )}
-                  {product.product_code && (
-                    <span className="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 text-[10px]">
-                      {product.product_code}
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button 
                 type="button"
                 onClick={handlePrintStatement}
                 disabled={movements.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl transition-all text-xs font-bold border border-slate-700 disabled:opacity-40 cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl transition-all text-xs font-bold border border-slate-700 disabled:opacity-40 cursor-pointer"
                 title={isTr ? 'Yazdır / PDF Ekstre' : 'Print Statement'}
               >
                 <Printer className="h-4 w-4" />
-                <span className="hidden sm:inline">{isTr ? 'Yazdır' : 'Print'}</span>
+                <span>{isTr ? 'Yazdır' : 'Print'}</span>
               </button>
 
               <button 
                 type="button"
                 onClick={handleExport}
                 disabled={exporting || movements.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all text-xs font-bold shadow-xs disabled:opacity-40 cursor-pointer"
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all text-xs font-bold shadow-xs disabled:opacity-40 cursor-pointer"
                 title={isTr ? 'Excel Olarak İndir' : 'Export Excel'}
               >
                 <FileDown className="h-4 w-4" />
-                <span>{exporting ? '...' : 'Excel'}</span>
+                <span className="hidden sm:inline">{exporting ? '...' : 'Excel'}</span>
               </button>
 
               <button 
                 type="button"
                 onClick={onClose} 
-                className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white cursor-pointer ml-1"
+                className="p-2.5 hover:bg-white/20 rounded-full transition-colors text-white cursor-pointer ml-1 touch-manipulation"
+                title={isTr ? 'Kapat' : 'Close'}
               >
-                <X className="h-5 w-5" />
+                <X className="h-6 w-6" />
               </button>
             </div>
           </div>

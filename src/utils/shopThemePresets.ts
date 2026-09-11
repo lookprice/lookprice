@@ -1,5 +1,5 @@
 export interface ShopThemeConfig {
-  preset_name: "minimal_swiss" | "luxury_dark" | "nordic_warm" | "street_bold" | "custom";
+  preset_name: "minimal_swiss" | "luxury_dark" | "nordic_warm" | "street_bold" | "bookstore_netflix" | "custom";
   primary_color: string;
   accent_color: string;
   background_mode: "light" | "dark" | "warm";
@@ -19,6 +19,12 @@ export interface ShopThemeConfig {
   show_trust_badges: boolean;
   show_quick_view: boolean;
   show_swatches_on_card: boolean;
+  showcase_rows?: Array<{
+    id: string;
+    title: string;
+    type: "new_arrivals" | "trending" | "category" | "custom_tag";
+    tag_or_category?: string;
+  }>;
   stories?: Array<{
     id: string;
     title: string;
@@ -190,5 +196,20 @@ export const THEME_PRESETS: Record<string, Partial<ShopThemeConfig>> = {
     card_radius: "none",
     card_aspect_ratio: "portrait",
     card_hover_effect: "glow"
+  },
+  bookstore_netflix: {
+    preset_name: "bookstore_netflix",
+    primary_color: "#0f172a",
+    accent_color: "#ef4444",
+    background_mode: "dark",
+    card_style: "minimal",
+    card_radius: "subtle",
+    card_aspect_ratio: "portrait",
+    card_hover_effect: "zoom",
+    showcase_rows: [
+      { id: "row1", title: "Yeni Gelenler", type: "new_arrivals" },
+      { id: "row2", title: "Trendler", type: "trending" },
+      { id: "row3", title: "Klasikler", type: "category", tag_or_category: "Klasikler" }
+    ]
   }
 };

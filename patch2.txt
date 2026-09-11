@@ -1,0 +1,127 @@
+--- src/components/ModernShopRetailLayout.tsx
++++ src/components/ModernShopRetailLayout.tsx
+@@ -218,6 +218,17 @@
+     rating: null
+   });
+ 
++  const isFiltersActive = Boolean(
++    filters.search ||
++    filters.category ||
++    filters.subCategory ||
++    filters.brand ||
++    filters.color ||
++    filters.minPrice !== undefined ||
++    filters.maxPrice !== undefined ||
++    (filters.tags && filters.tags.length > 0) ||
++    filters.size ||
++    filters.rating
++  );
++
+   // Extracted Values
+   const categories = useMemo(() => {
+     if (!Array.isArray(products)) return [];
+@@ -1125,7 +1136,52 @@
+                 </button>
+               </div>
+             ) : (
+-              <div
+-                className={`grid grid-cols-1 sm:grid-cols-2 ${
+-                  gridColumns === 3 ? "lg:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4"
+-                } gap-4 sm:gap-6`}
+-              >
+-                {filteredProducts.map((prod, pIdx) => (
+-                  <ShopRetailProductCard
+-                    key={`shop-prod-${prod.id || pIdx}-${pIdx}`}
+-                    product={prod}
+-                    store={store}
+-                    themeConfig={themeConfig}
+-                    t={t}
+-                    lang={lang}
+-                    onView={onViewProduct}
+-                    addToBasket={(p) => {
+-                      addToBasket(p);
+-                      setIsDrawerCartOpen(true);
+-                    }}
+-                    isWishlisted={wishlist.has(prod.id)}
+-                    onToggleWishlist={toggleWishlist}
+-                  />
+-                ))}
+-              </div>
++              <>
++                {(!isFiltersActive && themeConfig.showcase_rows && themeConfig.showcase_rows.length > 0) ? (
++                  <div className="space-y-12 w-full max-w-[100vw] overflow-hidden">
++                    {themeConfig.showcase_rows.map((row, rIdx) => {
++                      let rowProducts = [];
++                      if (row.type === "new_arrivals") {
++                        rowProducts = [...filteredProducts].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).slice(0, 15);
++                      } else if (row.type === "trending") {
++                        rowProducts = [...filteredProducts].sort((a, b) => (b.price || 0) - (a.price || 0)).slice(0, 15);
++                      } else if (row.type === "category" && row.tag_or_category) {
++                        rowProducts = filteredProducts.filter(p => p.category?.toLowerCase() === row.tag_or_category?.toLowerCase() || p.tags?.some(t => t.toLowerCase() === row.tag_or_category?.toLowerCase()));
++                      }
++                      
++                      if (rowProducts.length === 0) return null;
++                      
++                      return (
++                        <div key={row.id || rIdx} className="w-full">
++                          <div className="flex items-center justify-between mb-4 px-1">
++                            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">{row.title}</h3>
++                            <button 
++                              onClick={() => setFilters(prev => ({ ...prev, category: row.type === 'category' ? row.tag_or_category || null : null }))}
++                              className="text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1"
++                            >
++                              {lang === "tr" ? "Tümünü Gör" : "View All"} <ChevronRight className="w-3.5 h-3.5" />
++                            </button>
++                          </div>
++                          {/* Netflix-style horizontal scroll */}
++                          <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x px-1" style={{ scrollBehavior: 'smooth' }}>
++                            {rowProducts.map((prod, pIdx) => (
++                              <div key={`shop-row-prod-${prod.id || pIdx}`} className="w-[180px] sm:w-[220px] md:w-[260px] snap-start shrink-0">
++                                <ShopRetailProductCard
++                                  product={prod}
++                                  store={store}
++                                  themeConfig={themeConfig}
++                                  t={t}
++                                  lang={lang}
++                                  onView={onViewProduct}
++                                  addToBasket={(p) => {
++                                    addToBasket(p);
++                                    setIsDrawerCartOpen(true);
++                                  }}
++                                  isWishlisted={wishlist.has(prod.id)}
++                                  onToggleWishlist={toggleWishlist}
++                                />
++                              </div>
++                            ))}
++                          </div>
++                        </div>
++                      );
++                    })}
++                  </div>
++                ) : (
++                  <div
++                    className={`grid grid-cols-1 sm:grid-cols-2 ${
++                      gridColumns === 3 ? "lg:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4"
++                    } gap-4 sm:gap-6`}
++                  >
++                    {filteredProducts.map((prod, pIdx) => (
++                      <ShopRetailProductCard
++                        key={`shop-prod-${prod.id || pIdx}-${pIdx}`}
++                        product={prod}
++                        store={store}
++                        themeConfig={themeConfig}
++                        t={t}
++                        lang={lang}
++                        onView={onViewProduct}
++                        addToBasket={(p) => {
++                          addToBasket(p);
++                          setIsDrawerCartOpen(true);
++                        }}
++                        isWishlisted={wishlist.has(prod.id)}
++                        onToggleWishlist={toggleWishlist}
++                      />
++                    ))}
++                  </div>
++                )}
++              </>
+             )}

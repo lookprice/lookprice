@@ -1,0 +1,14 @@
+--- src/components/showcase/ShopRetailProductCard.tsx
++++ src/components/showcase/ShopRetailProductCard.tsx
+@@ -129,6 +129,8 @@
+     ? "aspect-square" 
+     : themeConfig?.card_aspect_ratio === "wide" 
+     ? "aspect-[16/10]" 
++    : themeConfig?.preset_name === "bookstore_netflix"
++    ? "aspect-[2/3]"
+     : "aspect-[4/5]";
+ 
+   // Card Corner Radius
+@@ -216,6 +218,12 @@
+           {primaryImage ? (
+             <img

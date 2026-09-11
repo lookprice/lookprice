@@ -15,6 +15,7 @@ interface SuperAdminStoresTableProps {
   setEditingStore: (store: Store) => void;
   setStoreToDelete: (store: Store) => void;
   onToggleHotel?: (store: Store) => void;
+  onToggleBookstore?: (store: Store) => void;
 }
 
 export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
@@ -28,7 +29,8 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
   setSelectedStore,
   setEditingStore,
   setStoreToDelete,
-  onToggleHotel
+  onToggleHotel,
+  onToggleBookstore
 }) => {
   const filteredStores = stores.filter(s => {
     const storeSearchTerms = storeSearchTerm.toLowerCase().split(' ').filter(Boolean);
@@ -151,6 +153,24 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                               <span>{store.hotel_module_enabled ? 'Otel Konsepti (Aktif)' : 'Otel Pasif'}</span>
                             </button>
                           )}
+                          {(store.store_type === 'product_retail' || store.store_type === 'ecommerce') && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleBookstore && onToggleBookstore(store);
+                              }}
+                              className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tight flex items-center gap-1 transition-all cursor-pointer border ${
+                                store.bookstore_module_enabled
+                                  ? 'bg-purple-500 text-white border-purple-600 hover:bg-purple-400 font-black shadow-xs'
+                                  : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200'
+                              }`}
+                              title={store.bookstore_module_enabled ? "Kitap Mağazası Konsepti Aktif (Pasife almak için tıklayın)" : "Genel Perakende (Kitap konseptini aktif etmek için tıklayın)"}
+                            >
+                              <span>📚</span>
+                              <span>{store.bookstore_module_enabled ? 'Kitap Konsepti (Aktif)' : 'Kitap Pasif'}</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -202,6 +222,19 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                             title={store.hotel_module_enabled ? "Otel Konseptini Pasife Al" : "Otel Konseptini Aktif Et"}
                           >
                             <Building2 className="h-4 w-4" />
+                          </button>
+                        )}
+                        {(store.store_type === 'product_retail' || store.store_type === 'ecommerce') && onToggleBookstore && (
+                          <button 
+                            onClick={() => onToggleBookstore(store)}
+                            className={`p-2 rounded-lg transition-all ${
+                              store.bookstore_module_enabled 
+                                ? 'text-purple-600 bg-purple-50 hover:bg-purple-100' 
+                                : 'text-gray-400 hover:text-purple-600 hover:bg-slate-100'
+                            }`}
+                            title={store.bookstore_module_enabled ? "Kitap Konseptini Pasife Al" : "Kitap Konseptini Aktif Et"}
+                          >
+                            <span className="text-[16px] leading-[1]">📚</span>
                           </button>
                         )}
                         <button 

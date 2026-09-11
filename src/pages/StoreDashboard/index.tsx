@@ -136,6 +136,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const isAutomotive = !isGapStore && (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive');
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const isHotelModuleActive = isCafeRestaurant && Boolean(branding?.hotel_module_enabled);
+  const isBookstoreModuleActive = (!isGapStore && !isRealEstate && !isAutomotive && !isCafeRestaurant) && Boolean(branding?.bookstore_module_enabled);
 
   // Cafe/Restaurant Role-based authorization state
   const [activeStaffRole, setActiveStaffRole] = useState<'manager' | 'cashier' | 'waiter'>(() => {

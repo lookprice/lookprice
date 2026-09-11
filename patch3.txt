@@ -1,0 +1,45 @@
+--- src/components/ModernShopRetailLayout.tsx
++++ src/components/ModernShopRetailLayout.tsx
+@@ -986,7 +986,7 @@
+       <section id="catalog" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+         <div className="flex flex-col lg:flex-row gap-8 items-start">
+           {/* Desktop Filter Sidebar */}
+-          <div className="hidden lg:block w-64 shrink-0 sticky top-28 z-10">
++          {themeConfig.preset_name !== "bookstore_netflix" && (
++            <div className="hidden lg:block w-64 shrink-0 sticky top-28 z-10">
+-            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
++              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
+-              <ShopFilterSidebar
++                <ShopFilterSidebar
+-                products={products}
++                  products={products}
+-                filterState={filters}
++                  filterState={filters}
+-                onFilterChange={handleFilterChange}
++                  onFilterChange={handleFilterChange}
+-                onResetFilters={handleResetFilters}
++                  onResetFilters={handleResetFilters}
+-                lang={lang}
++                  lang={lang}
+-                currency={store.currency || "TRY"}
++                  currency={store.currency || "TRY"}
+-              />
++                />
+-            </div>
++              </div>
+-          </div>
++            </div>
++          )}
+ 
+           {/* Product Grid & Controls */}
+           <div className="flex-1 min-w-0">
+             {/* Catalog Control Bar */}
+             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-4 mb-6">
+               <div className="flex items-center gap-3">
+                 <button
+                   type="button"
+                   onClick={() => setIsMobileFiltersOpen(true)}
+-                  className="lg:hidden flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl font-bold text-sm active:scale-95 transition-all"
++                  className={`${themeConfig.preset_name === "bookstore_netflix" ? "flex" : "lg:hidden flex"} items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl font-bold text-sm active:scale-95 transition-all cursor-pointer`}
+                 >
+                   <SlidersHorizontal className="w-4 h-4 text-indigo-600" />

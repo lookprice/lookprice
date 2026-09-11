@@ -302,6 +302,36 @@ export const SettingsLayoutTab: React.FC<SettingsLayoutTabProps> = ({
               <span className="text-[11px] font-bold text-slate-400 ml-2">Keskin Köşe • Glow Hover</span>
             </div>
           </div>
+
+          {/* Preset 5: Bookstore Netflix */}
+          <div
+            onClick={() => applyPreset("bookstore_netflix")}
+            className={`p-6 rounded-3xl border-2 transition-all cursor-pointer relative ${
+              themeConfig.preset_name === "bookstore_netflix"
+                ? "border-red-600 bg-red-50/20 shadow-md ring-4 ring-red-500/10"
+                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
+            }`}
+          >
+            {themeConfig.preset_name === "bookstore_netflix" && (
+              <div className="absolute top-4 right-4 p-1.5 bg-red-600 text-white rounded-full">
+                <Check className="w-3.5 h-3.5" />
+              </div>
+            )}
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-base font-black text-slate-900 dark:text-white">
+                Bookstore Netflix (Yatay Medya)
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+              Kitap ve medya satışı için dikey kapaklar ve Netflix stili yatay kaydırılabilir vitrin.
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-md bg-slate-900 border border-slate-500 shadow-xs" />
+              <span className="w-6 h-6 rounded-md bg-red-600 border border-slate-500 shadow-xs" />
+              <span className="w-6 h-6 rounded-md bg-slate-100 border border-slate-300 shadow-xs" />
+              <span className="text-[11px] font-bold text-slate-400 ml-2">Dikey Kart • Netflix Stili</span>
+            </div>
+          </div>
         </div>
       )}
 
