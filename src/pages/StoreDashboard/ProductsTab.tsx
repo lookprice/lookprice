@@ -53,6 +53,7 @@ import { useTableManager, ColumnDefinition } from "../../hooks/useTableManager";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { getLabels } from "../../utils/showcase";
+import { getConnectedMarketplaces } from "../../utils/marketplaceEStores";
 
 interface ProductsTabProps {
   products: any[];
@@ -157,6 +158,7 @@ const ProductsTab = ({
     branding?.page_layout_settings?.sector === 'horeca';
   const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
   const isShopLp = !isCafe && !isPortfolio;
+  const connectedMarketplaces = useMemo(() => getConnectedMarketplaces(branding), [branding]);
 
   const productColumns = useMemo<ColumnDefinition[]>(() => {
     const cols: ColumnDefinition[] = [];
@@ -603,7 +605,7 @@ const ProductsTab = ({
               <Download className="h-4 w-4" />
             </button>
 
-            {!isViewer && isShopLp && (
+            {!isViewer && isShopLp && connectedMarketplaces.hasAnyConnected && (
               <button 
                 onClick={() => {
                   setMarketplaceModalTab('hepsiburada');
@@ -630,7 +632,7 @@ const ProductsTab = ({
               </button>
             )}
 
-            {!isViewer && isShopLp && (
+            {!isViewer && isShopLp && connectedMarketplaces.hepsiburada && (
               <button 
                 onClick={() => setShowBulkPublishModal(true)}
                 className="os-btn-secondary p-2 text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
@@ -777,8 +779,8 @@ const ProductsTab = ({
           </div>
         </div>
 
-        {/* E-Marketplace Quick Filter Chips for shopLP */}
-        {isShopLp && (
+        {/* E-Marketplace Quick Filter Chips for shopLP (Only visible when connected) */}
+        {isShopLp && connectedMarketplaces.hasAnyConnected && (
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60 overflow-x-auto pb-1 scrollbar-none text-xs">
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="text-[11px] font-bold text-slate-400 mr-1 hidden sm:inline">Pazaryeri:</span>
@@ -813,23 +815,25 @@ const ProductsTab = ({
                 </span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 ${
-                  marketplaceFilter === 'hepsiburada'
-                    ? 'bg-orange-600 text-white border-orange-600 shadow-xs'
-                    : 'bg-white text-orange-900 border-orange-200 hover:bg-orange-50'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                Hepsiburada
-                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  marketplaceFilter === 'hepsiburada' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
-                }`}>
-                  {hbActiveCount}
-                </span>
-              </button>
+              {connectedMarketplaces.hepsiburada && (
+                <button
+                  type="button"
+                  onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 ${
+                    marketplaceFilter === 'hepsiburada'
+                      ? 'bg-orange-600 text-white border-orange-600 shadow-xs'
+                      : 'bg-white text-orange-900 border-orange-200 hover:bg-orange-50'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                  Hepsiburada
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    marketplaceFilter === 'hepsiburada' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
+                  }`}>
+                    {hbActiveCount}
+                  </span>
+                </button>
+              )}
 
               {marketplaceErrorCount > 0 && (
                 <button
@@ -1040,7 +1044,7 @@ const ProductsTab = ({
                                     }
                                     return null;
                                   })()}
-                                  {isShopLp && p.is_hepsiburada_active && (
+                                  {isShopLp && connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && (
                                     <a
                                       href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
                                       target="_blank"
@@ -1053,7 +1057,7 @@ const ProductsTab = ({
                                       HB
                                     </a>
                                   )}
-                                  {isShopLp && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
+                                  {isShopLp && connectedMarketplaces.hepsiburada && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
                                     <button
                                       type="button"
                                       onClick={(e) => {
@@ -1069,12 +1073,12 @@ const ProductsTab = ({
                                       HB Hata
                                     </button>
                                   )}
-                                  {isShopLp && p.is_trendyol_active && (
+                                  {isShopLp && connectedMarketplaces.trendyol && p.is_trendyol_active && (
                                     <span className="text-[8px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded uppercase">
                                       TY
                                     </span>
                                   )}
-                                  {isShopLp && p.is_n11_active && (
+                                  {isShopLp && connectedMarketplaces.n11 && p.is_n11_active && (
                                     <span className="text-[8px] font-bold text-red-800 bg-red-50 border border-red-200 px-1 py-0.2 rounded uppercase">
                                       N11
                                     </span>
@@ -1214,7 +1218,7 @@ const ProductsTab = ({
                     <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
                       {!isViewer && (
                         <div className="flex justify-end items-center gap-0.5">
-                          {isShopLp && (
+                          {isShopLp && connectedMarketplaces.hepsiburada && (
                             <button 
                               onClick={(e) => handlePublishToHepsiburada(p, e)}
                               disabled={publishingId === p.id}
@@ -1339,9 +1343,9 @@ const ProductsTab = ({
                               </span>
                             );
                           })()}
-                          {isShopLp && (
+                          {isShopLp && connectedMarketplaces.hasAnyConnected && (
                             <div className="flex items-center gap-1">
-                              {p.is_hepsiburada_active && (
+                              {connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && (
                                 <a
                                   href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
                                   target="_blank"
@@ -1354,12 +1358,12 @@ const ProductsTab = ({
                                   Hepsiburada Yayında
                                 </a>
                               )}
-                              {p.is_trendyol_active && (
+                              {connectedMarketplaces.trendyol && p.is_trendyol_active && (
                                 <span className="font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase">
                                   Trendyol Yayında
                                 </span>
                               )}
-                              {p.is_n11_active && (
+                              {connectedMarketplaces.n11 && p.is_n11_active && (
                                 <span className="font-bold text-red-800 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded uppercase">
                                   N11 Yayında
                                 </span>
@@ -1428,7 +1432,7 @@ const ProductsTab = ({
         onSuccess={onRefresh || (() => window.location.reload())}
       />
 
-      {isShopLp && (
+      {isShopLp && connectedMarketplaces.hepsiburada && (
         <MarketplaceBulkPublishModal
           isOpen={showBulkPublishModal}
           onClose={() => setShowBulkPublishModal(false)}
@@ -1441,7 +1445,7 @@ const ProductsTab = ({
         />
       )}
 
-      {isShopLp && (
+      {isShopLp && connectedMarketplaces.hasAnyConnected && (
         <MarketplaceListingsModal
           isOpen={showMarketplaceListingsModal}
           onClose={() => setShowMarketplaceListingsModal(false)}

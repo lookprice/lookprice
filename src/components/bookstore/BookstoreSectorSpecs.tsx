@@ -1,17 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { 
   BookOpen, 
-  User, 
-  Building2, 
-  Barcode, 
   FileText, 
   Languages, 
-  Calendar, 
-  MapPin, 
   Bookmark, 
   Sparkles,
-  Info,
-  DollarSign
+  Info
 } from "lucide-react";
 
 interface BookstoreSectorSpecsProps {
@@ -69,60 +63,23 @@ export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
         </div>
       </div>
 
-      {/* Row 1: ISBN, Yazar, Yayınevi, Çevirmen */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* ISBN / Barkod */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
-            <Barcode className="w-3 h-3 text-indigo-600" />
-            <span>ISBN / Standart Kod</span>
-          </label>
-          <input
-            type="text"
-            placeholder="örn: 978-605-241-607-5"
-            className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-            value={sectorData.isbn || ""}
-            onChange={(e) => updateField("isbn", e.target.value)}
-          />
-        </div>
+      {/* Unified Fields Notification Banner */}
+      <div className="flex items-center gap-2 p-2.5 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/40 text-[11px] text-indigo-900 dark:text-indigo-200">
+        <Info className="w-4 h-4 text-indigo-600 shrink-0" />
+        <span>
+          {isTr 
+            ? "Yazar (Eser Sahibi) ve Yayınevi bilgileri yukarıdaki «Kategoriler & Marka» bölümünde, Barkod / ISBN ise «Temel Kimlik & Barkod» alanında tekilleştirilmiştir."
+            : "Author, Publisher, and Barcode/ISBN are unified in the primary product identity and category fields above."}
+        </span>
+      </div>
 
-        {/* Yazar */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
-            <User className="w-3 h-3 text-indigo-600" />
-            <span>{isTr ? "Eser Sahibi / Yazar" : "Author"}</span>
-          </label>
-          <input
-            type="text"
-            name="author"
-            placeholder={isTr ? "örn: Fyodor Dostoyevski" : "Author name"}
-            className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-            defaultValue={editingProduct?.author || sectorData.author || ""}
-            onChange={(e) => updateField("author", e.target.value)}
-          />
-        </div>
-
-        {/* Yayınevi / Marka */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
-            <Building2 className="w-3 h-3 text-indigo-600" />
-            <span>{isTr ? "Yayınevi / Yayıncı" : "Publisher"}</span>
-          </label>
-          <input
-            type="text"
-            name="brand"
-            placeholder={isTr ? "örn: Can Yayınları, İş Bankası" : "Publisher"}
-            className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-            defaultValue={editingProduct?.brand || sectorData.publisher || ""}
-            onChange={(e) => updateField("publisher", e.target.value)}
-          />
-        </div>
-
+      {/* Row 1: Çevirmen, Orijinal Dil, Basım Yılı, Baskı Sayısı */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Çevirmen / Derleyen */}
         <div className="space-y-1">
           <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
             <Languages className="w-3 h-3 text-indigo-600" />
-            <span>{isTr ? "Çevirmen (Opsiyonel)" : "Translator"}</span>
+            <span>{isTr ? "Çevirmen / Derleyen" : "Translator"}</span>
           </label>
           <input
             type="text"
@@ -132,21 +89,32 @@ export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
             onChange={(e) => updateField("translator", e.target.value)}
           />
         </div>
-      </div>
 
-      {/* Row 2: Sayfa Sayısı, Baskı Sayısı, Basım Yılı, Cilt Tipi */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Sayfa Sayısı */}
+        {/* Orijinal Dil */}
         <div className="space-y-1">
           <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-            {isTr ? "Sayfa Sayısı" : "Page Count"}
+            {isTr ? "Orijinal Dili" : "Original Lang"}
+          </label>
+          <input
+            type="text"
+            placeholder="Türkçe / Rusça / İngilizce"
+            className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+            value={sectorData.language || "Türkçe"}
+            onChange={(e) => updateField("language", e.target.value)}
+          />
+        </div>
+
+        {/* Basım Yılı */}
+        <div className="space-y-1">
+          <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
+            {isTr ? "Basım Yılı" : "Pub. Year"}
           </label>
           <input
             type="number"
-            placeholder="384"
+            placeholder="2024"
             className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-            value={sectorData.page_count || ""}
-            onChange={(e) => updateField("page_count", e.target.value)}
+            value={sectorData.publication_year || ""}
+            onChange={(e) => updateField("publication_year", e.target.value)}
           />
         </div>
 
@@ -163,18 +131,21 @@ export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
             onChange={(e) => updateField("edition", e.target.value)}
           />
         </div>
+      </div>
 
-        {/* Basım Yılı */}
+      {/* Row 2: Sayfa Sayısı, Cilt Tipi, Ebat / Boyut, Kağıt Cinsi */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Sayfa Sayısı */}
         <div className="space-y-1">
           <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-            {isTr ? "Basım Yılı" : "Pub. Year"}
+            {isTr ? "Sayfa Sayısı" : "Page Count"}
           </label>
           <input
             type="number"
-            placeholder="2024"
+            placeholder="384"
             className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-            value={sectorData.publication_year || ""}
-            onChange={(e) => updateField("publication_year", e.target.value)}
+            value={sectorData.page_count || ""}
+            onChange={(e) => updateField("page_count", e.target.value)}
           />
         </div>
 
@@ -194,23 +165,6 @@ export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
             <option value="Kutulu Özel Set">{isTr ? "Kutulu Özel Set" : "Boxed Set"}</option>
             <option value="E-Kitap">{isTr ? "Dijital E-Kitap" : "E-Book"}</option>
           </select>
-        </div>
-      </div>
-
-      {/* Row 3: Orijinal Dil, Kitap Boyutu (Ebat), Kağıt Cinsi, Puan */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Orijinal Dil */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-            {isTr ? "Orijinal Dili" : "Original Lang"}
-          </label>
-          <input
-            type="text"
-            placeholder="Türkçe / Rusça / İngilizce"
-            className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-            value={sectorData.language || "Türkçe"}
-            onChange={(e) => updateField("language", e.target.value)}
-          />
         </div>
 
         {/* Ebat */}
@@ -240,11 +194,14 @@ export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
             onChange={(e) => updateField("paper_type", e.target.value)}
           />
         </div>
+      </div>
 
+      {/* Row 3: Okur Puanı, Alıntı, Ödüller */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Müşteri Puanı / Rating */}
-        <div className="space-y-1">
+        <div className="space-y-1 sm:max-w-[140px]">
           <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
-            <span>⭐ {isTr ? "Okur Puanı (1-5)" : "Rating"}</span>
+            <span>⭐ {isTr ? "Okur Puanı" : "Rating"}</span>
           </label>
           <input
             type="number"
@@ -255,6 +212,36 @@ export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
             className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
             value={sectorData.rating || "4.8"}
             onChange={(e) => updateField("rating", e.target.value)}
+          />
+        </div>
+
+        {/* Alıntı */}
+        <div className="space-y-1">
+          <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
+            <Bookmark className="w-3 h-3 text-purple-600" />
+            <span>{isTr ? "Kitaptan Çarpıcı Alıntı" : "Featured Quote"}</span>
+          </label>
+          <input
+            type="text"
+            placeholder={isTr ? "«İnsanın canı acır bazen, ama yaşam devam eder.»" : "Quote from book"}
+            className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-medium italic text-slate-900 text-xs shadow-2xs"
+            value={sectorData.featured_quote || ""}
+            onChange={(e) => updateField("featured_quote", e.target.value)}
+          />
+        </div>
+
+        {/* Ödüller */}
+        <div className="space-y-1">
+          <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-amber-500" />
+            <span>{isTr ? "Ödüller / Başarılar" : "Awards & Honors"}</span>
+          </label>
+          <input
+            type="text"
+            placeholder={isTr ? "Nobel Edebiyat Ödülü / Yılın Kitabı" : "Awards"}
+            className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+            value={sectorData.awards || ""}
+            onChange={(e) => updateField("awards", e.target.value)}
           />
         </div>
       </div>

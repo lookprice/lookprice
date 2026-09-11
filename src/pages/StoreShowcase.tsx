@@ -915,6 +915,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               isOpen={isCheckoutModalOpen} onClose={() => setIsCheckoutModalOpen(false)} store={store}
               lang={lang} currency={store?.currency || 'TL'} customerInfo={customerInfo}
               setCustomerInfo={setCustomerInfo} basketByBranch={basketByBranch} basketTotal={basketTotal}
+              basketSubtotal={basketSubtotal} basketShippingTotal={basketShippingTotal} setBasket={setBasket}
               paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} checkoutStatus={checkoutStatus}
               orderError={orderError} orderSummary={{}} handleCheckout={handleCheckout}
               iyzicoPaymentUrl={iyzicoPaymentUrl} theme={{}}

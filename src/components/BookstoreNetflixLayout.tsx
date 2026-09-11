@@ -67,6 +67,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   const isTr = lang === "tr";
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>("all");
   const [selectedAuthor, setSelectedAuthor] = useState<string>("all");
   const [selectedPublisher, setSelectedPublisher] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"home" | "catalog" | "bestsellers">("home");
@@ -74,7 +75,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   const storeName = store?.branding?.store_name || store?.name || (isTr ? "Seçkin Kitabevi" : "Elite Bookstore");
   const storeLogo = store?.branding?.logo_url || store?.logo_url;
 
-  // Extract distinct categories, authors, publishers
+  // Extract distinct categories, subcategories, authors, publishers
   const categories = useMemo(() => {
     const set = new Set<string>();
     products.forEach((p) => {
@@ -82,6 +83,17 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
     });
     return Array.from(set).sort();
   }, [products]);
+
+  const subCategories = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => {
+      if (selectedCategory === "all" || p.category === selectedCategory) {
+        const sub = p.sub_category || (p as any).sub_category_2 || (p as any).sector_data?.genre || (p as any).genre;
+        if (sub && typeof sub === "string" && sub.trim()) set.add(sub.trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [products, selectedCategory]);
 
   const authors = useMemo(() => {
     const set = new Set<string>();
@@ -132,17 +144,19 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
       const pPublisher = (p.brand || (p as any).sector_data?.publisher || "").toLowerCase();
       const pName = (p.name || "").toLowerCase();
       const pBarcode = (p.barcode || "").toLowerCase();
+      const pSub = (p.sub_category || (p as any).sub_category_2 || (p as any).sector_data?.genre || (p as any).genre || "").trim();
 
       const matchesSearch = !query || pName.includes(query) || pAuthor.includes(query) || pPublisher.includes(query) || pBarcode.includes(query);
       const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
+      const matchesSubCategory = selectedSubCategory === "all" || pSub === selectedSubCategory || p.sub_category === selectedSubCategory;
       const matchesAuthor = selectedAuthor === "all" || (p.author === selectedAuthor || (p as any).sector_data?.author === selectedAuthor);
       const matchesPublisher = selectedPublisher === "all" || (p.brand === selectedPublisher || (p as any).sector_data?.publisher === selectedPublisher);
 
-      return matchesSearch && matchesCategory && matchesAuthor && matchesPublisher;
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesAuthor && matchesPublisher;
     });
-  }, [products, searchQuery, selectedCategory, selectedAuthor, selectedPublisher]);
+  }, [products, searchQuery, selectedCategory, selectedSubCategory, selectedAuthor, selectedPublisher]);
 
-  const isSearchActive = searchQuery.trim().length > 0 || selectedCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || activeTab === "catalog";
+  const isSearchActive = searchQuery.trim().length > 0 || selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || activeTab === "catalog";
 
   const basketItemCount = useMemo(() => {
     return basket.reduce((acc, item) => acc + (item.quantity || 1), 0);
@@ -402,16 +416,17 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               </div>
 
               {/* Clear filters button */}
-              {(selectedCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || searchQuery) && (
+              {(selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || searchQuery) && (
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedCategory("all");
+                    setSelectedSubCategory("all");
                     setSelectedAuthor("all");
                     setSelectedPublisher("all");
                     setSearchQuery("");
                   }}
-                  className="self-start sm:self-auto px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5"
+                  className="self-start sm:self-auto px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>{isTr ? "Filtreleri Sıfırla" : "Clear Filters"}</span>
@@ -419,8 +434,8 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               )}
             </div>
 
-            {/* Filter Selectors */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Filter Selectors Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Category Filter */}
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
@@ -429,12 +444,36 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 </label>
                 <select
                   value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all"
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value);
+                    setSelectedSubCategory("all");
+                  }}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all cursor-pointer"
                 >
                   <option value="all">{isTr ? "Tüm Kategoriler" : "All Categories"}</option>
                   {categories.map((c) => (
                     <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sub Category Filter */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Layers className="w-3 h-3 text-red-500" />
+                  <span>{isTr ? "Alt Kategori / Tür" : "Sub-Category / Genre"}</span>
+                </label>
+                <select
+                  value={selectedSubCategory}
+                  onChange={(e) => setSelectedSubCategory(e.target.value)}
+                  disabled={subCategories.length === 0}
+                  className={`w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all ${
+                    subCategories.length === 0 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                >
+                  <option value="all">{isTr ? "Tüm Alt Kategoriler" : "All Sub-Categories"}</option>
+                  {subCategories.map((sub) => (
+                    <option key={sub} value={sub}>{sub}</option>
                   ))}
                 </select>
               </div>
@@ -448,7 +487,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 <select
                   value={selectedAuthor}
                   onChange={(e) => setSelectedAuthor(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all cursor-pointer"
                 >
                   <option value="all">{isTr ? "Tüm Yazarlar" : "All Authors"}</option>
                   {authors.map((a) => (
@@ -466,7 +505,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 <select
                   value={selectedPublisher}
                   onChange={(e) => setSelectedPublisher(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:border-red-600 focus:ring-0 transition-all cursor-pointer"
                 >
                   <option value="all">{isTr ? "Tüm Yayınevleri" : "All Publishers"}</option>
                   {publishers.map((pub) => (

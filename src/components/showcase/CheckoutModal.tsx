@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   X, AlertCircle, ShoppingBasket, Truck, MapPin, CheckCircle2,
   ShieldCheck, CreditCard, Building2,
-  Loader2, RotateCcw
+  Loader2, RotateCcw, Plus, Minus, Trash2
 } from 'lucide-react';
 
 interface CheckoutModalProps {
@@ -18,6 +18,7 @@ interface CheckoutModalProps {
   basketTotal: number;
   basketSubtotal?: number;
   basketShippingTotal?: number;
+  setBasket?: React.Dispatch<React.SetStateAction<any[]>>;
   paymentMethod: string;
   setPaymentMethod: (method: any) => void;
   checkoutStatus: 'idle' | 'loading' | 'success' | 'error';
@@ -43,6 +44,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   basketTotal,
   basketSubtotal,
   basketShippingTotal,
+  setBasket,
   paymentMethod,
   setPaymentMethod,
   checkoutStatus,
@@ -56,6 +58,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const subtotal = basketSubtotal !== undefined ? basketSubtotal : basketTotal;
   const shipping = basketShippingTotal !== undefined ? basketShippingTotal : 0;
+
+  const updateQuantity = (cartKey: string | undefined, id: number | string, delta: number) => {
+    if (!setBasket) return;
+    setBasket((prev: any[]) =>
+      prev
+        .map((item: any) => {
+          const isMatch = cartKey ? item.cart_key === cartKey : item.id === id;
+          if (isMatch) {
+            const newQty = (item.quantity || 1) + delta;
+            return newQty > 0 ? { ...item, quantity: newQty } : null;
+          }
+          return item;
+        })
+        .filter(Boolean)
+    );
+  };
+
+  const removeItem = (cartKey: string | undefined, id: number | string) => {
+    if (!setBasket) return;
+    setBasket((prev: any[]) =>
+      prev.filter((item: any) => (cartKey ? item.cart_key !== cartKey : item.id !== id))
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -542,31 +567,81 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                            {lang === 'tr' ? 'Sipariş Özeti' : 'Order Summary'}
                          </h3>
                          
-                         <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-4 max-h-[300px] scrollbar-none">
-                            {Object.entries(basketByBranch).map(([branchName, items]: [string, any], bIdx: number) => (
-                               <div key={`checkout-branch-${branchName}-${bIdx}`}>
+                         <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-3 max-h-[340px] scrollbar-none">
+                            {Object.entries(basketByBranch).length === 0 || Object.values(basketByBranch).every(items => !items || items.length === 0) ? (
+                              <div className="py-8 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+                                <ShoppingBasket className="w-10 h-10 text-slate-300 stroke-1" />
+                                <p className="text-xs font-bold text-slate-600">
+                                  {lang === 'tr' ? 'Sepetinizde ürün bulunmuyor' : 'Your cart is empty'}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={onClose}
+                                  className="mt-2 text-xs font-bold text-blue-600 hover:underline"
+                                >
+                                  {lang === 'tr' ? 'Alışverişe Devam Et' : 'Continue Shopping'}
+                                </button>
+                              </div>
+                            ) : (
+                              Object.entries(basketByBranch).map(([branchName, items]: [string, any], bIdx: number) => (
+                                <div key={`checkout-branch-${branchName}-${bIdx}`} className="space-y-2">
                                   {items.map((item: any, idx: number) => (
-                                     <div key={`checkout-item-${branchName}-${item.id || idx}-${idx}`} className="flex gap-4 py-2">
-                                       <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden shrink-0">
-                                         {item.images?.[0] ? (
-                                           <img src={item.images[0]} alt={item.title || item.name} className="w-full h-full object-cover" />
-                                         ) : (
-                                           <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                             <ShieldCheck className="w-6 h-6" />
-                                           </div>
-                                         )}
-                                       </div>
-                                       <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                         <span className="text-sm font-bold text-slate-900 truncate block">{item.title || item.name}</span>
-                                         <span className="text-[10px] text-slate-500 font-semibold mt-0.5">Adet: {item.quantity}</span>
-                                         <span className="text-xs font-black text-slate-900 mt-1" style={{ color: theme?.primaryColor || '#0ea5e9' }}>
-                                           {currency} {(item.price * item.quantity).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                                         </span>
-                                       </div>
-                                     </div>
+                                    <div key={`checkout-item-${branchName}-${item.id || idx}-${idx}`} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-all">
+                                      <div className="w-14 h-14 bg-white rounded-lg overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
+                                        {item.images?.[0] || item.image_url ? (
+                                          <img src={item.images?.[0] || item.image_url} alt={item.title || item.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                            <ShieldCheck className="w-5 h-5" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                        <div className="flex items-start justify-between gap-1">
+                                          <span className="text-xs font-bold text-slate-900 truncate block">{item.title || item.name}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => removeItem(item.cart_key, item.id)}
+                                            className="text-slate-400 hover:text-red-500 transition-colors p-0.5 cursor-pointer"
+                                            title={lang === 'tr' ? 'Ürünü Sil' : 'Remove item'}
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between mt-1.5 gap-2">
+                                          {/* Quantity Controls */}
+                                          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-xs">
+                                            <button
+                                              type="button"
+                                              onClick={() => updateQuantity(item.cart_key, item.id, -1)}
+                                              className="w-5 h-5 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded text-xs font-black transition-all cursor-pointer"
+                                            >
+                                              <Minus className="w-3 h-3" />
+                                            </button>
+                                            <span className="text-xs font-black text-slate-900 px-1.5 min-w-[20px] text-center">
+                                              {item.quantity || 1}
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => updateQuantity(item.cart_key, item.id, 1)}
+                                              className="w-5 h-5 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded text-xs font-black transition-all cursor-pointer"
+                                            >
+                                              <Plus className="w-3 h-3" />
+                                            </button>
+                                          </div>
+
+                                          {/* Line Price */}
+                                          <span className="text-xs font-black text-slate-900" style={{ color: theme?.primaryColor || '#0ea5e9' }}>
+                                            {currency} {((item.price || 0) * (item.quantity || 1)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
                                   ))}
-                               </div>
-                            ))}
+                                </div>
+                              ))
+                            )}
                          </div>
 
                          <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">

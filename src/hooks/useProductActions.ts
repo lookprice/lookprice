@@ -113,6 +113,18 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       marketplace_data: marketplaceData
     };
 
+    // Defensive synchronization between top-level fields and book sector_data
+    if (sector_data && typeof sector_data === 'object') {
+      if (data.author) sector_data.author = data.author;
+      else if (sector_data.author) data.author = sector_data.author;
+
+      if (data.brand) sector_data.publisher = data.brand;
+      else if (sector_data.publisher) data.brand = sector_data.publisher;
+
+      if (data.barcode) sector_data.isbn = data.barcode;
+      else if (sector_data.isbn) data.barcode = sector_data.isbn;
+    }
+
     if (data.has_variants && data.variants.length > 0) {
       // Automatically sum variant stocks so stock_quantity is correctly set and recognized by filters and website publishing
       const totalVariantStock = data.variants.reduce((acc: number, curr: any) => acc + (Number(curr.stock_quantity) || 0), 0);

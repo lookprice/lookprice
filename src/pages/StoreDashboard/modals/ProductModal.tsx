@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
 import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
@@ -8,6 +8,7 @@ import { VariantMatrixManager } from "../../../components/dashboard/VariantMatri
 import { MarketplaceProductFields } from "../../../components/marketplace/MarketplaceProductFields";
 import ProductMovementModal from "../../../components/ProductMovementModal";
 import { BookstoreSectorSpecs } from "../../../components/bookstore/BookstoreSectorSpecs";
+import { getConnectedMarketplaces } from "../../../utils/marketplaceEStores";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -68,7 +69,9 @@ export const ProductModal = ({
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
   const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
   const isShopLp = !isCafeRestaurant && !isPortfolio;
-  const isHbEnabled = isShopLp && !!branding?.hepsiburada_settings?.connected;
+  const connectedMarketplaces = useMemo(() => getConnectedMarketplaces(branding), [branding]);
+  const isHbEnabled = isShopLp && connectedMarketplaces.hepsiburada;
+  const isBookstore = Boolean(branding?.bookstore_module_enabled || branding?.active_preset === 'bookstore_netflix');
 
   useEffect(() => {
     if (showProductModal && isHbEnabled) {
@@ -370,20 +373,22 @@ export const ProductModal = ({
 
               <div className="space-y-1 w-full sm:w-48 sm:max-w-[190px] shrink-0">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? (hasVariants ? "Barkod" : `Barkod${isCafeRestaurant ? " (İsteğe)" : " *"}`) : (hasVariants ? "Barcode" : `Barcode${isCafeRestaurant ? " (Opt)" : " *"}`)}
+                  {isTr 
+                    ? (hasVariants ? "Barkod" : isBookstore ? "Barkod / ISBN *" : `Barkod${isCafeRestaurant ? " (İsteğe)" : " *"}`) 
+                    : (hasVariants ? "Barcode" : isBookstore ? "Barcode / ISBN *" : `Barcode${isCafeRestaurant ? " (Opt)" : " *"}`)}
                 </label>
                 <input
                   type="text"
                   name="barcode"
                   required={!hasVariants && !isCafeRestaurant}
                   disabled={hasVariants}
-                  placeholder={hasVariants ? (isTr ? "Varyantta" : "In variants") : (isTr ? (isCafeRestaurant ? "Oto boş bırak..." : "Barkod (13 hane)") : "EAN / Barcode")}
+                  placeholder={hasVariants ? (isTr ? "Varyantta" : "In variants") : (isTr ? (isCafeRestaurant ? "Oto boş bırak..." : isBookstore ? "örn: 978-605-241-607-5" : "Barkod (13 hane)") : isBookstore ? "e.g. 978-605-241-607-5" : "EAN / Barcode")}
                   className={`w-full px-3 py-2 border-2 rounded-xl transition-all font-mono font-bold text-xs ${
                     hasVariants 
                       ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-80" 
                       : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 focus:ring-0 shadow-2xs"
                   }`}
-                  defaultValue={editingProduct?.barcode || ""}
+                  defaultValue={editingProduct?.barcode || (editingProduct as any)?.sector_data?.isbn || ""}
                 />
               </div>
 
@@ -557,27 +562,27 @@ export const ProductModal = ({
 
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Marka / Yayınevi" : "Brand / Publisher"}
+                  {isBookstore ? (isTr ? "Yayınevi / Yayıncı" : "Publisher") : (isTr ? "Marka / Yayınevi" : "Brand / Publisher")}
                 </label>
                 <input
                   type="text"
                   name="brand"
-                  placeholder={isTr ? "örn: İş Bankası, Apple" : "Brand or Publisher"}
+                  placeholder={isBookstore ? (isTr ? "örn: Can Yayınları, İş Bankası, YKY" : "Publisher") : (isTr ? "örn: İş Bankası, Apple" : "Brand or Publisher")}
                   className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.brand || ""}
+                  defaultValue={editingProduct?.brand || (editingProduct as any)?.sector_data?.publisher || ""}
                 />
               </div>
 
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Yazar / Yönetmen (Opsiyonel)" : "Author / Director"}
+                  {isBookstore ? (isTr ? "Eser Sahibi / Yazar" : "Author") : (isTr ? "Yazar / Yönetmen (Opsiyonel)" : "Author / Director")}
                 </label>
                 <input
                   type="text"
                   name="author"
-                  placeholder={isTr ? "örn: F. Dostoyevski" : "Author name"}
+                  placeholder={isBookstore ? (isTr ? "örn: Fyodor Dostoyevski" : "Author name") : (isTr ? "örn: F. Dostoyevski" : "Author name")}
                   className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.author || ""}
+                  defaultValue={editingProduct?.author || (editingProduct as any)?.sector_data?.author || ""}
                 />
               </div>
 
@@ -1220,8 +1225,8 @@ export const ProductModal = ({
             </div>
           )}
 
-          {/* SECTION: Hepsiburada Pazaryeri İlanı & Kategori Eşleme */}
-          {isShopLp && (
+          {/* SECTION: Hepsiburada Pazaryeri İlanı & Kategori Eşleme (Yalnızca Hepsiburada Hesabı Bağlıysa Görüntülenir) */}
+          {isHbEnabled && (
             <div className="space-y-2">
               <MarketplaceProductFields
                 product={editingProduct || {}}
