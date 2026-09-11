@@ -73,6 +73,40 @@ export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
         </span>
       </div>
 
+      {/* HAFTANIN ESERİ (WEEKLY PICK) VİTRİN TİK ALANI */}
+      <div className="p-3.5 bg-gradient-to-r from-red-950/30 via-slate-900/40 to-amber-950/30 border border-red-500/30 rounded-2xl flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center font-black shadow-md shadow-red-600/30 shrink-0">
+            🔥
+          </div>
+          <div>
+            <span className="text-xs font-black text-white flex items-center gap-1.5">
+              <span>{isTr ? "Haftanın Eseri (Manşet & Banner'da Göster)" : "Featured Weekly Pick"}</span>
+              <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[9px] font-extrabold rounded-md border border-red-500/30">
+                MANŞET VİTRİNİ
+              </span>
+            </span>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              {isTr 
+                ? "İşaretlendiğinde, ana sayfa üstündeki dinamik «Haftanın Eserleri» hareketli afiş kolajında öne çıkarılır." 
+                : "When checked, this book appears in the dynamic 'Weekly Picks' animated hero carousel on the homepage."}
+            </p>
+          </div>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+          <input
+            type="checkbox"
+            checked={!!(sectorData.is_weekly_pick || sectorData.is_featured_weekly)}
+            onChange={(e) => {
+              updateField("is_weekly_pick", e.target.checked);
+              updateField("is_featured_weekly", e.target.checked);
+            }}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+        </label>
+      </div>
+
       {/* Row 1: Çevirmen, Orijinal Dil, Basım Yılı, Baskı Sayısı */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Çevirmen / Derleyen */}

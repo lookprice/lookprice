@@ -53,35 +53,8 @@ const formatPrice = (price: number, currency: string, sector: string, storeType?
   return `${Number(price).toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency || "TRY"}`;
 };
 
-const DigitalSignature: React.FC<{ storeName: string; lang: string; isPortfolio?: boolean }> = ({
-  storeName,
-  lang,
-  isPortfolio
-}) => {
-  if (isPortfolio) return null;
-  return (
-    <div className="mt-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center justify-between overflow-hidden relative group">
-      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-        <ShieldCheck className="w-24 h-24 text-slate-900" />
-      </div>
-      <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-1.5 h-1.5 rounded-lg bg-green-500 animate-pulse" />
-          <span className="text-[10px] font-semibold text-slate-400 tracking-wide">
-            {lang === "tr" ? "DOĞRULANMIŞ ÜRÜN" : "VERIFIED PRODUCT"}
-          </span>
-        </div>
-        <h5 className="text-[14px] font-bold text-slate-800 tracking-tight">
-          {storeName} {lang === "tr" ? "Dijital İmzalı Garanti" : "Digitally Signed Warranty"}
-        </h5>
-        <p className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed max-w-sm">
-          {lang === "tr"
-            ? "Bu ilan yetkili satıcı tarafından onaylanmış olup LookPrice platformu güvencesiyle listelenmektedir."
-            : "This listing has been approved by the authorized dealer and is listed under LookPrice protection."}
-        </p>
-      </div>
-    </div>
-  );
+const DigitalSignature: React.FC<{ storeName: string; lang: string; isPortfolio?: boolean }> = () => {
+  return null;
 };
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
@@ -535,20 +508,20 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         className="fixed inset-0 bg-black/40 backdrop-blur-xl animate-in fade-in duration-300"
       />
       <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        initial={{ scale: 0.95, opacity: 0, y: 15 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white w-full max-w-[1440px] rounded-[3rem] shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[95vh] border border-slate-200"
+        exit={{ scale: 0.95, opacity: 0, y: 15 }}
+        className="bg-white w-full max-w-4xl md:max-w-5xl rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[90vh] md:max-h-[85vh] border border-slate-200"
       >
         <button
           onClick={onClose}
           type="button"
-          className="absolute top-4 right-4 p-2.5 bg-slate-900/90 text-white hover:bg-slate-850 rounded-full transition-all z-50 shadow-xl active:scale-95"
+          className="absolute top-3 right-3 p-2 bg-slate-900/90 text-white hover:bg-slate-800 rounded-full transition-all z-50 shadow-lg active:scale-95 cursor-pointer"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
-        <div className="w-full md:w-1/2 shrink-0 h-[350px] sm:h-[450px] md:h-auto md:min-h-[650px] bg-white flex flex-col relative border-b md:border-b-0 md:border-r border-slate-100 transition-all duration-500 overflow-hidden">
+        <div className="w-full md:w-[42%] shrink-0 h-[280px] sm:h-[350px] md:h-auto md:min-h-[440px] bg-slate-50 flex flex-col relative border-b md:border-b-0 md:border-r border-slate-200 transition-all duration-500 overflow-hidden justify-center items-center">
           {/* Share Buttons Overlay */}
           <div className="absolute top-6 left-6 flex flex-col items-start gap-2 z-20">
             <button
@@ -630,10 +603,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 lang={lang} 
               />
           ) : productImages.length > 0 ? (
-            <div className="w-full flex-1 flex flex-col justify-between bg-white relative p-3 pb-4 md:p-6 md:pb-8">
+            <div className="w-full flex-1 flex flex-col justify-between bg-slate-50/80 relative p-3 md:p-4">
               {/* Main Viewport Box */}
               <div
-                className="flex-1 relative min-h-0 flex items-center justify-center group/gallery cursor-zoom-in"
+                className="flex-1 relative min-h-0 flex items-center justify-center group/gallery cursor-zoom-in py-2"
                 onClick={() => setIsLightboxOpen(true)}
                 title={
                   lang === "tr" ? "Büyütmek için tıklayın" : "Click to enlarge"
@@ -642,13 +615,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <img
                   src={getAnnotatedImageUrl(productImages[activeImageIdx])}
                   alt={product.name}
-                  className="w-full h-full object-cover md:object-contain transition-all duration-300 group-hover/gallery:scale-105"
+                  className="max-w-full max-h-[260px] sm:max-h-[320px] md:max-h-[380px] object-contain rounded-lg shadow-sm transition-all duration-300 group-hover/gallery:scale-105"
                   referrerPolicy="no-referrer"
                 />
 
                 {/* Action Icon overlay */}
-                <div className="absolute top-2 right-2 bg-slate-900/40 backdrop-blur-xs text-white p-1.5 rounded-lg opacity-0 group-hover/gallery:opacity-100 transition-opacity">
-                  <Eye className="w-4 h-4" />
+                <div className="absolute top-2 right-2 bg-slate-900/60 backdrop-blur-xs text-white p-1.5 rounded-lg opacity-0 group-hover/gallery:opacity-100 transition-opacity">
+                  <Eye className="w-3.5 h-3.5" />
                 </div>
 
                 {/* Previous / Next chevrons inside the product frame */}
@@ -664,9 +637,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                             productImages.length,
                         );
                       }}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-md cursor-pointer"
                     >
-                      <ChevronLeft className="w-5 h-5" />
+                      <ChevronLeft className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
@@ -676,9 +649,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           (prev) => (prev + 1) % productImages.length,
                         );
                       }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-lg"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center opacity-0 group-hover/gallery:opacity-100 transition-opacity shadow-md cursor-pointer"
                     >
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-4 h-4" />
                     </button>
                   </>
                 )}
@@ -686,13 +659,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Thumbnails list below inside normal frame */}
               {productImages.length > 1 && (
-                <div className="flex gap-2 justify-center py-2 px-4 overflow-x-auto no-scrollbar max-w-full z-10 shrink-0">
+                <div className="flex gap-1.5 justify-center py-1.5 px-2 overflow-x-auto no-scrollbar max-w-full z-10 shrink-0">
                   {productImages.map((img, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setActiveImageIdx(idx)}
-                      className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${activeImageIdx === idx ? "border-indigo-600 scale-105 shadow-md" : "border-slate-100 hover:border-slate-300"}`}
+                      className={`w-10 h-10 rounded-md overflow-hidden border transition-all flex-shrink-0 cursor-pointer ${activeImageIdx === idx ? "border-indigo-600 scale-105 shadow-sm" : "border-slate-200 hover:border-slate-400"}`}
                     >
                       <img
                         src={getAnnotatedImageUrl(img)}
@@ -705,28 +678,28 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               )}
             </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-200">
-              <Package className="w-32 h-32" />
+            <div className="w-full h-full flex items-center justify-center text-gray-300">
+              <Package className="w-20 h-20" />
             </div>
           )}
         </div>
-        <div className="w-full md:w-1/2 flex-1 min-h-0 p-6 pb-28 md:p-14 overflow-y-auto no-scrollbar">
-          <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 items-center">
+        <div className="w-full md:w-[58%] flex-1 min-h-0 p-4 sm:p-6 md:p-7 overflow-y-auto no-scrollbar">
+          <div className="mb-3 flex flex-wrap gap-x-2 gap-y-1.5 items-center">
             {getLabels(product.labels).map((label, idx) => (
               <span
                 key={idx}
-                className="text-[10px] tracking-wide font-semibold px-4 py-1.5 rounded-lg text-white shadow-sm"
+                className="text-[9px] tracking-wide font-semibold px-2.5 py-1 rounded-md text-white shadow-xs"
                 style={{ backgroundColor: primaryColor }}
               >
                 {label}
               </span>
             ))}
             <div className="flex flex-col">
-              <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
+              <span className="text-[7px] font-semibold text-gray-400 tracking-wide leading-none mb-0.5">
                 {categoryLabel}
               </span>
               <span
-                className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg whitespace-nowrap"
+                className="text-[9px] tracking-wide font-semibold px-2.5 py-0.5 rounded-md whitespace-nowrap"
                 style={{
                   color: primaryColor,
                   backgroundColor: `${primaryColor}10`,
@@ -739,30 +712,30 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
             {product.brand && product.type !== "real_estate" && (
               <div className="flex flex-col">
-                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
+                <span className="text-[7px] font-semibold text-gray-400 tracking-wide leading-none mb-0.5">
                   {brandLabel}
                 </span>
-                <span className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap">
+                <span className="text-[9px] tracking-wide font-semibold px-2.5 py-0.5 rounded-md border border-gray-100 text-gray-600 whitespace-nowrap">
                   {product.brand}
                 </span>
               </div>
             )}
             {product.type === "real_estate" && (product as any).location && (
               <div className="flex flex-col">
-                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
+                <span className="text-[7px] font-semibold text-gray-400 tracking-wide leading-none mb-0.5">
                   {brandLabel}
                 </span>
-                <span className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap">
+                <span className="text-[9px] tracking-wide font-semibold px-2.5 py-0.5 rounded-md border border-gray-100 text-gray-600 whitespace-nowrap">
                   {(product as any).location}
                 </span>
               </div>
             )}
             {product.branch_name && product.branch_name !== store?.name && (
-              <div className="flex flex-col px-2">
-                <span className="text-[8px] font-semibold text-gray-400 tracking-wide leading-none mb-1">
+              <div className="flex flex-col px-1">
+                <span className="text-[7px] font-semibold text-gray-400 tracking-wide leading-none mb-0.5">
                   {lang === "tr" ? "Şube" : "Branch"}
                 </span>
-                <span className="text-[10px] tracking-wide font-semibold px-3 py-1 rounded-lg border border-gray-100 text-gray-500 whitespace-nowrap">
+                <span className="text-[9px] tracking-wide font-semibold px-2.5 py-0.5 rounded-md border border-gray-100 text-gray-600 whitespace-nowrap">
                   {product.branch_name}
                 </span>
               </div>
@@ -770,7 +743,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
 
           <h2
-            className={`text-4xl md:text-5xl text-slate-900 mb-4 leading-[1.1] tracking-tighter ${isLuxury ? "!font-sans !font-medium" : "font-bold"}`}
+            className={`text-2xl sm:text-3xl text-slate-900 mb-2 leading-snug tracking-tight ${isLuxury ? "!font-sans !font-medium" : "font-extrabold"}`}
           >
             {product.name}
           </h2>

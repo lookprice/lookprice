@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Search, 
@@ -14,6 +14,9 @@ import {
   Compass,
   Bookmark,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Quote,
   X,
   Building2
 } from "lucide-react";
@@ -113,11 +116,43 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
     return Array.from(set).sort();
   }, [products]);
 
-  // Featured book for Hero Banner
-  const heroBook = useMemo(() => {
-    if (!products || products.length === 0) return null;
-    const best = products.find((p) => p.is_bestseller && p.image_url);
-    return best || products[0];
+  // Weekly Picks (Haftanın Eserleri) for Hero Banner
+  const weeklyBooks = useMemo(() => {
+    if (!products || products.length === 0) return [];
+    const picked = products.filter((p) => {
+      const s = (p as any).sector_data;
+      return (
+        (p as any).is_weekly_pick ||
+        s?.is_weekly_pick ||
+        (p as any).is_featured_weekly ||
+        s?.is_featured_weekly ||
+        (p as any).weekly_featured
+      );
+    });
+    if (picked.length > 0) return picked;
+    // Fallback to bestsellers or first few products
+    const best = products.filter((p) => p.is_bestseller || (p as any).is_featured);
+    return best.length > 0 ? best.slice(0, 5) : products.slice(0, 5);
+  }, [products]);
+
+  const [currentHeroIdx, setCurrentHeroIdx] = useState(0);
+  const [isHeroHovered, setIsHeroHovered] = useState(false);
+
+  // Auto rotate weekly picks every 6 seconds
+  useEffect(() => {
+    if (weeklyBooks.length <= 1 || isHeroHovered) return;
+    const interval = setInterval(() => {
+      setCurrentHeroIdx((prev) => (prev + 1) % weeklyBooks.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [weeklyBooks.length, isHeroHovered]);
+
+  const heroBook = weeklyBooks[currentHeroIdx] || weeklyBooks[0] || products[0];
+
+  // Collage background book images (sample up to 12 cover images)
+  const collageImages = useMemo(() => {
+    const valid = products.map((p) => p.image_url).filter(Boolean) as string[];
+    return valid.length > 0 ? valid.slice(0, 12) : [];
   }, [products]);
 
   // Categorized Rows for Netflix Home
@@ -185,14 +220,14 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               <button
                 type="button"
                 onClick={() => { setActiveTab("home"); setSearchQuery(""); }}
-                className={`transition-colors hover:text-white ${activeTab === "home" && !isSearchActive ? "text-white font-black" : "text-slate-400"}`}
+                className={`transition-colors hover:text-white cursor-pointer ${activeTab === "home" && !isSearchActive ? "text-white font-black" : "text-slate-400"}`}
               >
                 {isTr ? "Ana Sayfa" : "Home"}
               </button>
               <button
                 type="button"
                 onClick={() => { setActiveTab("catalog"); }}
-                className={`transition-colors hover:text-white ${activeTab === "catalog" || isSearchActive ? "text-white font-black" : "text-slate-400"}`}
+                className={`transition-colors hover:text-white cursor-pointer ${activeTab === "catalog" || isSearchActive ? "text-white font-black" : "text-slate-400"}`}
               >
                 {isTr ? "Kitap Kataloğu" : "Browse All"}
               </button>
@@ -201,9 +236,8 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 onClick={() => { 
                   setActiveTab("catalog"); 
                   setSelectedCategory("all");
-                  // Trigger bestsellers filter
                 }}
-                className="text-slate-400 hover:text-white transition-colors flex items-center gap-1"
+                className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <Flame className="w-3.5 h-3.5 text-red-500" />
                 <span>{isTr ? "Çok Satanlar" : "Bestsellers"}</span>
@@ -232,7 +266,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -244,7 +278,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               <button
                 type="button"
                 onClick={() => onOpenProfile("profile")}
-                className="p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-all flex items-center gap-1.5 text-xs font-bold"
+                className="p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer"
               >
                 <User className="w-4 h-4 text-red-500" />
                 <span className="hidden sm:inline max-w-[90px] truncate">{customer.name || customer.email}</span>
@@ -253,7 +287,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAuthModal(true)}
-                className="p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-all"
+                className="p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer"
                 title={isTr ? "Giriş Yap" : "Login"}
               >
                 <User className="w-4 h-4" />
@@ -264,7 +298,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
             <button
               type="button"
               onClick={onCheckout}
-              className="relative p-2 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all shadow-md shadow-red-600/30"
+              className="relative p-2 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all shadow-md shadow-red-600/30 cursor-pointer"
               title={isTr ? "Sepetim" : "Cart"}
             >
               <ShoppingBag className="w-4 h-4" />
@@ -282,80 +316,258 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
       {!isSearchActive && activeTab === "home" ? (
         /* HOME VIEW: Cinematic Netflix Hero + Horizontal Streaming Rows */
         <main>
-          {/* Netflix Cinematic Hero Banner */}
+          {/* HAFTANIN ESERLERİ: Multi-Book Dynamic Banner with Glowing Collage Background */}
           {heroBook && (
-            <div className="relative w-full h-[65vh] sm:h-[72vh] md:h-[78vh] overflow-hidden bg-slate-950">
-              {/* Background Cover Canvas with Cinematic Dark Gradient Vignette */}
-              <div className="absolute inset-0 z-0">
-                <img
-                  src={heroBook.image_url || getBookCoverFallbackSvg(heroBook.name, heroBook.author)}
-                  alt={heroBook.name}
-                  className="w-full h-full object-cover object-center opacity-30 filter blur-sm scale-105 transform"
-                  referrerPolicy="no-referrer"
-                />
-                {/* Netflix Gradient Overlays (Top, Bottom, Left) */}
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
-              </div>
-
-              {/* Hero Info Content */}
-              <div className="relative z-10 max-w-7xl mx-auto h-full px-4 sm:px-8 md:px-12 flex items-center">
-                <div className="max-w-2xl space-y-4 sm:space-y-5">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 bg-red-600 text-white text-[11px] font-black uppercase tracking-widest rounded-md">
-                      {isTr ? "HAFTANIN ESERİ" : "FEATURED BOOK"}
-                    </span>
-                    <span className="flex items-center gap-1 text-amber-400 text-xs font-bold bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm">
-                      <Star className="w-3.5 h-3.5 fill-amber-400" />
-                      <span>4.9 / 5.0</span>
-                    </span>
-                  </div>
-
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">
-                    {heroBook.name}
-                  </h1>
-
-                  <div className="flex items-center gap-3 text-sm sm:text-base font-bold text-slate-300">
-                    <span className="text-red-400 font-extrabold">{heroBook.author || "Seçkin Yazar"}</span>
-                    <span>•</span>
-                    <span className="text-slate-400">{heroBook.brand || "Seçkin Yayıncılık"}</span>
-                    <span>•</span>
-                    <span className="text-emerald-400 font-black">
-                      {Number(heroBook.price).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {heroBook.currency || "TRY"}
-                    </span>
-                  </div>
-
-                  <p className="text-xs sm:text-sm md:text-base text-slate-300 line-clamp-3 leading-relaxed max-w-xl font-normal">
-                    {heroBook.description || (isTr 
-                      ? "Sayfaları çevirdikçe sizi içine çeken, kurgusu ve güçlü anlatımıyla edebiyat dünyasında derin yankı uyandıran eşsiz bir başyapıt." 
-                      : "An extraordinary novel with captivating storytelling and profound character development.")}
-                  </p>
-
-                  <div className="flex items-center gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => onViewProduct(heroBook)}
-                      className="px-6 py-2.5 bg-white hover:bg-slate-200 text-slate-950 font-black text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl"
-                    >
-                      <Info className="w-4 h-4" />
-                      <span>{isTr ? "Kitabı İncele" : "Explore Details"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => addToBasket(heroBook)}
-                      className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl shadow-red-600/30"
-                    >
-                      <ShoppingBag className="w-4 h-4" />
-                      <span>{isTr ? "Sepete Ekle" : "Add to Cart"}</span>
-                    </button>
-                  </div>
+            <section 
+              className="relative w-full overflow-hidden bg-slate-950 border-b border-slate-900"
+              onMouseEnter={() => setIsHeroHovered(true)}
+              onMouseLeave={() => setIsHeroHovered(false)}
+            >
+              {/* Background 1: Glowing Book Covers Mosaic Collage */}
+              <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none opacity-25">
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 sm:gap-4 p-4 transform -rotate-3 scale-110 blur-[2px]">
+                  {collageImages.length > 0 ? (
+                    collageImages.concat(collageImages).slice(0, 16).map((imgUrl, i) => (
+                      <div 
+                        key={`collage-img-${i}`}
+                        className="aspect-[2/3] rounded-lg overflow-hidden shadow-2xl border border-white/10 opacity-70 transition-all duration-1000 transform hover:scale-105"
+                      >
+                        <img 
+                          src={imgUrl} 
+                          alt="" 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    Array.from({ length: 12 }).map((_, i) => (
+                      <div key={`collage-ph-${i}`} className="aspect-[2/3] rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/30" />
+                    ))
+                  )}
                 </div>
               </div>
-            </div>
+
+              {/* Background 2: Active Book Ambient Glow & Cinematic Dark Vignette */}
+              <div className="absolute inset-0 z-1 pointer-events-none">
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-[120px]" />
+                <div className="absolute bottom-10 right-1/4 w-80 h-80 bg-amber-500/15 rounded-full blur-[100px]" />
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-slate-950/70" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/80" />
+              </div>
+
+              {/* Hero Main Content Box */}
+              <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 md:px-12 pt-6 sm:pt-8 md:pt-10 pb-8 sm:pb-12">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+                  
+                  {/* Left Column: Book Details & Action Controls */}
+                  <div className="lg:col-span-7 xl:col-span-8 space-y-3.5 sm:space-y-4">
+                    
+                    {/* Header Badges & Switcher Pill */}
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-600 text-white text-[11px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-red-600/30">
+                        <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                        <span>{isTr ? "HAFTANIN ESERLERİ" : "WEEKLY PICKS"}</span>
+                      </div>
+
+                      {weeklyBooks.length > 1 && (
+                        <span className="px-2.5 py-0.5 bg-slate-900/90 border border-slate-700 text-slate-300 text-[11px] font-black rounded-full backdrop-blur-md">
+                          {String(currentHeroIdx + 1).padStart(2, "0")} / {String(weeklyBooks.length).padStart(2, "0")}
+                        </span>
+                      )}
+
+                      <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-bold bg-black/60 border border-amber-500/30 px-2.5 py-0.5 rounded-full backdrop-blur-sm">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>{(heroBook as any).sector_data?.rating || "4.9"} / 5.0</span>
+                      </span>
+
+                      {((heroBook as any).sector_data?.page_count || (heroBook as any).page_count) && (
+                        <span className="text-[11px] font-bold text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded-md border border-slate-800">
+                          {((heroBook as any).sector_data?.page_count || (heroBook as any).page_count)} {isTr ? "Sayfa" : "Pages"}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Book Title */}
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={`hero-title-${heroBook.id || currentHeroIdx}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-2"
+                      >
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                          {heroBook.name}
+                        </h1>
+
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm font-bold text-slate-300">
+                          <span className="text-red-400 font-extrabold">{heroBook.author || (heroBook as any).sector_data?.author || (isTr ? "Seçkin Yazar" : "Featured Author")}</span>
+                          <span className="text-slate-600">•</span>
+                          <span className="text-slate-300">{heroBook.brand || (heroBook as any).sector_data?.publisher || (isTr ? "Seçkin Yayıncılık" : "Publisher")}</span>
+                          <span className="text-slate-600">•</span>
+                          <span className="text-emerald-400 font-black text-sm sm:text-base">
+                            {Number(heroBook.price).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {heroBook.currency || "TRY"}
+                          </span>
+                        </div>
+
+                        {/* Spot Quote (Çarpıcı Alıntı) */}
+                        {((heroBook as any).sector_data?.spot_quote || (heroBook as any).spot_quote) && (
+                          <div className="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90 text-amber-300/90 text-xs sm:text-sm italic flex items-start gap-2 max-w-xl backdrop-blur-md">
+                            <Quote className="w-4 h-4 shrink-0 mt-0.5 text-amber-400 opacity-75" />
+                            <p className="line-clamp-2 font-serif">
+                              "{((heroBook as any).sector_data?.spot_quote || (heroBook as any).spot_quote)}"
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Short Description */}
+                        <p className="text-xs sm:text-sm text-slate-300 line-clamp-3 leading-relaxed max-w-2xl font-normal">
+                          {heroBook.description || (isTr 
+                            ? "Sayfaları çevirdikçe sizi içine çeken, kurgusu ve güçlü anlatımıyla edebiyat dünyasında derin yankı uyandıran eşsiz bir başyapıt." 
+                            : "An extraordinary novel with captivating storytelling and profound character development.")}
+                        </p>
+                      </motion.div>
+                    </AnimatePresence>
+
+                    {/* Action Buttons & Weekly Switcher Controls */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => onViewProduct(heroBook)}
+                        className="px-5 sm:px-6 py-2.5 bg-white hover:bg-slate-200 text-slate-950 font-black text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl cursor-pointer"
+                      >
+                        <Info className="w-4 h-4" />
+                        <span>{isTr ? "Kitabı İncele" : "Explore Details"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => addToBasket(heroBook)}
+                        className="px-5 sm:px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl shadow-red-600/30 cursor-pointer"
+                      >
+                        <ShoppingBag className="w-4 h-4" />
+                        <span>{isTr ? "Sepete Ekle" : "Add to Cart"}</span>
+                      </button>
+
+                      {/* Multi-Book Arrow Controls */}
+                      {weeklyBooks.length > 1 && (
+                        <div className="flex items-center gap-1.5 ml-auto sm:ml-2 bg-slate-900/90 border border-slate-800 p-1 rounded-xl">
+                          <button
+                            type="button"
+                            onClick={() => setCurrentHeroIdx((prev) => (prev - 1 + weeklyBooks.length) % weeklyBooks.length)}
+                            className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                            title={isTr ? "Önceki Eser" : "Previous"}
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          
+                          {/* Dot / Pill Indicators */}
+                          <div className="flex items-center gap-1 px-1">
+                            {weeklyBooks.map((_, idx) => (
+                              <button
+                                key={`hero-dot-${idx}`}
+                                type="button"
+                                onClick={() => setCurrentHeroIdx(idx)}
+                                className={`h-2 rounded-full transition-all cursor-pointer ${
+                                  idx === currentHeroIdx 
+                                    ? "w-6 bg-red-600 shadow-sm shadow-red-600/50" 
+                                    : "w-2 bg-slate-700 hover:bg-slate-500"
+                                }`}
+                                title={`Eser ${idx + 1}`}
+                              />
+                            ))}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setCurrentHeroIdx((prev) => (prev + 1) % weeklyBooks.length)}
+                            className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                            title={isTr ? "Sonraki Eser" : "Next"}
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column: 3D Perspective Hero Book Showcase & Weekly Thumbnail Selector */}
+                  <div className="lg:col-span-5 xl:col-span-4 flex flex-col items-center justify-center">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={`hero-cover-${heroBook.id || currentHeroIdx}`}
+                        initial={{ opacity: 0, scale: 0.95, rotateY: -10 }}
+                        animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, rotateY: 10 }}
+                        transition={{ duration: 0.35 }}
+                        className="relative group cursor-pointer"
+                        onClick={() => onViewProduct(heroBook)}
+                      >
+                        {/* 3D Book Cover Frame */}
+                        <div className="relative w-44 sm:w-52 md:w-60 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl shadow-black/80 border-2 border-slate-700/80 bg-slate-900 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300">
+                          <img
+                            src={heroBook.image_url || getBookCoverFallbackSvg(heroBook.name, heroBook.author)}
+                            alt={heroBook.name}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          
+                          {/* Gloss & Spine Shine */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-black/30 pointer-events-none" />
+                          <div className="absolute top-0 left-0 bottom-0 w-2.5 bg-gradient-to-r from-black/40 to-transparent pointer-events-none" />
+
+                          {/* Hover Detail Overlay */}
+                          <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-4 text-center">
+                            <span className="text-xs font-black text-white bg-red-600 px-3 py-1.5 rounded-lg shadow-lg">
+                              {isTr ? "Detayları İncele" : "View Book"}
+                            </span>
+                            <span className="text-[11px] text-slate-300 font-semibold">
+                              {heroBook.author}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Ambient Drop Glow */}
+                        <div className="absolute -bottom-4 inset-x-4 h-6 bg-red-600/30 rounded-full blur-xl -z-10" />
+                      </motion.div>
+                    </AnimatePresence>
+
+                    {/* Weekly Picks Mini Thumbnails Switcher Strip */}
+                    {weeklyBooks.length > 1 && (
+                      <div className="mt-4 flex items-center justify-center gap-2 max-w-full overflow-x-auto p-1.5 bg-slate-900/60 rounded-xl border border-slate-800/80 backdrop-blur-sm scrollbar-none">
+                        {weeklyBooks.map((b, bIdx) => (
+                          <button
+                            key={`thumb-pick-${b.id || bIdx}`}
+                            type="button"
+                            onClick={() => setCurrentHeroIdx(bIdx)}
+                            className={`relative w-8 sm:w-10 aspect-[2/3] rounded overflow-hidden transition-all shrink-0 cursor-pointer border ${
+                              bIdx === currentHeroIdx
+                                ? "border-red-500 scale-110 shadow-md shadow-red-500/30 ring-2 ring-red-500/40"
+                                : "border-slate-700 opacity-60 hover:opacity-100 hover:border-slate-500"
+                            }`}
+                            title={b.name}
+                          >
+                            <img
+                              src={b.image_url || getBookCoverFallbackSvg(b.name, b.author)}
+                              alt={b.name}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            </section>
           )}
 
-          {/* Horizontal Netflix Rows */}
-          <div className="relative z-20 -mt-16 sm:-mt-24 md:-mt-28 space-y-4 pb-16">
+          {/* Horizontal Netflix Rows (with clean positive breathing margin) */}
+          <div className="relative z-20 mt-6 sm:mt-8 space-y-4 pb-16">
             {/* Row 1: Çok Satanlar (Bestsellers) */}
             <NetflixBookRow
               title={isTr ? "Çok Satan Eserler" : "Top Bestsellers"}

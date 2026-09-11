@@ -199,6 +199,16 @@ This file outlines strict engineering, performance, and naming directives that m
   - Aynı veri yapısına, arayüze, form giriş mantığına ve API entegrasyonuna sahip TÜM kardeş modüller (**Trendyol, N11, Amazon TR, Pazarama, Hepsiburada, Çiçeksepeti vb.**) kullanıcı ek bir komut vermeden PROAKTİF OLARAK taranmalı ve tespit edilen düzeltmeler ISTENMEDEN TÜM KARDES ALANLARA EŞZAMANLI OLARAK UYGULANMALIDIR.
   - Tüm pazar yeri giriş alanlarında tarayıcı şifre/e-posta otomatik doldurma (autofill) müdahalelerine karşı koruma (`autoComplete="new-password"`, `data-lpignore="true"`, benzersiz name nitelikleri, `autoComplete="off"`) ve hem istemci (React state) hem sunucu (database merger) seviyesinde koruyucu veri birleştirme (defensive merge) standart kılınmıştır.
 
+---
+
+## 15. Açılır Web Ekranları ve Modalların Sayfaya Sığma Standardı (Viewport-Fit Modal Protocol)
+
+- **Açılır Pencereler, Ödeme ve Detay Ekranlarında Kompaktlık Kuralı**:
+  - Web vitrinleri ve sistem genelindeki tüm açılır pencereler (Ödeme/Checkout modalı, Ürün/Kitap İnceleme modalı, Sepet çekmecesi, İletişim modalları vb.) gereksiz devasa paddingler, aşırı büyük boşluklar veya devasa input yükseklikleri ile ekranı kaplayıp taşmamalıdır.
+  - Modallar standart ekranlarda (laptop, masaüstü ve mobil) dikeyde gereksiz kaydırma (scroll) oluşturmadan tek bir bakışta net, dengeli ve estetik bir şekilde görüntülenecek şekilde tasarlanmalıdır.
+  - Başlıklar, sipariş özetleri ve form blokları yüksek bilgi yoğunluklu, dengeli ve kompakt aralıklarla yerleştirilerek kullanıcıya sayfayı terk etmeden hızlı işlem tamamlama imkanı sunmalıdır.
+
+
 
 
 
