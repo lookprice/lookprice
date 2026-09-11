@@ -886,6 +886,58 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             description={product.description}
           />
 
+          {/* Bookstore Literature Metadata Panel */}
+          {(Boolean(store?.branding?.bookstore_module_enabled || (store as any)?.bookstore_module_enabled || product.author || (product as any).sector_data?.isbn || (product as any).sector_data?.page_count)) && (
+            <div className="mb-8 p-5 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-white rounded-3xl border border-slate-800 shadow-xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <span className="text-xs font-black uppercase tracking-wider text-red-400 flex items-center gap-2">
+                  <span>📖 {lang === "tr" ? "Eser & Yayın Bilgileri" : "Book & Edition Details"}</span>
+                </span>
+                <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full">
+                  ⭐ {(product as any).sector_data?.rating || "4.8"} / 5.0
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                {product.author && (
+                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Yazar" : "Author"}</span>
+                    <span className="font-bold text-slate-100">{product.author}</span>
+                  </div>
+                )}
+                {product.brand && (
+                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Yayınevi" : "Publisher"}</span>
+                    <span className="font-bold text-slate-100">{product.brand}</span>
+                  </div>
+                )}
+                {(product as any).sector_data?.isbn && (
+                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                    <span className="text-[10px] text-slate-400 block">ISBN</span>
+                    <span className="font-mono font-bold text-slate-100">{(product as any).sector_data.isbn}</span>
+                  </div>
+                )}
+                {(product as any).sector_data?.page_count && (
+                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Sayfa Sayısı" : "Pages"}</span>
+                    <span className="font-bold text-slate-100">{(product as any).sector_data.page_count}</span>
+                  </div>
+                )}
+                {(product as any).sector_data?.cover_type && (
+                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Kapak Türü" : "Cover"}</span>
+                    <span className="font-bold text-slate-100">{(product as any).sector_data.cover_type}</span>
+                  </div>
+                )}
+                {(product as any).sector_data?.publication_year && (
+                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Basım Yılı" : "Year"}</span>
+                    <span className="font-bold text-slate-100">{(product as any).sector_data.publication_year}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {((store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (() => {
             const isRent = product.sector_data?.listing_intent === 'rent' || product.category?.toLowerCase().includes('kira') || product.category?.toLowerCase().includes('rent');
             if (isRent) return null;

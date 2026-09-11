@@ -23,7 +23,16 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     const rawData = Object.fromEntries(formData.entries());
     
     // Collect sector-specific data
-    const sector_data: any = {};
+    let sector_data: any = {};
+    if (rawData.sector_data) {
+      try {
+        sector_data = typeof rawData.sector_data === 'string'
+          ? JSON.parse(rawData.sector_data)
+          : rawData.sector_data;
+      } catch (err) {
+        console.error("sector_data parse error:", err);
+      }
+    }
     Object.keys(rawData).forEach(key => {
       if (key.startsWith('sector_spec_')) {
         const specKey = key.replace('sector_spec_', '');

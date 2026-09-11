@@ -17,6 +17,7 @@ import { ModernRealEstateLayout } from "../components/ModernRealEstateLayout";
 import { ModernAutomotiveLayout } from "../components/ModernAutomotiveLayout";
 import { ModernCafeRestaurantLayout } from "../components/ModernCafeRestaurantLayout";
 import { ModernShopRetailLayout } from "../components/ModernShopRetailLayout";
+import { BookstoreNetflixLayout } from "../components/BookstoreNetflixLayout";
 import ErrorBoundary from "../components/ErrorBoundary";
 
 // Types
@@ -763,36 +764,71 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     );
   }
 
+  const isBookstore = Boolean(
+    store?.branding?.bookstore_module_enabled || 
+    store?.branding?.active_preset === "bookstore_netflix" || 
+    (store as any)?.bookstore_module_enabled
+  );
+
   return (
     <ErrorBoundary lang={lang}>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
         {!isProfileView && !isOrdersView && !isReturnView ? (
-          <ModernShopRetailLayout
-            store={store}
-            products={products}
-            onViewProduct={setSelectedProduct}
-            addToBasket={addToBasket}
-            basket={basket}
-            setBasket={setBasket}
-            basketTotal={basketTotal}
-            basketSubtotal={basketSubtotal}
-            basketShippingTotal={basketShippingTotal}
-            onCheckout={() => setIsCheckoutModalOpen(true)}
-            lang={lang}
-            t={t}
-            customer={customer}
-            onOpenProfile={(tab) => {
-              setProfileModalTab(tab || 'profile');
-              setShowProfileModal(true);
-            }}
-            onLogout={() => {
-              setCustomer(null);
-              localStorage.removeItem("customer");
-            }}
-            setShowAboutModal={setShowAboutModal}
-            setShowStoreLocatorModal={setShowStoreLocatorModal}
-            setShowAuthModal={setShowAuthModal}
-          />
+          isBookstore ? (
+            <BookstoreNetflixLayout
+              store={store}
+              products={products}
+              onViewProduct={setSelectedProduct}
+              addToBasket={addToBasket}
+              basket={basket}
+              setBasket={setBasket}
+              basketTotal={basketTotal}
+              basketSubtotal={basketSubtotal}
+              basketShippingTotal={basketShippingTotal}
+              onCheckout={() => setIsCheckoutModalOpen(true)}
+              lang={lang}
+              t={t}
+              customer={customer}
+              onOpenProfile={(tab) => {
+                setProfileModalTab(tab === 'orders' ? 'orders' : 'profile');
+                setShowProfileModal(true);
+              }}
+              onLogout={() => {
+                setCustomer(null);
+                localStorage.removeItem("customer");
+              }}
+              setShowAboutModal={setShowAboutModal}
+              setShowStoreLocatorModal={setShowStoreLocatorModal}
+              setShowAuthModal={setShowAuthModal}
+            />
+          ) : (
+            <ModernShopRetailLayout
+              store={store}
+              products={products}
+              onViewProduct={setSelectedProduct}
+              addToBasket={addToBasket}
+              basket={basket}
+              setBasket={setBasket}
+              basketTotal={basketTotal}
+              basketSubtotal={basketSubtotal}
+              basketShippingTotal={basketShippingTotal}
+              onCheckout={() => setIsCheckoutModalOpen(true)}
+              lang={lang}
+              t={t}
+              customer={customer}
+              onOpenProfile={(tab) => {
+                setProfileModalTab(tab === 'orders' ? 'orders' : 'profile');
+                setShowProfileModal(true);
+              }}
+              onLogout={() => {
+                setCustomer(null);
+                localStorage.removeItem("customer");
+              }}
+              setShowAboutModal={setShowAboutModal}
+              setShowStoreLocatorModal={setShowStoreLocatorModal}
+              setShowAuthModal={setShowAuthModal}
+            />
+          )
         ) : (
           <>
             <StoreHeader

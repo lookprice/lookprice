@@ -7,6 +7,7 @@ import { compressImageToWebP } from "../../../utils/imageUtils";
 import { VariantMatrixManager } from "../../../components/dashboard/VariantMatrixManager";
 import { MarketplaceProductFields } from "../../../components/marketplace/MarketplaceProductFields";
 import ProductMovementModal from "../../../components/ProductMovementModal";
+import { BookstoreSectorSpecs } from "../../../components/bookstore/BookstoreSectorSpecs";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -595,6 +596,15 @@ export const ProductModal = ({
               </div>
             </div>
           </div>
+
+          {/* BOOKSTORE SECTOR SPECIAL SPECS (Only shown if bookstore module or concept is active) */}
+          {(branding?.bookstore_module_enabled || branding?.active_preset === 'bookstore_netflix') && (
+            <BookstoreSectorSpecs
+              editingProduct={editingProduct}
+              isTr={isTr}
+              branding={branding}
+            />
+          )}
 
           {/* SECTION 3: Fiyatlandırma & Maliyetler (Soft Emerald Tint) */}
           <div className="p-4 bg-emerald-50/30 rounded-3xl border border-emerald-100/80 space-y-4">

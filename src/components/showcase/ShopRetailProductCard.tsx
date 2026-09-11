@@ -12,6 +12,7 @@ import { Product, Store as StoreInfo } from "../../types";
 import { ShopThemeConfig } from "../../utils/shopThemePresets";
 import { getExchangeRate } from "../../services/currencyService";
 import { getLabels } from "../../utils/showcase";
+import { getBookCoverFallbackSvg } from "../../utils/imageFallback";
 
 interface ShopRetailProductCardProps {
   product: Product;
@@ -45,11 +46,12 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
   // Extract branch stocks safely
   const branchStocks = React.useMemo(() => {
     let stocks: any[] = [];
-    if (product.branch_stocks) {
-      if (typeof product.branch_stocks === "string") {
-        try { stocks = JSON.parse(product.branch_stocks); } catch (e) { stocks = []; }
-      } else if (Array.isArray(product.branch_stocks)) {
-        stocks = product.branch_stocks;
+    const rawBranchStocks = (product as any)?.branch_stocks;
+    if (rawBranchStocks) {
+      if (typeof rawBranchStocks === "string") {
+        try { stocks = JSON.parse(rawBranchStocks); } catch (e) { stocks = []; }
+      } else if (Array.isArray(rawBranchStocks)) {
+        stocks = rawBranchStocks;
       }
     }
     // Fallback simulated multi-branch stock if not explicitly set
@@ -60,7 +62,7 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
       ];
     }
     return stocks;
-  }, [product.branch_stocks, product.stock_quantity, lang]);
+  }, [(product as any)?.branch_stocks, product.stock_quantity, lang]);
 
   // Extract variants safely
   const variants = React.useMemo(() => {
@@ -258,6 +260,15 @@ export const ShopRetailProductCard: React.FC<ShopRetailProductCardProps> = ({
                   } transition-transform duration-500 ease-out`}
                   referrerPolicy="no-referrer"
                   loading="lazy"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.dataset.fallback && displayImage && displayImage.startsWith('http') && !displayImage.includes('/api/proxy-image')) {
+                      target.dataset.fallback = 'proxy';
+                      target.src = `/api/proxy-image?url=${encodeURIComponent(displayImage)}`;
+                    } else {
+                      target.src = getBookCoverFallbackSvg(product.name, product.author || product.brand);
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
