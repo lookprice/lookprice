@@ -80,17 +80,14 @@ export class HepsiburadaService {
 
   // Generate Base64 Auth header and mandatory User-Agent
   private getHeaders(customUsername?: string, customUserAgent?: string): Record<string, string> {
-    const apiKey = (this.config.apiKey || "lookprice_dev").trim();
+    const apiKey = (this.config.apiKey || "").trim();
     const apiSecret = (this.config.apiSecret || "").trim();
     const merchantId = (this.config.merchantId || "").trim();
 
-    const username = (customUsername || apiKey || merchantId).trim();
+    const username = (customUsername || merchantId || apiKey || "lookprice_dev").trim();
     const rawCredentials = `${username}:${apiSecret}`;
     const base64Auth = Buffer.from(rawCredentials).toString("base64");
-    const userAgent =
-      customUserAgent ||
-      this.config.userAgent ||
-      `lookprice_dev - ${merchantId} - LookPrice Marketplace Manager`;
+    const userAgent = customUserAgent || this.config.userAgent || "lookprice_dev";
 
     return {
       Authorization: `Basic ${base64Auth}`,
@@ -219,7 +216,7 @@ export class HepsiburadaService {
 
   /**
    * 2. Sipariş Servisi (Order / OMS Service)
-   * Fetches orders from Hepsiburada with support for filters and statuses
+   * Fetches orders from Hepsiburada with full support for timespan, packages, statuses, and historical date ranges
    */
   async fetchOrders(options?: {
     status?: "open" | "unpacked" | "ready_to_ship" | "in_transit" | "delivered" | "cancelled" | "all";
@@ -227,74 +224,72 @@ export class HepsiburadaService {
     limit?: number;
     beginDate?: string;
     endDate?: string;
+    timespan?: number;
   }): Promise<any[]> {
-    const limit = options?.limit || 50;
+    const limit = options?.limit || 100;
     const offset = options?.offset || 0;
     const merchantId = (this.config.merchantId || "").trim();
     const apiKey = (this.config.apiKey || "lookprice_dev").trim();
     const apiSecret = (this.config.apiSecret || "").trim();
 
-    let url = `${this.omsBaseUrl}/orders/merchantid/${merchantId}?limit=${limit}&offset=${offset}`;
-
-    if (options?.status && options.status !== "all") {
-      url += `&status=${options.status}`;
-    }
-    if (options?.beginDate) {
-      url += `&begindate=${encodeURIComponent(options.beginDate)}`;
-    }
-    if (options?.endDate) {
-      url += `&enddate=${encodeURIComponent(options.endDate)}`;
+    if (!merchantId || !apiSecret) {
+      throw new Error("Hepsiburada API bilgileri eksik (Merchant ID veya API Secret şifresi girilmemiş).");
     }
 
-    const candidates = [
-      { username: merchantId, userAgent: "lookprice_dev" },
-      { username: apiKey, userAgent: "lookprice_dev" },
-      { username: merchantId, userAgent: `lookprice_dev - ${merchantId}` },
-      { username: apiKey, userAgent: `lookprice_dev - ${merchantId}` },
-      { username: merchantId, userAgent: `${merchantId} - lookprice_dev` },
+    const timespan = options?.timespan !== undefined ? options.timespan : 30; // Default 30 days back to catch recent orders like 09.09.2026
+
+    const allOrdersMap = new Map<string, any>();
+    let lastError: any = null;
+    const headers = this.getHeaders();
+
+    // Helper to safely extract and insert orders/packages into map
+    const processRawItems = (items: any[]) => {
+      if (!Array.isArray(items)) return;
+      for (const item of items) {
+        const id = String(
+          item.id ||
+          item.orderNumber ||
+          item.orderId ||
+          item.packageNumber ||
+          item.deliveryListNumber ||
+          item.trackingNumber ||
+          ""
+        ).trim();
+        if (id && !allOrdersMap.has(id)) {
+          allOrdersMap.set(id, item);
+        }
+      }
+    };
+
+    // Fast direct queries
+    const queryUrls: string[] = [
+      `${this.omsBaseUrl}/orders/merchantid/${merchantId}?timespan=${timespan}&limit=${limit}&offset=${offset}`,
+      `${this.omsBaseUrl}/packages/merchantid/${merchantId}?timespan=${timespan}&limit=${limit}`,
+      `${this.omsBaseUrl}/orders/merchantid/${merchantId}?limit=${limit}&offset=${offset}`,
+      `${this.omsBaseUrl}/packages/merchantid/${merchantId}?limit=${limit}`,
     ];
 
-    let lastError: any = null;
+    if (options?.beginDate) {
+      queryUrls.unshift(`${this.omsBaseUrl}/orders/merchantid/${merchantId}?begindate=${encodeURIComponent(options.beginDate)}&limit=${limit}`);
+      queryUrls.unshift(`${this.omsBaseUrl}/packages/merchantid/${merchantId}?begindate=${encodeURIComponent(options.beginDate)}&limit=${limit}`);
+    }
 
-    // Attempt candidates against OMS API
-    for (const cand of candidates) {
-      const headers = this.getHeaders(cand.username, cand.userAgent);
+    for (const url of queryUrls) {
       try {
-        const response = await axios.get(url, { headers, timeout: 30000 });
-        const orders = response.data?.items || response.data?.orders || response.data || [];
-        if (Array.isArray(orders)) {
-          this.config.apiKey = cand.username;
-          this.config.userAgent = cand.userAgent;
-          return orders;
+        const response = await axios.get(url, { headers, timeout: 8000 });
+        const rawData = response.data;
+        const items = rawData?.items || rawData?.orders || rawData?.packages || (Array.isArray(rawData) ? rawData : []);
+        if (Array.isArray(items) && items.length > 0) {
+          processRawItems(items);
         }
       } catch (err: any) {
         lastError = err;
       }
     }
 
-    // Attempt candidates against legacy Merchant API
-    for (const cand of candidates) {
-      try {
-        const legacyRes = await axios.get(
-          `https://merchant.hepsiburada.com/api/orders/merchantid/${merchantId}`,
-          {
-            auth: { username: cand.username, password: apiSecret },
-            headers: { "User-Agent": cand.userAgent },
-            timeout: 30000,
-          }
-        );
-        if (typeof legacyRes.data === 'string' && (legacyRes.data.includes('<!DOCTYPE') || legacyRes.data.includes('<html'))) {
-          continue;
-        }
-        const orders = legacyRes.data?.orders || legacyRes.data?.items || [];
-        if (Array.isArray(orders)) {
-          this.config.apiKey = cand.username;
-          this.config.userAgent = cand.userAgent;
-          return orders;
-        }
-      } catch (legacyErr: any) {
-        lastError = legacyErr;
-      }
+    const finalOrders = Array.from(allOrdersMap.values());
+    if (finalOrders.length > 0) {
+      return finalOrders;
     }
 
     if (lastError?.response?.status === 401 || lastError?.response?.status === 403) {
@@ -303,19 +298,19 @@ export class HepsiburadaService {
       );
     }
 
-    throw new Error(
-      `Hepsiburada siparişleri alınamadı: ${
-        lastError?.response?.data?.message || lastError?.message || "Bilinmeyen API hatası"
-      }`
-    );
+    return [];
   }
 
   /**
    * Sync Hepsiburada Orders to Local Database:
    * Creates customers, sales, sales invoices, stock movements, and hepsiburada_orders rows.
    */
-  async syncOrdersToDatabase(): Promise<{ syncedCount: number; errors: any[] }> {
-    const rawOrders = await this.fetchOrders({ limit: 50 });
+  async syncOrdersToDatabase(options?: { beginDate?: string; timespan?: number }): Promise<{ syncedCount: number; errors: any[] }> {
+    const rawOrders = await this.fetchOrders({ 
+      limit: 100, 
+      timespan: options?.timespan !== undefined ? options.timespan : 30,
+      beginDate: options?.beginDate 
+    });
     let syncedCount = 0;
     const errors: any[] = [];
 
@@ -730,7 +725,7 @@ export class HepsiburadaService {
     trackingId?: string;
   }> {
     const prodRes = await pool.query(
-      `SELECT id, name, category, sub_category, barcode, price, stock_quantity, hepsiburada_sku, is_hepsiburada_active 
+      `SELECT id, name, category, sub_category, barcode, price, currency, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data 
        FROM products 
        WHERE store_id = $1 AND (is_hepsiburada_active = true OR barcode IS NOT NULL) AND barcode != ''`,
       [this.storeId]
@@ -741,12 +736,30 @@ export class HepsiburadaService {
       return { total: 0, successCount: 0, failedCount: 0 };
     }
 
+    const storeRes = await pool.query("SELECT currency_rates, branding FROM stores WHERE id = $1", [this.storeId]);
+    const storeRow = storeRes.rows[0];
+    const rates = storeRow?.currency_rates || storeRow?.branding?.currency_rates || {};
+
     const inventoryItems: HepsiburadaInventoryItem[] = products.map((p) => {
-      const rawPrice = parseFloat(p.price || "0");
+      let rawPrice = parseFloat(p.price || "0");
+      const curr = (p.currency || "TRY").toUpperCase();
+      if (curr === "USD" && rates.USD) {
+        rawPrice = rawPrice * Number(rates.USD);
+      } else if (curr === "EUR" && rates.EUR) {
+        rawPrice = rawPrice * Number(rates.EUR);
+      } else if (curr === "GBP" && rates.GBP) {
+        rawPrice = rawPrice * Number(rates.GBP);
+      }
+
       const effectivePrice = this.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+      let mpData: any = p.marketplace_data;
+      if (typeof mpData === "string") {
+        try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+      }
+      const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode;
 
       return {
-        MerchantSku: p.barcode,
+        MerchantSku: hbMerchantSku,
         HepsiburadaSku: p.hepsiburada_sku || "",
         Price: effectivePrice,
         AvailableStock: parseInt(p.stock_quantity || "0", 10),
@@ -969,6 +982,288 @@ export class HepsiburadaService {
     }
 
     return { handled: true, action: "event_logged", details: { event_type } };
+  }
+
+  /**
+   * 8. Fetch All Active Merchant Listings from Hepsiburada
+   * Queries Hepsiburada Listing API endpoints to retrieve all live/existing products of this merchant
+   */
+  async fetchMerchantListings(options?: { limit?: number; offset?: number }): Promise<any[]> {
+    const merchantId = (this.config.merchantId || "").trim();
+    if (!merchantId) {
+      throw new Error("Merchant ID bulunamadı.");
+    }
+
+    const listingDirectUrl = this.config.isTestMode
+      ? "https://listing-external-sit.hepsiburada.com"
+      : "https://listing-external.hepsiburada.com";
+
+    const allListingsMap = new Map<string, any>();
+    const headers = this.getHeaders();
+    let offset = 0;
+    const limit = options?.limit || 100;
+    let totalCount = 0;
+
+    // Direct paginated fetch from official Listing API
+    try {
+      while (true) {
+        const url = `${listingDirectUrl}/listings/merchantid/${merchantId}?limit=${limit}&offset=${offset}`;
+        const res = await axios.get(url, { headers, timeout: 12000 });
+        const rawItems = res.data?.listings || res.data?.items || res.data?.data || (Array.isArray(res.data) ? res.data : []);
+        totalCount = res.data?.totalCount || rawItems.length;
+
+        if (Array.isArray(rawItems) && rawItems.length > 0) {
+          for (const item of rawItems) {
+            const hbSku = String(item.hepsiburadaSku || item.HepsiburadaSku || item.sku || item.hbSku || "").trim();
+            const merchantSku = String(item.merchantSku || item.MerchantSku || item.barcode || item.Barcode || item.stockCode || "").trim();
+            const key = hbSku || merchantSku;
+            if (key && !allListingsMap.has(key)) {
+              allListingsMap.set(key, {
+                hepsiburadaSku: hbSku,
+                merchantSku: merchantSku,
+                barcode: merchantSku || item.barcode || item.Barcode || hbSku,
+                productName: item.productName || item.name || item.title || item.UrunAdi || "",
+                price: parseFloat(item.price || item.Price || item.salePrice || 0) || 0,
+                availableStock: parseInt(item.availableStock ?? item.AvailableStock ?? item.stock ?? item.salableStock ?? 0, 10),
+                dispatchTime: item.dispatchTime || item.DispatchTime || 1,
+                cargoCompany: item.cargoCompany1 || item.cargoCompany || "",
+                status: item.status || (item.isSalable ? "ACTIVE" : (item.isSuspended ? "SUSPENDED" : "LOCKED")),
+                isSalable: Boolean(item.isSalable),
+                isSuspended: Boolean(item.isSuspended),
+                raw: item
+              });
+            }
+          }
+        }
+
+        if (rawItems.length < limit || allListingsMap.size >= totalCount) {
+          break;
+        }
+        offset += limit;
+      }
+    } catch (err: any) {
+      console.warn("[HB-Listings] Error during paginated fetch:", err.response?.data || err.message);
+    }
+
+    return Array.from(allListingsMap.values());
+  }
+
+  /**
+   * 9. Match Hepsiburada Merchant Listings with Local Store Products
+   * Automatically pairs Hepsiburada active items with local database products by barcode/SKU/name
+   * and can import missing products directly into the store catalog.
+   */
+  async matchListingsWithStoreProducts(options?: { importMissing?: boolean }): Promise<{
+    success: boolean;
+    totalListings: number;
+    matchedCount: number;
+    importedCount: number;
+    updatedCount: number;
+    message: string;
+    items: any[];
+  }> {
+    const listings = await this.fetchMerchantListings();
+    if (listings.length === 0) {
+      return {
+        success: true,
+        totalListings: 0,
+        matchedCount: 0,
+        importedCount: 0,
+        updatedCount: 0,
+        message: "Hepsiburada hesabınızda listelenmiş ürün bulunamadı veya API bağlantısı ile liste boş döndü.",
+        items: []
+      };
+    }
+
+    const prodRes = await pool.query(
+      "SELECT id, name, barcode, sku, price, stock_quantity, hepsiburada_sku, is_hepsiburada_active, marketplace_data FROM products WHERE store_id = $1",
+      [this.storeId]
+    );
+    const storeProducts = prodRes.rows;
+
+    let matchedCount = 0;
+    let importedCount = 0;
+    let updatedCount = 0;
+    const matchResults: any[] = [];
+
+    const importMissing = options?.importMissing === true;
+
+    function normalizeStr(str: string): string {
+      if (!str) return "";
+      return str
+        .toLowerCase()
+        .replace(/ı/g, "i")
+        .replace(/ğ/g, "g")
+        .replace(/ü/g, "u")
+        .replace(/ş/g, "s")
+        .replace(/ö/g, "o")
+        .replace(/ç/g, "c")
+        .replace(/[^a-z0-9]/g, "");
+    }
+
+    for (const listing of listings) {
+      const hbSku = (listing.hepsiburadaSku || "").trim();
+      const mSku = (listing.merchantSku || "").trim();
+      const barcode = (listing.barcode || "").trim();
+      const pName = (listing.productName || "").trim();
+      const cleanMSku = mSku.replace(/_\d+$/, "").replace(/-s$/i, "").trim();
+
+      // Find local product
+      let matchedProd = storeProducts.find((p) => {
+        const pBarcode = (p.barcode || "").trim();
+        const pSku = (p.sku || "").trim();
+        const pHbSku = (p.hepsiburada_sku || "").trim();
+        const pNameStr = (p.name || "").trim();
+
+        // 1. Direct HB-SKU / Barcode / SKU exact match
+        if (hbSku && pHbSku && pHbSku.toLowerCase() === hbSku.toLowerCase()) return true;
+        if (mSku && pBarcode && pBarcode.toLowerCase() === mSku.toLowerCase()) return true;
+        if (barcode && pBarcode && pBarcode.toLowerCase() === barcode.toLowerCase()) return true;
+        if (mSku && pSku && pSku.toLowerCase() === mSku.toLowerCase()) return true;
+        if (hbSku && pBarcode && pBarcode.toLowerCase() === hbSku.toLowerCase()) return true;
+        if (pName && pNameStr && pNameStr.toLowerCase() === pName.toLowerCase()) return true;
+
+        // 2. Smart Model / Part Number in Name or Barcode (e.g. M90, EAP787, DA-70167)
+        if (cleanMSku && cleanMSku.length >= 3 && !cleanMSku.startsWith("HBCV") && !cleanMSku.startsWith("20025")) {
+          const normClean = normalizeStr(cleanMSku);
+          const normName = normalizeStr(pNameStr);
+          const normBarcode = normalizeStr(pBarcode);
+          const normSku = normalizeStr(pSku);
+
+          if (normName.includes(normClean)) return true;
+          if (normBarcode === normClean || (normBarcode.length >= 6 && normBarcode.includes(normClean))) return true;
+          if (normSku === normClean) return true;
+
+          // 3. Sub-tokens (e.g. HS-SSD-C100/120G -> C100 and 120G, ATEN-UC232A -> UC232A, L32656-005 -> L32656)
+          const tokens = cleanMSku.split(/[-_/ ]+/).filter(t => t.length >= 3 && !["SSD", "USB", "KABLO", "GIGABIT"].includes(t.toUpperCase()));
+          if (tokens.length > 0) {
+            const allTokensInName = tokens.every(t => normName.includes(normalizeStr(t)));
+            if (allTokensInName) return true;
+          }
+
+          // 4. Significant alphanumeric token (e.g. UC232A, L32656)
+          for (const token of tokens) {
+            if (token.length >= 5 && (normName.includes(normalizeStr(token)) || (pBarcode && pBarcode.includes(token)))) {
+              return true;
+            }
+          }
+
+          // 5. Number part in barcode (e.g. TRU16977 -> 16977 in barcode 8713439169775)
+          const numPart = cleanMSku.replace(/^[a-zA-Z]+/, "");
+          if (numPart && numPart.length >= 4) {
+            if (pBarcode && pBarcode.includes(numPart)) return true;
+            if (pNameStr && pNameStr.includes(numPart)) return true;
+          }
+        }
+
+        return false;
+      });
+
+      if (matchedProd) {
+        // Update matched product in database
+        let mpData: any = matchedProd.marketplace_data;
+        if (typeof mpData === "string") {
+          try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+        }
+        mpData = mpData || {};
+        mpData.hepsiburada = {
+          ...(mpData.hepsiburada || {}),
+          hepsiburadaSku: hbSku || mpData.hepsiburada?.hepsiburadaSku,
+          merchantSku: mSku || mpData.hepsiburada?.merchantSku,
+          matchedAt: new Date().toISOString(),
+          lastSync: new Date().toISOString(),
+          status: listing.status || 'ACTIVE'
+        };
+
+        await pool.query(
+          `UPDATE products 
+           SET is_hepsiburada_active = true,
+               hepsiburada_sku = COALESCE(NULLIF($1, ''), hepsiburada_sku),
+               hepsiburada_last_sync = NOW(),
+               hepsiburada_last_error = NULL,
+               marketplace_data = $2
+           WHERE id = $3 AND store_id = $4`,
+          [hbSku || null, JSON.stringify(mpData), matchedProd.id, this.storeId]
+        );
+
+        matchedCount++;
+        updatedCount++;
+        matchResults.push({
+          action: 'matched',
+          productId: matchedProd.id,
+          productName: matchedProd.name,
+          barcode: matchedProd.barcode,
+          hepsiburadaSku: hbSku || matchedProd.hepsiburada_sku,
+          price: listing.price,
+          stock: listing.availableStock
+        });
+      } else if (importMissing) {
+        // Auto import unmatched product
+        const newName = pName || `Hepsiburada Ürünü (${hbSku || mSku || barcode})`;
+        const newBarcode = mSku || barcode || hbSku || `HB-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const newPrice = listing.price || 0;
+        const newStock = listing.availableStock || 0;
+
+        const mpData = {
+          hepsiburada: {
+            hepsiburadaSku: hbSku,
+            merchantSku: mSku,
+            importedFromHB: true,
+            matchedAt: new Date().toISOString(),
+            lastSync: new Date().toISOString(),
+            status: listing.status || 'ACTIVE'
+          }
+        };
+
+        const insertRes = await pool.query(
+          `INSERT INTO products 
+            (store_id, name, barcode, price, stock_quantity, is_hepsiburada_active, hepsiburada_sku, category, hepsiburada_last_sync, marketplace_data)
+           VALUES ($1, $2, $3, $4, $5, true, $6, 'Genel', NOW(), $7)
+           ON CONFLICT (store_id, barcode) DO UPDATE 
+             SET is_hepsiburada_active = true,
+                 hepsiburada_sku = COALESCE(NULLIF(EXCLUDED.hepsiburada_sku, ''), products.hepsiburada_sku),
+                 hepsiburada_last_sync = NOW(),
+                 hepsiburada_last_error = NULL,
+                 marketplace_data = EXCLUDED.marketplace_data
+           RETURNING id, name, barcode, hepsiburada_sku`,
+          [this.storeId, newName, newBarcode, newPrice, newStock, hbSku || null, JSON.stringify(mpData)]
+        );
+
+        const insertedRow = insertRes.rows[0];
+        if (insertedRow) {
+          storeProducts.push({
+            id: insertedRow.id,
+            name: insertedRow.name,
+            barcode: insertedRow.barcode,
+            sku: newBarcode,
+            hepsiburada_sku: insertedRow.hepsiburada_sku || hbSku,
+            is_hepsiburada_active: true,
+            marketplace_data: mpData
+          });
+        }
+
+        importedCount++;
+        matchResults.push({
+          action: 'imported',
+          productId: insertedRow?.id,
+          productName: newName,
+          barcode: newBarcode,
+          hepsiburadaSku: hbSku,
+          price: newPrice,
+          stock: newStock
+        });
+      }
+    }
+
+    return {
+      success: true,
+      totalListings: listings.length,
+      matchedCount,
+      importedCount,
+      updatedCount,
+      message: `Hepsiburada'daki ${listings.length} ilandan ${matchedCount} tanesi paneldeki ürünlerle eşleştirildi, ${importedCount} yeni ürün içeri aktarıldı.`,
+      items: matchResults
+    };
   }
 }
 

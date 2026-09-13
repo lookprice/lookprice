@@ -19,7 +19,9 @@ import {
   Mail,
   Building,
   Upload,
-  Image
+  Image,
+  Clock,
+  Calendar
 } from "lucide-react";
 import { motion } from "motion/react";
 import { api } from "../../../services/api";
@@ -278,15 +280,172 @@ export const SettingsStoreOpsTab = ({
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İşletme Fiziki Adresi' : 'Store Physical Address'}</label>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İşletme Fiziki Adresi (Cadde / Sokak / No)' : 'Store Physical Street Address'}</label>
             <div className="relative">
               <MapPin className="absolute left-4 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
               <textarea 
                 rows={2}
-                placeholder={lang === 'tr' ? 'Örn: Girne Caddesi No:12/A Alsancak, KKTC' : 'e.g. Main Street No:12'}
+                placeholder={lang === 'tr' ? 'Örn: Girne Caddesi No:12/A Alsancak' : 'e.g. Main Street No:12'}
                 className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
                 value={branding.address || ""}
                 onChange={(e) => onBrandingChange('address', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Explicit District, City and Country Fields */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İlçe / Bölge' : 'District / Region'}</label>
+            <input 
+              type="text" 
+              placeholder={lang === 'tr' ? 'Örn: Alsancak / Beşiktaş' : 'e.g. District'}
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
+              value={branding.district || ""}
+              onChange={(e) => onBrandingChange('district', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Şehir' : 'City'}</label>
+            <input 
+              type="text" 
+              placeholder={lang === 'tr' ? 'Örn: Girne / İstanbul' : 'e.g. City'}
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
+              value={branding.city || ""}
+              onChange={(e) => onBrandingChange('city', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Ülke' : 'Country'}</label>
+            <input 
+              type="text" 
+              placeholder={lang === 'tr' ? 'Örn: KKTC / Türkiye / UK' : 'e.g. Country'}
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
+              value={branding.country || ""}
+              onChange={(e) => onBrandingChange('country', e.target.value)}
+            />
+          </div>
+
+          {/* ÇALIŞMA GÜNLERİ VE SAATLERİ YÖNETİM PANELİ */}
+          <div className="md:col-span-2 p-4 bg-slate-100/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-500" />
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  {lang === 'tr' ? 'Çalışma Günleri & Saatleri Yönetimi' : 'Business Working Hours & Schedule'}
+                </h4>
+              </div>
+              <span className="text-[10px] font-medium text-slate-500">
+                {lang === 'tr' ? 'Web sitesi ve alt bilgide anlık görüntülenir' : 'Displayed in storefront footer'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Hafta İçi */}
+              <div className="space-y-1.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>{lang === 'tr' ? 'Pzt - Cuma (Hafta İçi)' : 'Mon - Fri (Weekdays)'}</span>
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="09:00 - 19:00"
+                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-slate-100"
+                  value={branding.working_hours?.weekdays || "09:00 - 19:00"}
+                  onChange={(e) => {
+                    const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                    onBrandingChange('working_hours', { ...currentWh, weekdays: e.target.value });
+                  }}
+                />
+              </div>
+
+              {/* Cumartesi */}
+              <div className="space-y-1.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                    {lang === 'tr' ? 'Cumartesi' : 'Saturday'}
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer text-[10px] font-semibold text-slate-500">
+                    <input 
+                      type="checkbox"
+                      checked={!!branding.working_hours?.is_saturday_closed}
+                      onChange={(e) => {
+                        const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                        onBrandingChange('working_hours', { ...currentWh, is_saturday_closed: e.target.checked });
+                      }}
+                      className="rounded border-slate-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span>{lang === 'tr' ? 'Kapalı' : 'Closed'}</span>
+                  </label>
+                </div>
+                <input 
+                  type="text" 
+                  disabled={branding.working_hours?.is_saturday_closed}
+                  placeholder="09:00 - 19:00"
+                  className={`w-full px-3 py-1.5 border rounded-lg text-xs font-semibold ${
+                    branding.working_hours?.is_saturday_closed 
+                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-slate-200 dark:border-slate-800' 
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700'
+                  }`}
+                  value={branding.working_hours?.is_saturday_closed ? (lang === 'tr' ? 'Kapalı' : 'Closed') : (branding.working_hours?.saturday || "09:00 - 19:00")}
+                  onChange={(e) => {
+                    const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                    onBrandingChange('working_hours', { ...currentWh, saturday: e.target.value });
+                  }}
+                />
+              </div>
+
+              {/* Pazar */}
+              <div className="space-y-1.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                    {lang === 'tr' ? 'Pazar' : 'Sunday'}
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer text-[10px] font-semibold text-slate-500">
+                    <input 
+                      type="checkbox"
+                      checked={branding.working_hours?.is_sunday_closed ?? true}
+                      onChange={(e) => {
+                        const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                        onBrandingChange('working_hours', { ...currentWh, is_sunday_closed: e.target.checked });
+                      }}
+                      className="rounded border-slate-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span>{lang === 'tr' ? 'Kapalı' : 'Closed'}</span>
+                  </label>
+                </div>
+                <input 
+                  type="text" 
+                  disabled={branding.working_hours?.is_sunday_closed ?? true}
+                  placeholder={lang === 'tr' ? 'Kapalı' : 'Closed'}
+                  className={`w-full px-3 py-1.5 border rounded-lg text-xs font-semibold ${
+                    (branding.working_hours?.is_sunday_closed ?? true)
+                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-slate-200 dark:border-slate-800' 
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700'
+                  }`}
+                  value={(branding.working_hours?.is_sunday_closed ?? true) ? (lang === 'tr' ? 'Kapalı' : 'Closed') : (branding.working_hours?.sunday || "10:00 - 18:00")}
+                  onChange={(e) => {
+                    const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                    onBrandingChange('working_hours', { ...currentWh, sunday: e.target.value });
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Özel Çalışma Notu */}
+            <div className="space-y-1">
+              <label className="text-[10.5px] font-semibold text-slate-500">
+                {lang === 'tr' ? 'Özel Çalışma Notu (Opsiyonel: Resmi tatil, öğle molası vb.)' : 'Custom Note (Optional)'}
+              </label>
+              <input 
+                type="text"
+                placeholder={lang === 'tr' ? 'Örn: Pazar günleri ve resmi tatillerde kapalıyız.' : 'e.g. Closed on public holidays'}
+                className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium"
+                value={branding.working_hours?.note || ""}
+                onChange={(e) => {
+                  const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                  onBrandingChange('working_hours', { ...currentWh, note: e.target.value });
+                }}
               />
             </div>
           </div>

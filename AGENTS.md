@@ -208,6 +208,22 @@ This file outlines strict engineering, performance, and naming directives that m
   - Modallar standart ekranlarda (laptop, masaüstü ve mobil) dikeyde gereksiz kaydırma (scroll) oluşturmadan tek bir bakışta net, dengeli ve estetik bir şekilde görüntülenecek şekilde tasarlanmalıdır.
   - Başlıklar, sipariş özetleri ve form blokları yüksek bilgi yoğunluklu, dengeli ve kompakt aralıklarla yerleştirilerek kullanıcıya sayfayı terk etmeden hızlı işlem tamamlama imkanı sunmalıdır.
 
+---
+
+## 16. TCMB Otomatik Kur Güncellemesi, Canlı Envanter ve Pazaryeri Fiyat Senkronizasyonu Protokolü
+
+- **Otomatik ve Unutulmaz TCMB Kur Güncellemesi (Daily Multi-Sync Engine)**:
+  - Döviz kurlarının güncellenmesi ASLA sadece operatörün manuel işlemine veya inisiyatifine bırakılamaz.
+  - Sistem arka planında çalışan zamanlanmış görev (`syncTCMBRates` cron), her iş günü TCMB bülten saatlerinde (`09:30`, `12:00`, `15:45` resmi açıklama ve `18:00` kapanış) ve sunucu her ayağa kalktığında otomatik olarak `https://www.tcmb.gov.tr/kurlar/today.xml` bülteninden en güncel **Döviz Alış (`ForexBuying`)** kurlarını çekerek tüm mağazaların `currency_rates` tablosunu günceller.
+
+- **Kur Değişikliğinde Pazaryeri Satış Fiyatlarının Otomatik Revizyonu (Automatic Price Re-calculation)**:
+  - TCMB kurları güncellendiği anda (ister cron vasıtasıyla otomatik, ister panelden tek tıkla manuel yapılsın), dövizli (USD, EUR, GBP) ürünlerin veya pazaryerlerinde (Hepsiburada, Trendyol, N11, Amazon TR, Pazarama) aktif olan tüm ürünlerin TL karşılığı satış fiyatları anında yeniden hesaplanır.
+  - Hesaplanan güncel TL fiyatları, kategori bazlı komisyon ve kâr marjları korunarak derhal pazaryeri API'lerine (örneğin Hepsiburada `updatePriceAndStock`) toplu envanter güncellemesi olarak iletilir. Böylece döviz kuru değiştiğinde e-pazaryerlerinde eski/zararına fiyattan satış yapılma riski %100 önlenir.
+
+- **Canlı Envanter ve Faturaların Canlı Organizma Prensibi**:
+  - Alış faturaları (mal alımı) ve satış faturaları sisteme işlendiğinde veya düzenlendiğinde, envanter (`stock_quantity`) ve stok hareketleri (`stock_movements`) canlı bir organizma gibi anında tepki verir.
+  - Pazaryerlerinden (Hepsiburada, Trendyol, vb.) gelen siparişler yüksek frekanslı cron (`*/5 * * * *`) ile çekildiğinde; sipariş satırındaki barkod, merchantSku, hbSku veya ürün kodları ile yerel ürün anında eşleştirilerek stok eksiksiz düşülür, satış faturası kaydı açılır ve diğer kanallarda oversell yaşanmaması için güncel stok derhal pazaryerlerine yansıtılır.
+
 
 
 

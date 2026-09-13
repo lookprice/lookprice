@@ -248,6 +248,25 @@ export const DashboardSidebar = ({
                   <span className="truncate tracking-tight">{t.barcodeScanner}</span>
                 </a>
               )}
+              {/* In-Store Price Check / Store QR Code & Poster Modal Trigger */}
+              <button
+                type="button"
+                onClick={() => setShowQrModal(true)}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all cursor-pointer group shadow-xs mt-1"
+                title={lang === 'tr' ? "Mağaza İçi 'Fiyat Gör' Barkod QR Kodu & Yazdırılabilir Afiş" : "In-Store Price Check QR & Printable Poster"}
+              >
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <QrCode className="h-4 w-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
+                  <span className="truncate tracking-tight font-black">
+                    {!isPortfolio && !isCafeRestaurant 
+                      ? (lang === 'tr' ? 'Fiyat Gör QR & Afiş' : 'Price Check QR & Poster') 
+                      : (lang === 'tr' ? 'Mağaza QR Kodu' : 'Store QR Code')}
+                  </span>
+                </div>
+                <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+                  Afiş
+                </span>
+              </button>
               {isCafeRestaurant && currentStoreId && (
                 <a
                   href={`${window.location.origin}/digital-menu/${currentStoreId}/garson`}

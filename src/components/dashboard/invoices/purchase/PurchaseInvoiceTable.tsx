@@ -29,6 +29,8 @@ interface PurchaseInvoiceTableProps {
   handleViewHtml?: (id: number, inv?: any) => void;
   handleUpdateTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED') => void;
   handleUpdatePaymentStatus: (id: number, status: 'paid' | 'unpaid') => void;
+  handleConvertToStock?: (id: number) => void;
+  handleConvertToExpense?: (id: number) => void;
   page: number;
   totalPages: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
@@ -49,6 +51,8 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   handleViewHtml,
   handleUpdateTicariStatus,
   handleUpdatePaymentStatus,
+  handleConvertToStock,
+  handleConvertToExpense,
   page,
   totalPages,
   setPage,
@@ -232,13 +236,49 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                         <div className="max-w-[180px] sm:max-w-[220px] lg:max-w-[280px] truncate font-semibold" title={invoice.company_name || invoice.supplier_name || '-'}>
                           {invoice.company_name || invoice.supplier_name || '-'}
                         </div>
-                        {invoice.is_expense && (
-                          <div className="mt-0.5">
-                            <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-black uppercase tracking-wider inline-block">
-                              {isTr ? `GİDER: ${invoice.expense_category || 'DİĞER'}` : `EXPENSE: ${invoice.expense_category || 'OTHER'}`}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {invoice.is_expense ? (
+                            <>
+                              <span className="text-[8px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-black uppercase tracking-wider inline-flex items-center gap-0.5">
+                                💼 {isTr ? `GİDER (${invoice.expense_category || 'DİĞER'})` : `EXPENSE (${invoice.expense_category || 'OTHER'})`}
+                              </span>
+                              {handleConvertToStock && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleConvertToStock(invoice.id);
+                                  }}
+                                  title={isTr ? "Bu faturayı Stoklu Alım (Ticari) faturasına dönüştür ve stokları işle" : "Convert to Stock Purchase"}
+                                  className="text-[8px] font-black bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded transition-colors inline-flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Package className="w-2.5 h-2.5" />
+                                  {isTr ? "Stoklu Alıma Çevir" : "To Stock"}
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[8px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-black uppercase tracking-wider inline-flex items-center gap-0.5">
+                                📦 {isTr ? "STOKLU ALIM" : "STOCK BUY"}
+                              </span>
+                              {handleConvertToExpense && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleConvertToExpense(invoice.id);
+                                  }}
+                                  title={isTr ? "Bu faturayı Gider Faturasına dönüştür ve stokları iptal et" : "Convert to Expense Invoice"}
+                                  className="text-[8px] font-black bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 px-1.5 py-0.5 rounded transition-colors inline-flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Layers className="w-2.5 h-2.5" />
+                                  {isTr ? "Gidere Çevir" : "To Expense"}
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 text-xs text-slate-600 text-right font-medium whitespace-nowrap">
                         {Number(invoice.total_amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}

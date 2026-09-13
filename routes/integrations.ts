@@ -815,7 +815,9 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
     };
 
     const hbService = new HepsiburadaService(cleanSettings, storeId);
-    const { syncedCount, errors } = await hbService.syncOrdersToDatabase();
+    const beginDate = req.body?.beginDate || req.query?.beginDate;
+    const timespan = req.body?.timespan !== undefined ? Number(req.body.timespan) : (req.query?.timespan !== undefined ? Number(req.query.timespan) : 30);
+    const { syncedCount, errors } = await hbService.syncOrdersToDatabase({ beginDate, timespan });
 
     res.json({ success: true, count: syncedCount, errors });
   } catch (error: any) {
@@ -831,6 +833,100 @@ router.post("/hepsiburada/sync", authenticate, async (req: any, res) => {
     }
 
     res.status(400).json({ error: errorDetail });
+  }
+});
+
+// 4.1 Match Live Hepsiburada Listings with Local Store Products
+router.post("/hepsiburada/match-listings", authenticate, async (req: any, res) => {
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" 
+    ? Number(rawStoreId || req.user.store_id || 1) 
+    : Number(req.user.store_id || rawStoreId);
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mağaza bulunamadı" });
+    }
+
+    const row = storeRes.rows[0];
+    let settings = row?.hepsiburada_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = row?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.merchantId) {
+      settings = branding?.hepsiburada_settings || settings || {};
+    }
+
+    const merchantId = String(settings?.merchantId || req.body?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || req.body?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+    const apiSecret = String(settings?.apiSecret || req.body?.apiSecret || "").trim();
+
+    if (!merchantId || !apiSecret) {
+      return res.status(400).json({ 
+        error: "Hepsiburada API bilgileri eksik (Lütfen Satıcı ID / Merchant ID ve API Secret bilgilerinizi kaydedin)." 
+      });
+    }
+
+    const cleanSettings = {
+      ...settings,
+      merchantId,
+      apiKey,
+      apiSecret,
+      isTestMode: Boolean(settings?.isTestMode)
+    };
+
+    const importMissing = Boolean(req.body?.importMissing);
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
+    const result = await hbService.matchListingsWithStoreProducts({ importMissing });
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("[Hepsiburada Match Listings Error]:", error?.message || error);
+    await IntegrationService.logIntegrationError(storeId, 'Hepsiburada', 'Match Listings', error);
+    res.status(400).json({ error: error.message || "Hepsiburada ürünleri eşleştirilemedi." });
+  }
+});
+
+// 4.2 Get Live Hepsiburada Listings
+router.get("/hepsiburada/listings", authenticate, async (req: any, res) => {
+  const rawStoreId = req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" 
+    ? Number(rawStoreId || req.user.store_id || 1) 
+    : Number(req.user.store_id || rawStoreId);
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mağaza bulunamadı" });
+    }
+
+    const row = storeRes.rows[0];
+    let settings = row?.hepsiburada_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = row?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.merchantId) {
+      settings = branding?.hepsiburada_settings || settings || {};
+    }
+
+    const cleanSettings = {
+      ...settings,
+      merchantId: String(settings?.merchantId || "").trim(),
+      apiKey: String(settings?.apiKey || "lookprice_dev").trim(),
+      apiSecret: String(settings?.apiSecret || "").trim(),
+      isTestMode: Boolean(settings?.isTestMode)
+    };
+
+    if (!cleanSettings.merchantId || !cleanSettings.apiSecret) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik." });
+    }
+
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
+    const listings = await hbService.fetchMerchantListings();
+    res.json({ success: true, count: listings.length, listings });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "İlanlar listelenemedi." });
   }
 });
 
@@ -901,7 +997,20 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     }
 
     const hbService = new HepsiburadaService(settings, storeId);
-    const rawPrice = parseFloat(p.price || "0");
+    const storeInfoRes = await pool.query("SELECT currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+    const storeInfo = storeInfoRes.rows[0];
+    const rates = storeInfo?.currency_rates || storeInfo?.branding?.currency_rates || {};
+
+    let rawPrice = parseFloat(p.price || "0");
+    const curr = (p.currency || "TRY").toUpperCase();
+    if (curr === "USD" && rates.USD) {
+      rawPrice = rawPrice * Number(rates.USD);
+    } else if (curr === "EUR" && rates.EUR) {
+      rawPrice = rawPrice * Number(rates.EUR);
+    } else if (curr === "GBP" && rates.GBP) {
+      rawPrice = rawPrice * Number(rates.GBP);
+    }
+
     const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
 
     // Prepare catalog attributes
@@ -1035,6 +1144,10 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
     }
 
     const hbService = new HepsiburadaService(settings, storeId);
+    const storeInfoRes = await pool.query("SELECT currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+    const storeInfo = storeInfoRes.rows[0];
+    const rates = storeInfo?.currency_rates || storeInfo?.branding?.currency_rates || {};
+
     const validItems: any[] = [];
     const skippedItems: any[] = [];
 
@@ -1043,10 +1156,25 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
         skippedItems.push({ id: p.id, name: p.name, reason: "Barkod eksik" });
         continue;
       }
-      const rawPrice = parseFloat(p.price || "0");
+      let rawPrice = parseFloat(p.price || "0");
+      const curr = (p.currency || "TRY").toUpperCase();
+      if (curr === "USD" && rates.USD) {
+        rawPrice = rawPrice * Number(rates.USD);
+      } else if (curr === "EUR" && rates.EUR) {
+        rawPrice = rawPrice * Number(rates.EUR);
+      } else if (curr === "GBP" && rates.GBP) {
+        rawPrice = rawPrice * Number(rates.GBP);
+      }
+
       const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
+      let mpData: any = p.marketplace_data;
+      if (typeof mpData === "string") {
+        try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+      }
+      const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode.trim();
+
       validItems.push({
-        MerchantSku: p.barcode.trim(),
+        MerchantSku: hbMerchantSku,
         HepsiburadaSku: p.hepsiburada_sku || "",
         Price: effectivePrice,
         AvailableStock: parseInt(p.stock_quantity || "0", 10),

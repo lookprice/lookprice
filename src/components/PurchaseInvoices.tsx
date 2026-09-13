@@ -530,6 +530,42 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
     }
   };
 
+  const handleConvertToStock = async (id: number) => {
+    try {
+      const res = await api.convertPurchaseInvoiceToStock(id, role === 'superadmin' ? storeId : undefined);
+      if (res.success) {
+        toast.success(res.message || (isTr ? "Fatura başarıyla Stoklu Alım statüsüne geçirildi ve ürünler stoğa işlendi." : "Invoice converted to stock purchase."));
+        fetchInvoicesData(activeSearch, startDate, endDate, true);
+        if (showDetailsModal && selectedInvoice?.id === id) {
+          const updated = await api.getPurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
+          setSelectedInvoice(updated);
+        }
+      } else {
+        toast.error(res.error || (isTr ? "İşlem başarısız oldu." : "Operation failed."));
+      }
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? "Hata oluştu." : "An error occurred."));
+    }
+  };
+
+  const handleConvertToExpense = async (id: number, data?: any) => {
+    try {
+      const res = await api.convertPurchaseInvoiceToExpense(id, data, role === 'superadmin' ? storeId : undefined);
+      if (res.success) {
+        toast.success(res.message || (isTr ? "Fatura başarıyla Gider Faturasına dönüştürüldü." : "Invoice converted to expense."));
+        fetchInvoicesData(activeSearch, startDate, endDate, true);
+        if (showDetailsModal && selectedInvoice?.id === id) {
+          const updated = await api.getPurchaseInvoice(id, role === 'superadmin' ? storeId : undefined);
+          setSelectedInvoice(updated);
+        }
+      } else {
+        toast.error(res.error || (isTr ? "İşlem başarısız oldu." : "Operation failed."));
+      }
+    } catch (err: any) {
+      toast.error(err.message || (isTr ? "Hata oluştu." : "An error occurred."));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -626,6 +662,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         handleViewHtml={handleViewHtml}
         handleUpdateTicariStatus={handleUpdateTicariStatus}
         handleUpdatePaymentStatus={handleUpdatePaymentStatus}
+        handleConvertToStock={handleConvertToStock}
+        handleConvertToExpense={handleConvertToExpense}
         page={page}
         totalPages={Math.ceil(invoices.length / itemsPerPage)}
         setPage={setPage}
@@ -693,6 +731,8 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
         isTr={isTr}
         handleViewHtml={handleViewHtml}
         onEditProduct={onEditProduct}
+        handleConvertToStock={handleConvertToStock}
+        handleConvertToExpense={handleConvertToExpense}
       />
 
       {showHtmlModal && (

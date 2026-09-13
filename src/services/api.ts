@@ -310,7 +310,10 @@ export const api = {
   updatePurchaseInvoiceTicariStatus: (id: number, status: 'APPROVED' | 'REJECTED', storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/status${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { status }),
   markPurchaseInvoiceRead: (id: number, storeId?: number) => api.patch(`/api/store/purchase-invoices/${id}/read${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   updatePurchaseInvoicePaymentStatus: (id: number, status: 'paid' | 'unpaid') => api.patch(`/api/store/purchase-invoices/${id}/payment-status`, { status }),
-  
+  convertPurchaseInvoiceToStock: (id: number, storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/convert-to-stock${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  convertPurchaseInvoiceToExpense: (id: number, data?: { expense_category?: string; expense_center?: string }, storeId?: number) => api.post(`/api/store/purchase-invoices/${id}/convert-to-expense${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data || {}),
+  autoRepairPurchaseExpenses: (storeId?: number) => api.post(`/api/store/purchase-invoices/auto-repair-expenses${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+    
   // AI Endpoints
   parseMenuImage: (imageBase64: string, lang: string) => api.post("/api/store/ai/parse-menu-image", { imageBase64, lang }),
   
@@ -507,7 +510,9 @@ export const api = {
     categoryAttributes?: any;
     storeId?: number; 
   }) => api.post("/api/integrations/hepsiburada/settings", data),
-  syncHepsiburadaOrders: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync", { storeId }),
+  syncHepsiburadaOrders: (storeId?: number, params?: { beginDate?: string; timespan?: number }) => api.post("/api/integrations/hepsiburada/sync", { storeId, ...(params || {}) }),
+  matchHepsiburadaListings: (importMissing: boolean = true, storeId?: number) => api.post("/api/integrations/hepsiburada/match-listings", { importMissing, storeId }),
+  getHepsiburadaListings: (storeId?: number) => api.get(`/api/integrations/hepsiburada/listings${storeId ? `?storeId=${storeId}` : ""}`),
   syncHepsiburadaInventory: (storeId?: number) => api.post("/api/integrations/hepsiburada/sync-inventory", { storeId }),
   getHepsiburadaCategories: (storeId?: number) => api.get(`/api/integrations/hepsiburada/categories${storeId ? `?storeId=${storeId}` : ""}`),
   getHepsiburadaCategoryAttributes: (categoryId: string | number, storeId?: number) => api.get(`/api/integrations/hepsiburada/categories/${categoryId}/attributes${storeId ? `?storeId=${storeId}` : ""}`),

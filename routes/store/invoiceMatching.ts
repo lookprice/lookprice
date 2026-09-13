@@ -422,8 +422,21 @@ export function detectExpenseCategory(
   }
 
   // 1. Supermarket, Grocery & Food Retail (BİM, A101, ŞOK, Migros, Carrefour, Tarım Kredi, Hakmar, etc.)
+  const isBimMarket = (
+    titleLower === 'bim' ||
+    titleLower.startsWith('bim ') ||
+    titleLower.endsWith(' bim') ||
+    titleLower.includes(' bim ') ||
+    titleLower.includes('bim birlesik') ||
+    titleLower.includes('bim birleşik') ||
+    titleLower.includes('bim magazacilik') ||
+    titleLower.includes('bim mağazacılık') ||
+    titleLower.includes('birlesik magazalar') ||
+    titleLower.includes('birleşik mağazalar')
+  ) && !titleLower.includes('bimel') && !titleLower.includes('bimed') && !titleLower.includes('bimeks') && !titleLower.includes('bimsan') && !titleLower.includes('bimak');
+
   if (
-    titleLower.includes('bim ') || titleLower.startsWith('bim') || titleLower.includes('birlesik magazalar') || titleLower.includes('birleşik mağazalar') ||
+    isBimMarket ||
     titleLower.includes('a101') || titleLower.includes('yeni magazacilik') || titleLower.includes('yeni mağazacılık') ||
     titleLower.includes('sok market') || titleLower.includes('şok market') || titleLower.includes('sok marketler') || titleLower.includes('şok marketler') ||
     titleLower.includes('migros') || titleLower.includes('macrocenter') ||
@@ -771,28 +784,48 @@ export async function resolveExpenseClassification(
       "SELECT id, is_expense, expense_category, expense_center FROM companies WHERE id = $1 AND store_id = $2",
       [companyId, storeId]
     );
-    if (compRes.rows.length > 0 && compRes.rows[0].is_expense) {
-      return {
-        isExpense: true,
-        expenseCategory: compRes.rows[0].expense_category || 'MARKET',
-        expenseCenter: compRes.rows[0].expense_center || 'office',
-        reason: 'Pinned in Company Record'
-      };
+    if (compRes.rows.length > 0) {
+      if (compRes.rows[0].is_expense === false) {
+        return {
+          isExpense: false,
+          expenseCategory: null,
+          expenseCenter: null,
+          reason: 'Company explicitly marked as stock supplier'
+        };
+      }
+      if (compRes.rows[0].is_expense === true) {
+        return {
+          isExpense: true,
+          expenseCategory: compRes.rows[0].expense_category || 'MARKET',
+          expenseCenter: compRes.rows[0].expense_center || 'office',
+          reason: 'Pinned in Company Record'
+        };
+      }
     }
   }
 
   if (vkn) {
     const compRes = await poolOrClient.query(
-      "SELECT id, is_expense, expense_category, expense_center FROM companies WHERE store_id = $1 AND tax_number = $2 AND is_expense = true LIMIT 1",
+      "SELECT id, is_expense, expense_category, expense_center FROM companies WHERE store_id = $1 AND tax_number = $2 LIMIT 1",
       [storeId, vkn]
     );
     if (compRes.rows.length > 0) {
-      return {
-        isExpense: true,
-        expenseCategory: compRes.rows[0].expense_category || 'MARKET',
-        expenseCenter: compRes.rows[0].expense_center || 'office',
-        reason: 'Pinned by Supplier VKN in Companies'
-      };
+      if (compRes.rows[0].is_expense === false) {
+        return {
+          isExpense: false,
+          expenseCategory: null,
+          expenseCenter: null,
+          reason: 'Company explicitly marked as stock supplier by VKN'
+        };
+      }
+      if (compRes.rows[0].is_expense === true) {
+        return {
+          isExpense: true,
+          expenseCategory: compRes.rows[0].expense_category || 'MARKET',
+          expenseCenter: compRes.rows[0].expense_center || 'office',
+          reason: 'Pinned by Supplier VKN in Companies'
+        };
+      }
     }
   }
 

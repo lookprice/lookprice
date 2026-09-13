@@ -573,29 +573,31 @@ export const ProductModal = ({
 
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isBookstore ? (isTr ? "Yayınevi / Yayıncı" : "Publisher") : (isTr ? "Marka / Yayınevi" : "Brand / Publisher")}
+                  {isBookstore ? (isTr ? "Yayınevi / Yayıncı" : "Publisher") : (isTr ? "Marka" : "Brand")}
                 </label>
                 <input
                   type="text"
                   name="brand"
-                  placeholder={isBookstore ? (isTr ? "örn: Can Yayınları, İş Bankası, YKY" : "Publisher") : (isTr ? "örn: İş Bankası, Apple" : "Brand or Publisher")}
+                  placeholder={isBookstore ? (isTr ? "örn: Can Yayınları, İş Bankası, YKY" : "Publisher") : (isTr ? "örn: GAP, Nike, Apple" : "Brand name")}
                   className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
                   defaultValue={editingProduct?.brand || (editingProduct as any)?.sector_data?.publisher || ""}
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isBookstore ? (isTr ? "Eser Sahibi / Yazar" : "Author") : (isTr ? "Yazar / Yönetmen (Opsiyonel)" : "Author / Director")}
-                </label>
-                <input
-                  type="text"
-                  name="author"
-                  placeholder={isBookstore ? (isTr ? "örn: Fyodor Dostoyevski" : "Author name") : (isTr ? "örn: F. Dostoyevski" : "Author name")}
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.author || (editingProduct as any)?.sector_data?.author || ""}
-                />
-              </div>
+              {isBookstore && (
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
+                    {isTr ? "Eser Sahibi / Yazar" : "Author"}
+                  </label>
+                  <input
+                    type="text"
+                    name="author"
+                    placeholder={isTr ? "örn: Fyodor Dostoyevski" : "Author name"}
+                    className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
+                    defaultValue={editingProduct?.author || (editingProduct as any)?.sector_data?.author || ""}
+                  />
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">

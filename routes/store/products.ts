@@ -951,6 +951,49 @@ router.put("/:id", async (req: any, res) => {
       req.body
     );
 
+    // Auto-sync revised price & stock to Hepsiburada if product is active on HB
+    if (existingProductRes.rows[0]?.is_hepsiburada_active) {
+      (async () => {
+        try {
+          const storeRes = await pool.query("SELECT hepsiburada_settings, currency_rates, branding FROM stores WHERE id = $1", [storeId]);
+          const st = storeRes.rows[0];
+          const hbSettings = st?.hepsiburada_settings || st?.branding?.hepsiburada_settings;
+          if (hbSettings?.merchantId && hbSettings?.apiKey && hbSettings?.apiSecret) {
+            const { HepsiburadaService } = await import("../../src/services/backend/hepsiburadaService.js");
+            const hbService = new HepsiburadaService(hbSettings, storeId);
+            
+            const rates = st?.currency_rates || st?.branding?.currency_rates || {};
+            let rawPrice = parseFloat(String(finalPrice || "0"));
+            const curr = (currency || "TRY").toUpperCase();
+            if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+            else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+            else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+
+            const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, category, sub_category);
+            const hbMerchantSku = finalMarketplaceData?.hepsiburada?.merchantSku || finalBarcode;
+
+            await hbService.updatePriceAndStock([{
+              MerchantSku: hbMerchantSku,
+              HepsiburadaSku: existingProductRes.rows[0]?.hepsiburada_sku || "",
+              Price: effectivePrice,
+              AvailableStock: parseInt(String(newStock || 0), 10),
+              DispatchTime: hbSettings.defaultDispatchTime || 1,
+            }]);
+            await pool.query(
+              "UPDATE products SET hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL WHERE id = $1",
+              [id]
+            );
+          }
+        } catch (hbSyncErr: any) {
+          console.warn(`[Background HB Sync] Failed for product ${id}:`, hbSyncErr.message);
+          await pool.query(
+            "UPDATE products SET hepsiburada_last_error = $1 WHERE id = $2",
+            [hbSyncErr.message, id]
+          );
+        }
+      })();
+    }
+
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });

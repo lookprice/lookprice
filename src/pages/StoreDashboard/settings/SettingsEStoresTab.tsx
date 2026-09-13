@@ -515,9 +515,33 @@ export const SettingsEStoresTab = ({
     }
   };
 
+  const [hbMatching, setHbMatching] = useState(false);
+
+  const handleMatchHbListings = async () => {
+    try {
+      setHbMatching(true);
+      const res = await api.matchHepsiburadaListings(true, currentStoreId);
+      const data = res.data;
+      if (data && data.success) {
+        toast.success(
+          lang === 'tr'
+            ? `Hepsiburada Eşleştirme Başarılı! ${data.matchedCount} ürün eşleşti, ${data.importedCount} yeni ürün aktarıldı.`
+            : `Sync completed! ${data.matchedCount} matched, ${data.importedCount} imported.`
+        );
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(data?.message || (lang === 'tr' ? "Eşleştirme başarısız" : "Matching failed"));
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || (lang === 'tr' ? "Eşleştirme hatası" : "Matching error"));
+    } finally {
+      setHbMatching(false);
+    }
+  };
+
   const handleSyncHbOrders = async () => {
     await hbSync.runSync(
-      () => api.syncHepsiburadaOrders(currentStoreId),
+      () => api.syncHepsiburadaOrders(currentStoreId, { beginDate: '2026-09-01', timespan: 30 }),
       (res) => {
         toast.success(`${t.hepsiburadaSyncSuccess || "Hepsiburada siparişleri senkronize edildi"}: ${res.count || 0} ${t.sales || "Sipariş"}`);
         if (onRefresh) onRefresh();
@@ -1184,9 +1208,22 @@ export const SettingsEStoresTab = ({
                 disabled={hbSync.isSyncing}
                 id="hb-sync-orders-btn"
                 className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                title={lang === 'tr' ? "01.09.2026'dan itibaren son 30 günün tüm Hepsiburada siparişlerini canlı çeker" : "Sync orders"}
               >
                 <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${hbSync.isSyncing ? 'animate-spin' : ''}`} />
-                <span>{hbSync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
+                <span>{hbSync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Canlı Çek' : 'Sync Orders')}</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={handleMatchHbListings}
+                disabled={hbMatching}
+                id="hb-match-listings-btn"
+                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition-all disabled:opacity-50 cursor-pointer active:scale-95"
+                title={lang === 'tr' ? "Hepsiburada satıcı hesabınızdaki önceden satışa açılan ürünleri çeker, mağazadaki ürünlerle barkod ve SKU bazında eşleştirir" : "Match live merchant listings"}
+              >
+                <Layers className={`h-3.5 w-3.5 ${hbMatching ? 'animate-spin' : ''}`} />
+                <span>{hbMatching ? (lang === 'tr' ? 'Eşleştiriliyor...' : 'Matching...') : (lang === 'tr' ? 'HB Ürünlerini Çek & Eşle' : 'Match HB Listings')}</span>
               </button>
 
               <button 

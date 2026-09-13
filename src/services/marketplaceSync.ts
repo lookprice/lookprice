@@ -39,23 +39,50 @@ export async function processMarketplaceOrderLines(
     let productId = null;
     let currentStock = 0;
     
-    const searchCode = (line.barcode || line.sku || "").trim();
-    if (searchCode) {
+    const searchCandidates = Array.from(
+      new Set(
+        [
+          line.barcode,
+          line.sku,
+          line.merchantSku,
+          line.hbSku,
+          line.productCode,
+          line.product_code,
+          line.hepsiburadaSku,
+          line.id
+        ]
+          .map((c) => (c ? String(c).trim() : ""))
+          .filter((c) => c.length > 0)
+      )
+    );
+
+    if (searchCandidates.length > 0) {
       try {
         const prodRes = await client.query(
-          "SELECT id, stock_quantity FROM products WHERE store_id = $1 AND (barcode = $2 OR sku = $2 OR hepsiburada_sku = $2) LIMIT 1", 
-          [storeId, searchCode]
+          `SELECT id, stock_quantity FROM products 
+           WHERE store_id = $1 AND (
+             barcode = ANY($2) 
+             OR sku = ANY($2) 
+             OR product_code = ANY($2) 
+             OR hepsiburada_sku = ANY($2)
+             OR marketplace_data->'hepsiburada'->>'merchantSku' = ANY($2)
+             OR marketplace_data->'hepsiburada'->>'hepsiburadaSku' = ANY($2)
+             OR marketplace_data->'trendyol'->>'barcode' = ANY($2)
+             OR marketplace_data->'trendyol'->>'stockCode' = ANY($2)
+             OR marketplace_data->'n11'->>'sellerCode' = ANY($2)
+           ) LIMIT 1`, 
+          [storeId, searchCandidates]
         );
         if (prodRes.rows.length > 0) {
           productId = prodRes.rows[0].id;
           currentStock = prodRes.rows[0].stock_quantity;
         }
       } catch (findErr) {
-        // Fallback to barcode only if sku column is not present yet
+        // Fallback to simpler query if JSONB or some column is missing
         try {
           const prodRes2 = await client.query(
-            "SELECT id, stock_quantity FROM products WHERE store_id = $1 AND barcode = $2 LIMIT 1", 
-            [storeId, searchCode]
+            "SELECT id, stock_quantity FROM products WHERE store_id = $1 AND (barcode = ANY($2) OR sku = ANY($2) OR hepsiburada_sku = ANY($2)) LIMIT 1", 
+            [storeId, searchCandidates]
           );
           if (prodRes2.rows.length > 0) {
             productId = prodRes2.rows[0].id;

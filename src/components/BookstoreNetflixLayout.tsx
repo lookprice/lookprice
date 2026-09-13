@@ -19,8 +19,7 @@ import {
   Quote,
   X,
   Building2,
-  Layers,
-  Heart
+  Layers
 } from "lucide-react";
 import { Product, Store as StoreInfo } from "../types";
 import { NetflixBookRow } from "./bookstore/NetflixBookRow";

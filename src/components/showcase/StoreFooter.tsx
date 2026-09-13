@@ -49,19 +49,59 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
   const isTr = lang === "tr";
   const displayName = getDisplayStoreName(store);
 
-  // Address parsing
-  const storeAddress = store?.address || store?.branding?.address || store?.branding?.store_address || (isTr ? "İstiklal Caddesi No:142, Beyoğlu" : "142 Istiklal Avenue");
-  const storeCity = store?.city || store?.branding?.city || "İstanbul";
-  const storeCountry = store?.country || store?.branding?.country || "Türkiye";
-  const fullAddress = `${storeAddress}, ${storeCity}, ${storeCountry}`;
-  const mapSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${displayName} ${fullAddress}`)}`;
+  // Accurate address parsing without any assumed city/country fallbacks
+  const rawAddress = (store?.address || store?.branding?.address || store?.branding?.store_address || "").trim();
+  const rawDistrict = (store?.district || store?.branding?.district || "").trim();
+  const rawCity = (store?.city || store?.branding?.city || "").trim();
+  const rawCountry = (store?.country || store?.branding?.country || "").trim();
+  
+  const addressParts = [rawAddress, rawDistrict, rawCity, rawCountry].filter(Boolean);
+  const fullAddress = addressParts.length > 0 ? addressParts.join(", ") : "";
+  const displayAddressText = fullAddress || (isTr ? "İletişim kanallarımızdan bize ulaşabilirsiniz." : "Contact us for store address details.");
 
-  // Contact info
-  const storePhone = store?.phone || store?.branding?.phone || "+90 212 245 00 00";
-  const storeEmail = store?.email || store?.branding?.email || "destek@kitapdunyasi.com";
-  const rawWhatsapp = store?.whatsapp_number || store?.branding?.whatsapp_number || storePhone;
+  const customMapUrl = store?.branding?.google_maps_url || "";
+  const mapSearchQuery = fullAddress ? `${displayName} ${fullAddress}` : displayName;
+  const mapSearchUrl = customMapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapSearchQuery)}`;
+
+  // Dynamic Working Hours Parsing
+  const wh = store?.branding?.working_hours || (store as any)?.working_hours;
+  const whCustomText = store?.branding?.working_hours_text || (typeof wh === 'string' ? wh : null);
+
+  const formatWorkingHours = () => {
+    if (whCustomText && typeof whCustomText === 'string' && whCustomText.trim()) {
+      return { main: whCustomText.trim(), secondary: null, note: null };
+    }
+    if (wh && typeof wh === 'object') {
+      const weekdays = wh.weekdays || "09:00 - 19:00";
+      const satText = wh.is_saturday_closed ? (isTr ? "Kapalı" : "Closed") : (wh.saturday || weekdays);
+      const sunText = (wh.is_sunday_closed || !wh.sunday || wh.sunday === "Kapalı" || wh.sunday === "Closed") 
+        ? (isTr ? "Kapalı" : "Closed") 
+        : wh.sunday;
+      
+      const main = isTr 
+        ? `Hafta İçi: ${weekdays}` 
+        : `Weekdays: ${weekdays}`;
+      const secondary = isTr
+        ? `Cts: ${satText} | Pzr: ${sunText}`
+        : `Sat: ${satText} | Sun: ${sunText}`;
+      const note = wh.note || null;
+      return { main, secondary, note };
+    }
+    return {
+      main: isTr ? "Hafta İçi: 09:00 - 18:00" : "Mon - Fri: 09:00 - 18:00",
+      secondary: isTr ? "Pazar: Kapalı" : "Sun: Closed",
+      note: null
+    };
+  };
+
+  const hoursInfo = formatWorkingHours();
+
+  // Contact info (no fake dummy numbers if empty)
+  const storePhone = (store?.phone || store?.branding?.phone || "").trim();
+  const storeEmail = (store?.email || store?.branding?.email || "").trim();
+  const rawWhatsapp = (store?.whatsapp_number || store?.branding?.whatsapp_number || storePhone || "").trim();
   const whatsappSanitized = rawWhatsapp.replace(/\D/g, '');
-  const whatsappUrl = `https://wa.me/${whatsappSanitized.startsWith('90') ? whatsappSanitized : `90${whatsappSanitized}`}`;
+  const whatsappUrl = whatsappSanitized ? `https://wa.me/${whatsappSanitized.startsWith('90') ? whatsappSanitized : `90${whatsappSanitized}`}` : "";
 
   // Social media links
   const social = store?.branding?.social_media || {};
@@ -178,23 +218,36 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
           <div className="lg:col-span-4 space-y-2.5">
             <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-red-500" />
-              <span>{isTr ? "Adres & Harita" : "Location & Map"}</span>
+              <span>{isTr ? "Adres & Çalışma Saatleri" : "Location & Hours"}</span>
             </h4>
 
             <div className="p-3 bg-slate-900/90 rounded-xl border border-slate-800/90 space-y-2">
               <div className="flex items-start gap-2 text-xs">
                 <MapPin className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-slate-200 font-medium leading-snug">{fullAddress}</p>
+                  <p className="text-slate-200 font-medium leading-snug">{displayAddressText}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-1 border-t border-slate-800">
-                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>{isTr ? "Pzt - Cts: 09:00 - 21:00 | Pzr: 10:00 - 20:00" : "Mon - Sat: 09:00 - 21:00 | Sun: 10:00 - 20:00"}</span>
+              {/* Dynamic Working Hours */}
+              <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-300 space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold text-amber-400/90">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>{hoursInfo.main}</span>
+                </div>
+                {hoursInfo.secondary && (
+                  <div className="text-slate-400 pl-5 text-[10px] font-medium">
+                    {hoursInfo.secondary}
+                  </div>
+                )}
+                {hoursInfo.note && (
+                  <div className="text-slate-500 pl-5 text-[9.5px] italic">
+                    {hoursInfo.note}
+                  </div>
+                )}
               </div>
 
-              {/* Direct Google Maps Action Button */}
+              {/* Direct Google Maps Action Button (only if address or custom URL is configured) */}
               <a
                 href={mapSearchUrl}
                 target="_blank"
@@ -216,25 +269,47 @@ export const StoreFooter: React.FC<StoreFooterProps> = ({
                 {isTr ? "İletişim" : "Contact"}
               </h4>
               <ul className="space-y-2 text-xs">
-                <li>
-                  <a 
-                    href={`tel:${storePhone}`} 
-                    className="text-slate-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors"
-                  >
-                    <Phone className="w-3.5 h-3.5 text-slate-500" />
-                    <span>{storePhone}</span>
-                  </a>
-                </li>
-                <li>
-                  <a 
-                    href={`mailto:${storeEmail}`} 
-                    className="text-slate-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors truncate max-w-[170px]"
-                    title={storeEmail}
-                  >
-                    <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="truncate">{storeEmail}</span>
-                  </a>
-                </li>
+                {storePhone ? (
+                  <li>
+                    <a 
+                      href={`tel:${storePhone}`} 
+                      className="text-slate-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{storePhone}</span>
+                    </a>
+                  </li>
+                ) : null}
+                {storeEmail ? (
+                  <li>
+                    <a 
+                      href={`mailto:${storeEmail}`} 
+                      className="text-slate-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors truncate max-w-[170px]"
+                      title={storeEmail}
+                    >
+                      <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span className="truncate">{storeEmail}</span>
+                    </a>
+                  </li>
+                ) : null}
+                {whatsappUrl && (
+                  <li>
+                    <a 
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1.5 transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>{isTr ? "WhatsApp Destek" : "WhatsApp Chat"}</span>
+                    </a>
+                  </li>
+                )}
+                {!storePhone && !storeEmail && !whatsappUrl && (
+                  <li className="text-slate-500 text-[11px] italic">
+                    {isTr ? "İletişim için mesaj bırakınız." : "Leave a message for support."}
+                  </li>
+                )}
               </ul>
             </div>
 

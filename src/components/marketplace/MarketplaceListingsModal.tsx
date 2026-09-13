@@ -74,7 +74,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
     skuField: 'hepsiburada_sku',
     getListingUrl: (p: any) => {
       if (p.hepsiburada_sku) {
-        return `https://www.hepsiburada.com/product-p-${p.hepsiburada_sku}`;
+        return `https://www.hepsiburada.com/-p-${p.hepsiburada_sku}`;
       }
       return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`;
     },
@@ -92,7 +92,11 @@ const MARKETPLACES: MarketplaceConfig[] = [
     errorField: 'trendyol_last_error',
     lastSyncField: 'trendyol_last_sync',
     skuField: 'trendyol_id',
-    getListingUrl: (p: any) => `https://www.trendyol.com/sr?q=${encodeURIComponent(p.barcode || p.name)}`,
+    getListingUrl: (p: any) => {
+      const tyId = p.trendyol_id || p.marketplace_data?.trendyol?.contentId;
+      if (tyId) return `https://www.trendyol.com/-p-${tyId}`;
+      return `https://www.trendyol.com/sr?q=${encodeURIComponent(p.barcode || p.name)}`;
+    },
     getMerchantUrl: (p: any) => `https://partner.trendyol.com/products/inventory?barcode=${encodeURIComponent(p.barcode || '')}`
   },
   {
@@ -169,6 +173,50 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isBulkPublishing, setIsBulkPublishing] = useState(false);
+  const [isMatchingListings, setIsMatchingListings] = useState(false);
+  const [isSyncingOrders, setIsSyncingOrders] = useState(false);
+  const [matchResult, setMatchResult] = useState<any | null>(null);
+
+  const handleMatchListings = async (importMissing: boolean = true) => {
+    try {
+      setIsMatchingListings(true);
+      const res = await api.matchHepsiburadaListings(importMissing, currentStoreId);
+      const data = res.data;
+      if (data && data.success) {
+        setMatchResult(data);
+        toast.success(
+          isTr 
+            ? `Hepsiburada İlan Eşleştirme Başarılı! ${data.matchedCount} ürün eşleştirildi, ${data.importedCount} yeni ürün aktarıldı.`
+            : `Sync completed! ${data.matchedCount} matched, ${data.importedCount} imported.`
+        );
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(data?.message || (isTr ? "Eşleştirme işlemi tamamlanamadı." : "Match failed."));
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || (isTr ? "Eşleştirme hatası" : "Matching error"));
+    } finally {
+      setIsMatchingListings(false);
+    }
+  };
+
+  const handleSyncHepsiburadaOrders = async () => {
+    try {
+      setIsSyncingOrders(true);
+      const res = await api.syncHepsiburadaOrders(currentStoreId, { beginDate: '2026-09-01', timespan: 30 });
+      const count = res.data?.count || 0;
+      toast.success(
+        isTr 
+          ? `${count} adet Hepsiburada siparişi (01.09.2026 ve sonrası) başarıyla kontrol edilip çekildi!`
+          : `${count} Hepsiburada orders synced successfully!`
+      );
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || (isTr ? "Sipariş çekme hatası" : "Order sync error"));
+    } finally {
+      setIsSyncingOrders(false);
+    }
+  };
 
   // Helper to test if a product is active in a specific marketplace
   const isProductActive = (p: any, mpKey: MarketplaceKey): boolean => {
@@ -558,6 +606,35 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               </button>
             </div>
 
+            {/* Quick Actions for Hepsiburada Integration */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleMatchListings(true)}
+                disabled={isMatchingListings}
+                className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                title={isTr ? "Hepsiburada satıcı hesabınızdaki tüm canlı ürünleri çekip mağazadaki ürünlerle eşleştirir, olmayanları içe aktarır" : "Fetch active Hepsiburada listings and match with local products"}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
+                {isMatchingListings 
+                  ? (isTr ? "HB Ürünleri Eşleştiriliyor..." : "Matching HB Listings...") 
+                  : (isTr ? "HB Ürünlerini Çek & Eşleştir" : "Fetch & Match HB Listings")}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSyncHepsiburadaOrders}
+                disabled={isSyncingOrders}
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                title={isTr ? "01.09.2026 ve sonrasındaki tüm Hepsiburada siparişlerini canlı olarak panele aktarır" : "Sync all Hepsiburada orders from 01.09.2026 onwards"}
+              >
+                <Package className={`w-3.5 h-3.5 ${isSyncingOrders ? 'animate-spin' : ''}`} />
+                {isSyncingOrders
+                  ? (isTr ? "Siparişler Çekiliyor..." : "Syncing Orders...")
+                  : (isTr ? "09.09.2026 ve Siparişleri Çek" : "Sync All Recent Orders")}
+              </button>
+            </div>
+
             {/* Bulk Publish & Unpublish Buttons */}
             {selectedIds.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
@@ -584,6 +661,24 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               </div>
             )}
           </div>
+
+          {/* Match Result Banner */}
+          {matchResult && (
+            <div className="p-3 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/60 text-xs text-orange-900 dark:text-orange-200 flex items-center justify-between gap-3 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-orange-600 shrink-0" />
+                <span>
+                  <strong>{isTr ? "HB Eşleştirme Sonucu:" : "HB Sync Result:"}</strong> {matchResult.message} (Toplam: {matchResult.totalListings}, Eşleşen: {matchResult.matchedCount}, Yeni İçe Aktarılan: {matchResult.importedCount})
+                </span>
+              </div>
+              <button 
+                onClick={() => setMatchResult(null)}
+                className="text-orange-600 hover:text-orange-800 p-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Row 3: Search Input & Category Dropdown */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -748,6 +843,13 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                 {p.category && (
                                   <span className="text-[10px] font-medium text-slate-400 truncate max-w-[120px]">
                                     {p.category}
+                                  </span>
+                                )}
+
+                                {p.hepsiburada_sku && (
+                                  <span className="font-mono text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Hepsiburada SKU">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                    HB: {p.hepsiburada_sku}
                                   </span>
                                 )}
                               </div>

@@ -12,7 +12,8 @@ import {
   XCircle, 
   Clock,
   Eye,
-  CreditCard
+  CreditCard,
+  Layers
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -23,6 +24,8 @@ interface PurchaseInvoiceDetailsModalProps {
   isTr: boolean;
   handleViewHtml?: (id: number) => void;
   onEditProduct?: (item: any) => void;
+  handleConvertToStock?: (id: number) => void;
+  handleConvertToExpense?: (id: number) => void;
 }
 
 export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalProps> = ({
@@ -31,7 +34,9 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
   invoice,
   isTr,
   handleViewHtml,
-  onEditProduct
+  onEditProduct,
+  handleConvertToStock,
+  handleConvertToExpense
 }) => {
   if (!isOpen || !invoice) return null;
 
@@ -44,15 +49,46 @@ export const PurchaseInvoiceDetailsModal: React.FC<PurchaseInvoiceDetailsModalPr
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <Info className="h-5 w-5 text-indigo-600" />
-              {isTr ? "Fatura Detayları" : "Invoice Details"}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <Info className="h-5 w-5 text-indigo-600" />
+                {isTr ? "Fatura Detayları" : "Invoice Details"}
+              </h3>
+              {invoice.is_expense ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                  💼 {isTr ? `GİDER (${invoice.expense_category || 'DİĞER'})` : `EXPENSE (${invoice.expense_category || 'OTHER'})`}
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                  📦 {isTr ? "STOKLU ALIM" : "STOCK BUY"}
+                </span>
+              )}
+            </div>
             <p className="text-xs font-bold text-slate-400 mt-0.5 uppercase tracking-widest">
               {invoice.invoice_number}
             </p>
           </div>
           <div className="flex items-center gap-2">
+             {invoice.is_expense && handleConvertToStock && (
+                <button
+                  onClick={() => handleConvertToStock(invoice.id)}
+                  className="px-3.5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-sm"
+                  title={isTr ? "Bu faturayı Stoklu Alım statüsüne geçir ve ürün stoklarını sisteme ekle" : "Convert to Stock Purchase"}
+                >
+                  <Package className="h-4 w-4" />
+                  {isTr ? "STOKLU ALIMA DÖNÜŞTÜR" : "CONVERT TO STOCK"}
+                </button>
+             )}
+             {!invoice.is_expense && handleConvertToExpense && (
+                <button
+                  onClick={() => handleConvertToExpense(invoice.id)}
+                  className="px-3.5 py-2 bg-amber-600 text-white rounded-xl text-xs font-black hover:bg-amber-700 transition-all flex items-center gap-1.5 shadow-sm"
+                  title={isTr ? "Bu faturayı Gider Faturasına dönüştür ve stokları geri çek" : "Convert to Expense Invoice"}
+                >
+                  <Layers className="h-4 w-4" />
+                  {isTr ? "GİDER FATURASINA DÖNÜŞTÜR" : "CONVERT TO EXPENSE"}
+                </button>
+             )}
              {handleViewHtml && (
                 <button
                   onClick={() => handleViewHtml(invoice.id)}

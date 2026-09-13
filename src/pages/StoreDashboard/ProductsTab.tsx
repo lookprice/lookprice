@@ -138,6 +138,28 @@ const ProductsTab = ({
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
+
+  const getHepsiburadaUrl = (p: any) => {
+    if (p.hepsiburada_sku) {
+      return `https://www.hepsiburada.com/-p-${p.hepsiburada_sku}`;
+    }
+    return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`;
+  };
+
+  const getTrendyolUrl = (p: any) => {
+    const tyId = p.trendyol_id || p.marketplace_data?.trendyol?.contentId || p.marketplace_data?.trendyol?.pimCategoryId;
+    if (tyId) {
+      return `https://www.trendyol.com/-p-${tyId}`;
+    }
+    return `https://www.trendyol.com/sr?q=${encodeURIComponent(p.barcode || p.name)}`;
+  };
+
+  const getN11Url = (p: any) => {
+    if (p.n11_id) {
+      return `https://www.n11.com/urun/${p.n11_id}`;
+    }
+    return `https://www.n11.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`;
+  };
   const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(false);
   const [marketplaceModalTab, setMarketplaceModalTab] = useState<'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama'>('hepsiburada');
   const [marketplaceModalStatus, setMarketplaceModalStatus] = useState<'all' | 'active' | 'error' | 'inactive'>('all');
@@ -605,6 +627,20 @@ const ProductsTab = ({
               <Download className="h-4 w-4" />
             </button>
 
+            {/* In-Store Price Check / Store QR & Printable Poster Button */}
+            {!isViewer && onShowQr && (
+              <button 
+                onClick={onShowQr}
+                className="os-btn-secondary p-2 text-amber-700 hover:text-amber-800 bg-amber-50/90 hover:bg-amber-100 rounded-lg transition-all border border-amber-300 hover:border-amber-400 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title={lang === 'tr' ? "Mağaza İçi 'Fiyat Gör' Barkod QR Kodu & Yazdırılabilir Afiş" : "In-Store 'Price Check' Barcode QR & Printable Poster"}
+              >
+                <QrCode className="h-4 w-4 text-amber-600 shrink-0" />
+                <span className="text-[11px] font-black text-amber-950 hidden md:inline whitespace-nowrap">
+                  {lang === 'tr' ? "Fiyat Gör QR" : "Price Check QR"}
+                </span>
+              </button>
+            )}
+
             {!isViewer && isShopLp && connectedMarketplaces.hasAnyConnected && (
               <button 
                 onClick={() => {
@@ -1046,12 +1082,12 @@ const ProductsTab = ({
                                   })()}
                                   {isShopLp && connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && (
                                     <a
-                                      href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
+                                      href={getHepsiburadaUrl(p)}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={(e) => e.stopPropagation()}
                                       className="text-[8px] font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5"
-                                      title={lang === 'tr' ? "Hepsiburada Canlı İlan" : "HB Live"}
+                                      title={lang === 'tr' ? (p.hepsiburada_sku ? `Hepsiburada İlanı (${p.hepsiburada_sku})` : "Hepsiburada Canlı İlan") : "HB Live"}
                                     >
                                       <span className="w-1 h-1 rounded-full bg-orange-500"></span>
                                       HB
@@ -1347,26 +1383,42 @@ const ProductsTab = ({
                             <div className="flex items-center gap-1">
                               {connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && (
                                 <a
-                                  href={`https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`}
+                                  href={getHepsiburadaUrl(p)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
                                   className="font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1"
-                                  title={lang === 'tr' ? "Hepsiburada Canlı İlan" : "HB Live"}
+                                  title={lang === 'tr' ? (p.hepsiburada_sku ? `Hepsiburada İlanı (${p.hepsiburada_sku})` : "Hepsiburada Canlı İlan") : "HB Live"}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                                   Hepsiburada Yayında
                                 </a>
                               )}
                               {connectedMarketplaces.trendyol && p.is_trendyol_active && (
-                                <span className="font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase">
+                                <a
+                                  href={getTrendyolUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1"
+                                  title={lang === 'tr' ? "Trendyol Canlı İlan" : "Trendyol Live"}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                   Trendyol Yayında
-                                </span>
+                                </a>
                               )}
                               {connectedMarketplaces.n11 && p.is_n11_active && (
-                                <span className="font-bold text-red-800 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded uppercase">
+                                <a
+                                  href={getN11Url(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-bold text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1"
+                                  title={lang === 'tr' ? "N11 Canlı İlan" : "N11 Live"}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                   N11 Yayında
-                                </span>
+                                </a>
                               )}
                             </div>
                           )}

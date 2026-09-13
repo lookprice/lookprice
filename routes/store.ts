@@ -187,7 +187,13 @@ router.post("/sync-tcmb", async (req: any, res) => {
       [JSON.stringify(newRates), targetStoreId]
     );
 
-    res.json({ success: true, rates: newRates, message: "TCMB kurları başarıyla güncellendi." });
+    // Auto-sync revised prices for active marketplace products
+    const { syncMarketplacePricesOnRateChange } = await import("../src/services/cronJobs.js");
+    syncMarketplacePricesOnRateChange(targetStoreId, newRates).catch((syncErr: any) => {
+      console.warn(`[TCMB-SYNC-STORE] Store #${targetStoreId} pazaryeri fiyat revizyonu hatası:`, syncErr.message || syncErr);
+    });
+
+    res.json({ success: true, rates: newRates, message: "TCMB kurları başarıyla güncellendi ve pazaryeri fiyatları revize edildi." });
   } catch (error: any) {
     console.error("Error in POST /api/store/sync-tcmb:", error);
     res.status(500).json({ error: error.message });

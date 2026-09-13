@@ -859,8 +859,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             description={product.description}
           />
 
-          {/* Bookstore Literature Metadata Panel */}
-          {(Boolean(store?.branding?.bookstore_module_enabled || (store as any)?.bookstore_module_enabled || product.author || (product as any).sector_data?.isbn || (product as any).sector_data?.page_count)) && (
+          {/* Bookstore Literature Metadata Panel (Only shown if bookstore module/preset is active on the store) */}
+          {(Boolean(store?.branding?.bookstore_module_enabled || (store as any)?.bookstore_module_enabled || store?.branding?.active_preset === 'bookstore_netflix')) && (
             <div className="mb-8 p-5 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-white rounded-3xl border border-slate-800 shadow-xl space-y-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <span className="text-xs font-black uppercase tracking-wider text-red-400 flex items-center gap-2">

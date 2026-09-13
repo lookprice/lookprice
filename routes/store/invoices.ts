@@ -2002,39 +2002,68 @@ router.put("/purchase/:id", async (req: any, res) => {
     if (checkRes.rows.length === 0) return res.status(404).json({ error: "Invoice not found" });
     const wasExpense = checkRes.rows[0]?.is_expense === true;
 
-    let finalIsExpense = is_expense === true || is_expense === 'true';
+    let finalIsExpense: boolean;
     let finalExpenseCategory = expense_category || null;
     let finalExpenseCenter = expense_center || null;
 
-    if (!finalIsExpense) {
-      const expenseCheck = await resolveExpenseClassification(pool, storeId, {
-        supplierTitle: supplier_name,
-        supplierVkn: tax_number,
-        companyId: company_id,
-        pinToCompany: true
-      });
-      if (expenseCheck.isExpense) {
-        finalIsExpense = true;
-        finalExpenseCategory = finalExpenseCategory || expenseCheck.expenseCategory;
-        finalExpenseCenter = finalExpenseCenter || expenseCheck.expenseCenter;
+    if (is_expense !== undefined) {
+      // User explicitly specified their preference in the form / request!
+      finalIsExpense = is_expense === true || is_expense === 'true';
+      if (!finalIsExpense) {
+        finalExpenseCategory = null;
+        finalExpenseCenter = null;
+        // Unpin company from being expense so future syncs/queries treat it as stock supplier
+        if (company_id || tax_number) {
+          try {
+            if (company_id) {
+              await pool.query(
+                "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE id = $1 AND store_id = $2",
+                [company_id, storeId]
+              );
+            }
+            if (tax_number) {
+              await pool.query(
+                "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE store_id = $1 AND tax_number = $2",
+                [storeId, tax_number]
+              );
+            }
+          } catch (e) {
+            console.error("Error unpinning company from expense in PUT /purchase:", e);
+          }
+        }
+      } else {
+        // Pin manual expense to company
+        if (company_id || tax_number) {
+          try {
+            if (company_id) {
+              await pool.query(
+                "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE id = $3",
+                [finalExpenseCategory, finalExpenseCenter, company_id]
+              );
+            } else if (tax_number) {
+              await pool.query(
+                "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE store_id = $3 AND tax_number = $4",
+                [finalExpenseCategory, finalExpenseCenter, storeId, tax_number]
+              );
+            }
+          } catch (e) {
+            console.error("Error pinning manual expense to company:", e);
+          }
+        }
       }
     } else {
-      // Pin manual expense to company
-      if (company_id || tax_number) {
-        try {
-          if (company_id) {
-            await pool.query(
-              "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE id = $3",
-              [finalExpenseCategory, finalExpenseCenter, company_id]
-            );
-          } else if (tax_number) {
-            await pool.query(
-              "UPDATE companies SET is_expense = true, expense_category = COALESCE(expense_category, $1), expense_center = COALESCE(expense_center, $2) WHERE store_id = $3 AND tax_number = $4",
-              [finalExpenseCategory, finalExpenseCenter, storeId, tax_number]
-            );
-          }
-        } catch (e) {
-          console.error("Error pinning manual expense to company:", e);
+      finalIsExpense = wasExpense;
+      if (!finalIsExpense) {
+        const expenseCheck = await resolveExpenseClassification(pool, storeId, {
+          supplierTitle: supplier_name,
+          supplierVkn: tax_number,
+          companyId: company_id,
+          pinToCompany: true
+        });
+        if (expenseCheck.isExpense) {
+          finalIsExpense = true;
+          finalExpenseCategory = finalExpenseCategory || expenseCheck.expenseCategory;
+          finalExpenseCenter = finalExpenseCenter || expenseCheck.expenseCenter;
         }
       }
     }
@@ -2560,6 +2589,217 @@ router.post("/purchase/:id/convert-to-expense", async (req: any, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Explicitly convert an existing expense invoice to a stock/commercial purchase
+router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.body.storeId || req.user.store_id) : req.user.store_id;
+  const { id } = req.params;
+
+  try {
+    const invRes = await pool.query("SELECT * FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+    if (invRes.rows.length === 0) return res.status(404).json({ error: "Fatura bulunamadı." });
+    const inv = invRes.rows[0];
+
+    // 1. Mark invoice as NOT expense
+    await pool.query(
+      "UPDATE purchase_invoices SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE id = $1",
+      [id]
+    );
+
+    // 2. Unpin company from being expense so future syncs/queries treat it as stock supplier
+    if (inv.company_id) {
+      await pool.query(
+        "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE id = $1 AND store_id = $2",
+        [inv.company_id, storeId]
+      );
+    }
+    if (inv.tax_number) {
+      await pool.query(
+        "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE store_id = $1 AND tax_number = $2",
+        [storeId, inv.tax_number]
+      );
+    }
+
+    // 3. Process items and restore / create product stock links
+    const itemsRes = await pool.query(
+      "SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1 ORDER BY id ASC",
+      [id]
+    );
+
+    let processedItemsCount = 0;
+    let addedStockCount = 0;
+
+    for (const item of itemsRes.rows) {
+      let resolvedProductId = item.product_id;
+      let resolvedBarcode = item.barcode;
+      let resolvedProductCode = item.product_code;
+
+      if (!resolvedProductId) {
+        // Try finding matching product in store
+        const match = await findMatchingProduct(pool, storeId, {
+          supplierVkn: inv.tax_number,
+          productName: item.product_name,
+          barcode: item.barcode,
+          productCode: item.product_code,
+          sellerCode: item.seller_code,
+          buyerCode: item.buyer_code
+        });
+
+        if (match) {
+          resolvedProductId = match.productId;
+          resolvedBarcode = match.barcode;
+          resolvedProductCode = match.productCode;
+        } else {
+          // Check by barcode or product_code directly
+          const { productId: foundId, barcode: foundBc, productCode: foundPc } = await resolveProductInfo(
+            pool, storeId, null, item.barcode, item.product_code
+          );
+          if (foundId) {
+            resolvedProductId = foundId;
+            resolvedBarcode = foundBc;
+            resolvedProductCode = foundPc;
+          } else {
+            // Auto-create product for this invoice item
+            const sanitized = sanitizeInvoiceItemCodes(item.barcode, item.seller_code, item.buyer_code, item.product_code);
+            const unitPrice = Number(item.unit_price) || 0;
+            const taxRate = Number(item.tax_rate) || 20;
+            const salePrice = Number((unitPrice * 1.35).toFixed(2));
+            const newProdRes = await pool.query(
+              `INSERT INTO products 
+               (store_id, name, barcode, product_code, sku, category, price, cost_price, cost_currency, tax_rate, stock_quantity, labels, is_active, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, true, NOW(), NOW()) RETURNING id, barcode, product_code`,
+              [
+                storeId,
+                item.product_name || 'Alış Faturası Ürünü',
+                sanitized.barcode,
+                sanitized.productCode || item.product_code || null,
+                sanitized.productCode || item.product_code || null,
+                'Genel',
+                salePrice,
+                unitPrice,
+                inv.currency || 'TRY',
+                taxRate,
+                JSON.stringify(['yeni_fatura_urunu', 'stoklu_alim'])
+              ]
+            );
+            if (newProdRes.rows.length > 0) {
+              resolvedProductId = newProdRes.rows[0].id;
+              resolvedBarcode = newProdRes.rows[0].barcode;
+              resolvedProductCode = newProdRes.rows[0].product_code;
+            }
+          }
+        }
+      }
+
+      if (resolvedProductId) {
+        // Update purchase invoice item record
+        await pool.query(
+          "UPDATE purchase_invoice_items SET product_id = $1, barcode = COALESCE($2, barcode), product_code = COALESCE($3, product_code) WHERE id = $4",
+          [resolvedProductId, resolvedBarcode, resolvedProductCode, item.id]
+        );
+
+        if (inv.tax_number && item.product_name) {
+          await saveSupplierMapping(pool, storeId, inv.tax_number, item.product_name, resolvedProductId, resolvedProductCode);
+        }
+
+        const qtyToStock = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+        if (qtyToStock > 0) {
+          // Check if stock movement already recorded
+          const movCheck = await pool.query(
+            "SELECT 1 FROM stock_movements WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND source = 'purchase_invoice' LIMIT 1",
+            [storeId, id, resolvedProductId]
+          );
+
+          if (movCheck.rows.length === 0) {
+            await pool.query(
+              "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
+              [qtyToStock, item.unit_price || 0, inv.currency || 'TRY', resolvedProductId, storeId]
+            );
+
+            await addStockMovement(
+              pool, storeId, resolvedProductId, 'in', qtyToStock, 'purchase_invoice',
+              `Fatura Girişi: ${inv.invoice_number || inv.document_number}`, item.unit_price || 0, inv.supplier_name || 'Tedarikçi', inv.currency || 'TRY',
+              null, Number(id), 'purchase', inv.invoice_number || inv.document_number
+            );
+            addedStockCount++;
+          }
+        }
+        processedItemsCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: "Fatura başarıyla Stoklu Alım statüsüne geçirildi ve ürün stokları sisteme işlendi.",
+      is_expense: false,
+      processedItemsCount,
+      addedStockCount
+    });
+  } catch (err: any) {
+    console.error("Error converting invoice to stock:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Auto-fix misclassified Bimel invoices & unpin Bimel from companies
+(async function repairMisclassifiedBimel() {
+  try {
+    // 1. Unpin any company with name containing Bimel from being expense
+    await pool.query(
+      "UPDATE companies SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE (LOWER(title) LIKE '%bimel%' OR LOWER(title) LIKE '%bimel elektronik%') AND is_expense = true"
+    );
+
+    // 2. Convert BML2026000019517 or any BML/Bimel invoice if marked as expense
+    const bmlInvs = await pool.query(
+      "SELECT id, store_id, invoice_number, supplier_name, tax_number, currency FROM purchase_invoices WHERE (invoice_number LIKE '%BML2026000019517%' OR UPPER(invoice_number) = 'BML2026000019517' OR LOWER(supplier_name) LIKE '%bimel%') AND is_expense = true"
+    );
+
+    for (const row of bmlInvs.rows) {
+      console.log(`[AUTO-REPAIR] Converting Bimel invoice #${row.invoice_number} (ID: ${row.id}) to stock purchase...`);
+      await pool.query(
+        "UPDATE purchase_invoices SET is_expense = false, expense_category = NULL, expense_center = NULL WHERE id = $1",
+        [row.id]
+      );
+      
+      const itemsRes = await pool.query("SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [row.id]);
+      for (const item of itemsRes.rows) {
+        let prodId = item.product_id;
+        if (!prodId) {
+          const { productId, barcode, productCode } = await resolveProductInfo(pool, row.store_id, null, item.barcode, item.product_code);
+          if (productId) {
+            prodId = productId;
+            await pool.query("UPDATE purchase_invoice_items SET product_id = $1, barcode = COALESCE($2, barcode), product_code = COALESCE($3, product_code) WHERE id = $4", [productId, barcode, productCode, item.id]);
+          } else {
+            const sanitized = sanitizeInvoiceItemCodes(item.barcode, null, null, item.product_code);
+            const unitPrice = Number(item.unit_price) || 0;
+            const taxRate = Number(item.tax_rate) || 20;
+            const salePrice = Number((unitPrice * 1.35).toFixed(2));
+            const newProd = await pool.query(
+              `INSERT INTO products 
+               (store_id, name, barcode, product_code, sku, category, price, cost_price, cost_currency, tax_rate, stock_quantity, labels, is_active, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, true, NOW(), NOW()) RETURNING id`,
+              [row.store_id, item.product_name || 'Bimel Ürünü', sanitized.barcode, sanitized.productCode || item.product_code || null, sanitized.productCode || item.product_code || null, 'Genel', salePrice, unitPrice, row.currency || 'TRY', taxRate, JSON.stringify(['yeni_fatura_urunu', 'stoklu_alim'])]
+            );
+            if (newProd.rows.length > 0) {
+              prodId = newProd.rows[0].id;
+              await pool.query("UPDATE purchase_invoice_items SET product_id = $1 WHERE id = $2", [prodId, item.id]);
+            }
+          }
+        }
+        if (prodId) {
+          const qty = item.system_quantity != null ? Number(item.system_quantity) : Number(item.quantity || 1);
+          const movCheck = await pool.query("SELECT 1 FROM stock_movements WHERE store_id = $1 AND invoice_id = $2 AND product_id = $3 AND source = 'purchase_invoice' LIMIT 1", [row.store_id, row.id, prodId]);
+          if (movCheck.rows.length === 0 && qty > 0) {
+            await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5", [qty, item.unit_price || 0, row.currency || 'TRY', prodId, row.store_id]);
+            await addStockMovement(pool, row.store_id, prodId, 'in', qty, 'purchase_invoice', `Fatura Girişi: ${row.invoice_number}`, item.unit_price || 0, row.supplier_name || 'Bimel', row.currency || 'TRY', null, row.id, 'purchase', row.invoice_number);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[AUTO-REPAIR-BIMEL] Error:", err);
+  }
+})();
 
 // Auto-repair all historical expense invoices in the store that were mistakenly treated as inventory
 router.post("/purchase/auto-repair-expenses", async (req: any, res) => {
