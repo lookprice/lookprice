@@ -627,16 +627,22 @@ const ProductsTab = ({
               <Download className="h-4 w-4" />
             </button>
 
-            {/* In-Store Price Check / Store QR & Printable Poster Button */}
+            {/* In-Store Price Check / Digital Menu QR Button */}
             {!isViewer && onShowQr && (
               <button 
                 onClick={onShowQr}
                 className="os-btn-secondary p-2 text-amber-700 hover:text-amber-800 bg-amber-50/90 hover:bg-amber-100 rounded-lg transition-all border border-amber-300 hover:border-amber-400 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
-                title={lang === 'tr' ? "Mağaza İçi 'Fiyat Gör' Barkod QR Kodu & Yazdırılabilir Afiş" : "In-Store 'Price Check' Barcode QR & Printable Poster"}
+                title={
+                  !isCafeRestaurant
+                    ? (lang === 'tr' ? "Mağaza İçi 'Fiyat Gör' Barkod QR Kodu & Yazdırılabilir Afiş" : "In-Store 'Price Check' Barcode QR & Printable Poster")
+                    : (lang === 'tr' ? "Dijital Menü & Web Vitrini QR Kodu" : "Digital Menu & Web Showcase QR Code")
+                }
               >
                 <QrCode className="h-4 w-4 text-amber-600 shrink-0" />
                 <span className="text-[11px] font-black text-amber-950 hidden md:inline whitespace-nowrap">
-                  {lang === 'tr' ? "Fiyat Gör QR" : "Price Check QR"}
+                  {!isCafeRestaurant 
+                    ? (lang === 'tr' ? "Fiyat Gör QR" : "Price Check QR")
+                    : (lang === 'tr' ? "Menü QR" : "Menu QR")}
                 </span>
               </button>
             )}

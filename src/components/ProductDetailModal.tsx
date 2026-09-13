@@ -134,6 +134,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
 
   // Keyboard navigation for enlarged viewer
   useEffect(() => {
@@ -511,7 +512,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         initial={{ scale: 0.95, opacity: 0, y: 15 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 15 }}
-        className="bg-white w-full max-w-4xl md:max-w-5xl rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[90vh] md:max-h-[85vh] border border-slate-200"
+        className="bg-white w-full max-w-4xl lg:max-w-5xl rounded-2xl md:rounded-3xl shadow-2xl relative z-10 overflow-hidden flex flex-col md:flex-row max-h-[92vh] md:max-h-[88vh] border border-slate-200"
       >
         <button
           onClick={onClose}
@@ -521,89 +522,75 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <X className="w-4 h-4" />
         </button>
 
-        <div className="w-full md:w-[42%] shrink-0 h-[280px] sm:h-[350px] md:h-auto md:min-h-[440px] bg-slate-50 flex flex-col relative border-b md:border-b-0 md:border-r border-slate-200 transition-all duration-500 overflow-hidden justify-center items-center">
-          {/* Share Buttons Overlay */}
-          <div className="absolute top-6 left-6 flex flex-col items-start gap-2 z-20">
+        {/* Product Image Column */}
+        <div className="w-full md:w-[46%] lg:w-[48%] shrink-0 h-[280px] sm:h-[350px] md:h-auto md:min-h-[460px] bg-slate-50/70 flex flex-col relative border-b md:border-b-0 md:border-r border-slate-200 transition-all duration-500 overflow-hidden justify-center items-center">
+          {/* Share Buttons Floating Pill */}
+          <div className="absolute top-3 left-3 flex items-center gap-1 z-20 bg-white/90 backdrop-blur-md px-2 py-1 rounded-xl border border-slate-200/80 shadow-xs">
             <button
               onClick={shareProduct}
               type="button"
-              className="p-3 bg-white/95 backdrop-blur-md rounded-xl shadow-lg hover:bg-white transition-all active:scale-90 group border border-slate-200"
+              className="p-1 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors"
               title={lang === "tr" ? "Paylaş" : "Share"}
             >
-              <Share2 className="w-5 h-5 text-indigo-600" />
+              <Share2 className="w-4 h-4" />
             </button>
             <button
               onClick={shareOnWhatsApp}
               type="button"
-              className="p-3 bg-emerald-500/95 backdrop-blur-md rounded-xl shadow-lg hover:bg-emerald-500 transition-all active:scale-90 border border-emerald-400/20"
+              className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors"
               title="WhatsApp"
             >
-              <svg
-                className="w-5 h-5 text-white fill-current"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
               </svg>
             </button>
             <button
               onClick={copyLink}
               type="button"
-              className="p-3 bg-white/95 backdrop-blur-md rounded-xl shadow-lg hover:bg-white transition-all active:scale-90 flex items-center gap-2 group overflow-hidden border border-slate-200"
+              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-1"
               title={lang === "tr" ? "Linki Kopyala" : "Copy Link"}
             >
-              <div className="flex items-center gap-2">
-                {isCopied ? (
-                  <Check className="w-5 h-5 text-emerald-600" />
-                ) : (
-                  <Link2 className="w-5 h-5 text-slate-600" />
-                )}
-                <AnimatePresence>
-                  {isCopied && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: "auto" }}
-                      exit={{ opacity: 0, width: 0 }}
-                      className="text-[10px] font-black uppercase text-emerald-600 tracking-widest whitespace-nowrap"
-                    >
-                      {lang === "tr" ? "Kopyalandı" : "Copied"}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </div>
+              {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Link2 className="w-4 h-4" />}
+              {isCopied && (
+                <span className="text-[10px] font-bold text-emerald-600">
+                  {lang === "tr" ? "Kopyalandı" : "Copied"}
+                </span>
+              )}
             </button>
           </div>
 
-          {/* View Mode Switcher Moved and Refined */}
+          {/* View Mode Switcher */}
           {(product.type === "real_estate" || product.type === "vehicle" || store?.store_type === "real_estate" || store?.store_type === "motor_vehicle") && (
-              <div className="absolute top-6 right-16 z-30 transition-all duration-500">
-                <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-800 flex gap-1 shadow-2xl">
-                  <button
-                    type="button"
-                    onClick={() => setActiveViewMode("gallery")}
-                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "gallery" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
-                  >
-                    <Package className="w-3 h-3" />
-                    {lang === "tr" ? "Galeri" : "Gallery"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveViewMode("tourMap")}
-                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1.5 ${activeViewMode === "tourMap" ? "bg-white text-slate-950 shadow-md" : "text-slate-400 hover:text-white"}`}
-                  >
-                    <MapIcon className="w-3 h-3" />
-                    {lang === "tr" ? "HARİTA" : "MAP FLOW"}
-                  </button>
-                </div>
+            <div className="absolute top-3 right-12 z-30 transition-all duration-500">
+              <div className="bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-slate-800 flex gap-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => setActiveViewMode("gallery")}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase transition-all flex items-center gap-1 ${activeViewMode === "gallery" ? "bg-white text-slate-950 shadow-xs" : "text-slate-400 hover:text-white"}`}
+                >
+                  <Package className="w-3 h-3" />
+                  {lang === "tr" ? "Galeri" : "Gallery"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveViewMode("tourMap")}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase transition-all flex items-center gap-1 ${activeViewMode === "tourMap" ? "bg-white text-slate-950 shadow-xs" : "text-slate-400 hover:text-white"}`}
+                >
+                  <MapIcon className="w-3 h-3" />
+                  {lang === "tr" ? "HARİTA" : "MAP"}
+                </button>
               </div>
-            )}
+            </div>
+          )}
+
           {activeViewMode === "tourMap" ? (
-             <PropertyMapTour 
-                location={(product as any).location || product.sector_data?.location || product.address || store?.address} 
-                property={product} 
-                lang={lang} 
-              />
+            <PropertyMapTour 
+              location={(product as any).location || product.sector_data?.location || product.address || store?.address} 
+              property={product} 
+              lang={lang} 
+            />
           ) : productImages.length > 0 ? (
-            <div className="w-full flex-1 flex flex-col justify-between bg-slate-50/80 relative p-3 md:p-4">
+            <div className="w-full flex-1 flex flex-col justify-between bg-slate-50/70 relative p-3 md:p-4">
               {/* Main Viewport Box */}
               <div
                 className="flex-1 relative min-h-0 flex items-center justify-center group/gallery cursor-zoom-in py-2"
@@ -615,7 +602,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <img
                   src={getAnnotatedImageUrl(productImages[activeImageIdx])}
                   alt={product.name}
-                  className="max-w-full max-h-[260px] sm:max-h-[320px] md:max-h-[380px] object-contain rounded-lg shadow-sm transition-all duration-300 group-hover/gallery:scale-105"
+                  className="max-w-full max-h-[260px] sm:max-h-[330px] md:max-h-[400px] object-contain rounded-lg shadow-xs transition-all duration-300 group-hover/gallery:scale-105"
                   referrerPolicy="no-referrer"
                 />
 
@@ -665,7 +652,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       key={idx}
                       type="button"
                       onClick={() => setActiveImageIdx(idx)}
-                      className={`w-10 h-10 rounded-md overflow-hidden border transition-all flex-shrink-0 cursor-pointer ${activeImageIdx === idx ? "border-indigo-600 scale-105 shadow-sm" : "border-slate-200 hover:border-slate-400"}`}
+                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-md overflow-hidden border transition-all flex-shrink-0 cursor-pointer ${activeImageIdx === idx ? "border-indigo-600 scale-105 shadow-xs" : "border-slate-200 hover:border-slate-400"}`}
                     >
                       <img
                         src={getAnnotatedImageUrl(img)}
@@ -683,148 +670,202 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
           )}
         </div>
-        <div className="w-full md:w-[58%] flex-1 min-h-0 p-4 sm:p-6 md:p-7 overflow-y-auto no-scrollbar">
-          <div className="mb-3 flex flex-wrap gap-x-2 gap-y-1.5 items-center">
-            {getLabels(product.labels).map((label, idx) => (
-              <span
-                key={idx}
-                className="text-[9px] tracking-wide font-semibold px-2.5 py-1 rounded-md text-white shadow-xs"
-                style={{ backgroundColor: primaryColor }}
-              >
-                {label}
-              </span>
-            ))}
-            <div className="flex flex-col">
-              <span className="text-[7px] font-semibold text-gray-400 tracking-wide leading-none mb-0.5">
-                {categoryLabel}
-              </span>
-              <span
-                className="text-[9px] tracking-wide font-semibold px-2.5 py-0.5 rounded-md whitespace-nowrap"
-                style={{
-                  color: primaryColor,
-                  backgroundColor: `${primaryColor}10`,
-                }}
-              >
-                {product.type === "real_estate" && lang === "tr"
-                  ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
-                  : (product.category || t.dashboard.uncategorized)}
-              </span>
-            </div>
-            {product.brand && product.type !== "real_estate" && (
-              <div className="flex flex-col">
-                <span className="text-[7px] font-semibold text-gray-400 tracking-wide leading-none mb-0.5">
-                  {brandLabel}
-                </span>
-                <span className="text-[9px] tracking-wide font-semibold px-2.5 py-0.5 rounded-md border border-gray-100 text-gray-600 whitespace-nowrap">
-                  {product.brand}
-                </span>
-              </div>
-            )}
-            {product.type === "real_estate" && (product as any).location && (
-              <div className="flex flex-col">
-                <span className="text-[7px] font-semibold text-gray-400 tracking-wide leading-none mb-0.5">
-                  {brandLabel}
-                </span>
-                <span className="text-[9px] tracking-wide font-semibold px-2.5 py-0.5 rounded-md border border-gray-100 text-gray-600 whitespace-nowrap">
-                  {(product as any).location}
-                </span>
-              </div>
-            )}
-            {product.branch_name && product.branch_name !== store?.name && (
-              <div className="flex flex-col px-1">
-                <span className="text-[7px] font-semibold text-gray-400 tracking-wide leading-none mb-0.5">
-                  {lang === "tr" ? "Şube" : "Branch"}
-                </span>
-                <span className="text-[9px] tracking-wide font-semibold px-2.5 py-0.5 rounded-md border border-gray-100 text-gray-600 whitespace-nowrap">
-                  {product.branch_name}
-                </span>
-              </div>
-            )}
-          </div>
 
+        {/* Product Details Column */}
+        <div className="w-full md:w-[54%] lg:w-[52%] flex-1 min-h-0 p-4 sm:p-5 md:p-6 overflow-y-auto no-scrollbar">
+          {/* Metadata Badges (Category, Author, Publisher, Brand, Stock) */}
+          {(() => {
+            const isBook = Boolean(
+              (product.sector_data as any)?.isbn ||
+              (product.sector_data as any)?.author ||
+              product.author ||
+              (product.sector_data as any)?.publisher ||
+              (product.sector_data as any)?.page_count ||
+              (product.sector_data as any)?.cover_type ||
+              (product.sector_data as any)?.synopsis ||
+              (product.sector_data as any)?.translator ||
+              store?.branding?.bookstore_module_enabled ||
+              (store as any)?.bookstore_module_enabled ||
+              store?.branding?.active_preset === 'bookstore_netflix'
+            );
+
+            const authorName = (product.author || (product.sector_data as any)?.author || "").trim();
+            const publisherName = ((product.sector_data as any)?.publisher || (isBook ? product.brand : "") || "").trim();
+            const brandName = (!isBook ? product.brand : "")?.trim();
+
+            return (
+              <div className="mb-2.5 flex flex-wrap gap-1.5 items-center">
+                {getLabels(product.labels).map((label, idx) => (
+                  <span
+                    key={idx}
+                    className="text-[9px] font-bold px-2 py-0.5 rounded-md text-white shadow-2xs"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {label}
+                  </span>
+                ))}
+
+                {/* Category */}
+                <span
+                  className="text-[9px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap"
+                  style={{
+                    color: primaryColor,
+                    backgroundColor: `${primaryColor}12`,
+                  }}
+                >
+                  {product.type === "real_estate" && lang === "tr"
+                    ? (product.category === "residence" ? "Konut" : product.category === "commercial" ? "Ticari" : product.category === "land" ? "Arsa" : (product.category || t.dashboard.uncategorized))
+                    : (product.category || t.dashboard.uncategorized)}
+                </span>
+
+                {/* Author Badge */}
+                {authorName && (
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200/70 flex items-center gap-1">
+                    <span>✍️</span>
+                    <span>{lang === "tr" ? "Yazar:" : "Author:"} {authorName}</span>
+                  </span>
+                )}
+
+                {/* Publisher Badge */}
+                {publisherName && (
+                  <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200/80 flex items-center gap-1">
+                    <span>🏛️</span>
+                    <span>{lang === "tr" ? "Yayınevi:" : "Publisher:"} {publisherName}</span>
+                  </span>
+                )}
+
+                {/* Non-Book Brand */}
+                {brandName && product.type !== "real_estate" && (
+                  <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-700 whitespace-nowrap">
+                    {brandLabel}: {brandName}
+                  </span>
+                )}
+
+                {/* Real Estate Location */}
+                {product.type === "real_estate" && (product as any).location && (
+                  <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-700 whitespace-nowrap">
+                    {(product as any).location}
+                  </span>
+                )}
+
+                {/* Branch */}
+                {product.branch_name && product.branch_name !== store?.name && (
+                  <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-600 whitespace-nowrap">
+                    {lang === "tr" ? "Şube" : "Branch"}: {product.branch_name}
+                  </span>
+                )}
+
+                {/* Stock Quantity */}
+                {product.stock_quantity !== undefined && product.stock_quantity !== null && (
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${
+                    Number(product.stock_quantity) > 0 
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200/70" 
+                      : "bg-rose-50 text-rose-700 border border-rose-200/70"
+                  }`}>
+                    {Number(product.stock_quantity) > 0 
+                      ? `${lang === "tr" ? "Stokta" : "In Stock"} (${product.stock_quantity})`
+                      : (lang === "tr" ? "Tükendi" : "Out of stock")}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Product Name */}
           <h2
-            className={`text-2xl sm:text-3xl text-slate-900 mb-2 leading-snug tracking-tight ${isLuxury ? "!font-sans !font-medium" : "font-extrabold"}`}
+            className={`text-xl sm:text-2xl text-slate-900 mb-1.5 leading-snug tracking-tight ${isLuxury ? "!font-sans !font-medium" : "font-extrabold"}`}
           >
             {product.name}
           </h2>
 
-          <div className="flex items-baseline gap-3 mb-8">
+          {/* Price */}
+          <div className="flex items-baseline gap-2.5 mb-3">
             <span
-              className={`text-4xl text-slate-900 ${isLuxury ? "!font-sans !font-medium" : "font-semibold font-display"}`}
+              className={`text-2xl sm:text-3xl text-slate-900 ${isLuxury ? "!font-sans !font-medium" : "font-bold font-display"}`}
             >
               {formatPrice(convertedPrice, store?.currency || product.currency || '', sector, store?.store_type)}
             </span>
             {product.unit && (
-              <span className="text-xl text-slate-400 font-medium">
+              <span className="text-xs text-slate-400 font-medium">
                 / {product.unit}
               </span>
             )}
           </div>
 
+          {/* Trade-in badge if available */}
           {(product.is_trade_in_available || (product.sector_data as any)?.is_trade_in_available) && (
-            <div className="mb-8 inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100/50 group hover:bg-emerald-100/50 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <ArrowDownUp className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider leading-none">
-                  {lang === "tr" ? "TAKAS İMKANI" : "TRADE-IN AVAILABLE"}
-                </span>
-                <span className="text-[10px] opacity-70 font-medium">
-                  {lang === "tr" 
-                    ? (product.type === 'real_estate' ? "Bu portföy için takas teklifleri değerlendirilir." : "Bu araç için takas teklifleri değerlendirilir.") 
-                    : (product.type === 'real_estate' ? "Trade-in offers are considered for this property." : "Trade-in offers are considered for this vehicle.")}
-                </span>
-              </div>
+            <div className="mb-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200/60">
+              <ArrowDownUp className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-[10px] font-bold uppercase tracking-wide">
+                {lang === "tr" ? "Takas İmkanı Değerlendirilir" : "Trade-in Considered"}
+              </span>
             </div>
           )}
 
-          {product.description && 
-            !product.description.startsWith("Şasi:") && 
-            (() => {
-              const desc = product.description.trim().toLowerCase();
-              const story = ((product as any).market_story || (product.sector_data as any)?.market_story || "").trim().toLowerCase();
-              const tech = ((product as any).technical_description || (product.sector_data as any)?.technical_description || "").trim().toLowerCase();
-              return desc !== story && desc !== tech && desc.length > 5;
-            })() && (
-            <div className="prose prose-slate max-w-none mb-10 text-slate-700">
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.3em] mb-4">
-                {t.dashboard.description}
-              </h4>
-              <div 
-                className="text-slate-600 leading-relaxed text-base font-medium [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_h1]:text-2xl [&_h2]:text-xl [&_*]:!text-inherit [&_a]:!text-indigo-600"
-                dangerouslySetInnerHTML={{ __html: product.description.replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ') }} 
-              />
-            </div>
-          )}
+          {/* Description / Synopsis Section */}
+          {(() => {
+            const rawDesc = (product.description && !product.description.startsWith("Şasi:")) ? product.description : "";
+            const rawSynopsis = ((product.sector_data as any)?.synopsis || (product as any).synopsis || "").trim();
+            const effectiveDesc = rawDesc || rawSynopsis;
+            if (!effectiveDesc) return null;
 
+            const story = ((product as any).market_story || (product.sector_data as any)?.market_story || "").trim().toLowerCase();
+            const tech = ((product as any).technical_description || (product.sector_data as any)?.technical_description || "").trim().toLowerCase();
+            const descLower = effectiveDesc.trim().toLowerCase();
+            if (descLower === story || descLower === tech || effectiveDesc.length <= 5) return null;
+
+            const isLong = effectiveDesc.length > 300;
+            const displayText = !isLong || isDescExpanded
+              ? effectiveDesc
+              : effectiveDesc.substring(0, 280) + "...";
+
+            return (
+              <div className="mb-4 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 text-slate-700">
+                <h4 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                  {lang === "tr" ? "AÇIKLAMA" : "DESCRIPTION"}
+                </h4>
+                <div 
+                  className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-normal [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-semibold [&_*]:!text-inherit [&_a]:!text-indigo-600"
+                  dangerouslySetInnerHTML={{ __html: displayText.replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ') }} 
+                />
+                {isLong && (
+                  <button
+                    type="button"
+                    onClick={() => setIsDescExpanded(!isDescExpanded)}
+                    className="mt-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                  >
+                    {isDescExpanded ? (lang === "tr" ? "Daha az göster ▲" : "Show less ▲") : (lang === "tr" ? "Devamını oku ▼" : "Read more ▼")}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Automotive Market Story (if present) */}
           {((product as any).market_story || (product.sector_data as any)?.market_story) && (
-            <div className="mb-10 p-8 bg-blue-50/40 rounded-[2.5rem] border border-blue-100/50 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
-                <Car className="w-32 h-32 text-blue-600" />
-              </div>
-              <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
-                <span className="w-8 h-[1px] bg-blue-200" />
+            <div className="mb-4 p-3.5 bg-blue-50/50 rounded-xl border border-blue-100/60">
+              <h4 className="text-[9px] font-bold text-blue-700 uppercase tracking-widest mb-1">
                 {lang === "tr" ? "PAZAR HİKAYESİ" : "MARKET STORY"}
               </h4>
-              <p className="text-slate-800 leading-relaxed text-base font-medium relative z-10">
+              <p className="text-slate-800 text-xs leading-relaxed font-normal">
                 {(product as any).market_story || (product.sector_data as any)?.market_story}
               </p>
             </div>
           )}
 
+          {/* Technical Description (if present) */}
           {((product as any).technical_description || (product.sector_data as any)?.technical_description) && (
-            <div className="mb-10 p-8 bg-slate-50/80 rounded-[2.5rem] border border-slate-200/50 shadow-sm relative overflow-hidden group">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
-                <span className="w-8 h-[1px] bg-slate-300" />
-                {lang === "tr" ? "TEKNİK İLAN AÇIKLAMASI" : "TECHNICAL DESCRIPTION"}
+            <div className="mb-4 p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/60">
+              <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                {lang === "tr" ? "TEKNİK AÇIKLAMA" : "TECHNICAL DESCRIPTION"}
               </h4>
-              <p className="text-slate-700 leading-relaxed text-sm whitespace-pre-wrap font-medium">
+              <p className="text-slate-700 text-xs leading-relaxed whitespace-pre-wrap font-normal">
                 {(product as any).technical_description || (product.sector_data as any)?.technical_description}
               </p>
             </div>
           )}
 
+          {/* Technical & Literature Specifications (High-density micro cards) */}
           <SectorSpecs
             sector={
               product?.type === "vehicle" || store?.store_type === "motor_vehicle"
@@ -858,58 +899,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             name={product.name}
             description={product.description}
           />
-
-          {/* Bookstore Literature Metadata Panel (Only shown if bookstore module/preset is active on the store) */}
-          {(Boolean(store?.branding?.bookstore_module_enabled || (store as any)?.bookstore_module_enabled || store?.branding?.active_preset === 'bookstore_netflix')) && (
-            <div className="mb-8 p-5 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-white rounded-3xl border border-slate-800 shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <span className="text-xs font-black uppercase tracking-wider text-red-400 flex items-center gap-2">
-                  <span>📖 {lang === "tr" ? "Eser & Yayın Bilgileri" : "Book & Edition Details"}</span>
-                </span>
-                <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full">
-                  ⭐ {(product as any).sector_data?.rating || "4.8"} / 5.0
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                {product.author && (
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Yazar" : "Author"}</span>
-                    <span className="font-bold text-slate-100">{product.author}</span>
-                  </div>
-                )}
-                {product.brand && (
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Yayınevi" : "Publisher"}</span>
-                    <span className="font-bold text-slate-100">{product.brand}</span>
-                  </div>
-                )}
-                {(product as any).sector_data?.isbn && (
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                    <span className="text-[10px] text-slate-400 block">ISBN</span>
-                    <span className="font-mono font-bold text-slate-100">{(product as any).sector_data.isbn}</span>
-                  </div>
-                )}
-                {(product as any).sector_data?.page_count && (
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Sayfa Sayısı" : "Pages"}</span>
-                    <span className="font-bold text-slate-100">{(product as any).sector_data.page_count}</span>
-                  </div>
-                )}
-                {(product as any).sector_data?.cover_type && (
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Kapak Türü" : "Cover"}</span>
-                    <span className="font-bold text-slate-100">{(product as any).sector_data.cover_type}</span>
-                  </div>
-                )}
-                {(product as any).sector_data?.publication_year && (
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                    <span className="text-[10px] text-slate-400 block">{lang === "tr" ? "Basım Yılı" : "Year"}</span>
-                    <span className="font-bold text-slate-100">{(product as any).sector_data.publication_year}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {((store?.store_type === "real_estate" || store?.store_type === "motor_vehicle" || store?.sector === "real_estate" || store?.sector === "automotive" || sector === "real_estate" || sector === "automotive" || product?.type === "real_estate" || product?.type === "vehicle")) && (() => {
             const isRent = product.sector_data?.listing_intent === 'rent' || product.category?.toLowerCase().includes('kira') || product.category?.toLowerCase().includes('rent');

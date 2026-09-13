@@ -135,6 +135,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const isRealEstate = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate');
   const isAutomotive = !isGapStore && (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive');
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+  const isShopLp = !isPortfolio && !isCafeRestaurant;
   const isHotelModuleActive = isCafeRestaurant && Boolean(branding?.hotel_module_enabled);
   const isBookstoreModuleActive = (!isGapStore && !isRealEstate && !isAutomotive && !isCafeRestaurant) && Boolean(branding?.bookstore_module_enabled);
 
@@ -1421,6 +1422,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         scanUrl={scanUrl}
         publicUrl={publicUrl}
         isPortfolio={isPortfolio}
+        isCafeRestaurant={isCafeRestaurant}
+        isShopLp={isShopLp}
         translations={t}
         handlePrintQR={handlePrintQR}
         qrPrintRef={qrPrintRef}

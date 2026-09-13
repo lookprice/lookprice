@@ -34,17 +34,50 @@ const INTERNAL_SYSTEM_KEYS = new Set([
   'kocan', 'title_deed', 'kaks', 'gabari', 'elektrik_var', 'su_var', 'yol_var',
   'trafo_bedeli', 'kdv_status', 'is_main_road_frontage', 'commercial_devir_status',
   'monthly_rent_income', 'frontage_width', 'ceiling_height', 'water_tank_capacity',
-  'subtype', 'material', 'fit', 'collection', 'acceleration'
+  'subtype', 'material', 'fit', 'collection', 'acceleration',
+  // Internal marketing/flags that shouldn't appear as raw spec cards
+  'is_weekly_pick', 'is_featured_weekly', 'is_popular', 'weekly_pick', 'featured_weekly',
+  'rating', 'synopsis', 'market_story'
 ]);
 
-const formatSpecKey = (key: string) => {
-  const cleanKey = key.replace(/^sector_spec_/, '').replace(/_/g, ' ').replace(/-/g, ' ').trim();
-  return cleanKey.toUpperCase();
+const SPEC_KEY_LABELS: Record<string, { tr: string; en: string }> = {
+  isbn: { tr: "ISBN", en: "ISBN" },
+  page_count: { tr: "Sayfa Sayısı", en: "Page Count" },
+  pages: { tr: "Sayfa Sayısı", en: "Pages" },
+  cover_type: { tr: "Kapak Türü", en: "Cover Type" },
+  paper_type: { tr: "Kağıt Cinsi", en: "Paper Type" },
+  publication_year: { tr: "Basım Yılı", en: "Publication Year" },
+  publish_year: { tr: "Basım Yılı", en: "Publication Year" },
+  edition: { tr: "Baskı Sayısı", en: "Edition" },
+  edition_number: { tr: "Baskı Sayısı", en: "Edition" },
+  language: { tr: "Dili", en: "Language" },
+  original_language: { tr: "Orijinal Dili", en: "Original Language" },
+  translator: { tr: "Çevirmen", en: "Translator" },
+  dimensions: { tr: "Ebat", en: "Dimensions" },
+  size: { tr: "Ebat / Boyut", en: "Size" },
+  weight: { tr: "Ağırlık", en: "Weight" },
+  color: { tr: "Renk", en: "Color" },
+  material: { tr: "Materyal", en: "Material" },
+  warranty: { tr: "Garanti Süresi", en: "Warranty" },
+  origin: { tr: "Menşei", en: "Origin" },
+  publisher: { tr: "Yayınevi", en: "Publisher" },
+  author: { tr: "Yazar", en: "Author" },
+  model: { tr: "Model", en: "Model" },
+  sku: { tr: "Ürün Kodu", en: "SKU" }
+};
+
+const formatSpecKey = (key: string, lang: string = 'tr') => {
+  const cleanKey = key.toLowerCase().replace(/^sector_spec_/, '').replace(/_/g, '_').trim();
+  if (SPEC_KEY_LABELS[cleanKey]) {
+    return lang === 'en' ? SPEC_KEY_LABELS[cleanKey].en : SPEC_KEY_LABELS[cleanKey].tr;
+  }
+  const displayKey = cleanKey.replace(/_/g, ' ').replace(/-/g, ' ');
+  return displayKey.charAt(0).toUpperCase() + displayKey.slice(1);
 };
 
 const formatSpecValue = (value: any, lang: string) => {
   if (typeof value === 'boolean') {
-    return value ? (lang === 'tr' ? 'EVET' : 'YES') : (lang === 'tr' ? 'HAYIR' : 'NO');
+    return value ? (lang === 'tr' ? 'Evet' : 'Yes') : (lang === 'tr' ? 'Hayır' : 'No');
   }
   if (Array.isArray(value)) {
     return value.map(v => typeof v === 'object' ? '' : String(v)).filter(Boolean).join(', ');
@@ -852,9 +885,9 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
   }
 
   return (
-    <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
-        {lang === "tr" ? "TEKNİK VERİ SAYFASI" : "TECHNICAL DATA SHEET"}
+    <div className="mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <h4 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <span>{lang === "tr" ? "TEKNİK ÖZELLİKLER & BİLGİLER" : "TECHNICAL SPECIFICATIONS"}</span>
         <div className="flex-1 h-[1px] bg-slate-100" />
       </h4>
       {sector === "automotive" && renderAutomotive()}
@@ -864,16 +897,16 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
       
       {/* Custom spec key-values for general products or custom additions */}
       {(cleanEntries.length > 0 && (!isSpecialSector || !hasSpecialContent)) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {cleanEntries.map(([key, value]: [string, any]) => (
             <div
               key={key}
-              className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors"
+              className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100/90 hover:border-slate-200 transition-colors"
             >
-              <p className="text-[8px] font-bold text-slate-400 tracking-wider mb-1 uppercase">
-                {formatSpecKey(key)}
+              <p className="text-[9px] font-semibold text-slate-400 tracking-wider mb-0.5">
+                {formatSpecKey(key, lang)}
               </p>
-              <p className="text-sm font-semibold text-slate-900 uppercase">
+              <p className="text-xs font-bold text-slate-800 break-words">
                 {formatSpecValue(value, lang)}
               </p>
             </div>

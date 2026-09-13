@@ -29,6 +29,8 @@ interface DashboardModalsProps {
   scanUrl: string;
   publicUrl: string;
   isPortfolio: boolean;
+  isCafeRestaurant?: boolean;
+  isShopLp?: boolean;
   handlePrintQR: () => void;
   qrPrintRef: React.RefObject<HTMLDivElement | null>;
 
@@ -174,7 +176,7 @@ interface DashboardModalsProps {
 export const DashboardModals = (props: DashboardModalsProps) => {
   const {
     branding, translations: t, lang,
-    showQrModal, setShowQrModal, scanUrl, publicUrl, isPortfolio, handlePrintQR, qrPrintRef,
+    showQrModal, setShowQrModal, scanUrl, publicUrl, isPortfolio, isCafeRestaurant, isShopLp, handlePrintQR, qrPrintRef,
     showPurchaseInvoiceDetailsModal, setShowPurchaseInvoiceDetailsModal, selectedPurchaseInvoice,
     showSaleDetailsModal, setShowSaleDetailsModal, selectedSale, handlePrint, shippingSlipRef, handleSaleSuccess,
     showQuotationDetailsModal, setShowQuotationDetailsModal, selectedQuotationDetails, onDownloadQuotationPDF, numberToTurkishWords, quotationPrintRef,
@@ -195,8 +197,21 @@ export const DashboardModals = (props: DashboardModalsProps) => {
 
   const [copied, setCopied] = useState(false);
   const isTr = lang === 'tr';
-  const [qrTarget, setQrTarget] = useState<'scanner' | 'website'>(isPortfolio ? 'website' : 'scanner');
+  const isCafe = Boolean(
+    isCafeRestaurant || 
+    branding?.store_type === 'cafe_restaurant' || 
+    branding?.page_layout_settings?.sector === 'cafe_restaurant'
+  );
+  const isShopOnly = !isPortfolio && !isCafe;
+
+  const [qrTarget, setQrTarget] = useState<'scanner' | 'website'>(isShopOnly ? 'scanner' : 'website');
   const [qrViewMode, setQrViewMode] = useState<'poster' | 'card'>('poster');
+
+  React.useEffect(() => {
+    if (!isShopOnly && qrTarget !== 'website') {
+      setQrTarget('website');
+    }
+  }, [isShopOnly, qrTarget]);
 
   // Local state for missing modals
   const [showPassword, setShowPassword] = useState(false);
@@ -241,12 +256,24 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
-                    {isTr ? "Mağaza İçi Fiyat Gör & QR Afiş Merkezi" : "In-Store Price Check & QR Hub"}
+                    {isShopOnly 
+                      ? (isTr ? "Mağaza İçi Fiyat Gör & QR Afiş Merkezi" : "In-Store Price Check & QR Hub")
+                      : isCafe
+                      ? (isTr ? "Dijital Menü & Web QR Afiş Merkezi" : "Digital Menu & Web QR Hub")
+                      : (isTr ? "Web Portföy & Vitrin QR Afiş Merkezi" : "Web Showcase & Portfolio QR Hub")}
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium">
-                    {isTr 
-                      ? "Müşterilerinizin kendi telefonlarıyla barkod okutup fiyat görmesini sağlayın"
-                      : "Allow in-store customers to scan product barcodes and view prices on their phones"}
+                    {isShopOnly
+                      ? (isTr 
+                          ? "Müşterilerinizin kendi telefonlarıyla barkod okutup fiyat görmesini sağlayın"
+                          : "Allow in-store customers to scan product barcodes and view prices on their phones")
+                      : isCafe
+                      ? (isTr
+                          ? "Müşterilerinizin telefonlarıyla dijital menünüze ve ürün vitrininize hızlıca ulaşmasını sağlayın"
+                          : "Allow customers to scan and view your live digital menu on their mobile devices")
+                      : (isTr
+                          ? "Müşterilerinizin güncel portföy ve ilan vitrininize telefonlarıyla anında ulaşmasını sağlayın"
+                          : "Allow customers to scan and browse your property and vehicle showcase on mobile")}
                   </p>
                 </div>
               </div>
@@ -260,9 +287,9 @@ export const DashboardModals = (props: DashboardModalsProps) => {
 
             {/* Modal Controls / Tabs */}
             <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-              {/* QR Destination Selector */}
-              <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                {!isPortfolio && (
+              {/* QR Destination Selector (Only for shopLP where there are 2 distinct modes; for cafe/portfolio show single clean badge) */}
+              {isShopOnly ? (
+                <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
                   <button
                     type="button"
                     onClick={() => setQrTarget('scanner')}
@@ -275,20 +302,34 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                     <Scan className="h-3.5 w-3.5" />
                     <span>{isTr ? "📱 Fiyat Gör (Barkod Okuyucu)" : "📱 Price Checker"}</span>
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setQrTarget('website')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    qrTarget === 'website' 
-                      ? 'bg-indigo-600 text-white shadow-xs font-black' 
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  <span>{isTr ? "🌐 Web Vitrini / Katalog" : "🌐 Web Store"}</span>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => setQrTarget('website')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      qrTarget === 'website' 
+                        ? 'bg-indigo-600 text-white shadow-xs font-black' 
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    <span>{isTr ? "🌐 Web Vitrini / Katalog" : "🌐 Web Store"}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
+                  {isCafe ? (
+                    <>
+                      <Globe className="h-3.5 w-3.5 text-amber-600" />
+                      <span>{isTr ? "🍽️ Dijital Menü & Web Vitrini" : "🍽️ Digital Menu & Web Store"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="h-3.5 w-3.5 text-indigo-600" />
+                      <span>{isTr ? "🌐 Web Vitrini & Portföy" : "🌐 Web Showcase"}</span>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* View Mode (Poster vs Compact) */}
               <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
@@ -358,19 +399,25 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                     {/* Poster Main Banner */}
                     <div className="relative z-10 w-full bg-slate-900 text-white rounded-2xl p-3.5 mb-5 shadow-sm border border-slate-800">
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-black uppercase tracking-wider mb-1">
-                        {qrTarget === 'scanner' 
+                        {isShopOnly && qrTarget === 'scanner'
                           ? (isTr ? "📱 MAĞAZA İÇİ HIZLI SORGULAMA" : "📱 IN-STORE PRICE CHECK") 
-                          : (isTr ? "🌐 ONLİNE ALIŞVERİŞ & KATALOG" : "🌐 ONLINE STORE")}
+                          : isCafe
+                          ? (isTr ? "🍽️ DİJİTAL MENÜ & SİPARİŞ" : "🍽️ DIGITAL MENU & ORDER")
+                          : (isTr ? "🌐 ONLİNE VİTRİN & KATALOG" : "🌐 ONLINE SHOWCASE")}
                       </div>
                       <h3 className="text-base sm:text-lg font-black text-white tracking-tight leading-tight">
-                        {qrTarget === 'scanner' 
+                        {isShopOnly && qrTarget === 'scanner'
                           ? (isTr ? "FİYAT GÖR & BARKOD OKUYUCU" : "SCAN & CHECK PRICE") 
-                          : (isTr ? "DİJİTAL KATALOĞUMUZU KEŞFEDİN" : "EXPLORE OUR DIGITAL STORE")}
+                          : isCafe
+                          ? (isTr ? "DİJİTAL MENÜMÜZÜ KEŞFEDİN" : "EXPLORE OUR DIGITAL MENU")
+                          : (isTr ? "DİJİTAL PORTFÖYÜMÜZÜ KEŞFEDİN" : "EXPLORE OUR DIGITAL PORTFOLIO")}
                       </h3>
                       <p className="text-[11px] text-slate-300 mt-1 font-medium">
-                        {qrTarget === 'scanner' 
+                        {isShopOnly && qrTarget === 'scanner'
                           ? (isTr ? "Ürün üzerindeki barkodu telefonunuzla okutun, fiyat ve detayları anında görün!" : "Scan the product barcode with your phone to instantly see prices and details!") 
-                          : (isTr ? "Tüm ürünlerimizi ve güncel kampanyalarımızı online inceleyin." : "Browse our full product catalog and latest offers online.")}
+                          : isCafe
+                          ? (isTr ? "QR kodu okutarak güncel menümüzü, fiyatlarımızı ve lezzetlerimizi anında inceleyin." : "Scan the QR code to instantly explore our live menu, prices, and specials.")
+                          : (isTr ? "Tüm ürünlerimizi ve güncel ilanlarımızı online inceleyin." : "Browse our full product showcase and latest listings online.")}
                       </p>
                     </div>
 
@@ -410,19 +457,35 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                       <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex flex-col items-center text-center">
                         <span className="w-6 h-6 rounded-full bg-indigo-600 text-white font-black text-xs flex items-center justify-center mb-1">2</span>
                         <p className="text-[10px] font-bold text-slate-900 leading-tight">
-                          {qrTarget === 'scanner' ? (isTr ? "Barkodu Tutun" : "Scan Barcode") : (isTr ? "Kataloğu Gezin" : "Browse Store")}
+                          {isShopOnly && qrTarget === 'scanner' 
+                            ? (isTr ? "Barkodu Tutun" : "Scan Barcode") 
+                            : isCafe
+                            ? (isTr ? "Menüyü İnceleyin" : "Browse Menu")
+                            : (isTr ? "Kataloğu Gezin" : "Browse Store")}
                         </p>
                         <p className="text-[9px] text-slate-500 leading-tight mt-0.5">
-                          {qrTarget === 'scanner' ? (isTr ? "Ürün barkodunu ekrana gösterin" : "Hold barcode to camera") : (isTr ? "Kategorileri inceleyin" : "Browse all items")}
+                          {isShopOnly && qrTarget === 'scanner' 
+                            ? (isTr ? "Ürün barkodunu ekrana gösterin" : "Hold barcode to camera") 
+                            : isCafe
+                            ? (isTr ? "Yiyecek & içecekleri keşfedin" : "Explore foods and drinks")
+                            : (isTr ? "Kategorileri inceleyin" : "Browse all items")}
                         </p>
                       </div>
                       <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex flex-col items-center text-center">
                         <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center mb-1">3</span>
                         <p className="text-[10px] font-bold text-slate-900 leading-tight">
-                          {isTr ? "Fiyatı Görün" : "View Price"}
+                          {isShopOnly && qrTarget === 'scanner' 
+                            ? (isTr ? "Fiyatı Görün" : "View Price") 
+                            : isCafe
+                            ? (isTr ? "Sipariş Verin" : "Order / Enjoy")
+                            : (isTr ? "İletişime Geçin" : "Contact / Order")}
                         </p>
                         <p className="text-[9px] text-slate-500 leading-tight mt-0.5">
-                          {isTr ? "Fiyat ve stok anında karşınızda" : "Real-time price & stock details"}
+                          {isShopOnly && qrTarget === 'scanner' 
+                            ? (isTr ? "Fiyat ve stok anında karşınızda" : "Real-time price & stock details") 
+                            : isCafe
+                            ? (isTr ? "Garsona iletin veya sipariş verin" : "Order with your waiter or online")
+                            : (isTr ? "Detayları görün ve sipariş verin" : "View details & order easily")}
                         </p>
                       </div>
                     </div>
@@ -454,21 +517,31 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                       includeMargin={true}
                     />
                     <span className="mt-2 text-[10px] font-mono text-slate-400 font-bold uppercase">
-                      {qrTarget === 'scanner' ? 'Barkod Scanner' : 'Web Store'}
+                      {isShopOnly && qrTarget === 'scanner' ? 'Barkod Scanner' : isCafe ? 'Dijital Menü' : 'Web Vitrin'}
                     </span>
                   </div>
 
                   <div className="space-y-4 flex-1 text-left w-full">
                     <div>
                       <h4 className="text-base font-black text-slate-900">
-                        {qrTarget === 'scanner' 
+                        {isShopOnly && qrTarget === 'scanner' 
                           ? (isTr ? "Mağaza Fiyat Gör Bağlantısı" : "Price Checker URL") 
+                          : isCafe
+                          ? (isTr ? "Dijital Menü Bağlantısı" : "Digital Menu URL")
                           : (isTr ? "Mağaza Web Vitrini Bağlantısı" : "Store Website URL")}
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {isTr 
-                          ? "Bu bağlantıyı doğrudan müşterilerinizle paylaşabilir veya barkod kiosk cihazlarınıza tanımlayabilirsiniz."
-                          : "Share this link directly with customers or set it on in-store tablet kiosks."}
+                        {isShopOnly && qrTarget === 'scanner'
+                          ? (isTr 
+                              ? "Bu bağlantıyı doğrudan müşterilerinizle paylaşabilir veya barkod kiosk cihazlarınıza tanımlayabilirsiniz."
+                              : "Share this link directly with customers or set it on in-store tablet kiosks.")
+                          : isCafe
+                          ? (isTr
+                              ? "Bu bağlantıyı müşterilerinizle paylaşabilir veya restoran masalarındaki QR aparatlarına tanımlayabilirsiniz."
+                              : "Share this link directly with guests or use it for table QR standees.")
+                          : (isTr
+                              ? "Bu bağlantıyı müşterilerinizle paylaşabilir veya ilan vitrinlerinizde kullanabilirsiniz."
+                              : "Share this link directly with clients or use it on your display stands.")}
                       </p>
                     </div>
 
@@ -510,7 +583,9 @@ export const DashboardModals = (props: DashboardModalsProps) => {
             {/* Modal Actions Footer */}
             <div className="p-4 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div className="text-xs text-slate-500 font-medium">
-                {isTr ? "💡 Standart A4 kağıda yazdırıp mağaza reyonlarına veya kasaya asabilirsiniz." : "💡 Print on A4 to display on shelves, tables, or cashier counter."}
+                {isTr 
+                  ? "💡 Standart A4 kağıda yazdırıp mağaza reyonlarına, masalara veya kasaya asabilirsiniz." 
+                  : "💡 Print on A4 to display on shelves, tables, or cashier counter."}
               </div>
 
               <div className="flex items-center gap-2">
@@ -530,7 +605,8 @@ export const DashboardModals = (props: DashboardModalsProps) => {
                         ctx?.drawImage(img, 0, 0);
                         const pngFile = canvas.toDataURL("image/png");
                         const downloadLink = document.createElement("a");
-                        downloadLink.download = `${storeDisplayName}_Fiyat_Gor_QR.png`;
+                        const fileSuffix = isShopOnly && qrTarget === 'scanner' ? 'Fiyat_Gor' : isCafe ? 'Dijital_Menu' : 'Web_Vitrin';
+                        downloadLink.download = `${storeDisplayName}_${fileSuffix}_QR.png`;
                         downloadLink.href = pngFile;
                         downloadLink.click();
                       };

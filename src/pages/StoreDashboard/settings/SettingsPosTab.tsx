@@ -458,8 +458,8 @@ export const SettingsPosTab = ({
         </div>
       </div>
 
-      {/* In-Store Price Checker / Barcode Scanner Kiosk QR Section (Retail / shopLP) */}
-      {!isPortfolio && (
+      {/* In-Store Price Checker / Barcode Scanner Kiosk QR Section (Retail / shopLP ONLY) */}
+      {!isPortfolio && !isCafeRestaurant && (
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-xs relative overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
             <div className="flex items-center space-x-3">
