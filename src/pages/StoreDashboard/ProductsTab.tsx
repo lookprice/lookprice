@@ -140,8 +140,15 @@ const ProductsTab = ({
   const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
 
   const getHepsiburadaUrl = (p: any) => {
-    if (p.hepsiburada_sku) {
-      return `https://www.hepsiburada.com/-p-${p.hepsiburada_sku}`;
+    const hbSku = p.hepsiburada_sku || 
+                  p.hepsiburadaSku || 
+                  p.marketplace_data?.hepsiburada?.hepsiburadaSku || 
+                  p.marketplace_data?.hepsiburada?.hepsiburada_sku ||
+                  p.marketplace_data?.hepsiburada?.hbSku ||
+                  (String(p.sku || '').startsWith('HBCV') ? p.sku : '') ||
+                  (String(p.product_code || '').startsWith('HBCV') ? p.product_code : '');
+    if (hbSku) {
+      return `https://www.hepsiburada.com/-p-${hbSku}`;
     }
     return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`;
   };

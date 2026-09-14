@@ -151,35 +151,35 @@ export function BookNavScreen({ activeBookIndex, highlightBar }: BookNavScreenPr
         </div>
       </div>
 
-      {/* Floating Bottom Navigator Bar */}
-      <div className={`mt-auto pt-2 transition-all duration-500 ${highlightBar ? 'ring-2 ring-purple-500/80 rounded-2xl p-2 bg-purple-950/40 shadow-xl shadow-purple-500/20' : ''}`}>
-        <div className="flex items-center justify-between px-2 mb-1.5">
-          <span className="text-[10px] font-bold text-purple-300 flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-purple-400" />
-            ESERLER ARASI KESİNTİSİZ GEZİNTİ BARI
+      {/* Contemporary Floating Catalog Switcher */}
+      <div className={`mt-auto pt-2 transition-all duration-500 ${highlightBar ? 'scale-[1.02]' : ''}`}>
+        <div className="flex items-center justify-between px-2 mb-2">
+          <span className="text-[11px] font-bold text-white/90 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            Öne Çıkan Diğer Eserler
           </span>
-          <span className="text-[9px] text-white/40">Sayfayı terk etmeden diğer eserlere geçin</span>
+          <span className="text-[10px] text-purple-300/80 font-medium">Hızlı Geçiş</span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-xl border border-white/10">
+        <div className="grid grid-cols-3 gap-2.5 bg-white/[0.03] backdrop-blur-xl p-2 rounded-2xl border border-white/10 shadow-2xl">
           {BOOKS.map((b, idx) => {
             const isSelected = activeBookIndex === idx;
             return (
               <div 
                 key={idx}
-                className={`flex items-center gap-2 p-1.5 rounded-lg transition-all duration-300 cursor-pointer ${
+                className={`flex items-center gap-2.5 p-2 rounded-xl transition-all duration-300 cursor-pointer ${
                   isSelected 
-                    ? 'bg-purple-600/30 border border-purple-500 text-white shadow-md' 
-                    : 'bg-white/5 border border-white/5 text-white/60 hover:bg-white/10'
+                    ? 'bg-gradient-to-r from-purple-600/40 to-indigo-600/30 border border-purple-400 text-white shadow-lg shadow-purple-500/20' 
+                    : 'bg-white/[0.02] border border-white/5 text-white/70 hover:bg-white/[0.08] hover:text-white'
                 }`}
               >
-                <img src={b.cover} alt={b.title} className="w-7 h-9 object-cover rounded shadow shrink-0" />
+                <img src={b.cover} alt={b.title} className="w-8 h-10 object-cover rounded-lg shadow-md shrink-0 ring-1 ring-white/10" />
                 <div className="min-w-0 flex-1 text-left">
                   <p className="text-[11px] font-bold truncate leading-tight">{b.title}</p>
-                  <p className="text-[9px] text-purple-300 truncate">{b.price}</p>
+                  <p className="text-[10px] font-mono text-purple-300 truncate mt-0.5">{b.price}</p>
                 </div>
                 {isSelected && (
-                  <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping shrink-0 mr-1" />
+                  <span className="w-2 h-2 rounded-full bg-purple-400 shadow-sm shadow-purple-400 shrink-0 mr-1 animate-pulse" />
                 )}
               </div>
             );

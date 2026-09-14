@@ -975,25 +975,41 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
     }
     mpData = mpData || {};
-    const hbData = mpData.hepsiburada || {};
+    const hbData = mpData.hepsiburada || (mpData.categoryId !== undefined ? mpData : {});
 
     // Determine category ID with live Hepsiburada catalog mappings
-    let categoryId = hbData.categoryId || settings.categoryMappings?.[p.category]?.hepsiburada || settings.categoryMappings?.[p.sub_category]?.hepsiburada;
+    // 1. User manual category override on product takes absolute precedence
+    let categoryId = hbData.categoryId || mpData.categoryId;
     
-    // Normalize deprecated/virtual category IDs to live active Hepsiburada categories
+    // 2. If not manually set, check store category mappings
+    if (!categoryId) {
+      const catKey = p.category ? String(p.category).trim() : "";
+      const subCatKey = p.sub_category ? String(p.sub_category).trim() : "";
+      const hierarchicalKey = catKey && subCatKey ? `${catKey} > ${subCatKey}` : "";
+      
+      categoryId = 
+        (hierarchicalKey && (settings.categoryMappings?.[hierarchicalKey]?.hepsiburada || settings.categoryMappings?.[hierarchicalKey])) ||
+        (subCatKey && (settings.categoryMappings?.[subCatKey]?.hepsiburada || settings.categoryMappings?.[subCatKey])) ||
+        (catKey && (settings.categoryMappings?.[catKey]?.hepsiburada || settings.categoryMappings?.[catKey])) ||
+        "";
+    }
+    
+    // 3. Normalize deprecated/virtual category IDs or infer fallback ONLY if categoryId is completely absent
     const catSearchStr = `${p.name} ${p.category || ""} ${p.sub_category || ""}`.toLowerCase();
-    if (
-      String(categoryId) === "1000101" ||
-      !categoryId ||
-      catSearchStr.includes("usb flash") ||
-      catSearchStr.includes("flash bellek") ||
-      (catSearchStr.includes("usb") && catSearchStr.includes("bellek"))
-    ) {
-      categoryId = 970; // Active HB Leaf: Usb Bellek
-    } else if (String(categoryId) === "1000102" || catSearchStr.includes("kart okuyucu")) {
-      categoryId = 698; // Active HB Leaf: Kart Okuyucular
-    } else if (String(categoryId) === "1000103" || catSearchStr.includes("sd kart")) {
-      categoryId = 1100011; // Active HB Leaf: Sd Kartlar
+    if (String(categoryId) === "1000101") {
+      categoryId = 970;
+    } else if (String(categoryId) === "1000102") {
+      categoryId = 698;
+    } else if (String(categoryId) === "1000103") {
+      categoryId = 1100011;
+    } else if (!categoryId) {
+      if (catSearchStr.includes("usb flash") || catSearchStr.includes("flash bellek") || (catSearchStr.includes("usb") && catSearchStr.includes("bellek"))) {
+        categoryId = 970; // Active HB Leaf: Usb Bellek
+      } else if (catSearchStr.includes("kart okuyucu")) {
+        categoryId = 698; // Active HB Leaf: Kart Okuyucular
+      } else if (catSearchStr.includes("sd kart")) {
+        categoryId = 1100011; // Active HB Leaf: Sd Kartlar
+      }
     }
 
     const hbService = new HepsiburadaService(settings, storeId);
@@ -1014,7 +1030,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     const effectivePrice = hbService.calculateMarketplacePrice(rawPrice, p.category, p.sub_category);
 
     // Prepare catalog attributes
-    const userAttrs = hbData.attributes || {};
+    const userAttrs = hbData.attributes || mpData.attributes || {};
     const attributes: Record<string, any> = {
       merchantSku: p.barcode.trim(),
       VaryantGroupID: `GRP-${p.barcode.trim()}`,
@@ -1052,26 +1068,28 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       if (!attributes["000017ZC"]) attributes["000017ZC"] = ["Windows"];
     }
 
-    // 1. Send to Hepsiburada Catalog Import (Multipart Form-Data)
+    // 1. Send to Hepsiburada Catalog Import (Multipart Form-Data) if categoryId exists
     let catalogTrackingId: string | undefined;
     let catalogMsg: string | undefined;
-    try {
-      const catRes = await hbService.importCatalogProducts([
-        {
-          categoryId: Number(categoryId),
-          attributes
-        }
-      ]);
-      catalogTrackingId = catRes.trackingId;
-      catalogMsg = catRes.message;
-    } catch (catErr: any) {
-      console.warn("[HB Publish] Catalog import warning:", catErr.message);
+    if (categoryId) {
+      try {
+        const catRes = await hbService.importCatalogProducts([
+          {
+            categoryId: Number(categoryId),
+            attributes
+          }
+        ]);
+        catalogTrackingId = catRes.trackingId;
+        catalogMsg = catRes.message;
+      } catch (catErr: any) {
+        console.warn("[HB Publish] Catalog import warning:", catErr.message);
+      }
     }
 
     // 2. Send to Listing Price & Stock Inventory Update
     const result = await hbService.updatePriceAndStock([
       {
-        HepsiburadaSku: p.hepsiburada_sku || "",
+        HepsiburadaSku: p.hepsiburada_sku || hbData.hepsiburadaSku || "",
         MerchantSku: p.barcode.trim(),
         Price: effectivePrice,
         AvailableStock: parseInt(p.stock_quantity || "0", 10),
@@ -1079,19 +1097,43 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       }
     ]);
 
+    // Check if we can resolve the HBCV sku if p.hepsiburada_sku is not set yet
+    let resolvedHbSku = p.hepsiburada_sku || hbData.hepsiburadaSku || hbData.hbSku || "";
+    if (!resolvedHbSku) {
+      try {
+        const listings = await hbService.fetchMerchantListings({ limit: 50 });
+        const matched = listings.find((l: any) => 
+          (l.merchantSku && l.merchantSku.toLowerCase() === p.barcode.trim().toLowerCase()) ||
+          (l.barcode && l.barcode.toLowerCase() === p.barcode.trim().toLowerCase())
+        );
+        if (matched && matched.hepsiburadaSku) {
+          resolvedHbSku = matched.hepsiburadaSku;
+        }
+      } catch (lErr) {
+        // non-blocking
+      }
+    }
+
     // Update product marketplace metadata
     mpData.hepsiburada = {
       ...hbData,
-      categoryId: Number(categoryId),
+      categoryId: categoryId ? Number(categoryId) : undefined,
       attributes,
+      hepsiburadaSku: resolvedHbSku || hbData.hepsiburadaSku,
       catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId,
       listingTrackingId: result.trackingId,
       lastSync: new Date().toISOString()
     };
 
     await pool.query(
-      "UPDATE products SET is_hepsiburada_active = true, hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL, marketplace_data = $1 WHERE id = $2",
-      [JSON.stringify(mpData), productId]
+      `UPDATE products 
+       SET is_hepsiburada_active = true,
+           hepsiburada_sku = COALESCE(NULLIF($1, ''), hepsiburada_sku),
+           hepsiburada_last_sync = NOW(), 
+           hepsiburada_last_error = NULL, 
+           marketplace_data = $2 
+       WHERE id = $3`,
+      [resolvedHbSku || null, JSON.stringify(mpData), productId]
     );
 
     const message = catalogTrackingId
@@ -1104,7 +1146,9 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       effectivePrice,
       trackingId: catalogTrackingId || result.trackingId,
       catalogTrackingId,
-      listingTrackingId: result.trackingId
+      listingTrackingId: result.trackingId,
+      hepsiburadaSku: resolvedHbSku || null,
+      marketplace_data: mpData
     });
   } catch (e: any) {
     const errMsg = e.message || "Hepsiburada ürün aktarımı başarısız.";

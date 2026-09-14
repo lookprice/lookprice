@@ -73,8 +73,15 @@ const MARKETPLACES: MarketplaceConfig[] = [
     lastSyncField: 'hepsiburada_last_sync',
     skuField: 'hepsiburada_sku',
     getListingUrl: (p: any) => {
-      if (p.hepsiburada_sku) {
-        return `https://www.hepsiburada.com/-p-${p.hepsiburada_sku}`;
+      const hbSku = p.hepsiburada_sku || 
+                    p.hepsiburadaSku || 
+                    p.marketplace_data?.hepsiburada?.hepsiburadaSku || 
+                    p.marketplace_data?.hepsiburada?.hepsiburada_sku ||
+                    p.marketplace_data?.hepsiburada?.hbSku ||
+                    (String(p.sku || '').startsWith('HBCV') ? p.sku : '') ||
+                    (String(p.product_code || '').startsWith('HBCV') ? p.product_code : '');
+      if (hbSku) {
+        return `https://www.hepsiburada.com/-p-${hbSku}`;
       }
       return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`;
     },
@@ -846,12 +853,22 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                   </span>
                                 )}
 
-                                {p.hepsiburada_sku && (
-                                  <span className="font-mono text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Hepsiburada SKU">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                                    HB: {p.hepsiburada_sku}
-                                  </span>
-                                )}
+                                {(() => {
+                                  const displayHbSku = p.hepsiburada_sku || 
+                                    p.hepsiburadaSku || 
+                                    p.marketplace_data?.hepsiburada?.hepsiburadaSku || 
+                                    p.marketplace_data?.hepsiburada?.hepsiburada_sku ||
+                                    p.marketplace_data?.hepsiburada?.hbSku ||
+                                    (String(p.sku || '').startsWith('HBCV') ? p.sku : '') ||
+                                    (String(p.product_code || '').startsWith('HBCV') ? p.product_code : '');
+                                  if (!displayHbSku) return null;
+                                  return (
+                                    <span className="font-mono text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Hepsiburada SKU">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                      HB: {displayHbSku}
+                                    </span>
+                                  );
+                                })()}
                               </div>
 
                               {/* Error Box if any error occurred */}

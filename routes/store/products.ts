@@ -828,9 +828,31 @@ router.put("/:id", async (req: any, res) => {
     const finalProductCode = (product_code !== undefined ? product_code : (sku !== undefined ? sku : existingProductRes.rows[0]?.product_code)) || null;
 
     const existingMarketplaceData = existingProductRes.rows[0]?.marketplace_data || {};
-    const finalMarketplaceData = marketplace_data !== undefined
+    let parsedIncomingMp = marketplace_data !== undefined
       ? (typeof marketplace_data === 'object' && marketplace_data !== null ? marketplace_data : JSON.parse(marketplace_data || '{}'))
       : existingMarketplaceData;
+
+    let finalMarketplaceData: any = { ...existingMarketplaceData };
+    if (parsedIncomingMp && typeof parsedIncomingMp === 'object') {
+      if ((parsedIncomingMp.categoryId !== undefined || parsedIncomingMp.attributes !== undefined) && !parsedIncomingMp.hepsiburada) {
+        finalMarketplaceData = {
+          ...finalMarketplaceData,
+          hepsiburada: {
+            ...(finalMarketplaceData.hepsiburada || {}),
+            ...parsedIncomingMp
+          }
+        };
+      } else {
+        finalMarketplaceData = {
+          ...finalMarketplaceData,
+          ...parsedIncomingMp,
+          hepsiburada: {
+            ...(finalMarketplaceData.hepsiburada || {}),
+            ...(parsedIncomingMp.hepsiburada || {})
+          }
+        };
+      }
+    }
 
     const existingSectorData = existingProductRes.rows[0]?.sector_data || {};
     const finalSectorData = sector_data !== undefined

@@ -12,10 +12,13 @@ import {
   Sparkles,
   RefreshCw,
   Clock,
-  Link
+  Link,
+  Download,
+  Film
 } from "lucide-react";
 import { api } from "../../services/api";
 import { EnrakipsizVideo } from "../../types/superadmin";
+import { SuperAdminVideoStudioModal } from "./SuperAdminVideoStudioModal";
 
 interface SuperAdminVideosManagerProps {
   lang: string;
@@ -30,6 +33,7 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
   // Modal & Form State
   const [showModal, setShowModal] = useState(false);
   const [editingVideo, setEditingVideo] = useState<EnrakipsizVideo | null>(null);
+  const [studioScenarioId, setStudioScenarioId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<EnrakipsizVideo>>({
     product_key: "shoplp",
     page_type: "lookprice_net",
@@ -172,10 +176,17 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
             Ana sayfa (lookprice.net) ürün kartlarındaki tanıtım videolarını ve her bir sektörel ürün sayfasındaki (HoReCaLP, AutoLP vb.) detaylı video turlarını buradan güncelleyin.
           </p>
         </div>
-        <div>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setStudioScenarioId('hotel_booking')}
+            className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-purple-600/30 cursor-pointer"
+            title="Tüm simülasyonları HD video olarak indirin veya JSON kodlarını inceleyin"
+          >
+            <Film className="h-4 w-4" /> Medya Stüdyosu & Video İndir
+          </button>
           <button
             onClick={handleOpenAdd}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg cursor-pointer"
           >
             <Plus className="h-4 w-4" /> Yeni Video Ekle
           </button>
@@ -264,7 +275,7 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
                   {video.hyperframes_scenario && (
                     <span className="px-2 py-0.5 rounded-lg text-[9px] font-black bg-purple-600 text-white flex items-center gap-1 shadow-sm">
                       <Sparkles className="w-2.5 h-2.5 text-purple-200 animate-pulse" />
-                      HYPERFRAMES
+                      CANLI SİMÜLASYON
                     </span>
                   )}
                 </div>
@@ -319,15 +330,22 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
                   
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => setStudioScenarioId('hotel_booking')}
+                      className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl border border-purple-200 transition-all cursor-pointer"
+                      title="Simülasyonu Stüdyoda Aç & HD İndir"
+                    >
+                      <Film className="h-3.5 w-3.5" />
+                    </button>
+                    <button
                       onClick={() => handleOpenEdit(video)}
-                      className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 transition-all"
+                      className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 transition-all cursor-pointer"
                       title="Düzenle"
                     >
                       <Edit2 className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => video.id && handleDelete(video.id)}
-                      className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-100 transition-all"
+                      className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-100 transition-all cursor-pointer"
                       title="Sil"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -440,14 +458,14 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
                 </div>
               </div>
 
-              {/* Row 4.5: HyperFrames Code-Driven Simulation Scenario */}
+              {/* Row 4.5: Code-Driven Interactive Simulation Scenario */}
               <div className="bg-purple-50/80 p-3.5 rounded-2xl border border-purple-100">
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-[10px] font-black text-purple-700 uppercase flex items-center gap-1.5">
                     <span className="px-1.5 py-0.5 rounded bg-purple-600 text-white text-[9px] font-bold">YENİ</span>
-                    HyperFrames İnteraktif Simülasyon Senaryosu
+                    İnteraktif Kod Tabanlı Canlı Simülasyon Senaryosu
                   </label>
-                  <span className="text-[9px] font-bold text-purple-600">HeyGen Motoru</span>
+                  <span className="text-[9px] font-bold text-purple-600">Dahili Simülasyon</span>
                 </div>
                 <select
                   className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-semibold text-purple-900"
@@ -459,12 +477,12 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
                   <option value="hotel_whatsapp">📱 HotelLP - 2. Otomatik WhatsApp Rezervasyon Kuponu & QR Check-in</option>
                   <option value="hotel_cleaning">🧹 HotelLP - 3. Kat Hizmetleri (Housekeeping) & Canlı Temizlik Paneli</option>
                   <option value="hotel_channel">📈 HotelLP - 4. Dinamik Sezon Fiyatlandırması & Hafta Sonu Çarpanı</option>
-                  <option value="book_nav">📖 BookLP - Eserler Arası Kesintisiz Gezinti Barı</option>
+                  <option value="book_nav">📖 BookLP - Eserler Arası Hızlı Geçiş & Katalog</option>
                   <option value="book_isbn">🏷️ BookLP - ISBN / Barkod ile Akıllı Kitap Kartı</option>
                   <option value="shop_pos">⚡ ShopLP - Barkodlu Varyant Matrisi & Hızlı POS</option>
                 </select>
                 <p className="text-[9px] text-purple-600/80 mt-1 leading-tight">
-                  Bu özellik seçildiğinde, video çekip YouTube'a yüklemeye gerek kalmadan HeyGen HyperFrames motorumuz ekranı canlı ve animasyonlu olarak simüle eder.
+                  Bu özellik seçildiğinde, video çekip YouTube'a yüklemeye gerek kalmadan dahili akıllı simülasyon motorumuz ekranı canlı ve animasyonlu olarak çalıştırır.
                 </p>
               </div>
 
@@ -538,6 +556,15 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
             </form>
           </div>
         </div>
+      )}
+
+      {/* SuperAdmin Video Studio Modal (Spec & Real HD Video Downloader) */}
+      {studioScenarioId && (
+        <SuperAdminVideoStudioModal
+          initialScenarioId={studioScenarioId}
+          onClose={() => setStudioScenarioId(null)}
+          lang={lang}
+        />
       )}
     </div>
   );

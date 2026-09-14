@@ -136,10 +136,19 @@ export const ProductModal = ({
     try {
       setIsPublishingToHb(true);
       const res = await api.publishHepsiburadaProduct(editingProduct.id, branding?.id);
-      if (res.data?.success || res.success) {
-        alert(isTr ? "Ürün Hepsiburada'ya başarıyla gönderildi / ilana açıldı!" : "Product published to Hepsiburada!");
+      const data = res.data || res;
+      if (data?.success) {
+        if (data.marketplace_data || data.hepsiburadaSku) {
+          setEditingProduct((prev: any) => ({
+            ...prev,
+            is_hepsiburada_active: true,
+            hepsiburada_sku: data.hepsiburadaSku || prev?.hepsiburada_sku,
+            marketplace_data: data.marketplace_data || prev?.marketplace_data
+          }));
+        }
+        alert(isTr ? (data.message || "Ürün Hepsiburada'ya başarıyla gönderildi / ilana açıldı!") : "Product published to Hepsiburada!");
       } else {
-        alert(res.data?.error || res.error || (isTr ? "Aktarım başarısız" : "Publish failed"));
+        alert(data?.error || (isTr ? "Aktarım başarısız" : "Publish failed"));
       }
     } catch (err: any) {
       alert(err.response?.data?.error || err.message || (isTr ? "Aktarım başarısız" : "Publish failed"));

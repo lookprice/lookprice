@@ -89,8 +89,33 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       } catch (err) {
         console.error("Marketplace data parse error:", err);
       }
-    } else if (editingProduct?.marketplace_data) {
-      marketplaceData = editingProduct.marketplace_data;
+    }
+
+    // Merge with existing product marketplace data defensively
+    let existingMp: any = editingProduct?.marketplace_data;
+    if (typeof existingMp === 'string') {
+      try { existingMp = JSON.parse(existingMp); } catch { existingMp = {}; }
+    }
+    existingMp = (typeof existingMp === 'object' && existingMp !== null) ? existingMp : {};
+
+    // If incoming data has direct categoryId / attributes without hepsiburada wrapper, wrap it
+    if (marketplaceData && (marketplaceData.categoryId !== undefined || marketplaceData.attributes !== undefined) && !marketplaceData.hepsiburada) {
+      marketplaceData = {
+        ...existingMp,
+        hepsiburada: {
+          ...(existingMp.hepsiburada || {}),
+          ...marketplaceData
+        }
+      };
+    } else {
+      marketplaceData = {
+        ...existingMp,
+        ...marketplaceData,
+        hepsiburada: {
+          ...(existingMp.hepsiburada || {}),
+          ...(marketplaceData?.hepsiburada || {})
+        }
+      };
     }
 
     const data: any = { 

@@ -27,7 +27,20 @@ export const MarketplaceProductFields = ({
         mp = {};
       }
     }
-    return mp?.hepsiburada || { categoryId: "", attributes: {} };
+    if (mp?.hepsiburada) {
+      return {
+        categoryId: String(mp.hepsiburada.categoryId || ""),
+        attributes: mp.hepsiburada.attributes || {}
+      };
+    }
+    // Defensively handle unnested categoryId / attributes
+    if (mp && (mp.categoryId !== undefined || mp.attributes !== undefined)) {
+      return {
+        categoryId: String(mp.categoryId || ""),
+        attributes: mp.attributes || {}
+      };
+    }
+    return { categoryId: "", attributes: {} };
   };
 
   const [marketData, setMarketData] = useState(() => getHbData(product));
@@ -56,15 +69,20 @@ export const MarketplaceProductFields = ({
     (catKey && storeSettings?.categoryMappings?.[catKey]) ||
     "";
 
-  // Normalize deprecated / infer category if empty
+  // If user has explicitly selected a category (marketData.categoryId), respect it 100%!
+  // Otherwise use store mapped category, or infer from keywords if neither exists
   const prodSearchStr = `${product?.name || ''} ${catKey} ${subCatKey}`.toLowerCase();
-  let resolvedCatId = marketData.categoryId || storeMappedCatId || "";
-  if (resolvedCatId === "1000101" || (!resolvedCatId && (prodSearchStr.includes("usb") && (prodSearchStr.includes("bellek") || prodSearchStr.includes("flash"))))) {
-    resolvedCatId = "970";
-  } else if (resolvedCatId === "1000102" || (!resolvedCatId && prodSearchStr.includes("kart okuyucu"))) {
-    resolvedCatId = "698";
-  } else if (resolvedCatId === "1000103" || (!resolvedCatId && prodSearchStr.includes("sd kart"))) {
-    resolvedCatId = "1100011";
+  let resolvedCatId = marketData.categoryId ? String(marketData.categoryId) : (storeMappedCatId ? String(storeMappedCatId) : "");
+  
+  // Only apply fallback inference if NO explicit category and NO store-mapped category is defined
+  if (!marketData.categoryId && !storeMappedCatId) {
+    if (prodSearchStr.includes("usb") && (prodSearchStr.includes("bellek") || prodSearchStr.includes("flash"))) {
+      resolvedCatId = "970";
+    } else if (prodSearchStr.includes("kart okuyucu")) {
+      resolvedCatId = "698";
+    } else if (prodSearchStr.includes("sd kart")) {
+      resolvedCatId = "1100011";
+    }
   }
 
   const effectiveCatId = resolvedCatId;
@@ -157,23 +175,40 @@ export const MarketplaceProductFields = ({
         return name.includes(searchTerm.toLowerCase()) || id.includes(searchTerm.toLowerCase());
       });
 
+  const getFullMarketplacePayload = (hbSlice: any) => {
+    let existingMp = product?.marketplace_data;
+    if (typeof existingMp === 'string') {
+      try { existingMp = JSON.parse(existingMp); } catch { existingMp = {}; }
+    }
+    existingMp = (typeof existingMp === 'object' && existingMp !== null) ? existingMp : {};
+    return {
+      ...existingMp,
+      hepsiburada: {
+        ...(existingMp.hepsiburada || {}),
+        ...hbSlice
+      }
+    };
+  };
+
   const handleCategorySelect = (categoryId: string) => {
     const updated = { ...marketData, categoryId };
     setMarketData(updated);
     setShowCategoryDropdown(false);
     setSearchTerm("");
+    const fullMp = getFullMarketplacePayload(updated);
     onUpdate({
       ...product,
-      marketplace_data: { ...(product.marketplace_data || {}), hepsiburada: updated }
+      marketplace_data: fullMp
     });
   };
 
   const handleClearOverride = () => {
     const updated = { ...marketData, categoryId: "" };
     setMarketData(updated);
+    const fullMp = getFullMarketplacePayload(updated);
     onUpdate({
       ...product,
-      marketplace_data: { ...(product.marketplace_data || {}), hepsiburada: updated }
+      marketplace_data: fullMp
     });
   };
 
@@ -182,15 +217,18 @@ export const MarketplaceProductFields = ({
     const updatedAttrs = { ...currentAttrs, [attrId]: value };
     const updated = { ...marketData, attributes: updatedAttrs };
     setMarketData(updated);
+    const fullMp = getFullMarketplacePayload(updated);
     onUpdate({
       ...product,
-      marketplace_data: { ...(product.marketplace_data || {}), hepsiburada: updated }
+      marketplace_data: fullMp
     });
   };
 
+  const fullMarketplaceJson = JSON.stringify(getFullMarketplacePayload(marketData));
+
   return (
     <div className="p-4 bg-rose-50/30 rounded-3xl border border-rose-200/80 space-y-3.5 mt-4">
-      <input type="hidden" name="marketplace_data" value={JSON.stringify(marketData)} />
+      <input type="hidden" name="marketplace_data" value={fullMarketplaceJson} />
       
       {/* HEADER */}
       <div className="flex items-center justify-between border-b border-rose-100 pb-2.5">
@@ -433,6 +471,21 @@ export const MarketplaceProductFields = ({
                       effectiveVal = attr.values?.find((v: string) => v.includes("2.0")) || "USB 2.0";
                     } else if (/type-?c/i.test(prodName)) {
                       effectiveVal = attr.values?.find((v: string) => /type-?c/i.test(v)) || "Type-C";
+                    }
+                  }
+
+                  // Smart Power / Wattage Extraction (e.g., "Dell 65w Type-c Adaptör" -> "65W")
+                  const isWattAttr = attr.id.toLowerCase().includes("watt") || attr.id.toLowerCase().includes("guc") || attr.name.toLowerCase().includes("watt") || attr.name.toLowerCase().includes("güç");
+                  if (!effectiveVal && isWattAttr && prodName) {
+                    const wattMatch = prodName.match(/(\d+)\s*w\b/i);
+                    if (wattMatch) {
+                      const detectedWatt = `${wattMatch[1]}W`;
+                      const matchedOption = attr.values?.find((v: string) => v.toUpperCase() === detectedWatt.toUpperCase() || v.toUpperCase().startsWith(detectedWatt.toUpperCase()));
+                      if (matchedOption) {
+                        effectiveVal = matchedOption;
+                      } else {
+                        effectiveVal = detectedWatt;
+                      }
                     }
                   }
 

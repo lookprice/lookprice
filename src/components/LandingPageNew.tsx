@@ -126,9 +126,9 @@ export const LandingPage = () => {
         title: txt("BookLP - Sinematik Kitap & Yayınevi Vitrini", "BookLP - Cinematic Bookstore & Publisher Showcase", "BookLP - Κινηματογραφική Βιτρίνα Βιβλιοπωλείου"),
         tag: "BOOKLP",
         description: txt(
-          "Kitapçılar ve yayınevleri için Netflix tarzı vitrin, ISBN/barkodlu arama, yazar/yayınevi filtreleri ve kesintisiz eser gezintisi.",
-          "Netflix-style showcase, ISBN search, author/publisher facets, and seamless book browsing for publishers.",
-          "Βιτρίνα στυλ Netflix, αναζήτηση ISBN, φίλτρα συγγραφέων και απρόσκοπτη περιήγηση βιβλίων."
+          "Kitapçılar ve yayınevleri için modern vitrin, ISBN/barkodlu arama, yazar/yayınevi filtreleri ve anlık eser keşfi.",
+          "Modern showcase, ISBN search, author/publisher facets, and real-time book discovery for publishers.",
+          "Μοντέρνα βιτρίνα, αναζήτηση ISBN, φίλτρα συγγραφέων και άμεση ανακάλυψη βιβλίων."
         ),
         youtubeId: null,
         duration: "0:30",
@@ -398,9 +398,9 @@ export const LandingPage = () => {
       accent: "text-purple-400",
       btnBg: "bg-purple-600 hover:bg-purple-700",
       features: [
-        txt("Netflix Tarzı Sinematik Kitap Vitrini", "Netflix-Style Cinematic Book Showcase", "Βιτρίνα Βιβλίων σε Στυλ Netflix"),
+        txt("Modern Kitap & Eser Vitrini", "Modern Book & Publication Showcase", "Μοντέρνα Βιτρίνα Βιβλίων"),
         txt("Yazar, Yayınevi, Çevirmen & ISBN Arama", "Author, Publisher, Translator & ISBN Search", "Αναζήτηση Συγγραφέα, Εκδότη, Μεταφραστή & ISBN"),
-        txt("Eserler Arası Kesintisiz Gezinti Barı", "Seamless Book-to-Book Browse Bar", "Μπάρα Απρόσκοπτης Περιήγησης Βιβλίων"),
+        txt("Anlık Eser & Fiyat Keşfi", "Real-Time Book & Price Discovery", "Άμεση Ανακάλυψη Βιβλίων & Τιμών"),
         txt("Şubeler Arası Barkodlu Stok & Fiyat", "Multi-Branch Barcode Stock & Price Engine", "Διαχείριση Αποθεμάτων Barcode & Τιμών")
       ]
     },
@@ -499,9 +499,9 @@ export const LandingPage = () => {
       sector: txt("Kitap & Yayınevi", "Books & Publishing", "Βιβλία & Εκδόσεις"),
       title: txt("Sektörünüze Özel\nSinematik Kitap & Yayınevi Vitrini", "Industry-Specific\nCinematic Bookstore & Publisher Suite", "Εξειδικευμένη Κινηματογραφική\nΣουίτα Βιβλίων & Εκδόσεων"),
       description: txt(
-        "Netflix tarzı görsel vitrin, ISBN barkodlu arama motoru, yazar/yayınevi filtreleri ve ürün içi kesintisiz gezinti deneyimi.",
-        "Netflix-style visual showcase, ISBN barcode engine, author & publisher facets, and uninterrupted in-product browse bar.",
-        "Οπτική βιτρίνα τύπου Netflix, μηχανή barcode ISBN, φίλτρα συγγραφέων και αδιάλειπτη εμπειρία περιήγησης."
+        "Modern görsel vitrin, ISBN barkodlu arama motoru, yazar/yayınevi filtreleri ve anlık eser keşfi.",
+        "Modern visual showcase, ISBN barcode engine, author & publisher facets, and instant book discovery.",
+        "Μοντέρνα οπτική βιτρίνα, μηχανή barcode ISBN, φίλτρα συγγραφέων και άμεση ανακάλυψη βιβλίων."
       ),
       bgImage: "https://images.unsplash.com/photo-1507842229450-76c20f18837e?auto=format&fit=crop&w=1200&q=80",
       color: "from-purple-600 to-pink-500",
@@ -509,9 +509,9 @@ export const LandingPage = () => {
       accentBg: "bg-purple-500/10 border-purple-500/20",
       glowColor: "rgba(168,85,247,0.15)",
       features: [
-        txt("Netflix Tarzı Sinematik Kitap Vitrini", "Netflix-Style Cinematic Book Showcase", "Βιτρίνα Βιβλίων σε Στυλ Netflix"),
+        txt("Modern Kitap & Eser Vitrini", "Modern Book & Publication Showcase", "Μοντέρνα Βιτρίνα Βιβλίων"),
         txt("Yazar, Çevirmen & ISBN Entegrasyonu", "Author, Translator & ISBN Integration", "Ενσωμάτωση Συγγραφέα, Μεταφραστή & ISBN"),
-        txt("Eserler Arası Kesintisiz Gezinti Barı", "Seamless Book-to-Book Browse Bar", "Μπάρα Απρόσκοπτης Περιήγησης Βιβλίων"),
+        txt("Anlık Eser & Fiyat Keşfi", "Real-Time Book & Price Discovery", "Άμεση Ανακάλυψη Βιβλίων & Τιμών"),
         txt("Şubeler Arası Barkodlu Stok & POS", "Multi-Branch Barcode Stock & POS", "Απόθεμα Barcode & POS Πολλαπλών Καταστημάτων")
       ],
       link: "/shop-landing"
@@ -908,10 +908,10 @@ export const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
-            {/* Left Side: Video Selector Tabs */}
-            <div className="lg:col-span-5 flex flex-col justify-between space-y-4 order-2 lg:order-1">
-              <div className="space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            {/* Left Side: Video Selector Tabs (1/3 width = 4 columns) */}
+            <div className="lg:col-span-4 flex flex-col justify-between space-y-3 order-2 lg:order-1">
+              <div className="space-y-2 max-h-[640px] overflow-y-auto pr-1">
                 {videoTabs.map((tab, idx) => {
                   const isActive = activeVideoTab === idx;
                   return (
@@ -926,32 +926,32 @@ export const LandingPage = () => {
                           setVideoMode('youtube');
                         }
                       }}
-                      className={`w-full text-left p-5 rounded-2xl border transition-all relative overflow-hidden flex items-start gap-4 cursor-pointer ${
+                      className={`w-full text-left p-3.5 rounded-xl border transition-all relative overflow-hidden flex items-start gap-3 cursor-pointer ${
                         isActive
-                          ? 'bg-white/[0.04] border-amber-500/30 shadow-2xl shadow-amber-500/5'
-                          : 'bg-white/[0.01] border-white/5 hover:bg-white/[0.02] hover:border-white/10'
+                          ? 'bg-white/[0.06] border-amber-500/40 shadow-xl shadow-amber-500/5'
+                          : 'bg-white/[0.015] border-white/5 hover:bg-white/[0.03] hover:border-white/10'
                       }`}
                     >
-                      <div className={`p-2.5 rounded-xl shrink-0 ${
+                      <div className={`p-2 rounded-lg shrink-0 ${
                         isActive ? 'bg-amber-600 text-white shadow-sm' : 'bg-white/5 text-white/40'
                       }`}>
-                        <Tv className="h-5 w-5" />
+                        <Tv className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <span className={`text-[10px] font-black uppercase tracking-wider ${
+                        <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                          <span className={`text-[9px] font-black uppercase tracking-wider ${
                             isActive ? 'text-amber-400' : 'text-white/40'
                           }`}>
                             {tab.tag}
                           </span>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1">
                             {tab.hyperframesScenario && (
-                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
-                                <Sparkles className="w-2.5 h-2.5 text-purple-300" />
-                                HyperFrames
+                              <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-0.5">
+                                <Sparkles className="w-2 h-2 text-purple-300" />
+                                CANLI
                               </span>
                             )}
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
                               tab.isLive 
                                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
                                 : 'bg-white/5 text-white/40'
@@ -960,13 +960,13 @@ export const LandingPage = () => {
                             </span>
                           </div>
                         </div>
-                        <h3 className={`text-base font-black tracking-tight mt-1 ${
+                        <h3 className={`text-xs font-bold tracking-tight mt-0.5 leading-snug line-clamp-2 ${
                           isActive ? 'text-white' : 'text-white/80'
                         }`}>
                           {tab.title}
                         </h3>
                         {isActive && (
-                          <p className="text-white/60 text-xs font-semibold mt-1.5 leading-relaxed">
+                          <p className="text-white/60 text-[11px] font-normal mt-1 leading-snug line-clamp-2">
                             {tab.description}
                           </p>
                         )}
@@ -977,20 +977,20 @@ export const LandingPage = () => {
               </div>
 
               {/* Video Player Info */}
-              <div className="bg-amber-500/5 rounded-2xl p-4 border border-amber-500/10 flex items-center gap-3">
-                <Sparkles className="h-5 w-5 text-purple-400 shrink-0" />
-                <p className="text-xs text-amber-400/80 font-bold">
+              <div className="bg-amber-500/5 rounded-xl p-3 border border-amber-500/10 flex items-center gap-2.5">
+                <Sparkles className="h-4 w-4 text-purple-400 shrink-0" />
+                <p className="text-[11px] text-amber-400/90 font-medium leading-tight">
                   {txt(
-                    'Özelliklerimiz HeyGen HyperFrames motoruyla kod tabanlı simülasyon olarak ve YouTube kanalımızda yayınlanmaktadır.',
-                    'Our system features are published as code-driven simulations via HeyGen HyperFrames and on YouTube.',
-                    'Οι λειτουργίες του συστήματός μας δημοσιεύονται ως προσομοιώσεις κώδικα μέσω HeyGen HyperFrames και στο YouTube.'
+                    'Özelliklerimiz etkileşimli canlı simülasyon olarak ve YouTube kanalımızda yayınlanmaktadır.',
+                    'Our system features are published as interactive live simulations and on YouTube.',
+                    'Οι λειτουργίες του συστήματός μας δημοσιεύονται ως διαδραστικές προσομοιώσεις και στο YouTube.'
                   )}
                 </p>
               </div>
             </div>
 
-            {/* Right Side: Active Video Player Stage */}
-            <div className="lg:col-span-7 order-1 lg:order-2 flex flex-col gap-3">
+            {/* Right Side: Active Video Player Stage (2/3 width = 8 columns) */}
+            <div className="lg:col-span-8 order-1 lg:order-2 flex flex-col gap-3">
               {/* Mode Switcher Bar */}
               {(videoTabs[activeVideoTab]?.hyperframesScenario || videoTabs[activeVideoTab]?.youtubeId) && (
                 <div className="flex items-center justify-between gap-2 px-1">
@@ -1005,7 +1005,7 @@ export const LandingPage = () => {
                         }`}
                       >
                         <Sparkles className="w-3.5 h-3.5 text-purple-300" />
-                        {txt('HyperFrames Canlı Simülasyon', 'HyperFrames Live Simulation', 'Προσομοίωση HyperFrames')}
+                        {txt('Canlı Simülasyon', 'Live Simulation', 'Ζωντανή Προσομοίωση')}
                       </button>
                     )}
                     {videoTabs[activeVideoTab]?.youtubeId && (
@@ -1024,7 +1024,7 @@ export const LandingPage = () => {
                   </div>
                   <span className="text-[11px] font-bold text-white/40 hidden sm:inline-block">
                     {videoMode === 'hyperframes' 
-                      ? txt('HeyGen Kod Tabanlı Motor', 'HeyGen Code-Driven Engine', 'HeyGen Engine') 
+                      ? txt('İnteraktif Sistem Turu', 'Interactive System Tour', 'Διαδραστική Περιήγηση') 
                       : 'LookPrice TV'}
                   </span>
                 </div>

@@ -47,17 +47,17 @@ export const HYPERFRAME_SCENARIOS: HyperFrameScenario[] = [
   {
     id: 'book_nav',
     sectorKey: 'booklp',
-    badge: 'BookLP • Eser Gezinti Barı',
+    badge: 'BookLP • Eser Kataloğu',
     accentColor: '#a855f7',
     title: {
-      tr: 'BookLP — Eserler Arası Kesintisiz Gezinti Barı',
-      en: 'BookLP — Seamless In-Catalog Book Navigator Bar',
-      el: 'BookLP — Απρόσκοπτη Γραμμή Περιήγησης Βιβλίων'
+      tr: 'BookLP — Eserler Arası Hızlı Geçiş & Katalog',
+      en: 'BookLP — Quick Catalog & Seamless Book Navigation',
+      el: 'BookLP — Γρήγορη Περιήγηση & Κατάλογος Βιβλίων'
     },
     description: {
-      tr: 'Ziyaretçiler detay sayfasından ayrılmadan, alt gezinti barı ile kategorideki tüm eserler arasında akıcı ve kesintisiz geçiş yapar.',
-      en: 'Visitors fluidly discover and switch between all books in the category via the bottom navigator bar without ever leaving the product detail view.',
-      el: 'Οι επισκέπτες ανακαλύπτουν και εναλλάσσουν βιβλία μέσω της κάτω γραμμής περιήγησης χωρίς να εγκαταλείψουν τη σελίδα.'
+      tr: 'Ziyaretçiler detay sayfasından ayrılmadan, alt katalog kartları ile kategorideki tüm eserler arasında akıcı geçiş yapar.',
+      en: 'Visitors fluidly discover and switch between all books in the category via floating catalog cards without leaving the product view.',
+      el: 'Οι επισκέπτες ανακαλύπτουν και εναλλάσσουν βιβλία μέσω των καρτών καταλόγου χωρίς να εγκαταλείψουν τη σελίδα.'
     },
     duration: 30,
     steps: [
@@ -81,11 +81,11 @@ export const HYPERFRAME_SCENARIOS: HyperFrameScenario[] = [
         id: 'step_2',
         startSec: 8,
         endSec: 15,
-        title: 'Alt Gezinti Barından Eser Seçimi',
+        title: 'Katalogdan Eser Seçimi',
         narration: {
-          tr: "Sayfayı yenilemeden alt gezinme çubuğunda listelenen 'Tutunamayanlar' eserinin üzerine gelinir ve tıklanır.",
-          en: "Without refreshing the page, cursor moves down to 'The Disconnected' in the bottom navigation bar and clicks.",
-          el: "Χωρίς ανανέωση της σελίδας, ο κέρσορας επιλέγει το 'Tutunamayanlar' στην κάτω γραμμή."
+          tr: "Sayfayı yenilemeden alttaki katalog kartlarından 'Tutunamayanlar' eserinin üzerine gelinir ve seçilir.",
+          en: "Without refreshing the page, cursor moves down to 'The Disconnected' in the catalog cards and selects it.",
+          el: "Χωρίς ανανέωση της σελίδας, ο κέρσορας επιλέγει το 'Tutunamayanlar' στις κάρτες καταλόγου."
         },
         cursorTarget: { x: 50, y: 91, action: 'click', actionText: 'Tutunamayanlar' },
         statePayload: {
