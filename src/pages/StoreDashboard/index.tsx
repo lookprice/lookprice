@@ -1336,7 +1336,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   currentUser={user}
                   currentStoreId={currentStoreId!}
                   products={products}
-                  onRefresh={fetchData}
+                  onRefresh={() => fetchData(true)}
                   bulkPriceForm={bulkPriceForm}
                   setBulkPriceForm={setBulkPriceForm}
                   handleBulkPriceSubmit={handleBulkPriceSubmit}

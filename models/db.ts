@@ -1462,11 +1462,8 @@ export async function initDb() {
 
         ALTER TABLE integrator_configs ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}';
 
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='hepsiburada_orders' AND column_name='hepsiburada_order_id' AND data_type='text') THEN
-          -- Safely convert to BIGINT if possible
-          IF (SELECT count(*) FROM hepsiburada_orders WHERE hepsiburada_order_id !~ '^[0-9]+$') = 0 THEN
-             ALTER TABLE hepsiburada_orders ALTER COLUMN hepsiburada_order_id TYPE BIGINT USING hepsiburada_order_id::BIGINT;
-          END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='hepsiburada_orders' AND column_name='hepsiburada_order_id' AND data_type != 'text') THEN
+          ALTER TABLE hepsiburada_orders ALTER COLUMN hepsiburada_order_id TYPE TEXT USING hepsiburada_order_id::TEXT;
         END IF;
 
         -- Marketplace Columns

@@ -56,6 +56,97 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
+  const getStyledHtml = (html: string | null) => {
+    if (!html) return '';
+    const printStyles = `
+      <style id="a4-print-styles">
+        @media screen {
+          html, body {
+            background-color: #f8fafc !important;
+            margin: 0 !important;
+            padding: 16px !important;
+          }
+          body {
+            max-width: 780px !important;
+            margin: 0 auto !important;
+            padding: 20px !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+            box-sizing: border-box !important;
+            border-radius: 8px !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+          }
+          table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: auto !important;
+            box-sizing: border-box !important;
+          }
+        }
+
+        @media print {
+          @page {
+            size: A4 portrait !important;
+            margin: 6mm 8mm 6mm 8mm !important;
+          }
+          html, body {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-size: 10px !important;
+            line-height: 1.25 !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            box-sizing: border-box !important;
+          }
+          table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: auto !important;
+            border-collapse: collapse !important;
+            box-sizing: border-box !important;
+            margin: 0 0 6px 0 !important;
+          }
+          table tr {
+            page-break-inside: avoid !important;
+          }
+          td, th {
+            padding: 3px 4px !important;
+            font-size: 9.5px !important;
+            line-height: 1.2 !important;
+            box-sizing: border-box !important;
+            word-break: break-word !important;
+          }
+          img {
+            max-height: 65px !important;
+            max-width: 180px !important;
+            object-fit: contain !important;
+          }
+          h1, h2, h3, h4, p, div {
+            margin-top: 2px !important;
+            margin-bottom: 2px !important;
+          }
+        }
+      </style>
+    `;
+    if (html.includes("</head>")) {
+      return html.replace("</head>", `${printStyles}</head>`);
+    } else if (html.includes("<head>")) {
+      return html.replace("<head>", `<head>${printStyles}`);
+    } else {
+      return printStyles + html;
+    }
+  };
+
   // Form state
   const [companyId, setCompanyId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -772,7 +863,7 @@ export default function PurchaseInvoices({ storeId: initialStoreId, currentStore
               )}
               <iframe 
                 id="purchase-invoice-iframe"
-                srcDoc={selectedHtml || ''} 
+                srcDoc={getStyledHtml(selectedHtml)} 
                 onLoad={() => setPurchaseIframeReady(true)}
                 className={`w-full h-full bg-white shadow-lg rounded-2xl min-h-[60vh] border-0 p-4 transition-opacity duration-300 ${
                   purchaseIframeReady && !purchaseHtmlLoading ? 'opacity-100' : 'opacity-0'

@@ -952,15 +952,37 @@ router.post("/hepsiburada/sync-inventory", authenticate, async (req: any, res) =
 
 // 6. Publish / Update Single Product to Hepsiburada
 router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user.store_id || 1) : Number(req.user.store_id || rawStoreId);
   const productId = req.body.productId;
 
   try {
-    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+    
+    let settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = storeRes.rows[0]?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.merchantId || !settings.apiSecret) {
+      settings = branding?.hepsiburada_settings || settings || {};
+    }
+
+    const merchantId = String(settings?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+    const apiSecret = String(settings?.apiSecret || "").trim();
+
+    if (!merchantId || !apiSecret) {
       return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (Ayarlar > E-Mağazalar sekmesinden API anahtarlarınızı kaydedin)" });
     }
+
+    const cleanSettings = {
+      ...settings,
+      merchantId,
+      apiKey,
+      apiSecret,
+      isTestMode: Boolean(settings?.isTestMode)
+    };
 
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
     const p = prodRes.rows[0];
@@ -1161,15 +1183,37 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
 
 // 6b. Bulk Publish / Update Selected Products to Hepsiburada
 router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user.store_id || 1) : Number(req.user.store_id || rawStoreId);
   const productIds = req.body.productIds;
 
   try {
-    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = storeRes.rows[0]?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.merchantId || !settings.apiSecret) {
+      settings = branding?.hepsiburada_settings || settings || {};
+    }
+
+    const merchantId = String(settings?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+    const apiSecret = String(settings?.apiSecret || "").trim();
+
+    if (!merchantId || !apiSecret) {
       return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (Ayarlar > E-Mağazalar sekmesinden API anahtarlarınızı kaydedin)" });
     }
+
+    const cleanSettings = {
+      ...settings,
+      merchantId,
+      apiKey,
+      apiSecret,
+      isTestMode: Boolean(settings?.isTestMode)
+    };
 
     let query = "SELECT * FROM products WHERE store_id = $1";
     const params: any[] = [storeId];
@@ -1187,7 +1231,7 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
       return res.status(400).json({ error: "İlana açılacak uygun barkodlu ürün bulunamadı." });
     }
 
-    const hbService = new HepsiburadaService(settings, storeId);
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
     const storeInfoRes = await pool.query("SELECT currency_rates, branding FROM stores WHERE id = $1", [storeId]);
     const storeInfo = storeInfoRes.rows[0];
     const rates = storeInfo?.currency_rates || storeInfo?.branding?.currency_rates || {};
@@ -1222,7 +1266,7 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
         HepsiburadaSku: p.hepsiburada_sku || "",
         Price: effectivePrice,
         AvailableStock: parseInt(p.stock_quantity || "0", 10),
-        DispatchTime: settings.defaultDispatchTime || 1,
+        DispatchTime: cleanSettings.defaultDispatchTime || 1,
       });
     }
 
@@ -1256,15 +1300,37 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
 
 // 6c. Unpublish / Remove Single Product from Hepsiburada (Stop Selling by Setting Stock to 0)
 router.post("/hepsiburada/unpublish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user.store_id || 1) : Number(req.user.store_id || rawStoreId);
   const productId = req.body.productId;
 
   try {
-    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = storeRes.rows[0]?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.merchantId || !settings.apiSecret) {
+      settings = branding?.hepsiburada_settings || settings || {};
     }
+
+    const merchantId = String(settings?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+    const apiSecret = String(settings?.apiSecret || "").trim();
+
+    if (!merchantId || !apiSecret) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (Ayarlar > E-Mağazalar sekmesinden API anahtarlarınızı kaydedin)" });
+    }
+
+    const cleanSettings = {
+      ...settings,
+      merchantId,
+      apiKey,
+      apiSecret,
+      isTestMode: Boolean(settings?.isTestMode)
+    };
 
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
     const p = prodRes.rows[0];
@@ -1274,14 +1340,20 @@ router.post("/hepsiburada/unpublish", authenticate, async (req: any, res) => {
       return res.status(400).json({ error: "Ürün barkodu eksik." });
     }
 
-    const hbService = new HepsiburadaService(settings, storeId);
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
+    let mpData: any = p.marketplace_data;
+    if (typeof mpData === "string") {
+      try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+    }
+    const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode.trim();
+
     const result = await hbService.updatePriceAndStock([
       {
         HepsiburadaSku: p.hepsiburada_sku || "",
-        MerchantSku: p.barcode.trim(),
+        MerchantSku: hbMerchantSku,
         Price: parseFloat(p.price || "0"),
         AvailableStock: 0,
-        DispatchTime: settings.defaultDispatchTime || 1,
+        DispatchTime: cleanSettings.defaultDispatchTime || 1,
       }
     ]);
 
@@ -1302,15 +1374,37 @@ router.post("/hepsiburada/unpublish", authenticate, async (req: any, res) => {
 
 // 6d. Bulk Unpublish Products from Hepsiburada
 router.post("/hepsiburada/bulk-unpublish", authenticate, async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" ? Number(rawStoreId || req.user.store_id || 1) : Number(req.user.store_id || rawStoreId);
   const productIds = req.body.productIds;
 
   try {
-    const storeRes = await pool.query("SELECT hepsiburada_settings FROM stores WHERE id = $1", [storeId]);
-    const settings = storeRes.rows[0]?.hepsiburada_settings;
-    if (!settings || !settings.apiKey || !settings.apiSecret || !settings.merchantId) {
-      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik" });
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) return res.status(404).json({ error: "Mağaza bulunamadı" });
+
+    let settings = storeRes.rows[0]?.hepsiburada_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = storeRes.rows[0]?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.merchantId || !settings.apiSecret) {
+      settings = branding?.hepsiburada_settings || settings || {};
     }
+
+    const merchantId = String(settings?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+    const apiSecret = String(settings?.apiSecret || "").trim();
+
+    if (!merchantId || !apiSecret) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik (Ayarlar > E-Mağazalar sekmesinden API anahtarlarınızı kaydedin)" });
+    }
+
+    const cleanSettings = {
+      ...settings,
+      merchantId,
+      apiKey,
+      apiSecret,
+      isTestMode: Boolean(settings?.isTestMode)
+    };
 
     let query = "SELECT * FROM products WHERE store_id = $1";
     const params: any[] = [storeId];
@@ -1328,16 +1422,21 @@ router.post("/hepsiburada/bulk-unpublish", authenticate, async (req: any, res) =
       return res.status(400).json({ error: "Yayından kaldırılacak aktif ürün bulunamadı." });
     }
 
-    const hbService = new HepsiburadaService(settings, storeId);
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
     const items: any[] = [];
     for (const p of products) {
       if (p.barcode && p.barcode.trim()) {
+        let mpData: any = p.marketplace_data;
+        if (typeof mpData === "string") {
+          try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+        }
+        const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode.trim();
         items.push({
-          MerchantSku: p.barcode.trim(),
+          MerchantSku: hbMerchantSku,
           HepsiburadaSku: p.hepsiburada_sku || "",
           Price: parseFloat(p.price || "0"),
           AvailableStock: 0,
-          DispatchTime: settings.defaultDispatchTime || 1,
+          DispatchTime: cleanSettings.defaultDispatchTime || 1,
         });
       }
     }

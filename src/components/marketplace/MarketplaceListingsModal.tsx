@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -73,13 +73,17 @@ const MARKETPLACES: MarketplaceConfig[] = [
     lastSyncField: 'hepsiburada_last_sync',
     skuField: 'hepsiburada_sku',
     getListingUrl: (p: any) => {
+      let mpData = p.marketplace_data;
+      if (typeof mpData === 'string') {
+        try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+      }
       const hbSku = p.hepsiburada_sku || 
                     p.hepsiburadaSku || 
-                    p.marketplace_data?.hepsiburada?.hepsiburadaSku || 
-                    p.marketplace_data?.hepsiburada?.hepsiburada_sku ||
-                    p.marketplace_data?.hepsiburada?.hbSku ||
-                    (String(p.sku || '').startsWith('HBCV') ? p.sku : '') ||
-                    (String(p.product_code || '').startsWith('HBCV') ? p.product_code : '');
+                    mpData?.hepsiburada?.hepsiburadaSku || 
+                    mpData?.hepsiburada?.hepsiburada_sku ||
+                    mpData?.hepsiburada?.hbSku ||
+                    (String(p.sku || '').toUpperCase().startsWith('HBCV') ? p.sku : '') ||
+                    (String(p.product_code || '').toUpperCase().startsWith('HBCV') ? p.product_code : '');
       if (hbSku) {
         return `https://www.hepsiburada.com/-p-${hbSku}`;
       }
@@ -100,7 +104,11 @@ const MARKETPLACES: MarketplaceConfig[] = [
     lastSyncField: 'trendyol_last_sync',
     skuField: 'trendyol_id',
     getListingUrl: (p: any) => {
-      const tyId = p.trendyol_id || p.marketplace_data?.trendyol?.contentId;
+      let mpData = p.marketplace_data;
+      if (typeof mpData === 'string') {
+        try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+      }
+      const tyId = p.trendyol_id || mpData?.trendyol?.contentId;
       if (tyId) return `https://www.trendyol.com/-p-${tyId}`;
       return `https://www.trendyol.com/sr?q=${encodeURIComponent(p.barcode || p.name)}`;
     },
@@ -172,6 +180,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   initialStatus = 'all'
 }) => {
   const isTr = lang === 'tr';
+  const [localProducts, setLocalProducts] = useState<any[]>(products);
   const [selectedMarketplace, setSelectedMarketplace] = useState<MarketplaceKey>(initialMarketplace);
   const [selectedStatus, setSelectedStatus] = useState<ListingStatus>(initialStatus);
   const [searchTerm, setSearchTerm] = useState('');
@@ -183,6 +192,10 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   const [isMatchingListings, setIsMatchingListings] = useState(false);
   const [isSyncingOrders, setIsSyncingOrders] = useState(false);
   const [matchResult, setMatchResult] = useState<any | null>(null);
+
+  useEffect(() => {
+    setLocalProducts(products);
+  }, [products]);
 
   const handleMatchListings = async (importMissing: boolean = true) => {
     try {
@@ -254,22 +267,22 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     return cfg ? (p[cfg.errorField] || null) : null;
   };
 
-  // Categories list from products
+  // Categories list from localProducts
   const categories = useMemo(() => {
     const cats = new Set<string>();
-    products.forEach(p => {
+    localProducts.forEach(p => {
       if (p.category) cats.add(p.category);
     });
     return Array.from(cats);
-  }, [products]);
+  }, [localProducts]);
 
   // Global counts for metrics
   const metrics = useMemo(() => {
-    const total = products.length;
+    const total = localProducts.length;
     let active = 0;
     let errors = 0;
 
-    products.forEach(p => {
+    localProducts.forEach(p => {
       if (isProductActive(p, selectedMarketplace)) {
         active++;
       } else if (getProductError(p, selectedMarketplace)) {
@@ -279,11 +292,11 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
     const inactive = total - active - errors;
     return { total, active, errors, inactive };
-  }, [products, selectedMarketplace]);
+  }, [localProducts, selectedMarketplace]);
 
   // Filtered Products
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    return localProducts.filter(p => {
       // Search term
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase().trim();
@@ -314,7 +327,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
       return true;
     });
-  }, [products, selectedMarketplace, selectedStatus, searchTerm, selectedCategory]);
+  }, [localProducts, selectedMarketplace, selectedStatus, searchTerm, selectedCategory]);
 
   const copyToClipboard = (text: string) => {
     if (!text) return;
@@ -339,6 +352,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         const res = await api.publishHepsiburadaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
           toast.success(isTr ? `"${product.name}" Hepsiburada'ya gönderildi!` : "Published to Hepsiburada!");
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_hepsiburada_active: true, hepsiburada_last_error: null, hepsiburada_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
           if (onRefresh) onRefresh();
         } else {
           toast.error(res?.data?.error || res?.error || (isTr ? "Aktarım başarısız oldu." : "Publish failed."));
@@ -347,6 +366,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         const res = await api.publishTrendyolProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
           toast.success(isTr ? `"${product.name}" Trendyol'a gönderildi!` : "Published to Trendyol!");
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_trendyol_active: true, trendyol_last_error: null, trendyol_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
           if (onRefresh) onRefresh();
         } else {
           toast.error(res?.error || "Aktarım başarısız.");
@@ -355,6 +380,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         const res = await api.publishN11Product(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
           toast.success(isTr ? `"${product.name}" N11'e aktarıldı!` : "Published to N11!");
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_n11_active: true, n11_last_error: null, n11_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
           if (onRefresh) onRefresh();
         } else {
           toast.error(res?.error || "Aktarım başarısız.");
@@ -363,6 +394,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         const res = await api.publishPazaramaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
           toast.success(isTr ? `"${product.name}" Pazarama'ya aktarıldı!` : "Published to Pazarama!");
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_pazarama_active: true, pazarama_last_error: null, pazarama_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
           if (onRefresh) onRefresh();
         } else {
           toast.error(res?.error || "Aktarım başarısız.");
@@ -382,9 +419,15 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       const res = await api.bulkPublishHepsiburadaProducts(selectedIds, currentStoreId);
       toast.success(
         isTr 
-          ? `Hepsiburada'ya ${res.data?.syncedCount || selectedIds.length} ürün başarıyla iletildi!` 
+          ? `Hepsiburada'ye ${res.data?.syncedCount || selectedIds.length} ürün başarıyla iletildi!` 
           : `Sent ${res.data?.syncedCount || selectedIds.length} products to Hepsiburada!`
       );
+      setLocalProducts(prev => prev.map(item => {
+        if (selectedIds.includes(item.id)) {
+          return { ...item, is_hepsiburada_active: true, hepsiburada_last_error: null, hepsiburada_last_sync: new Date().toISOString() };
+        }
+        return item;
+      }));
       setSelectedIds([]);
       if (onRefresh) onRefresh();
     } catch (e: any) {
@@ -404,6 +447,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         const res = await api.unpublishHepsiburadaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
           toast.success(isTr ? `"${product.name}" Hepsiburada'da yayından kaldırıldı (satışa kapatıldı)!` : "Unpublished from Hepsiburada!");
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_hepsiburada_active: false, hepsiburada_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
           if (onRefresh) onRefresh();
         } else {
           toast.error(res?.data?.error || res?.error || (isTr ? "Yayından kaldırma başarısız." : "Unpublish failed."));
@@ -412,6 +461,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         const res = await api.unpublishTrendyolProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
           toast.success(isTr ? `"${product.name}" Trendyol'da yayından kaldırıldı!` : "Unpublished from Trendyol!");
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_trendyol_active: false, trendyol_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
           if (onRefresh) onRefresh();
         } else {
           toast.error(res?.error || "İşlem başarısız.");
@@ -420,6 +475,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         const res = await api.unpublishN11Product(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
           toast.success(isTr ? `"${product.name}" N11'de yayından kaldırıldı!` : "Unpublished from N11!");
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_n11_active: false, n11_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
           if (onRefresh) onRefresh();
         } else {
           toast.error(res?.error || "İşlem başarısız.");
@@ -428,6 +489,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         const res = await api.unpublishPazaramaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
           toast.success(isTr ? `"${product.name}" Pazarama'da yayından kaldırıldı!` : "Unpublished from Pazarama!");
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_pazarama_active: false, pazarama_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
           if (onRefresh) onRefresh();
         } else {
           toast.error(res?.error || "İşlem başarısız.");
@@ -450,6 +517,12 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           ? `Hepsiburada'da ${res.data?.unpublishedCount || selectedIds.length} ürün yayından kaldırıldı!` 
           : `Unpublished ${res.data?.unpublishedCount || selectedIds.length} products from Hepsiburada!`
       );
+      setLocalProducts(prev => prev.map(item => {
+        if (selectedIds.includes(item.id)) {
+          return { ...item, is_hepsiburada_active: false, hepsiburada_last_sync: new Date().toISOString() };
+        }
+        return item;
+      }));
       setSelectedIds([]);
       if (onRefresh) onRefresh();
     } catch (e: any) {
@@ -505,16 +578,18 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           <div className="flex items-center gap-2">
             {onRefresh && (
               <button 
-                onClick={onRefresh}
-                className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRefresh(); }}
+                className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
                 title={isTr ? "Yenile" : "Refresh"}
               >
                 <RefreshCw className="w-4.5 h-4.5" />
               </button>
             )}
             <button 
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-all"
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-all cursor-pointer"
               title={isTr ? "Kapat" : "Close"}
             >
               <X className="w-5 h-5" />
@@ -527,8 +602,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           {/* Marketplace Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             <button
+              type="button"
               onClick={() => setSelectedMarketplace('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 border cursor-pointer ${
                 selectedMarketplace === 'all'
                   ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 shadow-xs'
                   : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
@@ -542,9 +618,10 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               const isActive = selectedMarketplace === mp.key;
               return (
                 <button
+                  type="button"
                   key={mp.key}
                   onClick={() => setSelectedMarketplace(mp.key)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 border ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 border cursor-pointer ${
                     isActive
                       ? `${mp.bgLight} ${mp.color} ${mp.borderColor} shadow-xs font-black ring-1 ring-orange-400/40`
                       : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
@@ -561,8 +638,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
             <div className="flex flex-wrap items-center gap-1.5">
               <button
+                type="button"
                 onClick={() => setSelectedStatus('all')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                   selectedStatus === 'all'
                     ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 shadow-xs'
                     : 'bg-transparent border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -572,8 +650,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               </button>
 
               <button
+                type="button"
                 onClick={() => setSelectedStatus('active')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
                   selectedStatus === 'active'
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 shadow-xs'
                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-emerald-600 hover:bg-emerald-50/50'
@@ -587,8 +666,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               </button>
 
               <button
+                type="button"
                 onClick={() => setSelectedStatus('error')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
                   selectedStatus === 'error'
                     ? 'bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300 shadow-xs'
                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-rose-600 hover:bg-rose-50/50'
@@ -602,8 +682,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               </button>
 
               <button
+                type="button"
                 onClick={() => setSelectedStatus('inactive')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                   selectedStatus === 'inactive'
                     ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 border-slate-300 shadow-xs'
                     : 'bg-transparent border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -679,8 +760,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                 </span>
               </div>
               <button 
+                type="button"
                 onClick={() => setMatchResult(null)}
-                className="text-orange-600 hover:text-orange-800 p-1"
+                className="text-orange-600 hover:text-orange-800 p-1 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -700,8 +782,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               />
               {searchTerm && (
                 <button 
+                  type="button"
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -823,8 +906,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                               <div className="flex items-center gap-2 mt-1">
                                 {p.barcode ? (
                                   <button
-                                    onClick={() => copyToClipboard(p.barcode)}
-                                    className="font-mono text-[10px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1"
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyToClipboard(p.barcode); }}
+                                    className="font-mono text-[10px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer"
                                     title={isTr ? "Barkodu Kopyala" : "Copy Barcode"}
                                   >
                                     {copiedBarcode === p.barcode ? (
@@ -854,13 +938,17 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                 )}
 
                                 {(() => {
+                                  let mpData = p.marketplace_data;
+                                  if (typeof mpData === 'string') {
+                                    try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+                                  }
                                   const displayHbSku = p.hepsiburada_sku || 
                                     p.hepsiburadaSku || 
-                                    p.marketplace_data?.hepsiburada?.hepsiburadaSku || 
-                                    p.marketplace_data?.hepsiburada?.hepsiburada_sku ||
-                                    p.marketplace_data?.hepsiburada?.hbSku ||
-                                    (String(p.sku || '').startsWith('HBCV') ? p.sku : '') ||
-                                    (String(p.product_code || '').startsWith('HBCV') ? p.product_code : '');
+                                    mpData?.hepsiburada?.hepsiburadaSku || 
+                                    mpData?.hepsiburada?.hepsiburada_sku ||
+                                    mpData?.hepsiburada?.hbSku ||
+                                    (String(p.sku || '').toUpperCase().startsWith('HBCV') ? p.sku : '') ||
+                                    (String(p.product_code || '').toUpperCase().startsWith('HBCV') ? p.product_code : '');
                                   if (!displayHbSku) return null;
                                   return (
                                     <span className="font-mono text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Hepsiburada SKU">
@@ -1001,9 +1089,10 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
                             {/* Yeniden Satışa Gönder / Güncelle Button */}
                             <button
-                              onClick={() => handlePublishSingle(p, selectedMarketplace)}
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePublishSingle(p, selectedMarketplace); }}
                               disabled={publishingId === p.id}
-                              className={`p-1.5 rounded-xl border transition-all active:scale-95 ${
+                              className={`p-1.5 rounded-xl border transition-all active:scale-95 cursor-pointer ${
                                 isHbActive
                                   ? 'border-orange-200 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/40'
                                   : 'border-slate-200 dark:border-slate-700 text-slate-600 hover:text-orange-600 hover:bg-orange-50'
@@ -1021,7 +1110,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                             {isHbActive && (
                               <button
                                 type="button"
-                                onClick={() => handleUnpublishSingle(p, selectedMarketplace)}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnpublishSingle(p, selectedMarketplace); }}
                                 disabled={publishingId === p.id}
                                 className="p-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all active:scale-95 cursor-pointer"
                                 title={isTr ? "Hepsiburada'da Yayından Kaldır (Satışa Kapat)" : "Unpublish from Hepsiburada"}
@@ -1033,8 +1122,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                             {/* Düzelt & Pazaryeri Bilgilerini Düzenle */}
                             {onEditProduct && (
                               <button
-                                onClick={() => onEditProduct(p)}
-                                className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 transition-all"
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEditProduct(p); }}
+                                className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 transition-all cursor-pointer"
                                 title={isTr ? "Ürün & Pazaryeri Bilgilerini Düzenle" : "Edit Product & Attributes"}
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
@@ -1055,7 +1145,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         <div className="px-4 sm:px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <div className="text-slate-500 dark:text-slate-400 flex items-center gap-2">
             <span>
-              {isTr ? "Gösterilen Ürün Sayısı:" : "Showing Products:"} <strong className="text-slate-900 dark:text-slate-100">{filteredProducts.length}</strong> / {products.length}
+              {isTr ? "Gösterilen Ürün Sayısı:" : "Showing Products:"} <strong className="text-slate-900 dark:text-slate-100">{filteredProducts.length}</strong> / {localProducts.length}
             </span>
             {metrics.active > 0 && (
               <span className="text-emerald-600 font-bold flex items-center gap-1">
@@ -1071,8 +1161,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-xs"
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+              className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-xs cursor-pointer"
             >
               {isTr ? "Kapat" : "Close"}
             </button>

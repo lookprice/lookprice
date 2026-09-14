@@ -1771,16 +1771,16 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
       // 1. Prepare Amount in Words and Currency Info
       const amountWordsRaw = numberToTurkishWords(Number(grand_total), currency || 'TRY');
       const amountWords = amountWordsRaw.replace(/\s+/g, '');
-      const alonePart = `<div style="border-bottom: 2px solid #000; margin-bottom: 15px; padding-bottom: 8px; font-weight: bold; font-size: 15px; color: #000; text-align: left;">YALNIZ: # ${amountWords} #</div>`;
+      const alonePart = `<div style="border-bottom: 1.5px solid #000; margin-bottom: 8px; padding-bottom: 4px; font-weight: bold; font-size: 12px; color: #000; text-align: left;">YALNIZ: # ${amountWords} #</div>`;
 
       // 2. Exchange Rate and TRY conversion if foreign currency
       let tryTotalsBlock = "";
       let exchangeRateBlock = "";
       if (exchange_rate && Number(exchange_rate) > 0 && currency && currency.toUpperCase() !== 'TRY') {
           exchangeRateBlock = `
-            <div style="margin-bottom: 15px; padding: 10px; border: 2px solid #d32f2f; background: #fff5f5; display: inline-block; border-radius: 4px;">
-                <span style="color: #d32f2f; font-weight: bold; font-size: 14px;">DÖVİZ KUR BİLGİSİ:</span>
-                <span style="font-size: 16px; font-weight: 800; color: #000; margin-left: 10px;">1 ${currency.toUpperCase()} = ${Number(exchange_rate).toFixed(4)} TRY</span>
+            <div style="margin-bottom: 8px; padding: 4px 10px; border: 1.5px solid #d32f2f; background: #fff5f5; display: inline-block; border-radius: 4px;">
+                <span style="color: #d32f2f; font-weight: bold; font-size: 11px;">DÖVİZ KUR BİLGİSİ:</span>
+                <span style="font-size: 12px; font-weight: 800; color: #000; margin-left: 8px;">1 ${currency.toUpperCase()} = ${Number(exchange_rate).toFixed(4)} TRY</span>
             </div>
           `;
           
@@ -1789,24 +1789,24 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
           const tryTotal = (Number(grand_total || 0) * Number(exchange_rate)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
           tryTotalsBlock = `
-            <table style="width: 100%; margin-top: 20px; border-collapse: collapse; border: 2px solid #000; font-family: 'Inter', sans-serif; font-size: 12px; background: #fff;">
+            <table style="width: 100%; margin-top: 8px; border-collapse: collapse; border: 1.5px solid #000; font-family: inherit; font-size: 11px; background: #fff;">
               <thead>
                 <tr style="background: #000; color: #fff;">
-                  <th colspan="2" style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; font-size: 13px;">Döviz Karşılıkları (TRY)</th>
+                  <th colspan="2" style="border: 1px solid #000; padding: 4px 8px; text-align: center; font-weight: bold; font-size: 11px;">Döviz Karşılıkları (TRY)</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td style="border: 1px solid #000; padding: 8px; font-weight: 500;">Mal Hizmet Toplam Tutarı (TL)</td>
-                  <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${trySubtotal} TL</td>
+                  <td style="border: 1px solid #000; padding: 4px 8px; font-weight: 500;">Mal Hizmet Toplam Tutarı (TL)</td>
+                  <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;">${trySubtotal} TL</td>
                 </tr>
                 <tr>
-                  <td style="border: 1px solid #000; padding: 8px; font-weight: 500;">Hesaplanan KDV (TL)</td>
-                  <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${tryTax} TL</td>
+                  <td style="border: 1px solid #000; padding: 4px 8px; font-weight: 500;">Hesaplanan KDV (TL)</td>
+                  <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;">${tryTax} TL</td>
                 </tr>
                 <tr style="background: #f1f1f1;">
-                  <td style="border: 1px solid #000; padding: 10px; font-weight: bold; font-size: 13px;">Vergiler Dahil Toplam Tutar (TL)</td>
-                  <td style="border: 1px solid #000; padding: 10px; text-align: right; font-weight: 800; font-size: 14px; color: #000;">${tryTotal} TL</td>
+                  <td style="border: 1px solid #000; padding: 5px 8px; font-weight: bold; font-size: 11px;">Vergiler Dahil Toplam Tutar (TL)</td>
+                  <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-weight: 800; font-size: 12px; color: #000;">${tryTotal} TL</td>
                 </tr>
               </tbody>
             </table>
@@ -1816,12 +1816,12 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
       // 3. Notes and Boxing
       const notesWithBr = (notes || "").replace(/\n/g, '<br/>');
       const boxedNotes = `
-        <div class="invoice-notes-box" style="margin-top: 40px; border: 3px solid #000; padding: 20px; font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.6; background: #fff; color: #000; clear: both; page-break-inside: avoid;">
+        <div class="invoice-notes-box" style="margin-top: 10px; border: 1.5px solid #000; padding: 10px 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 1.4; background: #fff; color: #000; clear: both; box-sizing: border-box; width: 100%;">
           ${alonePart}
           ${exchangeRateBlock}
-          <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
-            <strong style="display: block; margin-bottom: 8px; font-size: 14px; text-transform: uppercase;">Notlar / Açıklamalar:</strong>
-            <div style="white-space: pre-wrap; font-size: 13px; color: #333;">${notes || "---"}</div>
+          <div style="margin-top: 6px; border-top: 1px solid #eee; padding-top: 6px;">
+            <strong style="display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase;">Notlar / Açıklamalar:</strong>
+            <div style="white-space: pre-wrap; font-size: 11px; color: #222;">${notes || "---"}</div>
           </div>
           ${tryTotalsBlock}
         </div>

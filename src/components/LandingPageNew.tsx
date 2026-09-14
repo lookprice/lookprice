@@ -133,7 +133,7 @@ export const LandingPage = () => {
         youtubeId: null,
         duration: "0:30",
         isLive: true,
-        coverImg: "https://images.unsplash.com/photo-1507842229450-76c20f18837e?auto=format&fit=crop&w=1200&q=80",
+        coverImg: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1200&q=80",
         hyperframesScenario: "book_nav"
       },
       {
@@ -393,7 +393,7 @@ export const LandingPage = () => {
       ),
       icon: BookOpen,
       link: "/shop-landing",
-      bgImage: "https://images.unsplash.com/photo-1507842229450-76c20f18837e?auto=format&fit=crop&w=1200&q=80",
+      bgImage: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1200&q=80",
       color: "from-purple-600/20 to-pink-600/10",
       accent: "text-purple-400",
       btnBg: "bg-purple-600 hover:bg-purple-700",
@@ -503,7 +503,7 @@ export const LandingPage = () => {
         "Modern visual showcase, ISBN barcode engine, author & publisher facets, and instant book discovery.",
         "Μοντέρνα οπτική βιτρίνα, μηχανή barcode ISBN, φίλτρα συγγραφέων και άμεση ανακάλυψη βιβλίων."
       ),
-      bgImage: "https://images.unsplash.com/photo-1507842229450-76c20f18837e?auto=format&fit=crop&w=1200&q=80",
+      bgImage: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1200&q=80",
       color: "from-purple-600 to-pink-500",
       accent: "text-purple-400",
       accentBg: "bg-purple-500/10 border-purple-500/20",
