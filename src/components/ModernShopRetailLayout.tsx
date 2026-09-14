@@ -984,11 +984,11 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
 
       {/* 6. Main Catalog & Dynamic Facet Filter Section */}
       <section id="catalog" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 xl:gap-8 items-start">
           {/* Desktop Filter Sidebar */}
           {themeConfig.preset_name !== "bookstore_netflix" && (
-            <div className="hidden lg:block w-64 shrink-0 sticky top-28 z-10">
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
+            <div className="hidden lg:block w-60 xl:w-64 shrink-0 sticky top-28 z-10">
+              <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
                 <ShopFilterSidebar
                 products={products}
                 filterState={filters}

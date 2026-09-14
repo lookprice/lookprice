@@ -537,29 +537,58 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                       </motion.div>
                     </AnimatePresence>
 
-                    {/* Weekly Picks Mini Thumbnails Switcher Strip */}
+                    {/* Weekly Picks Mini Thumbnails Switcher Strip (Sleek Glass Filmstrip with No Scrollbars) */}
                     {weeklyBooks.length > 1 && (
-                      <div className="mt-4 flex items-center justify-center gap-2 max-w-full overflow-x-auto p-1.5 bg-slate-900/60 rounded-xl border border-slate-800/80 backdrop-blur-sm scrollbar-none">
-                        {weeklyBooks.map((b, bIdx) => (
-                          <button
-                            key={`thumb-pick-${b.id || bIdx}`}
-                            type="button"
-                            onClick={() => setCurrentHeroIdx(bIdx)}
-                            className={`relative w-8 sm:w-10 aspect-[2/3] rounded overflow-hidden transition-all shrink-0 cursor-pointer border ${
-                              bIdx === currentHeroIdx
-                                ? "border-red-500 scale-110 shadow-md shadow-red-500/30 ring-2 ring-red-500/40"
-                                : "border-slate-700 opacity-60 hover:opacity-100 hover:border-slate-500"
-                            }`}
-                            title={b.name}
-                          >
-                            <img
-                              src={b.image_url || getBookCoverFallbackSvg(b.name, b.author)}
-                              alt={b.name}
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
-                          </button>
-                        ))}
+                      <div className="mt-4 flex items-center justify-center gap-1.5 sm:gap-2 max-w-full px-2">
+                        {/* Prev Button */}
+                        <button
+                          type="button"
+                          onClick={() => setCurrentHeroIdx((prev) => (prev - 1 + weeklyBooks.length) % weeklyBooks.length)}
+                          className="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 flex items-center justify-center shrink-0 transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
+                          title={isTr ? "Önceki Eser" : "Previous Book"}
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Thumbnails Container */}
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scrollbar-none scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1.5 bg-slate-950/70 rounded-2xl border border-white/10 backdrop-blur-md shadow-2xl max-w-[280px] sm:max-w-[340px] md:max-w-[400px]">
+                          {weeklyBooks.map((b, bIdx) => {
+                            const isActive = bIdx === currentHeroIdx;
+                            return (
+                              <button
+                                key={`thumb-pick-${b.id || bIdx}`}
+                                type="button"
+                                onClick={() => setCurrentHeroIdx(bIdx)}
+                                className={`group relative w-8 sm:w-9 aspect-[2/3] rounded-md overflow-hidden transition-all shrink-0 cursor-pointer border ${
+                                  isActive
+                                    ? "border-red-500 scale-110 shadow-lg shadow-red-500/40 ring-2 ring-red-500/50 z-10"
+                                    : "border-slate-800 opacity-50 hover:opacity-100 hover:border-slate-500 hover:scale-105"
+                                }`}
+                                title={`${b.name} - ${b.author || ""}`}
+                              >
+                                <img
+                                  src={b.image_url || getBookCoverFallbackSvg(b.name, b.author)}
+                                  alt={b.name}
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                                {isActive && (
+                                  <div className="absolute inset-0 bg-gradient-to-t from-red-600/30 via-transparent to-transparent pointer-events-none" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Next Button */}
+                        <button
+                          type="button"
+                          onClick={() => setCurrentHeroIdx((prev) => (prev + 1) % weeklyBooks.length)}
+                          className="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 flex items-center justify-center shrink-0 transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
+                          title={isTr ? "Sonraki Eser" : "Next Book"}
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     )}
                   </div>

@@ -71,7 +71,8 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
       duration: "1:30",
       cover_img: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
       is_live: true,
-      order_index: (videos.length ? Math.max(...videos.map(v => v.order_index || 0)) + 1 : 0)
+      order_index: (videos.length ? Math.max(...videos.map(v => v.order_index || 0)) + 1 : 0),
+      hyperframes_scenario: ""
     });
     setShowModal(true);
   };
@@ -207,6 +208,8 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
             <option value="lookprice_net">lookprice.net Ana Sayfa</option>
             <option value="horecalp">HoReCaLP (Restoran) Sayfası</option>
             <option value="shoplp">ShopLP (Mağaza) Sayfası</option>
+            <option value="booklp">BookLP (Kitap & Yayınevi) Sayfası</option>
+            <option value="hotellp">HotelLP (Otel & Konaklama) Sayfası</option>
             <option value="autolp">AutoLP (Otomotiv) Sayfası</option>
             <option value="restatelp">RestateLP (Emlak) Sayfası</option>
           </select>
@@ -258,6 +261,12 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
                   <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold bg-indigo-600 text-white">
                     {video.product_key.toUpperCase()}
                   </span>
+                  {video.hyperframes_scenario && (
+                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-black bg-purple-600 text-white flex items-center gap-1 shadow-sm">
+                      <Sparkles className="w-2.5 h-2.5 text-purple-200 animate-pulse" />
+                      HYPERFRAMES
+                    </span>
+                  )}
                 </div>
 
                 <div className="absolute top-3 right-3">
@@ -270,7 +279,14 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
                   </span>
                 </div>
 
-                {video.youtube_id ? (
+                {video.hyperframes_scenario ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-purple-950/40 pointer-events-none group-hover:bg-purple-950/25 transition-all">
+                    <div className="px-3 py-1.5 rounded-full bg-purple-900/90 text-white border border-purple-400/40 shadow-xl flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4 text-purple-300 animate-pulse" />
+                      <span className="text-[10px] font-black uppercase tracking-wider">CANLI SİMÜLASYON</span>
+                    </div>
+                  </div>
+                ) : video.youtube_id ? (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:scale-110 transition-transform duration-300">
                     <div className="h-12 w-12 bg-red-600 rounded-full flex items-center justify-center text-white shadow-2xl">
                       <Youtube className="h-6 w-6 fill-current" />
@@ -355,6 +371,8 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
                     <option value="lookprice_net">lookprice.net Ana Sayfa</option>
                     <option value="horecalp">HoReCaLP (Restoran)</option>
                     <option value="shoplp">ShopLP (Mağaza)</option>
+                    <option value="booklp">BookLP (Kitap & Yayınevi)</option>
+                    <option value="hotellp">HotelLP (Otel & Konaklama)</option>
                     <option value="autolp">AutoLP (Otomotiv)</option>
                     <option value="restatelp">RestateLP (Emlak)</option>
                   </select>
@@ -371,7 +389,7 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
                     required
                   />
                   <span className="text-[9px] text-gray-400 mt-0.5 block leading-tight">
-                    Home için: shoplp, autolp, restatelp, horecalp. Ürün iç tabı için: pos, qr_menu vb.
+                    Home için: shoplp, autolp, restatelp, horecalp, booklp, hotellp. Ürün iç tabı için: pos, qr_menu, book_nav vb.
                   </span>
                 </div>
               </div>
@@ -420,6 +438,34 @@ export function SuperAdminVideosManager({ lang }: SuperAdminVideosManagerProps) 
                     </span>
                   )}
                 </div>
+              </div>
+
+              {/* Row 4.5: HyperFrames Code-Driven Simulation Scenario */}
+              <div className="bg-purple-50/80 p-3.5 rounded-2xl border border-purple-100">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-black text-purple-700 uppercase flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded bg-purple-600 text-white text-[9px] font-bold">YENİ</span>
+                    HyperFrames İnteraktif Simülasyon Senaryosu
+                  </label>
+                  <span className="text-[9px] font-bold text-purple-600">HeyGen Motoru</span>
+                </div>
+                <select
+                  className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-semibold text-purple-900"
+                  value={formData.hyperframes_scenario || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, hyperframes_scenario: e.target.value }))}
+                >
+                  <option value="">-- Hiçbiri (Sadece YouTube / Klasik) --</option>
+                  <option value="hotel_booking">🏨 HotelLP - 1. Oda Tipleri, Olanaklar & Canlı Rezervasyon Takvimi</option>
+                  <option value="hotel_whatsapp">📱 HotelLP - 2. Otomatik WhatsApp Rezervasyon Kuponu & QR Check-in</option>
+                  <option value="hotel_cleaning">🧹 HotelLP - 3. Kat Hizmetleri (Housekeeping) & Canlı Temizlik Paneli</option>
+                  <option value="hotel_channel">📈 HotelLP - 4. Dinamik Sezon Fiyatlandırması & Hafta Sonu Çarpanı</option>
+                  <option value="book_nav">📖 BookLP - Eserler Arası Kesintisiz Gezinti Barı</option>
+                  <option value="book_isbn">🏷️ BookLP - ISBN / Barkod ile Akıllı Kitap Kartı</option>
+                  <option value="shop_pos">⚡ ShopLP - Barkodlu Varyant Matrisi & Hızlı POS</option>
+                </select>
+                <p className="text-[9px] text-purple-600/80 mt-1 leading-tight">
+                  Bu özellik seçildiğinde, video çekip YouTube'a yüklemeye gerek kalmadan HeyGen HyperFrames motorumuz ekranı canlı ve animasyonlu olarak simüle eder.
+                </p>
               </div>
 
               {/* Row 5: Cover Image & Duration */}

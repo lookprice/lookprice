@@ -732,6 +732,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 onClose={() => setSelectedProduct(null)} addToBasket={addToBasket}
                 primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
                 showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
+                allProducts={products} onNavigateProduct={setSelectedProduct}
               />
             )}
           </AnimatePresence>
@@ -756,6 +757,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
                 onClose={() => setSelectedProduct(null)} addToBasket={addToBasket}
                 primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
                 showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
+                allProducts={products} onNavigateProduct={setSelectedProduct}
               />
             )}
           </AnimatePresence>
@@ -918,6 +920,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               onClose={() => setSelectedProduct(null)} addToBasket={addToBasket}
               primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
               showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
+              allProducts={products} onNavigateProduct={setSelectedProduct}
             />
           )}
         </AnimatePresence>

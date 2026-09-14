@@ -234,12 +234,12 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
   };
 
   return (
-    <div className={`flex flex-col space-y-6 ${isMobileDrawer ? "p-6" : ""}`}>
+    <div className={`flex flex-col space-y-4 ${isMobileDrawer ? "p-4" : ""}`}>
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
-          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-1.5">
+          <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
+          <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
             {lang === "tr" ? "Filtreler" : "Filters"}
           </h3>
         </div>
@@ -248,7 +248,7 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
           <button
             type="button"
             onClick={onResetFilters}
-            className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer transition-colors"
+            className="text-[10.5px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer transition-colors"
           >
             <RotateCcw className="w-3 h-3" />
             <span>{lang === "tr" ? "Temizle" : "Reset"}</span>
@@ -261,61 +261,61 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
             onClick={onCloseMobile}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
       {/* Quick Status Toggles */}
-      <div className="space-y-2">
-        <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors border border-slate-100 dark:border-slate-800">
-          <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+      <div className="space-y-1.5">
+        <label className="flex items-center justify-between p-2 sm:p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors border border-slate-100 dark:border-slate-800">
+          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
             {lang === "tr" ? "Sadece Stoktakiler" : "In Stock Only"}
           </span>
           <input
             type="checkbox"
             checked={filterState.inStockOnly}
             onChange={(e) => onFilterChange("inStockOnly", e.target.checked)}
-            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+            className="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
           />
         </label>
 
-        <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors border border-slate-100 dark:border-slate-800">
-          <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+        <label className="flex items-center justify-between p-2 sm:p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors border border-slate-100 dark:border-slate-800">
+          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
             {lang === "tr" ? "İndirimli Ürünler" : "On Sale"}
           </span>
           <input
             type="checkbox"
             checked={filterState.onSaleOnly}
             onChange={(e) => onFilterChange("onSaleOnly", e.target.checked)}
-            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+            className="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
           />
         </label>
 
-        <label className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors border border-slate-100 dark:border-slate-800">
-          <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+        <label className="flex items-center justify-between p-2 sm:p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors border border-slate-100 dark:border-slate-800">
+          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
             {lang === "tr" ? "Çok Satanlar" : "Top Sellers"}
           </span>
           <input
             type="checkbox"
             checked={filterState.bestsellerOnly}
             onChange={(e) => onFilterChange("bestsellerOnly", e.target.checked)}
-            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+            className="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
           />
         </label>
       </div>
 
       {/* 1. Categories & Subcategories Tree Accordion */}
       {categoryTree.length > 0 && (
-        <div className="space-y-3 pt-2">
+        <div className="space-y-1.5 pt-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-              <FolderTree className="w-3.5 h-3.5 text-indigo-500" />
-              <span>{lang === "tr" ? "KATEGORİ & ALT KATEGORİLER" : "CATEGORIES & SUBCATEGORIES"}</span>
+            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <FolderTree className="w-3 h-3 text-indigo-600 shrink-0" />
+              <span>{lang === "tr" ? "Kategori & Alt Kategoriler" : "Categories & Subcategories"}</span>
             </span>
           </div>
 
-          <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+          <div className="space-y-0.5 max-h-72 overflow-y-auto pr-1">
             <button
               type="button"
               onClick={() => {
@@ -325,14 +325,14 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
                 onFilterChange("size", null);
                 onFilterChange("selectedAttributes", {});
               }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-[9.5px] font-bold transition-all cursor-pointer ${
                 filterState.category === null && filterState.subCategory === null
                   ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
               <span>{lang === "tr" ? "Tüm Kategoriler" : "All Categories"}</span>
-              <span className="text-[10px] opacity-75 font-mono">{products.length}</span>
+              <span className="text-[8px] opacity-75 font-mono bg-black/5 dark:bg-white/10 px-1 py-0.5 rounded">{products.length}</span>
             </button>
 
             {categoryTree.map((cat, catIdx) => {
@@ -341,14 +341,14 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
               const hasSubs = cat.subCategories && cat.subCategories.length > 0;
 
               return (
-                <div key={`filter-cat-${cat.name || 'cat'}-${catIdx}`} className="space-y-1">
+                <div key={`filter-cat-${cat.name || 'cat'}-${catIdx}`} className="space-y-0.5">
                   <div
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`w-full flex items-start justify-between gap-1 px-2 py-1 rounded-md text-[9.5px] font-bold transition-all cursor-pointer ${
                       isSelected && filterState.subCategory === null
                         ? "bg-indigo-600 text-white shadow-xs"
                         : isSelected
-                        ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-black border border-indigo-200 dark:border-indigo-800"
-                        : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                        : "text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                     }`}
                     onClick={() => {
                       if (isSelected && filterState.subCategory === null) {
@@ -366,17 +366,22 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
                         setExpandedCategories(prev => ({ ...prev, [cat.name]: true }));
                       }
                     }}
+                    title={cat.name}
                   >
-                    <span className="truncate">{cat.name}</span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[10px] opacity-75 font-mono">{cat.count}</span>
+                    <span className="flex-1 min-w-0 text-left leading-tight break-words">{cat.name}</span>
+                    <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                      <span className={`text-[8px] font-mono px-1 py-0.5 rounded ${
+                        isSelected && filterState.subCategory === null
+                          ? "bg-white/20 text-white"
+                          : "bg-black/5 dark:bg-white/10 opacity-80"
+                      }`}>{cat.count}</span>
                       {hasSubs && (
                         <button
                           type="button"
                           onClick={(e) => toggleCategoryExpand(cat.name, e)}
-                          className="p-0.5 rounded hover:bg-black/10 transition-colors"
+                          className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                         >
-                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                          <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
                         </button>
                       )}
                     </div>
@@ -384,7 +389,7 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
 
                   {/* Sub-categories dropdown items */}
                   {hasSubs && isExpanded && (
-                    <div className="pl-4 pr-1 space-y-1 border-l-2 border-indigo-200 dark:border-indigo-900 ml-3 my-1">
+                    <div className="pl-2.5 pr-1 space-y-0.5 border-l border-indigo-200 dark:border-indigo-900 ml-2 my-0.5">
                       {cat.subCategories.map((sub, subIdx) => {
                         const isSubSelected = isSelected && filterState.subCategory === sub.name;
                         return (
@@ -398,17 +403,18 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
                               onFilterChange("size", null);
                               onFilterChange("selectedAttributes", {});
                             }}
-                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                            title={sub.name}
+                            className={`w-full flex items-start justify-between gap-1 px-1.5 py-0.5 rounded text-[8.5px] font-normal transition-all cursor-pointer text-left ${
                               isSubSelected
-                                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 font-black shadow-xs"
+                                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 font-medium shadow-xs"
                                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70"
                             }`}
                           >
-                            <span className="truncate flex items-center gap-1">
-                              <span className="text-slate-400">•</span>
-                              {sub.name}
+                            <span className="flex-1 min-w-0 leading-tight break-words flex items-start gap-1">
+                              <span className="text-slate-400 shrink-0 select-none">•</span>
+                              <span>{sub.name}</span>
                             </span>
-                            <span className="text-[10px] opacity-75 font-mono">{sub.count}</span>
+                            <span className="text-[7.5px] opacity-75 font-mono shrink-0 pt-0.5">{sub.count}</span>
                           </button>
                         );
                       })}
@@ -423,11 +429,11 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
 
       {/* 2. Color Swatches from Variants */}
       {colorsMap.length > 0 && (
-        <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">
-            {lang === "tr" ? "RENK SEÇENEKLERİ" : "COLOR OPTIONS"}
+        <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+            {lang === "tr" ? "Renk Seçenekleri" : "Color Options"}
           </span>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
             {colorsMap.map((c, cIdx) => {
               const isSelected = filterState.color === c.name;
               return (
@@ -435,22 +441,22 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
                   key={`filter-color-${c.name || 'color'}-${cIdx}`}
                   type="button"
                   onClick={() => onFilterChange("color", isSelected ? null : c.name)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9.5px] transition-all cursor-pointer ${
                     isSelected
-                      ? "bg-indigo-50 border-indigo-600 text-indigo-900 shadow-xs ring-2 ring-indigo-500/20 dark:bg-indigo-950/50 dark:border-indigo-400 dark:text-indigo-200"
-                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300"
+                      ? "bg-indigo-50 border-indigo-600 text-indigo-900 shadow-xs ring-1 ring-indigo-500/20 dark:bg-indigo-950/50 dark:border-indigo-400 dark:text-indigo-200 font-bold"
+                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300 font-normal"
                   }`}
                 >
                   {c.colorCode ? (
                     <span
-                      className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-2xs shrink-0"
+                      className="w-2.5 h-2.5 rounded-full border border-black/15 shadow-2xs shrink-0"
                       style={{ backgroundColor: c.colorCode }}
                     />
                   ) : (
-                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0" />
+                    <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
                   )}
                   <span>{c.name}</span>
-                  <span className="text-[10px] opacity-60 font-mono">({c.count})</span>
+                  <span className="text-[8px] opacity-60 font-mono">({c.count})</span>
                 </button>
               );
             })}
@@ -460,11 +466,11 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
 
       {/* 3. Sizes / Bedens from Variants */}
       {sizesMap.length > 0 && (
-        <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">
-            {lang === "tr" ? "BEDEN & NUMARA" : "SIZE & FIT"}
+        <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+            {lang === "tr" ? "Beden & Numara" : "Size & Fit"}
           </span>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
             {sizesMap.map((s, sIdx) => {
               const isSelected = filterState.size === s.name;
               return (
@@ -472,14 +478,14 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
                   key={`filter-size-${s.name || 'size'}-${sIdx}`}
                   type="button"
                   onClick={() => onFilterChange("size", isSelected ? null : s.name)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer min-w-[40px] text-center flex items-center justify-center gap-1 ${
+                  className={`px-2 py-0.5 rounded-md text-[9.5px] transition-all cursor-pointer min-w-[28px] text-center flex items-center justify-center gap-1 ${
                     isSelected
-                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-md"
-                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs font-bold"
+                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400 font-normal"
                   }`}
                 >
                   <span>{s.name}</span>
-                  <span className="text-[9px] opacity-60 font-normal font-mono">({s.count})</span>
+                  <span className="text-[7.5px] opacity-60 font-normal font-mono">({s.count})</span>
                 </button>
               );
             })}
@@ -489,11 +495,11 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
 
       {/* 4. Dynamic Variant Attributes (Hafıza, Materyal, Kalıp, etc.) */}
       {dynamicAttributeFacets.map((facet, fIdx) => (
-        <div key={`filter-facet-${facet.key || 'facet'}-${fIdx}`} className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">
-            {facet.key.toUpperCase()}
+        <div key={`filter-facet-${facet.key || 'facet'}-${fIdx}`} className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+            {facet.key}
           </span>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
             {facet.values.map((v, vIdx) => {
               const isSelected = filterState.selectedAttributes?.[facet.key] === v.name;
               return (
@@ -501,14 +507,14 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
                   key={`filter-attrval-${facet.key}-${v.name || 'val'}-${vIdx}`}
                   type="button"
                   onClick={() => handleToggleAttribute(facet.key, v.name)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-2 py-0.5 rounded-md text-[9.5px] transition-all cursor-pointer flex items-center gap-1 ${
                     isSelected
-                      ? "bg-indigo-600 text-white shadow-xs"
-                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400"
+                      ? "bg-indigo-600 text-white shadow-xs font-bold"
+                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400 font-normal"
                   }`}
                 >
                   <span>{v.name}</span>
-                  <span className="text-[9px] opacity-60 font-mono">({v.count})</span>
+                  <span className="text-[7.5px] opacity-60 font-mono">({v.count})</span>
                 </button>
               );
             })}
@@ -518,11 +524,11 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
 
       {/* 5. Brands */}
       {brandsWithCounts.length > 0 && (
-        <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">
-            {lang === "tr" ? "MARKALAR" : "BRANDS"}
+        <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+            {lang === "tr" ? "Markalar" : "Brands"}
           </span>
-          <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+          <div className="space-y-0.5 max-h-44 overflow-y-auto pr-1">
             {brandsWithCounts.map((b, bIdx) => {
               const isSelected = filterState.brand === b.name;
               return (
@@ -530,14 +536,15 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
                   key={`filter-brand-${b.name || 'brand'}-${bIdx}`}
                   type="button"
                   onClick={() => onFilterChange("brand", isSelected ? null : b.name)}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  title={b.name}
+                  className={`w-full flex items-center justify-between gap-1 px-2 py-1 rounded-md text-[9.5px] transition-all cursor-pointer text-left ${
                     isSelected
-                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 font-bold shadow-xs"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-normal"
                   }`}
                 >
-                  <span className="truncate">{b.name}</span>
-                  <span className="text-[10px] opacity-75 font-mono">{b.count}</span>
+                  <span className="flex-1 min-w-0 leading-tight break-words">{b.name}</span>
+                  <span className="text-[8px] opacity-75 font-mono shrink-0 bg-black/5 dark:bg-white/10 px-1 py-0.5 rounded">{b.count}</span>
                 </button>
               );
             })}
@@ -546,24 +553,24 @@ export const ShopFilterSidebar: React.FC<ShopFilterSidebarProps> = ({
       )}
 
       {/* 6. Price Range */}
-      <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">
-          {lang === "tr" ? "FİYAT ARALIĞI" : "PRICE RANGE"}
+      <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+          {lang === "tr" ? "Fiyat Aralığı" : "Price Range"}
         </span>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           <input
             type="number"
             placeholder={lang === "tr" ? "Min TL" : "Min Price"}
             value={filterState.minPrice}
             onChange={(e) => onFilterChange("minPrice", e.target.value)}
-            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+            className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-medium text-slate-900 dark:text-white"
           />
           <input
             type="number"
             placeholder={lang === "tr" ? "Max TL" : "Max Price"}
             value={filterState.maxPrice}
             onChange={(e) => onFilterChange("maxPrice", e.target.value)}
-            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+            className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-medium text-slate-900 dark:text-white"
           />
         </div>
       </div>

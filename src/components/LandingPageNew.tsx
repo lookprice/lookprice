@@ -30,13 +30,16 @@ import {
   Play,
   Tv,
   Youtube,
-  MessageCircle
+  MessageCircle,
+  BookOpen,
+  Hotel
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
 import { api } from "../services/api";
 import SEO from "./SEO";
+import { HyperFramesPlayer } from "./hyperframes/HyperFramesPlayer";
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -59,12 +62,13 @@ export const LandingPage = () => {
     phone: "", 
     email: "", 
     notes: "", 
-    storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" | "restaurant" 
+    storeType: "real_estate" as "product" | "real_estate" | "motor_vehicle" | "restaurant" | "bookstore" | "hotel"
   });
   const [demoStatus, setDemoStatus] = useState({ type: "", text: "" });
 
   const [activeVideoTab, setActiveVideoTab] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [videoMode, setVideoMode] = useState<'hyperframes' | 'youtube'>('hyperframes');
   const [dbVideos, setDbVideos] = useState<any[]>([]);
 
   useEffect(() => {
@@ -93,7 +97,12 @@ export const LandingPage = () => {
         youtubeId: v.youtube_id,
         duration: v.duration || "1:00",
         isLive: v.is_live,
-        coverImg: v.cover_img || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80"
+        coverImg: v.cover_img || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: v.hyperframes_scenario || (
+          v.product_key === 'booklp' ? 'book_nav' :
+          v.product_key === 'hotellp' ? 'hotel_booking' :
+          v.product_key === 'shoplp' ? 'shop_pos' : null
+        )
       }));
     }
     return [
@@ -109,7 +118,23 @@ export const LandingPage = () => {
         youtubeId: "bdbXezbS35c",
         duration: "1:24",
         isLive: true,
-        coverImg: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80"
+        coverImg: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: "shop_pos"
+      },
+      {
+        id: "booklp",
+        title: txt("BookLP - Sinematik Kitap & Yayınevi Vitrini", "BookLP - Cinematic Bookstore & Publisher Showcase", "BookLP - Κινηματογραφική Βιτρίνα Βιβλιοπωλείου"),
+        tag: "BOOKLP",
+        description: txt(
+          "Kitapçılar ve yayınevleri için Netflix tarzı vitrin, ISBN/barkodlu arama, yazar/yayınevi filtreleri ve kesintisiz eser gezintisi.",
+          "Netflix-style showcase, ISBN search, author/publisher facets, and seamless book browsing for publishers.",
+          "Βιτρίνα στυλ Netflix, αναζήτηση ISBN, φίλτρα συγγραφέων και απρόσκοπτη περιήγηση βιβλίων."
+        ),
+        youtubeId: null,
+        duration: "0:30",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1507842229450-76c20f18837e?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: "book_nav"
       },
       {
         id: "autolp",
@@ -123,7 +148,8 @@ export const LandingPage = () => {
         youtubeId: null,
         duration: txt("Yakında", "Coming Soon", "Σύντομα"),
         isLive: false,
-        coverImg: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
+        coverImg: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: null
       },
       {
         id: "restatelp",
@@ -137,7 +163,8 @@ export const LandingPage = () => {
         youtubeId: null,
         duration: txt("Yakında", "Coming Soon", "Σύντομα"),
         isLive: false,
-        coverImg: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80"
+        coverImg: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: null
       },
       {
         id: "horecalp",
@@ -151,7 +178,68 @@ export const LandingPage = () => {
         youtubeId: null,
         duration: txt("Yakında", "Coming Soon", "Σύντομα"),
         isLive: false,
-        coverImg: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80"
+        coverImg: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: null
+      },
+      {
+        id: "hotellp",
+        title: txt("HotelLP - Butik Otel & Rezervasyon Vitrini", "HotelLP - Boutique Hotel & Reservation Showcase", "HotelLP - Βιτρίνα Μπουτίκ Ξενοδοχείου & Κρατήσεων"),
+        tag: "HOTELLP",
+        description: txt(
+          "Otel ve tatil köyleri için lüks oda tipleri, kişi kapasitesi, oda olanakları, rezervasyon takvimi ve çoklu tesis yönetimi.",
+          "Luxury room types, guest capacity, amenities, booking calendar, and multi-facility management for boutique hotels.",
+          "Τύποι πολυτελών δωματίων, χωρητικότητα επισκεπτών, ανέσεις και ημερολόγιο κρατήσεων για ξενοδοχεία."
+        ),
+        youtubeId: null,
+        duration: "0:45",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: "hotel_booking"
+      },
+      {
+        id: "hotel_whatsapp",
+        title: txt("HotelLP - Otomatik WhatsApp Rezervasyon Kuponu & QR Check-in", "HotelLP - Automated WhatsApp Booking Voucher & QR Check-in", "HotelLP - Κουπόνι WhatsApp & QR Check-in"),
+        tag: "HOTELLP",
+        description: txt(
+          "Rezervasyon tamamlandığı anda misafirin telefonuna tek tıkla şık rezervasyon teyit kuponu ve temassız QR check-in kartı gönderimi.",
+          "Instantly deliver a sleek WhatsApp confirmation voucher and contactless QR check-in card directly to the guest's phone.",
+          "Αυτόματη αποστολή κουπονιού επιβεβαίωσης WhatsApp και κάρτας QR check-in στον επισκέπτη."
+        ),
+        youtubeId: null,
+        duration: "0:25",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: "hotel_whatsapp"
+      },
+      {
+        id: "hotel_cleaning",
+        title: txt("HotelLP - Kat Hizmetleri (Housekeeping) & Canlı Temizlik Paneli", "HotelLP - Housekeeping & Live Room Cleaning Board", "HotelLP - Καθαριότητα & Πίνακας Δωματίων"),
+        tag: "HOTELLP",
+        description: txt(
+          "Oda temizlik durumları (Temiz, Kirli, Temizlikte), oda servisi talepleri ve personel görev atamalarının tek ekrandan anlık takibi.",
+          "Real-time tracking of room cleaning states (Clean, Dirty, In Progress), housekeeping requests, and staff dispatch.",
+          "Παρακολούθηση κατάστασης καθαριότητας δωματίων και ανάθεση προσωπικού σε πραγματικό χρόνο."
+        ),
+        youtubeId: null,
+        duration: "0:22",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: "hotel_cleaning"
+      },
+      {
+        id: "hotel_channel",
+        title: txt("HotelLP - Dinamik Sezon Fiyatlandırması & Hafta Sonu Çarpanı", "HotelLP - Dynamic Seasonality Pricing & Weekend Multiplier", "HotelLP - Δυναμική Τιμολόγηση Σεζόν"),
+        tag: "HOTELLP",
+        description: txt(
+          "Yüksek sezon, bayram ve hafta sonu doluluk oranlarına göre tüm oda fiyatlarını tek tıkla otomatik güncelleyen dinamik fiyatlandırma motoru.",
+          "Dynamic pricing engine automatically adjusting all room rates for high seasons, holidays, and weekends with one click.",
+          "Μηχανή δυναμικής τιμολόγησης για αυτόματη προσαρμογή τιμών σε υψηλή σεζόν και Σαββατοκύριακα."
+        ),
+        youtubeId: null,
+        duration: "0:20",
+        isLive: true,
+        coverImg: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80",
+        hyperframesScenario: "hotel_channel"
       }
     ];
   }, [dbVideos, lang]);
@@ -167,8 +255,8 @@ export const LandingPage = () => {
   useEffect(() => {
     if (isHovered) return;
     const interval = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % 4);
-    }, 4000);
+      setActiveSlide((prev) => (prev + 1) % 6);
+    }, 4500);
     return () => clearInterval(interval);
   }, [isHovered]);
 
@@ -289,10 +377,52 @@ export const LandingPage = () => {
       accent: "text-amber-500",
       btnBg: "bg-amber-600 hover:bg-amber-700",
       features: [
-        txt("Temassız QR Menü & Masadan Sipariş", "Contactless QR Menu & Ordering", "Ανέπαφο Μενού QR & Παραγγελία από το Τραπέζι"),
+        txt("Temassız QR Menü & Masadan Sipariş", "Contactless QR Menu & Ordering", "Ανέπαφο Μενού QR & Παραγγελία από το Τραπέζi"),
         txt("Hızlı Garson / Kasa POS Ekranı", "Rapid Waiter / Cashier POS", "Γρήγορο POS Σερβιτόρου / Ταμείου"),
         txt("Dijital Mutfak & Hazırlık Paneli", "Digital Kitchen display", "Ψηφιακή Οθόνη Κουζίνας & Προετοιμασίας"),
         txt("Adisyon & Masa Hesap Bölme", "Bill Splitting & Multi-Table Management", "Διαίρεση Λογαριασμού & Διαχείριση Πολλαπλών Τραπεζιών")
+      ]
+    },
+    {
+      name: "BookLP",
+      sector: txt("Kitap & Yayınevi", "Books & Publishing", "Βιβλία & Εκδόσεις"),
+      description: txt(
+        "Kitapçılar ve yayınevleri için Netflix tarzı sinematik vitrin, ISBN/Barkodlu arama, yazar/yayınevi filtreleri, eserler arası kesintisiz gezinti ve çok şubeli stok takibi.",
+        "Cinematic bookstore showcase, ISBN/Barcode search, author & publisher facets, seamless book-to-book browsing, and multi-branch inventory.",
+        "Κινηματογραφική βιτρίνα βιβλιοπωλείου, αναζήτηση ISBN/Barcode, φίλτρα συγγραφέων & εκδοτών και απρόσκοπτη περιήγηση."
+      ),
+      icon: BookOpen,
+      link: "/shop-landing",
+      bgImage: "https://images.unsplash.com/photo-1507842229450-76c20f18837e?auto=format&fit=crop&w=1200&q=80",
+      color: "from-purple-600/20 to-pink-600/10",
+      accent: "text-purple-400",
+      btnBg: "bg-purple-600 hover:bg-purple-700",
+      features: [
+        txt("Netflix Tarzı Sinematik Kitap Vitrini", "Netflix-Style Cinematic Book Showcase", "Βιτρίνα Βιβλίων σε Στυλ Netflix"),
+        txt("Yazar, Yayınevi, Çevirmen & ISBN Arama", "Author, Publisher, Translator & ISBN Search", "Αναζήτηση Συγγραφέα, Εκδότη, Μεταφραστή & ISBN"),
+        txt("Eserler Arası Kesintisiz Gezinti Barı", "Seamless Book-to-Book Browse Bar", "Μπάρα Απρόσκοπτης Περιήγησης Βιβλίων"),
+        txt("Şubeler Arası Barkodlu Stok & Fiyat", "Multi-Branch Barcode Stock & Price Engine", "Διαχείριση Αποθεμάτων Barcode & Τιμών")
+      ]
+    },
+    {
+      name: "HotelLP",
+      sector: txt("Otel & Konaklama", "Hotel & Accommodation", "Ξενοδοχείο & Διαμονή"),
+      description: txt(
+        "Butik oteller ve tatil köyleri için lüks oda tipleri, kişi kapasitesi, oda olanakları, rezervasyon takvimi ve çoklu tesis yönetimi.",
+        "Luxury room types, guest capacity, amenities, booking calendar, and multi-facility management for boutique hotels.",
+        "Τύποι πολυτελών δωματίων, χωρητικότητα επισκεπτών, ανέσεις και ημερολόγιο κρατήσεων για ξενοδοχεία."
+      ),
+      icon: Hotel,
+      link: "/horeca-landing",
+      bgImage: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
+      color: "from-emerald-600/20 to-teal-600/10",
+      accent: "text-emerald-400",
+      btnBg: "bg-emerald-600 hover:bg-emerald-700",
+      features: [
+        txt("Lüks Oda & Konaklama Vitrini", "Luxury Room & Stay Showcase", "Βιτρίνα Πολυτελών Δωματίων & Διαμονής"),
+        txt("Kişi Kapasitesi & Oda Olanakları Filtresi", "Guest Capacity & Room Amenities Filter", "Φίλτρο Χωρητικότητας & Ανέσεων Δωματίου"),
+        txt("Online Rezervasyon & Doluluk Takvimi", "Online Booking & Availability Calendar", "Online Κράτηση & Ημερολόγιο Διαθεσιμότητας"),
+        txt("Çok Tesisli Oda & Hizmet Yönetimi", "Multi-Facility Room & Service Management", "Διαχείριση Δωματίων & Υπηρεσιών")
       ]
     }
   ];
@@ -360,13 +490,35 @@ export const LandingPage = () => {
         txt("Hızlı Barkodlu POS Satış Ekranı", "Fast Barcode Sales & POS Terminal", "Τερματικό Πωλήσεων POS με Γρήγορο Barcode"),
         txt("Teknik Servis & Teklif Yönetimi", "Tech Service & Quotation Engine", "Διαχείριση Τεχνικών Υπηρεσιών & Προσφορών"),
         txt("Mağaza içi QR Fiyat Gör Altyapısı", "In-store QR Price Checker Altyapısı", "Υποδομή Ελέγχου Τιμών QR εντός Καταστήματος"),
-        txt("Dövizli Cari & Dijital Mutabakat", "Multi-Currency Ledgers & Ledger Statements", "Καθολικά σε Πολλαπλά Νομίσματα & Ψηφianκή Συμφωνία")
+        txt("Dövizli Cari & Dijital Mutabakat", "Multi-Currency Ledgers & Ledger Statements", "Καθολικά σε Πολλαπλά Νομίσματα & Ψηφιακή Συμφωνία")
+      ],
+      link: "/shop-landing"
+    },
+    {
+      name: "BookLP",
+      sector: txt("Kitap & Yayınevi", "Books & Publishing", "Βιβλία & Εκδόσεις"),
+      title: txt("Sektörünüze Özel\nSinematik Kitap & Yayınevi Vitrini", "Industry-Specific\nCinematic Bookstore & Publisher Suite", "Εξειδικευμένη Κινηματογραφική\nΣουίτα Βιβλίων & Εκδόσεων"),
+      description: txt(
+        "Netflix tarzı görsel vitrin, ISBN barkodlu arama motoru, yazar/yayınevi filtreleri ve ürün içi kesintisiz gezinti deneyimi.",
+        "Netflix-style visual showcase, ISBN barcode engine, author & publisher facets, and uninterrupted in-product browse bar.",
+        "Οπτική βιτρίνα τύπου Netflix, μηχανή barcode ISBN, φίλτρα συγγραφέων και αδιάλειπτη εμπειρία περιήγησης."
+      ),
+      bgImage: "https://images.unsplash.com/photo-1507842229450-76c20f18837e?auto=format&fit=crop&w=1200&q=80",
+      color: "from-purple-600 to-pink-500",
+      accent: "text-purple-400",
+      accentBg: "bg-purple-500/10 border-purple-500/20",
+      glowColor: "rgba(168,85,247,0.15)",
+      features: [
+        txt("Netflix Tarzı Sinematik Kitap Vitrini", "Netflix-Style Cinematic Book Showcase", "Βιτρίνα Βιβλίων σε Στυλ Netflix"),
+        txt("Yazar, Çevirmen & ISBN Entegrasyonu", "Author, Translator & ISBN Integration", "Ενσωμάτωση Συγγραφέα, Μεταφραστή & ISBN"),
+        txt("Eserler Arası Kesintisiz Gezinti Barı", "Seamless Book-to-Book Browse Bar", "Μπάρα Απρόσκοπτης Περιήγησης Βιβλίων"),
+        txt("Şubeler Arası Barkodlu Stok & POS", "Multi-Branch Barcode Stock & POS", "Απόθεμα Barcode & POS Πολλαπλών Καταστημάτων")
       ],
       link: "/shop-landing"
     },
     {
       name: "HoReCaLP",
-      sector: txt("Cafe, Restoran & Otel", "Cafe, Restaurant & Hotel", "Καφετέρια, Εστιατόριο & Ξενοδοχείο"),
+      sector: txt("Cafe & Restoran", "Cafe & Restaurant", "Καφετέρια & Εστιατόριο"),
       title: txt("Sektörünüze Özel\nQR Menü & Masa Otomasyonu", "Industry-Specific\nQR Menu & Table Automation", "Εξειδικευμένο Μενού QR\n& Αυτοματισμός Τραπεζιού"),
       description: txt(
         "Temassız QR sipariş, hızlı garson el terminali, akıllı mutfak ekranı ve anlık masa adisyon hesap yönetimi.",
@@ -383,6 +535,28 @@ export const LandingPage = () => {
         txt("Pratik Garson Terminali & POS", "Handheld Waiter Terminal & POS", "Φορητό Τερματικό Σερβιτόρου & POS"),
         txt("Dijital Mutfak & Hazırlık Paneli", "Digital Kitchen Monitor Screen", "Ψηφιακή Οθόνη Κουζίνας & Προετοιμασίας"),
         txt("Adisyon & Masa Hesap Bölme", "Bill Splitting & Multi-Table Management", "Διαίρεση Λογαριασμού & Διαχείριση Πολλαπλών Τραπεζιών")
+      ],
+      link: "/horeca-landing"
+    },
+    {
+      name: "HotelLP",
+      sector: txt("Otel & Konaklama", "Hotel & Accommodation", "Ξενοδοχείο & Διαμονή"),
+      title: txt("Sektörünüze Özel\nButik Otel & Rezervasyon Vitrini", "Industry-Specific\nBoutique Hotel & Booking Suite", "Εξειδικευμένη Σουίτα\nΜπουτίκ Ξενοδοχείου & Κρατήσεων"),
+      description: txt(
+        "Lüks oda tipleri, kişi kapasitesi, oda içi olanaklar ve online rezervasyon takvimi ile modern konaklama yönetimi.",
+        "Modern hospitality management with luxury room types, guest capacity, room amenities, and online booking calendar.",
+        "Σύγχρονη διαχείριση φιλοξενίας με τύπους πολυτελών δωματίων, χωρητικότητα επισκεπτών, ανέσεις και ημερολόγιο online κρατήσεων."
+      ),
+      bgImage: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
+      color: "from-emerald-600 to-teal-500",
+      accent: "text-emerald-400",
+      accentBg: "bg-emerald-500/10 border-emerald-500/20",
+      glowColor: "rgba(16,185,129,0.15)",
+      features: [
+        txt("Lüks Oda & Butik Tesis Vitrini", "Luxury Room & Boutique Showcase", "Βιτρίνα Πολυτελών Δωματίων & Μπουτίκ Εγκαταστάσεων"),
+        txt("Kişi Kapasitesi & Olanak Filtreleri", "Guest Capacity & Amenities Filters", "Φίλτρα Χωρητικότητας Επισκεπτών & Ανέσεων"),
+        txt("Online Rezervasyon & Doluluk Takvimi", "Online Booking & Availability Calendar", "Online Κράτηση & Ημερολόγιο Διαθεσιμότητας"),
+        txt("Adisyon & Çoklu Hizmet Entegrasyonu", "Folio, POS & Multi-Service Billing", "Ενσωμάτωση Λογαριασμού & Πολλαπλών Υπηρεσιών")
       ],
       link: "/horeca-landing"
     }
@@ -414,10 +588,10 @@ export const LandingPage = () => {
       <SEO 
         title={lang === 'tr' ? "LookPrice | Sektörünüze Özel Akıllı Yönetim Çözümleri" : "LookPrice | Industry-Specific Smart Business Suites"}
         description={lang === 'tr' 
-          ? "LookPrice ile işletmenizin sektörüne özel tasarlanmış otomasyon sistemlerini keşfedin. Otomotiv, Emlak, Perakende ve Cafe/Restoran çözümleri." 
-          : "Discover automation suites customized for your industry. Premium solutions for Automotive, Real Estate, Retail, and Cafe/Restaurants."
+          ? "LookPrice ile işletmenizin sektörüne özel tasarlanmış otomasyon sistemlerini keşfedin. Otomotiv, Emlak, Perakende, Kitap & Yayınevi, Cafe/Restoran ve Otel çözümleri." 
+          : "Discover automation suites customized for your industry. Premium solutions for Automotive, Real Estate, Retail, Bookstores, Cafe/Restaurants, and Hotels."
         }
-        keywords="pos, crm, emlak crm, oto galeri yazilimi, restorant pos, kktc pos, lookprice"
+        keywords="pos, crm, emlak crm, oto galeri yazilimi, restorant pos, kktc pos, lookprice, otel programi, yayinevi sistemi"
         schemaData={schemaData}
       />
 
@@ -472,7 +646,19 @@ export const LandingPage = () => {
         {/* Glowing visual atmosphere matching the active slide */}
         <div 
           className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full filter blur-[120px] opacity-10 pointer-events-none transition-all duration-1000 z-0"
-          style={{ backgroundColor: sliderData[activeSlide].name === "AutoLP" ? "#3b82f6" : sliderData[activeSlide].name === "REstateLP" ? "#f43f5e" : sliderData[activeSlide].name === "ShopLP" ? "#6366f1" : "#f59e0b" }}
+          style={{ 
+            backgroundColor: sliderData[activeSlide].name === "AutoLP" 
+              ? "#3b82f6" 
+              : sliderData[activeSlide].name === "REstateLP" 
+              ? "#f43f5e" 
+              : sliderData[activeSlide].name === "ShopLP" 
+              ? "#6366f1" 
+              : sliderData[activeSlide].name === "BookLP"
+              ? "#a855f7"
+              : sliderData[activeSlide].name === "HoReCaLP"
+              ? "#f59e0b" 
+              : "#10b981" 
+          }}
         />
 
         <div className="relative z-10 max-w-7xl mx-auto w-full">
@@ -582,7 +768,7 @@ export const LandingPage = () => {
 
           {/* Navigation Control Tabs at Bottom of Hero */}
           <div className="mt-16 border-t border-white/5 pt-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {sliderData.map((slide, idx) => {
                 const isActive = activeSlide === idx;
                 return (
@@ -643,7 +829,7 @@ export const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {products.map((p, idx) => {
               const IconComp = p.icon;
               return (
@@ -734,6 +920,11 @@ export const LandingPage = () => {
                       onClick={() => {
                         setActiveVideoTab(idx);
                         setIsVideoPlaying(false);
+                        if (tab.hyperframesScenario) {
+                          setVideoMode('hyperframes');
+                        } else if (tab.youtubeId) {
+                          setVideoMode('youtube');
+                        }
                       }}
                       className={`w-full text-left p-5 rounded-2xl border transition-all relative overflow-hidden flex items-start gap-4 cursor-pointer ${
                         isActive
@@ -747,19 +938,27 @@ export const LandingPage = () => {
                         <Tv className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <span className={`text-[10px] font-black uppercase tracking-wider ${
                             isActive ? 'text-amber-400' : 'text-white/40'
                           }`}>
                             {tab.tag}
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            tab.isLive 
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                              : 'bg-white/5 text-white/40'
-                          }`}>
-                            {tab.duration}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {tab.hyperframesScenario && (
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                                <Sparkles className="w-2.5 h-2.5 text-purple-300" />
+                                HyperFrames
+                              </span>
+                            )}
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              tab.isLive 
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                : 'bg-white/5 text-white/40'
+                            }`}>
+                              {tab.duration}
+                            </span>
+                          </div>
                         </div>
                         <h3 className={`text-base font-black tracking-tight mt-1 ${
                           isActive ? 'text-white' : 'text-white/80'
@@ -779,91 +978,141 @@ export const LandingPage = () => {
 
               {/* Video Player Info */}
               <div className="bg-amber-500/5 rounded-2xl p-4 border border-amber-500/10 flex items-center gap-3">
-                <Youtube className="h-5 w-5 text-red-500 shrink-0" />
+                <Sparkles className="h-5 w-5 text-purple-400 shrink-0" />
                 <p className="text-xs text-amber-400/80 font-bold">
                   {txt(
-                    'Sistemimizin canlı ekran videoları YouTube kanalımızda düzenli olarak yayınlanmaktadır.',
-                    'Our system screen recordings are regularly uploaded to our YouTube channel.',
-                    'Τα βίντεο της οθόνης του συστήματός μας ανεβαίνουν τακτικά στο κανάλι μας στο YouTube.'
+                    'Özelliklerimiz HeyGen HyperFrames motoruyla kod tabanlı simülasyon olarak ve YouTube kanalımızda yayınlanmaktadır.',
+                    'Our system features are published as code-driven simulations via HeyGen HyperFrames and on YouTube.',
+                    'Οι λειτουργίες του συστήματός μας δημοσιεύονται ως προσομοιώσεις κώδικα μέσω HeyGen HyperFrames και στο YouTube.'
                   )}
                 </p>
               </div>
             </div>
 
             {/* Right Side: Active Video Player Stage */}
-            <div className="lg:col-span-7 order-1 lg:order-2">
-              <div className="relative aspect-video rounded-3xl overflow-hidden border border-white/10 bg-[#050508] shadow-2xl w-full h-auto lg:h-full lg:min-h-[300px] flex flex-col justify-center">
-                {videoTabs[activeVideoTab].isLive && videoTabs[activeVideoTab].youtubeId ? (
-                  isVideoPlaying ? (
-                    <div className="relative w-full h-full">
-                      <iframe
-                        src={`https://www.youtube.com/embed/${videoTabs[activeVideoTab].youtubeId}?autoplay=1&rel=0&modestbranding=1`}
-                        title={videoTabs[activeVideoTab].title}
-                        className="w-full h-full border-0 absolute inset-0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                      {/* Floating Fallback Button */}
-                      <div className="absolute top-4 right-4 z-20 flex gap-2">
-                        <a
-                          href={`https://www.youtube.com/watch?v=${videoTabs[activeVideoTab].youtubeId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-black/85 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/15 shadow-xl transition-all"
-                        >
-                          <Youtube className="w-4 h-4 text-red-500" />
-                          {txt("YouTube'da Aç", "Open in YouTube", "YouTube'da Aç")}
-                        </a>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="absolute inset-0 group cursor-pointer animate-fade-in" onClick={() => setIsVideoPlaying(true)}>
-                      <img
-                        src={videoTabs[activeVideoTab].coverImg}
-                        alt={videoTabs[activeVideoTab].title}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-105 group-hover:opacity-75"
-                      />
-                      <div className="absolute inset-0 bg-black/45 group-hover:bg-black/35 transition-colors duration-300 flex items-center justify-center -translate-y-6 sm:-translate-y-8">
-                        <div className="relative">
-                          <div className="absolute -inset-4 bg-amber-500/20 rounded-full blur-xl group-hover:scale-125 transition-transform duration-300" />
-                          <button className="relative h-14 w-14 sm:h-16 sm:w-16 bg-amber-600 hover:bg-amber-500 hover:scale-105 rounded-full flex items-center justify-center text-white shadow-2xl transition-all duration-300">
-                            <Play className="h-6 w-6 sm:h-7 sm:w-7 fill-current ml-1" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 p-3 sm:p-4 bg-black/80 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-black uppercase text-amber-400 tracking-wider">YOUTUBE VIDEO</p>
-                          <p className="text-xs font-black text-white mt-0.5 truncate">{videoTabs[activeVideoTab].title}</p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setIsVideoPlaying(true);
-                            }}
-                            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer whitespace-nowrap"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            {txt('İZLE', 'WATCH', 'İZLE')}
-                          </button>
+            <div className="lg:col-span-7 order-1 lg:order-2 flex flex-col gap-3">
+              {/* Mode Switcher Bar */}
+              {(videoTabs[activeVideoTab]?.hyperframesScenario || videoTabs[activeVideoTab]?.youtubeId) && (
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <div className="flex items-center gap-2">
+                    {videoTabs[activeVideoTab]?.hyperframesScenario && (
+                      <button
+                        onClick={() => setVideoMode('hyperframes')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                          videoMode === 'hyperframes'
+                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/20'
+                            : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/5'
+                        }`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+                        {txt('HyperFrames Canlı Simülasyon', 'HyperFrames Live Simulation', 'Προσομοίωση HyperFrames')}
+                      </button>
+                    )}
+                    {videoTabs[activeVideoTab]?.youtubeId && (
+                      <button
+                        onClick={() => setVideoMode('youtube')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                          videoMode === 'youtube'
+                            ? 'bg-red-600 text-white shadow-lg shadow-red-500/20'
+                            : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/5'
+                        }`}
+                      >
+                        <Youtube className="w-3.5 h-3.5" />
+                        {txt('YouTube Kaydı', 'YouTube Video', 'Βίντεο YouTube')}
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-[11px] font-bold text-white/40 hidden sm:inline-block">
+                    {videoMode === 'hyperframes' 
+                      ? txt('HeyGen Kod Tabanlı Motor', 'HeyGen Code-Driven Engine', 'HeyGen Engine') 
+                      : 'LookPrice TV'}
+                  </span>
+                </div>
+              )}
+
+              {/* Player Stage Canvas */}
+              <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-[#050508] shadow-2xl w-full">
+                {videoMode === 'hyperframes' && videoTabs[activeVideoTab]?.hyperframesScenario ? (
+                  <div className="w-full">
+                    <HyperFramesPlayer 
+                      key={`${videoTabs[activeVideoTab].id}-${videoTabs[activeVideoTab].hyperframesScenario}`}
+                      initialScenarioId={videoTabs[activeVideoTab].hyperframesScenario} 
+                      lang={lang} 
+                    />
+                  </div>
+                ) : videoTabs[activeVideoTab]?.isLive && videoTabs[activeVideoTab]?.youtubeId ? (
+                  <div className="aspect-video relative w-full flex flex-col justify-center">
+                    {isVideoPlaying ? (
+                      <div className="relative w-full h-full">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${videoTabs[activeVideoTab].youtubeId}?autoplay=1&rel=0&modestbranding=1`}
+                          title={videoTabs[activeVideoTab].title}
+                          className="w-full h-full border-0 absolute inset-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                        {/* Floating Fallback Button */}
+                        <div className="absolute top-4 right-4 z-20 flex gap-2">
                           <a
                             href={`https://www.youtube.com/watch?v=${videoTabs[activeVideoTab].youtubeId}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 hover:bg-amber-500/20 transition-all whitespace-nowrap"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-black/85 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/15 shadow-xl transition-all"
                           >
-                            <Youtube className="w-3.5 h-3.5 text-red-500" />
-                            {txt('YOUTUBE\'DA AÇ', 'YOUTUBE', 'YOUTUBE')}
+                            <Youtube className="w-4 h-4 text-red-500" />
+                            {txt("YouTube'da Aç", "Open in YouTube", "YouTube'da Aç")}
                           </a>
                         </div>
                       </div>
-                    </div>
-                  )
+                    ) : (
+                      <div className="absolute inset-0 group cursor-pointer animate-fade-in" onClick={() => setIsVideoPlaying(true)}>
+                        <img
+                          src={videoTabs[activeVideoTab].coverImg}
+                          alt={videoTabs[activeVideoTab].title}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-105 group-hover:opacity-75"
+                        />
+                        <div className="absolute inset-0 bg-black/45 group-hover:bg-black/35 transition-colors duration-300 flex items-center justify-center -translate-y-6 sm:-translate-y-8">
+                          <div className="relative">
+                            <div className="absolute -inset-4 bg-amber-500/20 rounded-full blur-xl group-hover:scale-125 transition-transform duration-300" />
+                            <button className="relative h-14 w-14 sm:h-16 sm:w-16 bg-amber-600 hover:bg-amber-500 hover:scale-105 rounded-full flex items-center justify-center text-white shadow-2xl transition-all duration-300">
+                              <Play className="h-6 w-6 sm:h-7 sm:w-7 fill-current ml-1" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 p-3 sm:p-4 bg-black/80 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase text-amber-400 tracking-wider">YOUTUBE VIDEO</p>
+                            <p className="text-xs font-black text-white mt-0.5 truncate">{videoTabs[activeVideoTab].title}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsVideoPlaying(true);
+                              }}
+                              className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer whitespace-nowrap"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              {txt('İZLE', 'WATCH', 'İZLE')}
+                            </button>
+                            <a
+                              href={`https://www.youtube.com/watch?v=${videoTabs[activeVideoTab].youtubeId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 hover:bg-amber-500/20 transition-all whitespace-nowrap"
+                            >
+                              <Youtube className="w-3.5 h-3.5 text-red-500" />
+                              {txt('YOUTUBE\'DA AÇ', 'YOUTUBE', 'YOUTUBE')}
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <div className="absolute inset-0 p-8 flex flex-col items-center justify-center text-center bg-[#050508] text-white relative overflow-hidden">
+                  <div className="aspect-video p-8 flex flex-col items-center justify-center text-center bg-[#050508] text-white relative overflow-hidden">
                     <div className="absolute inset-0 bg-cover bg-center opacity-5 pointer-events-none" style={{ backgroundImage: `url(${videoTabs[activeVideoTab].coverImg})` }} />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#050508] via-[#050508]/90 to-[#050508] pointer-events-none" />
                     <div className="relative z-10 max-w-sm space-y-4 flex flex-col items-center">
@@ -996,7 +1245,9 @@ export const LandingPage = () => {
                       <option value="motor_vehicle">{txt('Otomotiv (AutoLP)', 'Automotive (AutoLP)', 'Αυτοκίνητα (AutoLP)')}</option>
                       <option value="real_estate">{txt('Gayrimenkul (REstateLP)', 'Real Estate (REstateLP)', 'Ακίνητα (REstateLP)')}</option>
                       <option value="product">{txt('Perakende & Mağaza (ShopLP)', 'Retail (ShopLP)', 'Λιανική (ShopLP)')}</option>
+                      <option value="bookstore">{txt('Kitap & Yayınevi (BookLP)', 'Books & Publishing (BookLP)', 'Βιβλιοπωλείο & Εκδόσεις (BookLP)')}</option>
                       <option value="restaurant">{txt('Cafe & Restoran (HoReCaLP)', 'Cafe & Restaurant (HoReCaLP)', 'Καφετέρια & Εστιατόριο (HoReCaLP)')}</option>
+                      <option value="hotel">{txt('Otel & Konaklama (HotelLP)', 'Hotel & Accommodation (HotelLP)', 'Ξενοδοχείο & Διαμονή (HotelLP)')}</option>
                     </select>
                   </div>
 

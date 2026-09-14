@@ -848,24 +848,28 @@ async function ensureEnrakipsizTables() {
       cover_img TEXT,
       is_live BOOLEAN DEFAULT TRUE,
       order_index INTEGER DEFAULT 0,
+      hyperframes_scenario TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    ALTER TABLE enrakipsiz_videos ADD COLUMN IF NOT EXISTS hyperframes_scenario TEXT;
   `).catch((err) => console.error("Error creating enrakipsiz_videos:", err));
 
   const videosCheck = await pool.query("SELECT id FROM enrakipsiz_videos LIMIT 1");
   if (videosCheck.rows.length === 0) {
     await pool.query(`
-      INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index)
+      INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index, hyperframes_scenario)
       VALUES
-      ('shoplp', 'lookprice_net', 'ShopLP - Akıllı Perakende ve Hızlı POS', 'Perakende mağazaları, marketler ve bakkallar için barkodlu satış, stok takibi, e-fatura ve cari hesap otomasyonu.', 'bdbXezbS35c', '1:15', 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80', TRUE, 0),
-      ('autolp', 'lookprice_net', 'AutoLP - Bulut Tabanlı Oto Galeri Yönetimi', 'Oto galeriler için araç portföyü, tramer kayıtları, sözleşme şablonları, otomatik ilan yayınlama ve muhasebe takibi.', 'bdbXezbS35c', '1:30', 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80', TRUE, 1),
-      ('restatelp', 'lookprice_net', 'RestateLP - Dijital Emlak Ofisi & Portföy', 'Emlak ofisleri için gayrimenkul yönetimi, harita entegrasyonu, yetki sözleşmeleri ve otomatik enrakipsiz.com ilanı.', 'bdbXezbS35c', '1:45', 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80', TRUE, 2),
-      ('horecalp', 'lookprice_net', 'HoReCaLP - Restoran ve Cafe Adisyon Sistemi', 'Kafe, restoran ve barlar için masadan sipariş, QR dijital menü, mutfak hazırlık paneli, kurye takibi ve reçeteli stok.', 'bdbXezbS35c', '1:24', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80', TRUE, 3),
+      ('shoplp', 'lookprice_net', 'ShopLP - Akıllı Perakende ve Hızlı POS', 'Perakende mağazaları, marketler ve bakkallar için barkodlu satış, stok takibi, e-fatura ve cari hesap otomasyonu.', 'bdbXezbS35c', '1:15', 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80', TRUE, 0, 'shop_pos'),
+      ('booklp', 'lookprice_net', 'BookLP - Sinematik Kitap & Yayınevi Vitrini', 'Kitapçılar ve yayınevleri için Netflix tarzı vitrin, ISBN/barkodlu arama, yazar/yayınevi filtreleri ve kesintisiz eser gezintisi.', NULL, '0:30', 'https://images.unsplash.com/photo-1507842229450-76c20f18837e?auto=format&fit=crop&w=1200&q=80', TRUE, 1, 'book_nav'),
+      ('autolp', 'lookprice_net', 'AutoLP - Bulut Tabanlı Oto Galeri Yönetimi', 'Oto galeriler için araç portföyü, tramer kayıtları, sözleşme şablonları, otomatik ilan yayınlama ve muhasebe takibi.', 'bdbXezbS35c', '1:30', 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80', TRUE, 2, NULL),
+      ('restatelp', 'lookprice_net', 'RestateLP - Dijital Emlak Ofisi & Portföy', 'Emlak ofisleri için gayrimenkul yönetimi, harita entegrasyonu, yetki sözleşmeleri ve otomatik enrakipsiz.com ilanı.', 'bdbXezbS35c', '1:45', 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80', TRUE, 3, NULL),
+      ('horecalp', 'lookprice_net', 'HoReCaLP - Restoran ve Cafe Adisyon Sistemi', 'Kafe, restoran ve barlar için masadan sipariş, QR dijital menü, mutfak hazırlık paneli, kurye takibi ve reçeteli stok.', 'bdbXezbS35c', '1:24', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80', TRUE, 4, NULL),
+      ('hotellp', 'lookprice_net', 'HotelLP - Butik Otel & Rezervasyon Vitrini', 'Butik otel ve konaklama işletmeleri için oda tipi vitrini, lüks olanaklar, interaktif doluluk takvimi ve anlık WhatsApp rezervasyon teyidi.', NULL, '0:45', 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80', TRUE, 5, 'hotel_booking'),
       
-      ('pos', 'horecalp', 'Adisyon & Hızlı POS', 'Garson el terminalleri ve kasa POS ekranının canlı kullanım görünümü. Masaların adisyon açılışı, sipariş ekleme and masa durumlarının anlık güncellenmesi.', 'bdbXezbS35c', '1:24', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80', TRUE, 0),
-      ('qr_menu', 'horecalp', 'Temassız QR Menü Entegrasyonu', 'Müşteri gözünden temassız masadan sipariş ve interaktif dijital menü deneyimi. Ürün detayları ve varyasyonlar.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80', FALSE, 1),
-      ('kitchen_screen', 'horecalp', 'Dijital Mutfak Ekranı', 'Mutfak hazırlık paneli kullanımı. Siparişlerin departman bazlı (Mutfak, Bar, Fırın) ayrışması ve anlık mutfak paneli.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80', FALSE, 2),
-      ('stock_recipe', 'horecalp', 'Reçete & Stok Takibi', 'Hammadde bazlı milimetrik reçete (BOM) tanımlama ve satış anında depodan otomatik düşüş süreçlerinin yönetim paneli görünümü.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=80', FALSE, 3)
+      ('pos', 'horecalp', 'Adisyon & Hızlı POS', 'Garson el terminalleri ve kasa POS ekranının canlı kullanım görünümü. Masaların adisyon açılışı, sipariş ekleme and masa durumlarının anlık güncellenmesi.', 'bdbXezbS35c', '1:24', 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80', TRUE, 0, NULL),
+      ('qr_menu', 'horecalp', 'Temassız QR Menü Entegrasyonu', 'Müşteri gözünden temassız masadan sipariş ve interaktif dijital menü deneyimi. Ürün detayları ve varyasyonlar.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80', FALSE, 1, NULL),
+      ('kitchen_screen', 'horecalp', 'Dijital Mutfak Ekranı', 'Mutfak hazırlık paneli kullanımı. Siparişlerin departman bazlı (Mutfak, Bar, Fırın) ayrışması ve anlık mutfak paneli.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80', FALSE, 2, NULL),
+      ('stock_recipe', 'horecalp', 'Reçete & Stok Takibi', 'Hammadde bazlı milimetrik reçete (BOM) tanımlama ve satış anında depodan otomatik düşüş süreçlerinin yönetim paneli görünümü.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=80', FALSE, 3, NULL)
     `).catch((err) => console.error("Error seeding enrakipsiz_videos:", err));
   }
 
@@ -904,6 +908,30 @@ async function ensureEnrakipsizTables() {
       ('restate_signature', 'restatelp', 'Dijital Biyometrik İmzalama', 'Yer gösterme formları, kiralama ve kapora ön-sözleşmelerinin tablet/telefonda ıslak biyometrik imza ile imzalatılması.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80', FALSE, 2),
       ('restate_design', 'restatelp', 'Ofis Vitrin Afiş & Kolaj Tasarımı', 'Tek tıkla portföy bilgilerini ofis vitrin afişine veya sosyal medya şablonlarına (Satıldı/Kiralandı şeritli) dökme.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80', FALSE, 3)
     `).catch((err) => console.error("Error seeding restatelp videos:", err));
+  }
+
+  const booklpCount = await pool.query("SELECT id FROM enrakipsiz_videos WHERE page_type = 'booklp' LIMIT 1");
+  if (booklpCount.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index, hyperframes_scenario)
+      VALUES
+      ('book_nav', 'booklp', 'Eserler Arası Kesintisiz Gezinti Barı', 'Ziyaretçiler detay sayfasından ayrılmadan, alt gezinti barı ile kategorideki tüm eserler arasında akıcı ve kesintisiz geçiş yapar.', NULL, '0:30', 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=1200&q=80', TRUE, 0, 'book_nav'),
+      ('book_isbn', 'booklp', 'ISBN / Barkod ile Akıllı Kitap Kartı Oluşturma', 'Operatörün ISBN barkodunu okutmasıyla yazar, çevirmen, yayınevi ve basım yılı alanlarının otomatik dolması ve vitrine anında yansıması.', NULL, '0:40', 'https://images.unsplash.com/photo-1507842229450-76c20f18837e?auto=format&fit=crop&w=1200&q=80', TRUE, 1, 'book_isbn'),
+      ('book_author', 'booklp', 'Yazar & Yayınevi Sayfaları', 'Yazar biyografileri, yayınlanan eserler, imza günleri ve yayınevi özel koleksiyon vitrinleri.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1495640388908-05fa85288e61?auto=format&fit=crop&w=1200&q=80', FALSE, 2, NULL),
+      ('book_showcase', 'booklp', 'Sinematik Vitrin & Alıntı Paylaşımı', 'Kitaplardan popüler alıntılarla sosyal medya kartları üretimi ve okuma listeleri.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=1200&q=80', FALSE, 3, NULL)
+    `).catch((err) => console.error("Error seeding booklp videos:", err));
+  }
+
+  const hotellpCount = await pool.query("SELECT id FROM enrakipsiz_videos WHERE page_type = 'hotellp' LIMIT 1");
+  if (hotellpCount.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index, hyperframes_scenario)
+      VALUES
+      ('hotel_booking', 'hotellp', 'Oda Tipi, Olanaklar & Doluluk Takvimi', 'Süit oda tipinin seçilmesi, kişi kapasitesi ve olanakların işaretlenmesi, takvim üzerinden müsaitlik kontrolü ve anlık rezervasyon akışı.', NULL, '0:45', 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80', TRUE, 0, 'hotel_booking'),
+      ('hotel_whatsapp', 'hotellp', 'Otomatik WhatsApp Onay Kuponu', 'Misafire özel QR kodlu rezervasyon voucher belgesi ve WhatsApp API ile anlık konfirmasyon mesajı iletimi.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80', FALSE, 1, NULL),
+      ('hotel_cleaning', 'hotellp', 'Kat Hizmetleri & Oda Temizlik Paneli', 'Oda temizlik durumları (Temiz, Kirli, Bakımda) ve kat şefi görev atamaları.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=80', FALSE, 2, NULL),
+      ('hotel_channel', 'hotellp', 'Kanal Yöneticisi & Fiyat Matrisi', 'Sezonluk dinamik gecelik fiyatlar, hafta sonu çarpanları ve minimum konaklama kuralı tanımları.', NULL, 'Yakında', 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80', FALSE, 3, NULL)
+    `).catch((err) => console.error("Error seeding hotellp videos:", err));
   }
 }
 
@@ -1069,20 +1097,20 @@ router.get("/enrakipsiz/videos", async (req: any, res) => {
 });
 
 router.post("/enrakipsiz/videos", async (req: any, res) => {
-  const { id, product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index } = req.body;
+  const { id, product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index, hyperframes_scenario } = req.body;
   try {
     await ensureEnrakipsizTables();
     if (id) {
       await pool.query(`
         UPDATE enrakipsiz_videos
-        SET product_key = $1, page_type = $2, title = $3, description = $4, youtube_id = $5, duration = $6, cover_img = $7, is_live = $8, order_index = $9
-        WHERE id = $10
-      `, [product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index, id]);
+        SET product_key = $1, page_type = $2, title = $3, description = $4, youtube_id = $5, duration = $6, cover_img = $7, is_live = $8, order_index = $9, hyperframes_scenario = $10
+        WHERE id = $11
+      `, [product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index, hyperframes_scenario || null, id]);
     } else {
       await pool.query(`
-        INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index]);
+        INSERT INTO enrakipsiz_videos (product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index, hyperframes_scenario)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [product_key, page_type, title, description, youtube_id, duration, cover_img, is_live, order_index, hyperframes_scenario || null]);
     }
     res.json({ success: true });
   } catch (e: any) {

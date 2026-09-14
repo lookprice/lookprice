@@ -224,6 +224,20 @@ This file outlines strict engineering, performance, and naming directives that m
   - Alış faturaları (mal alımı) ve satış faturaları sisteme işlendiğinde veya düzenlendiğinde, envanter (`stock_quantity`) ve stok hareketleri (`stock_movements`) canlı bir organizma gibi anında tepki verir.
   - Pazaryerlerinden (Hepsiburada, Trendyol, vb.) gelen siparişler yüksek frekanslı cron (`*/5 * * * *`) ile çekildiğinde; sipariş satırındaki barkod, merchantSku, hbSku veya ürün kodları ile yerel ürün anında eşleştirilerek stok eksiksiz düşülür, satış faturası kaydı açılır ve diğer kanallarda oversell yaşanmaması için güncel stok derhal pazaryerlerine yansıtılır.
 
+---
+
+## 17. Ürün Detay & İnceleme Ekranlarında Ultra-Kompakt Tek Sayfa ve Yan Yana Aksiyon Standardı (Apple / Mercedes / Google UI Protocol)
+
+- **Kaydırmasız Tek Görünüm ve Kompakt Sağ Sütun Prensibi ("Sayfayı Aşağı İndir-Kaldır Yapma Zulmüne Son")**:
+  - Ürün detay modalları (`ProductDetailModal`) ve benzeri inceleme ekranlarında sağ kolon dikeyde gereksiz uzayıp kullanıcıyı aşağı-yukarı kaydırma yapmaya zorlamamalıdır.
+  - Başlıklar, fiyatlar, rozetler ve seçenekler (varyantlar) mikro ölçekli, zarif ve yüksek bilgi yoğunluklu (Apple/Google tasarım dili) tutulmalıdır.
+- **Şube Listesi & Satın Al / Sepete Ekle Butonu Yan Yana Konumlandırma**:
+  - Şube seçim alanı ile "Sepete Ekle / Satın Al / WhatsApp" butonları ASLA alt alta devasa bloklar halinde yer alamaz.
+  - Şube listesi modalın en altındaki sabit (sticky/docked) eylem çubuğunda; eğer 1 şube varsa kompakt bir rozet/hap (`MapPin` + Şube Adı + Stok Durumu), 2 veya daha fazla şube varsa kompakt bir açılır menü (`<select>`) olarak "Sepete Ekle" butonunun **hemen solunda, aynı satırda yan yana** konumlandırılmalıdır.
+  - Satın alma / sepete ekleme butonu her zaman ekranın altında sabit ve tek bakışta görünür olmalı; kullanıcı hiçbir koşulda şube seçmek veya butona tıklamak için sayfayı kaydırmak zorunda kalmamalıdır.
+  - Bu kural sistemdeki tüm benzer detay, önizleme ve işlem modallarında zorunlu olarak uygulanır.
+
+
 
 
 
