@@ -606,7 +606,7 @@ export class HepsiburadaService {
               mappedLines,
               "Hepsiburada",
               orderNumber || orderId,
-              resolvedCustomerName,
+              customerName,
               invoiceNumber
             );
           } else {

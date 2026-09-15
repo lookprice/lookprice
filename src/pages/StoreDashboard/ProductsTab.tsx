@@ -134,10 +134,19 @@ const ProductsTab = ({
   const [page, setPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [productOverrides, setProductOverrides] = useState<Record<number, any>>({});
+  const [highlightedProductId, setHighlightedProductId] = useState<number | null>(null);
   const [isFixingNames, setIsFixingNames] = useState(false);
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
+  const [targetScrollProductId, setTargetScrollProductId] = useState<number | null>(null);
+
+  // Merge products with optimistic local overrides so actions remain immediate and row positions remain anchored
+  const effectiveProducts = useMemo(() => {
+    if (Object.keys(productOverrides).length === 0) return products;
+    return products.map(p => productOverrides[p.id] ? { ...p, ...productOverrides[p.id] } : p);
+  }, [products, productOverrides]);
 
   const getHepsiburadaUrl = (p: any) => {
     const hbSku = p.hepsiburada_sku || 
@@ -278,54 +287,140 @@ const ProductsTab = ({
 
   const itemsPerPage = 15;
 
-  const handlePublishToPazarama = async (product: any) => {
+  const scrollToProductRow = (productId: number) => {
+    setTargetScrollProductId(productId);
+    // Immediate and frame-delayed attempts
+    const scroll = () => {
+      const el = document.getElementById(`product-row-${productId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+    scroll();
+    setTimeout(scroll, 100);
+    setTimeout(scroll, 400);
+  };
+
+  const handlePublishToPazarama = async (product: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (publishingId === product.id) return;
     try {
       setPublishingId(product.id);
+      setHighlightedProductId(product.id);
       const res = await api.publishPazaramaProduct(product.id, currentStoreId);
       if (res && res.success) {
-        toast.success(res.message || (lang === 'tr' ? "Ürün başarıyla Pazarama'ya aktarıldı." : "Product published to Pazarama successfully."));
+        toast.success(res.message || (lang === 'tr' ? `"${product.name}" Pazarama'ya aktarıldı.` : "Product published to Pazarama successfully."));
+        setProductOverrides(prev => ({
+          ...prev,
+          [product.id]: {
+            ...product,
+            is_pazarama_active: true,
+            pazarama_last_sync: new Date().toISOString(),
+            pazarama_last_error: null
+          }
+        }));
+        scrollToProductRow(product.id);
+        if (onRefresh) onRefresh();
       } else {
-        toast.error(res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
+        const errMsg = res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed.");
+        toast.error(errMsg);
+        setProductOverrides(prev => ({
+          ...prev,
+          [product.id]: {
+            ...product,
+            pazarama_last_error: errMsg
+          }
+        }));
       }
     } catch (e: any) {
       toast.error(e.message || "Pazarama aktarım hatası");
     } finally {
       setPublishingId(null);
+      setTimeout(() => {
+        setHighlightedProductId(prev => prev === product.id ? null : prev);
+      }, 4000);
     }
   };
 
-  const handlePublishToTrendyol = async (product: any) => {
+  const handlePublishToTrendyol = async (product: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (publishingId === product.id) return;
     try {
       setPublishingId(product.id);
+      setHighlightedProductId(product.id);
       const res = await api.publishTrendyolProduct(product.id, currentStoreId);
       if (res && res.success) {
-        toast.success(res.message || (lang === 'tr' ? "Ürün başarıyla Trendyol'a aktarıldı." : "Product published to Trendyol successfully."));
+        toast.success(res.message || (lang === 'tr' ? `"${product.name}" Trendyol'a aktarıldı.` : "Product published to Trendyol successfully."));
+        setProductOverrides(prev => ({
+          ...prev,
+          [product.id]: {
+            ...product,
+            is_trendyol_active: true,
+            trendyol_last_sync: new Date().toISOString(),
+            trendyol_last_error: null
+          }
+        }));
+        scrollToProductRow(product.id);
+        if (onRefresh) onRefresh();
       } else {
-        toast.error(res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
+        const errMsg = res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed.");
+        toast.error(errMsg);
+        setProductOverrides(prev => ({
+          ...prev,
+          [product.id]: {
+            ...product,
+            trendyol_last_error: errMsg
+          }
+        }));
       }
     } catch (e: any) {
       toast.error(e.message || "Trendyol aktarım hatası");
     } finally {
       setPublishingId(null);
+      setTimeout(() => {
+        setHighlightedProductId(prev => prev === product.id ? null : prev);
+      }, 4000);
     }
   };
 
-  const handlePublishToN11 = async (product: any) => {
+  const handlePublishToN11 = async (product: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (publishingId === product.id) return;
     try {
       setPublishingId(product.id);
+      setHighlightedProductId(product.id);
       const res = await api.publishN11Product(product.id, currentStoreId);
       if (res && res.success) {
-        toast.success(res.message || (lang === 'tr' ? "Ürün başarıyla N11'e aktarıldı." : "Product published to N11 successfully."));
+        toast.success(res.message || (lang === 'tr' ? `"${product.name}" N11'e aktarıldı.` : "Product published to N11 successfully."));
+        setProductOverrides(prev => ({
+          ...prev,
+          [product.id]: {
+            ...product,
+            is_n11_active: true,
+            n11_last_sync: new Date().toISOString(),
+            n11_last_error: null
+          }
+        }));
+        scrollToProductRow(product.id);
+        if (onRefresh) onRefresh();
       } else {
-        toast.error(res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
+        const errMsg = res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed.");
+        toast.error(errMsg);
+        setProductOverrides(prev => ({
+          ...prev,
+          [product.id]: {
+            ...product,
+            n11_last_error: errMsg
+          }
+        }));
       }
     } catch (e: any) {
       toast.error(e.message || "N11 aktarım hatası");
     } finally {
       setPublishingId(null);
+      setTimeout(() => {
+        setHighlightedProductId(prev => prev === product.id ? null : prev);
+      }, 4000);
     }
   };
 
@@ -338,17 +433,50 @@ const ProductsTab = ({
     }
     try {
       setPublishingId(product.id);
+      setHighlightedProductId(product.id);
       const res = await api.publishHepsiburadaProduct(product.id, currentStoreId);
       if (res && (res.data?.success || res?.success)) {
-        toast.success(lang === 'tr' ? `"${product.name}" Hepsiburada'da ilana açıldı / güncellendi!` : `"${product.name}" published to Hepsiburada!`);
+        const sku = res.data?.hepsiburadaSku || res?.hepsiburadaSku;
+        const msg = lang === 'tr' 
+          ? `"${product.name}" Hepsiburada'da ilana açıldı / güncellendi!${sku ? ` (SKU: ${sku})` : ''}` 
+          : `"${product.name}" published to Hepsiburada!${sku ? ` (SKU: ${sku})` : ''}`;
+        toast.success(msg);
+
+        // Optimistic local override so status indicator updates immediately without waiting for server response
+        setProductOverrides(prev => ({
+          ...prev,
+          [product.id]: {
+            ...product,
+            is_hepsiburada_active: true,
+            hepsiburada_sku: sku || product.hepsiburada_sku,
+            hepsiburada_last_sync: new Date().toISOString(),
+            hepsiburada_last_error: null
+          }
+        }));
+
+        // Preserve scroll position and bring into viewport
+        scrollToProductRow(product.id);
+
         if (onRefresh) onRefresh();
       } else {
-        toast.error(res?.data?.error || res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed."));
+        const errMsg = res?.data?.error || res?.error || (lang === 'tr' ? "Aktarım başarısız oldu." : "Publish failed.");
+        toast.error(errMsg);
+        setProductOverrides(prev => ({
+          ...prev,
+          [product.id]: {
+            ...product,
+            hepsiburada_last_error: errMsg
+          }
+        }));
       }
     } catch (e: any) {
-      toast.error(e.response?.data?.error || e.message || (lang === 'tr' ? "Hepsiburada aktarım hatası" : "Publish failed"));
+      const errMsg = e.response?.data?.error || e.message || (lang === 'tr' ? "Hepsiburada aktarım hatası" : "Publish failed");
+      toast.error(errMsg);
     } finally {
       setPublishingId(null);
+      setTimeout(() => {
+        setHighlightedProductId(prev => prev === product.id ? null : prev);
+      }, 4000);
     }
   };
 
@@ -397,19 +525,19 @@ const ProductsTab = ({
     return Number(p.stock_quantity) || 0;
   };
 
-  const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+  const categories = Array.from(new Set(effectiveProducts.map(p => p.category).filter(Boolean)));
   const isSelectedCategoryValid = selectedCategory === "all" || selectedCategory === "bestsellers" || categories.includes(selectedCategory);
   const effectiveCategory = isSelectedCategoryValid ? selectedCategory : "all";
 
-  const hbActiveCount = products.filter(p => p.is_hepsiburada_active).length;
-  const marketplaceActiveCount = products.filter(p => 
+  const hbActiveCount = effectiveProducts.filter(p => p.is_hepsiburada_active).length;
+  const marketplaceActiveCount = effectiveProducts.filter(p => 
     p.is_hepsiburada_active || p.is_trendyol_active || p.is_n11_active || p.is_amazon_active || p.is_pazarama_active
   ).length;
-  const marketplaceErrorCount = products.filter(p => 
+  const marketplaceErrorCount = effectiveProducts.filter(p => 
     p.hepsiburada_last_error || p.trendyol_last_error || p.n11_last_error || p.amazon_last_error || p.pazarama_last_error
   ).length;
 
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = effectiveProducts.filter(p => {
     const searchTerms = normalizeSearch(deferredSearch || "").split(/\s+/).filter(Boolean);
     const matchesSearch = searchTerms.length === 0 ? true : searchTerms.every(term => 
       normalizeSearch(p.name || "").includes(term) || (p.barcode && p.barcode.toString().includes(term))
@@ -446,21 +574,7 @@ const ProductsTab = ({
     if (aIsNewLabel && !bIsNewLabel) return -1;
     if (!aIsNewLabel && bIsNewLabel) return 1;
 
-    // Also consider recently updated products as "new"
-    const isRecent = (dateStr: string) => {
-      if (!dateStr) return false;
-      const date = new Date(dateStr);
-      const now = new Date();
-      const diffDays = (now.getTime() - date.getTime()) / (1000 * 3600 * 24);
-      return diffDays < 3; // within 3 days
-    };
-
-    const aIsRecent = isRecent(a.updated_at);
-    const bIsRecent = isRecent(b.updated_at);
-
-    if (aIsRecent && !bIsRecent) return -1;
-    if (!aIsRecent && bIsRecent) return 1;
-
+    // Stable sort by ID descending so list order never jumps unexpectedly when updating
     return (Number(b.id) || 0) - (Number(a.id) || 0);
   });
   
@@ -519,6 +633,37 @@ const ProductsTab = ({
       setPage(totalPages);
     }
   }, [totalPages, page]);
+
+  // Ensure target product remains in view across re-renders and data refreshes
+  useEffect(() => {
+    if (!targetScrollProductId) return;
+
+    // Check if the target product is in filteredProducts and on another page
+    const targetIndex = filteredProducts.findIndex(p => p.id === targetScrollProductId);
+    if (targetIndex !== -1) {
+      const targetPage = Math.floor(targetIndex / itemsPerPage) + 1;
+      if (targetPage !== page) {
+        setPage(targetPage);
+        return; // Will trigger re-render on the right page
+      }
+    }
+
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`product-row-${targetScrollProductId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 120);
+
+    const clearTimer = setTimeout(() => {
+      setTargetScrollProductId(null);
+    }, 2500);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(clearTimer);
+    };
+  }, [targetScrollProductId, paginatedProducts, filteredProducts, page]);
 
   return (
     <div className="space-y-4">
@@ -992,7 +1137,16 @@ const ProductsTab = ({
                   const isRowOpen = tableManager.isRowExpanded(p.id);
                   return (
                     <React.Fragment key={p.id}>
-                      <tr className={`hover:bg-slate-50/70 transition-colors group cursor-default ${selectedIds.includes(p.id) ? 'bg-indigo-50/30' : (Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') ? 'bg-amber-50/50' : '')}`}>
+                      <tr 
+                        id={`product-row-${p.id}`}
+                        className={`transition-all duration-300 group cursor-default ${
+                          highlightedProductId === p.id 
+                            ? 'bg-orange-50/90 ring-2 ring-orange-400 ring-inset shadow-xs' 
+                            : selectedIds.includes(p.id) 
+                              ? 'bg-indigo-50/30' 
+                              : (Array.isArray(p.labels) && p.labels.includes('yeni_fatura_urunu') ? 'bg-amber-50/50' : 'hover:bg-slate-50/70')
+                        }`}
+                      >
                         {!isViewer && (
                           <td className="pl-3 py-1.5">
                             <input 

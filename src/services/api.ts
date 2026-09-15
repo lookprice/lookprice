@@ -483,6 +483,8 @@ export const api = {
   testAmazonConnection: (storeId?: number, data?: any) => api.post("/api/integrations/amazon/test-connection", { storeId, ...data }),
   bulkSyncAmazon: (storeId?: number) => api.post("/api/integrations/amazon/bulk-sync", { storeId }),
   syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),
+  matchAmazonListings: (importMissing: boolean = true, storeId?: number) => api.post("/api/integrations/amazon/match-listings", { importMissing, storeId }),
+  getAmazonListings: (storeId?: number) => api.get(`/api/integrations/amazon/listings${storeId ? `?storeId=${storeId}` : ""}`),
   disconnectAmazon: (storeId?: number) => api.post("/api/integrations/amazon/disconnect", { storeId }),
   getAmazonCategories: () => api.get("/api/integrations/amazon/categories"),
   getAmazonCategoryAttributes: (categoryId: string | number) => api.get(`/api/integrations/amazon/categories/${categoryId}/attributes`),

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Building2, 
   User as UserIcon, 
@@ -20,7 +20,8 @@ import {
   Receipt,
   FileText,
   Loader2,
-  Layers
+  Layers,
+  MoreVertical
 } from 'lucide-react';
 import { api } from '../../../../services/api';
 
@@ -74,6 +75,30 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
   const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
   const [loadingRowId, setLoadingRowId] = useState<number | null>(null);
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
+  const menuContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Close open action menu on outside click or escape key
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (openActionMenuId !== null) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.action-menu-dropdown') && !target.closest('.action-menu-trigger')) {
+          setOpenActionMenuId(null);
+        }
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenActionMenuId(null);
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openActionMenuId]);
 
   const isGapStore = 
     branding?.slug?.toLowerCase() === 'gap' || 
@@ -143,7 +168,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
               <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'KDV' : 'VAT'}</th>
               <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'Toplam' : 'Total'}</th>
               <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">{isTr ? 'Döviz' : 'Curr'}</th>
-              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">{isTr ? 'İşlemler' : 'Actions'}</th>
+              <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center w-[100px]">{isTr ? 'İşlemler' : 'Actions'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -160,7 +185,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                 </td>
               </tr>
             ) : (
-              invoices.map((inv: any) => {
+              invoices.map((inv: any, idx: number) => {
                 const intStatus = (inv.integration_status || '').toUpperCase();
                 const isQueued = ['QUEUED', 'KUYRUKTA', 'İŞLENİYOR', 'İLETİLİYOR'].includes(intStatus);
                 const isRejected = ['REJECTED', 'HATA', 'İPTAL', 'İPTAL EDİLDİ', 'HATALI', 'CANCELLED', 'ERROR'].includes(intStatus);
@@ -357,100 +382,225 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                       <td className="px-3 py-2.5 text-center text-xs font-bold text-slate-500 whitespace-nowrap">
                         {inv.currency}
                       </td>
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        <div className="flex justify-end gap-1 flex-wrap">
-                          {!isPortfolio && branding?.einvoice_settings?.is_active && inv.status !== 'draft' && !isApproved && !isQueued && !isRejected && (
-                            <div className="flex gap-1">
-                              <button 
-                                onClick={() => handleSendToGIB(inv.id)}
-                                className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
-                                title={isTr ? "GİB'e Gönder (E-Fatura/Arşiv)" : "Push to Document Integrator (Invoice)"}
-                              >
-                                <CloudUpload className="h-4 w-4" />
-                              </button>
-                              {branding?.einvoice_settings?.is_ewaybill_active && (
-                                <button 
-                                  onClick={() => handleOpenWaybillModal && handleOpenWaybillModal(inv)}
-                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                  title={isTr ? "Sevk İrsaliyesi Oluştur" : "Create Shipment Waybill"}
-                                >
-                                  <Truck className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          {!isPortfolio && (isApproved || isQueued) && (
-                            <button 
-                              onClick={() => handleCancelGIB(inv.id)}
-                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
-                              title={isTr ? "E-Arşiv İptal Et" : "Cancel E-Archive Invoice"}
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </button>
-                          )}
-                          {!isPortfolio && isRejected && (
-                            <div className="p-1.5 text-rose-500" title={inv.integration_message || (isTr ? "Faturalama hatası / İptal edildi" : "Invoicing error / Cancelled")}>
-                              <XCircle className="h-4 w-4" />
-                            </div>
-                          )}
-                          {!isPortfolio && isQueued && branding?.einvoice_settings?.is_active && (
-                            <button 
-                              onClick={() => handleCheckEInvoiceStatus(inv.id)}
-                              className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-all"
-                              title={isTr ? "GİB Durumunu Sorgula" : "Check Integrator Status"}
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                            </button>
-                          )}
-
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap relative">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Quick Action 1: HTML Preview */}
                           {!isPortfolio && (
                             <button 
-                              onClick={() => handleViewHtml(inv.id)}
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                              title={isTr ? "E-Fatura Görselini Aç" : "View E-Invoice HTML"}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewHtml(inv.id);
+                              }}
+                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200"
+                              title={isTr ? "E-Fatura Görselini Aç (HTML)" : "View E-Invoice HTML"}
                             >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                          )}
-                          
-                          {inv.invoice_type === 'marketplace' && handleMarketplaceShip && (
-                            <button 
-                              onClick={() => handleMarketplaceShip(inv)}
-                              className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                              title={isTr ? "Kargo Bildirimi (Pazar Yeri)" : "Marketplace Shipment"}
-                            >
-                              <Truck className="h-4 w-4" />
+                              <Eye className="h-3.5 w-3.5" />
                             </button>
                           )}
 
+                          {/* Quick Action 2: Print / PDF */}
                           <button 
-                            onClick={() => handleEdit(inv.id)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                            title={isTr ? "Düzenle" : "Edit"}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleViewDetails(inv)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                            title={isTr ? "Sistem Kayıt Detayları" : "Internal System Details"}
-                          >
-                            <FileSearch className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleViewDetails(inv, true)}
-                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetails(inv, true);
+                            }}
+                            className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-emerald-200"
                             title={isTr ? "Yazdır / PDF" : "Print / PDF"}
                           >
-                            <Printer className="h-4 w-4" />
+                            <Printer className="h-3.5 w-3.5" />
                           </button>
-                          <button 
-                            onClick={() => handleDelete(inv.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                            title={isTr ? "Sil" : "Delete"}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+
+                          {/* Collapsible Actions Dropdown Menu Trigger */}
+                          <div className="relative inline-block text-left">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenActionMenuId(openActionMenuId === inv.id ? null : inv.id);
+                              }}
+                              className={`action-menu-trigger p-1.5 rounded-lg transition-all flex items-center gap-1 border ${
+                                openActionMenuId === inv.id
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                  : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 bg-white border-slate-200 shadow-2xs'
+                              }`}
+                              title={isTr ? "Tüm İşlemler Menüsü" : "All Actions Menu"}
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                              <span className="text-[10px] font-bold hidden sm:inline-block pr-0.5">{isTr ? 'İşlem' : 'More'}</span>
+                            </button>
+
+                            {/* Dropdown Popup Menu */}
+                            {openActionMenuId === inv.id && (
+                              <div 
+                                className={`action-menu-dropdown absolute right-0 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 ${
+                                  idx >= invoices.length - 2 ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5 origin-top-right'
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                    {inv.invoice_number || (isTr ? 'Fatura İşlemleri' : 'Invoice Actions')}
+                                  </span>
+                                  {inv.currency && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                                      {inv.currency}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="py-1">
+                                  {/* View HTML */}
+                                  {!isPortfolio && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        handleViewHtml(inv.id);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                      <Eye className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                      <span>{isTr ? "E-Fatura Görselini Aç" : "View E-Invoice HTML"}</span>
+                                    </button>
+                                  )}
+
+                                  {/* Print / PDF */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      handleViewDetails(inv, true);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <Printer className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                    <span>{isTr ? "Yazdır & PDF Oluştur" : "Print & PDF"}</span>
+                                  </button>
+
+                                  {/* System Record Details */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      handleViewDetails(inv);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <FileSearch className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span>{isTr ? "Sistem Kayıt Detayları" : "System Details"}</span>
+                                  </button>
+                                </div>
+
+                                {/* GİB & Entegratör İşlemleri */}
+                                {(!isPortfolio && branding?.einvoice_settings?.is_active) && (
+                                  <div className="py-1 border-t border-slate-100 bg-slate-50/50">
+                                    {inv.status !== 'draft' && !isApproved && !isQueued && !isRejected && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenActionMenuId(null);
+                                            handleSendToGIB(inv.id);
+                                          }}
+                                          className="w-full px-3 py-1.5 text-xs font-bold text-purple-700 hover:bg-purple-100/70 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                        >
+                                          <CloudUpload className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                                          <span>{isTr ? "GİB'e Gönder (E-Fatura)" : "Push to GİB"}</span>
+                                        </button>
+                                        {branding?.einvoice_settings?.is_ewaybill_active && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setOpenActionMenuId(null);
+                                              handleOpenWaybillModal && handleOpenWaybillModal(inv);
+                                            }}
+                                            className="w-full px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100/70 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                          >
+                                            <Truck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                            <span>{isTr ? "Sevk İrsaliyesi Oluştur" : "Create Shipment Waybill"}</span>
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {(isApproved || isQueued) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setOpenActionMenuId(null);
+                                          handleCancelGIB(inv.id);
+                                        }}
+                                        className="w-full px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                      >
+                                        <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                        <span>{isTr ? "E-Arşiv İptal Et" : "Cancel E-Archive"}</span>
+                                      </button>
+                                    )}
+
+                                    {isQueued && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setOpenActionMenuId(null);
+                                          handleCheckEInvoiceStatus(inv.id);
+                                        }}
+                                        className="w-full px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                      >
+                                        <RefreshCw className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                        <span>{isTr ? "GİB Durumunu Sorgula" : "Check GİB Status"}</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Marketplace Ship */}
+                                {inv.invoice_type === 'marketplace' && handleMarketplaceShip && (
+                                  <div className="py-1 border-t border-slate-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        handleMarketplaceShip(inv);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                      <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                      <span>{isTr ? "Kargo Bildirimi Yap" : "Marketplace Ship"}</span>
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Edit & Delete */}
+                                <div className="py-1 border-t border-slate-100">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      handleEdit(inv.id);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <Edit className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                    <span>{isTr ? "Faturayı Düzenle" : "Edit Invoice"}</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      handleDelete(inv.id);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                    <span>{isTr ? "Faturayı Sil" : "Delete Invoice"}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>

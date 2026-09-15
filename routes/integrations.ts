@@ -306,7 +306,7 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           }));
 
           if (mappedLines.length > 0) {
-            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Amazon', order.AmazonOrderId, customerName, invoiceNumber);
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Amazon', order.AmazonOrderId, buyerName, invoiceNumber);
           } else {
             await client.query(
               "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
@@ -344,7 +344,79 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
     res.json({ success: true, count: syncedCount });
   } catch (error: any) {
     await IntegrationService.logIntegrationError(storeId, 'Amazon', 'Sync All Orders', error);
-    res.status(500).json({ error: "Amazon siparişleri senkronize edilemedi" });
+    res.status(500).json({ error: error.message || "Amazon siparişleri senkronize edilemedi" });
+  }
+});
+
+// Amazon Listing Match Endpoint
+router.post("/amazon/match-listings", authenticate, async (req: any, res) => {
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" 
+    ? Number(rawStoreId || req.user.store_id || 1) 
+    : Number(req.user.store_id || rawStoreId);
+
+  try {
+    const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mağaza bulunamadı" });
+    }
+
+    const row = storeRes.rows[0];
+    let settings = row?.amazon_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = row?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.refresh_token) {
+      settings = branding?.amazon_settings || settings || {};
+    }
+
+    if (!settings || (!settings.refresh_token && !settings.clientId)) {
+      return res.status(400).json({ 
+        error: "Amazon SP-API bilgileri eksik (Lütfen LWA Client ID, Client Secret ve Refresh Token kaydediniz)." 
+      });
+    }
+
+    const importMissing = Boolean(req.body?.importMissing);
+    const amazonService = new AmazonService(settings, storeId);
+    const result = await amazonService.matchListingsWithStoreProducts({ importMissing });
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("[Amazon Match Listings Error]:", error?.message || error);
+    await IntegrationService.logIntegrationError(storeId, 'Amazon', 'Match Listings', error);
+    res.status(400).json({ error: error.message || "Amazon ürünleri eşleştirilemedi." });
+  }
+});
+
+// Get Live Amazon Listings
+router.get("/amazon/listings", authenticate, async (req: any, res) => {
+  const rawStoreId = req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" 
+    ? Number(rawStoreId || req.user.store_id || 1) 
+    : Number(req.user.store_id || rawStoreId);
+
+  try {
+    const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mağaza bulunamadı" });
+    }
+
+    const row = storeRes.rows[0];
+    let settings = row?.amazon_settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+    let branding = row?.branding;
+    if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
+    if (!settings || !settings.refresh_token) {
+      settings = branding?.amazon_settings || settings || {};
+    }
+
+    const amazonService = new AmazonService(settings, storeId);
+    const listings = await amazonService.fetchListings();
+
+    res.json({ success: true, listings });
+  } catch (error: any) {
+    console.error("[Amazon Get Listings Error]:", error?.message || error);
+    res.status(400).json({ error: error.message || "Amazon ilanları çekilemedi." });
   }
 });
 
@@ -1024,6 +1096,8 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       categoryId = 698;
     } else if (String(categoryId) === "1000103") {
       categoryId = 1100011;
+    } else if (String(categoryId) === "1000124") {
+      categoryId = 106861; // Active HB Leaf: Notebook Standları
     } else if (!categoryId) {
       if (catSearchStr.includes("usb flash") || catSearchStr.includes("flash bellek") || (catSearchStr.includes("usb") && catSearchStr.includes("bellek"))) {
         categoryId = 970; // Active HB Leaf: Usb Bellek
@@ -1031,6 +1105,8 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
         categoryId = 698; // Active HB Leaf: Kart Okuyucular
       } else if (catSearchStr.includes("sd kart")) {
         categoryId = 1100011; // Active HB Leaf: Sd Kartlar
+      } else if (catSearchStr.includes("notebook stand") || catSearchStr.includes("laptop stand")) {
+        categoryId = 106861; // Active HB Leaf: Notebook Standları
       }
     }
 
@@ -2073,7 +2149,7 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
           }));
 
           if (mappedLines.length > 0) {
-            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Trendyol', order.id, customerName, invoiceNumber);
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Trendyol', order.id, rawCustName3, invoiceNumber);
           } else {
              // Fallback if no lines
              await client.query(

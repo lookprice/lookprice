@@ -403,6 +403,30 @@ export const SettingsEStoresTab = ({
     }
   };
 
+  const [amazonMatching, setAmazonMatching] = useState(false);
+
+  const handleMatchAmazonListings = async () => {
+    try {
+      setAmazonMatching(true);
+      const res = await api.matchAmazonListings(true, currentStoreId);
+      const data = res.data || res;
+      if (data && data.success) {
+        toast.success(
+          lang === 'tr'
+            ? `Amazon Eşleştirme Başarılı! ${data.matchedCount} ürün eşleşti, ${data.importedCount} yeni ürün aktarıldı.`
+            : `Amazon sync completed! ${data.matchedCount} matched, ${data.importedCount} imported.`
+        );
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(data?.message || (lang === 'tr' ? "Eşleştirme başarısız" : "Matching failed"));
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || (lang === 'tr' ? "Eşleştirme hatası" : "Matching error"));
+    } finally {
+      setAmazonMatching(false);
+    }
+  };
+
   const handleSyncOrders = async () => {
     await amazonSync.runSync(
       () => api.syncAmazonOrders(currentStoreId),
@@ -1838,6 +1862,17 @@ export const SettingsEStoresTab = ({
               >
                 <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${amazonSync.isSyncing ? 'animate-spin' : ''}`} />
                 <span>{amazonSync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={handleMatchAmazonListings}
+                disabled={amazonMatching}
+                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                title="Amazon İlanlarını Paneldeki Ürünler ile Eşleştir veya Eksikleri Aktar"
+              >
+                <Layers className={`h-3.5 w-3.5 text-amber-700 ${amazonMatching ? 'animate-spin' : ''}`} />
+                <span>{amazonMatching ? (lang === 'tr' ? 'Eşleştiriliyor...' : 'Matching...') : (lang === 'tr' ? 'İlanları Eşleştir' : 'Match Listings')}</span>
               </button>
 
               <button 
