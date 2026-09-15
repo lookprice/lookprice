@@ -1344,7 +1344,7 @@ export class HepsiburadaService {
         });
       } else if (importMissing) {
         // Auto import unmatched product
-        const newName = pName || `Hepsiburada Ürünü (${hbSku || mSku || barcode})`;
+        const newName = pName || listing.productName || listing.title || (mSku ? `E-Mağaza Portföy Ürünü (${mSku})` : (hbSku ? `E-Mağaza Portföy Ürünü (${hbSku})` : `E-Mağaza Portföy Ürünü (${barcode})`));
         const newBarcode = mSku || barcode || hbSku || `HB-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const newPrice = listing.price || 0;
         const newStock = listing.availableStock || 0;

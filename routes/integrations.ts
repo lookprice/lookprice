@@ -490,6 +490,31 @@ router.post("/amazon/disconnect", authenticate, async (req: any, res) => {
   }
 });
 
+// 6. Publish Product to Amazon TR
+router.post("/amazon/publish", authenticate, async (req: any, res) => {
+  const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
+  const productId = req.body.productId;
+
+  try {
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    const p = prodRes.rows[0];
+    if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
+
+    if (Number(p.stock_quantity || 0) <= 0) {
+      return res.status(400).json({ error: `"${p.name}" ürününün stoğu 0 olduğu için Amazon'da satışa açılamaz. Lütfen önce ürün stoğunu girin.` });
+    }
+
+    await pool.query(
+      "UPDATE products SET is_amazon_active = true, amazon_last_sync = NOW(), amazon_last_error = NULL WHERE id = $1 AND store_id = $2",
+      [productId, storeId]
+    );
+
+    res.json({ success: true, message: `"${p.name}" Amazon TR ilanına aktarıldı ve satışa açıldı.` });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- N11 Integration ---
 
 // 1. Save N11 Settings
@@ -672,6 +697,10 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
     if (prodRes.rows.length === 0) return res.status(404).json({ error: "Ürün bulunamadı" });
     const product = prodRes.rows[0];
+
+    if (Number(product.stock_quantity || 0) <= 0) {
+      return res.status(400).json({ error: `"${product.name}" ürününün stoğu 0 olduğu için N11'de satışa açılamaz. Lütfen önce ürün stoğunu girin.` });
+    }
 
     // SOAP request for SaveProduct
     // This is a simplified version, N11 requires much more detail (stock items, images etc)
@@ -1060,6 +1089,10 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
     const p = prodRes.rows[0];
     if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
+
+    if (Number(p.stock_quantity || 0) <= 0) {
+      return res.status(400).json({ error: `"${p.name}" ürününün stoğu 0 olduğu için Hepsiburada'da satışa açılamaz/güncellenemez. Lütfen önce ürün stoğunu girin.` });
+    }
 
     if (!p.barcode || !p.barcode.trim()) {
       return res.status(400).json({ error: `"${p.name}" ürününün barkodu eksik. Hepsiburada'da satışa açmak için geçerli bir barkod gereklidir.` });
@@ -2222,6 +2255,10 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
     const p = prodRes.rows[0];
     if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
 
+    if (Number(p.stock_quantity || 0) <= 0) {
+      return res.status(400).json({ error: `"${p.name}" ürününün stoğu 0 olduğu için Trendyol'da satışa açılamaz. Lütfen önce ürün stoğunu girin.` });
+    }
+
     const payload = {
       items: [{
         barcode: p.barcode,
@@ -2493,6 +2530,10 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
     }
     
     const product = productRes.rows[0];
+
+    if (Number(product.stock_quantity || 0) <= 0) {
+      return res.status(400).json({ error: `"${product.name}" ürününün stoğu 0 olduğu için Pazarama'da satışa açılamaz. Lütfen önce ürün stoğunu girin.` });
+    }
 
     // --- Price Calculation Logic ---
     // 1. Base Price

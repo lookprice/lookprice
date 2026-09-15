@@ -708,7 +708,11 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         vatRate: String(Number(taxRate.toFixed(2))),
         amtVatTra: String(Number(taxAmount.toFixed(2))),
         taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
-        taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+        taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+        ...(Number(taxRate) === 0 && giInvoiceType === 'ISTISNA' && exemptionCode ? {
+          taxExemptionReasonCode: exemptionCode,
+          taxExemptionReason: "İstisna"
+        } : {})
       };
     });
 
@@ -949,14 +953,21 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
                groups[rate].taxableAmount += taxable;
                groups[rate].taxAmount += tax;
             });
-            return Object.keys(groups).map(rate => ({
-               taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
-               taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
-               calculationSequenceNumeric: 0,
-               percent: rate,
-               taxName: "Katma Değer Vergisi",
-               taxTypeCode: "0015"
-            }));
+            return Object.keys(groups).map(rate => {
+               const baseObj: any = {
+                  taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
+                  taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
+                  calculationSequenceNumeric: 0,
+                  percent: rate,
+                  taxName: "Katma Değer Vergisi",
+                  taxTypeCode: "0015"
+               };
+               if (Number(rate) === 0 && giInvoiceType === 'ISTISNA' && exemptionCode) {
+                  baseObj.taxExemptionReasonCode = exemptionCode;
+                  baseObj.taxExemptionReason = "İstisna";
+               }
+               return baseObj;
+            });
          })()
        }],
 

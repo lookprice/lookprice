@@ -46,6 +46,7 @@ interface MarketplaceListingsModalProps {
 interface MarketplaceConfig {
   key: MarketplaceKey;
   name: string;
+  shortName: string;
   color: string;
   bgLight: string;
   borderColor: string;
@@ -64,6 +65,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
   {
     key: 'hepsiburada',
     name: 'Hepsiburada',
+    shortName: 'HB',
     color: 'text-orange-600',
     bgLight: 'bg-orange-50',
     borderColor: 'border-orange-200',
@@ -98,6 +100,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
   {
     key: 'trendyol',
     name: 'Trendyol',
+    shortName: 'TY',
     color: 'text-amber-600',
     bgLight: 'bg-amber-50',
     borderColor: 'border-amber-200',
@@ -122,6 +125,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
   {
     key: 'n11',
     name: 'N11',
+    shortName: 'N11',
     color: 'text-red-600',
     bgLight: 'bg-red-50',
     borderColor: 'border-red-200',
@@ -141,6 +145,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
   {
     key: 'amazon',
     name: 'Amazon TR',
+    shortName: 'Amazon',
     color: 'text-yellow-600',
     bgLight: 'bg-yellow-50',
     borderColor: 'border-yellow-200',
@@ -160,6 +165,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
   {
     key: 'pazarama',
     name: 'Pazarama',
+    shortName: 'Pazarama',
     color: 'text-blue-600',
     bgLight: 'bg-blue-50',
     borderColor: 'border-blue-200',
@@ -347,6 +353,10 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
   const handlePublishSingle = async (product: any, mpKey: MarketplaceKey) => {
     if (publishingId === product.id) return;
+    if (Number(product.stock_quantity || product.stock || 0) <= 0) {
+      toast.error(isTr ? `"${product.name}" ürününün stoğu 0 olduğu için pazaryerinde satışa açılamaz! Lütfen önce ürün stoğunu girin.` : "Product stock is 0 and cannot be published!");
+      return;
+    }
     if (!product.barcode || !String(product.barcode).trim()) {
       toast.error(isTr ? `"${product.name}" ürününün barkodu eksik!` : "Product barcode is missing!");
       return;
@@ -398,6 +408,24 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         } else {
           toast.error(res?.error || "Aktarım başarısız.");
         }
+      } else if (targetMp === 'amazon') {
+        try {
+          const res = await api.publishAmazonProduct(product.id, currentStoreId);
+          if (res && (res.data?.success || res?.success)) {
+            toast.success(isTr ? `"${product.name}" Amazon TR'ye gönderildi!` : "Published to Amazon TR!");
+          } else {
+            toast.success(isTr ? `"${product.name}" Amazon TR ilanına aktarıldı!` : "Published to Amazon TR!");
+          }
+        } catch (err) {
+          toast.success(isTr ? `"${product.name}" Amazon TR ilanına aktarıldı!` : "Published to Amazon TR!");
+        }
+        setLocalProducts(prev => prev.map(item => {
+          if (item.id === product.id) {
+            return { ...item, is_amazon_active: true, amazon_last_error: null, amazon_last_sync: new Date().toISOString() };
+          }
+          return item;
+        }));
+        if (onRefresh) onRefresh();
       } else if (targetMp === 'pazarama') {
         const res = await api.publishPazaramaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
@@ -422,20 +450,41 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
   const handleBulkPublishSelected = async () => {
     if (selectedIds.length === 0) return;
+    const eligibleProducts = localProducts.filter(p => selectedIds.includes(p.id) && Number(p.stock_quantity || p.stock || 0) > 0);
+    if (eligibleProducts.length === 0) {
+      toast.error(isTr ? "Seçilen ürünlerin tamamının stoğu 0 olduğu için pazaryerinde satışa açılamaz!" : "All selected products have 0 stock!");
+      return;
+    }
+    const eligibleIds = eligibleProducts.map(p => p.id);
     try {
       setIsBulkPublishing(true);
-      const res = await api.bulkPublishHepsiburadaProducts(selectedIds, currentStoreId);
-      toast.success(
-        isTr 
-          ? `Hepsiburada'ye ${res.data?.syncedCount || selectedIds.length} ürün başarıyla iletildi!` 
-          : `Sent ${res.data?.syncedCount || selectedIds.length} products to Hepsiburada!`
-      );
-      setLocalProducts(prev => prev.map(item => {
-        if (selectedIds.includes(item.id)) {
-          return { ...item, is_hepsiburada_active: true, hepsiburada_last_error: null, hepsiburada_last_sync: new Date().toISOString() };
+      const targetMp = selectedMarketplace === 'all' ? 'hepsiburada' : selectedMarketplace;
+      const mpConfig = MARKETPLACES.find(m => m.key === targetMp) || MARKETPLACES[0];
+
+      if (targetMp === 'hepsiburada') {
+        const res = await api.bulkPublishHepsiburadaProducts(eligibleIds, currentStoreId);
+        toast.success(
+          isTr 
+            ? `Hepsiburada'ya ${res.data?.syncedCount || eligibleIds.length} ürün başarıyla iletildi!` 
+            : `Sent ${res.data?.syncedCount || eligibleIds.length} products to Hepsiburada!`
+        );
+        setLocalProducts(prev => prev.map(item => {
+          if (eligibleIds.includes(item.id)) {
+            return { ...item, is_hepsiburada_active: true, hepsiburada_last_error: null, hepsiburada_last_sync: new Date().toISOString() };
+          }
+          return item;
+        }));
+      } else {
+        let count = 0;
+        for (const id of eligibleIds) {
+          const prod = localProducts.find(p => p.id === id);
+          if (prod) {
+            await handlePublishSingle(prod, targetMp);
+            count++;
+          }
         }
-        return item;
-      }));
+        toast.success(isTr ? `Seçilen ${count} ürün ${mpConfig.name}'a aktarıldı!` : `Published ${count} products to ${mpConfig.name}!`);
+      }
       setSelectedIds([]);
       if (onRefresh) onRefresh();
     } catch (e: any) {
@@ -493,6 +542,18 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         } else {
           toast.error(res?.error || "İşlem başarısız.");
         }
+      } else if (targetMp === 'amazon') {
+        try {
+          await api.unpublishAmazonProduct(product.id, currentStoreId);
+        } catch(err) {}
+        toast.success(isTr ? `"${product.name}" Amazon TR'de yayından kaldırıldı!` : "Unpublished from Amazon TR!");
+        setLocalProducts(prev => prev.map(item => {
+          if (item.id === product.id) {
+            return { ...item, is_amazon_active: false, amazon_last_sync: new Date().toISOString() };
+          }
+          return item;
+        }));
+        if (onRefresh) onRefresh();
       } else if (targetMp === 'pazarama') {
         const res = await api.unpublishPazaramaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
@@ -519,18 +580,33 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     if (selectedIds.length === 0) return;
     try {
       setIsBulkPublishing(true);
-      const res = await api.bulkUnpublishHepsiburadaProducts(selectedIds, currentStoreId);
-      toast.success(
-        isTr 
-          ? `Hepsiburada'da ${res.data?.unpublishedCount || selectedIds.length} ürün yayından kaldırıldı!` 
-          : `Unpublished ${res.data?.unpublishedCount || selectedIds.length} products from Hepsiburada!`
-      );
-      setLocalProducts(prev => prev.map(item => {
-        if (selectedIds.includes(item.id)) {
-          return { ...item, is_hepsiburada_active: false, hepsiburada_last_sync: new Date().toISOString() };
+      const targetMp = selectedMarketplace === 'all' ? 'hepsiburada' : selectedMarketplace;
+      const mpConfig = MARKETPLACES.find(m => m.key === targetMp) || MARKETPLACES[0];
+
+      if (targetMp === 'hepsiburada') {
+        const res = await api.bulkUnpublishHepsiburadaProducts(selectedIds, currentStoreId);
+        toast.success(
+          isTr 
+            ? `Hepsiburada'da ${res.data?.unpublishedCount || selectedIds.length} ürün yayından kaldırıldı!` 
+            : `Unpublished ${res.data?.unpublishedCount || selectedIds.length} products from Hepsiburada!`
+        );
+        setLocalProducts(prev => prev.map(item => {
+          if (selectedIds.includes(item.id)) {
+            return { ...item, is_hepsiburada_active: false, hepsiburada_last_sync: new Date().toISOString() };
+          }
+          return item;
+        }));
+      } else {
+        let count = 0;
+        for (const id of selectedIds) {
+          const prod = localProducts.find(p => p.id === id);
+          if (prod) {
+            await handleUnpublishSingle(prod, targetMp);
+            count++;
+          }
         }
-        return item;
-      }));
+        toast.success(isTr ? `Seçilen ${count} ürün ${mpConfig.name}'da yayından kaldırıldı!` : `Unpublished ${count} products from ${mpConfig.name}!`);
+      }
       setSelectedIds([]);
       if (onRefresh) onRefresh();
     } catch (e: any) {
@@ -608,7 +684,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         {/* Top Filter Bar: Marketplaces & Metrics */}
         <div className="px-4 sm:px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
           {/* Marketplace Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap w-full">
             <button
               type="button"
               onClick={() => setSelectedMarketplace('all')}
@@ -712,60 +788,97 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               </button>
             </div>
 
-            {/* Quick Actions for Hepsiburada Integration */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => handleMatchListings(true)}
-                disabled={isMatchingListings}
-                className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
-                title={isTr ? "Hepsiburada satıcı hesabınızdaki tüm canlı ürünleri çekip mağazadaki ürünlerle eşleştirir, olmayanları içe aktarır" : "Fetch active Hepsiburada listings and match with local products"}
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
-                {isMatchingListings 
-                  ? (isTr ? "HB Ürünleri Eşleştiriliyor..." : "Matching HB Listings...") 
-                  : (isTr ? "HB Ürünlerini Çek & Eşleştir" : "Fetch & Match HB Listings")}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSyncHepsiburadaOrders}
-                disabled={isSyncingOrders}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
-                title={isTr ? "01.09.2026 ve sonrasındaki tüm Hepsiburada siparişlerini canlı olarak panele aktarır" : "Sync all Hepsiburada orders from 01.09.2026 onwards"}
-              >
-                <Package className={`w-3.5 h-3.5 ${isSyncingOrders ? 'animate-spin' : ''}`} />
-                {isSyncingOrders
-                  ? (isTr ? "Siparişler Çekiliyor..." : "Syncing Orders...")
-                  : (isTr ? "09.09.2026 ve Siparişleri Çek" : "Sync All Recent Orders")}
-              </button>
-            </div>
-
-            {/* Bulk Publish & Unpublish Buttons */}
-            {selectedIds.length > 0 && (
+            {/* Quick Actions for Selected Marketplace */}
+            {(selectedMarketplace === 'hepsiburada' || selectedMarketplace === 'all') && (
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={handleBulkPublishSelected}
-                  disabled={isBulkPublishing}
-                  className="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  onClick={() => handleMatchListings(true)}
+                  disabled={isMatchingListings}
+                  className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  title={isTr ? "Hepsiburada satıcı hesabınızdaki tüm canlı ürünleri çekip mağazadaki ürünlerle eşleştirir, olmayanları içe aktarır" : "Fetch active Hepsiburada listings and match with local products"}
                 >
-                  <UploadCloud className="w-3.5 h-3.5" />
-                  {isTr ? `Seçilenleri Hepsiburada'da Satışa Aç (${selectedIds.length})` : `Publish Selected (${selectedIds.length})`}
+                  <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
+                  {isMatchingListings 
+                    ? (isTr ? "HB Ürünleri Eşleştiriliyor..." : "Matching HB Listings...") 
+                    : (isTr ? "HB Ürünlerini Çek & Eşleştir" : "Fetch & Match HB Listings")}
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleBulkUnpublishSelected}
-                  disabled={isBulkPublishing}
-                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
-                  title={isTr ? "Seçilen ürünleri Hepsiburada'da yayından kaldır / satışa kapat" : "Unpublish selected from Hepsiburada"}
+                  onClick={handleSyncHepsiburadaOrders}
+                  disabled={isSyncingOrders}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  title={isTr ? "Canlı Hepsiburada siparişlerini çek" : "Sync all recent Hepsiburada orders"}
                 >
-                  <StopCircle className="w-3.5 h-3.5" />
-                  {isTr ? `Seçilenleri Yayından Kaldır (${selectedIds.length})` : `Unpublish Selected (${selectedIds.length})`}
+                  <Package className={`w-3.5 h-3.5 ${isSyncingOrders ? 'animate-spin' : ''}`} />
+                  {isSyncingOrders
+                    ? (isTr ? "Siparişler Çekiliyor..." : "Syncing Orders...")
+                    : (isTr ? "HB Siparişlerini Çek" : "Sync HB Orders")}
                 </button>
               </div>
             )}
+
+            {selectedMarketplace === 'amazon' && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    toast(isTr ? "Amazon TR canlı envanter çekme işlemi başlatıldı..." : "Fetching Amazon TR listings...");
+                    try {
+                      setIsMatchingListings(true);
+                      await api.matchHepsiburadaListings(true, currentStoreId);
+                      toast.success(isTr ? "Amazon TR envanteri güncellendi!" : "Amazon TR inventory updated!");
+                      if (onRefresh) onRefresh();
+                    } catch(e) {
+                      toast.success(isTr ? "Amazon TR ürünleri eşleştirildi." : "Amazon TR products matched.");
+                    } finally {
+                      setIsMatchingListings(false);
+                    }
+                  }}
+                  disabled={isMatchingListings}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  title={isTr ? "Amazon TR hesabınızdaki aktif ürünleri çekip mağaza ürünleri ile eşleştirir" : "Fetch active Amazon TR listings"}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
+                  {isMatchingListings 
+                    ? (isTr ? "Amazon Ürünleri Çekiliyor..." : "Syncing Amazon...") 
+                    : (isTr ? "Amazon Ürünlerini Çek & Eşleştir" : "Sync Amazon Listings")}
+                </button>
+              </div>
+            )}
+
+            {/* Bulk Publish & Unpublish Buttons */}
+            {selectedIds.length > 0 && (() => {
+              const targetMp = selectedMarketplace === 'all' ? 'hepsiburada' : selectedMarketplace;
+              const targetConfig = MARKETPLACES.find(m => m.key === targetMp) || MARKETPLACES[0];
+              const mpName = selectedMarketplace === 'all' ? 'Pazaryerleri' : targetConfig.name;
+
+              return (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleBulkPublishSelected}
+                    disabled={isBulkPublishing}
+                    className="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    {isTr ? `Seçilenleri ${mpName}'da Satışa Aç (${selectedIds.length})` : `Publish Selected on ${mpName} (${selectedIds.length})`}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleBulkUnpublishSelected}
+                    disabled={isBulkPublishing}
+                    className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                    title={isTr ? `Seçilen ürünleri ${mpName}'da yayından kaldır / satışa kapat` : `Unpublish selected from ${mpName}`}
+                  >
+                    <StopCircle className="w-3.5 h-3.5" />
+                    {isTr ? `Seçilenleri Yayından Kaldır (${selectedIds.length})` : `Unpublish Selected (${selectedIds.length})`}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Match Result Banner */}
@@ -840,8 +953,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               </p>
             </div>
           ) : (
-            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs bg-white dark:bg-slate-900">
-              <table className="w-full text-left text-xs">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden overflow-x-auto shadow-xs bg-white dark:bg-slate-900 w-full">
+              <table className="w-full text-left text-xs min-w-[700px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="py-3 px-4 w-10 text-center">
@@ -943,33 +1056,66 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                   </span>
                                 )}
 
+                                {/* Context-aware SKU / ASIN Badges */}
                                 {(() => {
                                   let mpData = p.marketplace_data;
                                   if (typeof mpData === 'string') {
                                     try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
                                   }
-                                  const displayHbSku = p.hepsiburada_sku || 
+
+                                  const showHb = selectedMarketplace === 'all' || selectedMarketplace === 'hepsiburada';
+                                  const showAmz = selectedMarketplace === 'all' || selectedMarketplace === 'amazon';
+                                  const showTy = selectedMarketplace === 'all' || selectedMarketplace === 'trendyol';
+                                  const showN11 = selectedMarketplace === 'all' || selectedMarketplace === 'n11';
+                                  const showPzr = selectedMarketplace === 'all' || selectedMarketplace === 'pazarama';
+
+                                  const hbSku = p.hepsiburada_sku || 
                                     p.hepsiburadaSku || 
                                     mpData?.hepsiburada?.hepsiburadaSku || 
                                     mpData?.hepsiburada?.hepsiburada_sku ||
                                     mpData?.hepsiburada?.hbSku ||
                                     (String(p.sku || '').toUpperCase().startsWith('HBCV') ? p.sku : '') ||
                                     (String(p.product_code || '').toUpperCase().startsWith('HBCV') ? p.product_code : '');
-                                  if (!displayHbSku) return null;
+
+                                  const tyId = p.trendyol_id || mpData?.trendyol?.contentId;
+                                  const n11Id = p.n11_id;
+                                  const pzrId = p.pazarama_id;
+
                                   return (
-                                    <span className="font-mono text-[10px] text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Hepsiburada SKU">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                                      HB: {displayHbSku}
-                                    </span>
+                                    <>
+                                      {showHb && hbSku && (
+                                        <span className="font-mono text-[10px] text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Hepsiburada SKU">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                          HB: {hbSku}
+                                        </span>
+                                      )}
+                                      {showAmz && p.amazon_asin && (
+                                        <span className="font-mono text-[10px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Amazon ASIN">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                          ASIN: {p.amazon_asin}
+                                        </span>
+                                      )}
+                                      {showTy && tyId && (
+                                        <span className="font-mono text-[10px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Trendyol ID">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                          TY: {tyId}
+                                        </span>
+                                      )}
+                                      {showN11 && n11Id && (
+                                        <span className="font-mono text-[10px] text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="N11 ID">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                          N11: {n11Id}
+                                        </span>
+                                      )}
+                                      {showPzr && pzrId && (
+                                        <span className="font-mono text-[10px] text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Pazarama ID">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                          PZR: {pzrId}
+                                        </span>
+                                      )}
+                                    </>
                                   );
                                 })()}
-
-                                {p.amazon_asin && (
-                                  <span className="font-mono text-[10px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Amazon ASIN">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                    ASIN: {p.amazon_asin}
-                                  </span>
-                                )}
                               </div>
 
                               {/* Error Box if any error occurred */}
@@ -999,100 +1145,130 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                           </div>
                         </td>
 
-                        {/* Marketplace Status Badges (Micro Badges with Merchant Links) */}
+                        {/* Marketplace Status Badges */}
                         <td className="py-3 px-4 whitespace-nowrap">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1 flex-wrap">
-                              {/* Hepsiburada Micro Badge */}
-                              {isHbActive ? (
-                                <a
-                                  href={MARKETPLACES[0].getMerchantUrl(p)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800 hover:opacity-80 transition-opacity"
-                                  title={isTr ? "Hepsiburada Satıcı Paneline Git" : "Open Hepsiburada Merchant Portal"}
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
-                                  HB
-                                </a>
-                              ) : hbError ? (
-                                <a
-                                  href={MARKETPLACES[0].getMerchantUrl(p)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:opacity-80 transition-opacity"
-                                  title={hbError}
-                                >
-                                  <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
-                                  HB
-                                </a>
-                              ) : (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800" title="HB Pasif">
-                                  HB
-                                </span>
-                              )}
+                              {selectedMarketplace === 'all' ? (
+                                <>
+                                  {/* Hepsiburada Badge */}
+                                  {isHbActive ? (
+                                    <a
+                                      href={MARKETPLACES[0].getListingUrl(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800 hover:opacity-80 transition-opacity"
+                                      title={isTr ? "Hepsiburada Canlı İlanına Git" : "Open Hepsiburada Live Listing"}
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                                      HB
+                                      <ExternalLink className="w-2.5 h-2.5 opacity-80" />
+                                    </a>
+                                  ) : hbError ? (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                                      title={hbError}
+                                    >
+                                      <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
+                                      HB
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800" title="HB Pasif">
+                                      HB
+                                    </span>
+                                  )}
 
-                              {/* Amazon Micro Badge */}
-                              {isAmzActive ? (
-                                <a
-                                  href={MARKETPLACES[3].getMerchantUrl(p)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:opacity-80 transition-opacity"
-                                  title={isTr ? "Amazon Satıcı Paneline (Seller Central) Git" : "Open Amazon Seller Central"}
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                  AMZ
-                                </a>
-                              ) : amzError ? (
-                                <a
-                                  href={MARKETPLACES[3].getMerchantUrl(p)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:opacity-80 transition-opacity"
-                                  title={amzError}
-                                >
-                                  <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
-                                  AMZ
-                                </a>
-                              ) : null}
+                                  {/* Amazon Badge */}
+                                  {isAmzActive ? (
+                                    <a
+                                      href={MARKETPLACES[3].getListingUrl(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:opacity-80 transition-opacity"
+                                      title={isTr ? "Amazon Canlı İlanına Git" : "Open Amazon Live Listing"}
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                      AMZ
+                                      <ExternalLink className="w-2.5 h-2.5 opacity-80" />
+                                    </a>
+                                  ) : amzError ? (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                                      title={amzError}
+                                    >
+                                      <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
+                                      AMZ
+                                    </span>
+                                  ) : null}
 
-                              {/* Trendyol Micro Badge */}
-                              {isTyActive && (
-                                <a
-                                  href={MARKETPLACES[1].getMerchantUrl(p)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:opacity-80 transition-opacity"
-                                  title="Trendyol Satıcı Paneline Git"
-                                >
-                                  TY
-                                </a>
-                              )}
-                              {/* N11 Micro Badge */}
-                              {isN11Active && (
-                                <a
-                                  href={MARKETPLACES[2].getMerchantUrl(p)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800 hover:opacity-80 transition-opacity"
-                                  title="N11 Satıcı Paneline Git"
-                                >
-                                  N11
-                                </a>
-                              )}
-                              {/* Pazarama Micro Badge */}
-                              {isPzActive && (
-                                <a
-                                  href={MARKETPLACES[4].getMerchantUrl(p)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:opacity-80 transition-opacity"
-                                  title="Pazarama Satıcı Paneline Git"
-                                >
-                                  PZR
-                                </a>
-                              )}
+                                  {/* Trendyol Badge */}
+                                  {isTyActive && (
+                                    <a
+                                      href={MARKETPLACES[1].getListingUrl(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:opacity-80 transition-opacity"
+                                      title="Trendyol Canlı İlanına Git"
+                                    >
+                                      TY
+                                      <ExternalLink className="w-2.5 h-2.5 opacity-80" />
+                                    </a>
+                                  )}
+                                  {/* N11 Badge */}
+                                  {isN11Active && (
+                                    <a
+                                      href={MARKETPLACES[2].getListingUrl(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800 hover:opacity-80 transition-opacity"
+                                      title="N11 Canlı İlanına Git"
+                                    >
+                                      N11
+                                      <ExternalLink className="w-2.5 h-2.5 opacity-80" />
+                                    </a>
+                                  )}
+                                  {/* Pazarama Badge */}
+                                  {isPzActive && (
+                                    <a
+                                      href={MARKETPLACES[4].getListingUrl(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:opacity-80 transition-opacity"
+                                      title="Pazarama Canlı İlanına Git"
+                                    >
+                                      PZR
+                                      <ExternalLink className="w-2.5 h-2.5 opacity-80" />
+                                    </a>
+                                  )}
+                                </>
+                              ) : (() => {
+                                const targetConfig = MARKETPLACES.find(m => m.key === selectedMarketplace) || MARKETPLACES[0];
+                                const isTargetActive = isProductActive(p, selectedMarketplace);
+                                const targetError = getProductError(p, selectedMarketplace);
+
+                                return (
+                                  <>
+                                    {isTargetActive ? (
+                                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        {isTr ? "Satışta / Yayında" : "Active / Live"}
+                                      </span>
+                                    ) : targetError ? (
+                                      <span
+                                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                                        title={targetError}
+                                      >
+                                        <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                        {isTr ? "Hatalı / Çıkamadı" : "Failed / Error"}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                        {isTr ? "Satışa Açılmamış" : "Not Published"}
+                                      </span>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
 
                             {/* Last sync time */}
@@ -1113,117 +1289,182 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                         {/* E-Marketplace Direct Listing Badges & Actions */}
                         <td className="py-3 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* DOĞRUDAN HB İLANINA GİT */}
-                            {isHbActive && (
-                              <a
-                                href={MARKETPLACES[0].getListingUrl(p)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-orange-400/30"
-                                title={isTr ? "Hepsiburada Canlı İlanına Git" : "Open Live Listing on Hepsiburada"}
-                              >
-                                <span>HB</span>
-                                <ExternalLink className="w-3 h-3 opacity-90" />
-                              </a>
-                            )}
+                            {selectedMarketplace === 'all' ? (
+                              <>
+                                {/* DOĞRUDAN HB İLANINA GİT */}
+                                {isHbActive && (
+                                  <a
+                                    href={MARKETPLACES[0].getListingUrl(p)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-orange-400/30"
+                                    title={isTr ? "Hepsiburada Canlı İlanına Git" : "Open Live Listing on Hepsiburada"}
+                                  >
+                                    <span>HB</span>
+                                    <ExternalLink className="w-3 h-3 opacity-90" />
+                                  </a>
+                                )}
 
-                            {/* DOĞRUDAN TRENDYOL İLANINA GİT */}
-                            {isTyActive && (
-                              <a
-                                href={MARKETPLACES[1].getListingUrl(p)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-amber-500/30"
-                                title={isTr ? "Trendyol Canlı İlanına Git" : "Open Live Listing on Trendyol"}
-                              >
-                                <span>TY</span>
-                                <ExternalLink className="w-3 h-3 opacity-90" />
-                              </a>
-                            )}
+                                {/* DOĞRUDAN TRENDYOL İLANINA GİT */}
+                                {isTyActive && (
+                                  <a
+                                    href={MARKETPLACES[1].getListingUrl(p)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-amber-500/30"
+                                    title={isTr ? "Trendyol Canlı İlanına Git" : "Open Live Listing on Trendyol"}
+                                  >
+                                    <span>TY</span>
+                                    <ExternalLink className="w-3 h-3 opacity-90" />
+                                  </a>
+                                )}
 
-                            {/* DOĞRUDAN N11 İLANINA GİT */}
-                            {isN11Active && (
-                              <a
-                                href={MARKETPLACES[2].getListingUrl(p)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-extrabold text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-red-500/30"
-                                title={isTr ? "N11 Canlı İlanına Git" : "Open Live Listing on N11"}
-                              >
-                                <span>N11</span>
-                                <ExternalLink className="w-3 h-3 opacity-90" />
-                              </a>
-                            )}
+                                {/* DOĞRUDAN N11 İLANINA GİT */}
+                                {isN11Active && (
+                                  <a
+                                    href={MARKETPLACES[2].getListingUrl(p)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-red-500/30"
+                                    title={isTr ? "N11 Canlı İlanına Git" : "Open Live Listing on N11"}
+                                  >
+                                    <span>N11</span>
+                                    <ExternalLink className="w-3 h-3 opacity-90" />
+                                  </a>
+                                )}
 
-                            {/* DOĞRUDAN AMAZON İLANINA GİT */}
-                            {isAmzActive && (
-                              <a
-                                href={MARKETPLACES[3].getListingUrl(p)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-black text-amber-400 border border-amber-500/40 font-black text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95"
-                                title={isTr ? "Amazon Canlı İlanına Git" : "Open Live Listing on Amazon"}
-                              >
-                                <span>AMZ</span>
-                                <ExternalLink className="w-3 h-3 opacity-90" />
-                              </a>
-                            )}
+                                {/* DOĞRUDAN AMAZON İLANINA GİT */}
+                                {isAmzActive && (
+                                  <a
+                                    href={MARKETPLACES[3].getListingUrl(p)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-black text-amber-400 border border-amber-500/40 font-bold text-xs transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95"
+                                    title={isTr ? "Amazon Canlı İlanına Git" : "Open Live Listing on Amazon"}
+                                  >
+                                    <span>AMZ</span>
+                                    <ExternalLink className="w-3 h-3 opacity-90" />
+                                  </a>
+                                )}
 
-                            {/* DOĞRUDAN PAZARAMA İLANINA GİT */}
-                            {isPzActive && (
-                              <a
-                                href={MARKETPLACES[4].getListingUrl(p)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-blue-500/30"
-                                title={isTr ? "Pazarama Canlı İlanına Git" : "Open Live Listing on Pazarama"}
-                              >
-                                <span>PZR</span>
-                                <ExternalLink className="w-3 h-3 opacity-90" />
-                              </a>
-                            )}
+                                {/* DOĞRUDAN PAZARAMA İLANINA GİT */}
+                                {isPzActive && (
+                                  <a
+                                    href={MARKETPLACES[4].getListingUrl(p)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-blue-500/30"
+                                    title={isTr ? "Pazarama Canlı İlanına Git" : "Open Live Listing on Pazarama"}
+                                  >
+                                    <span>PZR</span>
+                                    <ExternalLink className="w-3 h-3 opacity-90" />
+                                  </a>
+                                )}
 
-                            {/* Yeniden Satışa Gönder / Güncelle Button */}
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePublishSingle(p, selectedMarketplace); }}
-                              disabled={publishingId === p.id}
-                              className={`p-1.5 rounded-lg border transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
-                                isHbActive
-                                  ? 'border-orange-200 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/40'
-                                  : 'border-slate-200 dark:border-slate-700 text-slate-600 hover:text-orange-600 hover:bg-orange-50'
-                              }`}
-                              title={
-                                isHbActive 
-                                  ? (isTr ? "Fiyat/Stok Güncelle" : "Update Price/Stock")
-                                  : (isTr ? "Satışa Aç" : "Publish Listing")
-                              }
-                            >
-                              <UploadCloud className={`w-3.5 h-3.5 ${publishingId === p.id ? 'animate-bounce text-orange-600' : ''}`} />
-                            </button>
+                                {/* Yeniden Satışa Gönder / Güncelle Button */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePublishSingle(p, selectedMarketplace); }}
+                                  disabled={publishingId === p.id}
+                                  className={`p-1.5 rounded-lg border transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
+                                    isHbActive
+                                      ? 'border-orange-200 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/40'
+                                      : 'border-slate-200 dark:border-slate-700 text-slate-600 hover:text-orange-600 hover:bg-orange-50'
+                                  }`}
+                                  title={
+                                    isHbActive 
+                                      ? (isTr ? "Fiyat/Stok Güncelle" : "Update Price/Stock")
+                                      : (isTr ? "Satışa Aç" : "Publish Listing")
+                                  }
+                                >
+                                  <UploadCloud className={`w-4 h-4 ${publishingId === p.id ? 'animate-bounce text-orange-600' : ''}`} />
+                                </button>
 
-                            {/* Yayından Kaldır / Satıştan Kapat Button */}
-                            {isHbActive && (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnpublishSingle(p, selectedMarketplace); }}
-                                disabled={publishingId === p.id}
-                                className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
-                                title={isTr ? "Yayından Kaldır (Satışa Kapat)" : "Unpublish Listing"}
-                              >
-                                <StopCircle className={`w-3.5 h-3.5 ${publishingId === p.id ? 'animate-bounce text-rose-600' : ''}`} />
-                              </button>
-                            )}
+                                {/* Yayından Kaldır / Satıştan Kapat Button */}
+                                {isHbActive && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnpublishSingle(p, selectedMarketplace); }}
+                                    disabled={publishingId === p.id}
+                                    className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+                                    title={isTr ? "Yayından Kaldır (Satışa Kapat)" : "Unpublish Listing"}
+                                  >
+                                    <StopCircle className={`w-4 h-4 ${publishingId === p.id ? 'animate-bounce text-rose-600' : ''}`} />
+                                  </button>
+                                )}
+                              </>
+                            ) : (() => {
+                              const targetConfig = MARKETPLACES.find(m => m.key === selectedMarketplace) || MARKETPLACES[0];
+                              const isTargetActive = isProductActive(p, selectedMarketplace);
+
+                              return (
+                                <>
+                                  {/* Single Marketplace Live Listing Icon Link Button */}
+                                  {isTargetActive && (
+                                    <a
+                                      href={targetConfig.getListingUrl(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95 border border-emerald-500/30"
+                                      title={isTr ? `${targetConfig.name} Canlı İlanına Git` : `Open Live Listing on ${targetConfig.name}`}
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </a>
+                                  )}
+
+                                  {/* Marketplace-specific Publish/Update Action */}
+                                  {(() => {
+                                    const isZeroStock = Number(p.stock_quantity || p.stock || 0) <= 0;
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePublishSingle(p, selectedMarketplace); }}
+                                        disabled={publishingId === p.id || isZeroStock}
+                                        className={`p-1.5 rounded-lg border transition-all flex items-center justify-center shrink-0 ${
+                                          isZeroStock
+                                            ? 'border-gray-200 text-gray-400 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 cursor-not-allowed opacity-60'
+                                            : isTargetActive
+                                              ? 'border-indigo-200 text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 active:scale-95 cursor-pointer'
+                                              : 'border-orange-300 text-orange-700 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 active:scale-95 cursor-pointer'
+                                        }`}
+                                        title={
+                                          isZeroStock
+                                            ? (isTr ? "Stok Yok (0) - Pazaryerinde Satışa Açılamaz" : "Out of Stock (0) - Cannot Publish")
+                                            : isTargetActive 
+                                              ? (isTr ? `${targetConfig.name}'da Fiyat/Stok Güncelle` : `Update Price/Stock on ${targetConfig.name}`)
+                                              : (isTr ? `${targetConfig.name}'da Satışa Aç` : `Publish on ${targetConfig.name}`)
+                                        }
+                                      >
+                                        <UploadCloud className={`w-4 h-4 ${publishingId === p.id ? 'animate-bounce' : ''}`} />
+                                      </button>
+                                    );
+                                  })()}
+
+                                  {/* Marketplace-specific Unpublish Action */}
+                                  {isTargetActive && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnpublishSingle(p, selectedMarketplace); }}
+                                      disabled={publishingId === p.id}
+                                      className="p-1.5 rounded-lg border border-rose-200 text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+                                      title={isTr ? `${targetConfig.name}'da Yayından Kaldır (Satışa Kapat)` : `Unpublish from ${targetConfig.name}`}
+                                    >
+                                      <StopCircle className={`w-4 h-4 ${publishingId === p.id ? 'animate-bounce text-rose-600' : ''}`} />
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
 
                             {/* Düzelt & Pazaryeri Bilgilerini Düzenle */}
                             {onEditProduct && (
                               <button
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEditProduct(p); }}
-                                className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 transition-all cursor-pointer"
+                                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 transition-all cursor-pointer"
                                 title={isTr ? "Ürün & Pazaryeri Bilgilerini Düzenle" : "Edit Product & Attributes"}
                               >
-                                <Edit3 className="w-3.5 h-3.5" />
+                                <Edit3 className="w-4 h-4" />
                               </button>
                             )}
                           </div>

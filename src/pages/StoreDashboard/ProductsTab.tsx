@@ -1247,7 +1247,7 @@ const ProductsTab = ({
                                 )}
                               </div>
                               {tableManager.metadataMode === 'inline' && (
-                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide items-center gap-1 mt-0.5 max-w-[200px] sm:max-w-xs md:max-w-md w-full">
                                   {(() => {
                                     if (!p.updated_at) return null;
                                     const date = new Date(p.updated_at);
@@ -1604,7 +1604,7 @@ const ProductsTab = ({
                             );
                           })()}
                           {isShopLp && connectedMarketplaces.hasAnyConnected && (
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide items-center gap-1.5 w-full pb-0.5 max-w-[85vw] sm:max-w-[400px]">
                               {connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && (
                                 <a
                                   href={getHepsiburadaUrl(p)}
@@ -1756,7 +1756,6 @@ const ProductsTab = ({
           currentStoreId={currentStoreId}
           onRefresh={onRefresh}
           onEditProduct={(p) => {
-            setShowMarketplaceListingsModal(false);
             onEdit(p);
           }}
           lang={lang}

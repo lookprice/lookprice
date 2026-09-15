@@ -237,6 +237,15 @@ This file outlines strict engineering, performance, and naming directives that m
   - Satın alma / sepete ekleme butonu her zaman ekranın altında sabit ve tek bakışta görünür olmalı; kullanıcı hiçbir koşulda şube seçmek veya butona tıklamak için sayfayı kaydırmak zorunda kalmamalıdır.
   - Bu kural sistemdeki tüm benzer detay, önizleme ve işlem modallarında zorunlu olarak uygulanır.
 
+---
+
+## 18. İşlem Sonrası Ekran ve Durum Koruma Standardı (Same-View Operation Protocol)
+
+- **İşlem Yapılan Ekran/Modalda Kalma Zorunluluğu**:
+  - Panellerde, modallarda (ör. Pazaryeri İlanları & Ürün Takibi `MarketplaceListingsModal`), tablolarda ve formlarda gerçekleştirilen herhangi bir işlem (buton/ikon tıklamaları: satışa açma, yayından kaldırma, fiyat/stok güncelleme, sipariş çekme, eşleştirme, ürün düzenleme, filtreleme vb.) sonrasında kullanıcı ASLA başka bir sayfaya yönlendirilmemeli ve açık olan pencere/modal kapatılmamalıdır.
+  - Kullanıcı işlem yaptığı aktif sekmede, filtrede, modalda ve sayfada kalmaya devam etmelidir. Veriler arka planda tazelemeli (`onRefresh`), ancak kullanıcının mevcut çalışma ortamı (açık modal, seçili pazaryeri sekmesi `selectedMarketplace`, arama terimi, filtreler ve sayfa konumu) aynen korunmalıdır.
+  - İkon komutlarına tıklanarak açılan alt modallar (ör. ürün düzenleme modalı) kapandığında, operatör doğrudan işlem başlattığı üst modal/ekrana geri dönmeli ve kalınan yer korunmalıdır.
+
 
 
 

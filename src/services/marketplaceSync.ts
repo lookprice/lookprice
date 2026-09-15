@@ -149,10 +149,15 @@ export async function processMarketplaceOrderLines(
 
     if (productId) {
       // Robust stock update
-      await client.query(
-        "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) - $1 WHERE id = $2",
+      const updateRes = await client.query(
+        "UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0) - $1 WHERE id = $2 RETURNING stock_quantity",
         [quantity, productId]
       );
+      
+      const newStock = updateRes.rows[0]?.stock_quantity;
+      if (newStock !== undefined && Number(newStock) <= 0) {
+        await autoUnpublishIfZeroStock(productId, storeId, client);
+      }
 
       // Always try to log movement with full transactional integrity (1 movement per sale/invoice)
       try {
@@ -415,3 +420,67 @@ export async function testPazaramaConnection(settings: any) {
         return pzRes.data.isSuccess === true;
     } catch (e) { return false; }
 }
+
+export async function autoUnpublishIfZeroStock(productId: number, storeId: number, dbClient?: any) {
+  const queryRunner = dbClient ? dbClient.query.bind(dbClient) : pool.query.bind(pool);
+  
+  try {
+    const res = await queryRunner(
+      `SELECT id, name, barcode, stock_quantity, hepsiburada_sku, 
+              is_hepsiburada_active, is_amazon_active, is_trendyol_active, is_n11_active, is_pazarama_active 
+       FROM products WHERE id = $1 AND store_id = $2`,
+      [productId, storeId]
+    );
+
+    if (res.rows.length === 0) return;
+    const p = res.rows[0];
+    const currentStock = Number(p.stock_quantity || 0);
+
+    if (currentStock <= 0) {
+      const isAnyActive = p.is_hepsiburada_active || p.is_amazon_active || p.is_trendyol_active || p.is_n11_active || p.is_pazarama_active;
+      
+      if (isAnyActive) {
+        console.log(`[Auto-Unpublish Zero Stock] Product ID ${productId} ("${p.name}") stock is ${currentStock} <= 0. Auto closing active marketplace listings.`);
+        
+        await queryRunner(
+          `UPDATE products 
+           SET is_hepsiburada_active = false,
+               is_amazon_active = false,
+               is_trendyol_active = false,
+               is_n11_active = false,
+               is_pazarama_active = false,
+               hepsiburada_last_sync = NOW()
+           WHERE id = $1 AND store_id = $2`,
+          [productId, storeId]
+        );
+
+        // Async trigger to marketplaces to set stock=0
+        (async () => {
+          try {
+            if (p.is_hepsiburada_active) {
+              const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+              const st = storeRes.rows[0];
+              const hbSettings = st?.hepsiburada_settings || st?.branding?.hepsiburada_settings;
+              if (hbSettings?.merchantId && hbSettings?.apiKey && hbSettings?.apiSecret) {
+                const { HepsiburadaService } = await import("./backend/hepsiburadaService.js");
+                const hbService = new HepsiburadaService(hbSettings, storeId);
+                await hbService.updatePriceAndStock([{
+                  MerchantSku: p.barcode || p.hepsiburada_sku,
+                  HepsiburadaSku: p.hepsiburada_sku || "",
+                  Price: 0,
+                  AvailableStock: 0,
+                  DispatchTime: 1
+                }]);
+              }
+            }
+          } catch (e: any) {
+            console.warn(`[Auto-Unpublish HB Sync Error]: ${e.message}`);
+          }
+        })();
+      }
+    }
+  } catch (err: any) {
+    console.error(`[Auto-Unpublish Zero Stock Error]:`, err?.message || err);
+  }
+}
+

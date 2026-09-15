@@ -13,6 +13,64 @@ import {
 import { AutocompleteSelect } from '../../../AutocompleteSelect';
 import { numberToTurkishWords } from '../../../../lib/invoiceUtils';
 
+const KDV_EXEMPTION_CODES = [
+  // --- İade Hakkı Doğuran İşlemler (Tam İstisna - 300'lü Kodlar) ---
+  { code: "301", label: "11/1-a Mal İhracatı" },
+  { code: "302", label: "11/1-b Hizmet İhracatı" },
+  { code: "303", label: "11/1-c Roaming Hizmetleri" },
+  { code: "311", label: "13/a Deniz, Hava ve Demiryolu Araçlarına İlişkin İstisna" },
+  { code: "312", label: "13/b Liman ve Hava Meydanlarında Yapılan Hizmetler" },
+  { code: "313", label: "13/c Altın, Gümüş, Platin vb. Arama İşletme ve Zenginleştirme" },
+  { code: "314", label: "13/d Makine ve Teçhizat Teslimleri (Yatırım Teşvik)" },
+  { code: "315", label: "13/e Limanlara Bağlantı Yapan Demiryolu Hatları İstisnası" },
+  { code: "316", label: "13/f Ulusal Güvenlik Amaçlı Teslim ve Hizmetler" },
+  { code: "317", label: "13/g Külçe Altın ve Gümüş Teslimleri" },
+  { code: "318", label: "13/h Engellilerin Kullanımına Mahsus Araç ve Gereçler" },
+  { code: "323", label: "13/k Teknoloji Geliştirme Bölgesinde Yapılan Teslimler" },
+  { code: "324", label: "13/m Hastanelere Yapılan Teslim ve Hizmetler" },
+  { code: "325", label: "13/i Ar-Ge Makineleri İstisnası" },
+  { code: "350", label: "Diğerleri (Tam İstisna)" },
+  
+  // --- İade Hakkı Doğurmayan İşlemler (Kısmi İstisna - 200'lü Kodlar) ---
+  { code: "201", label: "17/1 Kültür ve Eğitim Amacı Taşıyan İşlemler" },
+  { code: "202", label: "17/2-a Sağlık, Çevre ve Sosyal Yardım Amaçlı İşlemler" },
+  { code: "204", label: "17/2-c Yabancı Diplomatik Misyonlara Yapılan Teslimler" },
+  { code: "207", label: "17/4-c Gümrük Antrepoları ve Geçici Depolama Yerleri" },
+  { code: "208", label: "17/4-d Banka ve Sigorta Muameleleri" },
+  { code: "211", label: "17/4-g Külçe Altın, Külçe Gümüş, Kıymetli Taş Teslimleri" },
+  { code: "213", label: "17/4-i Serbest Bölgelerde Yapılan Fason İşler" },
+  { code: "214", label: "17/4-ı Serbest Bölgelerde Verilen Hizmetler" },
+  { code: "215", label: "17/4-j Boru Hattı ile Taşımacılık Hizmetleri" },
+  { code: "221", label: "17/4-r Kurumların Aktifindeki Taşınmaz ve İştirak Hissesi" },
+  { code: "223", label: "17/4-t Serbest Bölgelere İhraç Amaçlı Yük Taşıma" },
+  { code: "225", label: "17/4-y Taşınmaz Satışları İstisnası" },
+  { code: "226", label: "17/4-z Zirai Amaçlı Su Teslimleri" },
+  { code: "235", label: "16/1-c Transit ve Gümrük Antrepo Rejimi" },
+  { code: "250", label: "Diğerleri (Kısmi İstisna)" },
+
+  // --- İhraç Kayıtlı İşlemler (700'lü Kodlar) ---
+  { code: "701", label: "11/1-c İhraç Kayıtlı Teslimler" },
+  { code: "702", label: "11/1-c İhraç Kayıtlı Hizmet Teslimleri" },
+];
+
+const WITHHOLDING_TAX_CODES = [
+  { code: "601", label: "Yapım İşleri ve Etüt-Proje Hizmetleri [2/10]" },
+  { code: "602", label: "Etüt, Plan-Proje, Danışmanlık ve Benzeri [9/10]" },
+  { code: "603", label: "Makine, Teçhizat, Demirbaş Bakım Onarım [5/10]" },
+  { code: "604", label: "Yemek Servis ve Organizasyon [5/10]" },
+  { code: "605", label: "İşgücü Temin Hizmetleri [9/10]" },
+  { code: "606", label: "Özel Güvenlik Hizmetleri [9/10]" },
+  { code: "607", label: "Yapı Denetim Hizmetleri [9/10]" },
+  { code: "608", label: "Fason Tekstil ve Konfeksiyon İşleri [5/10]" },
+  { code: "609", label: "Turistik Mağazalara Müşteri Bulma [9/10]" },
+  { code: "610", label: "Spor Kulüplerinin Reklam Gelirleri [9/10]" },
+  { code: "611", label: "Temizlik Hizmetleri [7/10]" },
+  { code: "612", label: "Servis Taşımacılığı Hizmeti [5/10]" },
+  { code: "613", label: "Baskı ve Basım Hizmetleri [5/10]" },
+  { code: "614", label: "Hurda Metal ve Atık Teslimleri [5/10]" },
+  { code: "615", label: "Orman Kesim ve Toplama İşleri [5/10]" },
+];
+
 interface SalesInvoiceFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -568,26 +626,34 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                   {giInvoiceType === 'ISTISNA' && (
                     <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg space-y-1">
                       <label className="text-[10px] font-black text-rose-700 uppercase tracking-wider">{isTr ? 'İstisna Muafiyet Kodu' : 'Exemption Code'}</label>
-                      <input 
-                        type="text"
+                      <select
                         className="w-full px-2.5 py-1.5 bg-white border border-rose-300 rounded text-xs font-bold text-slate-800 focus:border-rose-500"
                         value={exemptionReasonCode}
                         onChange={(e) => setExemptionReasonCode(e.target.value)}
-                        placeholder="351, 301, vb..."
-                      />
+                        required
+                      >
+                        <option value="">{isTr ? "Seçiniz..." : "Select..."}</option>
+                        {KDV_EXEMPTION_CODES.map(c => (
+                          <option key={c.code} value={c.code}>{c.code} - {c.label}</option>
+                        ))}
+                      </select>
                     </div>
                   )}
 
                   {giInvoiceType === 'TEVKIFAT' && (
                     <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg space-y-1">
                       <label className="text-[10px] font-black text-amber-700 uppercase tracking-wider">{isTr ? 'Tevkifat Kodu' : 'Withholding Code'}</label>
-                      <input 
-                        type="text"
+                      <select
                         className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded text-xs font-bold text-slate-800 focus:border-amber-500"
                         value={withholdingTaxCode}
                         onChange={(e) => setWithholdingTaxCode(e.target.value)}
-                        placeholder="601, 602, vb..."
-                      />
+                        required
+                      >
+                        <option value="">{isTr ? "Seçiniz..." : "Select..."}</option>
+                        {WITHHOLDING_TAX_CODES.map(c => (
+                          <option key={c.code} value={c.code}>{c.code} - {c.label}</option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </div>
