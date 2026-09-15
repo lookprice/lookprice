@@ -763,33 +763,33 @@ export const ServiceTab: React.FC<{ storeId?: number; isViewer?: boolean; produc
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleDownloadServicePDF(record)}
-                          className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                          className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
                           title={t.downloadPDF}
                         >
-                          <Download className="w-4 h-4" />
+                          <Download className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleViewDetails(record)}
-                          className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                          className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
                           title={t.details}
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
                         {!isViewer && (
                           <>
                             <button
                               onClick={() => handleEdit(record)}
-                              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
                               title={t.service_tab.edit}
                             >
-                              <Edit2 className="w-4 h-4" />
+                              <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteRecord(record.id)}
-                              className="p-2 text-gray-400 hover:text-rose-600 transition-colors"
+                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
                               title={t.service_tab.delete}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </>
                         )}

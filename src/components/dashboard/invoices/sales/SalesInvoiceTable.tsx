@@ -238,15 +238,15 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           )}
                         </button>
                       </td>
-                      <td className="px-3 py-2.5 text-xs font-bold text-slate-600 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-xs font-medium text-slate-700 whitespace-nowrap">
                         {new Date(inv.invoice_date).toLocaleDateString('tr-TR')}
                       </td>
                       <td className="px-3 py-2.5 max-w-[170px]">
-                        <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                        <div className="text-xs font-medium text-slate-900 flex items-center gap-1.5 flex-wrap">
                           <button
                             type="button"
                             onClick={() => toggleRow(inv)}
-                            className="hover:text-indigo-600 hover:underline text-left font-bold truncate max-w-[150px]"
+                            className="font-mono text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md border border-indigo-200/70 truncate max-w-[155px] transition-colors cursor-pointer"
                             title={`#${inv.invoice_number}`}
                           >
                             #{inv.invoice_number}

@@ -337,32 +337,33 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           )}
                           <button 
                             onClick={() => handleViewDetails(invoice)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
                             title={isTr ? "Kayıt Detayları" : "Details"}
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-3.5 w-3.5" />
                           </button>
                           {handleViewHtml && (
                             <button 
                               onClick={() => handleViewHtml(invoice.id, invoice)}
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
                               title={isTr ? "Fatura Görselini Aç (HTML)" : "View Invoice HTML"}
                             >
-                              <FileText className="h-4 w-4" />
+                              <FileText className="h-3.5 w-3.5" />
                             </button>
                           )}
                           <button 
                             onClick={() => handleEdit(invoice.id)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
                             title={isTr ? "Düzenle" : "Edit"}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3.5 w-3.5" />
                           </button>
                           <button 
                             onClick={() => handleDelete(invoice.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
+                            title={isTr ? "Sil" : "Delete"}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </td>

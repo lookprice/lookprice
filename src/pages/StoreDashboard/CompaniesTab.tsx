@@ -199,8 +199,8 @@ const CompaniesTab = ({
                           {c.title ? c.title.charAt(0).toUpperCase() : 'C'}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900 text-sm">{c.title}</p>
-                          <p className="text-xs text-slate-400">{c.phone || c.email || '-'}</p>
+                          <p className="font-semibold text-slate-900 text-sm tracking-tight">{c.title}</p>
+                          <p className="text-xs text-slate-500 font-medium">{c.phone || c.email || '-'}</p>
                         </div>
                       </div>
                     </td>
@@ -416,26 +416,26 @@ const CompaniesTab = ({
                               alert(isTr ? 'Mutabakat linki oluşturulurken bir hata oluştu.' : 'Failed to create reconciliation link.');
                             }
                           }}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                          className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-emerald-200 cursor-pointer"
                           title={isTr ? 'Dijital Mutabakat Gönder' : 'Send Digital Reconciliation'}
                         >
-                          <FileCheck className="h-4 w-4" />
+                          <FileCheck className="h-3.5 w-3.5" />
                         </button>
                         {!isViewer && (
                           <>
                             <button 
                               onClick={() => onEdit(c)}
-                              className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
                               title={t.edit}
                             >
-                              <Edit2 className="h-4 w-4" />
+                              <Edit2 className="h-3.5 w-3.5" />
                             </button>
                             <button 
                               onClick={() => onDelete(c.id)}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
                               title={t.delete}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </>
                         )}

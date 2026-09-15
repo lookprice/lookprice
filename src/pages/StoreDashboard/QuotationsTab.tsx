@@ -213,10 +213,10 @@ const QuotationsTab = ({
                                 : `${window.location.origin}/quotation/${q.id}`;
                               window.open(url, '_blank');
                             }}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-transparent hover:border-indigo-100"
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
                             title={lang === 'tr' ? 'Linki Aç' : 'Open Link'}
                           >
-                            <ExternalLink className="h-5 w-5" />
+                            <ExternalLink className="h-3.5 w-3.5" />
                           </button>
                           <button 
                             onClick={() => {
@@ -226,26 +226,26 @@ const QuotationsTab = ({
                               navigator.clipboard.writeText(url);
                               toast.success(t.quotationLinkCopied || (lang === 'tr' ? "Bağlantı kopyalandı" : "Link copied"));
                             }}
-                            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200"
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
                             title={t.copyLink}
                           >
-                            <Link className="h-5 w-5" />
+                            <Link className="h-3.5 w-3.5" />
                           </button>
                           {!isViewer && !q.is_sale && q.status === 'pending' && (
                             <>
                               <button 
                                 onClick={() => onConvertToSale(q)}
-                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all border border-transparent hover:border-emerald-100"
+                                className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-emerald-200 cursor-pointer"
                                 title={t.convertToSale}
                               >
-                                <CheckCircle2 className="h-5 w-5" />
+                                <CheckCircle2 className="h-3.5 w-3.5" />
                               </button>
                               <button 
                                 onClick={() => onCancel(q.id)}
-                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100"
+                                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
                                 title={t.cancel}
                               >
-                                <Trash2 className="h-5 w-5 rotate-45" />
+                                <Trash2 className="h-3.5 w-3.5 rotate-45" />
                               </button>
                             </>
                           )}
@@ -253,20 +253,20 @@ const QuotationsTab = ({
                             <>
                               <button 
                                 onClick={() => onEdit(q)}
-                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all border border-transparent hover:border-amber-100"
+                                className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
                                 title={t.edit}
                               >
-                                <Edit2 className="h-5 w-5" />
+                                <Edit2 className="h-3.5 w-3.5" />
                               </button>
                             </>
                           )}
                           {!isViewer && (
                             <button 
                               onClick={() => onDelete(q.id)}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100"
+                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
                               title={t.delete}
                             >
-                              <Trash2 className="h-5 w-5" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           )}
                         </div>

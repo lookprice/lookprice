@@ -188,16 +188,16 @@ const PosTab = ({
                     className="hover:bg-slate-50/50 transition-colors group cursor-default"
                   >
                     <td className="px-3.5 py-4">
-                      <span className="font-mono text-[10px] font-black text-slate-900 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-sm tracking-widest">#{s.id}</span>
+                      <span className="font-mono text-xs font-semibold text-indigo-700 bg-indigo-50/70 px-2 py-0.5 rounded-md border border-indigo-200/70">#{s.id}</span>
                     </td>
                     <td className="px-3.5 py-4">
-                      <div className="text-[12px] font-black text-slate-900 leading-none">{new Date(s.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
-                      <div className="text-[9px] text-slate-400 font-black mt-1 uppercase tracking-tighter tabular-nums flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5" />
+                      <div className="text-xs font-semibold text-slate-800">{new Date(s.created_at).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+                      <div className="text-[10px] text-slate-500 font-medium mt-0.5 tabular-nums flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5 text-slate-400" />
                         {new Date(s.created_at).toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </td>
-                    <td className="px-3.5 py-4 text-[12px] font-black text-slate-700 uppercase tracking-tight max-w-[140px] truncate">
+                    <td className="px-3.5 py-4 text-xs font-medium text-slate-800 max-w-[160px] truncate">
                       {s.customer_name?.toLowerCase().includes('garson') || s.customer_name === 'Masa Siparişi' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100 text-[10px]" title={s.customer_name}>
                           <UserCheck className="w-3 h-3 text-indigo-500 shrink-0" />
@@ -208,8 +208,8 @@ const PosTab = ({
                       )}
                     </td>
                     <td className="px-3.5 py-4 whitespace-nowrap">
-                      <div className="text-[14px] font-black text-slate-900 mono-data tracking-tighter">
-                        {Number(s.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')} <span className="text-[10px] text-slate-400 font-bold tracking-normal ml-0.5">{(s.currency || 'TRY').substring(0, 3)}</span>
+                      <div className="text-xs font-bold text-slate-900 font-mono tabular-nums">
+                        {Number(s.total_amount).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-500 font-medium ml-0.5">{(s.currency || 'TRY').substring(0, 3)}</span>
                       </div>
                       <div className="text-[8px] text-indigo-500 uppercase font-black tracking-[0.1em] flex items-center mt-1">
                         <div className="w-2.5 h-2.5 bg-indigo-50 border border-indigo-100 rounded flex items-center justify-center mr-1">

@@ -374,27 +374,27 @@ export const ProcurementTab: React.FC<{ storeId?: number; isViewer?: boolean }> 
                             {item.status !== 'received' && (
                               <button
                                 onClick={() => handleUpdateStatus(item.id, 'received')}
-                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-emerald-200 cursor-pointer"
                                 title={t.received}
                               >
-                                <CheckCircle2 className="w-5 h-5" />
+                                <CheckCircle2 className="w-3.5 h-3.5" />
                               </button>
                             )}
                             {item.status === 'pending' && (
                               <button
                                 onClick={() => handleUpdateStatus(item.id, 'cancelled')}
-                                className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
                                 title={t.cancel}
                               >
-                                <XCircle className="w-5 h-5" />
+                                <XCircle className="w-3.5 h-3.5" />
                               </button>
                             )}
                             <button
                               onClick={() => handleDeleteProcurement(item.id)}
-                              className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
                               title={t.delete}
                             >
-                              <Trash2 className="w-5 h-5" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </>
                         )}

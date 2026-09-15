@@ -2550,13 +2550,13 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                               const minP = Math.min(...varPrices);
                               const maxP = Math.max(...varPrices);
                               return (
-                                <span className="text-[11px] font-black text-indigo-600 mt-1 whitespace-nowrap">
+                                <span className="text-[11px] font-bold text-indigo-700 font-mono mt-1 whitespace-nowrap tabular-nums">
                                   {minP === maxP ? `${minP}` : `${minP} - ${maxP}`} {product.currency || 'TRY'}
                                 </span>
                               );
                             }
                             return (
-                              <span className="text-xs font-black text-indigo-600 mt-1 whitespace-nowrap">
+                              <span className="text-xs font-bold text-indigo-700 font-mono mt-1 whitespace-nowrap tabular-nums">
                                 {product.price} {product.currency || 'TRY'}
                               </span>
                             );

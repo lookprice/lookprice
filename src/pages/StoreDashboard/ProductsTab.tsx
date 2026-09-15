@@ -1442,14 +1442,14 @@ const ProductsTab = ({
 
                           <button 
                             onClick={() => setSelectedProduct(p)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
                             title={t.movementHistory}
                           >
                             <History className="h-3.5 w-3.5" />
                           </button>
                           <button 
                             onClick={() => setRecipeProduct(p)}
-                            className={`p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all ${!isCafeRestaurant ? "hidden" : ""}`}
+                            className={`p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer ${!isCafeRestaurant ? "hidden" : ""}`}
                             title={lang === "tr" ? "Ürün Reçetesi" : "Product Recipe"}
                           >
                             <Sparkles className="h-3.5 w-3.5" />
@@ -1457,7 +1457,7 @@ const ProductsTab = ({
                           {!isCafeRestaurant && (
                             <button 
                               onClick={() => setSharingProduct(p)}
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
+                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
                               title={lang === "tr" ? "Sosyal Medya Afişi" : "Social Media Poster"}
                             >
                               <Share2 className="h-3.5 w-3.5" />
@@ -1484,10 +1484,10 @@ const ProductsTab = ({
                                   toast.error(err.message || "Hata oluştu.");
                                 }
                               }}
-                              className={`p-1.5 rounded-md transition-all border active:scale-95 flex items-center cursor-pointer ${
+                              className={`p-1.5 rounded-lg transition-all border active:scale-95 flex items-center cursor-pointer ${
                                 getIsBestseller(p)
                                   ? 'bg-orange-500 text-white border-orange-500' 
-                                  : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50 border-transparent'
+                                  : 'text-slate-500 hover:text-orange-600 hover:bg-orange-50 border-slate-200/60 bg-slate-50/50 hover:border-orange-200'
                               }`}
                               title={getIsBestseller(p) ? (lang === 'tr' ? 'Çok Satan (Çıkar)' : 'Bestseller (Remove)') : (lang === 'tr' ? 'Çok Satan Yap' : 'Mark as Bestseller')}
                             >
@@ -1497,7 +1497,7 @@ const ProductsTab = ({
 
                           <button 
                             onClick={() => onEdit(p)}
-                            className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all"
+                            className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
                             title={t.edit}
                           >
                             <Edit2 className="h-3.5 w-3.5" />
@@ -1508,7 +1508,7 @@ const ProductsTab = ({
                                 onDelete(p.id);
                               }
                             }}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all"
+                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
                             title={t.deleteEntry}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
