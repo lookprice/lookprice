@@ -158,13 +158,13 @@ const PosTab = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.orderCode}</th>
-                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.date}</th>
-                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{isHoreca ? (lang === 'tr' ? 'Masa' : 'Table') : (lang === 'tr' ? 'Müşteri / Cari' : 'Customer / Account')}</th>
-                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{t.amount}</th>
-                <th className="px-2 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-center w-[50px]">{t.status}</th>
-                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{lang === 'tr' ? 'İptal / İkram Notu' : 'Cancel / Treat Note'}</th>
-                <th className="px-3.5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-right">{t.actions}</th>
+                <th className="px-3.5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.orderCode}</th>
+                <th className="px-3.5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.date}</th>
+                <th className="px-3.5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{isHoreca ? (lang === 'tr' ? 'Masa' : 'Table') : (lang === 'tr' ? 'Müşteri / Cari' : 'Customer / Account')}</th>
+                <th className="px-3.5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t.amount}</th>
+                <th className="px-2 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-[50px]">{t.status}</th>
+                <th className="px-3.5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'İptal / İkram Notu' : 'Cancel / Treat Note'}</th>
+                <th className="px-3.5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

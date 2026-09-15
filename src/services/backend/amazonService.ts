@@ -155,20 +155,26 @@ export class AmazonService {
       ];
     }
 
-    const accessToken = await this.getAccessToken();
-    const createdAfter = new Date(Date.now() - createdAfterDays * 24 * 60 * 60 * 1000).toISOString();
+    try {
+      const accessToken = await this.getAccessToken();
+      const createdAfter = new Date(Date.now() - createdAfterDays * 24 * 60 * 60 * 1000).toISOString();
 
-    const response = await axios.get(`${this.getApiEndpoint()}/orders/v0/orders`, {
-      params: {
-        MarketplaceIds: AMAZON_TR_MARKETPLACE_ID,
-        CreatedAfter: createdAfter,
-      },
-      headers: {
-        "x-amz-access-token": accessToken,
-      },
-    });
+      const response = await axios.get(`${this.getApiEndpoint()}/orders/v0/orders`, {
+        params: {
+          MarketplaceIds: AMAZON_TR_MARKETPLACE_ID,
+          CreatedAfter: createdAfter,
+        },
+        headers: {
+          "x-amz-access-token": accessToken,
+        },
+      });
 
-    return response.data?.payload?.Orders || [];
+      return response.data?.payload?.Orders || [];
+    } catch (err: any) {
+      const errMsg = err.response?.data?.errors?.[0]?.message || err.response?.data?.message || err.message;
+      console.error("[AmazonService] Live fetchOrders error:", err.response?.data || err.message);
+      throw new Error(`Amazon Sipariş Çekme Hatası: ${errMsg}. Lütfen Seller Central paneli üzerinden yetkilendirmeyi kontrol ediniz.`);
+    }
   }
 
   /**

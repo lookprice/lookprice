@@ -343,8 +343,9 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
 
     res.json({ success: true, count: syncedCount });
   } catch (error: any) {
+    const detailedError = error.response?.data?.errors?.[0]?.message || error.response?.data?.message || error.message || "Amazon siparişleri senkronize edilemedi";
     await IntegrationService.logIntegrationError(storeId, 'Amazon', 'Sync All Orders', error);
-    res.status(500).json({ error: error.message || "Amazon siparişleri senkronize edilemedi" });
+    res.status(500).json({ error: detailedError });
   }
 });
 

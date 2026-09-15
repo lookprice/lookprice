@@ -1110,6 +1110,51 @@ router.delete("/all", async (req: any, res) => {
   }
 });
 
+router.post("/auto-image", async (req: any, res) => {
+  try {
+    const requestedStoreId = req.query.storeId || req.body.storeId;
+    const storeId = req.user.role === "superadmin" ? (requestedStoreId || req.user.store_id) : req.user.store_id;
+    if (!storeId) return res.status(400).json({ error: "Store ID required" });
+
+    const { id, productIds, allMissing } = req.body;
+    let targetIds: number[] = [];
+
+    if (id) {
+      targetIds = [Number(id)];
+    } else if (Array.isArray(productIds) && productIds.length > 0) {
+      targetIds = productIds.map((pid: any) => Number(pid));
+    } else if (allMissing) {
+      const missingRes = await pool.query(
+        "SELECT id FROM products WHERE store_id = $1 AND (image_url IS NULL OR image_url = '') LIMIT 50",
+        [storeId]
+      );
+      targetIds = missingRes.rows.map((r: any) => r.id);
+    }
+
+    if (targetIds.length === 0) {
+      return res.json({ success: true, results: [], message: "Görseli eksik ürün bulunamadı." });
+    }
+
+    const productsRes = await pool.query(
+      "SELECT id, name, category, brand, barcode FROM products WHERE store_id = $1 AND id = ANY($2::int[])",
+      [storeId, targetIds]
+    );
+
+    const results = [];
+    for (const prod of productsRes.rows) {
+      const queryText = encodeURIComponent(`${prod.name} ${prod.brand || ''} ${prod.category || ''}`.trim());
+      const imageUrl = `https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80`;
+
+      await pool.query("UPDATE products SET image_url = $1 WHERE id = $2 AND store_id = $3", [imageUrl, prod.id, storeId]);
+      results.push({ id: prod.id, status: 'found', url: imageUrl });
+    }
+
+    res.json({ success: true, results });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Görsel arama hatası" });
+  }
+});
+
 router.post("/bulk-delete", async (req: any, res) => {
   try {
     const storeId = req.user.role === "superadmin" ? req.query.storeId : req.user.store_id;

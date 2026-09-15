@@ -1082,11 +1082,9 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               const suggestion = !mappedId ? suggestMarketplaceCategory(localCat, suggestionPool).bestMatch : null;
 
               // Filter marketplace categories for dropdown (sector filtered first, fallback to all if search term used)
-              const candidatePool = (catSearchTerm.trim() && selectedSector !== 'all')
-                ? currentAvailableMarketCats
-                : sectorFilteredMarketCats;
+              const primaryPool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : currentAvailableMarketCats;
 
-              const filteredMarketCats = candidatePool.filter((c) => {
+              let filteredMarketCats = primaryPool.filter((c) => {
                 if (!catSearchTerm.trim()) return true;
                 const normSearch = normalizeCategoryText(catSearchTerm);
                 if (!normSearch) return true;
@@ -1098,6 +1096,20 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                 const tokens = normSearch.split(' ').filter(Boolean);
                 return tokens.every((token) => matchCategorySearchToken(fullTextNorm, token));
               });
+
+              // Smart Fallback: If sector search returned zero results, search across all categories
+              if (filteredMarketCats.length === 0 && catSearchTerm.trim() && selectedSector !== 'all') {
+                filteredMarketCats = currentAvailableMarketCats.filter((c) => {
+                  const normSearch = normalizeCategoryText(catSearchTerm);
+                  if (!normSearch) return true;
+                  const catIdStr = String(c.id || (c as any).categoryId || '');
+                  if (catIdStr === catSearchTerm.trim()) return true;
+
+                  const fullTextNorm = normalizeCategoryText(`${c.name || ''} ${c.displayName || ''} ${(c.paths || []).join(' ')}`);
+                  const tokens = normSearch.split(' ').filter(Boolean);
+                  return tokens.every((token) => matchCategorySearchToken(fullTextNorm, token));
+                });
+              }
 
               return (
                 <div 

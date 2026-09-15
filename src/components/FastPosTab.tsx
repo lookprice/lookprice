@@ -2461,10 +2461,10 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                         setSelectedCategory(selectedCategory === category ? "all" : category);
                         setSelectedSubCategory("all");
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap active:scale-95 cursor-pointer ${
                         selectedCategory === category
-                          ? "bg-indigo-600 text-white shadow-xs"
-                          : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                          ? "bg-indigo-600 text-white shadow-xs font-semibold"
+                          : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
                       }`}
                     >
                       {category}
@@ -2478,10 +2478,10 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
                       <button
                         key={subCategory}
                         onClick={() => setSelectedSubCategory(selectedSubCategory === subCategory ? "all" : subCategory)}
-                        className={`px-3 py-1 rounded-lg text-[11px] font-black tracking-wider uppercase transition-all whitespace-nowrap active:scale-95 cursor-pointer ${
+                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-95 cursor-pointer ${
                           selectedSubCategory === subCategory
-                            ? "bg-indigo-600 text-white"
-                            : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                            ? "bg-indigo-600 text-white font-semibold"
+                            : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
                         }`}
                       >
                         {subCategory}
