@@ -1205,7 +1205,7 @@ router.delete("/:id", async (req: any, res) => {
 
 export async function ensureProductMovements(productId: number, storeId: number) {
   try {
-    // Clean up any bad/orphaned stock movements with product_id 0 or NULL
+    // 0. Clean up any bad/orphaned stock movements with product_id 0 or NULL
     await pool.query("DELETE FROM stock_movements WHERE product_id IS NULL OR product_id = 0");
 
     const prodRes = await pool.query(
@@ -1219,7 +1219,59 @@ export async function ensureProductMovements(productId: number, storeId: number)
     const prodSku = prod.sku ? String(prod.sku).trim() : '';
     const prodName = prod.name ? String(prod.name).trim().toLowerCase() : '';
 
-    // 0. Auto-link unlinked purchase_invoice_items and sales_invoice_items for this product
+    // 0.1 Deduplicate existing redundant movements for this product:
+    // a) Deduplicate multiple movements for the exact same invoice_id (keep highest id)
+    await pool.query(`
+      DELETE FROM stock_movements sm1
+      WHERE sm1.product_id = $1
+        AND sm1.invoice_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM stock_movements sm2
+          WHERE sm2.product_id = sm1.product_id
+            AND sm2.invoice_id = sm1.invoice_id
+            AND sm2.id > sm1.id
+        )
+    `, [productId]);
+
+    // b) Deduplicate redundant pos_sale or legacy marketplace movements when a sales_invoice movement exists for the same order/sale/invoice
+    await pool.query(`
+      DELETE FROM stock_movements sm1
+      WHERE sm1.product_id = $1
+        AND sm1.source IN ('pos_sale', 'hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti')
+        AND EXISTS (
+          SELECT 1 FROM stock_movements sm2
+          WHERE sm2.product_id = sm1.product_id
+            AND sm2.id != sm1.id
+            AND sm2.source = 'sales_invoice'
+            AND (
+              (sm1.sale_id IS NOT NULL AND sm2.sale_id = sm1.sale_id)
+              OR (sm1.invoice_id IS NOT NULL AND sm2.invoice_id = sm1.invoice_id)
+              OR (sm2.invoice_number IS NOT NULL AND (
+                sm1.description LIKE '%' || sm2.invoice_number || '%'
+                OR (sm2.invoice_number LIKE 'HB-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 4) || '%')
+                OR (sm2.invoice_number LIKE 'TY-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 4) || '%')
+                OR (sm2.invoice_number LIKE 'N11-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 5) || '%')
+                OR (sm2.invoice_number LIKE 'AMZ-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 5) || '%')
+                OR (sm2.invoice_number LIKE 'PZR-%' AND sm1.description LIKE '%' || SUBSTRING(sm2.invoice_number FROM 5) || '%')
+              ))
+            )
+        )
+    `, [productId]);
+
+    // c) Deduplicate multiple initial_stock records (keep the earliest original record)
+    await pool.query(`
+      DELETE FROM stock_movements sm1
+      WHERE sm1.product_id = $1
+        AND sm1.source = 'initial_stock'
+        AND EXISTS (
+          SELECT 1 FROM stock_movements sm2
+          WHERE sm2.product_id = sm1.product_id
+            AND sm2.source = 'initial_stock'
+            AND sm2.id < sm1.id
+        )
+    `, [productId]);
+
+    // 0.2 Auto-link unlinked purchase_invoice_items and sales_invoice_items for this product
     if (prodBarcode || prodCode || prodSku || prodName.length >= 2) {
       await pool.query(`
         UPDATE purchase_invoice_items pii
@@ -1284,8 +1336,11 @@ export async function ensureProductMovements(productId: number, storeId: number)
         AND NOT EXISTS (
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = $1
-            AND sm.source = 'purchase_invoice'
-            AND sm.invoice_id = pi.id
+            AND (
+              sm.invoice_id = pi.id
+              OR (sm.invoice_number IS NOT NULL AND (sm.invoice_number = pi.invoice_number OR sm.invoice_number = pi.document_number))
+              OR sm.description LIKE '%' || pi.invoice_number || '%'
+            )
         )
     `, [productId, prodBarcode, prodCode, prodSku, prodName]);
 
@@ -1320,12 +1375,18 @@ export async function ensureProductMovements(productId: number, storeId: number)
         AND NOT EXISTS (
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = $1
-            AND sm.source = 'sales_invoice'
-            AND sm.invoice_id = si.id
+            AND (
+              sm.invoice_id = si.id
+              OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
+              OR (sm.invoice_number IS NOT NULL AND (sm.invoice_number = si.invoice_number OR sm.invoice_number = si.document_number))
+              OR sm.description LIKE '%' || si.invoice_number || '%'
+              OR (si.invoice_number LIKE 'HB-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
+              OR (si.invoice_number LIKE 'TY-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
+            )
         )
     `, [productId, prodBarcode, prodCode, prodSku, prodName]);
 
-    // 3. Sync missing sale_items (POS) for this product/barcode
+    // 3. Sync missing sale_items (POS) for this product/barcode (exclude marketplace and invoice-linked sales)
     await pool.query(`
       INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, customer_info, currency, created_at, sale_id)
       SELECT 
@@ -1344,10 +1405,24 @@ export async function ensureProductMovements(productId: number, storeId: number)
       JOIN sales s ON si.sale_id = s.id
       LEFT JOIN customers c ON s.customer_id = c.id
       WHERE (si.product_id = $1 OR ($2 != '' AND si.barcode = $2))
+        AND COALESCE(s.source, '') NOT IN ('hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama', 'ciceksepeti', 'marketplace')
+        AND COALESCE(s.payment_method, '') NOT LIKE '%Hepsiburada%'
+        AND COALESCE(s.payment_method, '') NOT LIKE '%Trendyol%'
+        AND COALESCE(s.payment_method, '') NOT LIKE '%N11%'
+        AND COALESCE(s.payment_method, '') NOT LIKE '%Amazon%'
+        AND COALESCE(s.payment_method, '') NOT LIKE '%Pazarama%'
+        AND NOT EXISTS (
+          SELECT 1 FROM sales_invoices inv
+          WHERE inv.sale_id = s.id
+        )
         AND NOT EXISTS (
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = $1
-            AND sm.sale_id = s.id
+            AND (
+              sm.sale_id = s.id
+              OR (sm.invoice_id IS NOT NULL AND EXISTS (SELECT 1 FROM sales_invoices inv WHERE inv.sale_id = s.id AND inv.id = sm.invoice_id))
+              OR sm.description LIKE '%#' || s.id || '%'
+            )
         )
     `, [productId, prodBarcode]);
 
@@ -1362,16 +1437,34 @@ export async function ensureProductMovements(productId: number, storeId: number)
     const currentStock = parseFloat(prod.stock_quantity || '0');
     const diff = currentStock - netQty;
 
-    if (diff > 0.001) {
-      await pool.query(`
-        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-        VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok / Devir Kaydı', $4, $5, COALESCE($6, CURRENT_TIMESTAMP))
-      `, [prod.store_id, prod.id, diff, parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY', prod.created_at]);
-    } else if (diff < -0.001) {
-      await pool.query(`
-        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
-        VALUES ($1, $2, 'out', $3, 'manual_adjustment', 'Stok Düzeltme / Manuel Düşüş', $4, $5, CURRENT_TIMESTAMP)
-      `, [prod.store_id, prod.id, Math.abs(diff), parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY']);
+    const existingInitialRes = await pool.query(
+      "SELECT id, quantity FROM stock_movements WHERE product_id = $1 AND source = 'initial_stock' ORDER BY id ASC LIMIT 1",
+      [productId]
+    );
+
+    if (Math.abs(diff) > 0.001) {
+      if (existingInitialRes.rows.length > 0) {
+        const initialRow = existingInitialRes.rows[0];
+        const newInitialQty = Math.max(0, parseFloat(initialRow.quantity) + diff);
+        if (newInitialQty > 0) {
+          await pool.query(
+            "UPDATE stock_movements SET quantity = $1 WHERE id = $2",
+            [newInitialQty, initialRow.id]
+          );
+        } else {
+          await pool.query("DELETE FROM stock_movements WHERE id = $1", [initialRow.id]);
+        }
+      } else if (diff > 0) {
+        await pool.query(`
+          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+          VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok / Devir Kaydı', $4, $5, COALESCE($6, CURRENT_TIMESTAMP))
+        `, [prod.store_id, prod.id, diff, parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY', prod.created_at]);
+      } else {
+        await pool.query(`
+          INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+          VALUES ($1, $2, 'out', $3, 'manual_adjustment', 'Stok Düzeltme / Manuel Düşüş', $4, $5, CURRENT_TIMESTAMP)
+        `, [prod.store_id, prod.id, Math.abs(diff), parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY']);
+      }
     }
   } catch (err) {
     console.error("ensureProductMovements error for product", productId, err);

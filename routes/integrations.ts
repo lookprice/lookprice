@@ -306,7 +306,7 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           }));
 
           if (mappedLines.length > 0) {
-            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Amazon', order.AmazonOrderId);
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Amazon', order.AmazonOrderId, customerName, invoiceNumber);
           } else {
             await client.query(
               "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
@@ -547,7 +547,7 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
           }));
 
           if (mappedLines.length > 0) {
-            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId);
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'N11', orderId, customerName, invoiceNumber);
           }
 
           await client.query(
@@ -2073,7 +2073,7 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
           }));
 
           if (mappedLines.length > 0) {
-            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Trendyol', order.id);
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Trendyol', order.id, customerName, invoiceNumber);
           } else {
              // Fallback if no lines
              await client.query(
@@ -2328,7 +2328,7 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
           }));
 
           if (mappedLines.length > 0) {
-            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Pazarama', orderId);
+            await processMarketplaceOrderLines(client, storeId, saleId, salesInvoiceId, mappedLines, 'Pazarama', orderId, customerName, invoiceNumber);
           } else {
             await client.query(
               "INSERT INTO sales_invoice_items (sales_invoice_id, product_name, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",

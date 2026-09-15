@@ -605,7 +605,9 @@ export class HepsiburadaService {
               salesInvoiceId,
               mappedLines,
               "Hepsiburada",
-              orderNumber || orderId
+              orderNumber || orderId,
+              resolvedCustomerName,
+              invoiceNumber
             );
           } else {
             await client.query(

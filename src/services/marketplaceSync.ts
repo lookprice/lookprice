@@ -33,7 +33,9 @@ export async function processMarketplaceOrderLines(
   salesInvoiceId: number, 
   lines: any[], 
   marketplaceName: string, 
-  orderId: string
+  orderId: string,
+  customerName?: string,
+  invoiceNumber?: string
 ) {
   for (const line of lines) {
     let productId = null;
@@ -152,8 +154,10 @@ export async function processMarketplaceOrderLines(
         [quantity, productId]
       );
 
-      // Always try to log movement
+      // Always try to log movement with full transactional integrity (1 movement per sale/invoice)
       try {
+        const resolvedInvoiceNumber = invoiceNumber || (marketplaceName.toLowerCase() === 'hepsiburada' ? `HB-${orderId}` : (marketplaceName.toLowerCase() === 'trendyol' ? `TY-${orderId}` : `${marketplaceName.toUpperCase()}-${orderId}`));
+        const resolvedCustomer = customerName || 'Pazaryeri Müşterisi';
         await addStockMovement(
           client, 
           storeId, 
@@ -161,9 +165,14 @@ export async function processMarketplaceOrderLines(
           'out', 
           quantity, 
           marketplaceName.toLowerCase(), 
-          `${marketplaceName} Satışı: ${orderId}`, 
+          `Satış Faturası: ${resolvedInvoiceNumber}`, 
           price || 0, 
-          'Pazaryeri Müşterisi'
+          resolvedCustomer,
+          'TRY',
+          saleId,
+          salesInvoiceId,
+          'marketplace',
+          resolvedInvoiceNumber
         );
       } catch (moveErr) {
         console.error(`Stock movement logging failed for ${marketplaceName} order ${orderId}:`, moveErr);

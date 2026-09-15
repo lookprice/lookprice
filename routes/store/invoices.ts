@@ -87,8 +87,14 @@ export async function initPurchaseInvoiceSchema() {
         AND NOT EXISTS (
           SELECT 1 FROM stock_movements sm
           WHERE sm.product_id = sii.product_id
-            AND sm.source = 'sales_invoice'
-            AND sm.invoice_id = si.id
+            AND (
+              sm.invoice_id = si.id
+              OR (si.sale_id IS NOT NULL AND sm.sale_id = si.sale_id)
+              OR (sm.invoice_number IS NOT NULL AND (sm.invoice_number = si.invoice_number OR sm.invoice_number = si.document_number))
+              OR sm.description LIKE '%' || si.invoice_number || '%'
+              OR (si.invoice_number LIKE 'HB-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
+              OR (si.invoice_number LIKE 'TY-%' AND sm.description LIKE '%' || SUBSTRING(si.invoice_number FROM 4) || '%')
+            )
         )
     `);
 

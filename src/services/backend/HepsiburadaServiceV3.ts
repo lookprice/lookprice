@@ -600,7 +600,9 @@ export class HepsiburadaServiceV3 {
         salesInvoiceId,
         mappedLines,
         "Hepsiburada",
-        testOrderId
+        testOrderId,
+        customerName,
+        invoiceNumber
       );
 
       // 6. Record to hepsiburada_orders with full standard schema
