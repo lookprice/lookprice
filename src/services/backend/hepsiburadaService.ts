@@ -315,12 +315,27 @@ export class HepsiburadaService {
     const errors: any[] = [];
 
     for (const order of rawOrders) {
-      const orderId = String(order.id || order.orderNumber || order.orderId);
+      const orderId = String(order.id || order.orderNumber || order.orderId || '');
       if (!orderId) continue;
 
+      const orderNumber = String(
+        order.orderNumber ||
+        order.order_number ||
+        (order.items && order.items[0]?.orderNumber) ||
+        ''
+      ).trim();
+
+      // Check if order was already imported by orderId or orderNumber
       const existing = await pool.query(
-        "SELECT id FROM hepsiburada_orders WHERE store_id = $1 AND hepsiburada_order_id = $2",
-        [this.storeId, orderId]
+        `SELECT id FROM hepsiburada_orders 
+         WHERE store_id = $1 AND (
+           hepsiburada_order_id = $2 
+           OR ($3 != '' AND (
+             order_data->>'orderNumber' = $3 
+             OR order_data->'items'->0->>'orderNumber' = $3
+           ))
+         )`,
+        [this.storeId, orderId, orderNumber]
       );
 
       if (existing.rows.length === 0) {
@@ -328,40 +343,115 @@ export class HepsiburadaService {
         try {
           await client.query("BEGIN");
 
-          // Extract Customer Info
-          const customerName =
-            order.customer ||
+          // Extract Corporate & Individual Customer Info
+          const invoiceAddr = order.invoice?.address || order.invoiceAddress || {};
+          const shippingAddr = order.shippingAddress || order.deliveryAddress || {};
+
+          const companyTitle = String(
+            invoiceAddr.name ||
+            order.companyName ||
+            order.invoice?.title ||
+            invoiceAddr.companyName ||
+            ''
+          ).trim();
+
+          const contactName = String(
+            order.customerName ||
+            shippingAddr.name ||
             order.recipientName ||
-            order.deliveryAddress?.recipientName ||
-            order.shippingAddress?.fullName ||
-            "Hepsiburada Müşterisi";
-          const customerEmail =
+            order.customer ||
+            order.buyer?.name ||
+            shippingAddr.fullName ||
+            invoiceAddr.name ||
+            ''
+          ).trim();
+
+          // Tax Information (VKN / TCKN & Tax Office)
+          const rawTaxNumber = String(order.invoice?.taxNumber || order.taxNumber || '').trim();
+          const rawTckn = String(order.invoice?.turkishIdentityNumber || order.identityNo || order.tcId || '').trim();
+          
+          let resolvedTaxNumber = '';
+          if (rawTaxNumber && rawTaxNumber !== '11111111111') {
+            resolvedTaxNumber = rawTaxNumber;
+          } else if (rawTckn && rawTckn !== '11111111111') {
+            resolvedTaxNumber = rawTckn;
+          } else {
+            resolvedTaxNumber = rawTaxNumber || rawTckn || '11111111111';
+          }
+
+          const taxOffice = String(order.invoice?.taxOffice || order.taxOffice || '').trim();
+          const isCompany = resolvedTaxNumber.length === 10 && resolvedTaxNumber !== '11111111111';
+
+          // Primary Customer / Legal Entity Display Name
+          const customerName = (isCompany && companyTitle)
+            ? companyTitle
+            : (companyTitle || contactName || 'Hepsiburada Müşterisi');
+
+          const customerEmail = String(
+            invoiceAddr.email ||
+            shippingAddr.email ||
             order.email ||
             order.customerEmail ||
-            `hb_${orderId}@hepsiburada.local`;
-          const customerPhone =
+            (orderNumber ? `${orderNumber}@hepsifatura.com` : `hb_${orderId}@hepsifatura.com`)
+          ).trim();
+
+          const customerPhone = String(
+            invoiceAddr.phoneNumber ||
+            shippingAddr.phoneNumber ||
             order.phone ||
-            order.deliveryAddress?.phoneNumber ||
-            order.shippingAddress?.phoneNumber ||
-            "";
+            order.phoneNumber ||
+            ''
+          ).trim();
+
+          // Full Clean Address
+          const rawAddress = String(invoiceAddr.address || shippingAddr.address || order.billingAddress || '').trim();
+          const addressTown = String(invoiceAddr.town || invoiceAddr.district || shippingAddr.town || shippingAddr.district || '').trim();
+          const addressCity = String(invoiceAddr.city || shippingAddr.city || '').trim();
+          const addressParts = [rawAddress];
+          if (addressTown && !rawAddress.toLowerCase().includes(addressTown.toLowerCase())) {
+            addressParts.push(addressTown);
+          }
+          if (addressCity && !rawAddress.toLowerCase().includes(addressCity.toLowerCase())) {
+            addressParts.push(addressCity);
+          }
+          const fullAddress = addressParts.filter(Boolean).join(' ') || rawAddress;
 
           // Find or create customer
           let customerId = null;
           const custRes = await client.query(
-            "SELECT id FROM customers WHERE store_id = $1 AND (email = $2 OR (phone = $3 AND phone != ''))",
-            [this.storeId, customerEmail, customerPhone]
+            `SELECT id FROM customers 
+             WHERE store_id = $1 AND (
+               email = $2 
+               OR (phone = $3 AND phone != '') 
+               OR (tax_number = $4 AND tax_number != '11111111111' AND tax_number != '')
+             )`,
+            [this.storeId, customerEmail, customerPhone, resolvedTaxNumber]
           );
 
           if (custRes.rows.length > 0) {
             customerId = custRes.rows[0].id;
+            await client.query(
+              `UPDATE customers SET 
+                 full_name = COALESCE(NULLIF(full_name, 'Hepsiburada Müşterisi'), $1),
+                 company_title = COALESCE(company_title, $2),
+                 tax_number = COALESCE(NULLIF(tax_number, '11111111111'), $3),
+                 tax_office = COALESCE(tax_office, $4),
+                 address = COALESCE(NULLIF(address, ''), $5),
+                 phone = COALESCE(NULLIF(phone, ''), $6),
+                 is_corporate = $7
+               WHERE id = $8`,
+              [customerName, companyTitle || null, resolvedTaxNumber || null, taxOffice || null, fullAddress, customerPhone, isCompany, customerId]
+            );
           } else {
-            const rawCustName = (customerName || '').trim();
+            const rawCustName = customerName.trim();
             const nameParts = rawCustName.split(' ');
             const surnameVal = nameParts.length > 1 ? nameParts.pop()! : '';
             const firstNameVal = nameParts.join(' ') || rawCustName;
 
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+              `INSERT INTO customers 
+                (store_id, email, password, full_name, name, surname, phone, address, tax_number, tax_office, company_title, is_corporate, tc_id) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
               [
                 this.storeId,
                 customerEmail,
@@ -370,13 +460,18 @@ export class HepsiburadaService {
                 firstNameVal,
                 surnameVal,
                 customerPhone,
-                order.deliveryAddress?.address || order.shippingAddress?.address || "",
+                fullAddress,
+                resolvedTaxNumber,
+                taxOffice,
+                companyTitle || null,
+                isCompany,
+                resolvedTaxNumber.length === 11 ? resolvedTaxNumber : null,
               ]
             );
             customerId = newCust.rows[0].id;
           }
 
-          // Calculate Financials
+          // Financial calculations
           const orderTotal =
             parseFloat(
               order.total ||
@@ -385,15 +480,15 @@ export class HepsiburadaService {
                 order.totalAmount ||
                 0
             ) || 0;
-          const taxAmount = orderTotal * (20 / 120); // standard 20% VAT
-          const subtotal = orderTotal - taxAmount;
+          const taxAmount = Number((orderTotal * (20 / 120)).toFixed(2));
+          const subtotal = Number((orderTotal - taxAmount).toFixed(2));
           const grandTotal = orderTotal;
 
           // Create Sale
           const saleRes = await client.query(
             `INSERT INTO sales 
-              (store_id, total_amount, currency, status, customer_name, customer_id, payment_method, notes) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+              (store_id, total_amount, currency, status, customer_name, customer_id, customer_phone, customer_address, payment_method, notes) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
             [
               this.storeId,
               grandTotal,
@@ -401,18 +496,24 @@ export class HepsiburadaService {
               "completed",
               customerName,
               customerId,
+              customerPhone,
+              fullAddress,
               "Hepsiburada Satış",
-              `Hepsiburada Siparişi: #${orderId}`,
+              `Hepsiburada Siparişi: #${orderNumber || orderId}`,
             ]
           );
           const saleId = saleRes.rows[0].id;
 
-          // Create Sales Invoice
-          const invoiceNumber = `HB-${orderId}`;
+          // Standardized, compact invoice number (e.g. HB-4741507589)
+          const invoiceNumber = orderNumber
+            ? `HB-${orderNumber}`
+            : `HB-${String(orderId).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10)}`;
+
           const invoiceRes = await client.query(
             `INSERT INTO sales_invoices 
-              (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+              (store_id, sale_id, customer_id, invoice_number, invoice_date, total_amount, tax_amount, grand_total, currency, payment_method, notes, invoice_type, status,
+               customer_name, company_title, tax_number, tax_office, address, customer_email, is_tax_inclusive, invoice_profile, gi_invoice_type) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
             [
               this.storeId,
               saleId,
@@ -424,35 +525,77 @@ export class HepsiburadaService {
               grandTotal,
               order.currency || "TRY",
               "Hepsiburada Satış",
-              `Hepsiburada Siparişi: #${orderId}`,
+              `Hepsiburada Siparişi: #${orderNumber || orderId}`,
               "marketplace",
               "completed",
+              customerName,
+              companyTitle || customerName,
+              resolvedTaxNumber,
+              taxOffice,
+              fullAddress,
+              customerEmail,
+              true,
+              isCompany ? 'TICARIFATURA' : 'EARSIVFATURA',
+              'SATIS'
             ]
           );
           const salesInvoiceId = invoiceRes.rows[0].id;
 
-          // Extract and map order lines
-          const items =
-            order.items ||
-            order.lines ||
-            order.orderItems ||
-            order.lineItems ||
-            [];
-          const mappedLines = items.map((l: any) => ({
-            name:
-              l.productName ||
+          // Extract and map order lines accurately
+          const rawItems = (Array.isArray(order.items) && order.items.length > 0)
+            ? order.items
+            : (Array.isArray(order.lines) && order.lines.length > 0)
+              ? order.lines
+              : (Array.isArray(order.orderItems) && order.orderItems.length > 0)
+                ? order.orderItems
+                : (Array.isArray(order.lineItems) && order.lineItems.length > 0)
+                  ? order.lineItems
+                  : (order.name || order.sku || order.merchantSKU || order.productName)
+                    ? [order]
+                    : [];
+
+          const mappedLines = rawItems.map((l: any) => {
+            const pName = String(
               l.name ||
+              l.productName ||
+              l.title ||
+              l.merchantSKU ||
               l.merchantSku ||
-              `Hepsiburada Sipariş Kalemi (${orderId})`,
-            quantity: Number(l.quantity || l.qty || 1),
-            price:
-              parseFloat(
-                l.price?.amount || l.unitPrice || l.price || l.totalPrice || 0
-              ) || subtotal,
-            barcode: l.merchantSku || l.barcode || l.hbSku || l.sku,
-            sku: l.merchantSku || l.sku,
-            taxRate: Number(l.vatRate || 20),
-          }));
+              (orderNumber ? `Hepsiburada Sipariş Ürünü (#${orderNumber})` : 'Hepsiburada Ürünü')
+            ).trim();
+
+            const qty = Number(l.quantity || l.qty || 1);
+            const vatRate = Number(l.vatRate !== undefined ? l.vatRate : (l.vat_rate !== undefined ? l.vat_rate : 20));
+
+            // Hepsiburada prices are tax-inclusive gross figures
+            const rawGross = parseFloat(
+              l.totalPrice?.amount ||
+              l.totalPrice ||
+              (parseFloat(l.unitPrice?.amount || l.price?.amount || l.unitPrice || l.price || 0) * qty)
+            ) || 0;
+
+            let netUnitPrice = 0;
+            if (rawGross > 0 && qty > 0) {
+              const grossUnit = rawGross / qty;
+              netUnitPrice = Number((grossUnit / (1 + vatRate / 100)).toFixed(4));
+            } else {
+              netUnitPrice = Number((subtotal / (qty || 1)).toFixed(4));
+            }
+
+            const barcode = String(l.productBarcode || l.barcode || l.merchantSKU || l.merchantSku || l.sku || '').trim();
+            const sku = String(l.merchantSKU || l.merchantSku || l.sku || '').trim();
+
+            return {
+              name: pName,
+              quantity: qty,
+              price: netUnitPrice,
+              barcode: barcode,
+              sku: sku,
+              merchantSku: String(l.merchantSKU || l.merchantSku || '').trim(),
+              hbSku: String(l.sku || l.hbSku || '').trim(),
+              taxRate: vatRate,
+            };
+          });
 
           if (mappedLines.length > 0) {
             await processMarketplaceOrderLines(
@@ -462,7 +605,7 @@ export class HepsiburadaService {
               salesInvoiceId,
               mappedLines,
               "Hepsiburada",
-              orderId
+              orderNumber || orderId
             );
           } else {
             await client.query(
@@ -471,12 +614,12 @@ export class HepsiburadaService {
                VALUES ($1, $2, $3, $4, $5, $6, $7)`,
               [
                 salesInvoiceId,
-                `Hepsiburada Sipariş Kalemi (#${orderId})`,
+                `Hepsiburada Siparişi (#${orderNumber || orderId})`,
                 1,
                 subtotal,
                 20,
                 taxAmount,
-                grandTotal,
+                subtotal,
               ]
             );
           }

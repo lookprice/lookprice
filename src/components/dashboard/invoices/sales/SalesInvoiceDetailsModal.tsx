@@ -55,12 +55,26 @@ export const SalesInvoiceDetailsModal: React.FC<SalesInvoiceDetailsModalProps> =
           <div className="p-6 max-h-[75vh] overflow-y-auto">
             <div id="print-invoice-wrapper" ref={invoiceRef} className="print-section bg-white">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Müşteri / Cari' : 'Customer / Company'}</p>
-                <p className="text-lg font-bold text-slate-900">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name}</p>
-                <p className="text-sm text-slate-500">{invoice.customer_address || invoice.company_address}</p>
-                <p className="text-sm text-slate-500">{invoice.customer_phone || invoice.company_phone}</p>
-                <p className="text-sm text-slate-500">{invoice.tax_number}</p>
+                <p className="text-base font-bold text-slate-900">{invoice.customer_name || invoice.company_title || invoice.sale_customer_name || '-'}</p>
+                {(invoice.customer_address || invoice.company_address || invoice.address) && (
+                  <p className="text-xs text-slate-600 leading-relaxed">{invoice.customer_address || invoice.company_address || invoice.address}</p>
+                )}
+                {(invoice.customer_phone || invoice.company_phone || invoice.phone) && (
+                  <p className="text-xs text-slate-500 font-mono"><span className="font-semibold text-slate-600">{isTr ? 'Tel:' : 'Phone:'}</span> {invoice.customer_phone || invoice.company_phone || invoice.phone}</p>
+                )}
+                {(invoice.tax_number || invoice.company_tax_number || invoice.customer_tax_number) && (
+                  <p className="text-xs text-slate-600 font-mono">
+                    <span className="font-bold text-slate-700">VKN/TCKN:</span> {invoice.tax_number || invoice.company_tax_number || invoice.customer_tax_number}
+                    {(invoice.tax_office || invoice.company_tax_office || invoice.customer_tax_office) && (
+                      <span className="text-slate-500 ml-1">({invoice.tax_office || invoice.company_tax_office || invoice.customer_tax_office} V.D.)</span>
+                    )}
+                  </p>
+                )}
+                {(invoice.customer_email || invoice.company_email || invoice.email) && (
+                  <p className="text-xs text-slate-400">{invoice.customer_email || invoice.company_email || invoice.email}</p>
+                )}
               </div>
               <div className="space-y-2 text-right">
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{isTr ? 'Fatura Bilgileri' : 'Invoice Info'}</p>

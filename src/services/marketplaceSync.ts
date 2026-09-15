@@ -39,27 +39,34 @@ export async function processMarketplaceOrderLines(
     let productId = null;
     let currentStock = 0;
     
+    const rawCandidates = [
+      line.barcode,
+      line.sku,
+      line.merchantSku,
+      line.hbSku,
+      line.productCode,
+      line.product_code,
+      line.hepsiburadaSku,
+      line.id,
+      line.merchantSku && line.merchantSku.includes('_') ? line.merchantSku.split('_')[0] : null,
+      line.sku && line.sku.includes('_') ? line.sku.split('_')[0] : null,
+    ];
+
     const searchCandidates = Array.from(
       new Set(
-        [
-          line.barcode,
-          line.sku,
-          line.merchantSku,
-          line.hbSku,
-          line.productCode,
-          line.product_code,
-          line.hepsiburadaSku,
-          line.id
-        ]
+        rawCandidates
           .map((c) => (c ? String(c).trim() : ""))
           .filter((c) => c.length > 0)
       )
     );
 
+    let matchedBarcode = line.barcode || '';
+    let matchedName = line.name || `${marketplaceName} Ürünü`;
+
     if (searchCandidates.length > 0) {
       try {
         const prodRes = await client.query(
-          `SELECT id, stock_quantity FROM products 
+          `SELECT id, name, barcode, stock_quantity FROM products 
            WHERE store_id = $1 AND (
              barcode = ANY($2) 
              OR sku = ANY($2) 
@@ -76,21 +83,47 @@ export async function processMarketplaceOrderLines(
         if (prodRes.rows.length > 0) {
           productId = prodRes.rows[0].id;
           currentStock = prodRes.rows[0].stock_quantity;
+          if (prodRes.rows[0].barcode && (!matchedBarcode || matchedBarcode.startsWith('HB'))) {
+            matchedBarcode = prodRes.rows[0].barcode;
+          }
         }
       } catch (findErr) {
         // Fallback to simpler query if JSONB or some column is missing
         try {
           const prodRes2 = await client.query(
-            "SELECT id, stock_quantity FROM products WHERE store_id = $1 AND (barcode = ANY($2) OR sku = ANY($2) OR hepsiburada_sku = ANY($2)) LIMIT 1", 
+            "SELECT id, name, barcode, stock_quantity FROM products WHERE store_id = $1 AND (barcode = ANY($2) OR sku = ANY($2) OR hepsiburada_sku = ANY($2)) LIMIT 1", 
             [storeId, searchCandidates]
           );
           if (prodRes2.rows.length > 0) {
             productId = prodRes2.rows[0].id;
             currentStock = prodRes2.rows[0].stock_quantity;
+            if (prodRes2.rows[0].barcode && (!matchedBarcode || matchedBarcode.startsWith('HB'))) {
+              matchedBarcode = prodRes2.rows[0].barcode;
+            }
           }
         } catch (e) {
           // Continue without productId
         }
+      }
+    }
+
+    // Secondary fallback: search by name keywords if not yet matched
+    if (!productId && line.name && String(line.name).length > 4) {
+      try {
+        const nameKeywords = String(line.name).trim().split(/\s+/).slice(0, 3).join(' ');
+        const nameMatchRes = await client.query(
+          "SELECT id, name, barcode, stock_quantity FROM products WHERE store_id = $1 AND name ILIKE $2 LIMIT 1",
+          [storeId, `%${nameKeywords}%`]
+        );
+        if (nameMatchRes.rows.length > 0) {
+          productId = nameMatchRes.rows[0].id;
+          currentStock = nameMatchRes.rows[0].stock_quantity;
+          if (nameMatchRes.rows[0].barcode && !matchedBarcode) {
+            matchedBarcode = nameMatchRes.rows[0].barcode;
+          }
+        }
+      } catch (e) {
+        // continue
       }
     }
 
@@ -99,16 +132,17 @@ export async function processMarketplaceOrderLines(
     const taxRate = line.taxRate || 20;
     const total = price * quantity;
     const taxAmount = total * (taxRate / 100);
-    const name = line.name || `${marketplaceName} Ürünü`;
+    const name = matchedName;
+    const finalBarcode = matchedBarcode || line.barcode || '';
     
     await client.query(
       "INSERT INTO sale_items (sale_id, product_id, product_name, barcode, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [saleId, productId, name, line.barcode || '', quantity, price, total]
+      [saleId, productId, name, finalBarcode, quantity, price, total]
     );
 
     await client.query(
       "INSERT INTO sales_invoice_items (sales_invoice_id, product_id, product_name, barcode, quantity, unit_price, tax_rate, tax_amount, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-      [salesInvoiceId, productId, name, line.barcode || '', quantity, price, taxRate, taxAmount, total]
+      [salesInvoiceId, productId, name, finalBarcode, quantity, price, taxRate, taxAmount, total]
     );
 
     if (productId) {
