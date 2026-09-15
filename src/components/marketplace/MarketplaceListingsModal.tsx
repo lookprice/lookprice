@@ -55,6 +55,7 @@ interface MarketplaceConfig {
   errorField: string;
   lastSyncField: string;
   skuField: string;
+  merchantPortalUrl: string;
   getListingUrl: (p: any) => string;
   getMerchantUrl: (p: any) => string;
 }
@@ -72,6 +73,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
     errorField: 'hepsiburada_last_error',
     lastSyncField: 'hepsiburada_last_sync',
     skuField: 'hepsiburada_sku',
+    merchantPortalUrl: 'https://merchant.hepsiburada.com/',
     getListingUrl: (p: any) => {
       let mpData = p.marketplace_data;
       if (typeof mpData === 'string') {
@@ -85,7 +87,9 @@ const MARKETPLACES: MarketplaceConfig[] = [
                     (String(p.sku || '').toUpperCase().startsWith('HBCV') ? p.sku : '') ||
                     (String(p.product_code || '').toUpperCase().startsWith('HBCV') ? p.product_code : '');
       if (hbSku) {
-        return `https://www.hepsiburada.com/-p-${hbSku}`;
+        const cleanSku = String(hbSku).trim().replace(/^[-/]+/, '');
+        const formattedSku = cleanSku.toLowerCase().startsWith('p-') ? cleanSku : `p-${cleanSku}`;
+        return `https://www.hepsiburada.com/${formattedSku}`;
       }
       return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`;
     },
@@ -103,6 +107,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
     errorField: 'trendyol_last_error',
     lastSyncField: 'trendyol_last_sync',
     skuField: 'trendyol_id',
+    merchantPortalUrl: 'https://partner.trendyol.com/',
     getListingUrl: (p: any) => {
       let mpData = p.marketplace_data;
       if (typeof mpData === 'string') {
@@ -126,6 +131,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
     errorField: 'n11_last_error',
     lastSyncField: 'n11_last_sync',
     skuField: 'n11_id',
+    merchantPortalUrl: 'https://so.n11.com/',
     getListingUrl: (p: any) => {
       if (p.n11_id) return `https://www.n11.com/urun/${p.n11_id}`;
       return `https://www.n11.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`;
@@ -144,6 +150,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
     errorField: 'amazon_last_error',
     lastSyncField: 'amazon_last_sync',
     skuField: 'amazon_asin',
+    merchantPortalUrl: 'https://sellercentral.amazon.com.tr/',
     getListingUrl: (p: any) => {
       if (p.amazon_asin) return `https://www.amazon.com.tr/dp/${p.amazon_asin}`;
       return `https://www.amazon.com.tr/s?k=${encodeURIComponent(p.barcode || p.name)}`;
@@ -162,6 +169,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
     errorField: 'pazarama_last_error',
     lastSyncField: 'pazarama_last_sync',
     skuField: 'pazarama_id',
+    merchantPortalUrl: 'https://satici.pazarama.com/',
     getListingUrl: (p: any) => `https://www.pazarama.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`,
     getMerchantUrl: () => `https://satici.pazarama.com/urun-yonetimi`
   }
@@ -617,19 +625,29 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
             {MARKETPLACES.map(mp => {
               const isActive = selectedMarketplace === mp.key;
               return (
-                <button
-                  type="button"
-                  key={mp.key}
-                  onClick={() => setSelectedMarketplace(mp.key)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 border cursor-pointer ${
-                    isActive
-                      ? `${mp.bgLight} ${mp.color} ${mp.borderColor} shadow-xs font-black ring-1 ring-orange-400/40`
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-orange-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                  {mp.name}
-                </button>
+                <div key={mp.key} className="flex items-center rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMarketplace(mp.key)}
+                    className={`px-3 py-1.5 text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                      isActive
+                        ? `${mp.bgLight} ${mp.color} font-black`
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-orange-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                    {mp.name}
+                  </button>
+                  <a
+                    href={mp.merchantPortalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2 py-1.5 border-l border-slate-200 dark:border-slate-700 text-slate-400 hover:text-orange-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center"
+                    title={isTr ? `${mp.name} Satıcı Paneline (Merchant Portal) Git` : `Open ${mp.name} Merchant Portal`}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               );
             })}
           </div>
@@ -880,7 +898,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                         <td className="py-3 px-4">
                           <div className="flex items-start gap-3">
                             {/* Product Image */}
-                            <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 overflow-hidden relative flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 overflow-hidden relative flex items-center justify-center">
                               {p.image_url ? (
                                 <img 
                                   src={p.image_url.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(p.image_url)}` : p.image_url}
@@ -897,13 +915,13 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                               )}
                             </div>
 
-                            <div className="min-w-0">
-                              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-xs truncate max-w-[220px] sm:max-w-xs md:max-w-md" title={p.name}>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-xs truncate max-w-[180px] sm:max-w-[220px] md:max-w-[260px]" title={p.name}>
                                 {p.name}
                               </h4>
 
-                              {/* Barcode & Brand */}
-                              <div className="flex items-center gap-2 mt-1">
+                              {/* Barcode & HB SKU */}
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 {p.barcode ? (
                                   <button
                                     type="button"
@@ -919,21 +937,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                     {p.barcode}
                                   </button>
                                 ) : (
-                                  <span className="text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <span className="text-[10px] font-medium text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 px-1.5 py-0.5 rounded flex items-center gap-1">
                                     <AlertCircle className="w-2.5 h-2.5" />
                                     {isTr ? "Barkodsuz" : "No Barcode"}
-                                  </span>
-                                )}
-
-                                {p.brand && (
-                                  <span className="text-[10px] font-bold text-slate-400 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                                    {p.brand}
-                                  </span>
-                                )}
-
-                                {p.category && (
-                                  <span className="text-[10px] font-medium text-slate-400 truncate max-w-[120px]">
-                                    {p.category}
                                   </span>
                                 )}
 
@@ -951,20 +957,27 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                     (String(p.product_code || '').toUpperCase().startsWith('HBCV') ? p.product_code : '');
                                   if (!displayHbSku) return null;
                                   return (
-                                    <span className="font-mono text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Hepsiburada SKU">
+                                    <span className="font-mono text-[10px] text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Hepsiburada SKU">
                                       <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                                       HB: {displayHbSku}
                                     </span>
                                   );
                                 })()}
+
+                                {p.amazon_asin && (
+                                  <span className="font-mono text-[10px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Amazon ASIN">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                    ASIN: {p.amazon_asin}
+                                  </span>
+                                )}
                               </div>
 
                               {/* Error Box if any error occurred */}
                               {hasAnyError && (
-                                <div className="mt-2 p-2 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-[11px] text-rose-700 dark:text-rose-300 flex items-start gap-1.5 max-w-lg">
-                                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
-                                  <div className="flex-1">
-                                    <span className="font-bold">{isTr ? "Aktarım Hatası:" : "Publish Error:"} </span>
+                                <div className="mt-1.5 p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-[10px] text-rose-700 dark:text-rose-300 flex items-start gap-1 max-w-sm">
+                                  <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0 mt-0.5" />
+                                  <div className="flex-1 truncate">
+                                    <span className="font-semibold">{isTr ? "Hata:" : "Error:"} </span>
                                     {hbError || tyError || n11Error || amzError || pzError}
                                   </div>
                                 </div>
@@ -975,64 +988,116 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
                         {/* Price & Stock */}
                         <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="font-black text-slate-900 dark:text-slate-100 text-xs">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100 text-xs font-mono tabular-nums">
                             {parseFloat(p.price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {p.currency || 'TL'}
                           </div>
-                          <div className="text-[10px] font-medium text-slate-400 mt-0.5">
+                          <div className="text-[10px] font-medium text-slate-400 mt-0.5 font-mono">
                             {isTr ? "Stok:" : "Stock:"}{" "}
-                            <span className={`font-black ${Number(p.stock_quantity || 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            <span className={`font-semibold ${Number(p.stock_quantity || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
                               {p.stock_quantity || 0}
                             </span>
                           </div>
                         </td>
 
-                        {/* Marketplace Status Badges */}
+                        {/* Marketplace Status Badges (Micro Badges with Merchant Links) */}
                         <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="flex flex-col gap-1.5">
-                            {/* Hepsiburada Status */}
-                            <div className="flex items-center gap-1.5">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {/* Hepsiburada Micro Badge */}
                               {isHbActive ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black bg-orange-100 text-orange-800 border border-orange-200">
+                                <a
+                                  href={MARKETPLACES[0].getMerchantUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800 hover:opacity-80 transition-opacity"
+                                  title={isTr ? "Hepsiburada Satıcı Paneline Git" : "Open Hepsiburada Merchant Portal"}
+                                >
                                   <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
-                                  HEPSİBURADA
-                                </span>
+                                  HB
+                                </a>
                               ) : hbError ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200" title={hbError}>
+                                <a
+                                  href={MARKETPLACES[0].getMerchantUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:opacity-80 transition-opacity"
+                                  title={hbError}
+                                >
                                   <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
-                                  HB HATASI
-                                </span>
+                                  HB
+                                </a>
                               ) : (
-                                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                                  HB Pasif
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800" title="HB Pasif">
+                                  HB
                                 </span>
                               )}
 
-                              {/* Additional marketplaces active badges if present */}
+                              {/* Amazon Micro Badge */}
+                              {isAmzActive ? (
+                                <a
+                                  href={MARKETPLACES[3].getMerchantUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:opacity-80 transition-opacity"
+                                  title={isTr ? "Amazon Satıcı Paneline (Seller Central) Git" : "Open Amazon Seller Central"}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                  AMZ
+                                </a>
+                              ) : amzError ? (
+                                <a
+                                  href={MARKETPLACES[3].getMerchantUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:opacity-80 transition-opacity"
+                                  title={amzError}
+                                >
+                                  <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
+                                  AMZ
+                                </a>
+                              ) : null}
+
+                              {/* Trendyol Micro Badge */}
                               {isTyActive && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
-                                  TRENDYOL
-                                </span>
+                                <a
+                                  href={MARKETPLACES[1].getMerchantUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:opacity-80 transition-opacity"
+                                  title="Trendyol Satıcı Paneline Git"
+                                >
+                                  TY
+                                </a>
                               )}
+                              {/* N11 Micro Badge */}
                               {isN11Active && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black bg-red-100 text-red-800 border border-red-200">
+                                <a
+                                  href={MARKETPLACES[2].getMerchantUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800 hover:opacity-80 transition-opacity"
+                                  title="N11 Satıcı Paneline Git"
+                                >
                                   N11
-                                </span>
+                                </a>
                               )}
-                              {isAmzActive && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                  AMAZON
-                                </span>
-                              )}
+                              {/* Pazarama Micro Badge */}
                               {isPzActive && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-200">
-                                  PAZARAMA
-                                </span>
+                                <a
+                                  href={MARKETPLACES[4].getMerchantUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:opacity-80 transition-opacity"
+                                  title="Pazarama Satıcı Paneline Git"
+                                >
+                                  PZR
+                                </a>
                               )}
                             </div>
 
                             {/* Last sync time */}
                             {p.hepsiburada_last_sync && (
-                              <div className="text-[9px] text-slate-400 flex items-center gap-1">
+                              <div className="text-[9px] text-slate-400 flex items-center gap-1 font-mono">
                                 <Clock className="w-2.5 h-2.5 opacity-60" />
                                 {new Date(p.hepsiburada_last_sync).toLocaleString('tr-TR', { 
                                   day: '2-digit', 
@@ -1045,62 +1110,62 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                           </div>
                         </td>
 
-                        {/* Actions & DIRECT LINK */}
+                        {/* Minimal Icon Actions */}
                         <td className="py-3 px-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* DOĞRUDAN İLANA GİT BUTONU (Ana Fonksiyon) */}
+                          <div className="flex items-center justify-end gap-1">
+                            {/* DOĞRUDAN HB İLANINA GİT (Minimal İkon Butonu) */}
                             {isHbActive && (
                               <a
                                 href={MARKETPLACES[0].getListingUrl(p)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-2.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs transition-all shadow-xs flex items-center gap-1 active:scale-95 group"
-                                title={isTr ? "Hepsiburada'da Bu Ürünün Canlı İlanına Git" : "Open Live Listing on Hepsiburada"}
+                                className="p-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95"
+                                title={isTr ? "Hepsiburada Canlı İlanına Git" : "Open Live Listing on Hepsiburada"}
                               >
-                                <span>{isTr ? "HB İlanına Git" : "Go to HB"}</span>
-                                <ExternalLink className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                                <ExternalLink className="w-3.5 h-3.5" />
                               </a>
                             )}
 
-                            {/* Trendyol direct link if active */}
+                            {/* DOĞRUDAN AMAZON İLANINA GİT (Minimal İkon Butonu) */}
+                            {isAmzActive && (
+                              <a
+                                href={MARKETPLACES[3].getListingUrl(p)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95"
+                                title={isTr ? "Amazon Canlı İlanına Git" : "Open Live Listing on Amazon"}
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+
+                            {/* Trendyol Direct Link */}
                             {isTyActive && (
                               <a
                                 href={MARKETPLACES[1].getListingUrl(p)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition-all shadow-xs flex items-center gap-1 active:scale-95 group"
-                                title={isTr ? "Trendyol'da Bu Ürünün İlanına Git" : "Open on Trendyol"}
+                                className="p-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95"
+                                title={isTr ? "Trendyol Canlı İlanına Git" : "Open on Trendyol"}
                               >
-                                <span>TY</span>
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </a>
                             )}
-
-                            {/* Merchant Portal Quick Link */}
-                            <a
-                              href={MARKETPLACES[0].getMerchantUrl(p)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-orange-300 text-slate-500 hover:text-orange-600 bg-slate-50 dark:bg-slate-800 transition-all"
-                              title={isTr ? "Hepsiburada Satıcı Paneli (Merchant Portal)" : "Hepsiburada Merchant Portal"}
-                            >
-                              <Store className="w-3.5 h-3.5" />
-                            </a>
 
                             {/* Yeniden Satışa Gönder / Güncelle Button */}
                             <button
                               type="button"
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePublishSingle(p, selectedMarketplace); }}
                               disabled={publishingId === p.id}
-                              className={`p-1.5 rounded-xl border transition-all active:scale-95 cursor-pointer ${
+                              className={`p-1.5 rounded-lg border transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
                                 isHbActive
                                   ? 'border-orange-200 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/40'
                                   : 'border-slate-200 dark:border-slate-700 text-slate-600 hover:text-orange-600 hover:bg-orange-50'
                               }`}
                               title={
                                 isHbActive 
-                                  ? (isTr ? "Hepsiburada Fiyat/Stok Güncelle" : "Update HB Price/Stock")
-                                  : (isTr ? "Hepsiburada'da Satışa Aç" : "Publish to Hepsiburada")
+                                  ? (isTr ? "Fiyat/Stok Güncelle" : "Update Price/Stock")
+                                  : (isTr ? "Satışa Aç" : "Publish Listing")
                               }
                             >
                               <UploadCloud className={`w-3.5 h-3.5 ${publishingId === p.id ? 'animate-bounce text-orange-600' : ''}`} />
@@ -1112,8 +1177,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnpublishSingle(p, selectedMarketplace); }}
                                 disabled={publishingId === p.id}
-                                className="p-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all active:scale-95 cursor-pointer"
-                                title={isTr ? "Hepsiburada'da Yayından Kaldır (Satışa Kapat)" : "Unpublish from Hepsiburada"}
+                                className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+                                title={isTr ? "Yayından Kaldır (Satışa Kapat)" : "Unpublish Listing"}
                               >
                                 <StopCircle className={`w-3.5 h-3.5 ${publishingId === p.id ? 'animate-bounce text-rose-600' : ''}`} />
                               </button>
