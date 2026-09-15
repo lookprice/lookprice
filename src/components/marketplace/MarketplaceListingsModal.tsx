@@ -1110,45 +1110,76 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                           </div>
                         </td>
 
-                        {/* Minimal Icon Actions */}
+                        {/* E-Marketplace Direct Listing Badges & Actions */}
                         <td className="py-3 px-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1">
-                            {/* DOĞRUDAN HB İLANINA GİT (Minimal İkon Butonu) */}
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* DOĞRUDAN HB İLANINA GİT */}
                             {isHbActive && (
                               <a
                                 href={MARKETPLACES[0].getListingUrl(p)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95"
+                                className="px-2 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-orange-400/30"
                                 title={isTr ? "Hepsiburada Canlı İlanına Git" : "Open Live Listing on Hepsiburada"}
                               >
-                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>HB</span>
+                                <ExternalLink className="w-3 h-3 opacity-90" />
                               </a>
                             )}
 
-                            {/* DOĞRUDAN AMAZON İLANINA GİT (Minimal İkon Butonu) */}
-                            {isAmzActive && (
-                              <a
-                                href={MARKETPLACES[3].getListingUrl(p)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95"
-                                title={isTr ? "Amazon Canlı İlanına Git" : "Open Live Listing on Amazon"}
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            )}
-
-                            {/* Trendyol Direct Link */}
+                            {/* DOĞRUDAN TRENDYOL İLANINA GİT */}
                             {isTyActive && (
                               <a
                                 href={MARKETPLACES[1].getListingUrl(p)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95"
-                                title={isTr ? "Trendyol Canlı İlanına Git" : "Open on Trendyol"}
+                                className="px-2 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-amber-500/30"
+                                title={isTr ? "Trendyol Canlı İlanına Git" : "Open Live Listing on Trendyol"}
                               >
-                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>TY</span>
+                                <ExternalLink className="w-3 h-3 opacity-90" />
+                              </a>
+                            )}
+
+                            {/* DOĞRUDAN N11 İLANINA GİT */}
+                            {isN11Active && (
+                              <a
+                                href={MARKETPLACES[2].getListingUrl(p)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-extrabold text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-red-500/30"
+                                title={isTr ? "N11 Canlı İlanına Git" : "Open Live Listing on N11"}
+                              >
+                                <span>N11</span>
+                                <ExternalLink className="w-3 h-3 opacity-90" />
+                              </a>
+                            )}
+
+                            {/* DOĞRUDAN AMAZON İLANINA GİT */}
+                            {isAmzActive && (
+                              <a
+                                href={MARKETPLACES[3].getListingUrl(p)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-black text-amber-400 border border-amber-500/40 font-black text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95"
+                                title={isTr ? "Amazon Canlı İlanına Git" : "Open Live Listing on Amazon"}
+                              >
+                                <span>AMZ</span>
+                                <ExternalLink className="w-3 h-3 opacity-90" />
+                              </a>
+                            )}
+
+                            {/* DOĞRUDAN PAZARAMA İLANINA GİT */}
+                            {isPzActive && (
+                              <a
+                                href={MARKETPLACES[4].getListingUrl(p)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] tracking-tight transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-blue-500/30"
+                                title={isTr ? "Pazarama Canlı İlanına Git" : "Open Live Listing on Pazarama"}
+                              >
+                                <span>PZR</span>
+                                <ExternalLink className="w-3 h-3 opacity-90" />
                               </a>
                             )}
 

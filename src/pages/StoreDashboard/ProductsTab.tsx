@@ -149,15 +149,21 @@ const ProductsTab = ({
   }, [products, productOverrides]);
 
   const getHepsiburadaUrl = (p: any) => {
+    let mpData = p.marketplace_data;
+    if (typeof mpData === 'string') {
+      try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+    }
     const hbSku = p.hepsiburada_sku || 
                   p.hepsiburadaSku || 
-                  p.marketplace_data?.hepsiburada?.hepsiburadaSku || 
-                  p.marketplace_data?.hepsiburada?.hepsiburada_sku ||
-                  p.marketplace_data?.hepsiburada?.hbSku ||
-                  (String(p.sku || '').startsWith('HBCV') ? p.sku : '') ||
-                  (String(p.product_code || '').startsWith('HBCV') ? p.product_code : '');
+                  mpData?.hepsiburada?.hepsiburadaSku || 
+                  mpData?.hepsiburada?.hepsiburada_sku ||
+                  mpData?.hepsiburada?.hbSku ||
+                  (String(p.sku || '').toUpperCase().startsWith('HBCV') ? p.sku : '') ||
+                  (String(p.product_code || '').toUpperCase().startsWith('HBCV') ? p.product_code : '');
     if (hbSku) {
-      return `https://www.hepsiburada.com/-p-${hbSku}`;
+      const cleanSku = String(hbSku).trim().replace(/^[-/]+/, '');
+      const formattedSku = cleanSku.toLowerCase().startsWith('p-') ? cleanSku : `p-${cleanSku}`;
+      return `https://www.hepsiburada.com/${formattedSku}`;
     }
     return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`;
   };
@@ -175,6 +181,15 @@ const ProductsTab = ({
       return `https://www.n11.com/urun/${p.n11_id}`;
     }
     return `https://www.n11.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`;
+  };
+
+  const getAmazonUrl = (p: any) => {
+    if (p.amazon_asin) return `https://www.amazon.com.tr/dp/${p.amazon_asin}`;
+    return `https://www.amazon.com.tr/s?k=${encodeURIComponent(p.barcode || p.name)}`;
+  };
+
+  const getPazaramaUrl = (p: any) => {
+    return `https://www.pazarama.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`;
   };
   const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(false);
   const [marketplaceModalTab, setMarketplaceModalTab] = useState<'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama'>('hepsiburada');
@@ -1253,11 +1268,11 @@ const ProductsTab = ({
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={(e) => e.stopPropagation()}
-                                      className="text-[8px] font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1 py-0.2 rounded uppercase inline-flex items-center gap-0.5"
+                                      className="text-[8px] font-extrabold text-orange-700 bg-orange-100 dark:bg-orange-950/60 hover:bg-orange-200 border border-orange-300 dark:border-orange-800 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
                                       title={lang === 'tr' ? (p.hepsiburada_sku ? `Hepsiburada İlanı (${p.hepsiburada_sku})` : "Hepsiburada Canlı İlan") : "HB Live"}
                                     >
-                                      <span className="w-1 h-1 rounded-full bg-orange-500"></span>
-                                      HB
+                                      <span className="w-1 h-1 rounded-full bg-orange-500 animate-pulse"></span>
+                                      HB ↗
                                     </a>
                                   )}
                                   {isShopLp && connectedMarketplaces.hepsiburada && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
@@ -1277,14 +1292,56 @@ const ProductsTab = ({
                                     </button>
                                   )}
                                   {isShopLp && connectedMarketplaces.trendyol && p.is_trendyol_active && (
-                                    <span className="text-[8px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded uppercase">
-                                      TY
-                                    </span>
+                                    <a
+                                      href={getTrendyolUrl(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-[8px] font-extrabold text-amber-800 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 border border-amber-300 dark:border-amber-800 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
+                                      title={lang === 'tr' ? "Trendyol Canlı İlan" : "Trendyol Live"}
+                                    >
+                                      <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse"></span>
+                                      TY ↗
+                                    </a>
                                   )}
                                   {isShopLp && connectedMarketplaces.n11 && p.is_n11_active && (
-                                    <span className="text-[8px] font-bold text-red-800 bg-red-50 border border-red-200 px-1 py-0.2 rounded uppercase">
-                                      N11
-                                    </span>
+                                    <a
+                                      href={getN11Url(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-[8px] font-extrabold text-red-800 bg-red-100 dark:bg-red-950/60 hover:bg-red-200 border border-red-300 dark:border-red-800 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
+                                      title={lang === 'tr' ? "N11 Canlı İlan" : "N11 Live"}
+                                    >
+                                      <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse"></span>
+                                      N11 ↗
+                                    </a>
+                                  )}
+                                  {isShopLp && connectedMarketplaces.amazon && p.is_amazon_active && (
+                                    <a
+                                      href={getAmazonUrl(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-[8px] font-extrabold text-amber-300 bg-slate-900 hover:bg-black border border-amber-500/40 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
+                                      title={lang === 'tr' ? "Amazon Canlı İlan" : "Amazon Live"}
+                                    >
+                                      <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse"></span>
+                                      AMZ ↗
+                                    </a>
+                                  )}
+                                  {isShopLp && connectedMarketplaces.pazarama && p.is_pazarama_active && (
+                                    <a
+                                      href={getPazaramaUrl(p)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-[8px] font-extrabold text-blue-800 bg-blue-100 dark:bg-blue-950/60 hover:bg-blue-200 border border-blue-300 dark:border-blue-800 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors"
+                                      title={lang === 'tr' ? "Pazarama Canlı İlan" : "Pazarama Live"}
+                                    >
+                                      <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span>
+                                      PZR ↗
+                                    </a>
                                   )}
                                   {p.category && (
                                     <span className="text-[9px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
@@ -1547,18 +1604,18 @@ const ProductsTab = ({
                             );
                           })()}
                           {isShopLp && connectedMarketplaces.hasAnyConnected && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               {connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && (
                                 <a
                                   href={getHepsiburadaUrl(p)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1"
+                                  className="font-extrabold text-orange-700 bg-orange-100 hover:bg-orange-200 border border-orange-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
                                   title={lang === 'tr' ? (p.hepsiburada_sku ? `Hepsiburada İlanı (${p.hepsiburada_sku})` : "Hepsiburada Canlı İlan") : "HB Live"}
                                 >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                                  Hepsiburada Yayında
+                                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                                  HB Yayında ↗
                                 </a>
                               )}
                               {connectedMarketplaces.trendyol && p.is_trendyol_active && (
@@ -1567,11 +1624,11 @@ const ProductsTab = ({
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1"
+                                  className="font-extrabold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
                                   title={lang === 'tr' ? "Trendyol Canlı İlan" : "Trendyol Live"}
                                 >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                  Trendyol Yayında
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                  TY Yayında ↗
                                 </a>
                               )}
                               {connectedMarketplaces.n11 && p.is_n11_active && (
@@ -1580,11 +1637,37 @@ const ProductsTab = ({
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="font-bold text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1"
+                                  className="font-extrabold text-red-800 bg-red-100 hover:bg-red-200 border border-red-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
                                   title={lang === 'tr' ? "N11 Canlı İlan" : "N11 Live"}
                                 >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                  N11 Yayında
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                                  N11 Yayında ↗
+                                </a>
+                              )}
+                              {connectedMarketplaces.amazon && p.is_amazon_active && (
+                                <a
+                                  href={getAmazonUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-extrabold text-amber-300 bg-slate-900 hover:bg-black border border-amber-500/40 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
+                                  title={lang === 'tr' ? "Amazon Canlı İlan" : "Amazon Live"}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                                  AMZ Yayında ↗
+                                </a>
+                              )}
+                              {connectedMarketplaces.pazarama && p.is_pazarama_active && (
+                                <a
+                                  href={getPazaramaUrl(p)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-extrabold text-blue-800 bg-blue-100 hover:bg-blue-200 border border-blue-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors"
+                                  title={lang === 'tr' ? "Pazarama Canlı İlan" : "Pazarama Live"}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                                  PZR Yayında ↗
                                 </a>
                               )}
                             </div>
