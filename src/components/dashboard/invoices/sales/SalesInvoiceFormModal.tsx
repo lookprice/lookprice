@@ -13,7 +13,7 @@ import {
 import { AutocompleteSelect } from '../../../AutocompleteSelect';
 import { numberToTurkishWords } from '../../../../lib/invoiceUtils';
 
-const KDV_EXEMPTION_CODES = [
+export const KDV_EXEMPTION_CODES = [
   // --- İade Hakkı Doğuran İşlemler (Tam İstisna - 300'lü Kodlar) ---
   { code: "301", label: "11/1-a Mal İhracatı" },
   { code: "302", label: "11/1-b Hizmet İhracatı" },
@@ -670,7 +670,7 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                           <input
                             type="text"
                             className="w-full px-2.5 py-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-slate-900 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
-                            value={exemptionReasonText !== undefined ? exemptionReasonText : (exemptionReasonCode ? `${exemptionReasonCode} - ${KDV_EXEMPTION_CODES.find(c => c.code === exemptionReasonCode)?.label || ''}` : '')}
+                            value={exemptionReasonText || (exemptionReasonCode ? `${exemptionReasonCode} - ${KDV_EXEMPTION_CODES.find(c => c.code === exemptionReasonCode)?.label || ''}` : '')}
                             onChange={(e) => setExemptionReasonText && setExemptionReasonText(e.target.value)}
                             placeholder="Örn: 301 - 11/1-a Mal İhracatı"
                             required

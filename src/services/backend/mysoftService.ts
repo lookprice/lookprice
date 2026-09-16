@@ -193,7 +193,10 @@ export class MySoftService {
         }
       }
       console.error("[MySoft] Send Invoice Error:", detailedMsg);
-      throw new Error(detailedMsg);
+      const err = new Error(detailedMsg);
+      (err as any).response = error.response;
+      (err as any).responseData = apiErrorResponse;
+      throw err;
     }
   }
 

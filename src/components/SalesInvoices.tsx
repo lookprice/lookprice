@@ -41,7 +41,7 @@ import { SalesInvoiceDetailsModal } from "./dashboard/invoices/sales/SalesInvoic
 import { SalesInvoiceHtmlModal } from "./dashboard/invoices/sales/SalesInvoiceHtmlModal";
 import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
-import { SalesInvoiceFormModal } from "./dashboard/invoices/sales/SalesInvoiceFormModal";
+import { SalesInvoiceFormModal, KDV_EXEMPTION_CODES } from "./dashboard/invoices/sales/SalesInvoiceFormModal";
 import { SalesInvoiceWaybillModal } from "./dashboard/invoices/sales/SalesInvoiceWaybillModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
@@ -472,6 +472,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setReturnInvoiceDate("");
     setCustomerEmail("");
     setExemptionReasonCode("");
+    setExemptionReasonText("");
     setWithholdingTaxCode("");
     setIsTaxInclusive(true);
     setEditTaxNumber("");
@@ -527,6 +528,17 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       return;
     }
 
+    let computedExemptionText = exemptionReasonText ? exemptionReasonText.trim() : "";
+    if (!computedExemptionText && exemptionReasonCode) {
+      const match = KDV_EXEMPTION_CODES.find(c => c.code === exemptionReasonCode);
+      if (match) {
+        computedExemptionText = `${match.code} - ${match.label}`;
+      }
+    }
+    if (!computedExemptionText && (isReturn ? 'IADE' : giInvoiceType) === 'ISTISNA') {
+      computedExemptionText = "301 - 11/1-a Mal İhracatı";
+    }
+
     const payload = {
       storeId: role === 'superadmin' ? (storeId || undefined) : undefined,
       sale_id: saleId,
@@ -551,7 +563,9 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       invoice_profile: invoiceProfile,
       gi_invoice_type: isReturn ? 'IADE' : giInvoiceType,
       gi_exemption_reason_code: exemptionReasonCode,
-      gi_exemption_reason_text: exemptionReasonText,
+      gi_exemption_reason_text: computedExemptionText,
+      tax_exemption_reason: computedExemptionText,
+      tax_exemption_reason_code: exemptionReasonCode,
       gi_withholding_tax_code: withholdingTaxCode,
       return_invoice_number: isReturn ? returnInvoiceNumber.toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
       return_invoice_date: isReturn ? returnInvoiceDate : null,
@@ -619,6 +633,9 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setReturnInvoiceNumber(data.return_invoice_number || "");
       setReturnInvoiceDate(data.return_invoice_date ? new Date(data.return_invoice_date).toISOString().split('T')[0] : "");
       setExemptionReasonCode(data.gi_exemption_reason_code || "");
+      const matchedExemption = KDV_EXEMPTION_CODES.find(c => c.code === data.gi_exemption_reason_code);
+      const fallbackExemptionText = matchedExemption ? `${matchedExemption.code} - ${matchedExemption.label}` : "";
+      setExemptionReasonText(data.gi_exemption_reason_text || data.tax_exemption_reason || fallbackExemptionText);
       setWithholdingTaxCode(data.gi_withholding_tax_code || "");
       setInvoiceProfile(data.invoice_profile);
 

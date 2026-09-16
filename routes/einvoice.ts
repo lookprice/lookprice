@@ -338,6 +338,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
   const { invoiceId } = req.params;
   let storeId = req.user.store_id; 
   let ettn: string | undefined = undefined;
+  let ublData: any = null;
   console.log(`[INVOICE-SEND-ENTRY] InvoiceID: ${invoiceId}, UserStoreId: ${storeId}`);
   try {
     // 1. Fetch the invoice first to identify the correct storeId
@@ -464,21 +465,33 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
-    const rawExemption = invoice.gi_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? "301" : "");
+    const rawExemption = invoice.gi_exemption_reason_code || req.body?.tax_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? "301" : "");
     let exemptionCode = (rawExemption ? rawExemption.split('-')[0].trim() : "") || (giInvoiceType === 'ISTISNA' ? "301" : "351");
-    let customExemptionText = invoice.gi_exemption_reason_text || "";
-    let rawReasonText = customExemptionText || KDV_EXEMPTION_MAP[exemptionCode] || rawExemption || "351-KDV Kanunu İstisna Olmayan Diğer Gerekçeler";
+    let customExemptionText = req.body?.tax_exemption_reason || req.body?.gi_exemption_reason_text || invoice.gi_exemption_reason_text || "";
+    let rawReasonText = customExemptionText || KDV_EXEMPTION_MAP[exemptionCode] || rawExemption || "KDV Kanunu İstisna Olmayan Diğer Gerekçeler";
     if (rawReasonText.startsWith(`${exemptionCode}-`)) {
        rawReasonText = rawReasonText.substring(exemptionCode.length + 1);
     }
     let exemptionReasonText = (rawReasonText || "KDV Kanunu İstisna Olmayan Diğer Gerekçeler").trim();
-    if (!exemptionReasonText || exemptionReasonText.length < 3) {
-       exemptionReasonText = "KDV Kanunu İstisna Olmayan Diğer Gerekçeler";
-    }
+    const finalExemptionReason = (customExemptionText && customExemptionText.trim().length >= 5) 
+       ? customExemptionText.trim() 
+       : (exemptionReasonText && exemptionReasonText.trim().length >= 5)
+       ? exemptionReasonText.trim()
+       : "KDV Kanunu İstisna Olmayan Diğer Gerekçeler";
     if (!exemptionCode) {
        exemptionCode = giInvoiceType === 'ISTISNA' ? "301" : "351";
     }
     const withholdingCode = invoice.gi_withholding_tax_code;
+
+    if (!invoice.gi_exemption_reason_text || invoice.gi_exemption_reason_text.trim() === "" || !invoice.gi_exemption_reason_code) {
+       await pool.query(
+         `UPDATE sales_invoices 
+          SET gi_exemption_reason_text = COALESCE(NULLIF(gi_exemption_reason_text, ''), $1),
+              gi_exemption_reason_code = COALESCE(NULLIF(gi_exemption_reason_code, ''), $2)
+          WHERE id = $3`,
+         [finalExemptionReason, exemptionCode, invoice.id]
+       ).catch((e: any) => console.error("Failed to auto-repair exemption reason in DB:", e));
+    }
 
     // --- GİB Compliance Validations ---
     if (giInvoiceType === 'IADE') {
@@ -758,10 +771,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
         taxTypeCode: TAX_CODES.KDV,
         ...((giInvoiceType === 'ISTISNA' || Number(taxRate) === 0) ? {
-          taxExemptionReasonCode: exemptionCode,
-          taxExemptionReason: KDV_EXEMPTION_MAP[exemptionCode] || (exemptionReasonText.startsWith(exemptionCode) ? exemptionReasonText : `${exemptionCode}-${exemptionReasonText}`),
-          TaxExemptionReasonCode: exemptionCode,
-          TaxExemptionReason: KDV_EXEMPTION_MAP[exemptionCode] || (exemptionReasonText.startsWith(exemptionCode) ? exemptionReasonText : `${exemptionCode}-${exemptionReasonText}`)
+          taxExemptionReasonCode: exemptionCode || "351",
+          taxExemptionReason: finalExemptionReason,
+          TaxExemptionReasonCode: exemptionCode || "351",
+          TaxExemptionReason: finalExemptionReason
         } : {})
       };
     });
@@ -774,7 +787,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const totalTax = InvoiceDetail.reduce((acc, item) => acc + Number(item.amtVatTra), 0);
     const grandTotal = totalLineExtension + totalTax;
 
-    const ublData: any = {
+    ublData = {
        isCalculateByApi: false,
        isManuelCalculation: true,
        id: 0, 
@@ -1004,13 +1017,13 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
            const subtotals = Object.keys(groups).map(rate => {
               const parsedRate = parseFloat(rate);
               const isRateExempt = (giInvoiceType === 'ISTISNA' || parsedRate === 0);
-              const fullExemptionText = KDV_EXEMPTION_MAP[exemptionCode] || (exemptionReasonText.startsWith(exemptionCode) ? exemptionReasonText : `${exemptionCode}-${exemptionReasonText}`);
+              const exCode = exemptionCode || "351";
               
               const exemptionFields = isRateExempt ? {
-                 taxExemptionReasonCode: exemptionCode,
-                 taxExemptionReason: fullExemptionText,
-                 TaxExemptionReasonCode: exemptionCode,
-                 TaxExemptionReason: fullExemptionText
+                 taxExemptionReasonCode: exCode,
+                 taxExemptionReason: finalExemptionReason,
+                 TaxExemptionReasonCode: exCode,
+                 TaxExemptionReason: finalExemptionReason
               } : {};
 
               return {
@@ -1042,14 +1055,14 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
            return [{
               taxAmount: Number(totalTax.toFixed(2)),
+              taxSubTotal: subtotals,
+              taxSubtotal: subtotals,
               taxSubtotalList: subtotals,
               taxSubTotalList: subtotals,
               TaxSubtotalList: subtotals,
               TaxSubTotalList: subtotals,
-              taxSubTotal: subtotals,
-              taxSubtotal: subtotals,
-              TaxSubTotal: subtotals,
-              TaxSubtotal: subtotals
+              TaxSubtotal: subtotals,
+              TaxSubTotal: subtotals
            }];
         })(),
 
@@ -1248,22 +1261,24 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         });
     }
 
-    console.error(`[EINVOICE-SEND-CRITICAL-ERROR] Invoice: ${invoiceId}, Store: ${storeId}:`, error);
-    const detailedErrMsg = error.message || "Bilinmeyen bir iç sunucu hatası oluştu.";
+    const errorDetails = {
+       message: error.message,
+       responseData: error.response?.data,
+       status: error.response?.status,
+       payloadSent: typeof ublData !== 'undefined' ? ublData : undefined
+    };
+    console.error(`[CRITICAL MYSOFT ERROR DEEP LOG]`, JSON.stringify(errorDetails, null, 2));
+
     try {
       await pool.query(
         "UPDATE sales_invoices SET integration_status = 'ERROR', integration_message = $1 WHERE id = $2",
-        [detailedErrMsg, invoiceId]
+        [JSON.stringify(errorDetails.responseData || errorDetails.message), invoiceId]
       );
     } catch (dbErr) {
       console.error("[EINVOICE-SEND] Failed to save error status to database:", dbErr);
     }
     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Send Invoice ${invoiceId}`, error);
-    res.status(500).json({ 
-      error: detailedErrMsg,
-      message: detailedErrMsg,
-      details: error.response?.data || error.details || undefined
-    });
+    return res.status(500).json({ error: "Entegrasyon Hatası", details: errorDetails });
   }
 });
 
