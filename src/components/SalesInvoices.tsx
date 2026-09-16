@@ -113,6 +113,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [returnInvoiceDate, setReturnInvoiceDate] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [exemptionReasonCode, setExemptionReasonCode] = useState("");
+  const [exemptionReasonText, setExemptionReasonText] = useState("");
   const [withholdingTaxCode, setWithholdingTaxCode] = useState("");
   const [isCheckingTaxpayer, setIsCheckingTaxpayer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -279,6 +280,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setGiInvoiceType(initialData.gi_invoice_type || 'SATIS');
       setCustomerEmail(initialData.customer_email || "");
       setExemptionReasonCode(initialData.gi_exemption_reason_code || "");
+      setExemptionReasonText(initialData.gi_exemption_reason_text || "");
       setWithholdingTaxCode(initialData.gi_withholding_tax_code || "");
       setReturnInvoiceNumber(initialData.return_invoice_number || "");
       setReturnInvoiceDate(initialData.return_invoice_date || "");
@@ -549,6 +551,7 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       invoice_profile: invoiceProfile,
       gi_invoice_type: isReturn ? 'IADE' : giInvoiceType,
       gi_exemption_reason_code: exemptionReasonCode,
+      gi_exemption_reason_text: exemptionReasonText,
       gi_withholding_tax_code: withholdingTaxCode,
       return_invoice_number: isReturn ? returnInvoiceNumber.toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
       return_invoice_date: isReturn ? returnInvoiceDate : null,
@@ -1028,6 +1031,8 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         setGiInvoiceType={setGiInvoiceType}
         exemptionReasonCode={exemptionReasonCode}
         setExemptionReasonCode={setExemptionReasonCode}
+        exemptionReasonText={exemptionReasonText}
+        setExemptionReasonText={setExemptionReasonText}
         withholdingTaxCode={withholdingTaxCode}
         setWithholdingTaxCode={setWithholdingTaxCode}
         isReturn={isReturn}

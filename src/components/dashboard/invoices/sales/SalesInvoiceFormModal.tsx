@@ -107,6 +107,8 @@ interface SalesInvoiceFormModalProps {
   setGiInvoiceType: (val: string) => void;
   exemptionReasonCode: string;
   setExemptionReasonCode: (val: string) => void;
+  exemptionReasonText?: string;
+  setExemptionReasonText?: (val: string) => void;
   withholdingTaxCode: string;
   setWithholdingTaxCode: (val: string) => void;
   isReturn: boolean;
@@ -202,6 +204,8 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   setGiInvoiceType,
   exemptionReasonCode,
   setExemptionReasonCode,
+  exemptionReasonText,
+  setExemptionReasonText,
   withholdingTaxCode,
   setWithholdingTaxCode,
   isReturn,
@@ -625,20 +629,54 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     </div>
                   )}
 
-                  {giInvoiceType === 'ISTISNA' && (
-                    <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg space-y-1">
-                      <label className="text-[10px] font-black text-rose-700 uppercase tracking-wider">{isTr ? 'İstisna Muafiyet Kodu' : 'Exemption Code'}</label>
-                      <select
-                        className="w-full px-2.5 py-1.5 bg-white border border-rose-300 rounded text-xs font-bold text-slate-800 focus:border-rose-500"
-                        value={exemptionReasonCode}
-                        onChange={(e) => setExemptionReasonCode(e.target.value)}
-                        required
-                      >
-                        <option value="">{isTr ? "Seçiniz..." : "Select..."}</option>
-                        {KDV_EXEMPTION_CODES.map(c => (
-                          <option key={c.code} value={c.code}>{c.code} - {c.label}</option>
-                        ))}
-                      </select>
+                  {(giInvoiceType === 'ISTISNA' || items.some(i => Number(i.tax_rate) === 0)) && (
+                    <div className="p-3 bg-rose-50 border-2 border-rose-400 rounded-xl space-y-2 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-rose-800 uppercase tracking-wider">
+                          {isTr ? 'İSTİSNA MUAFİYET KODU VE AÇIKLAMASI' : 'EXEMPTION REASON CODE & TEXT'}
+                        </label>
+                        <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded border border-rose-300">
+                          GİB & UBL-TR Zorunlu
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-700 uppercase mb-1 block">
+                            {isTr ? 'İstisna Muafiyet Kodu' : 'Exemption Code'}
+                          </label>
+                          <select
+                            className="w-full px-2.5 py-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-slate-900 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                            value={exemptionReasonCode}
+                            onChange={(e) => {
+                              const code = e.target.value;
+                              setExemptionReasonCode(code);
+                              const match = KDV_EXEMPTION_CODES.find(c => c.code === code);
+                              if (match && setExemptionReasonText) {
+                                setExemptionReasonText(`${match.code} - ${match.label}`);
+                              }
+                            }}
+                            required
+                          >
+                            <option value="">{isTr ? "Seçiniz..." : "Select..."}</option>
+                            {KDV_EXEMPTION_CODES.map(c => (
+                              <option key={c.code} value={c.code}>{c.code} - {c.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-700 uppercase mb-1 block">
+                            {isTr ? 'İstisna Açıklaması (GİB Şematron Metni)' : 'Exemption Text'}
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full px-2.5 py-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-slate-900 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                            value={exemptionReasonText !== undefined ? exemptionReasonText : (exemptionReasonCode ? `${exemptionReasonCode} - ${KDV_EXEMPTION_CODES.find(c => c.code === exemptionReasonCode)?.label || ''}` : '')}
+                            onChange={(e) => setExemptionReasonText && setExemptionReasonText(e.target.value)}
+                            placeholder="Örn: 301 - 11/1-a Mal İhracatı"
+                            required
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
 

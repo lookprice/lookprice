@@ -465,12 +465,19 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
     const rawExemption = invoice.gi_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? "301" : "");
-    const exemptionCode = rawExemption.split('-')[0].trim() || "301";
-    let rawReasonText = KDV_EXEMPTION_MAP[exemptionCode] || rawExemption || "301-11/1-a Mal İhracatı";
+    let exemptionCode = (rawExemption ? rawExemption.split('-')[0].trim() : "") || (giInvoiceType === 'ISTISNA' ? "301" : "351");
+    let customExemptionText = invoice.gi_exemption_reason_text || "";
+    let rawReasonText = customExemptionText || KDV_EXEMPTION_MAP[exemptionCode] || rawExemption || "351-KDV Kanunu İstisna Olmayan Diğer Gerekçeler";
     if (rawReasonText.startsWith(`${exemptionCode}-`)) {
        rawReasonText = rawReasonText.substring(exemptionCode.length + 1);
     }
-    const exemptionReasonText = rawReasonText.trim();
+    let exemptionReasonText = (rawReasonText || "KDV Kanunu İstisna Olmayan Diğer Gerekçeler").trim();
+    if (!exemptionReasonText || exemptionReasonText.length < 3) {
+       exemptionReasonText = "KDV Kanunu İstisna Olmayan Diğer Gerekçeler";
+    }
+    if (!exemptionCode) {
+       exemptionCode = giInvoiceType === 'ISTISNA' ? "301" : "351";
+    }
     const withholdingCode = invoice.gi_withholding_tax_code;
 
     // --- GİB Compliance Validations ---
@@ -749,62 +756,12 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         vatRate: String(Number(taxRate.toFixed(2))),
         amtVatTra: String(Number(taxAmount.toFixed(2))),
         taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
-        taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+        taxTypeCode: TAX_CODES.KDV,
         ...((giInvoiceType === 'ISTISNA' || Number(taxRate) === 0) ? {
           taxExemptionReasonCode: exemptionCode,
+          taxExemptionReason: KDV_EXEMPTION_MAP[exemptionCode] || (exemptionReasonText.startsWith(exemptionCode) ? exemptionReasonText : `${exemptionCode}-${exemptionReasonText}`),
           TaxExemptionReasonCode: exemptionCode,
-          taxExemptionReason: exemptionReasonText,
-          TaxExemptionReason: exemptionReasonText,
-          exemptionReason: exemptionReasonText,
-          ExemptionReason: exemptionReasonText,
-          taxExemptionReasonText: exemptionReasonText,
-          TaxExemptionReasonText: exemptionReasonText,
-          kdvExemptionReasonCode: exemptionCode,
-          kdvExemptionReason: exemptionReasonText,
-          vatExemptionReasonCode: exemptionCode,
-          vatExemptionReason: exemptionReasonText,
-          taxCategory: {
-            id: "0015",
-            ID: "0015",
-            taxExemptionReasonCode: exemptionCode,
-            TaxExemptionReasonCode: exemptionCode,
-            taxExemptionReason: exemptionReasonText,
-            TaxExemptionReason: exemptionReasonText,
-            exemptionReasonCode: exemptionCode,
-            ExemptionReasonCode: exemptionCode,
-            exemptionReason: exemptionReasonText,
-            ExemptionReason: exemptionReasonText,
-            taxScheme: { 
-              id: "0015",
-              ID: "0015",
-              taxTypeCode: "0015", 
-              TaxTypeCode: "0015", 
-              taxTypeName: "Katma Değer Vergisi",
-              TaxTypeName: "Katma Değer Vergisi",
-              name: "Katma Değer Vergisi",
-              Name: "Katma Değer Vergisi",
-              taxExemptionReasonCode: exemptionCode,
-              TaxExemptionReasonCode: exemptionCode,
-              taxExemptionReason: exemptionReasonText,
-              TaxExemptionReason: exemptionReasonText
-            }
-          },
-          TaxCategory: {
-            id: "0015",
-            ID: "0015",
-            taxExemptionReasonCode: exemptionCode,
-            TaxExemptionReasonCode: exemptionCode,
-            taxExemptionReason: exemptionReasonText,
-            TaxExemptionReason: exemptionReasonText,
-            taxScheme: { 
-              id: "0015",
-              ID: "0015",
-              taxTypeCode: "0015",
-              TaxTypeCode: "0015",
-              name: "Katma Değer Vergisi",
-              Name: "Katma Değer Vergisi"
-            }
-          }
+          TaxExemptionReason: KDV_EXEMPTION_MAP[exemptionCode] || (exemptionReasonText.startsWith(exemptionCode) ? exemptionReasonText : `${exemptionCode}-${exemptionReasonText}`)
         } : {})
       };
     });
@@ -1032,150 +989,69 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           streetName: (cleanAddress || "Girilmemiş Adres").substring(0, 250)
        },
 
-       tax: [{
-         taxAmount: Number(totalTax.toFixed(2)),
-         ...((giInvoiceType === 'ISTISNA' || totalTax === 0) && exemptionCode ? {
-            taxExemptionReasonCode: exemptionCode,
-            TaxExemptionReasonCode: exemptionCode,
-            taxExemptionReason: exemptionReasonText,
-            TaxExemptionReason: exemptionReasonText,
-            exemptionReason: exemptionReasonText,
-            ExemptionReason: exemptionReasonText,
-            taxExemptionReasonText: exemptionReasonText,
-            TaxExemptionReasonText: exemptionReasonText,
-            kdvExemptionReasonCode: exemptionCode,
-            kdvExemptionReason: exemptionReasonText,
-            taxCategory: {
-               id: "0015",
-               ID: "0015",
-               taxExemptionReasonCode: exemptionCode,
-               TaxExemptionReasonCode: exemptionCode,
-               taxExemptionReason: exemptionReasonText,
-               TaxExemptionReason: exemptionReasonText,
-               exemptionReasonCode: exemptionCode,
-               ExemptionReasonCode: exemptionCode,
-               exemptionReason: exemptionReasonText,
-               ExemptionReason: exemptionReasonText,
-               taxExemptionReasonText: exemptionReasonText,
-               TaxExemptionReasonText: exemptionReasonText,
-               kdvExemptionReasonCode: exemptionCode,
-               kdvExemptionReason: exemptionReasonText,
-               taxScheme: { 
-                  id: "0015",
-                  ID: "0015",
-                  taxTypeCode: "0015", 
-                  TaxTypeCode: "0015", 
-                  taxTypeName: "Katma Değer Vergisi",
-                  TaxTypeName: "Katma Değer Vergisi",
-                  name: "Katma Değer Vergisi",
-                  Name: "Katma Değer Vergisi",
-                  taxExemptionReasonCode: exemptionCode,
-                  TaxExemptionReasonCode: exemptionCode,
-                  taxExemptionReason: exemptionReasonText,
-                  TaxExemptionReason: exemptionReasonText
-               }
-            },
-            TaxCategory: {
-               id: "0015",
-               ID: "0015",
-               taxExemptionReasonCode: exemptionCode,
-               TaxExemptionReasonCode: exemptionCode,
-               taxExemptionReason: exemptionReasonText,
-               TaxExemptionReason: exemptionReasonText,
-               taxExemptionReasonText: exemptionReasonText,
-               TaxExemptionReasonText: exemptionReasonText,
-               kdvExemptionReasonCode: exemptionCode,
-               kdvExemptionReason: exemptionReasonText,
-               taxScheme: { 
-                  id: "0015",
-                  ID: "0015",
-                  taxTypeCode: "0015",
-                  TaxTypeCode: "0015",
-                  name: "Katma Değer Vergisi",
-                  Name: "Katma Değer Vergisi"
-               }
-            },
-            taxScheme: { 
-               id: "0015",
-               ID: "0015",
-               taxTypeCode: "0015", 
-               TaxTypeCode: "0015", 
-               taxTypeName: "Katma Değer Vergisi",
-               TaxTypeName: "Katma Değer Vergisi",
-               name: "Katma Değer Vergisi",
-               Name: "Katma Değer Vergisi",
-               taxExemptionReasonCode: exemptionCode,
-               TaxExemptionReasonCode: exemptionCode,
-               taxExemptionReason: exemptionReasonText,
-               TaxExemptionReason: exemptionReasonText
-            }
-         } : {}),
-         taxSubtotal: (() => {
-            const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
-            InvoiceDetail.forEach(detail => {
-               const rate = String(detail.vatRate);
-               const taxable = Number(detail.taxableAmtTra);
-               const tax = Number(detail.amtVatTra);
-               if (!groups[rate]) {
-                  groups[rate] = { taxableAmount: 0, taxAmount: 0 };
-               }
-               groups[rate].taxableAmount += taxable;
-               groups[rate].taxAmount += tax;
-            });
-            return Object.keys(groups).map(rate => {
-               const baseObj: any = {
-                  taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
-                  taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
-                  calculationSequenceNumeric: 0,
-                  percent: rate,
-                  taxName: "Katma Değer Vergisi",
-                  taxTypeCode: "0015"
-               };
-               if (giInvoiceType === 'ISTISNA' || parseFloat(rate) === 0) {
-                  baseObj.taxExemptionReasonCode = exemptionCode;
-                  baseObj.TaxExemptionReasonCode = exemptionCode;
-                  baseObj.taxExemptionReason = exemptionReasonText;
-                  baseObj.TaxExemptionReason = exemptionReasonText;
-                  baseObj.exemptionReason = exemptionReasonText;
-                  baseObj.ExemptionReason = exemptionReasonText;
-                  baseObj.kdvExemptionReasonCode = exemptionCode;
-                  baseObj.kdvExemptionReason = exemptionReasonText;
-                  baseObj.vatExemptionReasonCode = exemptionCode;
-                  baseObj.vatExemptionReason = exemptionReasonText;
-                  baseObj.taxExemptionReasonText = exemptionReasonText;
-                  baseObj.TaxExemptionReasonText = exemptionReasonText;
-                  baseObj.taxCategory = {
-                     taxExemptionReasonCode: exemptionCode,
-                     TaxExemptionReasonCode: exemptionCode,
-                     taxExemptionReason: exemptionReasonText,
-                     TaxExemptionReason: exemptionReasonText,
-                     exemptionReason: exemptionReasonText,
-                     ExemptionReason: exemptionReasonText,
-                     taxExemptionReasonText: exemptionReasonText,
-                     TaxExemptionReasonText: exemptionReasonText,
-                     kdvExemptionReasonCode: exemptionCode,
-                     kdvExemptionReason: exemptionReasonText,
-                     taxScheme: { 
-                id: "0015",
-                ID: "0015",
-                taxTypeCode: "0015", 
-                TaxTypeCode: "0015", 
-                taxTypeName: "Katma Değer Vergisi",
-                TaxTypeName: "Katma Değer Vergisi",
-                name: "Katma Değer Vergisi",
-                Name: "Katma Değer Vergisi",
-                taxExemptionReasonCode: exemptionCode,
-                TaxExemptionReasonCode: exemptionCode,
-                taxExemptionReason: exemptionReasonText,
-                TaxExemptionReason: exemptionReasonText
-             }
-                  };
-                  baseObj.TaxCategory = baseObj.taxCategory;
-               }
-               return baseObj;
-            });
-         })()
-       }],
+        taxTotal: (() => {
+           const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
+           InvoiceDetail.forEach(detail => {
+              const rate = String(detail.vatRate);
+              const taxable = Number(detail.taxableAmtTra);
+              const tax = Number(detail.amtVatTra);
+              if (!groups[rate]) {
+                 groups[rate] = { taxableAmount: 0, taxAmount: 0 };
+              }
+              groups[rate].taxableAmount += taxable;
+              groups[rate].taxAmount += tax;
+           });
+           const subtotals = Object.keys(groups).map(rate => {
+              const parsedRate = parseFloat(rate);
+              const isRateExempt = (giInvoiceType === 'ISTISNA' || parsedRate === 0);
+              const fullExemptionText = KDV_EXEMPTION_MAP[exemptionCode] || (exemptionReasonText.startsWith(exemptionCode) ? exemptionReasonText : `${exemptionCode}-${exemptionReasonText}`);
+              
+              const exemptionFields = isRateExempt ? {
+                 taxExemptionReasonCode: exemptionCode,
+                 taxExemptionReason: fullExemptionText,
+                 TaxExemptionReasonCode: exemptionCode,
+                 TaxExemptionReason: fullExemptionText
+              } : {};
+
+              return {
+                 taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
+                 taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
+                 calculationSequenceNumeric: 1,
+                 percent: Number(parsedRate.toFixed(2)),
+                 taxTypeCode: "0015",
+                 taxName: "Katma Değer Vergisi",
+                 ...exemptionFields,
+                 taxCategory: {
+                    taxScheme: {
+                       name: "Katma Değer Vergisi",
+                       taxTypeCode: "0015",
+                       Name: "Katma Değer Vergisi",
+                       TaxTypeCode: "0015"
+                    },
+                    ...exemptionFields
+                 },
+                 TaxCategory: {
+                    TaxScheme: {
+                       Name: "Katma Değer Vergisi",
+                       TaxTypeCode: "0015"
+                    },
+                    ...exemptionFields
+                 }
+              };
+           });
+
+           return [{
+              taxAmount: Number(totalTax.toFixed(2)),
+              taxSubtotalList: subtotals,
+              taxSubTotalList: subtotals,
+              TaxSubtotalList: subtotals,
+              TaxSubTotalList: subtotals,
+              taxSubTotal: subtotals,
+              taxSubtotal: subtotals,
+              TaxSubTotal: subtotals,
+              TaxSubtotal: subtotals
+           }];
+        })(),
 
        invoiceDetail: InvoiceDetail,
 
@@ -1373,10 +1249,20 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     console.error(`[EINVOICE-SEND-CRITICAL-ERROR] Invoice: ${invoiceId}, Store: ${storeId}:`, error);
+    const detailedErrMsg = error.message || "Bilinmeyen bir iç sunucu hatası oluştu.";
+    try {
+      await pool.query(
+        "UPDATE sales_invoices SET integration_status = 'ERROR', integration_message = $1 WHERE id = $2",
+        [detailedErrMsg, invoiceId]
+      );
+    } catch (dbErr) {
+      console.error("[EINVOICE-SEND] Failed to save error status to database:", dbErr);
+    }
     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Send Invoice ${invoiceId}`, error);
     res.status(500).json({ 
-      error: error.message || "Bilinmeyen bir iç sunucu hatası oluştu.",
-      details: error.response?.data || undefined
+      error: detailedErrMsg,
+      message: detailedErrMsg,
+      details: error.response?.data || error.details || undefined
     });
   }
 });
