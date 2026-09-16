@@ -30,6 +30,7 @@ const KDV_EXEMPTION_CODES = [
   { code: "324", label: "13/m Hastanelere Yapılan Teslim ve Hizmetler" },
   { code: "325", label: "13/i Ar-Ge Makineleri İstisnası" },
   { code: "350", label: "Diğerleri (Tam İstisna)" },
+  { code: "351", label: "KDV Kanunu İstisna Olmayan Diğer Gerekçeler" },
   
   // --- İade Hakkı Doğurmayan İşlemler (Kısmi İstisna - 200'lü Kodlar) ---
   { code: "201", label: "17/1 Kültür ve Eğitim Amacı Taşıyan İşlemler" },
@@ -564,6 +565,7 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                         <option value="TICARIFATURA">{isTr ? "Ticari Fatura (E-Fatura)" : "Commercial (E-Invoice)"}</option>
                         <option value="TEMELFATURA">{isTr ? "Temel Fatura (E-Fatura)" : "Basic (E-Invoice)"}</option>
                         <option value="EARSIVFATURA">{isTr ? "E-Arşiv Fatura" : "E-Archive"}</option>
+                        <option value="IHRACAT">{isTr ? "İhracat Faturası (E-Fatura)" : "Export (E-Invoice)"}</option>
                       </select>
                     </div>
 

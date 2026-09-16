@@ -188,10 +188,11 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
               invoices.map((inv: any, idx: number) => {
                 const intStatus = (inv.integration_status || '').toUpperCase();
                 const isQueued = ['QUEUED', 'KUYRUKTA', 'İŞLENİYOR', 'İLETİLİYOR'].includes(intStatus);
-                const isRejected = ['REJECTED', 'HATA', 'İPTAL', 'İPTAL EDİLDİ', 'HATALI', 'CANCELLED', 'ERROR'].includes(intStatus);
+                const isRejected = ['REJECTED', 'İPTAL', 'İPTAL EDİLDİ', 'CANCELLED', 'RED', 'REDDEDİLDİ'].includes(intStatus);
+                const isError = ['ERROR', 'HATA', 'HATALI'].includes(intStatus);
                 const isUnknown = !intStatus || intStatus === 'UNKNOWN' || intStatus === 'BILINMIYOR';
                 const isApproved = ['APPROVED', 'ONAYLANDI', 'BAŞARILI', '1300', 'SUCCESS'].includes(intStatus) || 
-                                  (inv.document_number && !isRejected && !isUnknown);
+                                  (inv.document_number && !isRejected && !isError && !isUnknown);
                 const isExpanded = expandedRowIds.includes(inv.id);
                 const items = inv.items && inv.items.length > 0 ? inv.items : (itemsCache[inv.id] || []);
                 const isRowLoading = loadingRowId === inv.id;
@@ -204,6 +205,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                         isExpanded ? 'bg-indigo-50/40 border-l-2 border-l-indigo-600' :
                         isApproved ? 'bg-emerald-50/50' : 
                         isQueued ? 'bg-amber-50/50' : 
+                        isError ? 'bg-rose-50/70' :
                         isRejected ? 'bg-rose-50/50' : 
                         'hover:bg-slate-50'
                       }`}
@@ -320,11 +322,13 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                 <div className={`inline-flex px-1.5 py-0.2 rounded text-[8px] font-bold tracking-widest border w-fit ${
                                   isQueued ? 'border-amber-200 bg-amber-50 text-amber-700' :
                                   isApproved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                                  isError ? 'border-rose-200 bg-rose-50 text-rose-700' :
                                   isRejected ? 'border-rose-200 bg-rose-50 text-rose-700' :
                                   'border-slate-200 bg-slate-100 text-slate-600'
                                 }`}>
                                   {isQueued ? (isTr ? 'GİB KUYRUK' : 'QUEUED') :
                                    isApproved ? (isTr ? 'GİB ONAY' : 'APPROVED') : 
+                                   isError ? (isTr ? 'HATALI' : 'ERROR') :
                                    isRejected ? (isTr ? 'REDDEDİLDİ' : 'REJECTED') :
                                    isUnknown ? (inv.document_number ? (isTr ? 'GİB\'E GİTTİ' : 'SENT') : (isTr ? 'GÖNDERİLMEDİ' : 'NOT SENT')) :
                                    inv.integration_status}
@@ -396,6 +400,21 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                               title={isTr ? "E-Fatura Görselini Aç (HTML)" : "View E-Invoice HTML"}
                             >
                               <Eye className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+
+                          {/* Quick Action: Resend if Error */}
+                          {isError && (
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSendToGIB(inv.id);
+                              }}
+                              className="p-1.5 text-rose-600 hover:text-white hover:bg-rose-600 rounded-lg transition-all border border-rose-200/60 bg-rose-50 hover:border-rose-600"
+                              title={isTr ? "Tekrar GİB'e Gönder" : "Resend to GİB"}
+                            >
+                              <CloudUpload className="h-3.5 w-3.5" />
                             </button>
                           )}
 
@@ -496,7 +515,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                                 {/* GİB & Entegratör İşlemleri */}
                                 {(!isPortfolio && branding?.einvoice_settings?.is_active) && (
                                   <div className="py-1 border-t border-slate-100 bg-slate-50/50">
-                                    {inv.status !== 'draft' && !isApproved && !isQueued && !isRejected && (
+                                    {inv.status !== 'draft' && !isApproved && !isQueued && (
                                       <>
                                         <button
                                           type="button"

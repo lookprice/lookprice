@@ -15,6 +15,7 @@ const KDV_EXEMPTION_MAP: Record<string, string> = {
   "324": "324-13/m Hastanelere Yapılan Teslim ve Hizmetler",
   "325": "325-13/i Ar-Ge Makineleri İstisnası",
   "350": "350-Diğerleri (Tam İstisna)",
+  "351": "351-KDV Kanunu İstisna Olmayan Diğer Gerekçeler",
   "201": "201-17/1 Kültür ve Eğitim Amacı Taşıyan İşlemler",
   "202": "202-17/2-a Sağlık, Çevre ve Sosyal Yardım Amaçlı İşlemler",
   "204": "204-17/2-c Yabancı Diplomatik Misyonlara Yapılan Teslimler",
@@ -465,7 +466,11 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
     const rawExemption = invoice.gi_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? "301" : "");
     const exemptionCode = rawExemption.split('-')[0].trim() || "301";
-    const exemptionReasonText = KDV_EXEMPTION_MAP[exemptionCode] || rawExemption || "301-11/1-a Mal İhracatı";
+    let rawReasonText = KDV_EXEMPTION_MAP[exemptionCode] || rawExemption || "301-11/1-a Mal İhracatı";
+    if (rawReasonText.startsWith(`${exemptionCode}-`)) {
+       rawReasonText = rawReasonText.substring(exemptionCode.length + 1);
+    }
+    const exemptionReasonText = rawReasonText.trim();
     const withholdingCode = invoice.gi_withholding_tax_code;
 
     // --- GİB Compliance Validations ---
@@ -752,6 +757,12 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           TaxExemptionReason: exemptionReasonText,
           exemptionReason: exemptionReasonText,
           ExemptionReason: exemptionReasonText,
+          taxExemptionReasonText: exemptionReasonText,
+          TaxExemptionReasonText: exemptionReasonText,
+          kdvExemptionReasonCode: exemptionCode,
+          kdvExemptionReason: exemptionReasonText,
+          vatExemptionReasonCode: exemptionCode,
+          vatExemptionReason: exemptionReasonText,
           taxCategory: {
             id: "0015",
             ID: "0015",
@@ -1030,6 +1041,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
             TaxExemptionReason: exemptionReasonText,
             exemptionReason: exemptionReasonText,
             ExemptionReason: exemptionReasonText,
+            taxExemptionReasonText: exemptionReasonText,
+            TaxExemptionReasonText: exemptionReasonText,
+            kdvExemptionReasonCode: exemptionCode,
+            kdvExemptionReason: exemptionReasonText,
             taxCategory: {
                id: "0015",
                ID: "0015",
@@ -1041,6 +1056,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
                ExemptionReasonCode: exemptionCode,
                exemptionReason: exemptionReasonText,
                ExemptionReason: exemptionReasonText,
+               taxExemptionReasonText: exemptionReasonText,
+               TaxExemptionReasonText: exemptionReasonText,
+               kdvExemptionReasonCode: exemptionCode,
+               kdvExemptionReason: exemptionReasonText,
                taxScheme: { 
                   id: "0015",
                   ID: "0015",
@@ -1063,6 +1082,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
                TaxExemptionReasonCode: exemptionCode,
                taxExemptionReason: exemptionReasonText,
                TaxExemptionReason: exemptionReasonText,
+               taxExemptionReasonText: exemptionReasonText,
+               TaxExemptionReasonText: exemptionReasonText,
+               kdvExemptionReasonCode: exemptionCode,
+               kdvExemptionReason: exemptionReasonText,
                taxScheme: { 
                   id: "0015",
                   ID: "0015",
@@ -1115,6 +1138,12 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
                   baseObj.TaxExemptionReason = exemptionReasonText;
                   baseObj.exemptionReason = exemptionReasonText;
                   baseObj.ExemptionReason = exemptionReasonText;
+                  baseObj.kdvExemptionReasonCode = exemptionCode;
+                  baseObj.kdvExemptionReason = exemptionReasonText;
+                  baseObj.vatExemptionReasonCode = exemptionCode;
+                  baseObj.vatExemptionReason = exemptionReasonText;
+                  baseObj.taxExemptionReasonText = exemptionReasonText;
+                  baseObj.TaxExemptionReasonText = exemptionReasonText;
                   baseObj.taxCategory = {
                      taxExemptionReasonCode: exemptionCode,
                      TaxExemptionReasonCode: exemptionCode,
@@ -1122,6 +1151,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
                      TaxExemptionReason: exemptionReasonText,
                      exemptionReason: exemptionReasonText,
                      ExemptionReason: exemptionReasonText,
+                     taxExemptionReasonText: exemptionReasonText,
+                     TaxExemptionReasonText: exemptionReasonText,
+                     kdvExemptionReasonCode: exemptionCode,
+                     kdvExemptionReason: exemptionReasonText,
                      taxScheme: { 
                 id: "0015",
                 ID: "0015",
