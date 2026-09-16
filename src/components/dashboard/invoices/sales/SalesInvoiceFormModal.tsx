@@ -106,6 +106,8 @@ interface SalesInvoiceFormModalProps {
   setGiInvoiceType: (val: string) => void;
   exemptionReasonCode: string;
   setExemptionReasonCode: (val: string) => void;
+  exemptionReasonText?: string;
+  setExemptionReasonText?: (val: string) => void;
   withholdingTaxCode: string;
   setWithholdingTaxCode: (val: string) => void;
   isReturn: boolean;
@@ -201,6 +203,8 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
   setGiInvoiceType,
   exemptionReasonCode,
   setExemptionReasonCode,
+  exemptionReasonText = "",
+  setExemptionReasonText,
   withholdingTaxCode,
   setWithholdingTaxCode,
   isReturn,
@@ -624,19 +628,42 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                   )}
 
                   {giInvoiceType === 'ISTISNA' && (
-                    <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg space-y-1">
-                      <label className="text-[10px] font-black text-rose-700 uppercase tracking-wider">{isTr ? 'İstisna Muafiyet Kodu' : 'Exemption Code'}</label>
-                      <select
-                        className="w-full px-2.5 py-1.5 bg-white border border-rose-300 rounded text-xs font-bold text-slate-800 focus:border-rose-500"
-                        value={exemptionReasonCode}
-                        onChange={(e) => setExemptionReasonCode(e.target.value)}
-                        required
-                      >
-                        <option value="">{isTr ? "Seçiniz..." : "Select..."}</option>
-                        {KDV_EXEMPTION_CODES.map(c => (
-                          <option key={c.code} value={c.code}>{c.code} - {c.label}</option>
-                        ))}
-                      </select>
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg space-y-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-rose-700 uppercase tracking-wider">{isTr ? 'İstisna Muafiyet Kodu' : 'Exemption Code'}</label>
+                        <select
+                          className="w-full px-2.5 py-1.5 bg-white border border-rose-300 rounded text-xs font-bold text-slate-800 focus:border-rose-500"
+                          value={exemptionReasonCode}
+                          onChange={(e) => {
+                            const code = e.target.value;
+                            setExemptionReasonCode(code);
+                            if (setExemptionReasonText && (!exemptionReasonText || exemptionReasonText.trim() === '')) {
+                              const match = KDV_EXEMPTION_CODES.find(c => c.code === code);
+                              if (match) setExemptionReasonText(match.label);
+                            }
+                          }}
+                          required
+                        >
+                          <option value="">{isTr ? "Seçiniz..." : "Select..."}</option>
+                          {KDV_EXEMPTION_CODES.map(c => (
+                            <option key={c.code} value={c.code}>{c.code} - {c.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black text-rose-700 uppercase tracking-wider">{isTr ? 'İstisna Muafiyet Açıklaması' : 'Exemption Reason'}</label>
+                          <span className="text-[9px] text-rose-600 font-medium">{isTr ? 'GİB UBL Zorunlu' : 'GİB UBL Mandatory'}</span>
+                        </div>
+                        <input
+                          type="text"
+                          className="w-full px-2.5 py-1.5 bg-white border border-rose-300 rounded text-xs font-bold text-slate-800 focus:border-rose-500"
+                          value={exemptionReasonText}
+                          onChange={(e) => setExemptionReasonText && setExemptionReasonText(e.target.value)}
+                          placeholder={isTr ? "Örn: 350 - Diğerleri (KDV Kanunu 17/4-g)" : "e.g. Exemption Reason Text"}
+                        />
+                      </div>
                     </div>
                   )}
 

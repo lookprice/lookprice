@@ -10,6 +10,41 @@ import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isV
 
 const router = express.Router();
 
+export const KDV_EXEMPTION_CODES_MAP: Record<string, string> = {
+  "301": "11/1-a Mal İhracatı",
+  "302": "11/1-b Hizmet İhracatı",
+  "303": "11/1-c Roaming Hizmetleri",
+  "311": "13/a Deniz, Hava ve Demiryolu Araçlarına İlişkin İstisna",
+  "312": "13/b Liman ve Hava Meydanlarında Yapılan Hizmetler",
+  "313": "13/c Altın, Gümüş, Platin vb. Arama İşletme ve Zenginleştirme",
+  "314": "13/d Makine ve Teçhizat Teslimleri (Yatırım Teşvik)",
+  "315": "13/e Limanlara Bağlantı Yapan Demiryolu Hatları İstisnası",
+  "316": "13/f Ulusal Güvenlik Amaçlı Teslim ve Hizmetler",
+  "317": "13/g Külçe Altın ve Gümüş Teslimleri",
+  "318": "13/h Engellilerin Kullanımına Mahsus Araç ve Gereçler",
+  "323": "13/k Teknoloji Geliştirme Bölgesinde Yapılan Teslimler",
+  "324": "13/m Hastanelere Yapılan Teslim ve Hizmetler",
+  "325": "13/i Ar-Ge Makineleri İstisnası",
+  "350": "Diğerleri (Tam İstisna)",
+  "201": "17/1 Kültür ve Eğitim Amacı Taşıyan İşlemler",
+  "202": "17/2-a Sağlık, Çevre ve Sosyal Yardım Amaçlı İşlemler",
+  "204": "17/2-c Yabancı Diplomatik Misyonlara Yapılan Teslimler",
+  "207": "17/4-c Gümrük Antrepoları ve Geçici Depolama Yerleri",
+  "208": "17/4-d Banka ve Sigorta Muameleleri",
+  "211": "17/4-g Külçe Altın, Külçe Gümüş, Kıymetli Taş Teslimleri",
+  "213": "17/4-i Serbest Bölgelerde Yapılan Fason İşler",
+  "214": "17/4-ı Serbest Bölgelerde Verilen Hizmetler",
+  "215": "17/4-j Boru Hattı ile Taşımacılık Hizmetleri",
+  "221": "17/4-r Kurumların Aktifindeki Taşınmaz ve İştirak Hissesi",
+  "223": "17/4-t Serbest Bölgelere İhraç Amaçlı Yük Taşıma",
+  "225": "17/4-y Taşınmaz Satışları İstisnası",
+  "226": "17/4-z Zirai Amaçlı Su Teslimleri",
+  "235": "16/1-c Transit ve Gümrük Antrepo Rejimi",
+  "250": "Diğerleri (Kısmi İstisna)",
+  "701": "11/1-c İhraç Kayıtlı Teslimler",
+  "702": "11/1-c İhraç Kayıtlı Hizmet Teslimleri"
+};
+
 // Helper function to extract full title (Ad + Soyad) for sole proprietorships and companies
 export function extractSenderTitleFromUblOrDetails(source: any, defaultTitle: string = 'Bilinmeyen Tedarikçi'): string {
   if (!source) return defaultTitle;
@@ -429,7 +464,15 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
-    const exemptionCode = invoice.gi_exemption_reason_code;
+    const exemptionCode = invoice.gi_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? '350' : null);
+    const rawExemptionReason = (invoice.gi_exemption_reason_text || invoice.tax_exemption_reason || "").trim();
+    const mappedExemptionLabel = exemptionCode ? (KDV_EXEMPTION_CODES_MAP[exemptionCode] || `KDV Kanunu Madde ${exemptionCode} İstisnası`) : "İstisna Kapsamında İşlem";
+    
+    // GİB Schematron requires at least 5 characters for TaxExemptionReason
+    let exemptionReason = rawExemptionReason;
+    if (!exemptionReason || exemptionReason.length < 5) {
+      exemptionReason = mappedExemptionLabel;
+    }
     const withholdingCode = invoice.gi_withholding_tax_code;
 
     // --- GİB Compliance Validations ---
@@ -709,9 +752,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         amtVatTra: String(Number(taxAmount.toFixed(2))),
         taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
         taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
-        ...(Number(taxRate) === 0 && giInvoiceType === 'ISTISNA' && exemptionCode ? {
-          taxExemptionReasonCode: exemptionCode,
-          taxExemptionReason: "İstisna"
+        ...((Number(taxRate) === 0 || giInvoiceType === 'ISTISNA') && (giInvoiceType === 'ISTISNA' || exemptionCode) ? {
+          taxExemptionReasonCode: String(exemptionCode || "350"),
+          taxExemptionReason: exemptionReason
         } : {})
       };
     });
@@ -723,6 +766,44 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const totalLineExtension = InvoiceDetail.reduce((acc, item) => acc + Number(item.amtTra), 0);
     const totalTax = InvoiceDetail.reduce((acc, item) => acc + Number(item.amtVatTra), 0);
     const grandTotal = totalLineExtension + totalTax;
+
+    const taxSubTotals = (() => {
+       const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
+       InvoiceDetail.forEach(detail => {
+          const rate = String(Number(detail.vatRate));
+          const taxable = Number(detail.taxableAmtTra);
+          const tax = Number(detail.amtVatTra);
+          if (!groups[rate]) {
+             groups[rate] = { taxableAmount: 0, taxAmount: 0 };
+          }
+          groups[rate].taxableAmount += taxable;
+          groups[rate].taxAmount += tax;
+       });
+       return Object.keys(groups).map(rate => {
+          const numRate = Number(rate);
+          const isZeroOrExempt = numRate === 0 || giInvoiceType === 'ISTISNA';
+          const subObj: any = {
+             taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
+             taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
+             calculationSequenceNumeric: 0,
+             percent: numRate,
+             taxName: "Katma Değer Vergisi",
+             taxTypeCode: "0015"
+          };
+          if (isZeroOrExempt && (giInvoiceType === 'ISTISNA' || exemptionCode)) {
+             subObj.taxExemptionReasonCode = String(exemptionCode || "350");
+             subObj.taxExemptionReason = exemptionReason;
+          }
+          return subObj;
+       });
+    })();
+
+    const taxStructure = [
+       {
+          taxAmount: Number(totalTax.toFixed(2)),
+          taxSubTotal: taxSubTotals
+       }
+    ];
 
     const ublData: any = {
        isCalculateByApi: false,
@@ -939,37 +1020,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           streetName: (cleanAddress || "Girilmemiş Adres").substring(0, 250)
        },
 
-       tax: [{
-         taxAmount: Number(totalTax.toFixed(2)),
-         taxSubTotal: (() => {
-            const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
-            InvoiceDetail.forEach(detail => {
-               const rate = String(detail.vatRate);
-               const taxable = Number(detail.taxableAmtTra);
-               const tax = Number(detail.amtVatTra);
-               if (!groups[rate]) {
-                  groups[rate] = { taxableAmount: 0, taxAmount: 0 };
-               }
-               groups[rate].taxableAmount += taxable;
-               groups[rate].taxAmount += tax;
-            });
-            return Object.keys(groups).map(rate => {
-               const baseObj: any = {
-                  taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
-                  taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
-                  calculationSequenceNumeric: 0,
-                  percent: rate,
-                  taxName: "Katma Değer Vergisi",
-                  taxTypeCode: "0015"
-               };
-               if (Number(rate) === 0 && giInvoiceType === 'ISTISNA' && exemptionCode) {
-                  baseObj.taxExemptionReasonCode = exemptionCode;
-                  baseObj.taxExemptionReason = "İstisna";
-               }
-               return baseObj;
-            });
-         })()
-       }],
+       tax: taxStructure,
+       taxTotal: taxStructure,
 
        invoiceDetail: InvoiceDetail,
 
@@ -1166,6 +1218,14 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     console.error(`[EINVOICE-SEND-CRITICAL-ERROR] Invoice: ${invoiceId}, Store: ${storeId}:`, error);
+    try {
+      await pool.query(
+        "UPDATE sales_invoices SET integration_status = $1, integration_message = $2 WHERE id = $3",
+        ['HATALI', (error.message || 'Gönderim hatası').substring(0, 500), invoiceId]
+      );
+    } catch (dbErr) {
+      console.warn("Failed to set HATALI status on sales_invoices:", dbErr);
+    }
     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Send Invoice ${invoiceId}`, error);
     res.status(500).json({ 
       error: error.message || "Bilinmeyen bir iç sunucu hatası oluştu.",
