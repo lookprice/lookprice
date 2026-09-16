@@ -153,8 +153,7 @@ export class MySoftService {
       
       const targetUrl = `${this.baseUrl}/InvoiceOutbox/invoiceOutbox`;
       console.log(`[MySoft] Sending Invoice to: ${targetUrl}`);
-      // Full payload logging for debugging Schematron errors
-      console.log(`[MySoft] Full Payload:`, JSON.stringify(invoiceData, null, 2));
+      console.log(`[MySoft] Payload (summary): ETTN: ${invoiceData.ettn} | DocNo: ${invoiceData.docNo} | Tenant: ${invoiceData.tenantIdentifierNumber}`);
       
       const response = await axios.post(targetUrl, invoiceData, config);
 
@@ -193,10 +192,7 @@ export class MySoftService {
         }
       }
       console.error("[MySoft] Send Invoice Error:", detailedMsg);
-      const err = new Error(detailedMsg);
-      (err as any).response = error.response;
-      (err as any).responseData = apiErrorResponse;
-      throw err;
+      throw new Error(detailedMsg);
     }
   }
 
@@ -649,19 +645,19 @@ export class MySoftService {
   }
 
   // 7. Get Invoice HTML
-  async getInvoiceHtml(ettn: string, invoiceNumber?: string, docType?: string, isPurchase?: boolean, status?: string): Promise<string> {
+  async getInvoiceHtml(ettn: string, invoiceNumber?: string, docType?: string, isPurchase?: boolean): Promise<string> {
     try {
       const token = await this.authenticate();
       const tId = this.credentials.tenant_id;
       const storeVkn = this.credentials.vkn;
-      const isDraft = status === 'draft' || status === 'UNKNOWN' || !invoiceNumber || invoiceNumber.length < 5;
+      const mysoftDocType = docType === 'E-ARSIV' ? 'EARSIVFATURA' : (docType === 'E-FATURA' ? 'EFATURA' : undefined);
       
       const config: any = {
         headers: { 
           Authorization: token.toLowerCase().startsWith('bearer') ? token : `Bearer ${token}` 
         },
         responseType: 'arraybuffer',
-        timeout: 10000 // Increased timeout for ZIP processing
+        timeout: 5000
       };
 
       if (this.credentials.tenant_id) {
@@ -686,31 +682,29 @@ export class MySoftService {
         addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn });
         addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: tId });
         addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`, 'get', { invoiceETTN: ettn });
+        addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`, 'get', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
+        addAttempt(`${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTML`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn });
       } else {
         // Outgoing Sales Invoices
-        // If it's a draft, prioritize the Draft endpoint explicitly
-        if (isDraft) {
+        if (docType === 'E-ARSIV') {
+          // Try Outbox Drafts first (for newly created drafts)
           addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
           addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: tId });
           addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { invoiceUuid: ettn, tenantIdentifierNumber: storeVkn });
-        }
-
-        if (docType === 'E-ARSIV') {
-          // Try Outbox Drafts (for newly created drafts)
-          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
-          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: tId });
           
-          // Try Sent E-Arşiv
+          // Try Sent E-Arşiv (via GET to Outbox or custom E-Arşiv endpoint)
           addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn });
           addAttempt(`${this.baseUrl}/EArchiveInvoice/GetEArchiveInvoiceHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
+          addAttempt(`${this.baseUrl}/EArchive/GetEArchiveInvoiceHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
         } else {
           // Sent E-Fatura (via GET to Outbox)
           addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: storeVkn });
           addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'get', { invoiceETTN: ettn, tenantIdentifierNumber: tId });
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'get', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
           
-          // Fallback to Draft endpoint for E-Fatura as well
+          // Fallbacks for E-Fatura sales
+          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
           addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
-          addAttempt(`${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftPdfAsZip`, 'post', { InvoiceUuid: ettn, TenantIdentifierNumber: storeVkn });
         }
       }
 
@@ -718,7 +712,6 @@ export class MySoftService {
       const fallbackUrls = [
         `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxHTMLAsZip`,
         `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftHTMLAsZip`,
-        `${this.baseUrl}/InvoiceOutbox/GetInvoiceOutboxDraftPdfAsZip`,
         `${this.baseUrl}/EArchiveInvoice/GetEArchiveInvoiceHTMLAsZip`,
         `${this.baseUrl}/EArchive/GetEArchiveInvoiceHTMLAsZip`,
         `${this.baseUrl}/InvoiceInbox/GetInvoiceInboxHTMLAsZip`,
@@ -770,10 +763,9 @@ export class MySoftService {
             const buffer = Buffer.from(response.data);
             
             // Handle JSON response
-            const responseStr = buffer.toString('utf8').trim();
-            if (responseStr.startsWith('{')) {
+            if (buffer.length > 0 && buffer[0] === 123) { // 123 is '{'
               try {
-                const jsonObj = JSON.parse(responseStr);
+                const jsonObj = JSON.parse(buffer.toString('utf8'));
                 const isSuccess = jsonObj.succeed ?? jsonObj.Succeed ?? jsonObj.success ?? jsonObj.Success ?? true;
                 
                 if (isSuccess) {

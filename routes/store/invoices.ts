@@ -7,59 +7,6 @@ import { mergeProducts } from "./products";
 
 const router = express.Router();
 
-const KDV_EXEMPTION_LABEL_MAP: Record<string, string> = {
-  "301": "301 - 11/1-a Mal İhracatı",
-  "302": "302 - 11/1-b Hizmet İhracatı",
-  "303": "303 - 11/1-c Roaming Hizmetleri",
-  "311": "311 - 13/a Deniz, Hava ve Demiryolu Araçlarına İlişkin İstisna",
-  "312": "312 - 13/b Liman ve Hava Meydanlarında Yapılan Hizmetler",
-  "313": "313 - 13/c Altın, Gümüş, Platin vb. Arama İşletme ve Zenginleştirme",
-  "314": "314 - 13/d Makine ve Teçhizat Teslimleri (Yatırım Teşvik)",
-  "315": "315 - 13/e Limanlara Bağlantı Yapan Demiryolu Hatları İstisnası",
-  "316": "316 - 13/f Ulusal Güvenlik Amaçlı Teslim ve Hizmetler",
-  "317": "317 - 13/g Külçe Altın ve Gümüş Teslimleri",
-  "318": "318 - 13/h Engellilerin Kullanımına Mahsus Araç ve Gereçler",
-  "323": "323 - 13/k Teknoloji Geliştirme Bölgesinde Yapılan Teslimler",
-  "324": "324 - 13/m Hastanelere Yapılan Teslim ve Hizmetler",
-  "325": "325 - 13/i Ar-Ge Makineleri İstisnası",
-  "350": "350 - Diğerleri (Tam İstisna)",
-  "351": "351 - KDV Kanunu İstisna Olmayan Diğer Gerekçeler",
-  "201": "201 - 17/1 Kültür ve Eğitim Amacı Taşıyan İşlemler",
-  "202": "202 - 17/2-a Sağlık, Çevre ve Sosyal Yardım Amaçlı İşlemler",
-  "204": "204 - 17/2-c Yabancı Diplomatik Misyonlara Yapılan Teslimler",
-  "207": "207 - 17/4-c Gümrük Antrepoları ve Geçici Depolama Yerleri",
-  "208": "208 - 17/4-d Banka ve Sigorta Muameleleri",
-  "211": "211 - 17/4-g Külçe Altın, Külçe Gümüş, Kıymetli Taş Teslimleri",
-  "213": "213 - 17/4-i Serbest Bölgelerde Yapılan Fason İşler",
-  "214": "214 - 17/4-ı Serbest Bölgelerde Verilen Hizmetler",
-  "215": "215 - 17/4-j Boru Hattı ile Taşımacılık Hizmetleri",
-  "221": "221 - 17/4-r Kurumların Aktifindeki Taşınmaz ve İştirak Hissesi",
-  "223": "223 - 13/t Serbest Bölgelere İhraç Amaçlı Yük Taşıma",
-  "225": "225 - 17/4-y Taşınmaz Satışları İstisnası",
-  "226": "226 - 17/4-z Zirai Amaçlı Su Teslimleri",
-  "235": "235 - 16/1-c Transit ve Gümrük Antrepo Rejimi",
-  "250": "250 - Diğerleri (Kısmi İstisna)"
-};
-
-function resolveExemptionReasonText(bodyText: any, bodyCode: any, invoiceType: any, items: any[] = []): string | null {
-  let text = (bodyText || "").trim();
-  const code = (bodyCode || "").trim();
-  if (text) return text;
-
-  if (code && KDV_EXEMPTION_LABEL_MAP[code]) {
-    return KDV_EXEMPTION_LABEL_MAP[code];
-  } else if (code) {
-    return `${code} - KDV İstisnası`;
-  }
-
-  const isExempt = invoiceType === 'ISTISNA' || (items && items.some((i: any) => Number(i.tax_rate) === 0));
-  if (isExempt) {
-    return "301 - 11/1-a Mal İhracatı";
-  }
-
-  return null;
-}
-
 export async function initPurchaseInvoiceSchema() {
   try {
     await pool.query(`ALTER TABLE purchase_invoice_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(255);`);
@@ -866,8 +813,8 @@ router.post("/sales", async (req: any, res) => {
     
     const invoiceResult = await client.query(
       `INSERT INTO sales_invoices 
-        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, invoice_time, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive, customer_email, tax_number, tax_office, address, gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code, return_invoice_number, return_invoice_date, gi_exemption_reason_text) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31) RETURNING id`,
+        (store_id, sale_id, company_id, customer_id, invoice_number, waybill_number, invoice_date, invoice_time, total_amount, tax_amount, grand_total, currency, exchange_rate, notes, invoice_type, status, payment_method, quotation_id, e_document_type, invoice_profile, is_tax_inclusive, customer_email, tax_number, tax_office, address, gi_invoice_type, gi_exemption_reason_code, gi_withholding_tax_code, return_invoice_number, return_invoice_date) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30) RETURNING id`,
       [
         storeId, 
         sale_id || null, 
@@ -898,8 +845,7 @@ router.post("/sales", async (req: any, res) => {
         req.body.gi_exemption_reason_code || null,
         req.body.gi_withholding_tax_code || null,
         req.body.return_invoice_number ? String(req.body.return_invoice_number).toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
-        req.body.return_invoice_date || null,
-        resolveExemptionReasonText(req.body.gi_exemption_reason_text || req.body.tax_exemption_reason, req.body.gi_exemption_reason_code || req.body.tax_exemption_reason_code, req.body.gi_invoice_type, items)
+        req.body.return_invoice_date || null
       ]
     );
     
@@ -1213,9 +1159,8 @@ router.put("/sales/:id", async (req: any, res) => {
         gi_invoice_type = $22, gi_exemption_reason_code = $23, gi_withholding_tax_code = $24,
         invoice_time = $25,
         return_invoice_number = $26,
-        return_invoice_date = $27,
-        gi_exemption_reason_text = $28
-    WHERE id = $29 AND store_id = $30`,
+        return_invoice_date = $27
+    WHERE id = $28 AND store_id = $29`,
     [
       company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, 
       total_amount, tax_amount, grand_total, currency || 'TRY', exchange_rate || 1, 
@@ -1228,7 +1173,6 @@ router.put("/sales/:id", async (req: any, res) => {
       invoice_time || null,
       req.body.return_invoice_number ? String(req.body.return_invoice_number).toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
       req.body.return_invoice_date || null,
-      resolveExemptionReasonText(req.body.gi_exemption_reason_text || req.body.tax_exemption_reason, gi_exemption_reason_code || req.body.tax_exemption_reason_code, gi_invoice_type, items),
       req.params.id, storeId
     ]
     );

@@ -41,7 +41,7 @@ import { SalesInvoiceDetailsModal } from "./dashboard/invoices/sales/SalesInvoic
 import { SalesInvoiceHtmlModal } from "./dashboard/invoices/sales/SalesInvoiceHtmlModal";
 import { QuickProductModal } from "./dashboard/invoices/sales/QuickProductModal";
 import { QuickCariModal } from "./dashboard/invoices/sales/QuickCariModal";
-import { SalesInvoiceFormModal, KDV_EXEMPTION_CODES } from "./dashboard/invoices/sales/SalesInvoiceFormModal";
+import { SalesInvoiceFormModal } from "./dashboard/invoices/sales/SalesInvoiceFormModal";
 import { SalesInvoiceWaybillModal } from "./dashboard/invoices/sales/SalesInvoiceWaybillModal";
 import { calculateInvoiceTotals } from "../lib/invoiceUtils";
 
@@ -113,7 +113,6 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
   const [returnInvoiceDate, setReturnInvoiceDate] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [exemptionReasonCode, setExemptionReasonCode] = useState("");
-  const [exemptionReasonText, setExemptionReasonText] = useState("");
   const [withholdingTaxCode, setWithholdingTaxCode] = useState("");
   const [isCheckingTaxpayer, setIsCheckingTaxpayer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -280,7 +279,6 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setGiInvoiceType(initialData.gi_invoice_type || 'SATIS');
       setCustomerEmail(initialData.customer_email || "");
       setExemptionReasonCode(initialData.gi_exemption_reason_code || "");
-      setExemptionReasonText(initialData.gi_exemption_reason_text || "");
       setWithholdingTaxCode(initialData.gi_withholding_tax_code || "");
       setReturnInvoiceNumber(initialData.return_invoice_number || "");
       setReturnInvoiceDate(initialData.return_invoice_date || "");
@@ -472,7 +470,6 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
     setReturnInvoiceDate("");
     setCustomerEmail("");
     setExemptionReasonCode("");
-    setExemptionReasonText("");
     setWithholdingTaxCode("");
     setIsTaxInclusive(true);
     setEditTaxNumber("");
@@ -528,17 +525,6 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       return;
     }
 
-    let computedExemptionText = exemptionReasonText ? exemptionReasonText.trim() : "";
-    if (!computedExemptionText && exemptionReasonCode) {
-      const match = KDV_EXEMPTION_CODES.find(c => c.code === exemptionReasonCode);
-      if (match) {
-        computedExemptionText = `${match.code} - ${match.label}`;
-      }
-    }
-    if (!computedExemptionText && (isReturn ? 'IADE' : giInvoiceType) === 'ISTISNA') {
-      computedExemptionText = "301 - 11/1-a Mal İhracatı";
-    }
-
     const payload = {
       storeId: role === 'superadmin' ? (storeId || undefined) : undefined,
       sale_id: saleId,
@@ -563,9 +549,6 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       invoice_profile: invoiceProfile,
       gi_invoice_type: isReturn ? 'IADE' : giInvoiceType,
       gi_exemption_reason_code: exemptionReasonCode,
-      gi_exemption_reason_text: computedExemptionText,
-      tax_exemption_reason: computedExemptionText,
-      tax_exemption_reason_code: exemptionReasonCode,
       gi_withholding_tax_code: withholdingTaxCode,
       return_invoice_number: isReturn ? returnInvoiceNumber.toUpperCase().replace(/[^A-Z0-9]/g, '').trim() : null,
       return_invoice_date: isReturn ? returnInvoiceDate : null,
@@ -633,9 +616,6 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
       setReturnInvoiceNumber(data.return_invoice_number || "");
       setReturnInvoiceDate(data.return_invoice_date ? new Date(data.return_invoice_date).toISOString().split('T')[0] : "");
       setExemptionReasonCode(data.gi_exemption_reason_code || "");
-      const matchedExemption = KDV_EXEMPTION_CODES.find(c => c.code === data.gi_exemption_reason_code);
-      const fallbackExemptionText = matchedExemption ? `${matchedExemption.code} - ${matchedExemption.label}` : "";
-      setExemptionReasonText(data.gi_exemption_reason_text || data.tax_exemption_reason || fallbackExemptionText);
       setWithholdingTaxCode(data.gi_withholding_tax_code || "");
       setInvoiceProfile(data.invoice_profile);
 
@@ -1048,8 +1028,6 @@ export default function SalesInvoices({ storeId: initialStoreId, currentStoreId,
         setGiInvoiceType={setGiInvoiceType}
         exemptionReasonCode={exemptionReasonCode}
         setExemptionReasonCode={setExemptionReasonCode}
-        exemptionReasonText={exemptionReasonText}
-        setExemptionReasonText={setExemptionReasonText}
         withholdingTaxCode={withholdingTaxCode}
         setWithholdingTaxCode={setWithholdingTaxCode}
         isReturn={isReturn}

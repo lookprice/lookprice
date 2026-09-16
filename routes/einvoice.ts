@@ -1,38 +1,3 @@
-
-const KDV_EXEMPTION_MAP: Record<string, string> = {
-  "301": "301-11/1-a Mal İhracatı",
-  "302": "302-11/1-b Hizmet İhracatı",
-  "303": "303-11/1-c Roaming Hizmetleri",
-  "311": "311-13/a Deniz, Hava ve Demiryolu Araçlarına İlişkin İstisna",
-  "312": "312-13/b Liman ve Hava Meydanlarında Yapılan Hizmetler",
-  "313": "313-13/c Altın, Gümüş, Platin vb. Arama İşletme ve Zenginleştirme",
-  "314": "314-13/d Makine ve Teçhizat Teslimleri (Yatırım Teşvik)",
-  "315": "315-13/e Limanlara Bağlantı Yapan Demiryolu Hatları İstisnası",
-  "316": "316-13/f Ulusal Güvenlik Amaçlı Teslim ve Hizmetler",
-  "317": "317-13/g Külçe Altın ve Gümüş Teslimleri",
-  "318": "318-13/h Engellilerin Kullanımına Mahsus Araç ve Gereçler",
-  "323": "323-13/k Teknoloji Geliştirme Bölgesinde Yapılan Teslimler",
-  "324": "324-13/m Hastanelere Yapılan Teslim ve Hizmetler",
-  "325": "325-13/i Ar-Ge Makineleri İstisnası",
-  "350": "350-Diğerleri (Tam İstisna)",
-  "351": "351-KDV Kanunu İstisna Olmayan Diğer Gerekçeler",
-  "201": "201-17/1 Kültür ve Eğitim Amacı Taşıyan İşlemler",
-  "202": "202-17/2-a Sağlık, Çevre ve Sosyal Yardım Amaçlı İşlemler",
-  "204": "204-17/2-c Yabancı Diplomatik Misyonlara Yapılan Teslimler",
-  "207": "207-17/4-c Gümrük Antrepoları ve Geçici Depolama Yerleri",
-  "208": "208-17/4-d Banka ve Sigorta Muameleleri",
-  "211": "211-17/4-g Külçe Altın, Külçe Gümüş, Kıymetli Taş Teslimleri",
-  "213": "213-17/4-i Serbest Bölgelerde Yapılan Fason İşler",
-  "214": "214-17/4-ı Serbest Bölgelerde Verilen Hizmetler",
-  "215": "215-17/4-j Boru Hattı ile Taşımacılık Hizmetleri",
-  "221": "221-17/4-r Kurumların Aktifindeki Taşınmaz ve İştirak Hissesi",
-  "223": "223-13/t Serbest Bölgelere İhraç Amaçlı Yük Taşıma",
-  "225": "225-17/4-y Taşınmaz Satışları İstisnası",
-  "226": "226-17/4-z Zirai Amaçlı Su Teslimleri",
-  "235": "235-16/1-c Transit ve Gümrük Antrepo Rejimi",
-  "250": "250-Diğerleri (Kısmi İstisna)"
-};
-
 import express from "express";
 import crypto from "crypto";
 import { pool, addStockMovement } from "../models/db";
@@ -338,7 +303,6 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
   const { invoiceId } = req.params;
   let storeId = req.user.store_id; 
   let ettn: string | undefined = undefined;
-  let ublData: any = null;
   console.log(`[INVOICE-SEND-ENTRY] InvoiceID: ${invoiceId}, UserStoreId: ${storeId}`);
   try {
     // 1. Fetch the invoice first to identify the correct storeId
@@ -465,33 +429,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
-    const rawExemption = invoice.gi_exemption_reason_code || req.body?.tax_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? "301" : "");
-    let exemptionCode = (rawExemption ? rawExemption.split('-')[0].trim() : "") || (giInvoiceType === 'ISTISNA' ? "301" : "351");
-    let customExemptionText = req.body?.tax_exemption_reason || req.body?.gi_exemption_reason_text || invoice.gi_exemption_reason_text || "";
-    let rawReasonText = customExemptionText || KDV_EXEMPTION_MAP[exemptionCode] || rawExemption || "KDV Kanunu İstisna Olmayan Diğer Gerekçeler";
-    if (rawReasonText.startsWith(`${exemptionCode}-`)) {
-       rawReasonText = rawReasonText.substring(exemptionCode.length + 1);
-    }
-    let exemptionReasonText = (rawReasonText || "KDV Kanunu İstisna Olmayan Diğer Gerekçeler").trim();
-    const finalExemptionReason = (customExemptionText && customExemptionText.trim().length >= 5) 
-       ? customExemptionText.trim() 
-       : (exemptionReasonText && exemptionReasonText.trim().length >= 5)
-       ? exemptionReasonText.trim()
-       : "KDV Kanunu İstisna Olmayan Diğer Gerekçeler";
-    if (!exemptionCode) {
-       exemptionCode = giInvoiceType === 'ISTISNA' ? "301" : "351";
-    }
+    const exemptionCode = invoice.gi_exemption_reason_code;
     const withholdingCode = invoice.gi_withholding_tax_code;
-
-    if (!invoice.gi_exemption_reason_text || invoice.gi_exemption_reason_text.trim() === "" || !invoice.gi_exemption_reason_code) {
-       await pool.query(
-         `UPDATE sales_invoices 
-          SET gi_exemption_reason_text = COALESCE(NULLIF(gi_exemption_reason_text, ''), $1),
-              gi_exemption_reason_code = COALESCE(NULLIF(gi_exemption_reason_code, ''), $2)
-          WHERE id = $3`,
-         [finalExemptionReason, exemptionCode, invoice.id]
-       ).catch((e: any) => console.error("Failed to auto-repair exemption reason in DB:", e));
-    }
 
     // --- GİB Compliance Validations ---
     if (giInvoiceType === 'IADE') {
@@ -689,10 +628,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       // Create a date string in YYYY-MM-DD HH:mm:ss format which MySoft often expects for docTime
       const now = new Date(docDate.getTime() + (3 * 60 * 60 * 1000));
       const timePart = now.toISOString().split('T')[1].substring(0, 8);
-      formattedTime = timePart;
+      formattedTime = `${formattedDate} ${timePart}`;
     } catch (e) {
       console.warn("Could not format time from docDate, using default");
-      formattedTime = "12:00:00";
+      formattedTime = `${formattedDate} 12:00:00`;
     }
     
     if (invoice.invoice_time) {
@@ -703,7 +642,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         } else if (invoice.invoice_time.length >= 8) {
             userTime = invoice.invoice_time.substring(0, 8);
         }
-        formattedTime = userTime;
+        formattedTime = `${formattedDate} ${userTime}`;
     }
 
     const nameParts = (invoice.customer_name || "").split(' ');
@@ -769,12 +708,10 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         vatRate: String(Number(taxRate.toFixed(2))),
         amtVatTra: String(Number(taxAmount.toFixed(2))),
         taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
-        taxTypeCode: TAX_CODES.KDV,
-        ...((giInvoiceType === 'ISTISNA' || Number(taxRate) === 0) ? {
-          taxExemptionReasonCode: exemptionCode || "351",
-          taxExemptionReason: finalExemptionReason,
-          TaxExemptionReasonCode: exemptionCode || "351",
-          TaxExemptionReason: finalExemptionReason
+        taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+        ...(Number(taxRate) === 0 && giInvoiceType === 'ISTISNA' && exemptionCode ? {
+          taxExemptionReasonCode: exemptionCode,
+          taxExemptionReason: "İstisna"
         } : {})
       };
     });
@@ -787,7 +724,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const totalTax = InvoiceDetail.reduce((acc, item) => acc + Number(item.amtVatTra), 0);
     const grandTotal = totalLineExtension + totalTax;
 
-    ublData = {
+    const ublData: any = {
        isCalculateByApi: false,
        isManuelCalculation: true,
        id: 0, 
@@ -1002,69 +939,37 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           streetName: (cleanAddress || "Girilmemiş Adres").substring(0, 250)
        },
 
-        taxTotal: (() => {
-           const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
-           InvoiceDetail.forEach(detail => {
-              const rate = String(detail.vatRate);
-              const taxable = Number(detail.taxableAmtTra);
-              const tax = Number(detail.amtVatTra);
-              if (!groups[rate]) {
-                 groups[rate] = { taxableAmount: 0, taxAmount: 0 };
-              }
-              groups[rate].taxableAmount += taxable;
-              groups[rate].taxAmount += tax;
-           });
-           const subtotals = Object.keys(groups).map(rate => {
-              const parsedRate = parseFloat(rate);
-              const isRateExempt = (giInvoiceType === 'ISTISNA' || parsedRate === 0);
-              const exCode = exemptionCode || "351";
-              
-              const exemptionFields = isRateExempt ? {
-                 taxExemptionReasonCode: exCode,
-                 taxExemptionReason: finalExemptionReason,
-                 TaxExemptionReasonCode: exCode,
-                 TaxExemptionReason: finalExemptionReason
-              } : {};
-
-              return {
-                 taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
-                 taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
-                 calculationSequenceNumeric: 1,
-                 percent: Number(parsedRate.toFixed(2)),
-                 taxTypeCode: "0015",
-                 taxName: "Katma Değer Vergisi",
-                 ...exemptionFields,
-                 taxCategory: {
-                    taxScheme: {
-                       name: "Katma Değer Vergisi",
-                       taxTypeCode: "0015",
-                       Name: "Katma Değer Vergisi",
-                       TaxTypeCode: "0015"
-                    },
-                    ...exemptionFields
-                 },
-                 TaxCategory: {
-                    TaxScheme: {
-                       Name: "Katma Değer Vergisi",
-                       TaxTypeCode: "0015"
-                    },
-                    ...exemptionFields
-                 }
-              };
-           });
-
-           return [{
-              taxAmount: Number(totalTax.toFixed(2)),
-              taxSubTotal: subtotals,
-              taxSubtotal: subtotals,
-              taxSubtotalList: subtotals,
-              taxSubTotalList: subtotals,
-              TaxSubtotalList: subtotals,
-              TaxSubTotalList: subtotals,
-              TaxSubtotal: subtotals,
-              TaxSubTotal: subtotals
-           }];
-        })(),
+       tax: [{
+         taxAmount: Number(totalTax.toFixed(2)),
+         taxSubTotal: (() => {
+            const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
+            InvoiceDetail.forEach(detail => {
+               const rate = String(detail.vatRate);
+               const taxable = Number(detail.taxableAmtTra);
+               const tax = Number(detail.amtVatTra);
+               if (!groups[rate]) {
+                  groups[rate] = { taxableAmount: 0, taxAmount: 0 };
+               }
+               groups[rate].taxableAmount += taxable;
+               groups[rate].taxAmount += tax;
+            });
+            return Object.keys(groups).map(rate => {
+               const baseObj: any = {
+                  taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
+                  taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
+                  calculationSequenceNumeric: 0,
+                  percent: rate,
+                  taxName: "Katma Değer Vergisi",
+                  taxTypeCode: "0015"
+               };
+               if (Number(rate) === 0 && giInvoiceType === 'ISTISNA' && exemptionCode) {
+                  baseObj.taxExemptionReasonCode = exemptionCode;
+                  baseObj.taxExemptionReason = "İstisna";
+               }
+               return baseObj;
+            });
+         })()
+       }],
 
        invoiceDetail: InvoiceDetail,
 
@@ -1083,7 +988,6 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     let result;
     try {
       console.log(`[INVOICE-SEND] Initiating sendInvoice with docType: ${docType}, documentNumber: ${documentNumber}`);
-      console.log("[INVOICE-SEND] Full UBL Payload JSON:", JSON.stringify(ublData, null, 2));
       result = await service.sendInvoice(ublData);
     } catch (sendErr: any) {
       const errMsg = sendErr.message || "";
@@ -1261,24 +1165,12 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         });
     }
 
-    const errorDetails = {
-       message: error.message,
-       responseData: error.response?.data,
-       status: error.response?.status,
-       payloadSent: typeof ublData !== 'undefined' ? ublData : undefined
-    };
-    console.error(`[CRITICAL MYSOFT ERROR DEEP LOG]`, JSON.stringify(errorDetails, null, 2));
-
-    try {
-      await pool.query(
-        "UPDATE sales_invoices SET integration_status = 'ERROR', integration_message = $1 WHERE id = $2",
-        [JSON.stringify(errorDetails.responseData || errorDetails.message), invoiceId]
-      );
-    } catch (dbErr) {
-      console.error("[EINVOICE-SEND] Failed to save error status to database:", dbErr);
-    }
+    console.error(`[EINVOICE-SEND-CRITICAL-ERROR] Invoice: ${invoiceId}, Store: ${storeId}:`, error);
     await IntegrationService.logIntegrationError(storeId, 'E-Fatura', `Send Invoice ${invoiceId}`, error);
-    return res.status(500).json({ error: "Entegrasyon Hatası", details: errorDetails });
+    res.status(500).json({ 
+      error: error.message || "Bilinmeyen bir iç sunucu hatası oluştu.",
+      details: error.response?.data || undefined
+    });
   }
 });
 
@@ -1878,7 +1770,7 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
       console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}, DocType: ${invData.e_document_type}`);
       // Default docType to 'E-ARSIV' if missing to be more flexible, as reported by user
       const docTypeToUse = invData.e_document_type || 'E-ARSIV';
-      let html = await (service as any).getInvoiceHtml(ettn, document_number, docTypeToUse, invoiceType === 'purchase', invData.status);
+      let html = await (service as any).getInvoiceHtml(ettn, document_number, docTypeToUse, invoiceType === 'purchase');
       
       console.log(`[HTML-FETCH] Result HTML length: ${html ? html.length : 0}`);
 
