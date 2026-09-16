@@ -44,12 +44,27 @@ router.post("/", async (req: any, res) => {
 
     const calculatedFullName = rawFullName || [firstNameVal, surnameVal].filter(Boolean).join(' ');
 
+    const effectiveEmail = (email && email.trim()) || `cust_${storeId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@lookprice.local`;
+
     const result = await pool.query(
-      "INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tax_office) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
-      [storeId, calculatedFullName, firstNameVal, surnameVal, email, phone, address, tax_number, tax_office]
+      `INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tax_office) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+       ON CONFLICT (store_id, email) DO UPDATE SET
+         full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+         name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+         surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+         phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+         address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+         tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, ''), customers.tax_number),
+         tax_office = COALESCE(NULLIF(EXCLUDED.tax_office, ''), customers.tax_office)
+       RETURNING *`,
+      [storeId, calculatedFullName, firstNameVal, surnameVal, effectiveEmail, phone, address, tax_number, tax_office]
     );
     res.status(201).json(result.rows[0]);
   } catch (err: any) {
+    if (err.code === '23505' || err.message?.includes('duplicate key')) {
+      return res.status(400).json({ error: "Bu e-posta adresine sahip bir müşteri kaydı zaten mevcuttur." });
+    }
     res.status(400).json({ error: err.message });
   }
 });

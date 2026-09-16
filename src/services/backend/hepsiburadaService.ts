@@ -447,14 +447,27 @@ export class HepsiburadaService {
             const nameParts = rawCustName.split(' ');
             const surnameVal = nameParts.length > 1 ? nameParts.pop()! : '';
             const firstNameVal = nameParts.join(' ') || rawCustName;
+            const effectiveEmail = customerEmail || `hb_${orderId || Date.now()}_${Math.random().toString(36).substring(2, 7)}@hepsifatura.com`;
 
             const newCust = await client.query(
               `INSERT INTO customers 
                 (store_id, email, password, full_name, name, surname, phone, address, tax_number, tax_office, company_title, is_corporate, tc_id) 
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+               ON CONFLICT (store_id, email) DO UPDATE SET
+                 full_name = COALESCE(NULLIF(EXCLUDED.full_name, 'Hepsiburada Müşterisi'), customers.full_name),
+                 name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+                 surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+                 phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+                 address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+                 tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, '11111111111'), customers.tax_number),
+                 tax_office = COALESCE(NULLIF(EXCLUDED.tax_office, ''), customers.tax_office),
+                 company_title = COALESCE(NULLIF(EXCLUDED.company_title, ''), customers.company_title),
+                 is_corporate = EXCLUDED.is_corporate,
+                 tc_id = COALESCE(EXCLUDED.tc_id, customers.tc_id)
+               RETURNING id`,
               [
                 this.storeId,
-                customerEmail,
+                effectiveEmail,
                 "marketplace_user",
                 rawCustName,
                 firstNameVal,
@@ -468,7 +481,7 @@ export class HepsiburadaService {
                 resolvedTaxNumber.length === 11 ? resolvedTaxNumber : null,
               ]
             );
-            customerId = newCust.rows[0].id;
+            customerId = newCust.rows[0]?.id;
           }
 
           // Financial calculations

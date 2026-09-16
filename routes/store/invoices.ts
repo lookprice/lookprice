@@ -1162,7 +1162,9 @@ router.put("/sales/:id", async (req: any, res) => {
         invoice_time = $25,
         return_invoice_number = $26,
         return_invoice_date = $27,
-        gi_exemption_reason_text = $28
+        gi_exemption_reason_text = $28,
+        integration_status = CASE WHEN integration_status = 'HATALI' THEN 'DRAFT' ELSE integration_status END,
+        integration_message = CASE WHEN integration_status = 'HATALI' THEN NULL ELSE integration_message END
     WHERE id = $29 AND store_id = $30`,
     [
       company_id || null, customer_id || null, invoice_number, waybill_number || null, invoice_date, 

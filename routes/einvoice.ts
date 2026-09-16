@@ -464,15 +464,17 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     }
 
     const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
-    const exemptionCode = invoice.gi_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? '350' : null);
+    const exemptionCode = invoice.gi_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? '350' : (invoice.tax_exemption_reason ? '350' : null));
     const rawExemptionReason = (invoice.gi_exemption_reason_text || invoice.tax_exemption_reason || "").trim();
-    const mappedExemptionLabel = exemptionCode ? (KDV_EXEMPTION_CODES_MAP[exemptionCode] || `KDV Kanunu Madde ${exemptionCode} İstisnası`) : "İstisna Kapsamında İşlem";
+    const mappedExemptionLabel = exemptionCode ? (KDV_EXEMPTION_CODES_MAP[exemptionCode] ? `${exemptionCode} - ${KDV_EXEMPTION_CODES_MAP[exemptionCode]}` : `KDV Kanunu Madde ${exemptionCode} İstisnası`) : "350 - Diğerleri (KDV İstisnası)";
     
     // GİB Schematron requires at least 5 characters for TaxExemptionReason
     let exemptionReason = rawExemptionReason;
     if (!exemptionReason || exemptionReason.length < 5) {
       exemptionReason = mappedExemptionLabel;
     }
+    const effectiveExemptionCode = String(exemptionCode || "350");
+    const effectiveExemptionReason = exemptionReason;
     const withholdingCode = invoice.gi_withholding_tax_code;
 
     // --- GİB Compliance Validations ---
@@ -595,8 +597,8 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         documentNumber = `${prefixWithYear}${sequenceString}`;
         invoice.document_number = documentNumber;
 
-        // Regenerate ETTN if docTypeMismatch or isIncorrectPrefix is true to prevent integrator uuid reuse conflicts!
-        if (!ettn || docTypeMismatch || isIncorrectPrefix) {
+        // Regenerate ETTN if docTypeMismatch, isIncorrectPrefix, or if previous attempt was in draft/failed/error state to ensure clean submission
+        if (!ettn || docTypeMismatch || isIncorrectPrefix || invoice.integration_status === 'HATALI' || invoice.integration_status === 'FAILED' || invoice.integration_status === 'DRAFT') {
           ettn = crypto.randomUUID();
           invoice.ettn = ettn;
         }
@@ -714,47 +716,238 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         taxAmount = (lineExtensionAmount * taxRate) / 100;
       }
 
-      return {
-        productName: item.product_name || "Ürün/Hizmet",
-        qty: String(Number(qty.toFixed(4))),
-        unitCode: (() => {
-          const rawUnit = (item.unit_code || "").trim();
-          if (!rawUnit) return UNIT_CODES.PIECE;
-          const norm = rawUnit.toLowerCase();
-          const mapping: { [key: string]: string } = {
-            "adet": "C62",
-            "ad": "C62",
-            "pcs": "C62",
-            "piece": "C62",
-            "kg": "KGM",
-            "kilogram": "KGM",
-            "gr": "GRM",
-            "litre": "LTR",
-            "lt": "LTR",
-            "meter": "MTR",
-            "metre": "MTR",
-            "paket": "PA",
-            "kutu": "BX",
-            "ton": "TNE",
-            "metrekare": "MTK",
-            "m2": "MTK",
-            "gün": "DAY",
-            "gun": "DAY",
-            "saat": "HUR",
-            "ay": "MON",
-            "yıl": "ANN"
-          };
-          return mapping[norm] || rawUnit;
-        })(),
-        unitPriceTra: String(Number(unitPrice.toFixed(4))),
-        amtTra: String(Number(lineExtensionAmount.toFixed(2))),
-        vatRate: String(Number(taxRate.toFixed(2))),
-        amtVatTra: String(Number(taxAmount.toFixed(2))),
-        taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
+      const rawUnit = (item.unit_code || "").trim();
+      const norm = rawUnit.toLowerCase();
+      const unitMapping: { [key: string]: string } = {
+        "adet": "C62",
+        "ad": "C62",
+        "pcs": "C62",
+        "piece": "C62",
+        "kg": "KGM",
+        "kilogram": "KGM",
+        "gr": "GRM",
+        "litre": "LTR",
+        "lt": "LTR",
+        "meter": "MTR",
+        "metre": "MTR",
+        "paket": "PA",
+        "kutu": "BX",
+        "ton": "TNE",
+        "metrekare": "MTK",
+        "m2": "MTK",
+        "gün": "DAY",
+        "gun": "DAY",
+        "saat": "HUR",
+        "ay": "MON",
+        "yıl": "ANN"
+      };
+      const unitCodeVal = rawUnit ? (unitMapping[norm] || rawUnit) : UNIT_CODES.PIECE;
+      const isItemZeroOrExempt = Number(taxRate) === 0 || giInvoiceType === 'ISTISNA' || Number(taxAmount) === 0;
+
+      const lineSubObj: any = {
+        taxableAmount: Number(lineExtensionAmount.toFixed(2)),
+        TaxableAmount: Number(lineExtensionAmount.toFixed(2)),
+        taxAmount: Number(taxAmount.toFixed(2)),
+        TaxAmount: Number(taxAmount.toFixed(2)),
+        calculationSequenceNumeric: 0,
+        CalculationSequenceNumeric: 0,
+        percent: Number(taxRate.toFixed(2)),
+        Percent: Number(taxRate.toFixed(2)),
+        taxName: "Katma Değer Vergisi",
+        TaxName: "Katma Değer Vergisi",
         taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
-        ...((Number(taxRate) === 0 || giInvoiceType === 'ISTISNA') && (giInvoiceType === 'ISTISNA' || exemptionCode) ? {
-          taxExemptionReasonCode: String(exemptionCode || "350"),
-          taxExemptionReason: exemptionReason
+        TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+        taxCategory: {
+          taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+          TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+          name: "Katma Değer Vergisi",
+          Name: "Katma Değer Vergisi",
+          taxScheme: {
+            name: "Katma Değer Vergisi",
+            Name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          TaxScheme: {
+            name: "Katma Değer Vergisi",
+            Name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        },
+        TaxCategory: {
+          taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+          TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+          name: "Katma Değer Vergisi",
+          Name: "Katma Değer Vergisi",
+          taxScheme: {
+            name: "Katma Değer Vergisi",
+            Name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          TaxScheme: {
+            name: "Katma Değer Vergisi",
+            Name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        },
+        ...(isItemZeroOrExempt ? {
+          taxExemptionReasonCode: effectiveExemptionCode,
+          taxExemptionReason: effectiveExemptionReason,
+          taxExemptionReasonText: effectiveExemptionReason,
+          exemptionReasonCode: effectiveExemptionCode,
+          exemptionReason: effectiveExemptionReason,
+          TaxExemptionReasonCode: effectiveExemptionCode,
+          TaxExemptionReason: effectiveExemptionReason
+        } : {})
+      };
+
+      const lineTaxTotalStructure = [
+        {
+          taxAmount: Number(taxAmount.toFixed(2)),
+          TaxAmount: Number(taxAmount.toFixed(2)),
+          taxSubTotal: [lineSubObj],
+          taxSubtotalList: [lineSubObj],
+          taxSubtotals: [lineSubObj],
+          taxSubtotal: [lineSubObj],
+          TaxSubtotalList: [lineSubObj],
+          TaxSubtotal: [lineSubObj],
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        }
+      ];
+
+      return {
+        lineNumber: index + 1,
+        lineId: String(index + 1),
+        itemName: item.product_name || "Ürün/Hizmet",
+        name: item.product_name || "Ürün/Hizmet",
+        productName: item.product_name || "Ürün/Hizmet",
+        quantity: Number(qty.toFixed(4)),
+        qty: String(Number(qty.toFixed(4))),
+        unitCode: unitCodeVal,
+        price: Number(unitPrice.toFixed(4)),
+        unitPrice: Number(unitPrice.toFixed(4)),
+        unitPriceTra: String(Number(unitPrice.toFixed(4))),
+        allowance: 0.0,
+        lineTotal: Number(lineExtensionAmount.toFixed(2)),
+        amtTra: String(Number(lineExtensionAmount.toFixed(2))),
+        lineExtensionAmount: Number(lineExtensionAmount.toFixed(2)),
+        vatRate: String(Number(taxRate.toFixed(2))),
+        percent: Number(taxRate.toFixed(2)),
+        amtVatTra: String(Number(taxAmount.toFixed(2))),
+        taxAmount: Number(taxAmount.toFixed(2)),
+        taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
+        taxableAmount: Number(lineExtensionAmount.toFixed(2)),
+        taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+        taxSubtotalList: [lineSubObj],
+        taxSubtotal: [lineSubObj],
+        taxSubTotal: [lineSubObj],
+        taxSubtotals: [lineSubObj],
+        TaxSubtotalList: [lineSubObj],
+        TaxSubtotal: [lineSubObj],
+        taxTotal: lineTaxTotalStructure,
+        taxTotals: lineTaxTotalStructure,
+        TaxTotal: lineTaxTotalStructure,
+        taxes: [
+          {
+            taxCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            taxRate: Number(taxRate.toFixed(2)),
+            taxAmount: Number(taxAmount.toFixed(2)),
+            ...(isItemZeroOrExempt ? {
+              taxExemptionReasonCode: effectiveExemptionCode,
+              taxExemptionReason: effectiveExemptionReason,
+              taxExemptionReasonText: effectiveExemptionReason,
+              exemptionReasonCode: effectiveExemptionCode,
+              exemptionReason: effectiveExemptionReason,
+              TaxExemptionReasonCode: effectiveExemptionCode,
+              TaxExemptionReason: effectiveExemptionReason
+            } : {})
+          }
+        ],
+        taxLists: [
+          {
+            taxCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
+            taxRate: Number(taxRate.toFixed(2)),
+            taxAmount: Number(taxAmount.toFixed(2)),
+            ...(isItemZeroOrExempt ? {
+              taxExemptionReasonCode: effectiveExemptionCode,
+              taxExemptionReason: effectiveExemptionReason,
+              taxExemptionReasonText: effectiveExemptionReason,
+              exemptionReasonCode: effectiveExemptionCode,
+              exemptionReason: effectiveExemptionReason,
+              TaxExemptionReasonCode: effectiveExemptionCode,
+              TaxExemptionReason: effectiveExemptionReason
+            } : {})
+          }
+        ],
+        taxCategory: {
+          taxScheme: {
+            name: "Katma Değer Vergisi",
+            taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        },
+        TaxCategory: {
+          TaxScheme: {
+            Name: "Katma Değer Vergisi",
+            TaxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV
+          },
+          ...(isItemZeroOrExempt ? {
+            taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReason: effectiveExemptionReason,
+            taxExemptionReasonText: effectiveExemptionReason,
+            exemptionReasonCode: effectiveExemptionCode,
+            exemptionReason: effectiveExemptionReason,
+            TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReason: effectiveExemptionReason
+          } : {})
+        },
+        ...(isItemZeroOrExempt ? {
+          taxExemptionReasonCode: effectiveExemptionCode,
+          taxExemptionReason: effectiveExemptionReason,
+          taxExemptionReasonText: effectiveExemptionReason,
+          exemptionReasonCode: effectiveExemptionCode,
+          exemptionReason: effectiveExemptionReason,
+          TaxExemptionReasonCode: effectiveExemptionCode,
+          TaxExemptionReason: effectiveExemptionReason
         } : {})
       };
     });
@@ -770,9 +963,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const taxSubTotals = (() => {
        const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
        InvoiceDetail.forEach(detail => {
-          const rate = String(Number(detail.vatRate));
-          const taxable = Number(detail.taxableAmtTra);
-          const tax = Number(detail.amtVatTra);
+          const rate = String(Number(detail.vatRate || detail.percent || 0));
+          const taxable = Number(detail.taxableAmtTra || detail.taxableAmount || 0);
+          const tax = Number(detail.amtVatTra || detail.taxAmount || 0);
           if (!groups[rate]) {
              groups[rate] = { taxableAmount: 0, taxAmount: 0 };
           }
@@ -781,29 +974,109 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        });
        return Object.keys(groups).map(rate => {
           const numRate = Number(rate);
-          const isZeroOrExempt = numRate === 0 || giInvoiceType === 'ISTISNA';
+          const isZeroOrExempt = numRate === 0 || giInvoiceType === 'ISTISNA' || groups[rate].taxAmount === 0;
           const subObj: any = {
              taxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
+             TaxableAmount: Number(groups[rate].taxableAmount.toFixed(2)),
              taxAmount: Number(groups[rate].taxAmount.toFixed(2)),
+             TaxAmount: Number(groups[rate].taxAmount.toFixed(2)),
              calculationSequenceNumeric: 0,
+             CalculationSequenceNumeric: 0,
              percent: numRate,
+             Percent: numRate,
              taxName: "Katma Değer Vergisi",
-             taxTypeCode: "0015"
+             TaxName: "Katma Değer Vergisi",
+             taxTypeCode: "0015",
+             TaxTypeCode: "0015",
+             taxCategory: {
+               taxTypeCode: "0015",
+               TaxTypeCode: "0015",
+               name: "Katma Değer Vergisi",
+               Name: "Katma Değer Vergisi",
+               taxScheme: {
+                 name: "Katma Değer Vergisi",
+                 Name: "Katma Değer Vergisi",
+                 taxTypeCode: "0015",
+                 TaxTypeCode: "0015"
+               },
+               TaxScheme: {
+                 name: "Katma Değer Vergisi",
+                 Name: "Katma Değer Vergisi",
+                 taxTypeCode: "0015",
+                 TaxTypeCode: "0015"
+               }
+             },
+             TaxCategory: {
+               taxTypeCode: "0015",
+               TaxTypeCode: "0015",
+               name: "Katma Değer Vergisi",
+               Name: "Katma Değer Vergisi",
+               taxScheme: {
+                 name: "Katma Değer Vergisi",
+                 Name: "Katma Değer Vergisi",
+                 taxTypeCode: "0015",
+                 TaxTypeCode: "0015"
+               },
+               TaxScheme: {
+                 name: "Katma Değer Vergisi",
+                 Name: "Katma Değer Vergisi",
+                 taxTypeCode: "0015",
+                 TaxTypeCode: "0015"
+               }
+             }
           };
-          if (isZeroOrExempt && (giInvoiceType === 'ISTISNA' || exemptionCode)) {
-             subObj.taxExemptionReasonCode = String(exemptionCode || "350");
-             subObj.taxExemptionReason = exemptionReason;
+          if (isZeroOrExempt) {
+             subObj.taxExemptionReasonCode = effectiveExemptionCode;
+             subObj.taxExemptionReason = effectiveExemptionReason;
+             subObj.taxExemptionReasonText = effectiveExemptionReason;
+             subObj.exemptionReasonCode = effectiveExemptionCode;
+             subObj.exemptionReason = effectiveExemptionReason;
+             subObj.TaxExemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxExemptionReason = effectiveExemptionReason;
+             
+             subObj.taxCategory.taxExemptionReasonCode = effectiveExemptionCode;
+             subObj.taxCategory.taxExemptionReason = effectiveExemptionReason;
+             subObj.taxCategory.taxExemptionReasonText = effectiveExemptionReason;
+             subObj.taxCategory.exemptionReasonCode = effectiveExemptionCode;
+             subObj.taxCategory.exemptionReason = effectiveExemptionReason;
+             subObj.taxCategory.TaxExemptionReasonCode = effectiveExemptionCode;
+             subObj.taxCategory.TaxExemptionReason = effectiveExemptionReason;
+
+             subObj.TaxCategory.taxExemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxCategory.taxExemptionReason = effectiveExemptionReason;
+             subObj.TaxCategory.taxExemptionReasonText = effectiveExemptionReason;
+             subObj.TaxCategory.exemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxCategory.exemptionReason = effectiveExemptionReason;
+             subObj.TaxCategory.TaxExemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxCategory.TaxExemptionReason = effectiveExemptionReason;
           }
           return subObj;
        });
     })();
 
-    const taxStructure = [
-       {
-          taxAmount: Number(totalTax.toFixed(2)),
-          taxSubTotal: taxSubTotals
-       }
-    ];
+    const taxTotalItem: any = {
+       taxAmount: Number(totalTax.toFixed(2)),
+       TaxAmount: Number(totalTax.toFixed(2)),
+       taxSubTotal: taxSubTotals,
+       taxSubtotalList: taxSubTotals,
+       taxSubtotals: taxSubTotals,
+       taxSubtotal: taxSubTotals,
+       TaxSubtotalList: taxSubTotals,
+       TaxSubtotal: taxSubTotals,
+       TaxSubTotal: taxSubTotals,
+       TaxSubtotals: taxSubTotals
+    };
+    if (giInvoiceType === 'ISTISNA' || totalTax === 0) {
+       taxTotalItem.taxExemptionReasonCode = effectiveExemptionCode;
+       taxTotalItem.taxExemptionReason = effectiveExemptionReason;
+       taxTotalItem.taxExemptionReasonText = effectiveExemptionReason;
+       taxTotalItem.exemptionReasonCode = effectiveExemptionCode;
+       taxTotalItem.exemptionReason = effectiveExemptionReason;
+       taxTotalItem.TaxExemptionReasonCode = effectiveExemptionCode;
+       taxTotalItem.TaxExemptionReason = effectiveExemptionReason;
+    }
+
+    const taxStructure = [taxTotalItem];
 
     const ublData: any = {
        isCalculateByApi: false,
@@ -817,11 +1090,24 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           }
           return docType === 'E-ARSIV' ? 'TEMELFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
        })(),
+       invoiceProfileDescription: (() => {
+          if (giInvoiceType === 'IADE') {
+             return docType === 'E-ARSIV' ? 'EARSIVFATURA' : 'TEMELFATURA';
+          }
+          return docType === 'E-ARSIV' ? 'TEMELFATURA' : (invoice.invoice_profile || 'TEMELFATURA');
+       })(),
        invoiceType: giInvoiceType,
+       documentTypeCode: giInvoiceType,
+       invoiceTypeCodeDescription: giInvoiceType,
        docDate: formattedDate,
+       issueDate: formattedDate,
        docTime: formattedTime,
+       issueTime: formattedTime,
        ettn: ettn,
+       uuid: ettn,
        docNo: documentNumber,
+       documentNo: documentNumber,
+       invoiceNumber: documentNumber,
        note: invoice.notes || "",
        notes: (invoice.notes || "").split('\n').map((n: string) => ({ note: n.trim() })).filter((n: any) => n.note),
        noteList: (invoice.notes || "").split('\n').map((n: string) => n.trim()).filter(Boolean),
@@ -1009,6 +1295,22 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           };
        })() : {}),
        
+       customerTaxNumber: taxNumber,
+       customerTitle: (customerTitle || (isCorporate ? customerTitle : `${name} ${surname}`)).substring(0, 100),
+       customerTaxOffice: taxOffice || "",
+       customerAddress: (cleanAddress || "Girilmemiş Adres").substring(0, 250),
+       customerCity: cityName || "İSTANBUL",
+       customerCountry: "Türkiye",
+
+       buyerInformation: {
+          vknTckn: taxNumber,
+          title: (customerTitle || (isCorporate ? customerTitle : `${name} ${surname}`)).substring(0, 100),
+          taxOffice: taxOffice || "",
+          address: (cleanAddress || "Girilmemiş Adres").substring(0, 250),
+          city: cityName || "İSTANBUL",
+          country: "Türkiye"
+       },
+       
        invoiceAccount: {
           vknTckn: taxNumber,
           accountName: (customerTitle || (isCorporate ? customerTitle : `${name} ${surname}`)).substring(0, 100),
@@ -1020,10 +1322,48 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           streetName: (cleanAddress || "Girilmemiş Adres").substring(0, 250)
        },
 
-       tax: taxStructure,
        taxTotal: taxStructure,
+       taxTotals: taxStructure,
+       taxTotalList: taxStructure,
+       TaxTotal: taxStructure,
+       TaxTotals: taxStructure,
+       TaxTotalList: taxStructure,
+       taxSubTotal: taxSubTotals,
+       taxSubtotalList: taxSubTotals,
+       taxSubtotals: taxSubTotals,
+       taxSubtotal: taxSubTotals,
+       TaxSubtotalList: taxSubTotals,
+       TaxSubtotal: taxSubTotals,
+       TaxSubTotal: taxSubTotals,
+       TaxSubtotals: taxSubTotals,
+       ...( (giInvoiceType === 'ISTISNA' || totalTax === 0 || InvoiceDetail.some(d => d.percent === 0 || d.taxAmount === 0)) ? {
+          taxExemptionReasonCode: effectiveExemptionCode,
+          taxExemptionReason: effectiveExemptionReason,
+          taxExemptionReasonText: effectiveExemptionReason,
+          exemptionReasonCode: effectiveExemptionCode,
+          exemptionReason: effectiveExemptionReason,
+          kdvExemptionReasonCode: effectiveExemptionCode,
+          kdvExemptionReason: effectiveExemptionReason,
+          TaxExemptionReasonCode: effectiveExemptionCode,
+          TaxExemptionReason: effectiveExemptionReason,
+       } : {}),
 
        invoiceDetail: InvoiceDetail,
+       invoiceLines: InvoiceDetail,
+
+       totalAmounts: {
+          lineTotalAmount: Number(totalLineExtension.toFixed(2)),
+          taxExclusiveAmount: Number(totalLineExtension.toFixed(2)),
+          taxTotalAmount: Number(totalTax.toFixed(2)),
+          payableAmount: Number(grandTotal.toFixed(2))
+       },
+
+       invoiceTotals: {
+          lineTotalAmount: Number(totalLineExtension.toFixed(2)),
+          taxExclusiveAmount: Number(totalLineExtension.toFixed(2)),
+          taxAmountTotal: Number(totalTax.toFixed(2)),
+          payableAmount: Number(grandTotal.toFixed(2))
+       },
 
        invoiceCalculation: {
           lineExtensionAmount: Number(totalLineExtension.toFixed(2)),

@@ -262,10 +262,16 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
             customerId = custRes.rows[0].id;
           } else {
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name, name, surname) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+              `INSERT INTO customers (store_id, email, password, full_name, name, surname) 
+               VALUES ($1, $2, $3, $4, $5, $6) 
+               ON CONFLICT (store_id, email) DO UPDATE SET 
+                 full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+                 name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+                 surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname)
+               RETURNING id`,
               [storeId, buyerEmail, 'marketplace_user', rawBuyerName, firstName1, surname1]
             );
-            customerId = newCust.rows[0].id;
+            customerId = newCust.rows[0]?.id;
           }
 
           // Create a sale record (legacy compatibility)
@@ -607,10 +613,17 @@ router.post("/n11/sync", authenticate, async (req: any, res) => {
             customerId = custRes.rows[0].id;
           } else {
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name, name, surname, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+              `INSERT INTO customers (store_id, email, password, full_name, name, surname, phone) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7) 
+               ON CONFLICT (store_id, email) DO UPDATE SET 
+                 full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+                 name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+                 surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+                 phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone)
+               RETURNING id`,
               [storeId, customerEmail, 'marketplace_user', rawCustName2, firstName2, surname2, buyer.mobilePhone || '']
             );
-            customerId = newCust.rows[0].id;
+            customerId = newCust.rows[0]?.id;
           }
 
           const totalAmount = parseFloat(order.totalAmount || 0);
@@ -2147,10 +2160,16 @@ router.post("/trendyol/sync", authenticate, async (req: any, res) => {
             customerId = custRes.rows[0].id;
           } else {
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name, name, surname) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+              `INSERT INTO customers (store_id, email, password, full_name, name, surname) 
+               VALUES ($1, $2, $3, $4, $5, $6) 
+               ON CONFLICT (store_id, email) DO UPDATE SET 
+                 full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+                 name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+                 surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname)
+               RETURNING id`,
               [storeId, order.email, 'marketplace_user', rawCustName3, firstName3, surname3]
             );
-            customerId = newCust.rows[0].id;
+            customerId = newCust.rows[0]?.id;
           }
 
           const saleRes = await client.query(
@@ -2405,10 +2424,18 @@ router.post("/pazarama/sync", authenticate, async (req: any, res) => {
             customerId = custRes.rows[0].id;
           } else {
             const newCust = await client.query(
-              "INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+              `INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+               ON CONFLICT (store_id, email) DO UPDATE SET 
+                 full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+                 name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+                 surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+                 phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+                 address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address)
+               RETURNING id`,
               [storeId, customerEmail, 'marketplace_user', rawCustName4, firstName4, surname4, order.customerPhone || '', order.deliveryAddress || '']
             );
-            customerId = newCust.rows[0].id;
+            customerId = newCust.rows[0]?.id;
           }
 
           const totalAmount = parseFloat(order.totalAmount || order.grandTotal || 0);

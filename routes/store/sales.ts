@@ -1062,9 +1062,20 @@ router.post("/:id/create-invoice", async (req: any, res) => {
         const surname = nameParts.length > 1 ? nameParts.pop()! : '';
         const firstName = nameParts.join(' ') || targetFullName;
 
+        const effectiveTargetEmail = targetEmail || `cust_${storeId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@lookprice.local`;
+
         const newCustRes = await pool.query(
           `INSERT INTO customers (store_id, full_name, name, surname, phone, address, city, country, email)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (store_id, email) DO UPDATE SET
+             full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+             name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+             surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+             phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+             address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+             city = COALESCE(NULLIF(EXCLUDED.city, ''), customers.city),
+             country = COALESCE(NULLIF(EXCLUDED.country, ''), customers.country)
+           RETURNING *`,
           [
             storeId,
             targetFullName,
@@ -1074,11 +1085,11 @@ router.post("/:id/create-invoice", async (req: any, res) => {
             sale.customer_address || '',
             extractedCity || '',
             extractedCountry || '',
-            targetEmail || ''
+            effectiveTargetEmail
           ]
         );
         customerObj = newCustRes.rows[0];
-        finalCustomerId = customerObj.id;
+        finalCustomerId = customerObj?.id || null;
       }
     }
 

@@ -2129,11 +2129,22 @@ router.post("/sales", async (req, res) => {
           [fullNameVal, firstNameVal, surnameVal, effectiveTcId, finalCustomerId]
         );
       } else {
+        const effectiveCustomerEmail = (customerEmail && customerEmail.trim()) || `web_${storeId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@lookprice.local`;
         const newCustomer = await client.query(
-          "INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tc_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
-          [storeId, fullNameVal, firstNameVal, surnameVal, customerEmail ? customerEmail.trim() : '', customerPhone || '', customerAddress || '', effectiveTcId, effectiveTcId]
+          `INSERT INTO customers (store_id, full_name, name, surname, email, phone, address, tax_number, tc_id) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+           ON CONFLICT (store_id, email) DO UPDATE SET
+             full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
+             name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
+             surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+             phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+             address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+             tax_number = COALESCE(NULLIF(EXCLUDED.tax_number, ''), customers.tax_number),
+             tc_id = COALESCE(NULLIF(EXCLUDED.tc_id, ''), customers.tc_id)
+           RETURNING id`,
+          [storeId, fullNameVal, firstNameVal, surnameVal, effectiveCustomerEmail, customerPhone || '', customerAddress || '', effectiveTcId, effectiveTcId]
         );
-        finalCustomerId = newCustomer.rows[0].id;
+        finalCustomerId = newCustomer.rows[0]?.id;
       }
     }
 
