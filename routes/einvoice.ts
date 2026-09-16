@@ -745,18 +745,55 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         amtVatTra: String(Number(taxAmount.toFixed(2))),
         taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
         taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
-        ...(giInvoiceType === 'ISTISNA' ? {
+        ...((giInvoiceType === 'ISTISNA' || Number(taxRate) === 0) ? {
           taxExemptionReasonCode: exemptionCode,
           TaxExemptionReasonCode: exemptionCode,
           taxExemptionReason: exemptionReasonText,
           TaxExemptionReason: exemptionReasonText,
-           taxCategory: {
-             taxExemptionReasonCode: exemptionCode,
-             TaxExemptionReasonCode: exemptionCode,
-             taxExemptionReason: exemptionReasonText,
-             TaxExemptionReason: exemptionReasonText,
-              taxScheme: { taxTypeCode: "0015", taxTypeName: "Katma Değer Vergisi" }
-           }
+          exemptionReason: exemptionReasonText,
+          ExemptionReason: exemptionReasonText,
+          taxCategory: {
+            id: "0015",
+            ID: "0015",
+            taxExemptionReasonCode: exemptionCode,
+            TaxExemptionReasonCode: exemptionCode,
+            taxExemptionReason: exemptionReasonText,
+            TaxExemptionReason: exemptionReasonText,
+            exemptionReasonCode: exemptionCode,
+            ExemptionReasonCode: exemptionCode,
+            exemptionReason: exemptionReasonText,
+            ExemptionReason: exemptionReasonText,
+            taxScheme: { 
+              id: "0015",
+              ID: "0015",
+              taxTypeCode: "0015", 
+              TaxTypeCode: "0015", 
+              taxTypeName: "Katma Değer Vergisi",
+              TaxTypeName: "Katma Değer Vergisi",
+              name: "Katma Değer Vergisi",
+              Name: "Katma Değer Vergisi",
+              taxExemptionReasonCode: exemptionCode,
+              TaxExemptionReasonCode: exemptionCode,
+              taxExemptionReason: exemptionReasonText,
+              TaxExemptionReason: exemptionReasonText
+            }
+          },
+          TaxCategory: {
+            id: "0015",
+            ID: "0015",
+            taxExemptionReasonCode: exemptionCode,
+            TaxExemptionReasonCode: exemptionCode,
+            taxExemptionReason: exemptionReasonText,
+            TaxExemptionReason: exemptionReasonText,
+            taxScheme: { 
+              id: "0015",
+              ID: "0015",
+              taxTypeCode: "0015",
+              TaxTypeCode: "0015",
+              name: "Katma Değer Vergisi",
+              Name: "Katma Değer Vergisi"
+            }
+          }
         } : {})
       };
     });
@@ -986,13 +1023,70 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
 
        tax: [{
          taxAmount: Number(totalTax.toFixed(2)),
-         ...(giInvoiceType === 'ISTISNA' && exemptionCode ? {
+         ...((giInvoiceType === 'ISTISNA' || totalTax === 0) && exemptionCode ? {
             taxExemptionReasonCode: exemptionCode,
-            taxExemptionReason: exemptionReasonText,
             TaxExemptionReasonCode: exemptionCode,
+            taxExemptionReason: exemptionReasonText,
             TaxExemptionReason: exemptionReasonText,
-              taxScheme: { taxTypeCode: "0015", taxTypeName: "Katma Değer Vergisi" }
-           } : {}),
+            exemptionReason: exemptionReasonText,
+            ExemptionReason: exemptionReasonText,
+            taxCategory: {
+               id: "0015",
+               ID: "0015",
+               taxExemptionReasonCode: exemptionCode,
+               TaxExemptionReasonCode: exemptionCode,
+               taxExemptionReason: exemptionReasonText,
+               TaxExemptionReason: exemptionReasonText,
+               exemptionReasonCode: exemptionCode,
+               ExemptionReasonCode: exemptionCode,
+               exemptionReason: exemptionReasonText,
+               ExemptionReason: exemptionReasonText,
+               taxScheme: { 
+                  id: "0015",
+                  ID: "0015",
+                  taxTypeCode: "0015", 
+                  TaxTypeCode: "0015", 
+                  taxTypeName: "Katma Değer Vergisi",
+                  TaxTypeName: "Katma Değer Vergisi",
+                  name: "Katma Değer Vergisi",
+                  Name: "Katma Değer Vergisi",
+                  taxExemptionReasonCode: exemptionCode,
+                  TaxExemptionReasonCode: exemptionCode,
+                  taxExemptionReason: exemptionReasonText,
+                  TaxExemptionReason: exemptionReasonText
+               }
+            },
+            TaxCategory: {
+               id: "0015",
+               ID: "0015",
+               taxExemptionReasonCode: exemptionCode,
+               TaxExemptionReasonCode: exemptionCode,
+               taxExemptionReason: exemptionReasonText,
+               TaxExemptionReason: exemptionReasonText,
+               taxScheme: { 
+                  id: "0015",
+                  ID: "0015",
+                  taxTypeCode: "0015",
+                  TaxTypeCode: "0015",
+                  name: "Katma Değer Vergisi",
+                  Name: "Katma Değer Vergisi"
+               }
+            },
+            taxScheme: { 
+               id: "0015",
+               ID: "0015",
+               taxTypeCode: "0015", 
+               TaxTypeCode: "0015", 
+               taxTypeName: "Katma Değer Vergisi",
+               TaxTypeName: "Katma Değer Vergisi",
+               name: "Katma Değer Vergisi",
+               Name: "Katma Değer Vergisi",
+               taxExemptionReasonCode: exemptionCode,
+               TaxExemptionReasonCode: exemptionCode,
+               taxExemptionReason: exemptionReasonText,
+               TaxExemptionReason: exemptionReasonText
+            }
+         } : {}),
          taxSubtotal: (() => {
             const groups: { [key: string]: { taxableAmount: number; taxAmount: number } } = {};
             InvoiceDetail.forEach(detail => {
@@ -1014,17 +1108,34 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
                   taxName: "Katma Değer Vergisi",
                   taxTypeCode: "0015"
                };
-               if (giInvoiceType === 'ISTISNA') {
+               if (giInvoiceType === 'ISTISNA' || parseFloat(rate) === 0) {
                   baseObj.taxExemptionReasonCode = exemptionCode;
                   baseObj.TaxExemptionReasonCode = exemptionCode;
                   baseObj.taxExemptionReason = exemptionReasonText;
                   baseObj.TaxExemptionReason = exemptionReasonText;
+                  baseObj.exemptionReason = exemptionReasonText;
+                  baseObj.ExemptionReason = exemptionReasonText;
                   baseObj.taxCategory = {
                      taxExemptionReasonCode: exemptionCode,
                      TaxExemptionReasonCode: exemptionCode,
                      taxExemptionReason: exemptionReasonText,
                      TaxExemptionReason: exemptionReasonText,
-                     taxScheme: { taxTypeCode: "0015", taxTypeName: "Katma Değer Vergisi" }
+                     exemptionReason: exemptionReasonText,
+                     ExemptionReason: exemptionReasonText,
+                     taxScheme: { 
+                id: "0015",
+                ID: "0015",
+                taxTypeCode: "0015", 
+                TaxTypeCode: "0015", 
+                taxTypeName: "Katma Değer Vergisi",
+                TaxTypeName: "Katma Değer Vergisi",
+                name: "Katma Değer Vergisi",
+                Name: "Katma Değer Vergisi",
+                taxExemptionReasonCode: exemptionCode,
+                TaxExemptionReasonCode: exemptionCode,
+                taxExemptionReason: exemptionReasonText,
+                TaxExemptionReason: exemptionReasonText
+             }
                   };
                   baseObj.TaxCategory = baseObj.taxCategory;
                }
@@ -1833,7 +1944,7 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
       console.log(`[HTML-FETCH] Fetching HTML for Invoice: ${invoiceId}, ETTN: ${ettn}, DocNumber: ${document_number}, DocType: ${invData.e_document_type}`);
       // Default docType to 'E-ARSIV' if missing to be more flexible, as reported by user
       const docTypeToUse = invData.e_document_type || 'E-ARSIV';
-      let html = await (service as any).getInvoiceHtml(ettn, document_number, docTypeToUse, invoiceType === 'purchase');
+      let html = await (service as any).getInvoiceHtml(ettn, document_number, docTypeToUse, invoiceType === 'purchase', invData.status);
       
       console.log(`[HTML-FETCH] Result HTML length: ${html ? html.length : 0}`);
 

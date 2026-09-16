@@ -189,9 +189,9 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                 const intStatus = (inv.integration_status || '').toUpperCase();
                 const isQueued = ['QUEUED', 'KUYRUKTA', 'İŞLENİYOR', 'İLETİLİYOR'].includes(intStatus);
                 const isRejected = ['REJECTED', 'HATA', 'İPTAL', 'İPTAL EDİLDİ', 'HATALI', 'CANCELLED', 'ERROR'].includes(intStatus);
-                const isApproved = ['APPROVED', 'ONAYLANDI', 'BAŞARILI', '1300', 'SUCCESS'].includes(intStatus) || 
-                                  (inv.document_number && !isRejected);
                 const isUnknown = !intStatus || intStatus === 'UNKNOWN' || intStatus === 'BILINMIYOR';
+                const isApproved = ['APPROVED', 'ONAYLANDI', 'BAŞARILI', '1300', 'SUCCESS'].includes(intStatus) || 
+                                  (inv.document_number && !isRejected && !isUnknown);
                 const isExpanded = expandedRowIds.includes(inv.id);
                 const items = inv.items && inv.items.length > 0 ? inv.items : (itemsCache[inv.id] || []);
                 const isRowLoading = loadingRowId === inv.id;
