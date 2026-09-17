@@ -382,6 +382,16 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       }
     }
 
+    // Fetch Invoice Items early to detect zero-tax exemptions
+    const itemsRes = await pool.query("SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1", [invoiceId]);
+    const items = itemsRes.rows;
+
+    if (items.length === 0) {
+      return res.status(400).json({ error: "Faturaya ait ürün/hizmet kalemi bulunamadı." });
+    }
+
+    const hasZeroTaxItem = items.some((item: any) => Number(item.tax_rate) === 0);
+
     const service = await getEInvoiceService(storeId);
     
     // Validate recipient taxpayer number
@@ -463,7 +473,13 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        }
     }
 
-    const giInvoiceType = invoice.gi_invoice_type || 'SATIS';
+    let giInvoiceType = invoice.gi_invoice_type || 'SATIS';
+    
+    // Auto-upgrade to ISTISNA if there's any 0% tax item and it's currently SATIS
+    if (hasZeroTaxItem && giInvoiceType === 'SATIS') {
+      giInvoiceType = 'ISTISNA';
+    }
+
     const exemptionCode = invoice.gi_exemption_reason_code || (giInvoiceType === 'ISTISNA' ? '350' : (invoice.tax_exemption_reason ? '350' : null));
     const rawExemptionReason = (invoice.gi_exemption_reason_text || invoice.tax_exemption_reason || "").trim();
     const mappedExemptionLabel = exemptionCode ? (KDV_EXEMPTION_CODES_MAP[exemptionCode] ? `${exemptionCode} - ${KDV_EXEMPTION_CODES_MAP[exemptionCode]}` : `KDV Kanunu Madde ${exemptionCode} İstisnası`) : "350 - Diğerleri (KDV İstisnası)";
@@ -625,12 +641,12 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
       }
     }
 
-    // Fetch Invoice Items
-    const itemsRes = await pool.query("SELECT * FROM sales_invoice_items WHERE sales_invoice_id = $1", [invoiceId]);
-    const items = itemsRes.rows;
-
-    if (items.length === 0) {
-      return res.status(400).json({ error: "Faturaya ait ürün/hizmet kalemi bulunamadı." });
+    // If previously failed or error state, assign fresh ETTN for clean retry
+    if (invoice.integration_status === 'HATALI' || invoice.integration_status === 'FAILED') {
+      ettn = crypto.randomUUID();
+      invoice.ettn = ettn;
+      await pool.query("UPDATE sales_invoices SET ettn = $1 WHERE id = $2", [ettn, invoiceId]);
+      console.log(`[INVOICE-SEND] Refreshed ETTN for previously failed invoice: ${ettn}`);
     }
 
     // Determine Party Information
@@ -776,11 +792,13 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           },
           ...(isItemZeroOrExempt ? {
             taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
             taxExemptionReason: effectiveExemptionReason,
             taxExemptionReasonText: effectiveExemptionReason,
             exemptionReasonCode: effectiveExemptionCode,
             exemptionReason: effectiveExemptionReason,
             TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
             TaxExemptionReason: effectiveExemptionReason
           } : {})
         },
@@ -803,21 +821,25 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           },
           ...(isItemZeroOrExempt ? {
             taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
             taxExemptionReason: effectiveExemptionReason,
             taxExemptionReasonText: effectiveExemptionReason,
             exemptionReasonCode: effectiveExemptionCode,
             exemptionReason: effectiveExemptionReason,
             TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
             TaxExemptionReason: effectiveExemptionReason
           } : {})
         },
         ...(isItemZeroOrExempt ? {
           taxExemptionReasonCode: effectiveExemptionCode,
+          taxExemptionReasonName: effectiveExemptionReason,
           taxExemptionReason: effectiveExemptionReason,
           taxExemptionReasonText: effectiveExemptionReason,
           exemptionReasonCode: effectiveExemptionCode,
           exemptionReason: effectiveExemptionReason,
           TaxExemptionReasonCode: effectiveExemptionCode,
+          TaxExemptionReasonName: effectiveExemptionReason,
           TaxExemptionReason: effectiveExemptionReason
         } : {})
       };
@@ -826,19 +848,16 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         {
           taxAmount: Number(taxAmount.toFixed(2)),
           TaxAmount: Number(taxAmount.toFixed(2)),
-          taxSubTotal: [lineSubObj],
           taxSubtotalList: [lineSubObj],
-          taxSubtotals: [lineSubObj],
-          taxSubtotal: [lineSubObj],
-          TaxSubtotalList: [lineSubObj],
-          TaxSubtotal: [lineSubObj],
           ...(isItemZeroOrExempt ? {
             taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
             taxExemptionReason: effectiveExemptionReason,
             taxExemptionReasonText: effectiveExemptionReason,
             exemptionReasonCode: effectiveExemptionCode,
             exemptionReason: effectiveExemptionReason,
             TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
             TaxExemptionReason: effectiveExemptionReason
           } : {})
         }
@@ -851,31 +870,23 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
         name: item.product_name || "Ürün/Hizmet",
         productName: item.product_name || "Ürün/Hizmet",
         quantity: Number(qty.toFixed(4)),
-        qty: String(Number(qty.toFixed(4))),
+        qty: Number(qty.toFixed(4)),
         unitCode: unitCodeVal,
         price: Number(unitPrice.toFixed(4)),
         unitPrice: Number(unitPrice.toFixed(4)),
-        unitPriceTra: String(Number(unitPrice.toFixed(4))),
+        unitPriceTra: Number(unitPrice.toFixed(4)),
         allowance: 0.0,
         lineTotal: Number(lineExtensionAmount.toFixed(2)),
-        amtTra: String(Number(lineExtensionAmount.toFixed(2))),
+        amtTra: Number(lineExtensionAmount.toFixed(2)),
         lineExtensionAmount: Number(lineExtensionAmount.toFixed(2)),
-        vatRate: String(Number(taxRate.toFixed(2))),
+        vatRate: Number(taxRate.toFixed(2)),
         percent: Number(taxRate.toFixed(2)),
-        amtVatTra: String(Number(taxAmount.toFixed(2))),
+        amtVatTra: Number(taxAmount.toFixed(2)),
         taxAmount: Number(taxAmount.toFixed(2)),
-        taxableAmtTra: String(Number(lineExtensionAmount.toFixed(2))),
+        taxableAmtTra: Number(lineExtensionAmount.toFixed(2)),
         taxableAmount: Number(lineExtensionAmount.toFixed(2)),
         taxTypeCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
-        taxSubtotalList: [lineSubObj],
-        taxSubtotal: [lineSubObj],
-        taxSubTotal: [lineSubObj],
-        taxSubtotals: [lineSubObj],
-        TaxSubtotalList: [lineSubObj],
-        TaxSubtotal: [lineSubObj],
         taxTotal: lineTaxTotalStructure,
-        taxTotals: lineTaxTotalStructure,
-        TaxTotal: lineTaxTotalStructure,
         taxes: [
           {
             taxCode: item.tevkifat_rate ? TAX_CODES.TEVKIFAT_KDV : TAX_CODES.KDV,
@@ -884,11 +895,13 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
             taxAmount: Number(taxAmount.toFixed(2)),
             ...(isItemZeroOrExempt ? {
               taxExemptionReasonCode: effectiveExemptionCode,
+              taxExemptionReasonName: effectiveExemptionReason,
               taxExemptionReason: effectiveExemptionReason,
               taxExemptionReasonText: effectiveExemptionReason,
               exemptionReasonCode: effectiveExemptionCode,
               exemptionReason: effectiveExemptionReason,
               TaxExemptionReasonCode: effectiveExemptionCode,
+              TaxExemptionReasonName: effectiveExemptionReason,
               TaxExemptionReason: effectiveExemptionReason
             } : {})
           }
@@ -901,11 +914,13 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
             taxAmount: Number(taxAmount.toFixed(2)),
             ...(isItemZeroOrExempt ? {
               taxExemptionReasonCode: effectiveExemptionCode,
+              taxExemptionReasonName: effectiveExemptionReason,
               taxExemptionReason: effectiveExemptionReason,
               taxExemptionReasonText: effectiveExemptionReason,
               exemptionReasonCode: effectiveExemptionCode,
               exemptionReason: effectiveExemptionReason,
               TaxExemptionReasonCode: effectiveExemptionCode,
+              TaxExemptionReasonName: effectiveExemptionReason,
               TaxExemptionReason: effectiveExemptionReason
             } : {})
           }
@@ -917,11 +932,13 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           },
           ...(isItemZeroOrExempt ? {
             taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
             taxExemptionReason: effectiveExemptionReason,
             taxExemptionReasonText: effectiveExemptionReason,
             exemptionReasonCode: effectiveExemptionCode,
             exemptionReason: effectiveExemptionReason,
             TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
             TaxExemptionReason: effectiveExemptionReason
           } : {})
         },
@@ -932,21 +949,25 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           },
           ...(isItemZeroOrExempt ? {
             taxExemptionReasonCode: effectiveExemptionCode,
+            taxExemptionReasonName: effectiveExemptionReason,
             taxExemptionReason: effectiveExemptionReason,
             taxExemptionReasonText: effectiveExemptionReason,
             exemptionReasonCode: effectiveExemptionCode,
             exemptionReason: effectiveExemptionReason,
             TaxExemptionReasonCode: effectiveExemptionCode,
+            TaxExemptionReasonName: effectiveExemptionReason,
             TaxExemptionReason: effectiveExemptionReason
           } : {})
         },
         ...(isItemZeroOrExempt ? {
           taxExemptionReasonCode: effectiveExemptionCode,
+          taxExemptionReasonName: effectiveExemptionReason,
           taxExemptionReason: effectiveExemptionReason,
           taxExemptionReasonText: effectiveExemptionReason,
           exemptionReasonCode: effectiveExemptionCode,
           exemptionReason: effectiveExemptionReason,
           TaxExemptionReasonCode: effectiveExemptionCode,
+          TaxExemptionReasonName: effectiveExemptionReason,
           TaxExemptionReason: effectiveExemptionReason
         } : {})
       };
@@ -1027,27 +1048,33 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           };
           if (isZeroOrExempt) {
              subObj.taxExemptionReasonCode = effectiveExemptionCode;
+             subObj.taxExemptionReasonName = effectiveExemptionReason;
              subObj.taxExemptionReason = effectiveExemptionReason;
              subObj.taxExemptionReasonText = effectiveExemptionReason;
              subObj.exemptionReasonCode = effectiveExemptionCode;
              subObj.exemptionReason = effectiveExemptionReason;
              subObj.TaxExemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxExemptionReasonName = effectiveExemptionReason;
              subObj.TaxExemptionReason = effectiveExemptionReason;
              
              subObj.taxCategory.taxExemptionReasonCode = effectiveExemptionCode;
+             subObj.taxCategory.taxExemptionReasonName = effectiveExemptionReason;
              subObj.taxCategory.taxExemptionReason = effectiveExemptionReason;
              subObj.taxCategory.taxExemptionReasonText = effectiveExemptionReason;
              subObj.taxCategory.exemptionReasonCode = effectiveExemptionCode;
              subObj.taxCategory.exemptionReason = effectiveExemptionReason;
              subObj.taxCategory.TaxExemptionReasonCode = effectiveExemptionCode;
+             subObj.taxCategory.TaxExemptionReasonName = effectiveExemptionReason;
              subObj.taxCategory.TaxExemptionReason = effectiveExemptionReason;
 
              subObj.TaxCategory.taxExemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxCategory.taxExemptionReasonName = effectiveExemptionReason;
              subObj.TaxCategory.taxExemptionReason = effectiveExemptionReason;
              subObj.TaxCategory.taxExemptionReasonText = effectiveExemptionReason;
              subObj.TaxCategory.exemptionReasonCode = effectiveExemptionCode;
              subObj.TaxCategory.exemptionReason = effectiveExemptionReason;
              subObj.TaxCategory.TaxExemptionReasonCode = effectiveExemptionCode;
+             subObj.TaxCategory.TaxExemptionReasonName = effectiveExemptionReason;
              subObj.TaxCategory.TaxExemptionReason = effectiveExemptionReason;
           }
           return subObj;
@@ -1057,22 +1084,17 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
     const taxTotalItem: any = {
        taxAmount: Number(totalTax.toFixed(2)),
        TaxAmount: Number(totalTax.toFixed(2)),
-       taxSubTotal: taxSubTotals,
-       taxSubtotalList: taxSubTotals,
-       taxSubtotals: taxSubTotals,
-       taxSubtotal: taxSubTotals,
-       TaxSubtotalList: taxSubTotals,
-       TaxSubtotal: taxSubTotals,
-       TaxSubTotal: taxSubTotals,
-       TaxSubtotals: taxSubTotals
+       taxSubtotalList: taxSubTotals
     };
     if (giInvoiceType === 'ISTISNA' || totalTax === 0) {
        taxTotalItem.taxExemptionReasonCode = effectiveExemptionCode;
+       taxTotalItem.taxExemptionReasonName = effectiveExemptionReason;
        taxTotalItem.taxExemptionReason = effectiveExemptionReason;
        taxTotalItem.taxExemptionReasonText = effectiveExemptionReason;
        taxTotalItem.exemptionReasonCode = effectiveExemptionCode;
        taxTotalItem.exemptionReason = effectiveExemptionReason;
        taxTotalItem.TaxExemptionReasonCode = effectiveExemptionCode;
+       taxTotalItem.TaxExemptionReasonName = effectiveExemptionReason;
        taxTotalItem.TaxExemptionReason = effectiveExemptionReason;
     }
 
@@ -1323,21 +1345,9 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
        },
 
        taxTotal: taxStructure,
-       taxTotals: taxStructure,
-       taxTotalList: taxStructure,
-       TaxTotal: taxStructure,
-       TaxTotals: taxStructure,
-       TaxTotalList: taxStructure,
-       taxSubTotal: taxSubTotals,
-       taxSubtotalList: taxSubTotals,
-       taxSubtotals: taxSubTotals,
-       taxSubtotal: taxSubTotals,
-       TaxSubtotalList: taxSubTotals,
-       TaxSubtotal: taxSubTotals,
-       TaxSubTotal: taxSubTotals,
-       TaxSubtotals: taxSubTotals,
        ...( (giInvoiceType === 'ISTISNA' || totalTax === 0 || InvoiceDetail.some(d => d.percent === 0 || d.taxAmount === 0)) ? {
           taxExemptionReasonCode: effectiveExemptionCode,
+          taxExemptionReasonName: effectiveExemptionReason,
           taxExemptionReason: effectiveExemptionReason,
           taxExemptionReasonText: effectiveExemptionReason,
           exemptionReasonCode: effectiveExemptionCode,
@@ -1345,6 +1355,7 @@ router.post("/einvoice/send/:invoiceId", authenticate, async (req: any, res) => 
           kdvExemptionReasonCode: effectiveExemptionCode,
           kdvExemptionReason: effectiveExemptionReason,
           TaxExemptionReasonCode: effectiveExemptionCode,
+          TaxExemptionReasonName: effectiveExemptionReason,
           TaxExemptionReason: effectiveExemptionReason,
        } : {}),
 
@@ -2092,6 +2103,93 @@ router.post("/einvoice/test-connection", authenticate, async (req: any, res) => 
   }
 });
 
+// Helper to group and deduplicate VAT rows in invoice HTML
+export function cleanInvoiceHtmlVatRows(html: string): string {
+  if (!html || typeof html !== "string") return html;
+
+  // Single row regex that ensures it does not cross multiple <tr> tags
+  const singleRowRegex = /<tr\b[^>]*>(?:(?!<tr\b)[\s\S])*?Hesaplanan Katma Değer Vergisi[\s\S]*?<\/tr>/gi;
+  
+  const groups = new Map<string, {
+    firstMatch: string;
+    currency: string;
+    rate: string;
+    isTL: boolean;
+    amounts: number[];
+    originalMatches: string[];
+  }>();
+
+  let m;
+  while ((m = singleRowRegex.exec(html)) !== null) {
+    const fullRow = m[0];
+    const isTL = fullRow.includes("(TL)") || fullRow.includes("TL</span>") || fullRow.includes(" TRY") || fullRow.includes("TRY</span>");
+    const rateMatch = fullRow.match(/%\s*(\d+(?:[.,]\d+)?)/);
+    const rate = rateMatch ? rateMatch[1].replace(",", ".") : "0";
+    const key = `${rate}_${isTL ? "TL" : "MAIN"}`;
+
+    const tdMatches = fullRow.match(/<td[^>]*>([\s\S]*?)<\/td>/gi);
+    const lastTd = tdMatches ? tdMatches[tdMatches.length - 1] : "";
+    const cleanTdText = lastTd.replace(/<[^>]+>/g, "").trim();
+    
+    const numMatch = cleanTdText.match(/([0-9.]+),([0-9]{2})/);
+    let amount = 0;
+    let curr = isTL ? "TL" : "";
+    if (numMatch) {
+      const normalizedNum = numMatch[1].replace(/\./g, "") + "." + numMatch[2];
+      amount = parseFloat(normalizedNum);
+      const afterNum = cleanTdText.replace(numMatch[0], "").trim();
+      if (afterNum && !isTL) curr = afterNum;
+    }
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        firstMatch: fullRow,
+        currency: curr,
+        rate,
+        isTL,
+        amounts: [amount],
+        originalMatches: [fullRow]
+      });
+    } else {
+      const g = groups.get(key)!;
+      g.amounts.push(amount);
+      g.originalMatches.push(fullRow);
+    }
+  }
+
+  let resultHtml = html;
+
+  for (const [key, g] of groups.entries()) {
+    if (g.originalMatches.length > 1) {
+      const allIdentical = g.amounts.every(a => Math.abs(a - g.amounts[0]) < 0.001);
+      
+      let finalRowHtml = g.firstMatch;
+      if (!allIdentical) {
+        const totalAmount = g.amounts.reduce((sum, a) => sum + a, 0);
+        const formattedAmount = totalAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        finalRowHtml = g.firstMatch.replace(/(<td[^>]*>)([\s\S]*?)(<\/td>(\s*<\/tr>)?$)/i, (tdM, p1, p2, p3) => {
+          if (p2.includes("<span>")) {
+            return `${p1}<span>${formattedAmount} ${g.currency || (g.isTL ? "TL" : "")}</span>${p3}`;
+          }
+          return `${p1}${formattedAmount}${g.currency || (g.isTL ? "TL" : "")}${p3}`;
+        });
+      }
+
+      let isFirst = true;
+      for (const origRow of g.originalMatches) {
+        if (isFirst) {
+          resultHtml = resultHtml.replace(origRow, finalRowHtml);
+          isFirst = false;
+        } else {
+          resultHtml = resultHtml.replace(origRow, "");
+        }
+      }
+    }
+  }
+
+  return resultHtml;
+}
+
 // 6. Get Invoice HTML
 router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
   try {
@@ -2178,6 +2276,9 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
         console.log(`[HTML-FETCH] Purchase invoice - returning raw HTML as received without custom additions.`);
         return res.json({ html });
       }
+
+      // Clean duplicate / redundant VAT rows in sales invoice template
+      html = cleanInvoiceHtmlVatRows(html);
       
       // 1. Prepare Amount in Words and Currency Info
       const amountWordsRaw = numberToTurkishWords(Number(grand_total), currency || 'TRY');
@@ -2252,6 +2353,7 @@ router.get("/einvoice/:id/html", authenticate, async (req: any, res) => {
           html = html.replace('</body>', `${boxedNotes}</body>`);
       }
       
+      html = cleanInvoiceHtmlVatRows(html);
       console.log(`[HTML-FETCH] HTML processed for ${invoiceId}`);
       return res.json({ html });
     }

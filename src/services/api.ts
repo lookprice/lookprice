@@ -166,6 +166,7 @@ export const api = {
   getProductRecipe: (id: number, storeId?: number) => api.get(`/api/store/products/${id}/recipe${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   saveProductRecipe: (id: number, items: any[], storeId?: number) => api.post(`/api/store/products/${id}/recipe${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { items }),
   reformatProductNames: (storeId?: number) => api.post(`/api/store/ai/reformat-product-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  syncProductNamesFromInvoices: (storeId?: number) => api.post(`/api/store/products/sync-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { storeId }),
   getDuplicateCandidates: (storeId?: number) => api.get(`/api/store/products/duplicate-candidates${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   mergeProducts: (sourceId: number, targetId: number, storeId?: number) => api.post(`/api/store/products/merge${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { sourceId, targetId }),
   autoMergeDuplicates: (storeId?: number) => api.post(`/api/store/products/auto-merge-duplicates${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),

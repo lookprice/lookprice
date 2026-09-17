@@ -139,6 +139,7 @@ const ProductsTab = ({
   const [isFixingNames, setIsFixingNames] = useState(false);
   const [openMarketMenu, setOpenMarketMenu] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
   const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
   const [targetScrollProductId, setTargetScrollProductId] = useState<number | null>(null);
 
@@ -277,19 +278,61 @@ const ProductsTab = ({
     }
   };
 
-  const handleFixNames = async () => {
-    toast.info("handleFixNames triggered");
+  // Auto-sync product names from invoices if any product has an HB code or barcode as name
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+    const hasCodeAsName = products.some(p => {
+      const name = String(p.name || '').trim();
+      return name.toUpperCase().startsWith('HBCV') || 
+             name.toUpperCase().startsWith('HBV') || 
+             name.toUpperCase().startsWith('TY-') ||
+             /^\d{8,}$/.test(name);
+    });
+
+    if (hasCodeAsName) {
+      api.syncProductNamesFromInvoices(currentStoreId).then(res => {
+        if (res && res.success && res.updatedCount > 0) {
+          toast.success(lang === 'tr' ? `${res.updatedCount} ürün ismi faturalardaki orijinal adlarıyla eşleştirilip güncellendi.` : `${res.updatedCount} product names synced from invoices.`);
+          if (onRefresh) onRefresh();
+        }
+      }).catch(err => console.error("Error auto-syncing product names:", err));
+    }
+  }, [products, currentStoreId]);
+
+  const handleSyncNamesFromInvoices = async () => {
     if (isFixingNames) return;
-    if (!window.confirm(lang === 'tr' ? "Tüm ürün isimleri 'Title Case' (İlk Harfler Büyük) formatına getirilecek. Devam etmek istiyor musunuz?" : "All product names will be converted to 'Title Case'. Do you want to continue?")) {
+    try {
+      setIsFixingNames(true);
+      toast.info(lang === 'tr' ? "Ürün isimleri alış/satış faturaları ile eşleştiriliyor..." : "Syncing product names from invoices...");
+      const res = await api.syncProductNamesFromInvoices(currentStoreId);
+      if (res && res.success) {
+        toast.success(res.message || (lang === 'tr' ? `${res.updatedCount || 0} ürün ismi faturalardan güncellendi.` : "Product names updated from invoices."));
+        if (onRefresh) onRefresh();
+        else window.location.reload();
+      } else {
+        toast.error(res?.error || "Eşleştirme sırasında hata oluştu.");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Error syncing names");
+    } finally {
+      setIsFixingNames(false);
+    }
+  };
+
+  const handleFixNames = async () => {
+    if (isFixingNames) return;
+    if (!window.confirm(lang === 'tr' ? "Ürün isimleri faturalarla eşleştirilecek ve 'Title Case' (İlk Harfler Büyük) formatına getirilecek. Devam etmek istiyor musunuz?" : "All product names will be synced with invoices and converted to 'Title Case'. Do you want to continue?")) {
       return;
     }
 
     try {
       setIsFixingNames(true);
+      await api.syncProductNamesFromInvoices(currentStoreId);
       const res = await api.reformatProductNames(currentStoreId);
       if (res && res.success) {
         toast.success(res.message || (lang === 'tr' ? "Ürün isimleri başarıyla düzeltildi." : "Product names reformatted successfully."));
-        window.location.reload(); 
+        if (onRefresh) onRefresh();
+        else window.location.reload(); 
       } else {
         toast.error(res?.error || "Error");
       }
@@ -794,79 +837,36 @@ const ProductsTab = ({
               <Download className="h-4 w-4" />
             </button>
 
-            {/* In-Store Price Check / Digital Menu QR Button */}
-            {!isViewer && onShowQr && (
-              <button 
-                onClick={onShowQr}
-                className="os-btn-secondary p-2 text-amber-700 hover:text-amber-800 bg-amber-50/90 hover:bg-amber-100 rounded-lg transition-all border border-amber-300 hover:border-amber-400 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
-                title={
-                  !isCafeRestaurant
-                    ? (lang === 'tr' ? "Mağaza İçi 'Fiyat Gör' Barkod QR Kodu & Yazdırılabilir Afiş" : "In-Store 'Price Check' Barcode QR & Printable Poster")
-                    : (lang === 'tr' ? "Dijital Menü & Web Vitrini QR Kodu" : "Digital Menu & Web Showcase QR Code")
-                }
-              >
-                <QrCode className="h-4 w-4 text-amber-600 shrink-0" />
-                <span className="text-[11px] font-black text-amber-950 hidden md:inline whitespace-nowrap">
-                  {!isCafeRestaurant 
-                    ? (lang === 'tr' ? "Fiyat Gör QR" : "Price Check QR")
-                    : (lang === 'tr' ? "Menü QR" : "Menu QR")}
-                </span>
-              </button>
-            )}
+            {/* In-Store Price Check / Digital Menu QR Button - Removed per user request for shopLP */}
 
-            {!isViewer && isShopLp && connectedMarketplaces.hasAnyConnected && (
-              <button 
-                onClick={() => {
-                  setMarketplaceModalTab('hepsiburada');
-                  setMarketplaceModalStatus('all');
-                  setShowMarketplaceListingsModal(true);
-                }}
-                className="os-btn-secondary p-2 text-orange-600 hover:text-orange-700 bg-orange-50/90 hover:bg-orange-100 rounded-lg transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
-                title={lang === 'tr' ? "Pazaryeri İlan Takibi & Canlı İlanlar" : "Marketplace Listings & Monitoring"}
-              >
-                <Store className="h-4 w-4 text-orange-600 shrink-0" />
-                <span className="text-[11px] font-bold text-orange-950 hidden md:inline whitespace-nowrap">
-                  {lang === 'tr' ? "Pazaryeri" : "Marketplace"}
-                </span>
-                {hbActiveCount > 0 && (
-                  <span className="text-[9px] font-bold bg-emerald-600 text-white px-1.5 py-0.2 rounded-full" title={lang === 'tr' ? `${hbActiveCount} ürün Hepsiburada'da yayında` : `${hbActiveCount} products on HB`}>
-                    {hbActiveCount}
-                  </span>
-                )}
-                {marketplaceErrorCount > 0 && (
-                  <span className="text-[9px] font-bold bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse" title={lang === 'tr' ? `${marketplaceErrorCount} ürün pazaryeri hatası aldı` : `${marketplaceErrorCount} marketplace errors`}>
-                    {marketplaceErrorCount}
-                  </span>
-                )}
-              </button>
-            )}
+            {/* Marketplace button - Removed per user request for shopLP */}
 
-            {!isViewer && isShopLp && connectedMarketplaces.hepsiburada && (
-              <button 
-                onClick={() => setShowBulkPublishModal(true)}
-                className="os-btn-secondary p-2 text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all border border-orange-200 hover:border-orange-300 active:scale-95 shadow-xs flex items-center gap-1.5"
-                title={lang === 'tr' ? "Hepsiburada'da Toplu İlan Aç & Satışa Gönder" : "Bulk Publish to Hepsiburada"}
-              >
-                <UploadCloud className="h-4 w-4 text-orange-600 shrink-0" />
-                <span className="text-[11px] font-bold text-orange-950 hidden md:inline whitespace-nowrap">
-                  {selectedIds.length > 0 
-                    ? (lang === 'tr' ? `HB (${selectedIds.length})` : `HB (${selectedIds.length})`)
-                    : (lang === 'tr' ? "HB İlan" : "HB Publish")}
-                </span>
-              </button>
-            )}
+            {/* HB Publish button - Removed per user request for shopLP */}
 
             {!isViewer && (
-              <button 
-                onClick={() => setIsMergeModalOpen(true)}
-                className="os-btn-secondary p-2 text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-all border border-amber-200 hover:border-amber-300 active:scale-95 shadow-xs flex items-center gap-1.5"
-                title={lang === 'tr' ? "Mükerrer Ürünleri Birleştir / Envanter Temizliği" : "Merge Duplicate Products / Clean Inventory"}
-              >
-                <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
-                <span className="text-[11px] font-bold text-amber-900 hidden lg:inline whitespace-nowrap">
-                  {lang === 'tr' ? "Temizle" : "Clean"}
-                </span>
-              </button>
+              <>
+                <button 
+                  onClick={handleSyncNamesFromInvoices}
+                  disabled={isFixingNames}
+                  className="os-btn-secondary p-2 text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all border border-indigo-200 hover:border-indigo-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                  title={lang === 'tr' ? "Ürün İsimlerini Faturalarla Eşitle / Orijinal İsimleri Çek" : "Sync Product Names from Invoices"}
+                >
+                  <Tag className="h-4 w-4 text-indigo-600 shrink-0" />
+                  <span className="text-[11px] font-bold text-indigo-900 hidden lg:inline whitespace-nowrap">
+                    {lang === 'tr' ? "İsimleri Eşitle" : "Sync Names"}
+                  </span>
+                </button>
+                <button 
+                  onClick={() => setIsMergeModalOpen(true)}
+                  className="os-btn-secondary p-2 text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-all border border-amber-200 hover:border-amber-300 active:scale-95 shadow-xs flex items-center gap-1.5"
+                  title={lang === 'tr' ? "Mükerrer Ürünleri Birleştir / Envanter Temizliği" : "Merge Duplicate Products / Clean Inventory"}
+                >
+                  <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span className="text-[11px] font-bold text-amber-900 hidden lg:inline whitespace-nowrap">
+                    {lang === 'tr' ? "Temizle" : "Clean"}
+                  </span>
+                </button>
+              </>
             )}
 
             {driveConnected && (
@@ -1233,7 +1233,7 @@ const ProductsTab = ({
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
                                 <div className="text-xs font-semibold text-slate-900 truncate max-w-[180px] sm:max-w-[240px] md:max-w-[320px] leading-tight" title={p.name}>
-                                  {p.name}
+                                  {p.name || 'İsimsiz Ürün'}
                                 </div>
                                 {p.description && (
                                   <div className="group/desc relative hover:z-[60] shrink-0">
@@ -1475,83 +1475,9 @@ const ProductsTab = ({
                     </td>
                     )}
                     {tableManager.isColumnVisible('actions') && (
-                    <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
+                      <td className="px-2.5 py-1.5 text-right whitespace-nowrap relative">
                       {!isViewer && (
-                        <div className="flex justify-end items-center gap-0.5">
-                          {isShopLp && connectedMarketplaces.hepsiburada && (
-                            <button 
-                              onClick={(e) => handlePublishToHepsiburada(p, e)}
-                              disabled={publishingId === p.id}
-                              className={`p-1.5 rounded-md transition-all border active:scale-90 flex items-center justify-center ${
-                                p.is_hepsiburada_active
-                                  ? "text-orange-600 bg-orange-50 hover:bg-orange-100 border-orange-200"
-                                  : "text-slate-400 hover:text-orange-600 hover:bg-orange-50 border-transparent"
-                              }`}
-                              title={
-                                p.is_hepsiburada_active 
-                                  ? (lang === 'tr' ? "HB Yayında - Güncelle" : "Active on HB - Update")
-                                  : (lang === 'tr' ? "HB'de İlana Aç" : "Publish to HB")
-                              }
-                            >
-                              <UploadCloud className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-
-                          <button 
-                            onClick={() => setSelectedProduct(p)}
-                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
-                            title={t.movementHistory}
-                          >
-                            <History className="h-3.5 w-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => setRecipeProduct(p)}
-                            className={`p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer ${!isCafeRestaurant ? "hidden" : ""}`}
-                            title={lang === "tr" ? "Ürün Reçetesi" : "Product Recipe"}
-                          >
-                            <Sparkles className="h-3.5 w-3.5" />
-                          </button>
-                          {!isCafeRestaurant && (
-                            <button 
-                              onClick={() => setSharingProduct(p)}
-                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
-                              title={lang === "tr" ? "Sosyal Medya Afişi" : "Social Media Poster"}
-                            >
-                              <Share2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          {isCafe && (
-                            <button 
-                              type="button"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                const currentVal = getIsBestseller(p);
-                                const nextVal = !currentVal;
-                                p.is_bestseller = nextVal;
-                                setBestsellerStateMap(prev => ({ ...prev, [p.id]: nextVal }));
-                                try {
-                                  await api.toggleBestsellerProduct(p.id, currentStoreId);
-                                  toast.success(nextVal 
-                                    ? (lang === "tr" ? `"${p.name}" Çok Satanlara eklendi 🔥` : `"${p.name}" marked as Bestseller 🔥`)
-                                    : (lang === "tr" ? `"${p.name}" Çok Satanlardan çıkarıldı` : `"${p.name}" removed from Bestsellers`)
-                                  );
-                                } catch (err: any) {
-                                  p.is_bestseller = currentVal;
-                                  setBestsellerStateMap(prev => ({ ...prev, [p.id]: currentVal }));
-                                  toast.error(err.message || "Hata oluştu.");
-                                }
-                              }}
-                              className={`p-1.5 rounded-lg transition-all border active:scale-95 flex items-center cursor-pointer ${
-                                getIsBestseller(p)
-                                  ? 'bg-orange-500 text-white border-orange-500' 
-                                  : 'text-slate-500 hover:text-orange-600 hover:bg-orange-50 border-slate-200/60 bg-slate-50/50 hover:border-orange-200'
-                              }`}
-                              title={getIsBestseller(p) ? (lang === 'tr' ? 'Çok Satan (Çıkar)' : 'Bestseller (Remove)') : (lang === 'tr' ? 'Çok Satan Yap' : 'Mark as Bestseller')}
-                            >
-                              <Flame className={`h-3.5 w-3.5 shrink-0 ${getIsBestseller(p) ? 'fill-white text-white' : 'text-slate-400'}`} />
-                            </button>
-                          )}
-
+                        <div className="flex items-center justify-end gap-1">
                           <button 
                             onClick={() => onEdit(p)}
                             className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
@@ -1559,17 +1485,98 @@ const ProductsTab = ({
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
-                          <button 
-                            onClick={() => {
-                              if (window.confirm(lang === 'tr' ? "Bu ürünü silmek istediğinize emin misiniz?" : "Are you sure you want to delete this product?")) {
-                                onDelete(p.id);
-                              }
-                            }}
-                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
-                            title={t.deleteEntry}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+
+                          {/* Collapsible Actions Dropdown Menu Trigger (Lookprice Standard) */}
+                          <div className="relative inline-block text-left">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenActionMenuId(openActionMenuId === p.id ? null : p.id);
+                              }}
+                              className={`action-menu-trigger p-1.5 rounded-lg transition-all flex items-center gap-1 border ${
+                                openActionMenuId === p.id
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                  : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 bg-white border-slate-200 shadow-2xs'
+                              }`}
+                              title={lang === 'tr' ? "Tüm İşlemler Menüsü" : "All Actions Menu"}
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                              <span className="text-[10px] font-bold hidden sm:inline-block pr-0.5">{lang === 'tr' ? 'İşlem' : 'More'}</span>
+                            </button>
+
+                            {/* Dropdown Popup Menu */}
+                            {openActionMenuId === p.id && (
+                              <div 
+                                className="action-menu-dropdown absolute right-0 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 top-full mt-1.5 origin-top-right"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
+                                    {p.name || (lang === 'tr' ? 'Ürün İşlemleri' : 'Product Actions')}
+                                  </span>
+                                </div>
+
+                                <div className="py-1">
+                                  {isCafeRestaurant && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        setRecipeProduct(p);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                      <span>{lang === 'tr' ? "Ürün Reçetesi" : "Product Recipe"}</span>
+                                    </button>
+                                  )}
+
+                                  {!isCafeRestaurant && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        setSharingProduct(p);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                      <Share2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                      <span>{lang === 'tr' ? "Sosyal Medya Afişi" : "Social Media Poster"}</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      setSelectedProduct(p);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <History className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                    <span>{t.movementHistory}</span>
+                                  </button>
+
+                                  <div className="my-1 border-t border-slate-100" />
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      if (window.confirm(lang === 'tr' ? "Bu ürünü silmek istediğinize emin misiniz?" : "Are you sure you want to delete this product?")) {
+                                        onDelete(p.id);
+                                      }
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                    <span>{t.delete}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </td>

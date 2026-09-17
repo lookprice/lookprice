@@ -60,7 +60,33 @@ export async function initPurchaseInvoiceSchema() {
         )
     `);
 
-    // 2.5 Clean up bad or orphaned stock movements with product_id 0 or NULL
+    // 2.5 Auto-repair products table names where product name is HB code, barcode or code, using actual product names from purchase invoices
+    await pool.query(`
+      UPDATE products p
+      SET name = pii.product_name,
+          updated_at = CURRENT_TIMESTAMP
+      FROM purchase_invoice_items pii, purchase_invoices pi
+      WHERE pii.purchase_invoice_id = pi.id
+        AND pi.store_id = p.store_id
+        AND (pii.product_id = p.id OR (pii.barcode IS NOT NULL AND pii.barcode != '' AND pii.barcode = p.barcode))
+        AND pii.product_name IS NOT NULL
+        AND TRIM(pii.product_name) != ''
+        AND LENGTH(TRIM(pii.product_name)) >= 3
+        AND (
+          p.name IS NULL 
+          OR TRIM(p.name) = '' 
+          OR p.name ~ '^\\d+$'
+          OR p.name ILIKE 'HBCV%' 
+          OR p.name ILIKE 'HBV%'
+          OR p.name ILIKE 'TY-%'
+          OR p.name ILIKE 'HB-%'
+        )
+        AND pii.product_name NOT ILIKE 'HBCV%'
+        AND pii.product_name NOT ILIKE 'HBV%'
+        AND NOT (pii.product_name ~ '^\\d+$');
+    `);
+
+    // 2.6 Clean up bad or orphaned stock movements with product_id 0 or NULL
     await pool.query("DELETE FROM stock_movements WHERE product_id IS NULL OR product_id = 0");
 
     // 3. Auto-repair missing sales_invoice stock_movements

@@ -275,6 +275,124 @@ export async function getDuplicateCandidatesForStore(storeId: number) {
   return candidates;
 }
 
+export async function syncProductNamesFromInvoices(storeId?: number) {
+  try {
+    const storeFilterPII = storeId ? "AND pi.store_id = " + Number(storeId) : "";
+    const storeFilterSI = storeId ? "AND si.store_id = " + Number(storeId) : "";
+    const storeFilterPA = storeId ? "AND pa.store_id = " + Number(storeId) : "";
+    const storeFilterSPM = storeId ? "AND spm.store_id = " + Number(storeId) : "";
+
+    let updatedCount = 0;
+
+    // 1. Match from purchase_invoice_items by product_id or barcode
+    const res1 = await pool.query(`
+      UPDATE products p
+      SET name = pii.product_name,
+          updated_at = CURRENT_TIMESTAMP
+      FROM purchase_invoice_items pii
+      JOIN purchase_invoices pi ON pii.purchase_invoice_id = pi.id
+      WHERE (pii.product_id = p.id OR (pii.barcode IS NOT NULL AND pii.barcode != '' AND pii.barcode = p.barcode))
+        ${storeFilterPII}
+        AND pii.product_name IS NOT NULL
+        AND TRIM(pii.product_name) != ''
+        AND LENGTH(TRIM(pii.product_name)) >= 3
+        AND (
+          p.name IS NULL 
+          OR TRIM(p.name) = '' 
+          OR p.name ~ '^\\d+$'
+          OR p.name ILIKE 'HBCV%' 
+          OR p.name ILIKE 'HBV%'
+          OR p.name ILIKE 'TY-%'
+          OR p.name ILIKE 'HB-%'
+        )
+        AND pii.product_name NOT ILIKE 'HBCV%'
+        AND pii.product_name NOT ILIKE 'HBV%'
+        AND NOT (pii.product_name ~ '^\\d+$')
+    `);
+    updatedCount += res1.rowCount || 0;
+
+    // 2. Match from sales_invoice_items
+    const res2 = await pool.query(`
+      UPDATE products p
+      SET name = sii.product_name,
+          updated_at = CURRENT_TIMESTAMP
+      FROM sales_invoice_items sii
+      JOIN sales_invoices si ON sii.sales_invoice_id = si.id
+      WHERE (sii.product_id = p.id OR (sii.barcode IS NOT NULL AND sii.barcode != '' AND sii.barcode = p.barcode))
+        ${storeFilterSI}
+        AND sii.product_name IS NOT NULL
+        AND TRIM(sii.product_name) != ''
+        AND LENGTH(TRIM(sii.product_name)) >= 3
+        AND (
+          p.name IS NULL 
+          OR TRIM(p.name) = '' 
+          OR p.name ~ '^\\d+$'
+          OR p.name ILIKE 'HBCV%' 
+          OR p.name ILIKE 'HBV%'
+          OR p.name ILIKE 'TY-%'
+          OR p.name ILIKE 'HB-%'
+        )
+        AND sii.product_name NOT ILIKE 'HBCV%'
+        AND sii.product_name NOT ILIKE 'HBV%'
+        AND NOT (sii.product_name ~ '^\\d+$')
+    `);
+    updatedCount += res2.rowCount || 0;
+
+    // 3. Match from product_aliases
+    const res3 = await pool.query(`
+      UPDATE products p
+      SET name = pa.raw_product_name,
+          updated_at = CURRENT_TIMESTAMP
+      FROM product_aliases pa
+      WHERE pa.product_id = p.id
+        ${storeFilterPA}
+        AND pa.raw_product_name IS NOT NULL
+        AND TRIM(pa.raw_product_name) != ''
+        AND LENGTH(TRIM(pa.raw_product_name)) >= 3
+        AND (
+          p.name IS NULL 
+          OR TRIM(p.name) = '' 
+          OR p.name ~ '^\\d+$'
+          OR p.name ILIKE 'HBCV%' 
+          OR p.name ILIKE 'HBV%'
+        )
+        AND pa.raw_product_name NOT ILIKE 'HBCV%'
+        AND pa.raw_product_name NOT ILIKE 'HBV%'
+        AND NOT (pa.raw_product_name ~ '^\\d+$')
+    `);
+    updatedCount += res3.rowCount || 0;
+
+    // 4. Match from supplier_product_mappings
+    const res4 = await pool.query(`
+      UPDATE products p
+      SET name = spm.supplier_product_name,
+          updated_at = CURRENT_TIMESTAMP
+      FROM supplier_product_mappings spm
+      WHERE spm.product_id = p.id
+        ${storeFilterSPM}
+        AND spm.supplier_product_name IS NOT NULL
+        AND TRIM(spm.supplier_product_name) != ''
+        AND LENGTH(TRIM(spm.supplier_product_name)) >= 3
+        AND (
+          p.name IS NULL 
+          OR TRIM(p.name) = '' 
+          OR p.name ~ '^\\d+$'
+          OR p.name ILIKE 'HBCV%' 
+          OR p.name ILIKE 'HBV%'
+        )
+        AND spm.supplier_product_name NOT ILIKE 'HBCV%'
+        AND spm.supplier_product_name NOT ILIKE 'HBV%'
+        AND NOT (spm.supplier_product_name ~ '^\\d+$')
+    `);
+    updatedCount += res4.rowCount || 0;
+
+    return updatedCount;
+  } catch (err) {
+    console.error("Error in syncProductNamesFromInvoices:", err);
+    return 0;
+  }
+}
+
 const router = express.Router();
 
 // Ensure new schema columns exist
@@ -289,10 +407,24 @@ export async function initProductSchema() {
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS prep_time_min NUMERIC DEFAULT 0;`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS portion_size VARCHAR(100) DEFAULT '';`);
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS marketplace_data JSONB DEFAULT '{}'::jsonb;`);
+
+    // Run product name sync in background
+    syncProductNamesFromInvoices().catch(e => console.error("Error running syncProductNamesFromInvoices in initProductSchema:", e));
   } catch (e) {
     console.error("Failed to alter products table schema for variants and 2nd categories:", e);
   }
 }
+
+// POST /products/sync-names
+router.post("/sync-names", async (req: any, res) => {
+  try {
+    const storeId = await getAuthorizedStoreId(req, req.body.storeId);
+    const updatedCount = await syncProductNamesFromInvoices(storeId);
+    res.json({ success: true, updatedCount, message: `${updatedCount} ürün ismi faturalardan güncellendi.` });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to sync product names" });
+  }
+});
 
 // GET /products
 router.get("/", async (req: any, res) => {

@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Layers,
   Package,
-  Barcode
+  Barcode,
+  MoreVertical
 } from 'lucide-react';
 import { api } from '../../../../services/api';
 
@@ -62,6 +63,7 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
   const [expandedRowIds, setExpandedRowIds] = useState<number[]>([]);
   const [itemsCache, setItemsCache] = useState<Record<number, any[]>>({});
   const [loadingRowId, setLoadingRowId] = useState<number | null>(null);
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
 
   const toggleRow = async (inv: any) => {
     const isExpanded = expandedRowIds.includes(inv.id);
@@ -310,15 +312,15 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                           </button>
                         )}
                       </td>
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        <div className="flex justify-end gap-1">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap relative">
+                        <div className="flex justify-end items-center gap-1">
                           {(() => {
                             if (invoice.status?.toLowerCase() !== 'pending' || invoice.e_document_type?.toUpperCase() !== 'TICARIFATURA') return false;
                             const arrivalDate = new Date(invoice.created_at || invoice.invoice_date);
                             const diffDays = (new Date().getTime() - arrivalDate.getTime()) / (1000 * 3600 * 24);
                             return diffDays <= 8;
                           })() && (
-                            <div className="flex gap-1 mr-2 px-2 border-r border-slate-100">
+                            <div className="flex gap-1 mr-1 px-1.5 border-r border-slate-100">
                               <button
                                 onClick={() => handleUpdateTicariStatus(invoice.id, 'APPROVED')}
                                 className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
@@ -336,35 +338,87 @@ export const PurchaseInvoiceTable: React.FC<PurchaseInvoiceTableProps> = ({
                             </div>
                           )}
                           <button 
-                            onClick={() => handleViewDetails(invoice)}
-                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
-                            title={isTr ? "Kayıt Detayları" : "Details"}
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </button>
-                          {handleViewHtml && (
-                            <button 
-                              onClick={() => handleViewHtml(invoice.id, invoice)}
-                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-indigo-200 cursor-pointer"
-                              title={isTr ? "Fatura Görselini Aç (HTML)" : "View Invoice HTML"}
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          <button 
                             onClick={() => handleEdit(invoice.id)}
                             className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-amber-200 cursor-pointer"
                             title={isTr ? "Düzenle" : "Edit"}
                           >
                             <Edit className="h-3.5 w-3.5" />
                           </button>
-                          <button 
-                            onClick={() => handleDelete(invoice.id)}
-                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-200/60 bg-slate-50/50 hover:border-rose-200 cursor-pointer"
-                            title={isTr ? "Sil" : "Delete"}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+
+                          {/* Lookprice Standard Dropdown Menu */}
+                          <div className="relative inline-block text-left">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenActionMenuId(openActionMenuId === invoice.id ? null : invoice.id);
+                              }}
+                              className={`p-1.5 rounded-lg transition-all flex items-center gap-1 border ${
+                                openActionMenuId === invoice.id
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                  : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 bg-white border-slate-200 shadow-2xs'
+                              }`}
+                              title={isTr ? "Tüm İşlemler" : "All Actions"}
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                              <span className="text-[10px] font-bold hidden sm:inline-block pr-0.5">{isTr ? 'İşlem' : 'More'}</span>
+                            </button>
+
+                            {openActionMenuId === invoice.id && (
+                              <div 
+                                className="absolute right-0 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-100 top-full mt-1.5 origin-top-right"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate max-w-[140px]">
+                                    {invoice.invoice_number || (isTr ? 'Fatura İşlemleri' : 'Invoice Actions')}
+                                  </span>
+                                </div>
+
+                                <div className="py-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      handleViewDetails(invoice);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                    <span>{isTr ? "Kayıt Detayları" : "Details"}</span>
+                                  </button>
+
+                                  {handleViewHtml && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        handleViewHtml(invoice.id, invoice);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                      <span>{isTr ? "Fatura Görseli (HTML)" : "View HTML"}</span>
+                                    </button>
+                                  )}
+
+                                  <div className="my-1 border-t border-slate-100" />
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      handleDelete(invoice.id);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                    <span>{isTr ? "Faturayı Sil" : "Delete"}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
