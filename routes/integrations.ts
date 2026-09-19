@@ -1200,7 +1200,13 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
         merchantSku: matched.merchantSku || barcode,
         status: matched.status || 'ACTIVE',
         isSalable,
-        productUrl: pid ? `https://www.hepsiburada.com/-pm-${pid}` : (hbSku ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(hbSku)}` : null),
+        productUrl: pid 
+          ? `https://www.hepsiburada.com/-pm-${pid}` 
+          : (hbSku && String(hbSku).toUpperCase().startsWith('HBC') 
+            ? `https://www.hepsiburada.com/-pm-${hbSku}` 
+            : (barcode 
+              ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(barcode)}` 
+              : (p?.name ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name)}` : null))),
         lastChecked: new Date().toISOString()
       };
 
@@ -1472,7 +1478,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       hepsiburadaSku: resolvedHbSku || hbData.hepsiburadaSku || null,
       productId: hbData.productId || (resolvedHbSku?.startsWith('HBC') ? resolvedHbSku : null),
       status: isLive ? 'ACTIVE' : 'PENDING_APPROVAL',
-      productUrl: isLive ? (inputHbUrl || hbData.productUrl || (resolvedHbSku?.startsWith('HBC') ? `https://www.hepsiburada.com/-pm-${resolvedHbSku}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(resolvedHbSku)}`)) : undefined,
+      productUrl: isLive ? (inputHbUrl || hbData.productUrl || (resolvedHbSku?.startsWith('HBC') ? `https://www.hepsiburada.com/-pm-${resolvedHbSku}` : (p.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name)}`))) : undefined,
       catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId,
       listingTrackingId: result.trackingId || hbData.listingTrackingId,
       lastSync: new Date().toISOString()
