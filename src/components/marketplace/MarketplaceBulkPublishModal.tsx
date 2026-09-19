@@ -14,7 +14,7 @@ import {
   Package
 } from 'lucide-react';
 import { api } from '../../services/api';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface MarketplaceBulkPublishModalProps {
   isOpen: boolean;

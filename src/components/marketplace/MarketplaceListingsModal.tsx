@@ -26,7 +26,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { api } from '../../services/api';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { MarketplaceCategoryMappingModal } from './MarketplaceCategoryMappingModal';
 
 export type MarketplaceKey = 'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama';
@@ -392,6 +392,11 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
   // Helper to check if a product is submitted and waiting for catalog/barcode review
   const isProductPending = (p: any, mpKey: MarketplaceKey): boolean => {
+    // SATIŞTA OLAN ÜRÜN ASLA ONAY BEKLEMEZ (Canlı sorgu butonu aktif olamaz)
+    if (isProductActive(p, 'hepsiburada')) {
+      return false;
+    }
+
     let mpData = p.marketplace_data;
     if (typeof mpData === 'string') {
       try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
@@ -404,7 +409,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
       );
       if (p.hepsiburada_last_error) return false;
-      if (hb.status === 'PENDING_APPROVAL' || hb.catalogTrackingId || hb.listingTrackingId || (!hasSku && p.is_hepsiburada_active)) {
+      if (hb.status === 'ACTIVE' || (Boolean(p.is_hepsiburada_active) && hasSku)) return false;
+      if (hb.status === 'PENDING_APPROVAL' || (!hasSku && (hb.catalogTrackingId || hb.listingTrackingId || p.is_hepsiburada_active))) {
         return true;
       }
     }
@@ -421,8 +427,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       if (data && data.success) {
         if (data.isLive) {
           toast.success(
-            data.message || (isTr ? "Hepsiburada eşleşmesi doğrulandı! Ürün satışta." : "Product is live on Hepsiburada!"),
-            { duration: 4500 }
+            data.message || (isTr ? "Hepsiburada eşleşmesi doğrulandı! Ürün canlı satışta." : "Product is live on Hepsiburada!"),
+            { duration: 5000 }
           );
           setLocalProducts(prev => prev.map(item => {
             if (item.id === productId) {
@@ -439,7 +445,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                     status: 'ACTIVE',
                     hepsiburadaSku: data.hepsiburadaSku,
                     productId: data.productId,
-                    productUrl: data.productUrl
+                    productUrl: data.productUrl,
+                    lastChecked: new Date().toISOString(),
+                    lastStatusMessage: data.message
                   }
                 }
               };
@@ -448,16 +456,31 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           }));
           if (onRefresh) onRefresh();
         } else {
-          toast(
-            data.message || (isTr ? "Hepsiburada katalog ve barkod incelemesi devam ediyor. Henüz onay kodu atanmadı." : "Catalog review still in progress on HB."),
-            { icon: '⏳', duration: 4500 }
-          );
+          const pendingMsg = data.message || (isTr ? "Hepsiburada katalog ve barkod incelemesi sürüyor. Henüz onay kodu atanmadı." : "Catalog review still in progress on HB.");
+          toast.info(pendingMsg, { duration: 5000 });
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === productId) {
+              return {
+                ...item,
+                marketplace_data: {
+                  ...((typeof item.marketplace_data === 'object' ? item.marketplace_data : {}) || {}),
+                  hepsiburada: {
+                    ...(((typeof item.marketplace_data === 'object' ? item.marketplace_data : {}) as any)?.hepsiburada || {}),
+                    status: 'PENDING_APPROVAL',
+                    lastChecked: new Date().toISOString(),
+                    lastStatusMessage: pendingMsg
+                  }
+                }
+              };
+            }
+            return item;
+          }));
         }
       } else {
-        toast.error(data?.message || data?.error || (isTr ? "Hepsiburada durum sorgulanamadı." : "Status check failed."));
+        toast.error(data?.message || data?.error || (isTr ? "Hepsiburada durum sorgulanamadı." : "Status check failed."), { duration: 5000 });
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || err?.message || (isTr ? "Durum kontrol edilirken hata oluştu." : "Error checking status."));
+      toast.error(err?.response?.data?.error || err?.message || (isTr ? "Durum kontrol edilirken hata oluştu." : "Error checking status."), { duration: 5000 });
     } finally {
       setCheckingStatusId(null);
     }
@@ -588,7 +611,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           if (isLive) {
             toast.success(toastMsg);
           } else {
-            toast(toastMsg, { icon: '⏳', duration: 4500 });
+            toast.info(toastMsg, { duration: 5000 });
           }
 
           const returnedSku = res.data?.hepsiburadaSku || res?.hepsiburadaSku;
@@ -1122,7 +1145,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                 <button
                   type="button"
                   onClick={async () => {
-                    toast(isTr ? "Amazon TR canlı envanter çekme işlemi başlatıldı..." : "Fetching Amazon TR listings...");
+                    toast.info(isTr ? "Amazon TR canlı envanter çekme işlemi başlatıldı..." : "Fetching Amazon TR listings...");
                     try {
                       setIsMatchingListings(true);
                       await api.matchHepsiburadaListings(false, currentStoreId);
@@ -1621,8 +1644,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                   </a>
                                 )}
 
-                                {/* HB ONAY BEKLİYOR: HIZLI DURUM KONTROL BUTONU (SADECE MİKRO İKON) */}
-                                {isProductPending(p, 'hepsiburada') && (
+                                {/* HB ONAY BEKLİYOR: HIZLI DURUM KONTROL BUTONU (SADECE MİKRO İKON - SATIŞTA OLMAYANLAR İÇİN) */}
+                                {!isHbActive && isProductPending(p, 'hepsiburada') && (
                                   <button
                                     type="button"
                                     onClick={() => handleCheckHbStatus(p.id)}
@@ -1741,8 +1764,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                     </a>
                                   )}
 
-                                  {/* Hepsiburada Pending Actions: Canlı Durum Sorgula (Sadece Mikro İkon) */}
-                                  {selectedMarketplace === 'hepsiburada' && isProductPending(p, 'hepsiburada') && (
+                                  {/* Hepsiburada Pending Actions: Canlı Durum Sorgula (SADECE MİKRO İKON - SATIŞTA OLMAYANLAR İÇİN) */}
+                                  {selectedMarketplace === 'hepsiburada' && !isTargetActive && isProductPending(p, 'hepsiburada') && (
                                     <button
                                       type="button"
                                       onClick={() => handleCheckHbStatus(p.id)}

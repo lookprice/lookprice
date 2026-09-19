@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Upload, Sparkles, AlertCircle, Check, Loader2, ListPlus } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { api } from "../../../services/api";
 
 interface AiMenuScanModalProps {

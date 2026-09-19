@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Sparkles, ArrowRight, CheckCircle, AlertCircle, RefreshCw, Layers, ShieldCheck, ArrowLeftRight } from "lucide-react";
 import { api } from "../services/api";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 interface ProductItem {
   id: number;
