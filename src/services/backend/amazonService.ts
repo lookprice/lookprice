@@ -39,7 +39,7 @@ export class AmazonService {
   async getAccessToken(): Promise<string> {
     const clientId = this.settings.clientId || process.env.AMAZON_CLIENT_ID;
     const clientSecret = this.settings.clientSecret || process.env.AMAZON_CLIENT_SECRET;
-    const refreshToken = this.settings.refresh_token;
+    const refreshToken = this.settings.refresh_token || (this.settings as any).refreshToken;
 
     if (!clientId) {
       throw new Error("LWA Client ID (Application ID) bulunamadı. Lütfen Amazon LWA Client ID giriniz.");

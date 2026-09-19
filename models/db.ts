@@ -1914,8 +1914,10 @@ export async function processSaleAutomation(client: any, saleId: number, storeId
     const items = itemsRes.rows;
 
     // 2. Deduct Stock and Log Movements
+    const affectedProductIds: number[] = [];
     for (const item of items) {
       if (item.product_id) {
+        affectedProductIds.push(Number(item.product_id));
         const productRes = await client.query("SELECT product_type, tax_rate FROM products WHERE id = $1", [item.product_id]);
         const product = productRes.rows[0];
         const productType = product?.product_type || 'product';
@@ -1929,6 +1931,7 @@ export async function processSaleAutomation(client: any, saleId: number, storeId
 
           if (recipeRes.rows.length > 0) {
             for (const recItem of recipeRes.rows) {
+              if (recItem.ingredient_id) affectedProductIds.push(Number(recItem.ingredient_id));
               const baseAmount = convertRecipeAmountToMl(Number(recItem.amount), recItem.unit);
               const totalIngredientQtyMl = Number(item.quantity) * baseAmount;
               
@@ -2020,6 +2023,17 @@ export async function processSaleAutomation(client: any, saleId: number, storeId
         "INSERT INTO sale_payments (sale_id, payment_method, amount) VALUES ($1, $2, $3)",
         [saleId, sale.payment_method || 'iyzico', sale.total_amount]
       );
+    }
+
+    if (affectedProductIds.length > 0) {
+      try {
+        const { syncProductStockToMarketplaces } = await import("../src/services/marketplaceSync");
+        syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `web_sale_${saleId}` }).catch(err =>
+          console.error("[Web Sale Marketplace Sync Error]:", err?.message || err)
+        );
+      } catch (syncErr) {
+        console.error("[Web Sale Marketplace Sync Import Error]:", syncErr);
+      }
     }
 
     await logAction(storeId, null, "sale_automation", "sales", saleId, `Web siparişi otomatik işlendi: Stok düşüldü, fatura #${invoiceNumber} oluşturuldu.`);

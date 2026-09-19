@@ -457,9 +457,11 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
         // Async trigger to marketplaces to set stock=0
         (async () => {
           try {
+            const storeRes = await pool.query("SELECT hepsiburada_settings, amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
+            const st = storeRes.rows[0];
+            
+            // Hepsiburada Stock 0
             if (p.is_hepsiburada_active) {
-              const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
-              const st = storeRes.rows[0];
               const hbSettings = st?.hepsiburada_settings || st?.branding?.hepsiburada_settings;
               if (hbSettings?.merchantId && hbSettings?.apiKey && hbSettings?.apiSecret) {
                 const { HepsiburadaService } = await import("./backend/hepsiburadaService.js");
@@ -473,14 +475,211 @@ export async function autoUnpublishIfZeroStock(productId: number, storeId: numbe
                 }]);
               }
             }
+
+            // Amazon Stock 0
+            if (p.is_amazon_active) {
+              const amzSettings = st?.amazon_settings || st?.branding?.amazon_settings;
+              if (amzSettings?.sellerId && amzSettings?.clientId && amzSettings?.clientSecret && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
+                const { AmazonService } = await import("./backend/amazonService.js");
+                const amzService = new AmazonService(amzSettings, storeId);
+                const sku = p.amazon_sku || p.barcode;
+                if (sku) {
+                  await amzService.updateListingsItem(String(sku).trim(), 0, 0);
+                }
+              }
+            }
           } catch (e: any) {
-            console.warn(`[Auto-Unpublish HB Sync Error]: ${e.message}`);
+            console.warn(`[Auto-Unpublish Marketplace Sync Error]: ${e.message}`);
           }
         })();
       }
     }
   } catch (err: any) {
     console.error(`[Auto-Unpublish Zero Stock Error]:`, err?.message || err);
+  }
+}
+
+/**
+ * Instant Real-Time Marketplace Stock Synchronizer
+ * Automatically triggered whenever products stock changes:
+ * - Sales Invoices (POST/PUT/DELETE)
+ * - Purchase Invoices (POST/PUT/DELETE)
+ * - POS Sales / Kasalar (Fast POS, Regular POS, Web Automation)
+ * - Returns & Cancellations
+ * - Direct Product Edits
+ *
+ * Runs non-blocking (async / fire-and-forget) to keep cashier / POS responses instant (<50ms).
+ */
+export async function syncProductStockToMarketplaces(
+  productIds: (number | string)[],
+  storeId: number,
+  options?: { reason?: string }
+): Promise<{ syncedCount: number; errorsCount: number }> {
+  const validIds = Array.from(
+    new Set(
+      (productIds || [])
+        .map(id => Number(id))
+        .filter(id => !isNaN(id) && id > 0)
+    )
+  );
+
+  if (validIds.length === 0 || !storeId) {
+    return { syncedCount: 0, errorsCount: 0 };
+  }
+
+  try {
+    const prodRes = await pool.query(
+      `SELECT id, name, barcode, sku, price, currency, stock_quantity, category, sub_category,
+              is_hepsiburada_active, hepsiburada_sku,
+              is_amazon_active, amazon_asin, amazon_sku,
+              is_trendyol_active, is_n11_active, is_pazarama_active,
+              marketplace_data
+       FROM products
+       WHERE id = ANY($1) AND store_id = $2`,
+      [validIds, storeId]
+    );
+
+    if (prodRes.rows.length === 0) {
+      return { syncedCount: 0, errorsCount: 0 };
+    }
+
+    const products = prodRes.rows;
+
+    const storeRes = await pool.query(
+      "SELECT hepsiburada_settings, amazon_settings, currency_rates, branding FROM stores WHERE id = $1",
+      [storeId]
+    );
+    const store = storeRes.rows[0] || {};
+    const branding = store.branding || {};
+    const rates = store.currency_rates || branding.currency_rates || {};
+
+    const getPriceInTry = (p: any) => {
+      let rawPrice = parseFloat(String(p.price || 0));
+      const curr = String(p.currency || "TRY").toUpperCase();
+      if (curr === "USD" && rates.USD) rawPrice *= Number(rates.USD);
+      else if (curr === "EUR" && rates.EUR) rawPrice *= Number(rates.EUR);
+      else if (curr === "GBP" && rates.GBP) rawPrice *= Number(rates.GBP);
+      return rawPrice;
+    };
+
+    let syncedCount = 0;
+    let errorsCount = 0;
+
+    // 1. Zero-stock out-of-stock guard or restock auto-reactivation
+    for (const p of products) {
+      const currentStock = Number(p.stock_quantity || 0);
+      if (currentStock <= 0) {
+        await autoUnpublishIfZeroStock(p.id, storeId);
+      } else {
+        // If stock is positive (> 0) and product has marketplace skus, ensure it is activated if closed
+        const shouldReactivateHb = !p.is_hepsiburada_active && Boolean(p.hepsiburada_sku);
+        const shouldReactivateAmz = !p.is_amazon_active && Boolean(p.amazon_sku || p.amazon_asin);
+        if (shouldReactivateHb || shouldReactivateAmz) {
+          await pool.query(
+            `UPDATE products 
+             SET is_hepsiburada_active = CASE WHEN $1 THEN true ELSE is_hepsiburada_active END,
+                 is_amazon_active = CASE WHEN $2 THEN true ELSE is_amazon_active END
+             WHERE id = $3 AND store_id = $4`,
+            [shouldReactivateHb, shouldReactivateAmz, p.id, storeId]
+          );
+          if (shouldReactivateHb) p.is_hepsiburada_active = true;
+          if (shouldReactivateAmz) p.is_amazon_active = true;
+        }
+      }
+    }
+
+    // 2. Hepsiburada Real-Time Sync
+    const hbSettings = store.hepsiburada_settings || branding.hepsiburada_settings;
+    if (hbSettings?.merchantId && hbSettings?.apiKey && hbSettings?.apiSecret) {
+      const hbProducts = products.filter(p => {
+        let mpData = p.marketplace_data;
+        if (typeof mpData === "string") {
+          try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+        }
+        return p.is_hepsiburada_active || Boolean(p.hepsiburada_sku) || mpData?.hepsiburada?.status === "ACTIVE";
+      });
+
+      if (hbProducts.length > 0) {
+        try {
+          const { HepsiburadaService } = await import("./backend/hepsiburadaService.js");
+          const hbService = new HepsiburadaService(hbSettings, storeId);
+
+          const hbItems = hbProducts.map(p => {
+            let mpData = p.marketplace_data;
+            if (typeof mpData === "string") {
+              try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
+            }
+            const priceInTry = getPriceInTry(p);
+            const effectivePrice = hbService.calculateMarketplacePrice(priceInTry, p.category, p.sub_category);
+            const merchantSku = mpData?.hepsiburada?.merchantSku || p.barcode || p.sku || p.hepsiburada_sku;
+            const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
+
+            return {
+              MerchantSku: String(merchantSku).trim(),
+              HepsiburadaSku: p.hepsiburada_sku || mpData?.hepsiburada?.hepsiburadaSku || "",
+              Price: effectivePrice,
+              AvailableStock: currentStock,
+              DispatchTime: hbSettings.defaultDispatchTime || 1
+            };
+          });
+
+          await hbService.updatePriceAndStock(hbItems);
+          const hbIds = hbProducts.map(p => p.id);
+          await pool.query(
+            "UPDATE products SET hepsiburada_last_sync = NOW(), hepsiburada_last_error = NULL WHERE id = ANY($1)",
+            [hbIds]
+          );
+          syncedCount += hbItems.length;
+          console.log(`[Instant Marketplace Sync] Successfully pushed ${hbItems.length} products to Hepsiburada for store ${storeId} (Reason: ${options?.reason || "stock_change"}).`);
+        } catch (hbErr: any) {
+          errorsCount++;
+          console.warn(`[Instant Marketplace Sync HB Error] Store ${storeId}:`, hbErr?.message || hbErr);
+        }
+      }
+    }
+
+    // 3. Amazon Real-Time Sync
+    const amzSettings = store.amazon_settings || branding.amazon_settings;
+    if (amzSettings?.sellerId && amzSettings?.clientId && amzSettings?.clientSecret && (amzSettings?.refresh_token || amzSettings?.refreshToken)) {
+      const amzProducts = products.filter(p => {
+        return p.is_amazon_active || Boolean(p.amazon_sku) || Boolean(p.amazon_asin);
+      });
+
+      if (amzProducts.length > 0) {
+        try {
+          const { AmazonService } = await import("./backend/amazonService.js");
+          const amzService = new AmazonService(amzSettings, storeId);
+
+          for (const p of amzProducts) {
+            const sku = p.amazon_sku || p.sku || p.barcode;
+            if (!sku) continue;
+            const priceInTry = getPriceInTry(p);
+            const currentStock = Math.max(0, parseInt(String(p.stock_quantity || 0), 10));
+
+            const amzRes = await amzService.updateListingsItem(String(sku).trim(), priceInTry, currentStock);
+            if (amzRes.success) {
+              syncedCount++;
+            } else {
+              errorsCount++;
+            }
+          }
+          const amzIds = amzProducts.map(p => p.id);
+          await pool.query(
+            "UPDATE products SET amazon_last_sync = NOW() WHERE id = ANY($1)",
+            [amzIds]
+          );
+          console.log(`[Instant Marketplace Sync] Successfully pushed ${amzProducts.length} products to Amazon for store ${storeId} (Reason: ${options?.reason || "stock_change"}).`);
+        } catch (amzErr: any) {
+          errorsCount++;
+          console.warn(`[Instant Marketplace Sync Amazon Error] Store ${storeId}:`, amzErr?.message || amzErr);
+        }
+      }
+    }
+
+    return { syncedCount, errorsCount };
+  } catch (err: any) {
+    console.error("[Instant Marketplace Sync Exception]:", err?.message || err);
+    return { syncedCount: 0, errorsCount: 1 };
   }
 }
 

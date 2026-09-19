@@ -4,6 +4,7 @@ import { getEInvoiceService } from "../einvoice";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
 import { findMatchingProduct, saveSupplierMapping, sanitizeInvoiceItemCodes, isValidStandardBarcode, resolveExpenseClassification, revertInvoiceStockAndProducts, detectExpenseCategory } from "./invoiceMatching";
 import { mergeProducts } from "./products";
+import { syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
 
 const router = express.Router();
 
@@ -961,6 +962,7 @@ router.post("/sales", async (req: any, res) => {
       if (custRes.rows.length > 0) displayName = custRes.rows[0].full_name;
     }
 
+    const affectedProductIds: number[] = [];
     for (const item of items) {
       const qty = Number(item.quantity) || 0;
       const price = Number(item.unit_price) || 0;
@@ -988,6 +990,7 @@ router.post("/sales", async (req: any, res) => {
       );
       
       if (resolvedProductId) {
+        affectedProductIds.push(Number(resolvedProductId));
         const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [resolvedProductId]);
         const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
 
@@ -1030,6 +1033,12 @@ router.post("/sales", async (req: any, res) => {
     }
     
     await client.query("COMMIT");
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `sales_invoice_${invoice_number}` }).catch(err =>
+        console.error("[Sales Invoice Marketplace Sync Error]:", err?.message || err)
+      );
+    }
     res.json({ success: true, id: invoiceId });
   } catch (e: any) {
     await client.query("ROLLBACK");
@@ -1091,9 +1100,11 @@ router.put("/sales/:id", async (req: any, res) => {
       if (custRes.rows.length > 0) displayName = custRes.rows[0].full_name;
     }
 
+    const affectedProductIds: number[] = [];
     for (const item of oldItemsResult.rows) {
       const { productId: oldResolvedId } = await resolveProductInfo(client, storeId, item.product_id, item.barcode);
       if (oldResolvedId) {
+        affectedProductIds.push(Number(oldResolvedId));
         await client.query(
           "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, oldResolvedId, storeId]
@@ -1309,6 +1320,7 @@ router.put("/sales/:id", async (req: any, res) => {
       );
       
       if (resolvedProductId) {
+        affectedProductIds.push(Number(resolvedProductId));
         await client.query(
           "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
           [item.quantity, resolvedProductId, storeId]
@@ -1341,6 +1353,12 @@ router.put("/sales/:id", async (req: any, res) => {
     }
 
     await client.query("COMMIT");
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `sales_invoice_updated_${invoice_number}` }).catch(err =>
+        console.error("[Sales Invoice Update Marketplace Sync Error]:", err?.message || err)
+      );
+    }
     res.json({ success: true });
   } catch (e: any) {
     await client.query("ROLLBACK");
@@ -1926,6 +1944,7 @@ router.post("/purchase", async (req: any, res) => {
       }
     }
 
+    const affectedProductIds: number[] = [];
     if (items && Array.isArray(items)) {
       for (const item of items) {
         const qty = Number(item.quantity) || 0;
@@ -1969,6 +1988,7 @@ router.post("/purchase", async (req: any, res) => {
         );
 
         if (resolvedProductId && !finalIsExpense) {
+          affectedProductIds.push(Number(resolvedProductId));
           if (tax_number && item.product_name) {
             await saveSupplierMapping(pool, storeId, tax_number, item.product_name, resolvedProductId, resolvedProductCode);
           }
@@ -2016,6 +2036,12 @@ router.post("/purchase", async (req: any, res) => {
           );
         }
       }
+    }
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `purchase_invoice_created_${invoice.id}` }).catch(err =>
+        console.error("[Purchase Invoice Create Marketplace Sync Error]:", err?.message || err)
+      );
     }
 
     res.status(201).json(invoice);
@@ -2145,6 +2171,7 @@ router.put("/purchase/:id", async (req: any, res) => {
     }
 
     // Deduct old items stock before replacing them
+    const affectedProductIds: number[] = [];
     const oldItems = await pool.query("SELECT product_id, barcode, product_code, quantity, system_quantity, variant_id, variant_name FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     for (const oldItem of oldItems.rows) {
       let oldResolvedId = oldItem.product_id;
@@ -2153,6 +2180,7 @@ router.put("/purchase/:id", async (req: any, res) => {
         oldResolvedId = productId;
       }
       if (oldResolvedId) {
+        affectedProductIds.push(Number(oldResolvedId));
         const qtyToRevert = oldItem.system_quantity != null ? Number(oldItem.system_quantity) : Number(oldItem.quantity || 1);
         await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [qtyToRevert, oldResolvedId]);
 
@@ -2296,6 +2324,7 @@ router.put("/purchase/:id", async (req: any, res) => {
         );
 
         if (resolvedProductId && !finalIsExpense) {
+          affectedProductIds.push(Number(resolvedProductId));
           if (tax_number && item.product_name) {
             await saveSupplierMapping(pool, storeId, tax_number, item.product_name, resolvedProductId, resolvedProductCode);
           }
@@ -2345,6 +2374,12 @@ router.put("/purchase/:id", async (req: any, res) => {
       }
     }
 
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `purchase_invoice_updated_${id}` }).catch(err =>
+        console.error("[Purchase Invoice Update Marketplace Sync Error]:", err?.message || err)
+      );
+    }
+
     res.json(invoice);
   } catch (e: any) {
     console.error("Error in PUT /purchase/:id:", e);
@@ -2362,9 +2397,11 @@ router.delete("/sales/:id", async (req: any, res) => {
     const invoice = checkRes.rows[0];
 
     // Revert stock
+    const affectedProductIds: number[] = [];
     const oldItems = await pool.query("SELECT product_id, quantity FROM sales_invoice_items WHERE sales_invoice_id = $1", [id]);
     for (const item of oldItems.rows) {
       if (item.product_id) {
+        affectedProductIds.push(Number(item.product_id));
         await pool.query("UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2 AND store_id = $3", [item.quantity, item.product_id, storeId]);
       }
     }
@@ -2378,6 +2415,12 @@ router.delete("/sales/:id", async (req: any, res) => {
       await pool.query("DELETE FROM current_account_transactions WHERE (quotation_id = $1 OR sale_id = $2) AND sales_invoice_id IS NULL", [invoice.quotation_id || null, invoice.sale_id || null]);
     }
     await pool.query("DELETE FROM sales_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `sales_invoice_deleted_${id}` }).catch(err =>
+        console.error("[Sales Invoice Delete Marketplace Sync Error]:", err?.message || err)
+      );
+    }
 
     res.json({ success: true, message: "Sales invoice deleted successfully" });
   } catch (e: any) {
@@ -2396,9 +2439,11 @@ router.delete("/purchase/:id", async (req: any, res) => {
     const invoice = checkRes.rows[0];
 
     // Adjust stocks back
+    const affectedProductIds: number[] = [];
     const oldItems = await pool.query("SELECT product_id, quantity, system_quantity, variant_id, variant_name FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     for (const oldItem of oldItems.rows) {
       if (oldItem.product_id) {
+        affectedProductIds.push(Number(oldItem.product_id));
         const qtyToRevert = oldItem.system_quantity != null ? Number(oldItem.system_quantity) : Number(oldItem.quantity || 1);
         await pool.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2", [qtyToRevert, oldItem.product_id]);
 
@@ -2441,6 +2486,12 @@ router.delete("/purchase/:id", async (req: any, res) => {
     await pool.query("DELETE FROM current_account_transactions WHERE purchase_invoice_id = $1", [id]);
     await pool.query("DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1", [id]);
     await pool.query("DELETE FROM purchase_invoices WHERE id = $1 AND store_id = $2", [id, storeId]);
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `purchase_invoice_deleted_${id}` }).catch(err =>
+        console.error("[Purchase Invoice Delete Marketplace Sync Error]:", err?.message || err)
+      );
+    }
 
     res.json({ success: true, message: "Purchase invoice deleted successfully" });
   } catch (e: any) {
@@ -2666,6 +2717,7 @@ router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
 
     let processedItemsCount = 0;
     let addedStockCount = 0;
+    const convertedProductIds: number[] = [];
 
     for (const item of itemsRes.rows) {
       let resolvedProductId = item.product_id;
@@ -2749,6 +2801,7 @@ router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
           );
 
           if (movCheck.rows.length === 0) {
+            convertedProductIds.push(Number(resolvedProductId));
             await pool.query(
               "UPDATE products SET stock_quantity = stock_quantity + $1, cost_price = $2, cost_currency = $3 WHERE id = $4 AND store_id = $5",
               [qtyToStock, item.unit_price || 0, inv.currency || 'TRY', resolvedProductId, storeId]
@@ -2764,6 +2817,12 @@ router.post("/purchase/:id/convert-to-stock", async (req: any, res) => {
         }
         processedItemsCount++;
       }
+    }
+
+    if (convertedProductIds.length > 0) {
+      syncProductStockToMarketplaces(convertedProductIds, storeId, { reason: `convert_to_stock_invoice_${id}` }).catch(err =>
+        console.error("[Convert To Stock Marketplace Sync Error]:", err?.message || err)
+      );
     }
 
     res.json({

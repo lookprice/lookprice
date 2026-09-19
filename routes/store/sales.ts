@@ -1,6 +1,7 @@
 import express from "express";
 import { pool, logAction, addStockMovement, convertRecipeAmountToMl } from "../../models/db";
 import { getTurkishSearchSnippet, normalizeTurkishParam } from "./utils";
+import { syncProductStockToMarketplaces } from "../../src/services/marketplaceSync";
 import * as XLSX from "xlsx";
 
 const router = express.Router();
@@ -178,6 +179,7 @@ router.post("/pos", async (req: any, res) => {
       }
     }
 
+    const affectedProductIds: number[] = [];
     for (const item of items) {
       const itemTotal = Number(item.quantity) * Number(item.price);
       await client.query(
@@ -186,6 +188,7 @@ router.post("/pos", async (req: any, res) => {
       );
 
       if (item.id && saleStatus !== 'pending') {
+        affectedProductIds.push(Number(item.id));
         const productRes = await client.query("SELECT product_type, has_variants, variants FROM products WHERE id = $1", [item.id]);
         const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
         const hasVariants = productRes.rows[0]?.has_variants || false;
@@ -210,6 +213,7 @@ router.post("/pos", async (req: any, res) => {
 
         if (variantRecipeItems.length > 0) {
           for (const recItem of variantRecipeItems) {
+            if (recItem.ingredient_id) affectedProductIds.push(Number(recItem.ingredient_id));
             const baseAmount = convertRecipeAmountToMl(Number(recItem.amount), recItem.unit || recItem.ingredient_unit || 'ml');
             const totalIngredientQtyMl = Number(item.quantity) * baseAmount;
             
@@ -251,6 +255,7 @@ router.post("/pos", async (req: any, res) => {
 
           if (recipeRes.rows.length > 0) {
             for (const recItem of recipeRes.rows) {
+              if (recItem.ingredient_id) affectedProductIds.push(Number(recItem.ingredient_id));
               const baseAmount = convertRecipeAmountToMl(Number(recItem.amount), recItem.unit);
               const totalIngredientQtyMl = Number(item.quantity) * baseAmount;
               
@@ -343,6 +348,12 @@ router.post("/pos", async (req: any, res) => {
     }
 
     await client.query("COMMIT");
+
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `pos_sale_${saleId}` }).catch(err =>
+        console.error("[POS Sale Marketplace Sync Error]:", err?.message || err)
+      );
+    }
 
     await logAction(
       storeId, 
@@ -523,10 +534,12 @@ router.post("/:id/complete", async (req: any, res) => {
       sale.total_amount = newTotal;
     }
 
+    const affectedProductIds: number[] = [];
     if (sale.status === 'pending') {
       const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [id]);
       for (const item of itemsRes.rows) {
         if (item.product_id) {
+          affectedProductIds.push(Number(item.product_id));
           const productRes = await client.query("SELECT product_type FROM products WHERE id = $1", [item.product_id]);
           const productType = productRes.rows.length > 0 ? productRes.rows[0].product_type : 'product';
 
@@ -537,6 +550,7 @@ router.post("/:id/complete", async (req: any, res) => {
 
           if (recipeRes.rows.length > 0) {
             for (const recItem of recipeRes.rows) {
+              if (recItem.ingredient_id) affectedProductIds.push(Number(recItem.ingredient_id));
               const totalIngredientQty = Number(item.quantity) * Number(recItem.amount);
               await client.query(
                 "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
@@ -716,6 +730,12 @@ router.post("/:id/complete", async (req: any, res) => {
 
     await client.query("COMMIT");
 
+    if (affectedProductIds.length > 0) {
+      syncProductStockToMarketplaces(affectedProductIds, storeId, { reason: `sale_completed_${id}` }).catch(err =>
+        console.error("[Sale Complete Marketplace Sync Error]:", err?.message || err)
+      );
+    }
+
     await logAction(
       storeId, 
       req.user.id, 
@@ -868,12 +888,14 @@ router.post("/:id/cancel", async (req: any, res) => {
       return res.status(400).json({ error: "Sale already cancelled" });
     }
 
+    const cancelProductIds: number[] = [];
     const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [sale.id]);
     for (const item of itemsRes.rows) {
       if (item.product_id) {
         // Verify product exists before updating stock or recording stock movement
         const prodCheck = await client.query("SELECT id FROM products WHERE id = $1", [item.product_id]);
         if (prodCheck.rows.length > 0) {
+          cancelProductIds.push(Number(item.product_id));
           await client.query(
             "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
             [item.quantity, item.product_id]
@@ -893,6 +915,12 @@ router.post("/:id/cancel", async (req: any, res) => {
     }
 
     await client.query("COMMIT");
+
+    if (cancelProductIds.length > 0) {
+      syncProductStockToMarketplaces(cancelProductIds, storeId, { reason: `sale_cancelled_${sale.id}` }).catch(err =>
+        console.error("[Sale Cancel Marketplace Sync Error]:", err?.message || err)
+      );
+    }
 
     await logAction(
       storeId, 
@@ -932,6 +960,7 @@ router.delete("/:id", async (req: any, res) => {
 
     const sale = saleRes.rows[0];
 
+    const deleteProductIds: number[] = [];
     if (sale.status === 'completed') {
       const itemsRes = await client.query("SELECT * FROM sale_items WHERE sale_id = $1", [sale.id]);
       for (const item of itemsRes.rows) {
@@ -939,6 +968,7 @@ router.delete("/:id", async (req: any, res) => {
           // Verify product exists before updating stock
           const prodCheck = await client.query("SELECT id FROM products WHERE id = $1", [item.product_id]);
           if (prodCheck.rows.length > 0) {
+            deleteProductIds.push(Number(item.product_id));
             await client.query(
               "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
               [item.quantity, item.product_id]
@@ -962,6 +992,12 @@ router.delete("/:id", async (req: any, res) => {
     }
 
     await client.query("COMMIT");
+
+    if (deleteProductIds.length > 0) {
+      syncProductStockToMarketplaces(deleteProductIds, storeId, { reason: `sale_deleted_${sale.id}` }).catch(err =>
+        console.error("[Sale Delete Marketplace Sync Error]:", err?.message || err)
+      );
+    }
     res.json({ success: true });
   } catch (e: any) {
     await client.query("ROLLBACK");
