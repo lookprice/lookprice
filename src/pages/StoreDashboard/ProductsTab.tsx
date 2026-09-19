@@ -55,6 +55,7 @@ import { api } from "../../services/api";
 import { toast } from "sonner";
 import { getLabels } from "../../utils/showcase";
 import { getConnectedMarketplaces } from "../../utils/marketplaceEStores";
+import { getMarketplaceListingUrl } from "../../utils/marketplaceUrls";
 
 interface ProductsTabProps {
   products: any[];
@@ -167,53 +168,7 @@ const ProductsTab = ({
       .replace(/-+/g, '-');
   };
 
-  const getHepsiburadaUrl = (p: any): string | null => {
-    if (!p) return null;
-    let mpData = p.marketplace_data;
-    if (typeof mpData === 'string') {
-      try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
-    }
-    const directUrl = mpData?.hepsiburada?.productUrl || mpData?.hepsiburada?.url || p.hepsiburada_url;
-    if (directUrl && String(directUrl).startsWith('http') && !directUrl.includes('/ara?')) {
-      return directUrl;
-    }
-
-    const hbProductId = mpData?.hepsiburada?.productId;
-    if (hbProductId && String(hbProductId).toUpperCase().startsWith('HBC')) {
-      const cleanPid = String(hbProductId).trim().toUpperCase();
-      const slug = slugifyText(p.name || '');
-      return slug 
-        ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
-        : `https://www.hepsiburada.com/-pm-${cleanPid}`;
-    }
-
-    // Direct product catalog SKU (starts with HBC0, e.g. HBC0000..., NOT variant HBCV)
-    const directCatalogSku = (String(p.sku || '').toUpperCase().startsWith('HBC0') ? p.sku : '') ||
-                             (String(p.product_code || '').toUpperCase().startsWith('HBC0') ? p.product_code : '');
-    if (directCatalogSku) {
-      const cleanPid = String(directCatalogSku).trim().toUpperCase();
-      const slug = slugifyText(p.name || '');
-      return slug 
-        ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
-        : `https://www.hepsiburada.com/-pm-${cleanPid}`;
-    }
-
-    const hbSku = p.hepsiburada_sku || mpData?.hepsiburada?.hepsiburadaSku;
-    if (hbSku && String(hbSku).toUpperCase().startsWith('HBC')) {
-      const cleanPid = String(hbSku).trim().toUpperCase();
-      const slug = slugifyText(p.name || '');
-      return slug 
-        ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
-        : `https://www.hepsiburada.com/-pm-${cleanPid}`;
-    }
-
-    // ONLY return search URL if product is confirmed active AND has a SKU
-    if (p.is_hepsiburada_active && hbSku) {
-      return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(hbSku)}`;
-    }
-
-    return null;
-  };
+  const getHepsiburadaUrl = (p: any): string | null => getMarketplaceListingUrl('hepsiburada', p);
 
   const isHepsiburadaPending = (p: any): boolean => {
     if (!p) return false;
@@ -231,29 +186,13 @@ const ProductsTab = ({
     return Boolean(hb.status === 'PENDING_APPROVAL' || hb.catalogTrackingId || (!hasSku && p.is_hepsiburada_active));
   };
 
-  const getTrendyolUrl = (p: any) => {
-    const tyId = p.trendyol_id || p.marketplace_data?.trendyol?.contentId || p.marketplace_data?.trendyol?.pimCategoryId;
-    if (tyId) {
-      return `https://www.trendyol.com/-p-${tyId}`;
-    }
-    return `https://www.trendyol.com/sr?q=${encodeURIComponent(p.barcode || p.name)}`;
-  };
+  const getTrendyolUrl = (p: any): string | null => getMarketplaceListingUrl('trendyol', p);
 
-  const getN11Url = (p: any) => {
-    if (p.n11_id) {
-      return `https://www.n11.com/urun/${p.n11_id}`;
-    }
-    return `https://www.n11.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`;
-  };
+  const getN11Url = (p: any): string | null => getMarketplaceListingUrl('n11', p);
 
-  const getAmazonUrl = (p: any) => {
-    if (p.amazon_asin) return `https://www.amazon.com.tr/dp/${p.amazon_asin}`;
-    return `https://www.amazon.com.tr/s?k=${encodeURIComponent(p.barcode || p.name)}`;
-  };
+  const getAmazonUrl = (p: any): string | null => getMarketplaceListingUrl('amazon', p);
 
-  const getPazaramaUrl = (p: any) => {
-    return `https://www.pazarama.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`;
-  };
+  const getPazaramaUrl = (p: any): string | null => getMarketplaceListingUrl('pazarama', p);
   const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);

@@ -28,6 +28,7 @@ import {
 import { api } from '../../services/api';
 import { toast } from 'sonner';
 import { MarketplaceCategoryMappingModal } from './MarketplaceCategoryMappingModal';
+import { getMarketplaceListingUrl, getMarketplaceMerchantPortalUrl } from '../../utils/marketplaceUrls';
 
 export type MarketplaceKey = 'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama';
 export type ListingStatus = 'all' | 'active' | 'error' | 'inactive' | 'pending';
@@ -78,57 +79,8 @@ const MARKETPLACES: MarketplaceConfig[] = [
     lastSyncField: 'hepsiburada_last_sync',
     skuField: 'hepsiburada_sku',
     merchantPortalUrl: 'https://merchant.hepsiburada.com/',
-    getListingUrl: (p: any) => {
-      let mpData = p.marketplace_data;
-      if (typeof mpData === 'string') {
-        try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
-      }
-      const directUrl = mpData?.hepsiburada?.productUrl || mpData?.hepsiburada?.url || p.hepsiburada_url;
-      if (directUrl && String(directUrl).startsWith('http') && !directUrl.includes('/ara?')) {
-        return directUrl;
-      }
-      const slug = (p.name || '')
-        .toString()
-        .toLowerCase()
-        .trim()
-        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
-        .replace(/[^a-z0-9 -]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-
-      const hbProductId = mpData?.hepsiburada?.productId;
-      if (hbProductId && String(hbProductId).toUpperCase().startsWith('HBC')) {
-        const cleanPid = String(hbProductId).trim().toUpperCase();
-        return slug 
-          ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
-          : `https://www.hepsiburada.com/-pm-${cleanPid}`;
-      }
-
-      const directCatalogSku = (String(p.sku || '').toUpperCase().startsWith('HBC0') ? p.sku : '') ||
-                               (String(p.product_code || '').toUpperCase().startsWith('HBC0') ? p.product_code : '');
-      if (directCatalogSku) {
-        const cleanPid = String(directCatalogSku).trim().toUpperCase();
-        return slug 
-          ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
-          : `https://www.hepsiburada.com/-pm-${cleanPid}`;
-      }
-
-      const hbSku = p.hepsiburada_sku || 
-                    mpData?.hepsiburada?.hepsiburadaSku || 
-                    (String(p.sku || '').toUpperCase().startsWith('HBC') ? p.sku : null);
-      if (hbSku && String(hbSku).toUpperCase().startsWith('HBC')) {
-        const cleanPid = String(hbSku).trim().toUpperCase();
-        return slug 
-          ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
-          : `https://www.hepsiburada.com/-pm-${cleanPid}`;
-      }
-
-      // DO NOT return a dead /ara?q= search link before HB has confirmed the product is active with a SKU!
-      if (p.is_hepsiburada_active && hbSku) {
-        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(hbSku)}`;
-      }
-
-      return null;
-    },
-    getMerchantUrl: (p: any) => `https://merchant.hepsiburada.com/listing-management?merchantSku=${encodeURIComponent(p.barcode || '')}`
+    getListingUrl: (p: any) => getMarketplaceListingUrl('hepsiburada', p),
+    getMerchantUrl: (p: any) => getMarketplaceMerchantPortalUrl('hepsiburada', p)
   },
   {
     key: 'trendyol',
@@ -144,16 +96,8 @@ const MARKETPLACES: MarketplaceConfig[] = [
     lastSyncField: 'trendyol_last_sync',
     skuField: 'trendyol_id',
     merchantPortalUrl: 'https://partner.trendyol.com/',
-    getListingUrl: (p: any) => {
-      let mpData = p.marketplace_data;
-      if (typeof mpData === 'string') {
-        try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
-      }
-      const tyId = p.trendyol_id || mpData?.trendyol?.contentId;
-      if (tyId) return `https://www.trendyol.com/-p-${tyId}`;
-      return `https://www.trendyol.com/sr?q=${encodeURIComponent(p.barcode || p.name)}`;
-    },
-    getMerchantUrl: (p: any) => `https://partner.trendyol.com/products/inventory?barcode=${encodeURIComponent(p.barcode || '')}`
+    getListingUrl: (p: any) => getMarketplaceListingUrl('trendyol', p),
+    getMerchantUrl: (p: any) => getMarketplaceMerchantPortalUrl('trendyol', p)
   },
   {
     key: 'n11',
@@ -169,11 +113,8 @@ const MARKETPLACES: MarketplaceConfig[] = [
     lastSyncField: 'n11_last_sync',
     skuField: 'n11_id',
     merchantPortalUrl: 'https://so.n11.com/',
-    getListingUrl: (p: any) => {
-      if (p.n11_id) return `https://www.n11.com/urun/${p.n11_id}`;
-      return `https://www.n11.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`;
-    },
-    getMerchantUrl: () => `https://so.n11.com/product/index`
+    getListingUrl: (p: any) => getMarketplaceListingUrl('n11', p),
+    getMerchantUrl: (p: any) => getMarketplaceMerchantPortalUrl('n11', p)
   },
   {
     key: 'amazon',
@@ -189,11 +130,8 @@ const MARKETPLACES: MarketplaceConfig[] = [
     lastSyncField: 'amazon_last_sync',
     skuField: 'amazon_asin',
     merchantPortalUrl: 'https://sellercentral.amazon.com.tr/',
-    getListingUrl: (p: any) => {
-      if (p.amazon_asin) return `https://www.amazon.com.tr/dp/${p.amazon_asin}`;
-      return `https://www.amazon.com.tr/s?k=${encodeURIComponent(p.barcode || p.name)}`;
-    },
-    getMerchantUrl: () => `https://sellercentral.amazon.com.tr/inventory`
+    getListingUrl: (p: any) => getMarketplaceListingUrl('amazon', p),
+    getMerchantUrl: (p: any) => getMarketplaceMerchantPortalUrl('amazon', p)
   },
   {
     key: 'pazarama',
@@ -209,8 +147,8 @@ const MARKETPLACES: MarketplaceConfig[] = [
     lastSyncField: 'pazarama_last_sync',
     skuField: 'pazarama_id',
     merchantPortalUrl: 'https://satici.pazarama.com/',
-    getListingUrl: (p: any) => `https://www.pazarama.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`,
-    getMerchantUrl: () => `https://satici.pazarama.com/urun-yonetimi`
+    getListingUrl: (p: any) => getMarketplaceListingUrl('pazarama', p),
+    getMerchantUrl: (p: any) => getMarketplaceMerchantPortalUrl('pazarama', p)
   }
 ];
 
