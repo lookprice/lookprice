@@ -250,10 +250,34 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
         try {
           await client.query("BEGIN");
 
-          // Find or create customer
+          // Find or create customer with detailed shipping and buyer info
           let customerId = null;
-          const buyerName = order.BuyerInfo?.BuyerName || 'Amazon Müşterisi';
-          const buyerEmail = order.BuyerInfo?.BuyerEmail || `amazon_${order.AmazonOrderId}@amazon.com`;
+          let buyerInfo = order.BuyerInfo || {};
+          let shippingAddress = order.ShippingAddress || {};
+
+          try {
+            const fetchedAddress = await amazonService.fetchOrderAddress(order.AmazonOrderId);
+            if (fetchedAddress) {
+              shippingAddress = { ...shippingAddress, ...fetchedAddress };
+            }
+          } catch (e) {
+            console.warn("[Amazon Order Sync] Shipping address fetch notice:", e);
+          }
+
+          try {
+            const fetchedBuyer = await amazonService.fetchOrderBuyerInfo(order.AmazonOrderId);
+            if (fetchedBuyer) {
+              buyerInfo = { ...buyerInfo, ...fetchedBuyer };
+            }
+          } catch (e) {
+            console.warn("[Amazon Order Sync] Buyer info fetch notice:", e);
+          }
+
+          const buyerName = shippingAddress.Name || buyerInfo.BuyerName || 'Amazon Müşterisi';
+          const buyerEmail = buyerInfo.BuyerEmail || `amazon_${order.AmazonOrderId}@amazon.com`;
+          const buyerPhone = shippingAddress.Phone || '';
+          const addressLine = [shippingAddress.AddressLine1, shippingAddress.AddressLine2, shippingAddress.AddressLine3].filter(Boolean).join(' ') || '';
+          const city = shippingAddress.City || shippingAddress.StateOrRegion || '';
           
           const rawBuyerName = (buyerName || '').trim();
           const nameParts1 = rawBuyerName.split(' ');
@@ -263,16 +287,29 @@ router.post("/amazon/sync", authenticate, async (req: any, res) => {
           const custRes = await client.query("SELECT id FROM customers WHERE store_id = $1 AND email = $2", [storeId, buyerEmail]);
           if (custRes.rows.length > 0) {
             customerId = custRes.rows[0].id;
+            if (buyerPhone || addressLine || city) {
+              await client.query(
+                `UPDATE customers SET 
+                   phone = COALESCE(NULLIF(phone, ''), $1),
+                   address = COALESCE(NULLIF(address, ''), $2),
+                   city = COALESCE(NULLIF(city, ''), $3)
+                 WHERE id = $4 AND store_id = $5`,
+                [buyerPhone, addressLine, city, customerId, storeId]
+              );
+            }
           } else {
             const newCust = await client.query(
-              `INSERT INTO customers (store_id, email, password, full_name, name, surname) 
-               VALUES ($1, $2, $3, $4, $5, $6) 
+              `INSERT INTO customers (store_id, email, password, full_name, name, surname, phone, address, city) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
                ON CONFLICT (store_id, email) DO UPDATE SET 
                  full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), customers.full_name),
                  name = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
-                 surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname)
+                 surname = COALESCE(NULLIF(EXCLUDED.surname, ''), customers.surname),
+                 phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+                 address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+                 city = COALESCE(NULLIF(EXCLUDED.city, ''), customers.city)
                RETURNING id`,
-              [storeId, buyerEmail, 'marketplace_user', rawBuyerName, firstName1, surname1]
+              [storeId, buyerEmail, 'marketplace_user', rawBuyerName, firstName1, surname1, buyerPhone, addressLine, city]
             );
             customerId = newCust.rows[0]?.id;
           }
@@ -1085,6 +1122,139 @@ router.post("/hepsiburada/sync-inventory", authenticate, async (req: any, res) =
   }
 });
 
+// 5.1 Check Single Product Live Status on Hepsiburada
+router.post("/hepsiburada/check-product-status", authenticate, async (req: any, res) => {
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" 
+    ? Number(rawStoreId || req.user.store_id || 1) 
+    : Number(req.user.store_id || rawStoreId);
+
+  const productId = req.body?.productId;
+  if (!productId) {
+    return res.status(400).json({ error: "Ürün ID gereklidir." });
+  }
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mağaza bulunamadı" });
+    }
+
+    const row = storeRes.rows[0];
+    let settings = row?.hepsiburada_settings || row?.branding?.hepsiburada_settings || {};
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+
+    const merchantId = String(settings?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim();
+    const apiSecret = String(settings?.apiSecret || "").trim();
+
+    if (!merchantId || !apiSecret) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik." });
+    }
+
+    const cleanSettings = { ...settings, merchantId, apiKey, apiSecret, isTestMode: Boolean(settings?.isTestMode) };
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
+
+    const prodRes = await pool.query("SELECT * FROM products WHERE id = $1 AND store_id = $2", [productId, storeId]);
+    if (prodRes.rows.length === 0) {
+      return res.status(404).json({ error: "Ürün bulunamadı" });
+    }
+    const product = prodRes.rows[0];
+
+    const barcode = (product.barcode || "").trim().toLowerCase();
+    const sku = (product.sku || "").trim().toLowerCase();
+    const name = (product.name || "").trim().toLowerCase();
+    const currentHbSku = (product.hepsiburada_sku || "").trim().toLowerCase();
+
+    // Fetch live merchant listings from Hepsiburada
+    const listings = await hbService.fetchMerchantListings({ limit: 200 });
+    const matched = listings.find((l: any) => {
+      const lHbSku = (l.hepsiburadaSku || "").trim().toLowerCase();
+      const lMSku = (l.merchantSku || "").trim().toLowerCase();
+      const lBarcode = (l.barcode || "").trim().toLowerCase();
+      const lName = (l.productName || "").trim().toLowerCase();
+
+      if (currentHbSku && lHbSku && currentHbSku === lHbSku) return true;
+      if (barcode && lBarcode && barcode === lBarcode) return true;
+      if (barcode && lMSku && barcode === lMSku) return true;
+      if (sku && lMSku && sku === lMSku) return true;
+      if (barcode && lMSku.startsWith(barcode)) return true;
+      if (name && lName && name === lName) return true;
+      return false;
+    });
+
+    let mpData: any = product.marketplace_data;
+    if (typeof mpData === "string") { try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; } }
+    mpData = mpData || {};
+    const hbData = mpData.hepsiburada || {};
+
+    if (matched) {
+      const hbSku = matched.hepsiburadaSku || hbData.hepsiburadaSku || null;
+      const pid = matched.productId || hbData.productId || null;
+      const isSalable = matched.isSalable !== false && matched.status === 'ACTIVE';
+
+      mpData.hepsiburada = {
+        ...hbData,
+        hepsiburadaSku: hbSku,
+        productId: pid,
+        merchantSku: matched.merchantSku || barcode,
+        status: matched.status || 'ACTIVE',
+        isSalable,
+        productUrl: pid ? `https://www.hepsiburada.com/-pm-${pid}` : (hbSku ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(hbSku)}` : null),
+        lastChecked: new Date().toISOString()
+      };
+
+      await pool.query(
+        `UPDATE products 
+         SET is_hepsiburada_active = $1,
+             hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
+             hepsiburada_last_sync = NOW(),
+             hepsiburada_last_error = NULL,
+             marketplace_data = $3
+         WHERE id = $4`,
+        [isSalable, hbSku, JSON.stringify(mpData), productId]
+      );
+
+      return res.json({
+        success: true,
+        isLive: isSalable,
+        status: matched.status || 'ACTIVE',
+        hepsiburadaSku: hbSku,
+        productId: pid,
+        productUrl: mpData.hepsiburada.productUrl,
+        message: isSalable 
+          ? `Hepsiburada eşleşmesi doğrulandı! Ürün canlı satışta (${hbSku || pid}).`
+          : `Ürün Hepsiburada'da bulundu ancak şu an pasif durumda (Durum: ${matched.status}).`
+      });
+    } else {
+      // Not matched yet: review is still pending
+      mpData.hepsiburada = {
+        ...hbData,
+        status: 'PENDING_APPROVAL',
+        lastChecked: new Date().toISOString()
+      };
+
+      await pool.query(
+        `UPDATE products 
+         SET is_hepsiburada_active = false,
+             marketplace_data = $1
+         WHERE id = $2`,
+        [JSON.stringify(mpData), productId]
+      );
+
+      return res.json({
+        success: true,
+        isLive: false,
+        status: 'PENDING_APPROVAL',
+        trackingId: hbData.catalogTrackingId || hbData.listingTrackingId,
+        message: "Hepsiburada katalog ve barkod incelemesi sürüyor. Henüz onaylanıp mağaza envanterinize eklenmemiş."
+      });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Durum sorgulanamadı." });
+  }
+});
+
 // 6. Publish / Update Single Product to Hepsiburada
 router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
   const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
@@ -1292,35 +1462,43 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       }
     }
 
+    const isLive = Boolean(resolvedHbSku);
+
     // Update product marketplace metadata
     mpData.hepsiburada = {
       ...hbData,
       categoryId: categoryId ? Number(categoryId) : undefined,
       attributes,
-      hepsiburadaSku: resolvedHbSku || hbData.hepsiburadaSku,
-      productUrl: inputHbUrl || hbData.productUrl || (resolvedHbSku ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(resolvedHbSku)}` : undefined),
+      hepsiburadaSku: resolvedHbSku || hbData.hepsiburadaSku || null,
+      productId: hbData.productId || (resolvedHbSku?.startsWith('HBC') ? resolvedHbSku : null),
+      status: isLive ? 'ACTIVE' : 'PENDING_APPROVAL',
+      productUrl: isLive ? (inputHbUrl || hbData.productUrl || (resolvedHbSku?.startsWith('HBC') ? `https://www.hepsiburada.com/-pm-${resolvedHbSku}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(resolvedHbSku)}`)) : undefined,
       catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId,
-      listingTrackingId: result.trackingId,
+      listingTrackingId: result.trackingId || hbData.listingTrackingId,
       lastSync: new Date().toISOString()
     };
 
     await pool.query(
       `UPDATE products 
-       SET is_hepsiburada_active = true,
-           hepsiburada_sku = COALESCE(NULLIF($1, ''), hepsiburada_sku),
+       SET is_hepsiburada_active = $1,
+           hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
            hepsiburada_last_sync = NOW(), 
            hepsiburada_last_error = NULL, 
-           marketplace_data = $2 
-       WHERE id = $3`,
-      [resolvedHbSku || null, JSON.stringify(mpData), productId]
+           marketplace_data = $3 
+       WHERE id = $4`,
+      [isLive, resolvedHbSku || null, JSON.stringify(mpData), productId]
     );
 
-    const message = catalogTrackingId
-      ? `"${p.name}" Hepsiburada kataloğuna aktarıldı ve satışa açıldı! (Katalog Takip No: ${catalogTrackingId})`
-      : result.message;
+    const message = isLive
+      ? `"${p.name}" Hepsiburada kataloğunda eşleşti ve canlı satışa açıldı! (HB SKU: ${resolvedHbSku})`
+      : catalogTrackingId
+        ? `"${p.name}" Hepsiburada'ya iletildi. Katalog ve barkod incelemesi başlatıldı (Takip No: ${catalogTrackingId}). HB onaylayıp ürün kodunu oluşturduğunda satış linki otomatik olarak aktifleşecektir.`
+        : `"${p.name}" Hepsiburada envanter kuyruğuna iletildi. İnceleme sürüyor (Takip No: ${result.trackingId}).`;
 
     res.json({
       success: true,
+      isLive,
+      status: isLive ? 'ACTIVE' : 'PENDING_APPROVAL',
       message,
       effectivePrice,
       trackingId: catalogTrackingId || result.trackingId,
@@ -1433,9 +1611,10 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
 
     const result = await hbService.updatePriceAndStock(validItems);
 
+    // Only mark as active if the product already has a confirmed Hepsiburada SKU
     await pool.query(
       `UPDATE products 
-       SET is_hepsiburada_active = true, 
+       SET is_hepsiburada_active = (CASE WHEN (hepsiburada_sku IS NOT NULL AND hepsiburada_sku != '') THEN true ELSE false END), 
            hepsiburada_last_sync = NOW(), 
            hepsiburada_last_error = NULL 
        WHERE store_id = $1 AND barcode = ANY($2)`,
@@ -1448,7 +1627,7 @@ router.post("/hepsiburada/bulk-publish", authenticate, async (req: any, res) => 
       skippedCount: skippedItems.length, 
       skipped: skippedItems, 
       trackingId: result.trackingId, 
-      message: `${validItems.length} ürün Hepsiburada'da ilana açıldı / güncellendi.` 
+      message: `${validItems.length} ürün Hepsiburada'ya iletildi. Onaylı SKU'su olanlar satışta, diğerleri katalog incelemesinde tutuluyor.` 
     });
   } catch (error: any) {
     res.status(400).json({ error: error.message || "Toplu Hepsiburada ilana açma başarısız." });

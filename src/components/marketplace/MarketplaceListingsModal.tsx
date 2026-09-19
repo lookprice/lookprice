@@ -30,7 +30,7 @@ import toast from 'react-hot-toast';
 import { MarketplaceCategoryMappingModal } from './MarketplaceCategoryMappingModal';
 
 export type MarketplaceKey = 'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama';
-export type ListingStatus = 'all' | 'active' | 'error' | 'inactive';
+export type ListingStatus = 'all' | 'active' | 'error' | 'inactive' | 'pending';
 
 interface MarketplaceListingsModalProps {
   isOpen: boolean;
@@ -111,17 +111,22 @@ const MARKETPLACES: MarketplaceConfig[] = [
           : `https://www.hepsiburada.com/-pm-${cleanPid}`;
       }
 
-      // Barcode search on Hepsiburada is guaranteed 200 OK and lands directly on active listing
-      const barcode = (p.barcode || '').toString().trim();
-      if (barcode && /^\d{6,14}$/.test(barcode)) {
-        return `https://www.hepsiburada.com/ara?q=${barcode}`;
+      const hbSku = p.hepsiburada_sku || 
+                    mpData?.hepsiburada?.hepsiburadaSku || 
+                    (String(p.sku || '').toUpperCase().startsWith('HBC') ? p.sku : null);
+      if (hbSku && String(hbSku).toUpperCase().startsWith('HBC')) {
+        const cleanPid = String(hbSku).trim().toUpperCase();
+        return slug 
+          ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
+          : `https://www.hepsiburada.com/-pm-${cleanPid}`;
       }
 
-      if (p.name && String(p.name).trim()) {
-        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(String(p.name).trim())}`;
+      // DO NOT return a dead /ara?q= search link before HB has confirmed the product is active with a SKU!
+      if (p.is_hepsiburada_active && hbSku) {
+        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(hbSku)}`;
       }
 
-      return '#';
+      return null;
     },
     getMerchantUrl: (p: any) => `https://merchant.hepsiburada.com/listing-management?merchantSku=${encodeURIComponent(p.barcode || '')}`
   },
@@ -274,6 +279,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   const [isSyncingOrders, setIsSyncingOrders] = useState(false);
   const [matchResult, setMatchResult] = useState<any | null>(null);
   const [showCategoryMappingModal, setShowCategoryMappingModal] = useState(false);
+  const [checkingStatusId, setCheckingStatusId] = useState<number | null>(null);
 
   useEffect(() => {
     if (products) {
@@ -341,9 +347,39 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     if (priceVal <= 0 || stockVal <= 0) {
       return false;
     }
+
+    if (mpKey === 'hepsiburada') {
+      let mpData = p.marketplace_data;
+      if (typeof mpData === 'string') {
+        try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+      }
+      const hb = mpData?.hepsiburada || {};
+      const hasSku = Boolean(
+        p.hepsiburada_sku || 
+        (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined')) ||
+        (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
+      );
+      if (hb.status === 'PENDING_APPROVAL' || (!hasSku && !p.hepsiburada_sku)) {
+        return false;
+      }
+      return Boolean(p.is_hepsiburada_active);
+    }
+
     if (mpKey === 'all') {
+      let mpData = p.marketplace_data;
+      if (typeof mpData === 'string') {
+        try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+      }
+      const hb = mpData?.hepsiburada || {};
+      const hbHasSku = Boolean(
+        p.hepsiburada_sku || 
+        (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined')) ||
+        (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
+      );
+      const isHbActive = Boolean(p.is_hepsiburada_active) && hb.status !== 'PENDING_APPROVAL' && (hbHasSku || Boolean(p.hepsiburada_sku));
+
       return Boolean(
-        p.is_hepsiburada_active ||
+        isHbActive ||
         p.is_trendyol_active ||
         p.is_n11_active ||
         p.is_amazon_active ||
@@ -352,6 +388,79 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
     const cfg = MARKETPLACES.find(m => m.key === mpKey);
     return cfg ? Boolean(p[cfg.activeField]) : false;
+  };
+
+  // Helper to check if a product is submitted and waiting for catalog/barcode review
+  const isProductPending = (p: any, mpKey: MarketplaceKey): boolean => {
+    let mpData = p.marketplace_data;
+    if (typeof mpData === 'string') {
+      try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+    }
+    if (mpKey === 'hepsiburada' || mpKey === 'all') {
+      const hb = mpData?.hepsiburada || {};
+      const hasSku = Boolean(
+        p.hepsiburada_sku || 
+        (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined')) ||
+        (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
+      );
+      if (p.hepsiburada_last_error) return false;
+      if (hb.status === 'PENDING_APPROVAL' || hb.catalogTrackingId || hb.listingTrackingId || (!hasSku && p.is_hepsiburada_active)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Handle checking live catalog and listing status from Hepsiburada
+  const handleCheckHbStatus = async (productId: number) => {
+    if (checkingStatusId === productId) return;
+    try {
+      setCheckingStatusId(productId);
+      const res = await api.checkHepsiburadaProductStatus(productId, currentStoreId);
+      const data = res?.data || res;
+      if (data && data.success) {
+        if (data.isLive) {
+          toast.success(
+            data.message || (isTr ? "Hepsiburada eşleşmesi doğrulandı! Ürün satışta." : "Product is live on Hepsiburada!"),
+            { duration: 4500 }
+          );
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === productId) {
+              return {
+                ...item,
+                is_hepsiburada_active: true,
+                hepsiburada_sku: data.hepsiburadaSku || item.hepsiburada_sku,
+                hepsiburada_last_error: null,
+                hepsiburada_last_sync: new Date().toISOString(),
+                marketplace_data: {
+                  ...((typeof item.marketplace_data === 'object' ? item.marketplace_data : {}) || {}),
+                  hepsiburada: {
+                    ...(((typeof item.marketplace_data === 'object' ? item.marketplace_data : {}) as any)?.hepsiburada || {}),
+                    status: 'ACTIVE',
+                    hepsiburadaSku: data.hepsiburadaSku,
+                    productId: data.productId,
+                    productUrl: data.productUrl
+                  }
+                }
+              };
+            }
+            return item;
+          }));
+          if (onRefresh) onRefresh();
+        } else {
+          toast(
+            data.message || (isTr ? "Hepsiburada katalog ve barkod incelemesi devam ediyor. Henüz onay kodu atanmadı." : "Catalog review still in progress on HB."),
+            { icon: '⏳', duration: 4500 }
+          );
+        }
+      } else {
+        toast.error(data?.message || data?.error || (isTr ? "Hepsiburada durum sorgulanamadı." : "Status check failed."));
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || err?.message || (isTr ? "Durum kontrol edilirken hata oluştu." : "Error checking status."));
+    } finally {
+      setCheckingStatusId(null);
+    }
   };
 
   // Helper to check if a product has an error in a marketplace
@@ -390,17 +499,20 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     const total = cleanedLocalProducts.length;
     let active = 0;
     let errors = 0;
+    let pending = 0;
 
     cleanedLocalProducts.forEach(p => {
       if (isProductActive(p, selectedMarketplace)) {
         active++;
       } else if (getProductError(p, selectedMarketplace)) {
         errors++;
+      } else if (isProductPending(p, selectedMarketplace)) {
+        pending++;
       }
     });
 
-    const inactive = total - active - errors;
-    return { total, active, errors, inactive };
+    const inactive = total - active - errors - pending;
+    return { total, active, errors, pending, inactive };
   }, [cleanedLocalProducts, selectedMarketplace]);
 
   // Filtered Products
@@ -423,15 +535,19 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       // Status filter
       const active = isProductActive(p, selectedMarketplace);
       const error = getProductError(p, selectedMarketplace);
+      const pending = isProductPending(p, selectedMarketplace);
 
       if (selectedStatus === 'active') {
         return active;
+      }
+      if (selectedStatus === 'pending') {
+        return pending && !active;
       }
       if (selectedStatus === 'error') {
         return Boolean(error) && !active;
       }
       if (selectedStatus === 'inactive') {
-        return !active && !error;
+        return !active && !error && !pending;
       }
 
       return true;
@@ -464,17 +580,27 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       if (targetMp === 'hepsiburada') {
         const res = await api.publishHepsiburadaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
-          toast.success(isTr ? `"${product.name}" Hepsiburada'ya gönderildi (Satışta)!` : "Published to Hepsiburada!");
+          const isLive = Boolean(res.data?.isLive ?? (res.data?.status === 'ACTIVE' || Boolean(res.data?.hepsiburadaSku)));
+          const toastMsg = res.data?.message || (isLive 
+            ? (isTr ? `"${product.name}" Hepsiburada kataloğunda eşleşti ve satışa açıldı!` : "Published to Hepsiburada!")
+            : (isTr ? `"${product.name}" Hepsiburada'ya iletildi. Katalog ve barkod incelemesi başlatıldı (Onay Bekliyor).` : "Submitted to HB catalog review."));
+          
+          if (isLive) {
+            toast.success(toastMsg);
+          } else {
+            toast(toastMsg, { icon: '⏳', duration: 4500 });
+          }
+
           const returnedSku = res.data?.hepsiburadaSku || res?.hepsiburadaSku;
           const returnedMpData = res.data?.marketplace_data || res?.marketplace_data;
           setLocalProducts(prev => prev.map(item => {
             if (item.id === product.id) {
               return { 
                 ...item, 
-                is_hepsiburada_active: true, 
+                is_hepsiburada_active: isLive, 
                 hepsiburada_last_error: null, 
                 hepsiburada_last_sync: new Date().toISOString(),
-                hepsiburada_sku: returnedSku || item.hepsiburada_sku,
+                hepsiburada_sku: returnedSku || (isLive ? item.hepsiburada_sku : null),
                 marketplace_data: returnedMpData || item.marketplace_data
               };
             }
@@ -611,15 +737,10 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         const res = await api.bulkPublishHepsiburadaProducts(eligibleIds, currentStoreId);
         toast.success(
           isTr 
-            ? `Hepsiburada'ya ${res.data?.syncedCount || eligibleIds.length} ürün başarıyla iletildi!` 
+            ? `Hepsiburada'ya ${res.data?.syncedCount || eligibleIds.length} ürün iletildi (Katalog incelemesi başlatıldı)!` 
             : `Sent ${res.data?.syncedCount || eligibleIds.length} products to Hepsiburada!`
         );
-        setLocalProducts(prev => prev.map(item => {
-          if (eligibleIds.includes(item.id)) {
-            return { ...item, is_hepsiburada_active: true, hepsiburada_last_error: null, hepsiburada_last_sync: new Date().toISOString() };
-          }
-          return item;
-        }));
+        if (onRefresh) onRefresh();
       } else {
         let count = 0;
         for (const id of eligibleIds) {
@@ -921,6 +1042,24 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                   {metrics.active}
                 </span>
               </button>
+
+              {metrics.pending > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatus('pending')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                    selectedStatus === 'pending'
+                      ? 'bg-amber-50 border-amber-300 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 shadow-xs'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-amber-600 hover:bg-amber-50/50'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  {isTr ? "Onay Bekliyor" : "Pending"}
+                  <span className="bg-amber-200/60 dark:bg-amber-800/60 text-amber-900 dark:text-amber-100 text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                    {metrics.pending}
+                  </span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -1309,9 +1448,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                               {selectedMarketplace === 'all' ? (
                                 <>
                                   {/* Hepsiburada Badge */}
-                                  {isHbActive ? (
+                                  {isHbActive && MARKETPLACES[0].getListingUrl(p) ? (
                                     <a
-                                      href={MARKETPLACES[0].getListingUrl(p)}
+                                      href={MARKETPLACES[0].getListingUrl(p)!}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800 hover:opacity-80 transition-opacity"
@@ -1321,6 +1460,17 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                       HB
                                       <ExternalLink className="w-2.5 h-2.5 opacity-80" />
                                     </a>
+                                  ) : isProductPending(p, 'hepsiburada') ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCheckHbStatus(p.id)}
+                                      disabled={checkingStatusId === p.id}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 cursor-pointer transition-colors"
+                                      title={isTr ? "Hepsiburada katalog ve barkod onay incelemesinde. Durumu sorgulamak için tıklayın." : "Pending HB catalog review. Click to refresh status."}
+                                    >
+                                      <Clock className={`w-2.5 h-2.5 text-amber-600 ${checkingStatusId === p.id ? 'animate-spin' : ''}`} />
+                                      HB ONAY
+                                    </button>
                                   ) : hbError ? (
                                     <span
                                       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
@@ -1401,6 +1551,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                               ) : (() => {
                                 const targetConfig = MARKETPLACES.find(m => m.key === selectedMarketplace) || MARKETPLACES[0];
                                 const isTargetActive = isProductActive(p, selectedMarketplace);
+                                const isTargetPending = isProductPending(p, selectedMarketplace);
                                 const targetError = getProductError(p, selectedMarketplace);
 
                                 return (
@@ -1409,6 +1560,14 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                         {isTr ? "Satışta" : "Active"}
+                                      </span>
+                                    ) : isTargetPending ? (
+                                      <span
+                                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800"
+                                        title={isTr ? "Katalog ve barkod onay incelemesinde" : "Catalog review in progress"}
+                                      >
+                                        <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                                        {isTr ? "Onay Bekliyor" : "Pending Review"}
                                       </span>
                                     ) : targetError ? (
                                       <span
@@ -1449,9 +1608,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                             {selectedMarketplace === 'all' ? (
                               <>
                                 {/* DOĞRUDAN HB İLANINA GİT */}
-                                {isHbActive && (
+                                {isHbActive && MARKETPLACES[0].getListingUrl(p) && (
                                   <a
-                                    href={MARKETPLACES[0].getListingUrl(p)}
+                                    href={MARKETPLACES[0].getListingUrl(p)!}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1 shrink-0 active:scale-95 border border-orange-400/30"
@@ -1460,6 +1619,19 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                     <span>HB</span>
                                     <ExternalLink className="w-3 h-3 opacity-90" />
                                   </a>
+                                )}
+
+                                {/* HB ONAY BEKLİYOR: HIZLI DURUM KONTROL BUTONU (SADECE MİKRO İKON) */}
+                                {isProductPending(p, 'hepsiburada') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCheckHbStatus(p.id)}
+                                    disabled={checkingStatusId === p.id}
+                                    className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
+                                    title={isTr ? "Hepsiburada Katalog Onay Durumunu Canlı Sorgula" : "Check HB Catalog Approval Status"}
+                                  >
+                                    <Clock className={`w-3.5 h-3.5 text-amber-600 ${checkingStatusId === p.id ? 'animate-spin' : ''}`} />
+                                  </button>
                                 )}
 
                                 {/* DOĞRUDAN TRENDYOL İLANINA GİT */}
@@ -1557,9 +1729,9 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                               return (
                                 <>
                                   {/* Single Marketplace Live Listing Icon Link Button */}
-                                  {isTargetActive && (
+                                  {isTargetActive && targetConfig.getListingUrl(p) && (
                                     <a
-                                      href={targetConfig.getListingUrl(p)}
+                                      href={targetConfig.getListingUrl(p)!}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95 border border-emerald-500/30"
@@ -1567,6 +1739,19 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                     >
                                       <ExternalLink className="w-4 h-4" />
                                     </a>
+                                  )}
+
+                                  {/* Hepsiburada Pending Actions: Canlı Durum Sorgula (Sadece Mikro İkon) */}
+                                  {selectedMarketplace === 'hepsiburada' && isProductPending(p, 'hepsiburada') && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCheckHbStatus(p.id)}
+                                      disabled={checkingStatusId === p.id}
+                                      className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all shadow-xs flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
+                                      title={isTr ? "Hepsiburada Katalog Durumunu Canlı Sorgula" : "Check Live HB Status"}
+                                    >
+                                      <RefreshCw className={`w-3.5 h-3.5 text-amber-700 ${checkingStatusId === p.id ? 'animate-spin' : ''}`} />
+                                    </button>
                                   )}
 
                                   {/* Marketplace-specific Publish/Update Action */}

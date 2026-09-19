@@ -222,6 +222,103 @@ export class AmazonService {
   }
 
   /**
+   * Get Restricted Data Token (RDT) for sensitive PII (BuyerInfo, ShippingAddress)
+   */
+  async getRestrictedDataToken(restrictedResources: Array<{ method: string; path: string; dataElements?: string[] }>): Promise<string | null> {
+    if (this.settings.isSandbox) return null;
+    try {
+      const accessToken = await this.getAccessToken();
+      const response = await axios.post(
+        `${this.getApiEndpoint()}/tokens/2021-03-01/restrictedDataToken`,
+        { restrictedResources },
+        {
+          headers: {
+            "x-amz-access-token": accessToken,
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
+        }
+      );
+      return response.data?.restrictedDataToken || null;
+    } catch (err: any) {
+      console.warn("[AmazonService] RDT token creation note:", err.response?.data || err.message);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch Order Shipping Address (Müşteri Adresi ve Kişisel Bilgiler)
+   */
+  async fetchOrderAddress(amazonOrderId: string): Promise<any | null> {
+    if (this.settings.isSandbox) {
+      return {
+        Name: "Ahmet Yılmaz (Amazon Sandbox)",
+        AddressLine1: "Levent Mah. Cömert Sk. No: 14/B",
+        City: "İstanbul",
+        District: "Beşiktaş",
+        StateOrRegion: "İstanbul",
+        PostalCode: "34330",
+        CountryCode: "TR",
+        Phone: "0532 000 00 00"
+      };
+    }
+
+    try {
+      let token = await this.getRestrictedDataToken([
+        { method: "GET", path: `/orders/v0/orders/${amazonOrderId}/address`, dataElements: ["shippingAddress"] }
+      ]);
+      if (!token) {
+        token = await this.getAccessToken();
+      }
+
+      const response = await axios.get(`${this.getApiEndpoint()}/orders/v0/orders/${amazonOrderId}/address`, {
+        headers: { "x-amz-access-token": token },
+        timeout: 10000,
+      });
+
+      return response.data?.payload?.ShippingAddress || null;
+    } catch (err: any) {
+      console.warn(`[AmazonService] Order address fetch fallback for ${amazonOrderId}:`, err.response?.data || err.message);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch Order Buyer Info (Alıcı ve Vergi/TC Bilgisi)
+   */
+  async fetchOrderBuyerInfo(amazonOrderId: string): Promise<any | null> {
+    if (this.settings.isSandbox) {
+      return {
+        BuyerEmail: "ahmet.sandbox@lookprice.me",
+        BuyerName: "Ahmet Yılmaz",
+        BuyerTaxInfo: {
+          CompanyLegalName: "Amazon Test Müşterisi",
+          TaxingRegion: "TR"
+        }
+      };
+    }
+
+    try {
+      let token = await this.getRestrictedDataToken([
+        { method: "GET", path: `/orders/v0/orders/${amazonOrderId}/buyerInfo`, dataElements: ["buyerInfo"] }
+      ]);
+      if (!token) {
+        token = await this.getAccessToken();
+      }
+
+      const response = await axios.get(`${this.getApiEndpoint()}/orders/v0/orders/${amazonOrderId}/buyerInfo`, {
+        headers: { "x-amz-access-token": token },
+        timeout: 10000,
+      });
+
+      return response.data?.payload || null;
+    } catch (err: any) {
+      console.warn(`[AmazonService] Order buyerInfo fetch fallback for ${amazonOrderId}:`, err.response?.data || err.message);
+      return null;
+    }
+  }
+
+  /**
    * Fetch Active Listings from Amazon SP-API / Store DB
    */
   async fetchListings(): Promise<any[]> {

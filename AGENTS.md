@@ -246,6 +246,21 @@ This file outlines strict engineering, performance, and naming directives that m
   - Kullanıcı işlem yaptığı aktif sekmede, filtrede, modalda ve sayfada kalmaya devam etmelidir. Veriler arka planda tazelemeli (`onRefresh`), ancak kullanıcının mevcut çalışma ortamı (açık modal, seçili pazaryeri sekmesi `selectedMarketplace`, arama terimi, filtreler ve sayfa konumu) aynen korunmalıdır.
   - İkon komutlarına tıklanarak açılan alt modallar (ör. ürün düzenleme modalı) kapandığında, operatör doğrudan işlem başlattığı üst modal/ekrana geri dönmeli ve kalınan yer korunmalıdır.
 
+---
+
+## 19. Tablo ve Liste Aksiyonlarında İkon-Odaklı Kompakt Buton Standardı (Icon-Only Action Button Protocol)
+
+- **Tablo Satırlarında ve Kompakt İşlem Hücrelerinde Metin Buton Yasağı**:
+  - Tablo satırları, veri listeleri ve kompakt operatör arayüzlerinde (özellikle Pazaryeri İlan Takibi `MarketplaceListingsModal`, Ürün Tablosu, Fatura Satırları vb.) 'Durum Sorgula', 'Onay Kontrol', 'Canlı Denetle' gibi üzeri uzun yazılı kutucuklar/butonlar KESİNLİKLE KULLANILAMAZ.
+  - Bu tür yazılı butonlar yatay işlem alanını daraltır, tablo hücrelerini patlatır, dar ekranlarda taşmaya yol açar ve gelecekte eklenecek yeni fonksiyon/ikonlar için yer bırakmaz.
+  - Bunun yerine daima **yalın, net, yüksek kontrastlı mikro İKON butonlar** (örn. `<RefreshCw className="w-3.5 h-3.5" />`, `<Clock className="w-3.5 h-3.5" />`, `<ExternalLink className="w-3.5 h-3.5" />`) kullanılmalıdır.
+  - Butonun ne işe yaradığı mutlaka zengin ve açıklayıcı `title` (tooltip) niteliğiyle sunulmalı; buton kare/kompakt yapıda (`p-1.5 rounded-lg flex items-center justify-center`) tutularak operasyonel alan maksimum verimlilikle korunmalıdır.
+
+- **Gereksiz ve Çiftlenen Dış Navigasyon İkonu Yasağı (Redundant Icon Ban)**:
+  - Modalların veya sayfaların üst araç çubuğunda ilgili pazar yerinin satıcı merkezine (Merchant Center / Seller Central) doğrudan erişim butonları/linkleri zaten yer almaktadır.
+  - Her bir tablo satırına veya ürün hücresine genel satıcı panelini açan fazlalık ikonlar (örn. mağaza/store ikonu) KESİNLİKLE EKLENEMEZ. Satır içi butonlar yalnızca o ilana/satıra özel canlı aksiyonlara (doğrudan aktif ilanı yeni sekmede açma, onay durumu sorgulama, satışa açma/kapatma, fiyat/stok basma) ayrılmalıdır.
+
+
 
 
 

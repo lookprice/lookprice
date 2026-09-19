@@ -554,6 +554,7 @@ export const api = {
   publishTrendyolProduct: (productId: number, storeId?: number) => api.post("/api/integrations/trendyol/publish", { productId, storeId }),
   publishN11Product: (productId: number, storeId?: number) => api.post("/api/integrations/n11/publish", { productId, storeId }),
   publishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/publish", { productId, storeId }),
+  checkHepsiburadaProductStatus: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/check-product-status", { productId, storeId }),
   publishAmazonProduct: (productId: number, storeId?: number) => api.post("/api/integrations/amazon/publish", { productId, storeId }),
   bulkPublishHepsiburadaProducts: (productIds: number[], storeId?: number) => api.post("/api/integrations/hepsiburada/bulk-publish", { productIds, storeId }),
   unpublishHepsiburadaProduct: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/unpublish", { productId, storeId }),

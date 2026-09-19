@@ -35,7 +35,8 @@ import {
   Image as ImageIcon,
   Cloud,
   Barcode,
-  Layers
+  Layers,
+  Clock
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "@/translations";
@@ -197,18 +198,37 @@ const ProductsTab = ({
         : `https://www.hepsiburada.com/-pm-${cleanPid}`;
     }
 
-    // If barcode is present, barcode search on Hepsiburada is guaranteed 200 OK and lands directly on product
-    const barcode = (p.barcode || '').toString().trim();
-    if (barcode && /^\d{6,14}$/.test(barcode)) {
-      return `https://www.hepsiburada.com/ara?q=${barcode}`;
+    const hbSku = p.hepsiburada_sku || mpData?.hepsiburada?.hepsiburadaSku;
+    if (hbSku && String(hbSku).toUpperCase().startsWith('HBC')) {
+      const cleanPid = String(hbSku).trim().toUpperCase();
+      const slug = slugifyText(p.name || '');
+      return slug 
+        ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
+        : `https://www.hepsiburada.com/-pm-${cleanPid}`;
     }
 
-    // If we have a product name, fallback to searching the product name on Hepsiburada
-    if (p.name && p.name.trim()) {
-      return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name.trim())}`;
+    // ONLY return search URL if product is confirmed active AND has a SKU
+    if (p.is_hepsiburada_active && hbSku) {
+      return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(hbSku)}`;
     }
 
     return null;
+  };
+
+  const isHepsiburadaPending = (p: any): boolean => {
+    if (!p) return false;
+    let mpData = p.marketplace_data;
+    if (typeof mpData === 'string') {
+      try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
+    }
+    const hb = mpData?.hepsiburada || {};
+    const hasSku = Boolean(
+      p.hepsiburada_sku || 
+      (hb.hepsiburadaSku && !String(hb.hepsiburadaSku).startsWith('undefined')) ||
+      (hb.productId && String(hb.productId).toUpperCase().startsWith('HBC'))
+    );
+    if (p.hepsiburada_last_error) return false;
+    return Boolean(hb.status === 'PENDING_APPROVAL' || hb.catalogTrackingId || (!hasSku && p.is_hepsiburada_active));
   };
 
   const getTrendyolUrl = (p: any) => {
@@ -254,11 +274,11 @@ const ProductsTab = ({
     }
     return 'hepsiburada';
   });
-  const [marketplaceModalStatus, setMarketplaceModalStatus] = useState<'all' | 'active' | 'error' | 'inactive'>(() => {
+  const [marketplaceModalStatus, setMarketplaceModalStatus] = useState<'all' | 'active' | 'pending' | 'error' | 'inactive'>(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const mpStatus = urlParams.get('mpStatus') || localStorage.getItem('marketplaceModalStatus');
-      if (mpStatus && ['all', 'active', 'error', 'inactive'].includes(mpStatus)) {
+      if (mpStatus && ['all', 'active', 'pending', 'error', 'inactive'].includes(mpStatus)) {
         return mpStatus as any;
       }
     }
@@ -1443,9 +1463,9 @@ const ProductsTab = ({
                                     }
                                     return null;
                                   })()}
-                                  {isShopLp && connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && (
+                                  {isShopLp && connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && getHepsiburadaUrl(p) && (
                                     <a
-                                      href={getHepsiburadaUrl(p)}
+                                      href={getHepsiburadaUrl(p)!}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={(e) => e.stopPropagation()}
@@ -1455,6 +1475,22 @@ const ProductsTab = ({
                                       <span className="w-1 h-1 rounded-full bg-orange-500 animate-pulse"></span>
                                       HB ↗
                                     </a>
+                                  )}
+                                  {isShopLp && connectedMarketplaces.hepsiburada && isHepsiburadaPending(p) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setMarketplaceModalTab('hepsiburada');
+                                        setMarketplaceModalStatus('pending');
+                                        setShowMarketplaceListingsModal(true);
+                                      }}
+                                      className="text-[8px] font-extrabold text-amber-800 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 border border-amber-300 dark:border-amber-800 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-0.5 shadow-2xs transition-colors cursor-pointer"
+                                      title={lang === 'tr' ? 'Hepsiburada katalog ve barkod onay incelemesinde (Tıkla ve İncele)' : 'HB Catalog Pending Review'}
+                                    >
+                                      <Clock className="w-2.5 h-2.5 text-amber-600 animate-spin" />
+                                      HB ONAY
+                                    </button>
                                   )}
                                   {isShopLp && connectedMarketplaces.hepsiburada && !p.is_hepsiburada_active && p.hepsiburada_last_error && (
                                     <button
@@ -1793,9 +1829,9 @@ const ProductsTab = ({
                           })()}
                           {isShopLp && connectedMarketplaces.hasAnyConnected && (
                             <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide items-center gap-1.5 w-full pb-0.5 max-w-[85vw] sm:max-w-[400px]">
-                              {connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && (
+                              {connectedMarketplaces.hepsiburada && p.is_hepsiburada_active && getHepsiburadaUrl(p) && (
                                 <a
-                                  href={getHepsiburadaUrl(p)}
+                                  href={getHepsiburadaUrl(p)!}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
@@ -1805,6 +1841,22 @@ const ProductsTab = ({
                                   <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
                                   HB ↗
                                 </a>
+                              )}
+                              {connectedMarketplaces.hepsiburada && isHepsiburadaPending(p) && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMarketplaceModalTab('hepsiburada');
+                                    setMarketplaceModalStatus('pending');
+                                    setShowMarketplaceListingsModal(true);
+                                  }}
+                                  className="font-extrabold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded uppercase inline-flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                                  title={lang === 'tr' ? 'Hepsiburada katalog ve barkod onay incelemesinde' : 'HB Catalog Pending Review'}
+                                >
+                                  <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                                  HB ONAY
+                                </button>
                               )}
                               {connectedMarketplaces.trendyol && p.is_trendyol_active && (
                                 <a
