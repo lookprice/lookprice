@@ -1206,7 +1206,7 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
             ? `https://www.hepsiburada.com/-pm-${hbSku}` 
             : (barcode 
               ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(barcode)}` 
-              : (p?.name ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name)}` : null))),
+              : (name ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(name)}` : null))),
         lastChecked: new Date().toISOString()
       };
 
