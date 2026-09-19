@@ -207,9 +207,14 @@ const ProductsTab = ({
         : `https://www.hepsiburada.com/-pm-${cleanPid}`;
     }
 
-    // ONLY return search URL if product is confirmed active AND has a SKU
-    if (p.is_hepsiburada_active && hbSku) {
-      return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(hbSku)}`;
+    // DO NOT search by merchant SKU (BS130157-S) on hepsiburada.com/ara - HB customer search only recognizes Barcode (8713439169775) or Product Name!
+    if (p.is_hepsiburada_active) {
+      if (p.barcode && String(p.barcode).trim()) {
+        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(String(p.barcode).trim())}`;
+      }
+      if (p.name && String(p.name).trim()) {
+        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(String(p.name).trim())}`;
+      }
     }
 
     return null;
