@@ -927,12 +927,12 @@ export class HepsiburadaService {
 
     try {
       const res = await this.updatePriceAndStock(inventoryItems);
-      // Mark products as active and record sync timestamp
+      // Mark products as active (only if price > 0 and stock > 0) and record sync timestamp
       await pool.query(
         `UPDATE products 
-         SET is_hepsiburada_active = true, 
+         SET is_hepsiburada_active = (CASE WHEN CAST(price AS NUMERIC) > 0 AND stock_quantity > 0 THEN true ELSE false END), 
              hepsiburada_last_sync = NOW(), 
-             hepsiburada_last_error = NULL 
+             hepsiburada_last_error = (CASE WHEN CAST(price AS NUMERIC) <= 0 OR stock_quantity <= 0 THEN 'Fiyat (0₺) veya Stok (0/negatif) yetersiz olduğu için pasife alındı.' ELSE NULL END) 
          WHERE store_id = $1 AND barcode = ANY($2)`,
         [this.storeId, inventoryItems.map((i) => i.MerchantSku)]
       );
@@ -1174,11 +1174,13 @@ export class HepsiburadaService {
           for (const item of rawItems) {
             const hbSku = String(item.hepsiburadaSku || item.HepsiburadaSku || item.sku || item.hbSku || "").trim();
             const merchantSku = String(item.merchantSku || item.MerchantSku || item.barcode || item.Barcode || item.stockCode || "").trim();
+            const productId = String(item.productId || item.ProductId || "").trim();
             const key = hbSku || merchantSku;
             if (key && !allListingsMap.has(key)) {
               allListingsMap.set(key, {
                 hepsiburadaSku: hbSku,
                 merchantSku: merchantSku,
+                productId: productId,
                 barcode: merchantSku || item.barcode || item.Barcode || hbSku,
                 productName: item.productName || item.name || item.title || item.UrunAdi || "",
                 price: parseFloat(item.price || item.Price || item.salePrice || 0) || 0,
@@ -1324,24 +1326,38 @@ export class HepsiburadaService {
           try { mpData = JSON.parse(mpData); } catch (e) { mpData = {}; }
         }
         mpData = mpData || {};
+        const resolvedPid = listing.productId || listing.raw?.productId || mpData.hepsiburada?.productId;
         mpData.hepsiburada = {
           ...(mpData.hepsiburada || {}),
           hepsiburadaSku: hbSku || mpData.hepsiburada?.hepsiburadaSku,
           merchantSku: mSku || mpData.hepsiburada?.merchantSku,
+          productId: resolvedPid,
+          productUrl: resolvedPid ? `https://www.hepsiburada.com/-pm-${resolvedPid}` : mpData.hepsiburada?.productUrl,
           matchedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
           status: listing.status || 'ACTIVE'
         };
 
+        const pPrice = Number(matchedProd.price || 0);
+        const pStock = Number(matchedProd.stock_quantity || 0);
+        const isValidForListing = pPrice > 0 && pStock > 0;
+
         await pool.query(
           `UPDATE products 
-           SET is_hepsiburada_active = true,
-               hepsiburada_sku = COALESCE(NULLIF($1, ''), hepsiburada_sku),
+           SET is_hepsiburada_active = $1,
+               hepsiburada_sku = COALESCE(NULLIF($2, ''), hepsiburada_sku),
                hepsiburada_last_sync = NOW(),
-               hepsiburada_last_error = NULL,
-               marketplace_data = $2
-           WHERE id = $3 AND store_id = $4`,
-          [hbSku || null, JSON.stringify(mpData), matchedProd.id, this.storeId]
+               hepsiburada_last_error = $3,
+               marketplace_data = $4
+           WHERE id = $5 AND store_id = $6`,
+          [
+            isValidForListing,
+            hbSku || null,
+            isValidForListing ? null : "Fiyat (0₺) veya Stok (0/negatif) yetersiz olduğu için pasife alındı.",
+            JSON.stringify(mpData),
+            matchedProd.id,
+            this.storeId
+          ]
         );
 
         matchedCount++;
@@ -1356,60 +1372,65 @@ export class HepsiburadaService {
           stock: listing.availableStock
         });
       } else if (importMissing) {
-        // Auto import unmatched product
-        const newName = pName || listing.productName || listing.title || (mSku ? `E-Mağaza Portföy Ürünü (${mSku})` : (hbSku ? `E-Mağaza Portföy Ürünü (${hbSku})` : `E-Mağaza Portföy Ürünü (${barcode})`));
-        const newBarcode = mSku || barcode || hbSku || `HB-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const newPrice = listing.price || 0;
-        const newStock = listing.availableStock || 0;
+        // Auto import unmatched product ONLY if it has a real valid barcode and real product name
+        const newName = (pName || listing.productName || listing.title || "").trim();
+        const validBarcodeCandidate = (mSku || barcode || "").trim();
 
-        const mpData = {
-          hepsiburada: {
-            hepsiburadaSku: hbSku,
-            merchantSku: mSku,
-            importedFromHB: true,
-            matchedAt: new Date().toISOString(),
-            lastSync: new Date().toISOString(),
-            status: listing.status || 'ACTIVE'
+        // Strict guard: do not create phantom dummy products
+        if (newName && validBarcodeCandidate && validBarcodeCandidate.length >= 6 && !validBarcodeCandidate.startsWith("200552")) {
+          const newBarcode = validBarcodeCandidate;
+          const newPrice = listing.price || 0;
+          const newStock = listing.availableStock || 0;
+
+          const mpData = {
+            hepsiburada: {
+              hepsiburadaSku: hbSku,
+              merchantSku: mSku,
+              importedFromHB: true,
+              matchedAt: new Date().toISOString(),
+              lastSync: new Date().toISOString(),
+              status: listing.status || 'ACTIVE'
+            }
+          };
+
+          const insertRes = await pool.query(
+            `INSERT INTO products 
+              (store_id, name, barcode, price, stock_quantity, is_hepsiburada_active, hepsiburada_sku, category, hepsiburada_last_sync, marketplace_data)
+             VALUES ($1, $2, $3, $4, $5, true, $6, 'Genel', NOW(), $7)
+             ON CONFLICT (store_id, barcode) DO UPDATE 
+               SET is_hepsiburada_active = true,
+                   hepsiburada_sku = COALESCE(NULLIF(EXCLUDED.hepsiburada_sku, ''), products.hepsiburada_sku),
+                   hepsiburada_last_sync = NOW(),
+                   hepsiburada_last_error = NULL,
+                   marketplace_data = EXCLUDED.marketplace_data
+             RETURNING id, name, barcode, hepsiburada_sku`,
+            [this.storeId, newName, newBarcode, newPrice, newStock, hbSku || null, JSON.stringify(mpData)]
+          );
+
+          const insertedRow = insertRes.rows[0];
+          if (insertedRow) {
+            storeProducts.push({
+              id: insertedRow.id,
+              name: insertedRow.name,
+              barcode: insertedRow.barcode,
+              sku: newBarcode,
+              hepsiburada_sku: insertedRow.hepsiburada_sku || hbSku,
+              is_hepsiburada_active: true,
+              marketplace_data: mpData
+            });
           }
-        };
 
-        const insertRes = await pool.query(
-          `INSERT INTO products 
-            (store_id, name, barcode, price, stock_quantity, is_hepsiburada_active, hepsiburada_sku, category, hepsiburada_last_sync, marketplace_data)
-           VALUES ($1, $2, $3, $4, $5, true, $6, 'Genel', NOW(), $7)
-           ON CONFLICT (store_id, barcode) DO UPDATE 
-             SET is_hepsiburada_active = true,
-                 hepsiburada_sku = COALESCE(NULLIF(EXCLUDED.hepsiburada_sku, ''), products.hepsiburada_sku),
-                 hepsiburada_last_sync = NOW(),
-                 hepsiburada_last_error = NULL,
-                 marketplace_data = EXCLUDED.marketplace_data
-           RETURNING id, name, barcode, hepsiburada_sku`,
-          [this.storeId, newName, newBarcode, newPrice, newStock, hbSku || null, JSON.stringify(mpData)]
-        );
-
-        const insertedRow = insertRes.rows[0];
-        if (insertedRow) {
-          storeProducts.push({
-            id: insertedRow.id,
-            name: insertedRow.name,
-            barcode: insertedRow.barcode,
-            sku: newBarcode,
-            hepsiburada_sku: insertedRow.hepsiburada_sku || hbSku,
-            is_hepsiburada_active: true,
-            marketplace_data: mpData
+          importedCount++;
+          matchResults.push({
+            action: 'imported',
+            productId: insertedRow?.id,
+            productName: newName,
+            barcode: newBarcode,
+            hepsiburadaSku: hbSku,
+            price: newPrice,
+            stock: newStock
           });
         }
-
-        importedCount++;
-        matchResults.push({
-          action: 'imported',
-          productId: insertedRow?.id,
-          productName: newName,
-          barcode: newBarcode,
-          hepsiburadaSku: hbSku,
-          price: newPrice,
-          stock: newStock
-        });
       }
     }
 

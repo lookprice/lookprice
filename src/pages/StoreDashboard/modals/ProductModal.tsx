@@ -135,7 +135,7 @@ export const ProductModal = ({
     }
     try {
       setIsPublishingToHb(true);
-      const res = await api.publishHepsiburadaProduct(editingProduct.id, branding?.id);
+      const res = await api.publishHepsiburadaProduct(editingProduct.id, branding?.id || branding?.store_id);
       const data = res.data || res;
       if (data?.success) {
         if (data.marketplace_data || data.hepsiburadaSku) {

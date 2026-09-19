@@ -374,6 +374,7 @@ export const SettingsEStoresTab = ({
 
   const handleSaveAmazonSettings = async () => {
     try {
+      const prevAmz = branding.amazon_settings || {};
       const isConn = !!(amazonClientId && amazonClientSecret && (amazonRefreshToken || amazonSellerId));
       const payload = { 
         appId: amazonAppId,
@@ -382,6 +383,11 @@ export const SettingsEStoresTab = ({
         refreshToken: amazonRefreshToken, 
         sellerId: amazonSellerId, 
         isSandbox: amazonIsSandbox,
+        defaultCommissionRate: prevAmz.defaultCommissionRate ?? 15,
+        defaultFixedFee: prevAmz.defaultFixedFee ?? 20,
+        categoryMappings: prevAmz.categoryMappings || {},
+        categoryAttributes: prevAmz.categoryAttributes || {},
+        categoryMarkups: prevAmz.categoryMarkups || {},
         connected: isConn,
         storeId: currentStoreId 
       };
@@ -452,8 +458,16 @@ export const SettingsEStoresTab = ({
   // --- Handlers: N11 ---
   const handleSaveN11Settings = async () => {
     try {
+      const prevN11 = branding.n11_settings || {};
       const isConn = !!(n11AppKey && n11AppSecret);
-      const payload = { appKey: n11AppKey, appSecret: n11AppSecret, connected: isConn, storeId: currentStoreId };
+      const payload = { 
+        appKey: n11AppKey, 
+        appSecret: n11AppSecret, 
+        categoryMappings: prevN11.categoryMappings || {},
+        categoryMarkups: prevN11.categoryMarkups || {},
+        connected: isConn, 
+        storeId: currentStoreId 
+      };
       const res = await api.saveN11Settings(payload);
       const savedData = res.data?.settings || res.settings || payload;
 
@@ -516,11 +530,14 @@ export const SettingsEStoresTab = ({
         isTestMode: hbIsTestMode,
         defaultDispatchTime: hbDefaultDispatchTime,
         defaultCargoCompany: hbDefaultCargoCompany,
+        defaultCommissionRate: prevHb.defaultCommissionRate ?? 18,
+        defaultFixedFee: prevHb.defaultFixedFee ?? 20,
         autoSyncOrders: hbAutoSyncOrders,
         autoStockSync: hbAutoStockSync,
         webhookSecret: hbWebhookSecret,
         categoryMappings: prevHb.categoryMappings || {},
         categoryAttributes: prevHb.categoryAttributes || {},
+        categoryMarkups: prevHb.categoryMarkups || {},
         connected: isConn,
         storeId: currentStoreId 
       };
@@ -653,11 +670,17 @@ export const SettingsEStoresTab = ({
   // --- Handlers: Trendyol ---
   const handleSaveTySettings = async () => {
     try {
+      const prevTy = branding.trendyol_settings || {};
       const isConn = !!(tyApiKey && tyApiSecret && tyMerchantId);
       const tyPayload = { 
         apiKey: tyApiKey, 
         apiSecret: tyApiSecret, 
         merchantId: tyMerchantId, 
+        defaultCommissionRate: prevTy.defaultCommissionRate ?? 18,
+        defaultFixedFee: prevTy.defaultFixedFee ?? 20,
+        categoryMappings: prevTy.categoryMappings || {},
+        categoryAttributes: prevTy.categoryAttributes || {},
+        categoryMarkups: prevTy.categoryMarkups || {},
         connected: isConn,
         storeId: currentStoreId 
       };
@@ -741,14 +764,17 @@ export const SettingsEStoresTab = ({
 
   const handleSavePzSettings = async () => {
     try {
+      const prevPz = branding.pazarama_settings || {};
       const isConn = !!(pzApiKey && pzApiSecret);
       const pzData = { 
         apiKey: pzApiKey, 
         apiSecret: pzApiSecret, 
         merchantId: pzMerchantId,
-        commissionRate: Number(pzCommissionRate),
-        categoryMappings: pzCategoryMappings,
-        brandMappings: pzBrandMappings,
+        commissionRate: pzCommissionRate !== undefined && pzCommissionRate !== '' ? Number(pzCommissionRate) : (prevPz.commissionRate ?? 15),
+        defaultFixedFee: prevPz.defaultFixedFee ?? 20,
+        categoryMappings: pzCategoryMappings || prevPz.categoryMappings || {},
+        categoryMarkups: prevPz.categoryMarkups || {},
+        brandMappings: pzBrandMappings || prevPz.brandMappings || {},
         connected: isConn
       };
       const res = await api.savePazaramaSettings({ 
@@ -933,7 +959,7 @@ export const SettingsEStoresTab = ({
               )}
             </button>
 
-            {/* Quick Mapping Hub Modal Trigger */}
+            {/* Quick Mapping Hub Modal Trigger (Icon only) */}
             <button
               type="button"
               onClick={() => {
@@ -941,10 +967,11 @@ export const SettingsEStoresTab = ({
                 setCategoryMappingModalOpen(true);
               }}
               id="open-mapping-hub-header-btn"
-              className="inline-flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200/80 text-slate-800 transition-colors border border-slate-200/70 cursor-pointer"
+              className="inline-flex items-center justify-center p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors border border-indigo-200 cursor-pointer shadow-xs"
+              title={lang === 'tr' ? 'Pazaryeri Kategorileri, Nitelikleri ve Komisyon Ayarları' : 'Marketplace Categories, Attributes & Commission Settings'}
+              aria-label={lang === 'tr' ? 'Pazaryeri Kategorileri, Nitelikleri ve Komisyon Ayarları' : 'Marketplace Categories, Attributes & Commission Settings'}
             >
-              <SlidersHorizontal className="h-3.5 w-3.5 text-slate-600" />
-              <span>{lang === 'tr' ? 'Kategori & Nitelik Eşleme' : 'Category Mapping'}</span>
+              <SlidersHorizontal className="h-4 w-4" />
             </button>
           </div>
         </div>

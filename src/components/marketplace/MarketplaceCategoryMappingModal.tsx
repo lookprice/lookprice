@@ -138,19 +138,61 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   const [showPricingFormulaInfo, setShowPricingFormulaInfo] = useState(false);
   const [isCommissionOpen, setIsCommissionOpen] = useState(false);
 
+  // Sync state whenever modal opens or branding changes
+  useEffect(() => {
+    if (isOpen) {
+      if (initialMarketplace) {
+        setActiveMarketplace(initialMarketplace);
+      }
+      setMappings({
+        hepsiburada: branding.hepsiburada_settings?.categoryMappings || {},
+        trendyol: branding.trendyol_settings?.categoryMappings || {},
+        amazon: branding.amazon_settings?.categoryMappings || {},
+        pazarama: branding.pazarama_settings?.categoryMappings || {}
+      });
+      setAttributesConfig({
+        hepsiburada: branding.hepsiburada_settings?.categoryAttributes || {},
+        trendyol: branding.trendyol_settings?.categoryAttributes || {},
+        amazon: branding.amazon_settings?.categoryAttributes || {},
+        pazarama: branding.pazarama_settings?.categoryAttributes || {}
+      });
+      setCategoryMarkups({
+        hepsiburada: branding.hepsiburada_settings?.categoryMarkups || {},
+        trendyol: branding.trendyol_settings?.categoryMarkups || {},
+        amazon: branding.amazon_settings?.categoryMarkups || {},
+        pazarama: branding.pazarama_settings?.categoryMarkups || {}
+      });
+      setDefaultCommissionRates({
+        hepsiburada: branding.hepsiburada_settings?.defaultCommissionRate ?? 18,
+        trendyol: branding.trendyol_settings?.defaultCommissionRate ?? 18,
+        amazon: branding.amazon_settings?.defaultCommissionRate ?? 15,
+        pazarama: branding.pazarama_settings?.commissionRate ?? 15
+      });
+      setDefaultFixedFees({
+        hepsiburada: branding.hepsiburada_settings?.defaultFixedFee ?? 20,
+        trendyol: branding.trendyol_settings?.defaultFixedFee ?? 20,
+        amazon: branding.amazon_settings?.defaultFixedFee ?? 20,
+        pazarama: branding.pazarama_settings?.defaultFixedFee ?? 20
+      });
+    }
+  }, [isOpen, branding, initialMarketplace]);
+
   // Helper to update specific category's markup
-  const handleUpdateCategoryMarkup = (localCatKey: string, field: 'commissionRate' | 'fixedFee', val: number) => {
+  const handleUpdateCategoryMarkup = (localCatKey: string, field: 'commissionRate' | 'fixedFee', val: number | undefined) => {
     setCategoryMarkups((prev) => {
       const currentMarketMarkups = prev[activeMarketplace] || {};
       const existing = currentMarketMarkups[localCatKey] || {};
+      const nextObj = { ...existing };
+      if (val === undefined || isNaN(val)) {
+        delete nextObj[field];
+      } else {
+        nextObj[field] = val;
+      }
       return {
         ...prev,
         [activeMarketplace]: {
           ...currentMarketMarkups,
-          [localCatKey]: {
-            ...existing,
-            [field]: isNaN(val) ? 0 : val
-          }
+          [localCatKey]: nextObj
         }
       };
     });
@@ -1386,7 +1428,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                             step="0.5"
                             placeholder={String(defaultCommissionRates[activeMarketplace] ?? 18)}
                             value={categoryMarkups[activeMarketplace]?.[localCat]?.commissionRate ?? ''}
-                            onChange={(e) => handleUpdateCategoryMarkup(localCat, 'commissionRate', parseFloat(e.target.value))}
+                            onChange={(e) => handleUpdateCategoryMarkup(localCat, 'commissionRate', e.target.value === '' ? undefined : parseFloat(e.target.value))}
                             className="w-9 bg-transparent text-[10px] font-bold text-slate-800 focus:outline-hidden text-right"
                           />
                         </div>
@@ -1401,7 +1443,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
                             step="1"
                             placeholder={String(defaultFixedFees[activeMarketplace] ?? 20)}
                             value={categoryMarkups[activeMarketplace]?.[localCat]?.fixedFee ?? ''}
-                            onChange={(e) => handleUpdateCategoryMarkup(localCat, 'fixedFee', parseFloat(e.target.value))}
+                            onChange={(e) => handleUpdateCategoryMarkup(localCat, 'fixedFee', e.target.value === '' ? undefined : parseFloat(e.target.value))}
                             className="w-9 bg-transparent text-[10px] font-bold text-slate-800 focus:outline-hidden text-right"
                           />
                           <span className="text-[9px] font-bold text-slate-500 ml-0.5">TL</span>

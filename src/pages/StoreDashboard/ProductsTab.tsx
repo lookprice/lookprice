@@ -149,24 +149,66 @@ const ProductsTab = ({
     return products.map(p => productOverrides[p.id] ? { ...p, ...productOverrides[p.id] } : p);
   }, [products, productOverrides]);
 
-  const getHepsiburadaUrl = (p: any) => {
+  const slugifyText = (text: string) => {
+    if (!text) return '';
+    return text
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ş/g, 's')
+      .replace(/ı/g, 'i')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c')
+      .replace(/[^a-z0-9 -]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  };
+
+  const getHepsiburadaUrl = (p: any): string | null => {
+    if (!p) return null;
     let mpData = p.marketplace_data;
     if (typeof mpData === 'string') {
       try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
     }
-    const hbSku = p.hepsiburada_sku || 
-                  p.hepsiburadaSku || 
-                  mpData?.hepsiburada?.hepsiburadaSku || 
-                  mpData?.hepsiburada?.hepsiburada_sku ||
-                  mpData?.hepsiburada?.hbSku ||
-                  (String(p.sku || '').toUpperCase().startsWith('HBCV') ? p.sku : '') ||
-                  (String(p.product_code || '').toUpperCase().startsWith('HBCV') ? p.product_code : '');
-    if (hbSku) {
-      const cleanSku = String(hbSku).trim().replace(/^[-/]+/, '');
-      const formattedSku = cleanSku.toLowerCase().startsWith('p-') ? cleanSku : `p-${cleanSku}`;
-      return `https://www.hepsiburada.com/${formattedSku}`;
+    const directUrl = mpData?.hepsiburada?.productUrl || mpData?.hepsiburada?.url || p.hepsiburada_url;
+    if (directUrl && String(directUrl).startsWith('http') && !directUrl.includes('/ara?')) {
+      return directUrl;
     }
-    return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`;
+
+    const hbProductId = mpData?.hepsiburada?.productId;
+    if (hbProductId && String(hbProductId).toUpperCase().startsWith('HBC')) {
+      const cleanPid = String(hbProductId).trim().toUpperCase();
+      const slug = slugifyText(p.name || '');
+      return slug 
+        ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
+        : `https://www.hepsiburada.com/-pm-${cleanPid}`;
+    }
+
+    // Direct product catalog SKU (starts with HBC0, e.g. HBC0000..., NOT variant HBCV)
+    const directCatalogSku = (String(p.sku || '').toUpperCase().startsWith('HBC0') ? p.sku : '') ||
+                             (String(p.product_code || '').toUpperCase().startsWith('HBC0') ? p.product_code : '');
+    if (directCatalogSku) {
+      const cleanPid = String(directCatalogSku).trim().toUpperCase();
+      const slug = slugifyText(p.name || '');
+      return slug 
+        ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
+        : `https://www.hepsiburada.com/-pm-${cleanPid}`;
+    }
+
+    // If barcode is present, barcode search on Hepsiburada is guaranteed 200 OK and lands directly on product
+    const barcode = (p.barcode || '').toString().trim();
+    if (barcode && /^\d{6,14}$/.test(barcode)) {
+      return `https://www.hepsiburada.com/ara?q=${barcode}`;
+    }
+
+    // If we have a product name, fallback to searching the product name on Hepsiburada
+    if (p.name && p.name.trim()) {
+      return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name.trim())}`;
+    }
+
+    return null;
   };
 
   const getTrendyolUrl = (p: any) => {
@@ -192,9 +234,59 @@ const ProductsTab = ({
   const getPazaramaUrl = (p: any) => {
     return `https://www.pazarama.com/arama?q=${encodeURIComponent(p.barcode || p.name)}`;
   };
-  const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(false);
-  const [marketplaceModalTab, setMarketplaceModalTab] = useState<'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama'>('hepsiburada');
-  const [marketplaceModalStatus, setMarketplaceModalStatus] = useState<'all' | 'active' | 'error' | 'inactive'>('all');
+  const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('marketplaceModal') === 'true' || urlParams.get('modal') === 'e-marketler') {
+        return true;
+      }
+      return localStorage.getItem('showMarketplaceListingsModal') === 'true';
+    }
+    return false;
+  });
+  const [marketplaceModalTab, setMarketplaceModalTab] = useState<'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama'>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mpTab = urlParams.get('mpTab') || localStorage.getItem('marketplaceModalTab');
+      if (mpTab && ['all', 'hepsiburada', 'trendyol', 'n11', 'amazon', 'pazarama'].includes(mpTab)) {
+        return mpTab as any;
+      }
+    }
+    return 'hepsiburada';
+  });
+  const [marketplaceModalStatus, setMarketplaceModalStatus] = useState<'all' | 'active' | 'error' | 'inactive'>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mpStatus = urlParams.get('mpStatus') || localStorage.getItem('marketplaceModalStatus');
+      if (mpStatus && ['all', 'active', 'error', 'inactive'].includes(mpStatus)) {
+        return mpStatus as any;
+      }
+    }
+    return 'active'; // Default to "Satışta" ('active') for fast initial load
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('showMarketplaceListingsModal', showMarketplaceListingsModal ? 'true' : 'false');
+      localStorage.setItem('marketplaceModalTab', marketplaceModalTab);
+      localStorage.setItem('marketplaceModalStatus', marketplaceModalStatus);
+
+      if (window.history && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        if (showMarketplaceListingsModal) {
+          url.searchParams.set('tab', 'products');
+          url.searchParams.set('marketplaceModal', 'true');
+          url.searchParams.set('mpTab', marketplaceModalTab);
+          url.searchParams.set('mpStatus', marketplaceModalStatus);
+        } else {
+          url.searchParams.delete('marketplaceModal');
+          url.searchParams.delete('mpTab');
+          url.searchParams.delete('mpStatus');
+        }
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [showMarketplaceListingsModal, marketplaceModalTab, marketplaceModalStatus]);
   const [isFindingImages, setIsFindingImages] = useState(false);
   const [sharingProduct, setSharingProduct] = useState<any>(null);
   const [recipeProduct, setRecipeProduct] = useState<any>(null);
@@ -588,6 +680,11 @@ const ProductsTab = ({
   const effectiveCategory = isSelectedCategoryValid ? selectedCategory : "all";
 
   const hbActiveCount = effectiveProducts.filter(p => p.is_hepsiburada_active).length;
+  const tyActiveCount = effectiveProducts.filter(p => p.is_trendyol_active).length;
+  const n11ActiveCount = effectiveProducts.filter(p => p.is_n11_active).length;
+  const amzActiveCount = effectiveProducts.filter(p => p.is_amazon_active).length;
+  const pzrActiveCount = effectiveProducts.filter(p => p.is_pazarama_active).length;
+
   const marketplaceActiveCount = effectiveProducts.filter(p => 
     p.is_hepsiburada_active || p.is_trendyol_active || p.is_n11_active || p.is_amazon_active || p.is_pazarama_active
   ).length;
@@ -611,6 +708,10 @@ const ProductsTab = ({
       marketplaceFilter === "all" ? true :
       marketplaceFilter === "listed" ? isAnyMpActive :
       marketplaceFilter === "hepsiburada" ? Boolean(p.is_hepsiburada_active) :
+      marketplaceFilter === "trendyol" ? Boolean(p.is_trendyol_active) :
+      marketplaceFilter === "n11" ? Boolean(p.is_n11_active) :
+      marketplaceFilter === "amazon" ? Boolean(p.is_amazon_active) :
+      marketplaceFilter === "pazarama" ? Boolean(p.is_pazarama_active) :
       marketplaceFilter === "errors" ? hasAnyMpError :
       marketplaceFilter === "not_listed" ? !isAnyMpActive :
       true;
@@ -1016,7 +1117,7 @@ const ProductsTab = ({
                 }`}
               >
                 <Store className="w-3 h-3" />
-                {lang === 'tr' ? 'Pazaryerinde Satışta' : 'In Marketplace'}
+                {lang === 'tr' ? 'Satışta' : 'In Marketplace'}
                 <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
                   marketplaceFilter === 'listed' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
                 }`}>
@@ -1035,11 +1136,91 @@ const ProductsTab = ({
                   }`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                  Hepsiburada
+                  HB
                   <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
                     marketplaceFilter === 'hepsiburada' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
                   }`}>
                     {hbActiveCount}
+                  </span>
+                </button>
+              )}
+
+              {connectedMarketplaces.trendyol && (
+                <button
+                  type="button"
+                  onClick={() => { setMarketplaceFilter('trendyol'); setPage(1); }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 ${
+                    marketplaceFilter === 'trendyol'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                      : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-50'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  TY
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    marketplaceFilter === 'trendyol' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900'
+                  }`}>
+                    {tyActiveCount}
+                  </span>
+                </button>
+              )}
+
+              {connectedMarketplaces.n11 && (
+                <button
+                  type="button"
+                  onClick={() => { setMarketplaceFilter('n11'); setPage(1); }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 ${
+                    marketplaceFilter === 'n11'
+                      ? 'bg-red-600 text-white border-red-600 shadow-xs'
+                      : 'bg-white text-red-900 border-red-200 hover:bg-red-50'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  N11
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    marketplaceFilter === 'n11' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-900'
+                  }`}>
+                    {n11ActiveCount}
+                  </span>
+                </button>
+              )}
+
+              {connectedMarketplaces.amazon && (
+                <button
+                  type="button"
+                  onClick={() => { setMarketplaceFilter('amazon'); setPage(1); }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 ${
+                    marketplaceFilter === 'amazon'
+                      ? 'bg-slate-800 text-amber-300 border-slate-800 shadow-xs'
+                      : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  AMZ
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    marketplaceFilter === 'amazon' ? 'bg-white/20 text-white' : 'bg-amber-100 text-slate-900'
+                  }`}>
+                    {amzActiveCount}
+                  </span>
+                </button>
+              )}
+
+              {connectedMarketplaces.pazarama && (
+                <button
+                  type="button"
+                  onClick={() => { setMarketplaceFilter('pazarama'); setPage(1); }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 ${
+                    marketplaceFilter === 'pazarama'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-50'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  PZR
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    marketplaceFilter === 'pazarama' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-900'
+                  }`}>
+                    {pzrActiveCount}
                   </span>
                 </button>
               )}
@@ -1055,7 +1236,7 @@ const ProductsTab = ({
                   }`}
                 >
                   <AlertTriangle className="w-3 h-3 text-rose-500" />
-                  {lang === 'tr' ? 'Hatalı Ürünler' : 'Marketplace Errors'}
+                  {lang === 'tr' ? 'Hatalı' : 'Marketplace Errors'}
                   <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-200 text-rose-900 animate-pulse">
                     {marketplaceErrorCount}
                   </span>
@@ -1071,7 +1252,7 @@ const ProductsTab = ({
                     : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {lang === 'tr' ? 'Henüz Açılmamış' : 'Not Listed'}
+                {lang === 'tr' ? 'Pasif' : 'Not Listed'}
               </button>
             </div>
 
@@ -1079,13 +1260,13 @@ const ProductsTab = ({
               type="button"
               onClick={() => {
                 setMarketplaceModalTab('hepsiburada');
-                setMarketplaceModalStatus('all');
+                setMarketplaceModalStatus('active');
                 setShowMarketplaceListingsModal(true);
               }}
               className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline flex items-center gap-1 shrink-0 ml-auto"
             >
               <ExternalLink className="w-3 h-3" />
-              {lang === 'tr' ? 'Tüm Pazaryeri İlanlarını Yönet' : 'Manage All Marketplace Listings'}
+              {lang === 'tr' ? 'E-marketler' : 'Manage All Marketplace Listings'}
             </button>
           </div>
         )}
@@ -1288,7 +1469,7 @@ const ProductsTab = ({
                                       title={`Hepsiburada Hatası: ${p.hepsiburada_last_error}`}
                                     >
                                       <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
-                                      HB Hata
+                                      HB Hatalı
                                     </button>
                                   )}
                                   {isShopLp && connectedMarketplaces.trendyol && p.is_trendyol_active && (
@@ -1622,7 +1803,7 @@ const ProductsTab = ({
                                   title={lang === 'tr' ? (p.hepsiburada_sku ? `Hepsiburada İlanı (${p.hepsiburada_sku})` : "Hepsiburada Canlı İlan") : "HB Live"}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
-                                  HB Yayında ↗
+                                  HB ↗
                                 </a>
                               )}
                               {connectedMarketplaces.trendyol && p.is_trendyol_active && (
@@ -1635,7 +1816,7 @@ const ProductsTab = ({
                                   title={lang === 'tr' ? "Trendyol Canlı İlan" : "Trendyol Live"}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                  TY Yayında ↗
+                                  TY ↗
                                 </a>
                               )}
                               {connectedMarketplaces.n11 && p.is_n11_active && (
@@ -1648,7 +1829,7 @@ const ProductsTab = ({
                                   title={lang === 'tr' ? "N11 Canlı İlan" : "N11 Live"}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                                  N11 Yayında ↗
+                                  N11 ↗
                                 </a>
                               )}
                               {connectedMarketplaces.amazon && p.is_amazon_active && (
@@ -1661,7 +1842,7 @@ const ProductsTab = ({
                                   title={lang === 'tr' ? "Amazon Canlı İlan" : "Amazon Live"}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                                  AMZ Yayında ↗
+                                  AMZ ↗
                                 </a>
                               )}
                               {connectedMarketplaces.pazarama && p.is_pazarama_active && (
@@ -1674,7 +1855,7 @@ const ProductsTab = ({
                                   title={lang === 'tr' ? "Pazarama Canlı İlan" : "Pazarama Live"}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                                  PZR Yayında ↗
+                                  PZR ↗
                                 </a>
                               )}
                             </div>

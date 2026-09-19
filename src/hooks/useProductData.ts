@@ -5,13 +5,14 @@ import { Product } from "../types";
 export const useProductData = (user: any, slug: string | undefined, includeBranches: boolean) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [currentStoreId, setCurrentStoreId] = useState<number | undefined>(() => {
     return user?.store_id || undefined;
   });
 
   const fetchData = useCallback(async (background = false) => {
     try {
-      if (!background) setLoading(true);
+      if (!background && !hasLoadedOnce) setLoading(true);
       
       let targetStoreId = user?.store_id;
       
@@ -50,6 +51,7 @@ export const useProductData = (user: any, slug: string | undefined, includeBranc
     } catch (error) {
       console.error("Fetch products error in useProductData:", error);
     } finally {
+      setHasLoadedOnce(true);
       if (!background) setLoading(false);
     }
   }, [includeBranches, user?.role, user?.store_id, slug]);

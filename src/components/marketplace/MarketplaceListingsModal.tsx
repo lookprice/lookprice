@@ -22,10 +22,12 @@ import {
   ChevronRight,
   TrendingUp,
   Percent,
-  StopCircle
+  StopCircle,
+  SlidersHorizontal
 } from 'lucide-react';
 import { api } from '../../services/api';
 import toast from 'react-hot-toast';
+import { MarketplaceCategoryMappingModal } from './MarketplaceCategoryMappingModal';
 
 export type MarketplaceKey = 'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama';
 export type ListingStatus = 'all' | 'active' | 'error' | 'inactive';
@@ -81,19 +83,45 @@ const MARKETPLACES: MarketplaceConfig[] = [
       if (typeof mpData === 'string') {
         try { mpData = JSON.parse(mpData); } catch(e) { mpData = {}; }
       }
-      const hbSku = p.hepsiburada_sku || 
-                    p.hepsiburadaSku || 
-                    mpData?.hepsiburada?.hepsiburadaSku || 
-                    mpData?.hepsiburada?.hepsiburada_sku ||
-                    mpData?.hepsiburada?.hbSku ||
-                    (String(p.sku || '').toUpperCase().startsWith('HBCV') ? p.sku : '') ||
-                    (String(p.product_code || '').toUpperCase().startsWith('HBCV') ? p.product_code : '');
-      if (hbSku) {
-        const cleanSku = String(hbSku).trim().replace(/^[-/]+/, '');
-        const formattedSku = cleanSku.toLowerCase().startsWith('p-') ? cleanSku : `p-${cleanSku}`;
-        return `https://www.hepsiburada.com/${formattedSku}`;
+      const directUrl = mpData?.hepsiburada?.productUrl || mpData?.hepsiburada?.url || p.hepsiburada_url;
+      if (directUrl && String(directUrl).startsWith('http') && !directUrl.includes('/ara?')) {
+        return directUrl;
       }
-      return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode || p.name)}`;
+      const slug = (p.name || '')
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
+        .replace(/[^a-z0-9 -]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+
+      const hbProductId = mpData?.hepsiburada?.productId;
+      if (hbProductId && String(hbProductId).toUpperCase().startsWith('HBC')) {
+        const cleanPid = String(hbProductId).trim().toUpperCase();
+        return slug 
+          ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
+          : `https://www.hepsiburada.com/-pm-${cleanPid}`;
+      }
+
+      const directCatalogSku = (String(p.sku || '').toUpperCase().startsWith('HBC0') ? p.sku : '') ||
+                               (String(p.product_code || '').toUpperCase().startsWith('HBC0') ? p.product_code : '');
+      if (directCatalogSku) {
+        const cleanPid = String(directCatalogSku).trim().toUpperCase();
+        return slug 
+          ? `https://www.hepsiburada.com/${slug}-pm-${cleanPid}` 
+          : `https://www.hepsiburada.com/-pm-${cleanPid}`;
+      }
+
+      // Barcode search on Hepsiburada is guaranteed 200 OK and lands directly on active listing
+      const barcode = (p.barcode || '').toString().trim();
+      if (barcode && /^\d{6,14}$/.test(barcode)) {
+        return `https://www.hepsiburada.com/ara?q=${barcode}`;
+      }
+
+      if (p.name && String(p.name).trim()) {
+        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(String(p.name).trim())}`;
+      }
+
+      return '#';
     },
     getMerchantUrl: (p: any) => `https://merchant.hepsiburada.com/listing-management?merchantSku=${encodeURIComponent(p.barcode || '')}`
   },
@@ -145,7 +173,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
   {
     key: 'amazon',
     name: 'Amazon TR',
-    shortName: 'Amazon',
+    shortName: 'AMZ',
     color: 'text-yellow-600',
     bgLight: 'bg-yellow-50',
     borderColor: 'border-yellow-200',
@@ -165,7 +193,7 @@ const MARKETPLACES: MarketplaceConfig[] = [
   {
     key: 'pazarama',
     name: 'Pazarama',
-    shortName: 'Pazarama',
+    shortName: 'PZR',
     color: 'text-blue-600',
     bgLight: 'bg-blue-50',
     borderColor: 'border-blue-200',
@@ -191,12 +219,51 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   onEditProduct,
   lang = 'tr',
   initialMarketplace = 'hepsiburada',
-  initialStatus = 'all'
+  initialStatus = 'active'
 }) => {
   const isTr = lang === 'tr';
   const [localProducts, setLocalProducts] = useState<any[]>(products);
   const [selectedMarketplace, setSelectedMarketplace] = useState<MarketplaceKey>(initialMarketplace);
   const [selectedStatus, setSelectedStatus] = useState<ListingStatus>(initialStatus);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialMarketplace) setSelectedMarketplace(initialMarketplace);
+      if (initialStatus) setSelectedStatus(initialStatus);
+    }
+  }, [isOpen, initialMarketplace, initialStatus]);
+
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      localStorage.setItem('showMarketplaceListingsModal', 'true');
+      localStorage.setItem('marketplaceModalTab', selectedMarketplace);
+      localStorage.setItem('marketplaceModalStatus', selectedStatus);
+
+      if (window.history && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        const currentTab = url.searchParams.get('tab') || 'settings';
+        url.searchParams.set('tab', currentTab);
+        url.searchParams.set('marketplaceModal', 'true');
+        url.searchParams.set('mpTab', selectedMarketplace);
+        url.searchParams.set('mpStatus', selectedStatus);
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [isOpen, selectedMarketplace, selectedStatus]);
+
+  const handleClose = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('showMarketplaceListingsModal', 'false');
+      if (window.history && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('marketplaceModal');
+        url.searchParams.delete('mpTab');
+        url.searchParams.delete('mpStatus');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+    onClose();
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [publishingId, setPublishingId] = useState<number | null>(null);
@@ -206,12 +273,15 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   const [isMatchingListings, setIsMatchingListings] = useState(false);
   const [isSyncingOrders, setIsSyncingOrders] = useState(false);
   const [matchResult, setMatchResult] = useState<any | null>(null);
+  const [showCategoryMappingModal, setShowCategoryMappingModal] = useState(false);
 
   useEffect(() => {
-    setLocalProducts(products);
+    if (products) {
+      setLocalProducts(products);
+    }
   }, [products]);
 
-  const handleMatchListings = async (importMissing: boolean = true) => {
+  const handleMatchListings = async (importMissing: boolean = false) => {
     try {
       setIsMatchingListings(true);
       const res = await api.matchHepsiburadaListings(importMissing, currentStoreId);
@@ -220,8 +290,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         setMatchResult(data);
         toast.success(
           isTr 
-            ? `Hepsiburada İlan Eşleştirme Başarılı! ${data.matchedCount} ürün eşleştirildi, ${data.importedCount} yeni ürün aktarıldı.`
-            : `Sync completed! ${data.matchedCount} matched, ${data.importedCount} imported.`
+            ? `Hepsiburada İlan Eşleştirme Başarılı! ${data.matchedCount} ürün eşleştirildi.`
+            : `Sync completed! ${data.matchedCount} matched.`
         );
         if (onRefresh) onRefresh();
       } else {
@@ -252,8 +322,25 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
   };
 
+  // Filter out dummy auto-generated phantom items
+  const cleanedLocalProducts = useMemo(() => {
+    return localProducts.filter(p => {
+      const bc = String(p.barcode || '').trim();
+      const name = String(p.name || '').trim();
+      if (bc.startsWith('200552')) return false;
+      if (name.startsWith('E-Mağaza Portföy')) return false;
+      if (name.startsWith('HBCV') && bc.startsWith('2005')) return false;
+      return true;
+    });
+  }, [localProducts]);
+
   // Helper to test if a product is active in a specific marketplace
   const isProductActive = (p: any, mpKey: MarketplaceKey): boolean => {
+    const priceVal = parseFloat(p.price || 0);
+    const stockVal = parseInt(p.stock_quantity ?? 0, 10);
+    if (priceVal <= 0 || stockVal <= 0) {
+      return false;
+    }
     if (mpKey === 'all') {
       return Boolean(
         p.is_hepsiburada_active ||
@@ -269,6 +356,14 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
   // Helper to check if a product has an error in a marketplace
   const getProductError = (p: any, mpKey: MarketplaceKey): string | null => {
+    const priceVal = parseFloat(p.price || 0);
+    const stockVal = parseInt(p.stock_quantity ?? 0, 10);
+    if (priceVal <= 0 || stockVal <= 0) {
+      const reasons = [];
+      if (priceVal <= 0) reasons.push("Fiyat (0₺)");
+      if (stockVal <= 0) reasons.push(`Stok (${stockVal})`);
+      return `${reasons.join(" ve ")} yetersiz - İlana çıkılamaz.`;
+    }
     if (mpKey === 'all') {
       return p.hepsiburada_last_error ||
         p.trendyol_last_error ||
@@ -281,22 +376,22 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     return cfg ? (p[cfg.errorField] || null) : null;
   };
 
-  // Categories list from localProducts
+  // Categories list from cleanedLocalProducts
   const categories = useMemo(() => {
     const cats = new Set<string>();
-    localProducts.forEach(p => {
+    cleanedLocalProducts.forEach(p => {
       if (p.category) cats.add(p.category);
     });
     return Array.from(cats);
-  }, [localProducts]);
+  }, [cleanedLocalProducts]);
 
   // Global counts for metrics
   const metrics = useMemo(() => {
-    const total = localProducts.length;
+    const total = cleanedLocalProducts.length;
     let active = 0;
     let errors = 0;
 
-    localProducts.forEach(p => {
+    cleanedLocalProducts.forEach(p => {
       if (isProductActive(p, selectedMarketplace)) {
         active++;
       } else if (getProductError(p, selectedMarketplace)) {
@@ -306,11 +401,11 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
     const inactive = total - active - errors;
     return { total, active, errors, inactive };
-  }, [localProducts, selectedMarketplace]);
+  }, [cleanedLocalProducts, selectedMarketplace]);
 
   // Filtered Products
   const filteredProducts = useMemo(() => {
-    return localProducts.filter(p => {
+    return cleanedLocalProducts.filter(p => {
       // Search term
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase().trim();
@@ -341,7 +436,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
       return true;
     });
-  }, [localProducts, selectedMarketplace, selectedStatus, searchTerm, selectedCategory]);
+  }, [cleanedLocalProducts, selectedMarketplace, selectedStatus, searchTerm, selectedCategory]);
 
   const copyToClipboard = (text: string) => {
     if (!text) return;
@@ -369,21 +464,37 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       if (targetMp === 'hepsiburada') {
         const res = await api.publishHepsiburadaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
-          toast.success(isTr ? `"${product.name}" Hepsiburada'ya gönderildi!` : "Published to Hepsiburada!");
+          toast.success(isTr ? `"${product.name}" Hepsiburada'ya gönderildi (Satışta)!` : "Published to Hepsiburada!");
+          const returnedSku = res.data?.hepsiburadaSku || res?.hepsiburadaSku;
+          const returnedMpData = res.data?.marketplace_data || res?.marketplace_data;
           setLocalProducts(prev => prev.map(item => {
             if (item.id === product.id) {
-              return { ...item, is_hepsiburada_active: true, hepsiburada_last_error: null, hepsiburada_last_sync: new Date().toISOString() };
+              return { 
+                ...item, 
+                is_hepsiburada_active: true, 
+                hepsiburada_last_error: null, 
+                hepsiburada_last_sync: new Date().toISOString(),
+                hepsiburada_sku: returnedSku || item.hepsiburada_sku,
+                marketplace_data: returnedMpData || item.marketplace_data
+              };
             }
             return item;
           }));
           if (onRefresh) onRefresh();
         } else {
-          toast.error(res?.data?.error || res?.error || (isTr ? "Aktarım başarısız oldu." : "Publish failed."));
+          const errMsg = res?.data?.error || res?.error || (isTr ? "Aktarım başarısız oldu." : "Publish failed.");
+          toast.error(errMsg);
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_hepsiburada_active: false, hepsiburada_last_error: errMsg, hepsiburada_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
         }
       } else if (targetMp === 'trendyol') {
         const res = await api.publishTrendyolProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
-          toast.success(isTr ? `"${product.name}" Trendyol'a gönderildi!` : "Published to Trendyol!");
+          toast.success(isTr ? `"${product.name}" Trendyol'a gönderildi (Satışta)!` : "Published to Trendyol!");
           setLocalProducts(prev => prev.map(item => {
             if (item.id === product.id) {
               return { ...item, is_trendyol_active: true, trendyol_last_error: null, trendyol_last_sync: new Date().toISOString() };
@@ -392,12 +503,19 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           }));
           if (onRefresh) onRefresh();
         } else {
-          toast.error(res?.error || "Aktarım başarısız.");
+          const errMsg = res?.error || "Aktarım başarısız.";
+          toast.error(errMsg);
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_trendyol_active: false, trendyol_last_error: errMsg, trendyol_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
         }
       } else if (targetMp === 'n11') {
         const res = await api.publishN11Product(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
-          toast.success(isTr ? `"${product.name}" N11'e aktarıldı!` : "Published to N11!");
+          toast.success(isTr ? `"${product.name}" N11'e aktarıldı (Satışta)!` : "Published to N11!");
           setLocalProducts(prev => prev.map(item => {
             if (item.id === product.id) {
               return { ...item, is_n11_active: true, n11_last_error: null, n11_last_sync: new Date().toISOString() };
@@ -406,30 +524,51 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           }));
           if (onRefresh) onRefresh();
         } else {
-          toast.error(res?.error || "Aktarım başarısız.");
+          const errMsg = res?.error || "Aktarım başarısız.";
+          toast.error(errMsg);
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_n11_active: false, n11_last_error: errMsg, n11_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
         }
       } else if (targetMp === 'amazon') {
         try {
           const res = await api.publishAmazonProduct(product.id, currentStoreId);
           if (res && (res.data?.success || res?.success)) {
-            toast.success(isTr ? `"${product.name}" Amazon TR'ye gönderildi!` : "Published to Amazon TR!");
+            toast.success(isTr ? `"${product.name}" Amazon TR'ye gönderildi (Satışta)!` : "Published to Amazon TR!");
+            setLocalProducts(prev => prev.map(item => {
+              if (item.id === product.id) {
+                return { ...item, is_amazon_active: true, amazon_last_error: null, amazon_last_sync: new Date().toISOString() };
+              }
+              return item;
+            }));
           } else {
-            toast.success(isTr ? `"${product.name}" Amazon TR ilanına aktarıldı!` : "Published to Amazon TR!");
+            const errMsg = res?.data?.error || res?.error || "Amazon TR aktarımı başarısız.";
+            toast.error(errMsg);
+            setLocalProducts(prev => prev.map(item => {
+              if (item.id === product.id) {
+                return { ...item, is_amazon_active: false, amazon_last_error: errMsg, amazon_last_sync: new Date().toISOString() };
+              }
+              return item;
+            }));
           }
-        } catch (err) {
-          toast.success(isTr ? `"${product.name}" Amazon TR ilanına aktarıldı!` : "Published to Amazon TR!");
+        } catch (err: any) {
+          const errMsg = err.message || "Amazon TR aktarımı başarısız.";
+          toast.error(errMsg);
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_amazon_active: false, amazon_last_error: errMsg, amazon_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
         }
-        setLocalProducts(prev => prev.map(item => {
-          if (item.id === product.id) {
-            return { ...item, is_amazon_active: true, amazon_last_error: null, amazon_last_sync: new Date().toISOString() };
-          }
-          return item;
-        }));
         if (onRefresh) onRefresh();
       } else if (targetMp === 'pazarama') {
         const res = await api.publishPazaramaProduct(product.id, currentStoreId);
         if (res && (res.data?.success || res?.success)) {
-          toast.success(isTr ? `"${product.name}" Pazarama'ya aktarıldı!` : "Published to Pazarama!");
+          toast.success(isTr ? `"${product.name}" Pazarama'ya aktarıldı (Satışta)!` : "Published to Pazarama!");
           setLocalProducts(prev => prev.map(item => {
             if (item.id === product.id) {
               return { ...item, is_pazarama_active: true, pazarama_last_error: null, pazarama_last_sync: new Date().toISOString() };
@@ -438,7 +577,14 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           }));
           if (onRefresh) onRefresh();
         } else {
-          toast.error(res?.error || "Aktarım başarısız.");
+          const errMsg = res?.error || "Aktarım başarısız.";
+          toast.error(errMsg);
+          setLocalProducts(prev => prev.map(item => {
+            if (item.id === product.id) {
+              return { ...item, is_pazarama_active: false, pazarama_last_error: errMsg, pazarama_last_sync: new Date().toISOString() };
+            }
+            return item;
+          }));
         }
       }
     } catch (e: any) {
@@ -639,27 +785,32 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
         onClick={e => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
+        <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-200 dark:border-orange-900/50 flex items-center justify-center text-orange-600 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-200 dark:border-orange-900/50 flex items-center justify-center text-orange-600 shrink-0">
               <Store className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                {isTr ? "Pazaryeri İlanları & Ürün Takibi" : "Marketplace Listings & Monitoring"}
+                {isTr ? "e-Marketler" : "e-Marketplaces"}
                 <span className="text-[10px] font-black uppercase tracking-wider bg-orange-100 text-orange-800 border border-orange-200 px-2 py-0.5 rounded-md">
-                  {selectedMarketplace === 'all' ? (isTr ? 'TÜM PAZARYERLERİ' : 'ALL MARKETPLACES') : currentMpConfig?.name.toUpperCase()}
+                  {selectedMarketplace === 'all' ? (isTr ? 'TÜMÜ' : 'ALL') : currentMpConfig?.shortName || currentMpConfig?.name.toUpperCase()}
                 </span>
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-md sm:max-w-xl">
-                {isTr 
-                  ? "Satıştaki canlı ilanlarınızı görüntüleyin, doğrudan ilana gidin ve hatalı ürünleri tek tıkla düzeltip yeniden gönderin."
-                  : "Monitor live listings, navigate directly to market pages, and resolve errors with 1-click retry."}
-              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Category & Attribute Mapping Quick Icon */}
+            <button 
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowCategoryMappingModal(true); }}
+              className="p-2 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl transition-all cursor-pointer border border-indigo-200/80 dark:border-indigo-800/80 shadow-2xs"
+              title={isTr ? "Kategoriler, Nitelikler ve Komisyon Oranları" : "Categories, Attributes & Commission Rates"}
+              aria-label={isTr ? "Kategoriler ve Nitelikler" : "Categories & Attributes"}
+            >
+              <SlidersHorizontal className="w-4.5 h-4.5" />
+            </button>
             {onRefresh && (
               <button 
                 type="button"
@@ -672,7 +823,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
             )}
             <button 
               type="button"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleClose(); }}
               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-all cursor-pointer"
               title={isTr ? "Kapat" : "Close"}
             >
@@ -695,7 +846,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              {isTr ? "Tüm Pazaryerleri" : "All Marketplaces"}
+              {isTr ? "Tümü" : "All"}
             </button>
 
             {MARKETPLACES.map(mp => {
@@ -705,6 +856,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                   <button
                     type="button"
                     onClick={() => setSelectedMarketplace(mp.key)}
+                    title={mp.name}
                     className={`px-3 py-1.5 text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                       isActive
                         ? `${mp.bgLight} ${mp.color} font-black`
@@ -712,7 +864,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                     }`}
                   >
                     <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-orange-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                    {mp.name}
+                    {mp.shortName}
                   </button>
                   <a
                     href={mp.merchantPortalUrl}
@@ -726,6 +878,17 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                 </div>
               );
             })}
+
+            {/* Direct Link Icon for Categories, Attributes & Commission Rates */}
+            <button
+              type="button"
+              onClick={() => setShowCategoryMappingModal(true)}
+              className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-all flex items-center justify-center cursor-pointer shrink-0 shadow-2xs"
+              title={isTr ? "Kategoriler, Nitelikler ve Komisyon Oranları" : "Categories, Attributes & Commission Rates"}
+              aria-label={isTr ? "Kategoriler ve Nitelikler" : "Categories & Attributes"}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Quick Metrics & Status Filter Chips */}
@@ -753,7 +916,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                 }`}
               >
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                {isTr ? "Satışta / Yayında" : "Active / In Sale"}
+                {isTr ? "Satışta" : "Active"}
                 <span className="bg-emerald-200/60 dark:bg-emerald-800/60 text-emerald-900 dark:text-emerald-100 text-[10px] px-1.5 py-0.2 rounded-full font-black">
                   {metrics.active}
                 </span>
@@ -769,7 +932,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                 }`}
               >
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                {isTr ? "Hatalı / Çıkamayan" : "Errors / Failed"}
+                {isTr ? "Hatalı" : "Errors"}
                 <span className="bg-rose-200/60 dark:bg-rose-800/60 text-rose-900 dark:text-rose-100 text-[10px] px-1.5 py-0.2 rounded-full font-black">
                   {metrics.errors}
                 </span>
@@ -784,50 +947,46 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                     : 'bg-transparent border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                {isTr ? "Satışa Açılmamış" : "Not Listed"} ({metrics.inactive})
+                {isTr ? "Pasif" : "Inactive"} ({metrics.inactive})
               </button>
             </div>
 
             {/* Quick Actions for Selected Marketplace */}
-            {(selectedMarketplace === 'hepsiburada' || selectedMarketplace === 'all') && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => handleMatchListings(true)}
-                  disabled={isMatchingListings}
-                  className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
-                  title={isTr ? "Hepsiburada satıcı hesabınızdaki tüm canlı ürünleri çekip mağazadaki ürünlerle eşleştirir, olmayanları içe aktarır" : "Fetch active Hepsiburada listings and match with local products"}
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
-                  {isMatchingListings 
-                    ? (isTr ? "HB Ürünleri Eşleştiriliyor..." : "Matching HB Listings...") 
-                    : (isTr ? "HB Ürünlerini Çek & Eşleştir" : "Fetch & Match HB Listings")}
-                </button>
+            <div className="flex items-center gap-2 flex-wrap ml-auto">
+              {(selectedMarketplace === 'hepsiburada' || selectedMarketplace === 'all') && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleMatchListings(false)}
+                    disabled={isMatchingListings}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold shadow-xs border border-slate-700 transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                    title={isTr ? "Hepsiburada satıcı hesabınızdaki tüm canlı ürünleri çekip mağazadaki ürünlerle eşleştirir" : "Fetch active Hepsiburada listings and match with local products"}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
+                    <span>{isMatchingListings ? (isTr ? "Eşleştiriliyor..." : "Matching...") : (isTr ? "HB Eşleştir" : "Match HB")}</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={handleSyncHepsiburadaOrders}
-                  disabled={isSyncingOrders}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
-                  title={isTr ? "Canlı Hepsiburada siparişlerini çek" : "Sync all recent Hepsiburada orders"}
-                >
-                  <Package className={`w-3.5 h-3.5 ${isSyncingOrders ? 'animate-spin' : ''}`} />
-                  {isSyncingOrders
-                    ? (isTr ? "Siparişler Çekiliyor..." : "Syncing Orders...")
-                    : (isTr ? "HB Siparişlerini Çek" : "Sync HB Orders")}
-                </button>
-              </div>
-            )}
+                  <button
+                    type="button"
+                    onClick={handleSyncHepsiburadaOrders}
+                    disabled={isSyncingOrders}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-300 dark:border-slate-700 transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                    title={isTr ? "Canlı Hepsiburada siparişlerini çek" : "Sync recent Hepsiburada orders"}
+                  >
+                    <Package className={`w-3.5 h-3.5 ${isSyncingOrders ? 'animate-spin' : ''}`} />
+                    <span>{isSyncingOrders ? (isTr ? "Çekiliyor..." : "Syncing...") : (isTr ? "HB Sipariş Çek" : "Sync Orders")}</span>
+                  </button>
+                </>
+              )}
 
-            {selectedMarketplace === 'amazon' && (
-              <div className="flex items-center gap-2 flex-wrap">
+              {selectedMarketplace === 'amazon' && (
                 <button
                   type="button"
                   onClick={async () => {
                     toast(isTr ? "Amazon TR canlı envanter çekme işlemi başlatıldı..." : "Fetching Amazon TR listings...");
                     try {
                       setIsMatchingListings(true);
-                      await api.matchHepsiburadaListings(true, currentStoreId);
+                      await api.matchHepsiburadaListings(false, currentStoreId);
                       toast.success(isTr ? "Amazon TR envanteri güncellendi!" : "Amazon TR inventory updated!");
                       if (onRefresh) onRefresh();
                     } catch(e) {
@@ -837,48 +996,46 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                     }
                   }}
                   disabled={isMatchingListings}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold shadow-xs border border-slate-700 transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
                   title={isTr ? "Amazon TR hesabınızdaki aktif ürünleri çekip mağaza ürünleri ile eşleştirir" : "Fetch active Amazon TR listings"}
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isMatchingListings ? 'animate-spin' : ''}`} />
-                  {isMatchingListings 
-                    ? (isTr ? "Amazon Ürünleri Çekiliyor..." : "Syncing Amazon...") 
-                    : (isTr ? "Amazon Ürünlerini Çek & Eşleştir" : "Sync Amazon Listings")}
+                  <span>{isMatchingListings ? (isTr ? "Çekiliyor..." : "Syncing...") : (isTr ? "Amazon Eşleştir" : "Sync Amazon")}</span>
                 </button>
-              </div>
-            )}
+              )}
 
-            {/* Bulk Publish & Unpublish Buttons */}
-            {selectedIds.length > 0 && (() => {
-              const targetMp = selectedMarketplace === 'all' ? 'hepsiburada' : selectedMarketplace;
-              const targetConfig = MARKETPLACES.find(m => m.key === targetMp) || MARKETPLACES[0];
-              const mpName = selectedMarketplace === 'all' ? 'Pazaryerleri' : targetConfig.name;
+              {/* Bulk Publish & Unpublish Buttons */}
+              {selectedIds.length > 0 && (() => {
+                const targetMp = selectedMarketplace === 'all' ? 'hepsiburada' : selectedMarketplace;
+                const targetConfig = MARKETPLACES.find(m => m.key === targetMp) || MARKETPLACES[0];
+                const mpName = selectedMarketplace === 'all' ? 'Pazaryeri' : targetConfig.name;
 
-              return (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleBulkPublishSelected}
-                    disabled={isBulkPublishing}
-                    className="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
-                  >
-                    <UploadCloud className="w-3.5 h-3.5" />
-                    {isTr ? `Seçilenleri ${mpName}'da Satışa Aç (${selectedIds.length})` : `Publish Selected on ${mpName} (${selectedIds.length})`}
-                  </button>
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleBulkPublishSelected}
+                      disabled={isBulkPublishing}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>{isTr ? `Satışa Aç (${selectedIds.length})` : `Publish (${selectedIds.length})`}</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={handleBulkUnpublishSelected}
-                    disabled={isBulkPublishing}
-                    className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
-                    title={isTr ? `Seçilen ürünleri ${mpName}'da yayından kaldır / satışa kapat` : `Unpublish selected from ${mpName}`}
-                  >
-                    <StopCircle className="w-3.5 h-3.5" />
-                    {isTr ? `Seçilenleri Yayından Kaldır (${selectedIds.length})` : `Unpublish Selected (${selectedIds.length})`}
-                  </button>
-                </div>
-              );
-            })()}
+                    <button
+                      type="button"
+                      onClick={handleBulkUnpublishSelected}
+                      disabled={isBulkPublishing}
+                      className="px-2.5 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                      title={isTr ? `Seçilen ürünleri ${mpName}'da yayından kaldır / satışa kapat` : `Unpublish selected from ${mpName}`}
+                    >
+                      <StopCircle className="w-3.5 h-3.5" />
+                      <span>{isTr ? `Yayından Kaldır (${selectedIds.length})` : `Unpublish (${selectedIds.length})`}</span>
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
           </div>
 
           {/* Match Result Banner */}
@@ -1251,7 +1408,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                     {isTargetActive ? (
                                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                        {isTr ? "Satışta / Yayında" : "Active / Live"}
+                                        {isTr ? "Satışta" : "Active"}
                                       </span>
                                     ) : targetError ? (
                                       <span
@@ -1259,11 +1416,11 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
                                         title={targetError}
                                       >
                                         <AlertTriangle className="w-3 h-3 text-rose-600" />
-                                        {isTr ? "Hatalı / Çıkamadı" : "Failed / Error"}
+                                        {isTr ? "Hatalı" : "Error"}
                                       </span>
                                     ) : (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                        {isTr ? "Satışa Açılmamış" : "Not Published"}
+                                        {isTr ? "Pasif" : "Inactive"}
                                       </span>
                                     )}
                                   </>
@@ -1507,6 +1664,22 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
           </div>
         </div>
       </div>
+
+      {/* Global Marketplace Category & Specification Mapping Modal */}
+      {showCategoryMappingModal && (
+        <MarketplaceCategoryMappingModal
+          isOpen={showCategoryMappingModal}
+          onClose={() => setShowCategoryMappingModal(false)}
+          branding={storeBranding || {}}
+          onBrandingChange={(key, val) => {
+            if (storeBranding) storeBranding[key] = val;
+          }}
+          products={products}
+          currentStoreId={currentStoreId}
+          initialMarketplace={selectedMarketplace === 'all' || selectedMarketplace === 'n11' ? 'hepsiburada' : (selectedMarketplace as any)}
+          onRefresh={onRefresh}
+        />
+      )}
     </div>
   );
 };

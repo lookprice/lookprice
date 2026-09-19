@@ -119,11 +119,14 @@ async function startServer() {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // Security & HSTS Header Middleware for enrakipsiz.com
+  // Security & HSTS Header Middleware
   app.use((req, res, next) => {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    // Allow embedding in AI Studio / Google Cloud Run preview iframes
+    if (process.env.NODE_ENV === "production" && !req.headers.host?.includes("run.app")) {
+      res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    }
     next();
   });
 
@@ -836,7 +839,8 @@ function sanitizeFilename(originalName: string): string {
       "font-src 'self' data: https://fonts.gstatic.com; " +
       "media-src 'self' https://assets.mixkit.co; " +
       "connect-src 'self' wss://*.run.app:* https://maps.googleapis.com https://analytics.google.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.doubleclick.net https://*.run.app https://*.onrender.com https://generativelanguage.googleapis.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr; " +
-      "frame-src 'self' https://*.google.com https://www.google.com https://maps.google.com https://*.googletagmanager.com https://www.googletagmanager.com https://*.youtube.com https://*.youtube-nocookie.com https://youtube.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr https://cdn.pannellum.org;"
+      "frame-src 'self' https://*.google.com https://www.google.com https://maps.google.com https://*.googletagmanager.com https://www.googletagmanager.com https://*.youtube.com https://*.youtube-nocookie.com https://youtube.com https://*.iyzipay.com https://*.iyzico.com https://*.payten.com.tr https://*.bkm.com.tr https://*.halkbank.com.tr https://*.garanti.com.tr https://*.isbank.com.tr https://cdn.pannellum.org; " +
+      "frame-ancestors 'self' https://*.google.com https://*.google.internal https://ai.studio https://*.run.app;"
     );
     next();
   });

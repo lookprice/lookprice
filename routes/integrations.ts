@@ -48,7 +48,7 @@ router.get("/amazon/auth-url", authenticate, async (req: any, res) => {
 // Amazon Settings Endpoint
 router.post("/amazon/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { appId, clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryAttributes, isSandbox } = req.body;
+  const { appId, clientId, clientSecret, refreshToken, sellerId, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee, isSandbox } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT amazon_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -74,8 +74,11 @@ router.post("/amazon/settings", authenticate, async (req: any, res) => {
       sellerId: finalSellerId,
       isSandbox: typeof isSandbox === 'boolean' ? isSandbox : (prev.isSandbox || false),
       marketplace_id: AMAZON_TR_MARKETPLACE_ID,
+      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prev.defaultCommissionRate ?? 15),
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prev.defaultFixedFee ?? 20),
       categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
       categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prev.categoryMarkups || {}),
       last_sync: prev.last_sync || null
     };
 
@@ -506,8 +509,11 @@ router.post("/amazon/publish", authenticate, async (req: any, res) => {
     const p = prodRes.rows[0];
     if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
 
-    if (Number(p.stock_quantity || 0) <= 0) {
-      return res.status(400).json({ error: `"${p.name}" ürününün stoğu 0 olduğu için Amazon'da satışa açılamaz. Lütfen önce ürün stoğunu girin.` });
+    if (Number(p.price || 0) <= 0 || Number(p.stock_quantity || 0) <= 0) {
+      const reasons = [];
+      if (Number(p.price || 0) <= 0) reasons.push("fiyatı 0₺");
+      if (Number(p.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      return res.status(400).json({ error: `"${p.name}" ürününün ${reasons.join(" ve ")} olduğu için Amazon'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
     await pool.query(
@@ -526,7 +532,7 @@ router.post("/amazon/publish", authenticate, async (req: any, res) => {
 // 1. Save N11 Settings
 router.post("/n11/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { appKey, appSecret } = req.body;
+  const { appKey, appSecret, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT n11_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -542,6 +548,11 @@ router.post("/n11/settings", authenticate, async (req: any, res) => {
       connected: !!(finalKey && finalSecret),
       appKey: finalKey,
       appSecret: finalSecret,
+      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prev.defaultCommissionRate ?? 15),
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prev.defaultFixedFee ?? 20),
+      categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prev.categoryMarkups || {}),
       last_sync: prev.last_sync || null
     };
 
@@ -711,8 +722,11 @@ router.post("/n11/publish", authenticate, async (req: any, res) => {
     if (prodRes.rows.length === 0) return res.status(404).json({ error: "Ürün bulunamadı" });
     const product = prodRes.rows[0];
 
-    if (Number(product.stock_quantity || 0) <= 0) {
-      return res.status(400).json({ error: `"${product.name}" ürününün stoğu 0 olduğu için N11'de satışa açılamaz. Lütfen önce ürün stoğunu girin.` });
+    if (Number(product.price || 0) <= 0 || Number(product.stock_quantity || 0) <= 0) {
+      const reasons = [];
+      if (Number(product.price || 0) <= 0) reasons.push("fiyatı 0₺");
+      if (Number(product.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      return res.status(400).json({ error: `"${product.name}" ürününün ${reasons.join(" ve ")} olduğu için N11'de satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
     // SOAP request for SaveProduct
@@ -799,7 +813,10 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
     autoStockSync,
     webhookSecret,
     categoryMappings,
-    categoryAttributes
+    categoryAttributes,
+    categoryMarkups,
+    defaultCommissionRate,
+    defaultFixedFee
   } = req.body;
 
   try {
@@ -822,11 +839,14 @@ router.post("/hepsiburada/settings", authenticate, async (req: any, res) => {
       userAgent: userAgent || prev.userAgent || `${finalMerchantId || 'lookprice'} - LookPrice Marketplace Manager`,
       defaultDispatchTime: Number(defaultDispatchTime) || prev.defaultDispatchTime || 1,
       defaultCargoCompany: defaultCargoCompany || prev.defaultCargoCompany || "Hepsijet",
+      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prev.defaultCommissionRate ?? 18),
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prev.defaultFixedFee ?? 20),
       autoSyncOrders: autoSyncOrders !== undefined ? autoSyncOrders : (prev.autoSyncOrders ?? true),
       autoStockSync: autoStockSync !== undefined ? autoStockSync : (prev.autoStockSync ?? true),
       webhookSecret: webhookSecret || prev.webhookSecret || `hb_wh_${Math.random().toString(36).substring(2, 12)}`,
       categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
-      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {})
+      categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prev.categoryMarkups || {})
     };
 
     br.hepsiburada_settings = settings;
@@ -1103,8 +1123,11 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
     const p = prodRes.rows[0];
     if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
 
-    if (Number(p.stock_quantity || 0) <= 0) {
-      return res.status(400).json({ error: `"${p.name}" ürününün stoğu 0 olduğu için Hepsiburada'da satışa açılamaz/güncellenemez. Lütfen önce ürün stoğunu girin.` });
+    if (Number(p.price || 0) <= 0 || Number(p.stock_quantity || 0) <= 0) {
+      const reasons = [];
+      if (Number(p.price || 0) <= 0) reasons.push("fiyatı 0₺");
+      if (Number(p.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      return res.status(400).json({ error: `"${p.name}" ürününün ${reasons.join(" ve ")} olduğu için Hepsiburada'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
     if (!p.barcode || !p.barcode.trim()) {
@@ -1242,11 +1265,21 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       }
     ]);
 
-    // Check if we can resolve the HBCV sku if p.hepsiburada_sku is not set yet
-    let resolvedHbSku = p.hepsiburada_sku || hbData.hepsiburadaSku || hbData.hbSku || "";
+    // Check if user passed a Hepsiburada SKU or direct URL in request body
+    let inputHbUrl = req.body.hepsiburadaUrl || req.body.hepsiburada_url;
+    let inputHbSku = req.body.hepsiburadaSku || req.body.hepsiburada_sku;
+
+    if (inputHbUrl && String(inputHbUrl).startsWith('http')) {
+      const match = String(inputHbUrl).match(/(?:pm-|p-|\/|\bq=)(HBC[V0-9A-Z]+|HBV[0-9A-Z]+)/i);
+      if (match && !inputHbSku) {
+        inputHbSku = match[1].toUpperCase();
+      }
+    }
+
+    let resolvedHbSku = inputHbSku || p.hepsiburada_sku || hbData.hepsiburadaSku || hbData.hbSku || "";
     if (!resolvedHbSku) {
       try {
-        const listings = await hbService.fetchMerchantListings({ limit: 50 });
+        const listings = await hbService.fetchMerchantListings({ limit: 100 });
         const matched = listings.find((l: any) => 
           (l.merchantSku && l.merchantSku.toLowerCase() === p.barcode.trim().toLowerCase()) ||
           (l.barcode && l.barcode.toLowerCase() === p.barcode.trim().toLowerCase())
@@ -1265,6 +1298,7 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
       categoryId: categoryId ? Number(categoryId) : undefined,
       attributes,
       hepsiburadaSku: resolvedHbSku || hbData.hepsiburadaSku,
+      productUrl: inputHbUrl || hbData.productUrl || (resolvedHbSku ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(resolvedHbSku)}` : undefined),
       catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId,
       listingTrackingId: result.trackingId,
       lastSync: new Date().toISOString()
@@ -1470,15 +1504,21 @@ router.post("/hepsiburada/unpublish", authenticate, async (req: any, res) => {
     }
     const hbMerchantSku = mpData?.hepsiburada?.merchantSku || p.barcode.trim();
 
-    const result = await hbService.updatePriceAndStock([
-      {
-        HepsiburadaSku: p.hepsiburada_sku || "",
-        MerchantSku: hbMerchantSku,
-        Price: parseFloat(p.price || "0"),
-        AvailableStock: 0,
-        DispatchTime: cleanSettings.defaultDispatchTime || 1,
-      }
-    ]);
+    let trackingId: string | undefined;
+    try {
+      const result = await hbService.updatePriceAndStock([
+        {
+          HepsiburadaSku: p.hepsiburada_sku || "",
+          MerchantSku: hbMerchantSku,
+          Price: parseFloat(p.price || "0"),
+          AvailableStock: 0,
+          DispatchTime: cleanSettings.defaultDispatchTime || 1,
+        }
+      ]);
+      trackingId = result?.trackingId;
+    } catch (unpubErr: any) {
+      console.warn("[HB Unpublish API warning]:", unpubErr.message || unpubErr);
+    }
 
     await pool.query(
       "UPDATE products SET is_hepsiburada_active = false, hepsiburada_last_sync = NOW() WHERE id = $1",
@@ -1487,8 +1527,8 @@ router.post("/hepsiburada/unpublish", authenticate, async (req: any, res) => {
 
     res.json({
       success: true,
-      message: `"${p.name}" Hepsiburada'da yayından kaldırıldı (stok 0 yapılarak satışa kapatıldı).`,
-      trackingId: result.trackingId
+      message: `"${p.name}" Hepsiburada'da yayından kaldırıldı (satışa kapatıldı).`,
+      trackingId
     });
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Hepsiburada yayından kaldırma başarısız." });
@@ -1568,21 +1608,28 @@ router.post("/hepsiburada/bulk-unpublish", authenticate, async (req: any, res) =
       return res.status(400).json({ error: "Geçerli barkoda sahip ürün bulunamadı." });
     }
 
-    const result = await hbService.updatePriceAndStock(items);
+    let trackingId: string | undefined;
+    try {
+      const result = await hbService.updatePriceAndStock(items);
+      trackingId = result?.trackingId;
+    } catch (bulkUnpubErr: any) {
+      console.warn("[HB Bulk Unpublish API warning]:", bulkUnpubErr.message || bulkUnpubErr);
+    }
 
+    const unpublishProductIds = products.map((p: any) => p.id);
     await pool.query(
       `UPDATE products 
        SET is_hepsiburada_active = false, 
            hepsiburada_last_sync = NOW() 
-       WHERE store_id = $1 AND barcode = ANY($2)`,
-      [storeId, items.map(i => i.MerchantSku)]
+       WHERE store_id = $1 AND id = ANY($2)`,
+      [storeId, unpublishProductIds]
     );
 
     res.json({
       success: true,
-      unpublishedCount: items.length,
-      trackingId: result.trackingId,
-      message: `${items.length} ürün Hepsiburada'da yayından kaldırıldı (satışa kapatıldı).`
+      unpublishedCount: products.length,
+      trackingId,
+      message: `${products.length} ürün Hepsiburada'da yayından kaldırıldı (satışa kapatıldı).`
     });
   } catch (error: any) {
     res.status(400).json({ error: error.message || "Toplu yayından kaldırma başarısız." });
@@ -2073,7 +2120,7 @@ router.post("/hepsiburada/webhook/:storeId", async (req: any, res) => {
 // 1. Save Trendyol Settings
 router.post("/trendyol/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { apiKey, apiSecret, merchantId, categoryMappings, categoryAttributes } = req.body;
+  const { apiKey, apiSecret, merchantId, categoryMappings, categoryAttributes, categoryMarkups, defaultCommissionRate, defaultFixedFee } = req.body;
 
   try {
     const storeRes = await pool.query("SELECT trendyol_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -2087,8 +2134,11 @@ router.post("/trendyol/settings", authenticate, async (req: any, res) => {
       apiKey: apiKey !== undefined ? apiKey?.trim() : prev.apiKey,
       apiSecret: apiSecret !== undefined ? apiSecret?.trim() : prev.apiSecret,
       merchantId: merchantId !== undefined ? merchantId?.trim() : prev.merchantId,
+      defaultCommissionRate: defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (prev.defaultCommissionRate ?? 18),
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prev.defaultFixedFee ?? 20),
       categoryMappings: categoryMappings !== undefined ? categoryMappings : (prev.categoryMappings || {}),
       categoryAttributes: categoryAttributes !== undefined ? categoryAttributes : (prev.categoryAttributes || {}),
+      categoryMarkups: categoryMarkups !== undefined ? categoryMarkups : (prev.categoryMarkups || {}),
       last_sync: prev.last_sync || null
     };
 
@@ -2274,8 +2324,11 @@ router.post("/trendyol/publish", authenticate, async (req: any, res) => {
     const p = prodRes.rows[0];
     if (!p) return res.status(404).json({ error: "Ürün bulunamadı" });
 
-    if (Number(p.stock_quantity || 0) <= 0) {
-      return res.status(400).json({ error: `"${p.name}" ürününün stoğu 0 olduğu için Trendyol'da satışa açılamaz. Lütfen önce ürün stoğunu girin.` });
+    if (Number(p.price || 0) <= 0 || Number(p.stock_quantity || 0) <= 0) {
+      const reasons = [];
+      if (Number(p.price || 0) <= 0) reasons.push("fiyatı 0₺");
+      if (Number(p.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      return res.status(400).json({ error: `"${p.name}" ürününün ${reasons.join(" ve ")} olduğu için Trendyol'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
     const payload = {
@@ -2342,7 +2395,7 @@ router.get("/trendyol/brands", authenticate, async (req: any, res) => {
 // 1. Save Pazarama Settings
 router.post("/pazarama/settings", authenticate, async (req: any, res) => {
   const storeId = req.user.role === "superadmin" ? (req.body.storeId || req.user.store_id) : req.user.store_id;
-  const { apiKey, apiSecret, merchantId, commissionRate, categoryMappings, brandMappings } = req.body;
+  const { apiKey, apiSecret, merchantId, commissionRate, defaultCommissionRate, defaultFixedFee, categoryMappings, categoryAttributes, categoryMarkups, brandMappings } = req.body;
 
   try {
     const prevRes = await pool.query("SELECT pazarama_settings, branding FROM stores WHERE id = $1", [storeId]);
@@ -2350,14 +2403,20 @@ router.post("/pazarama/settings", authenticate, async (req: any, res) => {
     let br = prevRes.rows[0]?.branding || {};
     if (typeof br === 'string') { try { br = JSON.parse(br); } catch (e) { br = {}; } }
 
+    const effectiveComm = defaultCommissionRate !== undefined ? Number(defaultCommissionRate) : (commissionRate !== undefined ? Number(commissionRate) : (prevSettings.defaultCommissionRate ?? prevSettings.commissionRate ?? 15));
+
     const settings = {
       ...prevSettings,
       connected: !!(apiKey && apiSecret),
       apiKey,
       apiSecret,
       merchantId: merchantId || prevSettings.merchantId || "",
-      commissionRate: commissionRate !== undefined ? Number(commissionRate) : (prevSettings.commissionRate || 0),
+      commissionRate: effectiveComm,
+      defaultCommissionRate: effectiveComm,
+      defaultFixedFee: defaultFixedFee !== undefined ? Number(defaultFixedFee) : (prevSettings.defaultFixedFee ?? 20),
       categoryMappings: categoryMappings || prevSettings.categoryMappings || {},
+      categoryAttributes: categoryAttributes || prevSettings.categoryAttributes || {},
+      categoryMarkups: categoryMarkups || prevSettings.categoryMarkups || {},
       brandMappings: brandMappings || prevSettings.brandMappings || {}
     };
 
@@ -2558,8 +2617,11 @@ router.post("/pazarama/publish", authenticate, async (req: any, res) => {
     
     const product = productRes.rows[0];
 
-    if (Number(product.stock_quantity || 0) <= 0) {
-      return res.status(400).json({ error: `"${product.name}" ürününün stoğu 0 olduğu için Pazarama'da satışa açılamaz. Lütfen önce ürün stoğunu girin.` });
+    if (Number(product.price || 0) <= 0 || Number(product.stock_quantity || 0) <= 0) {
+      const reasons = [];
+      if (Number(product.price || 0) <= 0) reasons.push("fiyatı 0₺");
+      if (Number(product.stock_quantity || 0) <= 0) reasons.push("stoğu yetersiz (0/negatif)");
+      return res.status(400).json({ error: `"${product.name}" ürününün ${reasons.join(" ve ")} olduğu için Pazarama'da satışa açılamaz. Lütfen fiyat ve stoğu güncelleyin.` });
     }
 
     // --- Price Calculation Logic ---

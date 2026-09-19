@@ -480,7 +480,7 @@ export const api = {
   // Amazon Integration
   getAmazonAuthUrl: () => api.get("/api/integrations/amazon/auth-url"),
   getAmazonSettings: (storeId?: number) => api.get(`/api/integrations/amazon/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  saveAmazonSettings: (data: { appId?: string, clientId: string, clientSecret: string, refreshToken: string, sellerId: string, isSandbox?: boolean, connected?: boolean, categoryMappings?: any, categoryAttributes?: any, storeId?: number }) => api.post("/api/integrations/amazon/settings", data),
+  saveAmazonSettings: (data: { appId?: string, clientId: string, clientSecret: string, refreshToken: string, sellerId: string, isSandbox?: boolean, connected?: boolean, categoryMappings?: any, categoryAttributes?: any, categoryMarkups?: any, defaultCommissionRate?: number, defaultFixedFee?: number, storeId?: number }) => api.post("/api/integrations/amazon/settings", data),
   testAmazonConnection: (storeId?: number, data?: any) => api.post("/api/integrations/amazon/test-connection", { storeId, ...data }),
   bulkSyncAmazon: (storeId?: number) => api.post("/api/integrations/amazon/bulk-sync", { storeId }),
   syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),
@@ -492,7 +492,7 @@ export const api = {
 
   // N11 Integration
   getN11Settings: (storeId?: number) => api.get(`/api/integrations/n11/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  saveN11Settings: (data: { appKey: string, appSecret: string, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
+  saveN11Settings: (data: { appKey: string, appSecret: string, categoryMappings?: any, categoryAttributes?: any, categoryMarkups?: any, defaultCommissionRate?: number, defaultFixedFee?: number, storeId?: number }) => api.post("/api/integrations/n11/settings", data),
   syncN11Orders: (storeId?: number) => api.post("/api/integrations/n11/sync", { storeId }),
   disconnectN11: (storeId?: number) => api.post("/api/integrations/n11/disconnect", { storeId }),
 
@@ -511,6 +511,9 @@ export const api = {
     webhookSecret?: string;
     categoryMappings?: any;
     categoryAttributes?: any;
+    categoryMarkups?: any;
+    defaultCommissionRate?: number;
+    defaultFixedFee?: number;
     storeId?: number; 
   }) => api.post("/api/integrations/hepsiburada/settings", data),
   syncHepsiburadaOrders: (storeId?: number, params?: { beginDate?: string; timespan?: number }) => api.post("/api/integrations/hepsiburada/sync", { storeId, ...(params || {}) }),
@@ -525,7 +528,7 @@ export const api = {
 
   // Trendyol Integration
   getTrendyolSettings: (storeId?: number) => api.get(`/api/integrations/trendyol/settings${storeId ? `?storeId=${storeId}` : ""}`),
-  saveTrendyolSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, categoryMappings?: any, categoryAttributes?: any, storeId?: number }) => api.post("/api/integrations/trendyol/settings", data),
+  saveTrendyolSettings: (data: { apiKey: string, apiSecret: string, merchantId: string, categoryMappings?: any, categoryAttributes?: any, categoryMarkups?: any, defaultCommissionRate?: number, defaultFixedFee?: number, storeId?: number }) => api.post("/api/integrations/trendyol/settings", data),
   syncTrendyolOrders: (storeId?: number) => api.post("/api/integrations/trendyol/sync", { storeId }),
   disconnectTrendyol: (storeId?: number) => api.post("/api/integrations/trendyol/disconnect", { storeId }),
   getTrendyolCategoryAttributes: (categoryId: string | number) => api.get(`/api/integrations/trendyol/categories/${categoryId}/attributes`),
@@ -537,7 +540,11 @@ export const api = {
     apiSecret: string, 
     merchantId?: string, 
     commissionRate?: number, 
+    defaultCommissionRate?: number,
+    defaultFixedFee?: number,
     categoryMappings?: any,
+    categoryAttributes?: any,
+    categoryMarkups?: any,
     brandMappings?: any,
     storeId?: number 
   }) => api.post("/api/integrations/pazarama/settings", data),
