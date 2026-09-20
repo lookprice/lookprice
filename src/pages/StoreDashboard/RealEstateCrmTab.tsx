@@ -552,66 +552,66 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
         </div>
       )}
 
-      {/* ADD/EDIT CONTACT MODAL - VIEWPORT-FIT COMPACT DESIGN */}
+      {/* ADD/EDIT CONTACT MODAL - VIEWPORT-FIT COMPACT DESIGN (NO OVERFLOW) */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[100] p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] p-2 sm:p-4 overflow-y-auto flex items-start sm:items-center justify-center py-4 sm:py-6">
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[calc(100vh-2rem)] sm:max-h-[88vh]">
             {/* Modal Fixed Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-150 bg-slate-50 shrink-0">
-              <h3 className="font-black text-slate-900 text-sm flex items-center gap-2 uppercase tracking-tight">
-                <Users size={18} className="text-indigo-600" />
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50 shrink-0">
+              <h3 className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-2 uppercase tracking-tight">
+                <Users size={16} className="text-indigo-600" />
                 {editingContact ? (isTr ? "Kişiyi Düzenle & İncele" : "Edit & Review Contact") : (isTr ? "Yeni Kişi Ekle" : "Add New Contact")}
               </h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             {/* Scrollable Form Body */}
-            <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 overflow-hidden min-h-0">
-              <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto custom-scrollbar flex-1 text-xs font-bold">
+            <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="p-3 sm:p-4 space-y-2.5 overflow-y-auto custom-scrollbar flex-1 text-xs font-bold">
                 {errorMsg && (
-                  <div className="bg-rose-50 border border-rose-100 text-rose-700 p-2.5 rounded-xl text-xs font-semibold">
+                  <div className="bg-rose-50 border border-rose-100 text-rose-700 p-2 rounded-xl text-xs font-semibold">
                     {errorMsg}
                   </div>
                 )}
 
                 {/* Lead Stage Selector if contact is a web lead or has lead stage */}
                 {(editingContact || getLeadStage(formData.notes) !== 'none') && (
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-2">
-                    <label className="block text-xs font-black text-slate-800 flex items-center justify-between">
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                    <label className="block text-[11px] font-black text-slate-800 flex items-center justify-between">
                       <span>{isTr ? "Başvuru Aşama Statüsü *" : "Lead Stage Status *"}</span>
-                      <span className="text-[10px] text-amber-600 font-bold">{isTr ? "(Ekranda görünür uyarıyı temizler)" : "(Clears dashboard alert)"}</span>
+                      <span className="text-[10px] text-amber-600 font-bold">{isTr ? "(Ekrandaki uyarıyı günceller)" : "(Updates alert)"}</span>
                     </label>
                     <div className="grid grid-cols-2 gap-1.5">
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'new') })}
-                        className={`p-2 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'new' ? 'bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'new' ? 'bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                       >
-                        🟡 Yeni Başvuru (Bekliyor)
+                        🟡 Yeni (Bekliyor)
                       </button>
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'contacted') })}
-                        className={`p-2 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'contacted' ? 'bg-blue-600 text-white border-blue-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'contacted' ? 'bg-blue-600 text-white border-blue-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                       >
                         📞 İletişime Geçildi
                       </button>
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'converted') })}
-                        className={`p-2 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'converted' ? 'bg-emerald-600 text-white border-emerald-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'converted' ? 'bg-emerald-600 text-white border-emerald-700 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                       >
                         🏡 Portföye Alındı
                       </button>
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, notes: updateLeadStageInNotes(formData.notes, 'reviewed') })}
-                        className={`p-2 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'reviewed' ? 'bg-slate-800 text-white border-slate-900 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        className={`p-1.5 text-left text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${getLeadStage(formData.notes) === 'reviewed' ? 'bg-slate-800 text-white border-slate-900 font-black shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                       >
                         ✓ İncelendi & Arşiv
                       </button>
@@ -619,30 +619,30 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1">
+                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-0.5">
                       {isTr ? "İsim Soyisim *" : "Name *"}
                     </label>
                     <input
                       type="text"
                       required
                       placeholder="Ahmet Yılmaz"
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
                       value={formData.name || ""}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1">
+                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-0.5">
                       {isTr ? "Telefon Numarası *" : "Phone Number *"}
                     </label>
                     <input
                       type="tel"
                       required
                       placeholder="+90 533 123 4567"
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
                       value={formData.phone || ""}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       onBlur={(e) => {
@@ -653,36 +653,36 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1">
+                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-0.5">
                       {isTr ? "E-Posta Adresi" : "Email Address"}
                     </label>
                     <input
                       type="email"
                       placeholder="example@mail.com"
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
                       value={formData.email || ""}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1">
+                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-0.5">
                       {isTr ? "Kişi Rolü / Tipi" : "Role / Type"}
                     </label>
                     <div className="grid grid-cols-2 gap-1.5">
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, type: "owner" })}
-                        className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer ${formData.type === 'owner' ? 'bg-indigo-50 text-indigo-700 border-indigo-300' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer ${formData.type === 'owner' ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                       >
                         🏠 {isTr ? "Mülk Sahibi" : "Owner"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, type: "investor" })}
-                        className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer ${formData.type === 'investor' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        className={`py-1.5 px-2 text-[11px] font-black rounded-lg border transition-all cursor-pointer ${formData.type === 'investor' ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                       >
                         💼 {isTr ? "Yatırımcı" : "Investor"}
                       </button>
@@ -691,13 +691,13 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1">
+                  <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-0.5">
                     {isTr ? "Özel Notlar & Başvuru İçeriği" : "Notes & Submission Content"}
                   </label>
                   <textarea
                     rows={3}
                     placeholder={isTr ? "Müşteri veya portföy hakkında ek notlar..." : "Additional notes..."}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 min-h-[70px]"
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 min-h-[55px]"
                     value={formData.notes || ""}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   />
@@ -705,21 +705,21 @@ const RealEstateCrmTab = ({ contacts, onSaveContact, onDeleteContact }: RealEsta
               </div>
 
               {/* Fixed Footer Buttons */}
-              <div className="flex justify-end gap-2 p-3 sm:p-4 bg-slate-50 border-t border-slate-100 shrink-0">
+              <div className="flex justify-end gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   {isTr ? "Vazgeç" : "Cancel"}
                 </button>
                 <button
                   type="submit"
                   disabled={saveLoading}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {saveLoading && <span className="animate-spin mr-1">⌛</span>}
-                  {editingContact ? (isTr ? "Kaydet & İncelemeyi Tamamla" : "Save & Complete Review") : (isTr ? "Kaydet" : "Save")}
+                  {editingContact ? (isTr ? "Kaydet & Tamamla" : "Save & Complete Review") : (isTr ? "Kaydet" : "Save")}
                 </button>
               </div>
             </form>

@@ -38,6 +38,8 @@ interface RealEstateCRMProps {
   onOpenCalendar: () => void;
   onOpenTourModal: (property: any) => void;
   onRefresh?: () => void;
+  searchQuery?: string;
+  hideHeader?: boolean;
 }
 
 const STAGES = [
@@ -48,11 +50,22 @@ const STAGES = [
   { id: 'closed', title: '5. Kapanan', icon: Handshake, color: 'bg-emerald-500', description: 'Satış veya kiralama sonuçlandırıldı.' },
 ];
 
-export const RealEstateCRM = ({ storeId, properties, tasks, onOpenCalendar, onOpenTourModal, onRefresh }: RealEstateCRMProps) => {
+export const RealEstateCRM = ({ 
+  storeId, 
+  properties, 
+  tasks, 
+  onOpenCalendar, 
+  onOpenTourModal, 
+  onRefresh,
+  searchQuery: externalSearchQuery,
+  hideHeader = false
+}: RealEstateCRMProps) => {
   const [dealCards, setDealCards] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [internalSearchQuery, setInternalSearchQuery] = useState("");
   const [activeProperty, setActiveProperty] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
+
+  const activeSearch = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
 
   // Modals state
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
@@ -355,7 +368,7 @@ export const RealEstateCRM = ({ storeId, properties, tasks, onOpenCalendar, onOp
   };
 
   const filteredDeals = dealCards.filter(deal => {
-    const searchLower = searchQuery.toLowerCase();
+    const searchLower = (activeSearch || "").toLowerCase();
     return (
       deal.property.title?.toLowerCase().includes(searchLower) ||
       deal.property.reference_no?.toLowerCase().includes(searchLower) ||
@@ -407,24 +420,28 @@ export const RealEstateCRM = ({ storeId, properties, tasks, onOpenCalendar, onOp
             <span>+ Yeni Gezi Planla</span>
           </button>
 
-          <button
-            onClick={onOpenCalendar}
-            className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1"
-          >
-            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Takvim</span>
-          </button>
+          {!hideHeader && onOpenCalendar && (
+            <button
+              onClick={onOpenCalendar}
+              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Takvim</span>
+            </button>
+          )}
 
-          <div className="relative w-44">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Portföy veya ref no ara..."
-              className="w-full pl-8 pr-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          {!hideHeader && externalSearchQuery === undefined && (
+            <div className="relative w-44">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Portföy veya ref no ara..."
+                className="w-full pl-8 pr-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                value={internalSearchQuery}
+                onChange={(e) => setInternalSearchQuery(e.target.value)}
+              />
+            </div>
+          )}
         </div>
       </div>
 

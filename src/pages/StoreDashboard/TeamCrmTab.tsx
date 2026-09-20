@@ -5,6 +5,8 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
 import { RealEstateCRM } from '../../components/RealEstateCRM';
 import { RealEstateCalendar } from '../../components/RealEstateCalendar';
+import { AutomotiveCRM } from '../../components/AutomotiveCRM';
+import { AutomotiveCalendar } from '../../components/AutomotiveCalendar';
 import { RealEstateModal } from '../../components/RealEstateModal';
 import { ArrangeTourModal } from '../../components/ArrangeTourModal';
 import { toast } from 'sonner';
@@ -15,6 +17,137 @@ interface TeamCrmTabProps {
   isAutomotive?: boolean;
   isRealEstate?: boolean;
 }
+
+const AUTO_STAGES = [
+  'Yeni Talep / Aday',
+  'Görüşme / Analiz',
+  'Test Sürüşü & Ekspertiz',
+  'Teklif & Pazarlık',
+  'Satış Tamamlandı / Kapandı'
+];
+
+const RE_STAGES = [
+  'Yeni Talep / Aday',
+  'Görüşme / Analiz',
+  'Yer Gösterme / Sunum',
+  'Teklif / Sözleşme',
+  'Kazanıldı'
+];
+
+const isAutomotiveMatching = (deal: any): boolean => {
+  if (deal.sector === 'automotive') return true;
+  if (deal.sector === 'real_estate') return false;
+  // If no explicit sector tag, strict keyword detection: exclude all real estate patterns
+  const rePattern = /dükkan|dukkan|villa|daire|arsa|konut|gayrimenkul|emlak|tapu|bina|yer gösterme|sunum|karaoğlanoğlu|karaoglanoglu|girne|lefkoşa|mağusa|iskele|etiler|sarıyer|kadıköy|gbp/i;
+  const text = `${deal.title || ''} ${deal.description || ''} ${deal.stage || ''}`;
+  return !rePattern.test(text);
+};
+
+const isRealEstateMatching = (deal: any): boolean => {
+  if (deal.sector === 'real_estate') return true;
+  if (deal.sector === 'automotive') return false;
+  // If no explicit sector tag, strict keyword detection: exclude all automotive patterns
+  const autoPattern = /araç|arac|otomobil|sedan|suv|panelvan|galeri|kilometre|\bkm\b|ekspertiz|motorlu|test sürüşü/i;
+  const text = `${deal.title || ''} ${deal.description || ''} ${deal.stage || ''}`;
+  return !autoPattern.test(text);
+};
+
+const getSectorDefaultDeals = (isAuto: boolean, sid?: number) => {
+  if (isAuto) {
+    return [
+      {
+        id: 'd_auto_1',
+        title: 'Sedan / Yönetici Aracı Arayışı',
+        description: 'Otomatik vites, düşük kilometreli, servis bakımlı 2021 ve üzeri model.',
+        agent_name: 'Satış Temsilcisi',
+        budget: '1.450.000 TL',
+        stage: 'Yeni Talep / Aday',
+        sector: 'automotive',
+        store_id: sid
+      },
+      {
+        id: 'd_auto_2',
+        title: 'SUV / Aile Aracı Talebi',
+        description: 'Kazasız, boyasız, geniş hacimli dizel/hibrit SUV arayışı.',
+        agent_name: 'Satış Temsilcisi',
+        budget: '2.100.000 TL',
+        stage: 'Görüşme / Analiz',
+        sector: 'automotive',
+        store_id: sid
+      },
+      {
+        id: 'd_auto_3',
+        title: 'Ticari Panelvan Filo Talebi',
+        description: 'İşletme dağıtım operasyonu için uygun hacimli araç talebi.',
+        agent_name: 'Satış Temsilcisi',
+        budget: '850.000 TL',
+        stage: 'Teklif & Pazarlık',
+        sector: 'automotive',
+        store_id: sid
+      }
+    ];
+  }
+  return [
+    {
+      id: 'd_re_1',
+      title: 'Müstakil Villa Arayışı',
+      description: 'Minimum 3+1 müstakil veya ikiz villa, havuzlu ve bahçeli tercih ediliyor.',
+      agent_name: 'Danışman',
+      budget: '£350,000 Bütçe',
+      stage: 'Yeni Talep / Aday',
+      sector: 'real_estate',
+      store_id: sid
+    },
+    {
+      id: 'd_re_2',
+      title: 'Yatırımlık 2+1 Daire Arayışı',
+      description: 'Merkezi lokasyonda, yüksek kira getirili ve koçanlı konut talebi.',
+      agent_name: 'Danışman',
+      budget: '£95,000 Bütçe',
+      stage: 'Görüşme / Analiz',
+      sector: 'real_estate',
+      store_id: sid
+    }
+  ];
+};
+
+const loadIsolatedDeals = (isAuto: boolean, sid?: number, key?: string) => {
+  const effectiveKey = key || (isAuto ? `autolp_crm_deals_${sid || 'default'}` : `restatelp_crm_deals_${sid || 'default'}`);
+  const stored = localStorage.getItem(effectiveKey);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const filtered = parsed.filter(d => isAuto ? isAutomotiveMatching(d) : isRealEstateMatching(d));
+        if (filtered.length > 0) return filtered;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // Check legacy unisolated key if it exists, strictly filter out opposite sector items
+  const legacyStored = localStorage.getItem('lookprice_crm_deals');
+  if (legacyStored) {
+    try {
+      const parsedLegacy = JSON.parse(legacyStored);
+      if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
+        const matching = parsedLegacy.filter(d => isAuto ? isAutomotiveMatching(d) : isRealEstateMatching(d));
+        if (matching.length > 0) {
+          const stamped = matching.map(d => ({ ...d, sector: isAuto ? 'automotive' : 'real_estate', store_id: sid }));
+          localStorage.setItem(effectiveKey, JSON.stringify(stamped));
+          return stamped;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  const defaults = getSectorDefaultDeals(isAuto, sid);
+  localStorage.setItem(effectiveKey, JSON.stringify(defaults));
+  return defaults;
+};
 
 export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEstate = true }: TeamCrmTabProps) => {
   const { lang } = useLanguage();
@@ -54,60 +187,24 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
 
-  const [deals, setDeals] = useState<any[]>(() => {
-    const stored = localStorage.getItem('lookprice_crm_deals');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch(err) {
-        console.error(err);
-      }
-    }
-    
-    if (isAutomotive) {
-      return [
-        {
-          id: 'd1',
-          title: 'Sedan Araç Arayışı',
-          description: 'Otomatik vites, düşük kilometreli, servis bakımlı araç. 2020 ve üzeri modeller.',
-          agent_name: 'Mehmet B.',
-          budget: '1.2M TL Bütçe',
-          stage: 'Yeni Talep / Aday'
-        },
-        {
-          id: 'd2',
-          title: 'Ticari Panelvan',
-          description: 'İşletme için uygun, geniş hacimli panelvan arayışı.',
-          agent_name: 'Ayşe Y.',
-          budget: 'Kiralık',
-          stage: 'Yeni Talep / Aday'
-        }
-      ];
-    }
-    
-    return [
-      {
-        id: 'd1',
-        title: 'Müstakil Villa Arayışı',
-        description: 'Etiler veya Sarıyer bölgesi, minimum 4 oda deniz manzaralı. Müşteri nakit alım yapacak, 1 ay içinde dönüş bekliyor.',
-        agent_name: 'Mehmet B.',
-        budget: '$1.5M Bütçe',
-        stage: 'Yeni Talep / Aday'
-      },
-      {
-        id: 'd2',
-        title: 'Dükkan / Mağaza',
-        description: 'Kadıköy merkez, yüksek yaya trafiği olan mağaza arayışı franchise için.',
-        agent_name: 'Ayşe Y.',
-        budget: 'Kiralık',
-        stage: 'Yeni Talep / Aday'
-      }
-    ];
-  });
+  const currentStages = isAutomotive ? AUTO_STAGES : RE_STAGES;
+  const storageKey = isAutomotive 
+    ? `autolp_crm_deals_${storeId || 'default'}` 
+    : `restatelp_crm_deals_${storeId || 'default'}`;
 
+  const [deals, setDeals] = useState<any[]>(() => loadIsolatedDeals(isAutomotive, storeId, storageKey));
+
+  // Reload isolated deals when storeId or sector changes
   useEffect(() => {
-    localStorage.setItem('lookprice_crm_deals', JSON.stringify(deals));
-  }, [deals]);
+    setDeals(loadIsolatedDeals(isAutomotive, storeId, storageKey));
+  }, [storeId, isAutomotive, storageKey]);
+
+  // Persist strictly to the isolated storageKey
+  useEffect(() => {
+    if (deals && Array.isArray(deals)) {
+      localStorage.setItem(storageKey, JSON.stringify(deals));
+    }
+  }, [deals, storageKey]);
 
   const [showDealModal, setShowDealModal] = useState(false);
   const [editingDeal, setEditingDeal] = useState<any>(null);
@@ -116,7 +213,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
     description: '',
     agent_name: '',
     budget: '',
-    stage: 'Yeni Talep / Aday'
+    stage: currentStages[0]
   });
 
   const [editingProperty, setEditingProperty] = useState<any>(null);
@@ -228,11 +325,18 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
     if (!dealFormData.title) return;
     
     if (editingDeal) {
-      setDeals(prev => prev.map(d => d.id === editingDeal.id ? { ...editingDeal, ...dealFormData } : d));
+      setDeals(prev => prev.map(d => d.id === editingDeal.id ? { 
+        ...editingDeal, 
+        ...dealFormData,
+        sector: isAutomotive ? 'automotive' : 'real_estate',
+        store_id: storeId
+      } : d));
       toast.success(isTr ? 'Talep güncellendi' : 'Lead updated');
     } else {
       const newDeal = {
         ...dealFormData,
+        sector: isAutomotive ? 'automotive' : 'real_estate',
+        store_id: storeId,
         id: 'd' + Date.now()
       };
       setDeals(prev => [...prev, newDeal]);
@@ -240,7 +344,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
     }
     setShowDealModal(false);
     setEditingDeal(null);
-    setDealFormData({ title: '', description: '', agent_name: '', budget: '', stage: 'Yeni Talep / Aday' });
+    setDealFormData({ title: '', description: '', agent_name: '', budget: '', stage: currentStages[0] });
   };
 
   const openEdit = (agent: any) => {
@@ -249,7 +353,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
       name: agent.name,
       email: agent.email || '',
       phone: agent.phone || '',
-      role: agent.role || 'Broker / Yöneticisi',
+      role: agent.role || (isAutomotive ? 'Satış Danışmanı / Temsilcisi' : 'Broker / Yöneticisi'),
       branch_id: agent.branch_id || '',
       image_url: agent.image_url || ''
     });
@@ -263,12 +367,14 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
     a.role?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredDeals = deals.filter(d => 
-    d.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    d.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    d.agent_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    d.budget?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredDeals = deals
+    .filter(d => isAutomotive ? isAutomotiveMatching(d) : isRealEstateMatching(d))
+    .filter(d => 
+      d.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.agent_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.budget?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   return (
     <div className="space-y-3 font-sans text-slate-800">
@@ -356,42 +462,21 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
         </div>
       </div>
 
-      {/* COMPACT SEARCH & FILTER BAR */}
-      <div className="flex items-center justify-between gap-2 bg-slate-50/80 p-2 rounded-xl border border-slate-200/80">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input 
-            type="text"
-            placeholder={activeSubTab === 'agents' ? "Danışman adı, e-posta veya görev ara..." : activeSubTab === 'branches' ? "Şube adı veya şehir ara..." : "Talep, müşteri veya bütçe ara..."}
-            className="w-full pl-8 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        {activeSubTab === 'pipeline' && crmView === 'leads' && (
-          <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shrink-0">
-            <button 
-              onClick={() => setLeadsDisplayMode('list')}
-              className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                leadsDisplayMode === 'list' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <List className="w-3 h-3" />
-              <span>Liste</span>
-            </button>
-            <button 
-              onClick={() => setLeadsDisplayMode('kanban')}
-              className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                leadsDisplayMode === 'kanban' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <LayoutGrid className="w-3 h-3" />
-              <span>Kanban</span>
-            </button>
+      {/* COMPACT SEARCH & FILTER BAR (Only for agents and branches; pipeline has its own integrated toolbar) */}
+      {activeSubTab !== 'pipeline' && (
+        <div className="flex items-center justify-between gap-2 bg-slate-50/80 p-2 rounded-xl border border-slate-200/80">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input 
+              type="text"
+              placeholder={activeSubTab === 'agents' ? "Danışman adı, e-posta veya görev ara..." : "Şube adı veya şehir ara..."}
+              className="w-full pl-8 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-12 bg-white rounded-2xl border border-slate-200">
@@ -649,33 +734,88 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
           </div>
         </div>
       ) : activeSubTab === 'pipeline' ? (
-        <div className="space-y-3">
-          {/* Sub-Sub Tabs for CRM */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/80">
-            <button 
-              onClick={() => setCrmView('leads')}
-              className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
-                crmView === 'leads' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {isTr ? 'Müşteri & Yatırımcı Talepleri' : 'Lead Pipeline'}
-            </button>
-            <button 
-              onClick={() => setCrmView('portfolio')}
-              className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
-                crmView === 'portfolio' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {isTr ? 'Portföy Süreçleri' : 'Portfolio Pipeline'}
-            </button>
-            <button 
-              onClick={() => setCrmView('calendar')}
-              className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
-                crmView === 'calendar' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {isTr ? 'Randevu Takvimi' : 'Appointment Calendar'}
-            </button>
+        <div className="space-y-2.5">
+          {/* UNIFIED SINGLE TOOLBAR FOR PIPELINE (NO DUPLICATE ROWS, NO DUPLICATE SEARCH, NO DUPLICATE CALENDAR BUTTON) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/90 p-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
+            {/* Left: View Tabs */}
+            <div className="flex items-center gap-1 p-0.5 bg-slate-200/70 rounded-lg w-fit shrink-0">
+              <button 
+                onClick={() => setCrmView('leads')}
+                className={`px-3 py-1 rounded-md text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                  crmView === 'leads' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {isTr ? 'Müşteri Talepleri' : 'Lead Pipeline'}
+              </button>
+              <button 
+                onClick={() => setCrmView('portfolio')}
+                className={`px-3 py-1 rounded-md text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                  crmView === 'portfolio' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {isAutomotive ? 'Araç Satış Pipeline' : (isTr ? 'Portföy Süreçleri' : 'Portfolio Pipeline')}
+              </button>
+              <button 
+                onClick={() => setCrmView('calendar')}
+                className={`px-3 py-1 rounded-md text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                  crmView === 'calendar' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {isTr ? 'Randevu Takvimi' : 'Calendar'}
+              </button>
+            </div>
+
+            {/* Right: Integrated Single Search & Controls */}
+            <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+              {crmView === 'leads' && (
+                <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200">
+                  <button 
+                    onClick={() => setLeadsDisplayMode('list')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      leadsDisplayMode === 'list' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <List className="w-3 h-3" />
+                    <span>Liste</span>
+                  </button>
+                  <button 
+                    onClick={() => setLeadsDisplayMode('kanban')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      leadsDisplayMode === 'kanban' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3 h-3" />
+                    <span>Kanban</span>
+                  </button>
+                </div>
+              )}
+
+              {crmView === 'portfolio' && !isAutomotive && (
+                <button
+                  onClick={() => {
+                    setActiveTourProperty(null);
+                    setIsTourModalOpen(true);
+                  }}
+                  className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>+ Yeni Gezi Planla</span>
+                </button>
+              )}
+
+              {crmView !== 'calendar' && (
+                <div className="relative w-48 sm:w-60">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input 
+                    type="text"
+                    placeholder={crmView === 'leads' ? "Talep veya bütçe ara..." : (isAutomotive ? "Araç veya müşteri ara..." : "Portföy veya ref ara...")}
+                    className="w-full pl-8 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 shadow-2xs"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {crmView === 'leads' ? (
@@ -769,7 +909,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
             ) : (
               /* KANBAN VIEW FOR LEADS */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-                {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map((stage, idx) => {
+                {currentStages.map((stage, idx) => {
                   const stageDeals = filteredDeals.filter(d => d.stage === stage);
                   return (
                     <div key={idx} className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-2 flex flex-col gap-2 min-w-0">
@@ -834,23 +974,45 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
               </div>
             )
           ) : crmView === 'portfolio' ? (
-            <RealEstateCRM 
-              storeId={storeId!}
-              properties={portfolioItems}
-              tasks={tasks}
-              onOpenCalendar={() => setCrmView('calendar')}
-              onOpenTourModal={(p) => {
-                setActiveTourProperty(p);
-                setIsTourModalOpen(true);
-              }}
-              onRefresh={fetchData}
-            />
+            isAutomotive ? (
+              <AutomotiveCRM 
+                storeId={storeId!}
+                vehicles={portfolioItems}
+                tasks={tasks}
+                onOpenCalendar={() => setCrmView('calendar')}
+                onRefresh={fetchData}
+                searchQuery={searchQuery}
+                hideHeader={true}
+              />
+            ) : (
+              <RealEstateCRM 
+                storeId={storeId!}
+                properties={portfolioItems}
+                tasks={tasks}
+                onOpenCalendar={() => setCrmView('calendar')}
+                onOpenTourModal={(p) => {
+                  setActiveTourProperty(p);
+                  setIsTourModalOpen(true);
+                }}
+                onRefresh={fetchData}
+                searchQuery={searchQuery}
+                hideHeader={true}
+              />
+            )
           ) : (
-            <RealEstateCalendar 
-              storeId={storeId!}
-              properties={portfolioItems}
-              onClose={() => setCrmView('portfolio')}
-            />
+            isAutomotive ? (
+              <AutomotiveCalendar 
+                storeId={storeId!}
+                vehicles={portfolioItems}
+                onClose={() => setCrmView('portfolio')}
+              />
+            ) : (
+              <RealEstateCalendar 
+                storeId={storeId!}
+                properties={portfolioItems}
+                onClose={() => setCrmView('portfolio')}
+              />
+            )
           )}
         </div>
       ) : null}
@@ -1044,10 +1206,10 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
 
             <div className="space-y-2.5 text-xs font-bold">
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Başlık / Müşteri' : 'Title / Client'}</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? (isAutomotive ? 'Başlık / Müşteri (Araç Talebi)' : 'Başlık / Müşteri') : 'Title / Client'}</label>
                 <input 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
-                  placeholder="Örn: 3+1 Daire Arayışı (Ahmet Bey)"
+                  placeholder={isAutomotive ? "Örn: 2022+ BMW 320i veya Mercedes C200 arayışı" : "Örn: 3+1 Daire Arayışı (Ahmet Bey)"}
                   value={dealFormData.title}
                   onChange={(e) => setDealFormData({...dealFormData, title: e.target.value})}
                 />
@@ -1057,7 +1219,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Açıklama & İhtiyaç' : 'Description'}</label>
                 <textarea 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500 min-h-[60px]" 
-                  placeholder="Bölge, oda sayısı, alım tarihi detayları..."
+                  placeholder={isAutomotive ? "Örn: Otomatik vites, düşük km, servis bakımlı araç talebi..." : "Bölge, oda sayısı, alım tarihi detayları..."}
                   value={dealFormData.description}
                   onChange={(e) => setDealFormData({...dealFormData, description: e.target.value})}
                 />
@@ -1065,7 +1227,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Sorumlu' : 'Agent'}</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? (isAutomotive ? 'Danışman / Temsilci' : 'Sorumlu') : 'Agent'}</label>
                   <select 
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500 cursor-pointer"
                     value={dealFormData.agent_name}
@@ -1082,7 +1244,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Bütçe / Durum' : 'Budget'}</label>
                   <input 
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
-                    placeholder="Örn: £150,000 Bütçe"
+                    placeholder={isAutomotive ? "Örn: 1.450.000 TL" : "Örn: £150,000 Bütçe"}
                     value={dealFormData.budget}
                     onChange={(e) => setDealFormData({...dealFormData, budget: e.target.value})}
                   />
@@ -1096,7 +1258,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                   value={dealFormData.stage}
                   onChange={(e) => setDealFormData({...dealFormData, stage: e.target.value})}
                 >
-                  {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map(s => (
+                  {currentStages.map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
@@ -1134,10 +1296,15 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
 
       {isTourModalOpen && (
         <ArrangeTourModal
-          onClose={() => setIsTourModalOpen(false)}
+          onClose={() => {
+            setIsTourModalOpen(false);
+            setActiveTourProperty(null);
+          }}
           property={activeTourProperty}
+          propertiesList={portfolioItems}
           onSave={() => {
             setIsTourModalOpen(false);
+            setActiveTourProperty(null);
             fetchData();
           }}
         />

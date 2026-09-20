@@ -1,22 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, 
-  ChevronRight, 
   Clock, 
   Car, 
-  Plus, 
-  MoreVertical, 
   Search,
-  Filter,
   TrendingUp,
-  Target,
   Handshake,
   CheckCircle2,
   Calendar,
   MessageSquare,
   DollarSign,
   ArrowRight,
-  AlertCircle,
   X,
   Edit2,
   Trash2,
@@ -24,7 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../services/api';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { toast } from 'sonner';
 
@@ -32,20 +26,32 @@ interface AutomotiveCRMProps {
   storeId: number;
   vehicles: any[];
   tasks: any[];
-  onOpenCalendar: () => void;
+  onOpenCalendar?: () => void;
   onRefresh?: () => void;
+  searchQuery?: string;
+  onSearchChange?: (q: string) => void;
+  hideHeader?: boolean;
 }
 
 const STAGES = [
-  { id: 'planned', title: 'Planlanan Randevular', icon: Calendar, color: 'bg-indigo-500', description: 'Gelecek müşteri randevuları.' },
-  { id: 'analysis', title: 'Ekspertiz / İnceleme', icon: Search, color: 'bg-slate-500', description: 'Araç ekspertizi veya inceleme süreci.' },
-  { id: 'negotiation', title: 'Teklif & Pazarlık', icon: TrendingUp, color: 'bg-amber-500', description: 'Ciddi teklif alındı, pazarlık süreci aktif.' },
-  { id: 'closed', title: 'Satış / Kapandı', icon: Handshake, color: 'bg-emerald-500', description: 'Satış sonuçlandırıldı.' },
+  { id: 'planned', title: 'Planlanan Randevular', icon: Calendar, color: 'bg-indigo-600', textBadge: 'text-indigo-700 bg-indigo-50 border-indigo-200/80', description: 'Gelecek müşteri randevuları.' },
+  { id: 'analysis', title: 'Ekspertiz / İnceleme', icon: Search, color: 'bg-slate-700', textBadge: 'text-slate-700 bg-slate-100 border-slate-200', description: 'Araç ekspertizi veya inceleme süreci.' },
+  { id: 'negotiation', title: 'Teklif & Pazarlık', icon: TrendingUp, color: 'bg-amber-600', textBadge: 'text-amber-700 bg-amber-50 border-amber-200/80', description: 'Ciddi teklif alındı, pazarlık süreci aktif.' },
+  { id: 'closed', title: 'Satış / Kapandı', icon: Handshake, color: 'bg-emerald-600', textBadge: 'text-emerald-700 bg-emerald-50 border-emerald-200/80', description: 'Satış sonuçlandırıldı.' },
 ];
 
-export const AutomotiveCRM = ({ storeId, vehicles, tasks, onOpenCalendar, onRefresh }: AutomotiveCRMProps) => {
+export const AutomotiveCRM = ({ 
+  storeId, 
+  vehicles, 
+  tasks, 
+  onOpenCalendar, 
+  onRefresh,
+  searchQuery: externalSearchQuery,
+  onSearchChange,
+  hideHeader = true
+}: AutomotiveCRMProps) => {
   const [dealCards, setDealCards] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [internalSearchQuery, setInternalSearchQuery] = useState("");
   const [activeVehicle, setActiveVehicle] = useState<any>(null);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
@@ -54,6 +60,8 @@ export const AutomotiveCRM = ({ storeId, vehicles, tasks, onOpenCalendar, onRefr
   const [newDate, setNewDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [newTime, setNewTime] = useState("10:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const activeSearch = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
 
   useEffect(() => {
     const deals = vehicles.map(v => {
@@ -167,7 +175,7 @@ export const AutomotiveCRM = ({ storeId, vehicles, tasks, onOpenCalendar, onRefr
   };
 
   const filteredDeals = dealCards.filter(deal => {
-    const searchLower = searchQuery.toLowerCase();
+    const searchLower = (activeSearch || "").toLowerCase();
     return (
       deal.vehicle.brand?.toLowerCase().includes(searchLower) ||
       deal.vehicle.model?.toLowerCase().includes(searchLower) ||
@@ -176,173 +184,209 @@ export const AutomotiveCRM = ({ storeId, vehicles, tasks, onOpenCalendar, onRefr
   });
 
   return (
-    <div className="flex flex-col h-[85vh] gap-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-slate-900 text-white rounded-2xl shadow-lg">
-            <Car className="w-6 h-6" />
+    <div className="flex flex-col gap-2.5 w-full min-w-0">
+      {/* Optional Standalone Mini-Strip (only shown if not integrated into TeamCrmTab) */}
+      {!hideHeader && (
+        <div className="flex items-center justify-between gap-2 bg-slate-50/90 border border-slate-200/80 p-2 rounded-xl shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 uppercase tracking-widest text-[9px] font-black">Araç Süreçleri:</span>
+            {STAGES.map(stage => {
+              const count = dealCards.filter(d => d.stage === stage.id).length;
+              return (
+                <span key={stage.id} className={`px-2 py-0.5 border rounded-md text-[10px] font-bold flex items-center gap-1 ${stage.textBadge}`}>
+                  <span>{stage.title}:</span>
+                  <span className="font-mono font-black">{count}</span>
+                </span>
+              );
+            })}
           </div>
-          <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight italic">Araç Satış Pipeline</h2>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Otomotiv CRM & Süreç Yönetimi</p>
+
+          <div className="flex items-center gap-2">
+            {onOpenCalendar && (
+              <button 
+                onClick={onOpenCalendar}
+                className="flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+              >
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Randevu Takvimi</span>
+              </button>
+            )}
+
+            {externalSearchQuery === undefined && (
+              <div className="relative w-44">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Araç veya plaka ara..."
+                  className="w-full pl-8 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                  value={internalSearchQuery}
+                  onChange={(e) => setInternalSearchQuery(e.target.value)}
+                />
+              </div>
+            )}
           </div>
         </div>
+      )}
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Araç veya müşteri ara..."
-              className="pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold w-64 focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 outline-none transition-all shadow-sm"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <button 
-            onClick={onOpenCalendar}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-slate-200 transition-all shadow-sm active:scale-95"
-          >
-            <Calendar className="w-4 h-4 text-indigo-600" />
-            Randevu Takvimi
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-x-auto pb-8 custom-scrollbar">
-        <div className="flex gap-6 h-full min-w-[1450px] pr-20">
+      {/* Futuristic Viewport-Fit 4-Column Responsive Grid (NO HORIZONTAL SCROLLBAR ON DESKTOP) */}
+      <div className="w-full min-w-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full min-w-0 items-start">
           {STAGES.map(stage => {
             const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
             const StageIcon = stage.icon;
 
             return (
-              <div key={stage.id} className="flex-1 flex flex-col gap-4 min-w-[340px]">
-                <div className="flex items-center justify-between px-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl ${stage.color} flex items-center justify-center text-white shadow-lg`}>
-                      <StageIcon className="w-5 h-5" />
+              <div 
+                key={stage.id} 
+                className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-2 flex flex-col gap-2 min-w-0 shadow-2xs"
+              >
+                {/* Stage Header */}
+                <div className="flex items-center justify-between px-1 py-0.5 border-b border-slate-200/70 pb-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className={`w-5 h-5 rounded-md ${stage.color} flex items-center justify-center text-white shrink-0 shadow-2xs`}>
+                      <StageIcon className="w-3 h-3" />
                     </div>
-                    <div>
-                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest leading-none mb-1 whitespace-nowrap">{stage.title}</h3>
-                      <p className="text-[10px] text-slate-500 font-bold">{stageDeals.length} Fırsat</p>
-                    </div>
+                    <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate leading-none">
+                      {stage.title}
+                    </h3>
                   </div>
+                  <span className="text-[9px] font-mono font-black bg-slate-200/90 text-slate-700 px-1.5 py-0.2 rounded shrink-0">
+                    {stageDeals.length}
+                  </span>
                 </div>
 
-                <div className="flex-1 bg-slate-50/50 border border-slate-200/60 rounded-[2.5rem] p-4 space-y-4 overflow-y-auto custom-scrollbar">
+                {/* Column Card List with Viewport-Fit Max-Height */}
+                <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-230px)] min-h-[160px] custom-scrollbar pr-0.5">
                   <AnimatePresence mode="popLayout">
                     {stageDeals.map(deal => {
-                      const latestTask = deal.tasks.sort((a:any, b:any) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime())[0];
+                      const latestTask = deal.tasks?.sort((a:any, b:any) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime())[0];
                       
                       return (
                         <motion.div
                           key={deal.id}
                           layout
-                          initial={{ opacity: 0, y: 20 }}
+                          initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden"
+                          exit={{ opacity: 0, scale: 0.96 }}
+                          className="bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-2xs hover:border-indigo-400 hover:shadow-xs transition-all group flex flex-col gap-2"
                         >
-                          <div className="flex items-start gap-4 mb-4">
-                            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100 shadow-inner">
+                          {/* Vehicle Header & Thumbnail */}
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200/70">
                               {deal.vehicle.image_url ? (
-                                <img src={deal.vehicle.image_url} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                <img 
+                                  src={deal.vehicle.image_url} 
+                                  alt="" 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                                />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                  <Car className="w-8 h-8" />
+                                  <Car className="w-5 h-5" />
                                 </div>
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between">
-                                <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-lg uppercase tracking-tighter">
-                                  {deal.vehicle.plate}
+                              <div className="flex items-center justify-between gap-1 mb-0.5">
+                                <span className="text-[9px] font-mono font-black bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded uppercase tracking-tight border border-slate-200/60">
+                                  {deal.vehicle.plate || 'PLAKA YOK'}
+                                </span>
+                                <span className="text-[11px] font-black text-indigo-700 font-mono">
+                                  {deal.vehicle.price} {deal.vehicle.currency}
                                 </span>
                               </div>
-                              <h4 className="text-sm font-black text-slate-900 truncate mt-2 leading-tight">
+                              <h4 className="text-xs font-black text-slate-900 truncate leading-tight">
                                 {deal.vehicle.brand} {deal.vehicle.model}
                               </h4>
-                              <p className="text-[10px] text-slate-500 font-bold mt-1">
-                                {deal.vehicle.year} • {deal.vehicle.mileage} KM
+                              <p className="text-[9px] text-slate-500 font-bold">
+                                {deal.vehicle.year || '-'} • {deal.vehicle.mileage ? `${deal.vehicle.mileage} KM` : '-'}
                               </p>
                             </div>
                           </div>
 
+                          {/* Latest Task / Appointment Snippet */}
                           {latestTask && (
-                            <div className={`rounded-2xl p-3 mb-4 border ${latestTask.is_completed ? 'bg-slate-50 border-slate-100' : 'bg-indigo-50/50 border-indigo-100/50'}`}>
-                              <div className="flex items-center justify-between mb-2">
-                                <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-widest ${latestTask.is_completed ? 'text-slate-400' : 'text-indigo-700'}`}>
-                                  {latestTask.is_completed ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
-                                  {latestTask.is_completed ? 'Tamamlanan Randevu' : 'Gelecek Randevu'}
-                                </div>
+                            <div className={`rounded-lg p-1.5 border text-[10px] font-bold ${
+                              latestTask.is_completed 
+                                ? 'bg-slate-50/80 border-slate-200 text-slate-600' 
+                                : 'bg-indigo-50/60 border-indigo-200/70 text-indigo-900'
+                            }`}>
+                              <div className="flex items-center justify-between mb-1 text-[9px] font-black uppercase">
+                                <span className="flex items-center gap-1">
+                                  {latestTask.is_completed ? (
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  ) : (
+                                    <Clock className="w-3 h-3 text-indigo-600" />
+                                  )}
+                                  <span>{latestTask.is_completed ? 'Tamamlandı' : 'Randevu'}</span>
+                                </span>
                                 {!latestTask.is_completed && (
                                   <button 
                                     onClick={() => handleReschedule(latestTask)}
-                                    className="p-1.5 hover:bg-white rounded-lg text-indigo-600 transition-all active:scale-95"
+                                    className="p-0.5 hover:bg-white text-indigo-600 rounded transition-colors cursor-pointer"
+                                    title="Tarihi güncelle"
                                   >
-                                    <Edit2 className="w-3.5 h-3.5" />
+                                    <Edit2 className="w-3 h-3" />
                                   </button>
                                 )}
                               </div>
-                              <p className={`text-[11px] font-bold leading-tight ${latestTask.is_completed ? 'text-slate-500' : 'text-indigo-900'}`}>
+                              <p className="line-clamp-1 text-[10px] text-slate-700">
                                 {latestTask.description}
                               </p>
-                              <div className="flex items-center gap-1.5 mt-2">
-                                <Calendar className="w-3 h-3 text-slate-400" />
-                                <span className={`text-[9px] font-black uppercase tracking-wider ${latestTask.is_completed ? 'text-slate-400' : 'text-indigo-500'}`}>
-                                  {format(parseISO(latestTask.due_date), 'd MMMM yyyy HH:mm', { locale: tr })}
-                                </span>
+                              <div className="flex items-center gap-1 text-[9px] font-mono text-slate-400 mt-1">
+                                <Calendar className="w-2.5 h-2.5" />
+                                <span>{format(parseISO(latestTask.due_date), 'd MMM HH:mm', { locale: tr })}</span>
                               </div>
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between pt-4 border-t border-slate-50 gap-3">
-                            <div className="flex flex-col">
-                               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Fiyat</span>
-                               <span className="text-sm font-black text-slate-900">
-                                 {deal.vehicle.price} {deal.vehicle.currency}
-                               </span>
-                            </div>
-                            
-                            <div className="flex gap-2">
-                              {stage.id === 'planned' && (
-                                <button 
-                                  onClick={() => handleCompleteAppointment(latestTask, deal.vehicle)}
-                                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-slate-100 active:scale-95"
-                                >
-                                  Randevuyu Tamamla
-                                </button>
-                              )}
+                          {/* Quick Stage Action Button */}
+                          <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
+                            {stage.id === 'planned' && (
+                              <button 
+                                onClick={() => handleCompleteAppointment(latestTask, deal.vehicle)}
+                                className="w-full py-1 bg-slate-900 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs active:scale-95 text-center flex items-center justify-center gap-1"
+                              >
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                <span>Randevuyu Tamamla</span>
+                              </button>
+                            )}
 
-                              {stage.id === 'analysis' && (
-                                <button 
-                                  onClick={() => moveToNegotiation(deal.vehicle)}
-                                  className="px-4 py-2 bg-amber-100 text-amber-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all shadow-lg shadow-amber-50 active:scale-95 flex items-center gap-1.5"
-                                >
-                                  <DollarSign className="w-3.5 h-3.5" />
-                                  Pazarlığa Taşı
-                                </button>
-                              )}
+                            {stage.id === 'analysis' && (
+                              <button 
+                                onClick={() => moveToNegotiation(deal.vehicle)}
+                                className="w-full py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center gap-1"
+                              >
+                                <DollarSign className="w-3 h-3" />
+                                <span>Pazarlığa Taşı</span>
+                              </button>
+                            )}
 
-                              {stage.id === 'negotiation' && (
-                                <button 
-                                  onClick={() => closeDeal(deal.vehicle)}
-                                  className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-lg shadow-emerald-50 active:scale-95 flex items-center gap-1.5"
-                                >
-                                  <Handshake className="w-3.5 h-3.5" />
-                                  Satışı Kapat
-                                </button>
-                              )}
-                            </div>
+                            {stage.id === 'negotiation' && (
+                              <button 
+                                onClick={() => closeDeal(deal.vehicle)}
+                                className="w-full py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center gap-1"
+                              >
+                                <Handshake className="w-3 h-3" />
+                                <span>Satışı Kapat</span>
+                              </button>
+                            )}
+
+                            {stage.id === 'closed' && (
+                              <div className="w-full py-0.5 text-center text-[10px] font-black text-emerald-700 bg-emerald-50 rounded border border-emerald-200/60">
+                                ✓ İşlem Başarılı
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       );
                     })}
+
+                    {/* Compact Minimalist Empty Indicator */}
                     {stageDeals.length === 0 && (
-                      <div className="py-12 text-center bg-white/20 border border-dashed border-slate-200 rounded-[2.5rem]">
-                        <Info className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic leading-relaxed">
-                          Bu aşamada aktif <br /> aktivite bulunmuyor.
+                      <div className="py-5 px-2 text-center bg-white/40 border border-dashed border-slate-200/90 rounded-xl">
+                        <Info className="w-4 h-4 text-slate-300 mx-auto mb-1" />
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          Aktif Araç Yok
                         </p>
                       </div>
                     )}
@@ -354,62 +398,76 @@ export const AutomotiveCRM = ({ storeId, vehicles, tasks, onOpenCalendar, onRefr
         </div>
       </div>
 
+      {/* Ekspertiz Analizi Modal */}
       <AnimatePresence>
         {showAnalysisModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 bg-slate-950/70 backdrop-blur-xs">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-10 relative overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
             >
-              <button 
-                onClick={() => setShowAnalysisModal(false)}
-                className="absolute top-8 right-8 p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="flex items-center gap-5 mb-8">
-                <div className="p-4 bg-indigo-50 text-indigo-600 rounded-[1.5rem]">
-                  <MessageSquare className="w-8 h-8" />
+              <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase text-white">Ekspertiz / Görüşme Analizi</h3>
+                    <p className="text-[9px] text-slate-400 font-bold">Müşteri Geri Bildirimi & Durum</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Ekspertiz Analizi</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Müşteri Geri Bildirimi</p>
-                </div>
+                <button 
+                  onClick={() => setShowAnalysisModal(false)}
+                  className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="space-y-6">
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
-                   <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                     <Car className="w-3.5 h-3.5" />
-                     Görüşülen Araç
-                   </div>
-                   <p className="text-xs font-black text-slate-900 leading-tight">{activeVehicle?.brand} {activeVehicle?.model}</p>
+              <div className="p-4 space-y-3 text-xs font-bold bg-slate-50/30">
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-2">
+                  <Car className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Görüşülen Araç</span>
+                    <p className="text-xs font-black text-slate-900 truncate">
+                      {activeVehicle?.brand} {activeVehicle?.model} ({activeVehicle?.plate || 'Plakasız'})
+                    </p>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 ml-1">Ekspertiz Notu</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                    Ekspertiz Notu & Müşteri Talepleri
+                  </label>
                   <textarea 
-                    className="w-full mt-2 bg-slate-50 border border-slate-200 rounded-[1.5rem] p-5 text-sm font-bold min-h-[140px] focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all outline-none"
-                    placeholder="Ekspertiz notları..."
+                    className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold min-h-[90px] focus:border-indigo-500 outline-none resize-none shadow-2xs"
+                    placeholder="Müşteri ekspertiz raporunu inceledi, boyalı parçalar onaylandı..."
                     value={analysisNote}
                     onChange={(e) => setAnalysisNote(e.target.value)}
                   />
                 </div>
+              </div>
 
+              <div className="p-3 bg-white border-t border-slate-100 flex items-center justify-end gap-2">
+                <button 
+                  onClick={() => setShowAnalysisModal(false)}
+                  className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  İptal
+                </button>
                 <button 
                   disabled={isSubmitting}
                   onClick={submitAnalysis}
-                  className="w-full py-5 bg-slate-900 text-white rounded-[1.5rem] text-xs font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-2xl shadow-indigo-100 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
+                  className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <CheckCircle2 className="w-5 h-5" />
+                    <CheckCircle2 className="w-3.5 h-3.5" />
                   )}
-                  {isSubmitting ? 'Kaydediliyor...' : 'Analizi Tamamla & İlerlet'}
+                  <span>{isSubmitting ? 'Kaydediliyor...' : 'Analizi Tamamla & İlerlet'}</span>
                 </button>
               </div>
             </motion.div>
@@ -417,65 +475,79 @@ export const AutomotiveCRM = ({ storeId, vehicles, tasks, onOpenCalendar, onRefr
         )}
       </AnimatePresence>
 
+      {/* Randevu Yenileme Modal */}
       <AnimatePresence>
         {showRescheduleModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 bg-slate-950/70 backdrop-blur-xs">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-10 relative overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
             >
-              <button 
-                onClick={() => setShowRescheduleModal(false)}
-                className="absolute top-8 right-8 p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="flex items-center gap-5 mb-8">
-                <div className="p-4 bg-amber-50 text-amber-600 rounded-[1.5rem]">
-                  <Clock className="w-8 h-8" />
+              <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase text-white">Randevu Tarihini Güncelle</h3>
+                    <p className="text-[9px] text-slate-400 font-bold">Yeni Tarih ve Saat Seçimi</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Randevu Revize Et</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Tarih & Saat Güncelleme</p>
-                </div>
+                <button 
+                  onClick={() => setShowRescheduleModal(false)}
+                  className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 space-y-3 text-xs font-bold bg-slate-50/30">
+                <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 ml-1">Yeni Tarih</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                      Yeni Tarih *
+                    </label>
                     <input 
                       type="date"
-                      className="w-full mt-2 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:border-indigo-500 outline-none"
                       value={newDate}
                       onChange={(e) => setNewDate(e.target.value)}
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 ml-1">Yeni Saat</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                      Yeni Saat *
+                    </label>
                     <input 
                       type="time"
-                      className="w-full mt-2 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:border-indigo-500 outline-none"
                       value={newTime}
                       onChange={(e) => setNewTime(e.target.value)}
                     />
                   </div>
                 </div>
+              </div>
 
+              <div className="p-3 bg-white border-t border-slate-100 flex items-center justify-end gap-2">
+                <button 
+                  onClick={() => setShowRescheduleModal(false)}
+                  className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  İptal
+                </button>
                 <button 
                   disabled={isSubmitting}
                   onClick={submitReschedule}
-                  className="w-full py-5 bg-slate-900 text-white rounded-[1.5rem] text-xs font-black uppercase tracking-widest hover:bg-amber-500 transition-all shadow-2xl shadow-amber-100 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
+                  className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <ArrowRight className="w-5 h-5" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   )}
-                  {isSubmitting ? 'Güncelleniyor...' : 'Revize Et ve Onayla'}
+                  <span>{isSubmitting ? 'Güncelleniyor...' : 'Revize Et & Onayla'}</span>
                 </button>
               </div>
             </motion.div>

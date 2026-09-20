@@ -1383,7 +1383,7 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
       )}
 
       {/* Tour Arranger Modal */}
-      {isTourModalOpen && activeTourProperty && (
+      {isTourModalOpen && (
         <React.Suspense fallback={null}>
           <ArrangeTourModal
             onClose={() => {
@@ -1391,9 +1391,11 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
               setActiveTourProperty(null);
             }}
             property={activeTourProperty}
+            propertiesList={safeProperties}
             onSave={() => {
               setIsTourModalOpen(false);
               setActiveTourProperty(null);
+              fetchTasks();
             }}
           />
         </React.Suspense>
