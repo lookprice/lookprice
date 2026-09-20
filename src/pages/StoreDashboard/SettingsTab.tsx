@@ -429,7 +429,7 @@ const SettingsTab = ({
             className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'integrations' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
             <Database className="h-4 w-4" />
-            <span>Yedekleme</span>
+            <span>Yedek</span>
           </button>
           {!isPortfolio && (
             <button 
@@ -437,7 +437,7 @@ const SettingsTab = ({
               className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'web' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
               <Palette className="h-4 w-4" />
-              <span>{isCafeRestaurant ? (lang === 'tr' ? 'QR Menü & Web' : 'QR Menu & Web') : t.settingsCategories?.webSettings}</span>
+              <span>Web</span>
             </button>
           )}
           <button 
@@ -445,7 +445,7 @@ const SettingsTab = ({
             className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'store-ops' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
             <Wrench className="h-4 w-4" />
-            <span>{isCafeRestaurant ? (lang === 'tr' ? 'İşletme Ayarları' : 'Ops Settings') : (lang === 'tr' ? 'Mağaza Ayarları' : 'Store Settings')}</span>
+            <span>Mağaza</span>
           </button>
           {!isPortfolio && (
             <button 
@@ -453,7 +453,7 @@ const SettingsTab = ({
               className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'pos' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
               <CreditCard className="h-4 w-4" />
-              <span>{isCafeRestaurant ? (lang === 'tr' ? 'Adisyon & POS' : 'Restaurant POS') : t.settingsCategories?.posSettings}</span>
+              <span>POS</span>
             </button>
           )}
           {!isPortfolio && !isCafeRestaurant && (
@@ -462,7 +462,7 @@ const SettingsTab = ({
               className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'e-stores' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
               <ShoppingBag className="h-4 w-4" />
-              <span>{t.settingsCategories?.eStores}</span>
+              <span>e-Mağaza</span>
             </button>
           )}
           {isPortfolio && (
@@ -471,7 +471,7 @@ const SettingsTab = ({
               className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'financing' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
               <CreditCard className="h-4 w-4" />
-              <span>{lang === 'tr' ? 'Finansal Asistan' : 'Financial Assistant'}</span>
+              <span>Finans</span>
             </button>
           )}
           <button 
@@ -479,7 +479,7 @@ const SettingsTab = ({
             className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'domain' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
             <Globe className="h-4 w-4" />
-            <span>{t.settingsCategories?.domainSettings}</span>
+            <span>Domain</span>
           </button>
           {!isPortfolio && (
             <button 
@@ -487,7 +487,7 @@ const SettingsTab = ({
               className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'e-invoice' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
             >
               <Building2 className="h-4 w-4" />
-              <span>E-Invoice</span>
+              <span>E-Fatura</span>
             </button>
           )}
           <button 
@@ -495,14 +495,14 @@ const SettingsTab = ({
             className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'team' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
             <ShieldCheck className="h-4 w-4" />
-            <span>{lang === 'tr' ? 'Ekip & Yetkiler' : 'Team & Permissions'}</span>
+            <span>Ekip</span>
           </button>
           <button 
             onClick={() => setActiveSubTab('logs')}
             className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center space-x-2 ${activeSubTab === 'logs' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`}
           >
             <History className="h-4 w-4" />
-            <span>{lang === 'tr' ? 'Günlük' : 'Logs'}</span>
+            <span>Loglar</span>
           </button>
         </div>
 
@@ -555,6 +555,8 @@ const SettingsTab = ({
           branding={branding} 
           onBrandingChange={onBrandingChange} 
           lang={lang} 
+          onSaveBranding={onSaveBranding}
+          savingBranding={savingBranding}
         />
       )}
 

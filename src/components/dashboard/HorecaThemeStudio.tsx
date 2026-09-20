@@ -218,66 +218,66 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
           <button
             type="button"
             onClick={() => setActiveSubTab("visual")}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
               activeSubTab === "visual"
                 ? "bg-amber-500 text-slate-950 shadow-md"
                 : "bg-white/5 text-slate-300 hover:bg-white/10"
             }`}
           >
-            <Sparkles className="w-4 h-4" />
-            <span>{txt("Görsel Tema & Başlıklar", "Visual Theme & Headings", "Οπτικό Θέμα & Επικεφαλίδες")}</span>
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{txt("Tema", "Theme", "Θέμα")}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveSubTab("table_order")}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
               activeSubTab === "table_order"
                 ? "bg-amber-500 text-slate-950 shadow-md"
                 : "bg-white/5 text-slate-300 hover:bg-white/10"
             }`}
           >
-            <UtensilsCrossed className="w-4 h-4" />
-            <span>{txt("Masadan Sipariş & Servis", "Table Ordering & Service", "Παραγγελίες Τραπεζιού")}</span>
+            <UtensilsCrossed className="w-3.5 h-3.5" />
+            <span>{txt("Sipariş", "Ordering", "Παραγγελίες")}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveSubTab("wifi")}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
               activeSubTab === "wifi"
                 ? "bg-amber-500 text-slate-950 shadow-md"
                 : "bg-white/5 text-slate-300 hover:bg-white/10"
             }`}
           >
-            <Wifi className="w-4 h-4" />
-            <span>{txt("Müşteri Wi-Fi Paylaşımı", "Customer Wi-Fi Sharing", "Κοινή Χρήση Wi-Fi")}</span>
+            <Wifi className="w-3.5 h-3.5" />
+            <span>{txt("Wi-Fi", "Wi-Fi", "Wi-Fi")}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveSubTab("tables_qr")}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
               activeSubTab === "tables_qr"
                 ? "bg-amber-500 text-slate-950 shadow-md"
                 : "bg-white/5 text-slate-300 hover:bg-white/10"
             }`}
           >
-            <QrCode className="w-4 h-4" />
-            <span>{txt("Masa QR Kodları", "Table QR Codes", "Κωδικοί QR Τραπεζιών")}</span>
+            <QrCode className="w-3.5 h-3.5" />
+            <span>{txt("Masa QR", "Table QR", "QR Τραπεζιών")}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveSubTab("instagram")}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
               activeSubTab === "instagram"
                 ? "bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white shadow-md"
                 : "bg-white/5 text-slate-300 hover:bg-white/10"
             }`}
           >
-            <Instagram className="w-4 h-4" />
-            <span>{txt("Instagram Izgara Vitrini", "Instagram Showcase Grid", "Βιτρίνα Instagram")}</span>
+            <Instagram className="w-3.5 h-3.5" />
+            <span>{txt("Instagram", "Instagram", "Instagram")}</span>
           </button>
         </div>
       </div>

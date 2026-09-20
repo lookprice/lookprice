@@ -18,12 +18,12 @@ import {
   Phone,
   Mail,
   Building,
-  Upload,
-  Image,
   Clock,
-  Calendar
+  Utensils,
+  Percent,
+  ChevronRight
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { api } from "../../../services/api";
 import { IrpModal } from "../../../components/IrpModal";
 import { HotelUpgradeModal } from "../../../components/modals/HotelUpgradeModal";
@@ -44,6 +44,8 @@ interface SettingsStoreOpsTabProps {
   storeCode?: string;
 }
 
+type OpsSubTab = 'profile' | 'working_hours' | 'security' | 'currency' | 'legal_tax' | 'shipping' | 'locations' | 'horeca' | 'bulk_price';
+
 export const SettingsStoreOpsTab = ({
   branding,
   onBrandingChange,
@@ -59,6 +61,7 @@ export const SettingsStoreOpsTab = ({
   currentStoreId,
   storeCode
 }: SettingsStoreOpsTabProps) => {
+  const [activeOpsTab, setActiveOpsTab] = useState<OpsSubTab>('profile');
   const [syncingTcmb, setSyncingTcmb] = useState(false);
   const [isIrpModalOpen, setIsIrpModalOpen] = useState(false);
   const [isHotelUpgradeModalOpen, setIsHotelUpgradeModalOpen] = useState(false);
@@ -128,983 +131,1052 @@ export const SettingsStoreOpsTab = ({
     return map;
   };
 
+  const navItems: { id: OpsSubTab; label: string; icon: any; show: boolean }[] = [
+    { 
+      id: 'profile', 
+      label: lang === 'tr' ? 'Profil' : 'Profile', 
+      icon: Store, 
+      show: true 
+    },
+    { 
+      id: 'working_hours', 
+      label: lang === 'tr' ? 'Saatler' : 'Hours', 
+      icon: Clock, 
+      show: true 
+    },
+    { 
+      id: 'security', 
+      label: lang === 'tr' ? 'Güvenlik' : 'Security', 
+      icon: ShieldCheck, 
+      show: true 
+    },
+    { 
+      id: 'currency', 
+      label: lang === 'tr' ? 'Para & Dil' : 'Currency', 
+      icon: Globe, 
+      show: true 
+    },
+    { 
+      id: 'legal_tax', 
+      label: lang === 'tr' ? 'Firma & Vergi' : 'Legal', 
+      icon: Building2, 
+      show: true 
+    },
+    { 
+      id: 'shipping', 
+      label: lang === 'tr' ? 'Kargo' : 'Shipping', 
+      icon: Truck, 
+      show: !isPortfolio && !isCafeRestaurant 
+    },
+    { 
+      id: 'locations', 
+      label: isPortfolio ? (lang === 'tr' ? 'Ofisler' : 'Offices') : (lang === 'tr' ? 'Konumlar' : 'Locations'), 
+      icon: MapPin, 
+      show: true 
+    },
+    { 
+      id: 'horeca', 
+      label: lang === 'tr' ? 'Horeca' : 'Horeca', 
+      icon: Utensils, 
+      show: isCafeRestaurant 
+    },
+    { 
+      id: 'bulk_price', 
+      label: lang === 'tr' ? 'Toplu Fiyat' : 'Bulk Price', 
+      icon: Percent, 
+      show: !isPortfolio 
+    },
+  ];
+
+  const activeNavItems = navItems.filter(item => item.show);
+
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-8"
+      className="max-w-6xl mx-auto space-y-4 text-slate-900 dark:text-slate-100"
     >
-      {/* Store Security & Store Code */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 md:p-8 rounded-3xl border border-slate-700 shadow-xl shadow-slate-900/20 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <ShieldCheck className="w-48 h-48" />
-        </div>
-        <div className="relative z-10">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="p-3 bg-white/10 rounded-2xl text-emerald-400 border border-white/10 backdrop-blur-sm">
-              <ShieldCheck className="h-6 w-6" />
+      {/* Top Header & Horizontal Minimalist Micro Navigation Bar */}
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/60 rounded-xl text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+              <Store className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-xl font-black text-white leading-tight tracking-tight">{lang === 'tr' ? 'Kurumsal Güvenlik & Mağaza Kodu' : 'Corporate Security & Store Code'}</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'LookPrice Güvenlik Standartları' : 'LookPrice Security Standards'}</p>
-            </div>
-          </div>
-          
-          <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-5 md:p-6 mb-2">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-slate-300">
-                  {lang === 'tr' 
-                    ? 'Hesabınızın çok faktörlü izolasyonu için mağazanıza özel oluşturulmuş güvenlik kodudur. Personel ve yöneticileriniz giriş ekranında bu kodu kullanarak yetkisiz erişimleri önleyebilir.' 
-                    : 'This is a unique security code generated for your store for multi-tenant isolation. Your staff and managers can use this on the login screen to prevent unauthorized access.'}
-                </p>
-                <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  {lang === 'tr' ? 'Aktif Korumalı' : 'Active Protection'}
-                </div>
-              </div>
-              <div className="flex-shrink-0 bg-white/10 p-4 rounded-xl border border-white/5 text-center flex flex-col justify-center items-center gap-2">
-                <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">{lang === 'tr' ? 'MAĞAZA KODUNUZ' : 'YOUR STORE CODE'}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl md:text-3xl font-black tracking-widest font-mono text-white">{storeCode || 'LP-XXXXXX'}</span>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(storeCode || 'LP-XXXXXX');
-                      alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!');
-                    }}
-                    type="button"
-                    className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <Copy className="w-4 h-4 text-slate-300" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsIrpModalOpen(true)}
-              className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer border border-rose-500/20"
-            >
-              <ShieldAlert className="w-4 h-4" />
-              {lang === 'tr' ? 'Olay Müdahale Planı (IRP)' : 'Incident Response Plan (IRP)'}
-            </button>
-          </div>
-          <IrpModal isOpen={isIrpModalOpen} onClose={() => setIsIrpModalOpen(false)} lang={lang} />
-        </div>
-      </div>
-
-      {/* Mağaza & İşletme Profil Bilgileri */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl p-6 md:p-8 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 rounded-2xl text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
-              <Store className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">{lang === 'tr' ? 'İşletme & Mağaza Temel Profil Bilgileri' : 'Business & Store Profile'}</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Süperadmin ve Müşteri Panelleri ile Tam Eşzamanlı Profil Bilgileri' : 'Synced Credentials & Store Profile Settings'}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onSaveBranding}
-            disabled={savingBranding}
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-indigo-600/20 disabled:opacity-50 cursor-pointer self-start md:self-auto"
-          >
-            <Save className={`w-4 h-4 ${savingBranding ? 'animate-spin' : ''}`} />
-            <span>{savingBranding ? (lang === 'tr' ? 'Kaydediliyor...' : 'Saving...') : (lang === 'tr' ? 'Değişiklikleri Kaydet' : 'Save Profile')}</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Mağaza / Tabela Adı' : 'Store / Brand Name'}</label>
-            <div className="relative">
-              <Store className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <input 
-                type="text" 
-                placeholder={lang === 'tr' ? 'Örn: Seçkin Emlak & Otomotiv' : 'e.g. VIP Store'}
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-                value={branding.store_name || branding.name || ""}
-                onChange={(e) => {
-                  onBrandingChange('store_name', e.target.value);
-                  onBrandingChange('name', e.target.value);
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Yetkili Kişi Adı Soyadı' : 'Contact Person'}</label>
-            <div className="relative">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <input 
-                type="text" 
-                placeholder={lang === 'tr' ? 'Örn: Serdar Erdekli' : 'e.g. John Doe'}
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-                value={branding.contact_person || ""}
-                onChange={(e) => onBrandingChange('contact_person', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İşletme İletişim Telefonu' : 'Primary Phone'}</label>
-            <div className="relative">
-              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <input 
-                type="text" 
-                placeholder="Örn: +90 548 890 23 09"
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-                value={branding.phone || ""}
-                onChange={(e) => onBrandingChange('phone', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İşletme E-Posta Adresi' : 'Primary Email'}</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <input 
-                type="email" 
-                placeholder="Örn: bilgi@seckinmagaza.com"
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-                value={branding.email || ""}
-                onChange={(e) => onBrandingChange('email', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2 md:col-span-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İşletme Fiziki Adresi (Cadde / Sokak / No)' : 'Store Physical Street Address'}</label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
-              <textarea 
-                rows={2}
-                placeholder={lang === 'tr' ? 'Örn: Girne Caddesi No:12/A Alsancak' : 'e.g. Main Street No:12'}
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-                value={branding.address || ""}
-                onChange={(e) => onBrandingChange('address', e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Explicit District, City and Country Fields */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'İlçe / Bölge' : 'District / Region'}</label>
-            <input 
-              type="text" 
-              placeholder={lang === 'tr' ? 'Örn: Alsancak / Beşiktaş' : 'e.g. District'}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-              value={branding.district || ""}
-              onChange={(e) => onBrandingChange('district', e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Şehir' : 'City'}</label>
-            <input 
-              type="text" 
-              placeholder={lang === 'tr' ? 'Örn: Girne / İstanbul' : 'e.g. City'}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-              value={branding.city || ""}
-              onChange={(e) => onBrandingChange('city', e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Ülke' : 'Country'}</label>
-            <input 
-              type="text" 
-              placeholder={lang === 'tr' ? 'Örn: KKTC / Türkiye / UK' : 'e.g. Country'}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-              value={branding.country || ""}
-              onChange={(e) => onBrandingChange('country', e.target.value)}
-            />
-          </div>
-
-          {/* ÇALIŞMA GÜNLERİ VE SAATLERİ YÖNETİM PANELİ */}
-          <div className="md:col-span-2 p-4 bg-slate-100/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-500" />
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                  {lang === 'tr' ? 'Çalışma Günleri & Saatleri Yönetimi' : 'Business Working Hours & Schedule'}
-                </h4>
-              </div>
-              <span className="text-[10px] font-medium text-slate-500">
-                {lang === 'tr' ? 'Web sitesi ve alt bilgide anlık görüntülenir' : 'Displayed in storefront footer'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Hafta İçi */}
-              <div className="space-y-1.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span>{lang === 'tr' ? 'Pzt - Cuma (Hafta İçi)' : 'Mon - Fri (Weekdays)'}</span>
-                </label>
-                <input 
-                  type="text" 
-                  placeholder="09:00 - 19:00"
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-slate-100"
-                  value={branding.working_hours?.weekdays || "09:00 - 19:00"}
-                  onChange={(e) => {
-                    const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
-                    onBrandingChange('working_hours', { ...currentWh, weekdays: e.target.value });
-                  }}
-                />
-              </div>
-
-              {/* Cumartesi */}
-              <div className="space-y-1.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                    {lang === 'tr' ? 'Cumartesi' : 'Saturday'}
-                  </label>
-                  <label className="flex items-center gap-1 cursor-pointer text-[10px] font-semibold text-slate-500">
-                    <input 
-                      type="checkbox"
-                      checked={!!branding.working_hours?.is_saturday_closed}
-                      onChange={(e) => {
-                        const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
-                        onBrandingChange('working_hours', { ...currentWh, is_saturday_closed: e.target.checked });
-                      }}
-                      className="rounded border-slate-300 text-red-600 focus:ring-red-500"
-                    />
-                    <span>{lang === 'tr' ? 'Kapalı' : 'Closed'}</span>
-                  </label>
-                </div>
-                <input 
-                  type="text" 
-                  disabled={branding.working_hours?.is_saturday_closed}
-                  placeholder="09:00 - 19:00"
-                  className={`w-full px-3 py-1.5 border rounded-lg text-xs font-semibold ${
-                    branding.working_hours?.is_saturday_closed 
-                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-slate-200 dark:border-slate-800' 
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700'
-                  }`}
-                  value={branding.working_hours?.is_saturday_closed ? (lang === 'tr' ? 'Kapalı' : 'Closed') : (branding.working_hours?.saturday || "09:00 - 19:00")}
-                  onChange={(e) => {
-                    const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
-                    onBrandingChange('working_hours', { ...currentWh, saturday: e.target.value });
-                  }}
-                />
-              </div>
-
-              {/* Pazar */}
-              <div className="space-y-1.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                    {lang === 'tr' ? 'Pazar' : 'Sunday'}
-                  </label>
-                  <label className="flex items-center gap-1 cursor-pointer text-[10px] font-semibold text-slate-500">
-                    <input 
-                      type="checkbox"
-                      checked={branding.working_hours?.is_sunday_closed ?? true}
-                      onChange={(e) => {
-                        const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
-                        onBrandingChange('working_hours', { ...currentWh, is_sunday_closed: e.target.checked });
-                      }}
-                      className="rounded border-slate-300 text-red-600 focus:ring-red-500"
-                    />
-                    <span>{lang === 'tr' ? 'Kapalı' : 'Closed'}</span>
-                  </label>
-                </div>
-                <input 
-                  type="text" 
-                  disabled={branding.working_hours?.is_sunday_closed ?? true}
-                  placeholder={lang === 'tr' ? 'Kapalı' : 'Closed'}
-                  className={`w-full px-3 py-1.5 border rounded-lg text-xs font-semibold ${
-                    (branding.working_hours?.is_sunday_closed ?? true)
-                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-slate-200 dark:border-slate-800' 
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700'
-                  }`}
-                  value={(branding.working_hours?.is_sunday_closed ?? true) ? (lang === 'tr' ? 'Kapalı' : 'Closed') : (branding.working_hours?.sunday || "10:00 - 18:00")}
-                  onChange={(e) => {
-                    const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
-                    onBrandingChange('working_hours', { ...currentWh, sunday: e.target.value });
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Özel Çalışma Notu */}
-            <div className="space-y-1">
-              <label className="text-[10.5px] font-semibold text-slate-500">
-                {lang === 'tr' ? 'Özel Çalışma Notu (Opsiyonel: Resmi tatil, öğle molası vb.)' : 'Custom Note (Optional)'}
-              </label>
-              <input 
-                type="text"
-                placeholder={lang === 'tr' ? 'Örn: Pazar günleri ve resmi tatillerde kapalıyız.' : 'e.g. Closed on public holidays'}
-                className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium"
-                value={branding.working_hours?.note || ""}
-                onChange={(e) => {
-                  const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
-                  onBrandingChange('working_hours', { ...currentWh, note: e.target.value });
-                }}
-              />
-            </div>
-          </div>
-
-          {/* GOOGLE MAPS KONUM LINKI & EMBED ENTEGRASYONU */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">
-              {lang === 'tr' ? 'Google Maps Konum Linki (Harita Pini)' : 'Google Maps Location URL'}
-            </label>
-            <div className="relative">
-              <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <input 
-                type="text" 
-                placeholder="Örn: https://maps.app.goo.gl/xyz..."
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-                value={branding.google_maps_url || ""}
-                onChange={(e) => onBrandingChange('google_maps_url', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">
-              {lang === 'tr' ? 'Google Maps iFrame Embed Kodu / URL' : 'Google Maps Embed iFrame Code'}
-            </label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <input 
-                type="text" 
-                placeholder='Örn: https://www.google.com/maps/embed?pb=... veya <iframe src="..."></iframe>'
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100"
-                value={branding.google_maps_embed || ""}
-                onChange={(e) => onBrandingChange('google_maps_embed', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Mağaza Şablon Türü (Sektör)' : 'Store Type'}</label>
-            <div className="relative">
-              <Building className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <select 
-                className="w-full pl-11 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900 dark:text-slate-100 appearance-none cursor-pointer"
-                value={branding.store_type || "product"}
-                onChange={(e) => onBrandingChange('store_type', e.target.value)}
-              >
-                <option value="product">shopLP - Perakende / Genel Ürün Mağazası</option>
-                <option value="cafe_restaurant">horecaLP - Kafeterya, Restoran & Otel</option>
-                <option value="real_estate">Emlak Portföy Mağazası</option>
-                <option value="automotive">Oto Galeri / Araç İlan Mağazası</option>
-              </select>
-            </div>
-          </div>
-
-          {(branding.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant') && (
-            <div className="space-y-2 flex flex-col justify-center">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'HorecaLP Konsept / Alt Tür' : 'HorecaLP Concept / Sub-type'}</label>
-                <div className="flex items-center gap-1.5">
-                  {!branding.hotel_license_enabled && (
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                      {lang === 'tr' ? '🔒 Üst Paket Gerekir' : '🔒 Upgrade Required'}
-                    </span>
-                  )}
-                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${branding.hotel_module_enabled ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'}`}>
-                    {branding.hotel_module_enabled 
-                      ? (lang === 'tr' ? 'Otel & Restoran' : 'Hotel & Restaurant') 
-                      : (lang === 'tr' ? 'Sadece Restoran / Kafe' : 'Restaurant & Cafe Only')}
+                <h2 className="text-sm font-black tracking-tight text-slate-900 dark:text-white">
+                  {branding?.store_name || branding?.name || (lang === 'tr' ? 'Mağaza Ayarları' : 'Store Settings')}
+                </h2>
+                {storeCode && (
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    {storeCode}
                   </span>
-                </div>
-              </div>
-              <div 
-                onClick={() => {
-                  if (!branding.hotel_license_enabled && !branding.hotel_module_enabled) {
-                    setIsHotelUpgradeModalOpen(true);
-                  }
-                }}
-                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${branding.hotel_module_enabled ? 'bg-amber-500/15 border-amber-500/40' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'} ${!branding.hotel_license_enabled ? 'cursor-pointer hover:border-amber-400' : ''}`}
-              >
-                <input 
-                  type="checkbox"
-                  id="chk_hotel_module_primary"
-                  className="w-5 h-5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer ml-2"
-                  checked={!!branding.hotel_module_enabled}
-                  onChange={(e) => {
-                    if (e.target.checked && !branding.hotel_license_enabled) {
-                      setIsHotelUpgradeModalOpen(true);
-                      return;
-                    }
-                    onBrandingChange('hotel_module_enabled', e.target.checked);
-                  }}
-                />
-                <label htmlFor="chk_hotel_module_primary" className="text-xs font-bold text-slate-900 dark:text-slate-100 cursor-pointer flex-1">
-                  {lang === 'tr' ? 'Otel & Konaklama Modülünü Aktif Et (Oda Yönetimi & Adisyon)' : 'Enable Hotel & Room Module'}
-                </label>
-                {!branding.hotel_license_enabled && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsHotelUpgradeModalOpen(true);
-                    }}
-                    className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 text-[10px] font-black rounded-lg transition-all"
-                  >
-                    {lang === 'tr' ? 'Bilgi & Yükselt' : 'Upgrade'}
-                  </button>
                 )}
               </div>
+              <p className="text-[11px] text-slate-500 font-medium">
+                {lang === 'tr' ? 'Operasyonel mağaza, firma ve kargo yapılandırması' : 'Store operations & business configuration'}
+              </p>
             </div>
-          )}
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={onSaveBranding}
+              disabled={savingBranding}
+              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+            >
+              <Save className={`w-3.5 h-3.5 ${savingBranding ? 'animate-spin' : ''}`} />
+              <span>{savingBranding ? (lang === 'tr' ? 'Kaydediliyor...' : 'Saving...') : (lang === 'tr' ? 'Değişiklikleri Kaydet' : 'Save')}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Horizontal Micro Tab Bar */}
+        <div className="flex items-center gap-1 overflow-x-auto pt-2.5 pb-0.5 no-scrollbar">
+          {activeNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeOpsTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveOpsTab(item.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  isActive 
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs' 
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-400 dark:text-indigo-600' : 'text-slate-400'}`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <HotelUpgradeModal
-        isOpen={isHotelUpgradeModalOpen}
-        onClose={() => setIsHotelUpgradeModalOpen(false)}
-        lang={lang}
-        storeName={branding.store_name || branding.name}
-      />
+      {/* Active Tab Content Area */}
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 p-4 md:p-5 shadow-xs">
+        <AnimatePresence mode="wait">
+          {/* TAB 1: STORE PROFILE */}
+          {activeOpsTab === 'profile' && (
+            <motion.div 
+              key="profile"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="space-y-4"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Store className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {lang === 'tr' ? 'İşletme & Mağaza Temel Profil Bilgileri' : 'Business & Store Profile'}
+                  </h3>
+                </div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                  {lang === 'tr' ? 'Sistem Profil Eşzamanlaması' : 'System Synced'}
+                </span>
+              </div>
 
-      {/* Currency & Language */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl p-6 md:p-8 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs">
-        <div className="flex items-center space-x-3 mb-8">
-          <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-900 dark:text-white">
-            <Globe className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">{lang === 'tr' ? 'Para Birimi & Dil' : 'Currency & Language'}</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Yerelleştirme Ayarları' : 'Localization Settings'}</p>
-          </div>
-        </div>
-        
-        <div className="flex flex-wrap gap-6 items-start">
-          <div className="space-y-2 w-full sm:w-52 max-w-[200px]">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultCurrency}</label>
-            <div className="relative">
-              <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <select 
-                className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-xs text-slate-900 appearance-none cursor-pointer"
-                value={branding.default_currency || "TRY"}
-                onChange={(e) => onBrandingChange('default_currency', e.target.value)}
-              >
-                <option value="TRY">TRY (₺)</option>
-                <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="GBP">GBP (£)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-2 w-full sm:w-52 max-w-[200px]">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{t.defaultLanguage}</label>
-            <div className="relative">
-              <Languages className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <select 
-                className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-xs text-slate-900 appearance-none cursor-pointer"
-                value={branding.default_language || branding.language || "tr"}
-                onChange={(e) => onBrandingChange('language', e.target.value)}
-              >
-                <option value="tr">Türkçe</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="md:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-slate-900">{txt('Çapraz Kurlar', 'Cross Exchange Rates', 'Συναλλαγματικές Ισοτιμίες')}</h4>
-              <button
-                type="button"
-                onClick={handleSyncTcmb}
-                disabled={syncingTcmb}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncingTcmb ? 'animate-spin' : ''}`} />
-                {txt("TCMB'den Canlı Çek", "Sync from TCMB", "Συγχρονισμός TCMB")}
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {['USD', 'EUR', 'GBP'].map(curr => (
-                <div key={curr} className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{curr} {t.rate || 'Kuru'}</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                {/* Store Name */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Mağaza / Tabela Adı' : 'Store / Brand Name'}</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₺</span>
+                    <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                     <input 
-                      type="number" 
-                      step="0.01"
-                      className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-                      value={branding.currency_rates?.[curr] || ""}
+                      type="text" 
+                      placeholder={lang === 'tr' ? 'Örn: Seçkin Emlak & Otomotiv' : 'e.g. VIP Store'}
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                      value={branding.store_name || branding.name || ""}
                       onChange={(e) => {
-                        const rates = { ...(branding.currency_rates || {}) };
-                        rates[curr] = parseFloat(e.target.value);
-                        onBrandingChange('currency_rates', rates);
+                        onBrandingChange('store_name', e.target.value);
+                        onBrandingChange('name', e.target.value);
                       }}
                     />
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Resmi Firma Bilgileri / Legal Store Registration */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-        <div className="flex items-center space-x-3 mb-8">
-          <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
-            <Building2 className="h-6 w-6" />
-          </div>
-          <div>
-            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{lang === 'tr' ? 'Resmi Firma Bilgileri' : 'Official/Legal Store Registration'}</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lang === 'tr' ? 'Teklif, Fatura, Teknik Servis ve Mutabakatlar İçin Resmi Kayıtlar' : 'Official Credentials for Offers, Invoices, Service Forms & Reconciliations'}</p>
-          </div>
-        </div>
+                {/* Contact Person */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Yetkili Kişi Adı Soyadı' : 'Contact Person'}</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <input 
+                      type="text" 
+                      placeholder={lang === 'tr' ? 'Örn: Serdar Erdekli' : 'e.g. John Doe'}
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                      value={branding.contact_person || ""}
+                      onChange={(e) => onBrandingChange('contact_person', e.target.value)}
+                    />
+                  </div>
+                </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2 md:col-span-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Resmi Firma Ünvanı' : 'Official/Legal Company Title'}</label>
-            <input 
-              type="text" 
-              placeholder={lang === 'tr' ? 'Örn: Serdar Erdekli (Şahıs Şirketi) veya GAP Bilişim Ltd. Şti.' : 'e.g. Serdar Erdekli or GAP Bilişim Ltd. Sti.'}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-              value={branding.legal_name || ""}
-              onChange={(e) => onBrandingChange('legal_name', e.target.value)}
-            />
-          </div>
+                {/* Primary Phone */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'İşletme İletişim Telefonu' : 'Primary Phone'}</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <input 
+                      type="text" 
+                      placeholder="Örn: +90 548 890 23 09"
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                      value={branding.phone || ""}
+                      onChange={(e) => onBrandingChange('phone', e.target.value)}
+                    />
+                  </div>
+                </div>
 
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Vergi Dairesi' : 'Tax Office'}</label>
-            <input 
-              type="text" 
-              placeholder="Örn: Beşiktaş"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-              value={branding.legal_tax_office || ""}
-              onChange={(e) => onBrandingChange('legal_tax_office', e.target.value)}
-            />
-          </div>
+                {/* Primary Email */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'İşletme E-Posta Adresi' : 'Primary Email'}</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <input 
+                      type="email" 
+                      placeholder="Örn: bilgi@seckinmagaza.com"
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                      value={branding.email || ""}
+                      onChange={(e) => onBrandingChange('email', e.target.value)}
+                    />
+                  </div>
+                </div>
 
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Vergi Numarası / T.C. Kimlik' : 'Tax Number / ID'}</label>
-            <input 
-              type="text" 
-              placeholder="Örn: 1234567890"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-              value={branding.legal_tax_number || ""}
-              onChange={(e) => onBrandingChange('legal_tax_number', e.target.value)}
-            />
-          </div>
+                {/* Store Type (Sector) */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Mağaza Şablon Türü (Sektör)' : 'Store Type'}</label>
+                  <div className="relative">
+                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <select 
+                      className="w-full pl-9 pr-7 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-indigo-500"
+                      value={branding.store_type || "product"}
+                      onChange={(e) => onBrandingChange('store_type', e.target.value)}
+                    >
+                      <option value="product">shopLP - Perakende / Genel Ürün Mağazası</option>
+                      <option value="cafe_restaurant">horecaLP - Kafeterya, Restoran & Otel</option>
+                      <option value="real_estate">Emlak Portföy Mağazası</option>
+                      <option value="automotive">Oto Galeri / Araç İlan Mağazası</option>
+                    </select>
+                  </div>
+                </div>
 
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Mersis Numarası (Opsiyonel)' : 'Mersis Number (Optional)'}</label>
-            <input 
-              type="text" 
-              placeholder="Örn: 0123456789000014"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-              value={branding.legal_mersis || ""}
-              onChange={(e) => onBrandingChange('legal_mersis', e.target.value)}
-            />
-          </div>
+                {/* District, City, Country */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'İlçe / Bölge' : 'District'}</label>
+                  <input 
+                    type="text" 
+                    placeholder="Örn: Alsancak / Beşiktaş"
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    value={branding.district || ""}
+                    onChange={(e) => onBrandingChange('district', e.target.value)}
+                  />
+                </div>
 
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Resmi İletişim Telefonu' : 'Official Phone'}</label>
-            <input 
-              type="text" 
-              placeholder="Örn: +90 532 000 00 00"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-              value={branding.legal_phone || ""}
-              onChange={(e) => onBrandingChange('legal_phone', e.target.value)}
-            />
-          </div>
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Şehir' : 'City'}</label>
+                  <input 
+                    type="text" 
+                    placeholder="Örn: Girne / İstanbul"
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    value={branding.city || ""}
+                    onChange={(e) => onBrandingChange('city', e.target.value)}
+                  />
+                </div>
 
-          <div className="space-y-2 md:col-span-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{lang === 'tr' ? 'Resmi Tebligat Adresi' : 'Official Registered Address'}</label>
-            <textarea 
-              rows={2}
-              placeholder={lang === 'tr' ? 'Örn: Merkez Mahallesi, Ticaret Caddesi No: 45, Beşiktaş / İstanbul' : 'e.g. Registered legal address of company'}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-semibold text-sm text-slate-900"
-              value={branding.legal_address || ""}
-              onChange={(e) => onBrandingChange('legal_address', e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Ülke' : 'Country'}</label>
+                  <input 
+                    type="text" 
+                    placeholder="Örn: KKTC / Türkiye"
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    value={branding.country || ""}
+                    onChange={(e) => onBrandingChange('country', e.target.value)}
+                  />
+                </div>
 
-      {/* Tax Rates & Rules */}
-      {!isPortfolio && (
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-          <div className="flex items-center space-x-3 mb-8">
-            <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{txt('Vergi Ayarları', 'Tax Settings', 'Ρυθμίσεις Φόρων')}</h3>
-          </div>
-          <div className="flex flex-wrap gap-6 items-start">
-            <div className="space-y-2 w-full sm:w-48 max-w-[180px]">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Varsayılan KDV Oranı (%)', 'Default VAT Rate (%)', 'Προεπιλεγμένος Συντελεστής ΦΠΑ (%)')}</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                {/* Street Address */}
+                <div className="space-y-1 md:col-span-3">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'İşletme Fiziki Adresi' : 'Street Address'}</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <textarea 
+                      rows={1}
+                      placeholder={lang === 'tr' ? 'Örn: Girne Caddesi No:12/A Alsancak' : 'e.g. Main Street No:12'}
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 resize-none"
+                      value={branding.address || ""}
+                      onChange={(e) => onBrandingChange('address', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Google Maps URLs */}
+                <div className="space-y-1 md:col-span-1.5">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Google Maps Konum Linki' : 'Google Maps URL'}</label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <input 
+                      type="text" 
+                      placeholder="https://maps.app.goo.gl/..."
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                      value={branding.google_maps_url || ""}
+                      onChange={(e) => onBrandingChange('google_maps_url', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Google Maps Embed Kodu / URL' : 'Google Maps Embed'}</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <input 
+                      type="text" 
+                      placeholder='https://www.google.com/maps/embed?...'
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                      value={branding.google_maps_embed || ""}
+                      onChange={(e) => onBrandingChange('google_maps_embed', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB 2: WORKING HOURS */}
+          {activeOpsTab === 'working_hours' && (
+            <motion.div 
+              key="working_hours"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="space-y-3"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {lang === 'tr' ? 'Çalışma Günleri & Saatleri Yönetimi' : 'Working Hours Schedule'}
+                  </h3>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {lang === 'tr' ? 'Web sitesi alt bilgisinde görünür' : 'Visible on storefront'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                {/* Weekdays */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-1.5">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                    {lang === 'tr' ? 'Pazartesi - Cuma (Hafta İçi)' : 'Mon - Fri (Weekdays)'}
+                  </span>
+                  <input 
+                    type="text" 
+                    placeholder="09:00 - 19:00"
+                    className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-slate-100"
+                    value={branding.working_hours?.weekdays || "09:00 - 19:00"}
+                    onChange={(e) => {
+                      const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                      onBrandingChange('working_hours', { ...currentWh, weekdays: e.target.value });
+                    }}
+                  />
+                </div>
+
+                {/* Saturday */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      {lang === 'tr' ? 'Cumartesi' : 'Saturday'}
+                    </span>
+                    <label className="flex items-center gap-1 cursor-pointer text-[10px] font-semibold text-slate-500">
+                      <input 
+                        type="checkbox"
+                        checked={!!branding.working_hours?.is_saturday_closed}
+                        onChange={(e) => {
+                          const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                          onBrandingChange('working_hours', { ...currentWh, is_saturday_closed: e.target.checked });
+                        }}
+                        className="rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                      />
+                      <span>{lang === 'tr' ? 'Kapalı' : 'Closed'}</span>
+                    </label>
+                  </div>
+                  <input 
+                    type="text" 
+                    disabled={branding.working_hours?.is_saturday_closed}
+                    placeholder="09:00 - 19:00"
+                    className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold ${
+                      branding.working_hours?.is_saturday_closed 
+                        ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-slate-200 dark:border-slate-800' 
+                        : 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700'
+                    }`}
+                    value={branding.working_hours?.is_saturday_closed ? (lang === 'tr' ? 'Kapalı' : 'Closed') : (branding.working_hours?.saturday || "09:00 - 19:00")}
+                    onChange={(e) => {
+                      const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                      onBrandingChange('working_hours', { ...currentWh, saturday: e.target.value });
+                    }}
+                  />
+                </div>
+
+                {/* Sunday */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      {lang === 'tr' ? 'Pazar' : 'Sunday'}
+                    </span>
+                    <label className="flex items-center gap-1 cursor-pointer text-[10px] font-semibold text-slate-500">
+                      <input 
+                        type="checkbox"
+                        checked={branding.working_hours?.is_sunday_closed ?? true}
+                        onChange={(e) => {
+                          const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                          onBrandingChange('working_hours', { ...currentWh, is_sunday_closed: e.target.checked });
+                        }}
+                        className="rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                      />
+                      <span>{lang === 'tr' ? 'Kapalı' : 'Closed'}</span>
+                    </label>
+                  </div>
+                  <input 
+                    type="text" 
+                    disabled={branding.working_hours?.is_sunday_closed ?? true}
+                    placeholder={lang === 'tr' ? 'Kapalı' : 'Closed'}
+                    className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold ${
+                      (branding.working_hours?.is_sunday_closed ?? true)
+                        ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-slate-200 dark:border-slate-800' 
+                        : 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700'
+                    }`}
+                    value={(branding.working_hours?.is_sunday_closed ?? true) ? (lang === 'tr' ? 'Kapalı' : 'Closed') : (branding.working_hours?.sunday || "10:00 - 18:00")}
+                    onChange={(e) => {
+                      const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                      onBrandingChange('working_hours', { ...currentWh, sunday: e.target.value });
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Working Hours Note */}
+              <div className="space-y-1 pt-1">
+                <label className="text-[10.5px] font-semibold text-slate-500">
+                  {lang === 'tr' ? 'Özel Çalışma Notu (Resmi tatil, öğle arası vb.)' : 'Custom Hours Note'}
+                </label>
                 <input 
-                  type="text" 
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 transition-all font-bold text-xs text-slate-900"
-                  value={branding.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : '20'}
-                  onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
+                  type="text"
+                  placeholder={lang === 'tr' ? 'Örn: Pazar günleri ve resmi tatillerde kapalıyız.' : 'e.g. Closed on public holidays'}
+                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl text-xs text-slate-900 dark:text-slate-100 font-medium"
+                  value={branding.working_hours?.note || ""}
+                  onChange={(e) => {
+                    const currentWh = typeof branding.working_hours === 'object' ? branding.working_hours : {};
+                    onBrandingChange('working_hours', { ...currentWh, note: e.target.value });
+                  }}
                 />
               </div>
-            </div>
+            </motion.div>
+          )}
 
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Kategori KDV Kuralları', 'Category VAT Rules', 'Κανόνες ΦΠΑ ανά Κατηγορία')}</label>
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
-                <div className="flex flex-col md:flex-row gap-3 items-end md:items-center">
-                  <div className="flex-1 w-full flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1 flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{txt('Mevcut Kategori', 'Existing Category', 'Υπάρχουσα Κατηγορία')}</label>
+          {/* TAB 3: SECURITY & STORE CODE */}
+          {activeOpsTab === 'security' && (
+            <motion.div 
+              key="security"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="space-y-3"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {lang === 'tr' ? 'Kurumsal Güvenlik & Mağaza Kodu' : 'Security & Store Code'}
+                  </h3>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  {lang === 'tr' ? 'Aktif Korumalı' : 'Active Protection'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center bg-slate-900 text-white p-4 rounded-xl border border-slate-800">
+                <div className="md:col-span-2 space-y-1">
+                  <h4 className="text-xs font-bold text-emerald-400">
+                    {lang === 'tr' ? 'Çok Faktörlü İzolasyon Güvenlik Kodu' : 'Multi-Tenant Isolation Code'}
+                  </h4>
+                  <p className="text-[11px] text-slate-300 leading-snug">
+                    {lang === 'tr' 
+                      ? 'Personel ve yöneticileriniz giriş ekranında bu kodu kullanarak mağaza verilerinize yetkisiz erişimi engeller.' 
+                      : 'Staff and managers use this unique code on the login screen for multi-tenant account protection.'}
+                  </p>
+                </div>
+
+                <div className="bg-slate-800/80 p-3 rounded-lg border border-slate-700 text-center flex flex-col items-center justify-center gap-1">
+                  <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">
+                    {lang === 'tr' ? 'MAĞAZA KODU' : 'STORE CODE'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-black tracking-widest font-mono text-white">
+                      {storeCode || 'LP-XXXXXX'}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(storeCode || 'LP-XXXXXX');
+                        alert(lang === 'tr' ? 'Kopyalandı!' : 'Copied!');
+                      }}
+                      type="button"
+                      className="p-1 hover:bg-slate-700 rounded transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-slate-300" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsIrpModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl transition-colors cursor-pointer border border-rose-500/20"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  {lang === 'tr' ? 'Olay Müdahale Planı (IRP)' : 'Incident Response Plan (IRP)'}
+                </button>
+              </div>
+
+              <IrpModal isOpen={isIrpModalOpen} onClose={() => setIsIrpModalOpen(false)} lang={lang} />
+            </motion.div>
+          )}
+
+          {/* TAB 4: CURRENCY & LANGUAGE */}
+          {activeOpsTab === 'currency' && (
+            <motion.div 
+              key="currency"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="space-y-4"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {lang === 'tr' ? 'Para Birimi, Dil & TCMB Kurları' : 'Currency, Language & TCMB Rates'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSyncTcmb}
+                  disabled={syncingTcmb}
+                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  <RefreshCw className={`w-3 h-3 ${syncingTcmb ? 'animate-spin' : ''}`} />
+                  {txt("TCMB'den Canlı Çek", "Sync TCMB Rates", "Συγχρονισμός TCMB")}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                {/* Default Currency */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{t.defaultCurrency || 'Varsayılan Para Birimi'}</label>
+                  <div className="relative">
+                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <select 
+                      className="w-full pl-9 pr-6 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-indigo-500"
+                      value={branding.default_currency || "TRY"}
+                      onChange={(e) => onBrandingChange('default_currency', e.target.value)}
+                    >
+                      <option value="TRY">TRY (₺)</option>
+                      <option value="USD">USD ($)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="GBP">GBP (£)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Default Language */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{t.defaultLanguage || 'Varsayılan Dil'}</label>
+                  <div className="relative">
+                    <Languages className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    <select 
+                      className="w-full pl-9 pr-6 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-indigo-500"
+                      value={branding.default_language || branding.language || "tr"}
+                      onChange={(e) => onBrandingChange('language', e.target.value)}
+                    >
+                      <option value="tr">Türkçe</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Rates inputs */}
+                {['USD', 'EUR', 'GBP'].map(curr => (
+                  <div key={curr} className="space-y-1">
+                    <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{curr} {t.rate || 'Kuru (₺)'}</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₺</span>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        className="w-full pl-7 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                        value={branding.currency_rates?.[curr] || ""}
+                        onChange={(e) => {
+                          const rates = { ...(branding.currency_rates || {}) };
+                          rates[curr] = parseFloat(e.target.value);
+                          onBrandingChange('currency_rates', rates);
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB 5: LEGAL & TAX */}
+          {activeOpsTab === 'legal_tax' && (
+            <motion.div 
+              key="legal_tax"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="space-y-4"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {lang === 'tr' ? 'Resmi Firma Kayıtları & Vergi Ayarları' : 'Official Credentials & Tax Rules'}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                {/* Official Legal Name */}
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Resmi Firma Ünvanı' : 'Official Legal Company Title'}</label>
+                  <input 
+                    type="text" 
+                    placeholder={lang === 'tr' ? 'Örn: Serdar Erdekli veya GAP Bilişim Ltd. Şti.' : 'e.g. Official Legal Name'}
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    value={branding.legal_name || ""}
+                    onChange={(e) => onBrandingChange('legal_name', e.target.value)}
+                  />
+                </div>
+
+                {/* Official Phone */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Resmi İletişim Telefonu' : 'Official Phone'}</label>
+                  <input 
+                    type="text" 
+                    placeholder="Örn: +90 532 000 00 00"
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    value={branding.legal_phone || ""}
+                    onChange={(e) => onBrandingChange('legal_phone', e.target.value)}
+                  />
+                </div>
+
+                {/* Tax Office */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Vergi Dairesi' : 'Tax Office'}</label>
+                  <input 
+                    type="text" 
+                    placeholder="Örn: Beşiktaş"
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    value={branding.legal_tax_office || ""}
+                    onChange={(e) => onBrandingChange('legal_tax_office', e.target.value)}
+                  />
+                </div>
+
+                {/* Tax Number */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Vergi / T.C. Kimlik No' : 'Tax / ID No'}</label>
+                  <input 
+                    type="text" 
+                    placeholder="Örn: 1234567890"
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    value={branding.legal_tax_number || ""}
+                    onChange={(e) => onBrandingChange('legal_tax_number', e.target.value)}
+                  />
+                </div>
+
+                {/* Mersis Number */}
+                <div className="space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Mersis Numarası' : 'Mersis No'}</label>
+                  <input 
+                    type="text" 
+                    placeholder="Örn: 0123456789000014"
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    value={branding.legal_mersis || ""}
+                    onChange={(e) => onBrandingChange('legal_mersis', e.target.value)}
+                  />
+                </div>
+
+                {/* Official Address */}
+                <div className="space-y-1 md:col-span-3">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'tr' ? 'Resmi Tebligat Adresi' : 'Official Registered Address'}</label>
+                  <textarea 
+                    rows={1}
+                    placeholder={lang === 'tr' ? 'Örn: Merkez Mah. Ticaret Cad. No:45 Beşiktaş / İstanbul' : 'e.g. Registered company address'}
+                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 resize-none"
+                    value={branding.legal_address || ""}
+                    onChange={(e) => onBrandingChange('legal_address', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* VAT Rates Section */}
+              {!isPortfolio && (
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-slate-800 dark:text-slate-200">
+                      {txt('KDV Oranları ve Kategori Kuralları', 'VAT Rates & Category Rules', 'ΦΠΑ & Κανόνες')}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10.5px] font-bold text-slate-500">{txt('Varsayılan KDV %:', 'Default VAT %:', 'Προεπιλεγμένο %:')}</span>
+                      <input 
+                        type="text" 
+                        className="w-16 px-2 py-0.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-bold text-xs"
+                        value={branding.default_tax_rate !== undefined ? String(Math.floor(Number(branding.default_tax_rate))) : '20'}
+                        onChange={(e) => onBrandingChange('default_tax_rate', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Category VAT Add Form */}
+                  <div className="p-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+                    <div className="flex flex-col sm:flex-row gap-2 items-center text-xs">
                       <select 
                         id="new-category-select"
                         onChange={(e) => {
                           const val = e.target.value;
                           const catInput = document.getElementById('new-category-name') as HTMLInputElement;
                           if (catInput) {
-                            if (val !== '__custom__' && val !== '') {
-                              catInput.value = val;
-                            } else {
-                              catInput.value = '';
-                            }
+                            catInput.value = (val !== '__custom__' && val !== '') ? val : '';
                           }
                         }}
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all focus:outline-none"
+                        className="w-full sm:w-1/3 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
                       >
-                        <option value="">{txt('Seçin veya Elle Yazın...', 'Select or Type Manually...', 'Επιλέξτε ή Πληκτρολογήστε...')}</option>
+                        <option value="">{txt('Kategori Seçin...', 'Select Category...', 'Επιλογή...')}</option>
                         {allStoreCategories.map((cat: string) => (
                           <option key={cat} value={cat}>{cat}</option>
                         ))}
                       </select>
-                    </div>
 
-                    <div className="flex-1 flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{txt('Kategori Adı', 'Category Name', 'Όνομα Κατηγορίας')}</label>
                       <input 
                         type="text" 
                         id="new-category-name"
-                        placeholder={txt('Kategori Adı girin', 'Enter Category Name', 'Εισάγετε Όνομα Κατηγορίας')}
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all focus:outline-none"
+                        placeholder={txt('veya elle yazın...', 'or type name...', 'ή πληκτρολογήστε...')}
+                        className="w-full sm:w-1/3 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
                       />
-                    </div>
-                  </div>
 
-                  <div className="w-full md:w-auto flex gap-3 items-end">
-                    <div className="w-24 flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{txt('KDV Oranı', 'VAT Rate', 'ΦΠΑ')}</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">%</span>
-                        <input 
-                          type="text" 
-                          id="new-category-tax"
-                          placeholder="20"
-                          className="w-full pl-7 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all focus:outline-none"
-                        />
+                      <div className="w-full sm:w-auto flex items-center gap-2">
+                        <div className="relative w-20">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">%</span>
+                          <input 
+                            type="text" 
+                            id="new-category-tax"
+                            placeholder="20"
+                            className="w-full pl-6 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-center font-bold"
+                          />
+                        </div>
+
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const catInput = document.getElementById('new-category-name') as HTMLInputElement;
+                            const taxInput = document.getElementById('new-category-tax') as HTMLInputElement;
+                            const selectElement = document.getElementById('new-category-select') as HTMLSelectElement;
+                            if (catInput.value.trim() && taxInput.value) {
+                              const newRules = [...(branding.category_tax_rules || [])];
+                              newRules.push({ category: catInput.value.trim(), taxRate: parseInt(taxInput.value.replace(/[^0-9]/g, '')) || 0 });
+                              onBrandingChange('category_tax_rules', newRules);
+                              catInput.value = '';
+                              taxInput.value = '';
+                              if (selectElement) selectElement.value = '';
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          + {txt('Ekle', 'Add', 'Προσθήκη')}
+                        </button>
                       </div>
                     </div>
 
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        const catInput = document.getElementById('new-category-name') as HTMLInputElement;
-                        const taxInput = document.getElementById('new-category-tax') as HTMLInputElement;
-                        const selectElement = document.getElementById('new-category-select') as HTMLSelectElement;
-                        if (catInput.value.trim() && taxInput.value) {
-                          const newRules = [...(branding.category_tax_rules || [])];
-                          newRules.push({ category: catInput.value.trim(), taxRate: parseInt(taxInput.value.replace(/[^0-9]/g, '')) || 0 });
-                          onBrandingChange('category_tax_rules', newRules);
-                          catInput.value = '';
-                          taxInput.value = '';
-                          if (selectElement) selectElement.value = '';
-                        }
-                      }}
-                      className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 cursor-pointer h-[42px] flex items-center justify-center min-w-[80px]"
-                    >
-                      {txt('Ekle', 'Add', 'Προσθήκη')}
-                    </button>
+                    {/* Rule tags */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {(branding.category_tax_rules || []).map((rule: any, idx: number) => (
+                        <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                          <span>{rule.category}</span>
+                          <span className="text-indigo-600 dark:text-indigo-400 font-black">% {rule.taxRate}</span>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const newRules = [...branding.category_tax_rules];
+                              newRules.splice(idx, 1);
+                              onBrandingChange('category_tax_rules', newRules);
+                            }}
+                            className="text-rose-500 hover:text-rose-700 ml-1 cursor-pointer font-bold"
+                          >
+                            &times;
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                
-                <div className="space-y-2 mt-4">
-                  {(branding.category_tax_rules || []).map((rule: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-sm text-slate-700">{rule.category}</span>
-                        <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black">KDV %{rule.taxRate}</span>
-                      </div>
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          const newRules = [...branding.category_tax_rules];
-                          newRules.splice(idx, 1);
-                          onBrandingChange('category_tax_rules', newRules);
-                        }}
-                        className="text-red-500 hover:text-red-700 text-sm font-bold cursor-pointer"
-                      >
-                        Sil
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+              )}
+            </motion.div>
+          )}
 
-      {/* Shipping Profiles */}
-      {!isPortfolio && !isCafeRestaurant && (
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100">
-                <Truck className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{txt('Kargo Ayarları', 'Shipping Settings', 'Ρυθμίσεις Μεταφορικών')}</h3>
-            </div>
-            <button 
-              type="button"
-              onClick={() => {
-                const newProfiles = [...(branding.shipping_profiles || []), { id: Date.now().toString(), name: '', cost: 0, currency: branding.default_currency || 'TRY' }];
-                onBrandingChange('shipping_profiles', newProfiles);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 cursor-pointer"
+          {/* TAB 6: SHIPPING SETTINGS */}
+          {activeOpsTab === 'shipping' && !isPortfolio && !isCafeRestaurant && (
+            <motion.div 
+              key="shipping"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="space-y-3 text-xs"
             >
-              <Plus className="h-4 w-4" /> Yeni Profil
-            </button>
-          </div>
-          
-          <div className="space-y-4">
-            {(branding.shipping_profiles || []).map((profile: any, index: number) => (
-              <div key={profile.id || index} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
-                <div className="flex-1 w-full">
-                  <input 
-                    value={profile.name} 
-                    onChange={(e) => { 
-                      const p = [...branding.shipping_profiles]; 
-                      p[index].name = e.target.value; 
-                      onBrandingChange('shipping_profiles', p); 
-                    }} 
-                    placeholder="Profil Adı" 
-                    className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold mb-2 font-sans" 
-                  />
-                  <div className="flex gap-2">
-                     <input 
-                       type="number" 
-                       value={profile.cost} 
-                       onChange={(e) => { 
-                         const p = [...branding.shipping_profiles]; 
-                         p[index].cost = parseFloat(e.target.value); 
-                         onBrandingChange('shipping_profiles', p); 
-                       }} 
-                       placeholder="Ücret" 
-                       className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
-                     />
-                     <input disabled value={profile.currency} className="w-20 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-semibold font-sans" />
-                  </div>
-                  {(() => {
-                    const otherAssignedCats = getOtherAssignedCategories(index);
-                    const otherAssignedSubs = getOtherAssignedSubCategories(index);
-                    const selectedCats = profile.categories_str ? profile.categories_str.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-                    const selectedSubs = profile.sub_categories_str ? profile.sub_categories_str.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-
-                    return (
-                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                        <div>
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Kategoriler (Grup Atama)</label>
-                          <div className="flex flex-wrap gap-1.5 mb-2 min-h-[24px] items-center">
-                            {selectedCats.map((cat: string) => (
-                              <span key={cat} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100 shadow-sm">
-                                {cat}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updated = selectedCats.filter((c: string) => c !== cat);
-                                    const p = [...branding.shipping_profiles];
-                                    p[index].categories_str = updated.join(', ');
-                                    onBrandingChange('shipping_profiles', p);
-                                  }}
-                                  className="text-indigo-400 hover:text-indigo-600 font-bold focus:outline-none transition-colors ml-1 w-3.5 h-3.5 rounded-full hover:bg-indigo-100 flex items-center justify-center text-[10px]"
-                                >
-                                  &times;
-                                </button>
-                              </span>
-                            ))}
-                            {selectedCats.length === 0 && (
-                              <span className="text-xs text-slate-400 italic py-0.5">{lang === 'tr' ? "Kategori seçilmedi" : "No category selected"}</span>
-                            )}
-                          </div>
-                          <select
-                            value=""
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (!val) return;
-                              const p = [...branding.shipping_profiles];
-                              const updated = [...selectedCats, val];
-                              p[index].categories_str = updated.join(', ');
-                              onBrandingChange('shipping_profiles', p);
-                            }}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold font-sans outline-none focus:border-indigo-500 transition-colors cursor-pointer"
-                          >
-                            <option value="">{lang === 'tr' ? "+ Kategori Seç..." : "+ Choose Category..."}</option>
-                            {allStoreCategories.map((cat: string) => {
-                              const isAssignedToCurrent = selectedCats.includes(cat);
-                              const assignedToProfile = otherAssignedCats[cat];
-                              if (isAssignedToCurrent) return null;
-                              return (
-                                <option
-                                  key={cat}
-                                  value={cat}
-                                  disabled={!!assignedToProfile}
-                                  className={assignedToProfile ? "text-slate-400 italic" : "text-slate-800 font-medium"}
-                                >
-                                  {cat} {assignedToProfile ? `(Zaten Atandı: ${assignedToProfile})` : ''}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Alt Kategoriler (Grup Atama)</label>
-                          <div className="flex flex-wrap gap-1.5 mb-2 min-h-[24px] items-center">
-                            {selectedSubs.map((sub: string) => (
-                              <span key={sub} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 text-xs font-bold border border-amber-100 shadow-sm">
-                                {sub}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updated = selectedSubs.filter((s: string) => s !== sub);
-                                    const p = [...branding.shipping_profiles];
-                                    p[index].sub_categories_str = updated.join(', ');
-                                    onBrandingChange('shipping_profiles', p);
-                                  }}
-                                  className="text-amber-400 hover:text-amber-600 font-bold focus:outline-none transition-colors ml-1 w-3.5 h-3.5 rounded-full hover:bg-amber-100 flex items-center justify-center text-[10px]"
-                                >
-                                  &times;
-                                </button>
-                              </span>
-                            ))}
-                            {selectedSubs.length === 0 && (
-                              <span className="text-xs text-slate-400 italic py-0.5">{lang === 'tr' ? "Alt kategori seçilmedi" : "No subcategory selected"}</span>
-                            )}
-                          </div>
-                          <select
-                            value=""
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (!val) return;
-                              const p = [...branding.shipping_profiles];
-                              const updated = [...selectedSubs, val];
-                              p[index].sub_categories_str = updated.join(', ');
-                              onBrandingChange('shipping_profiles', p);
-                            }}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold font-sans outline-none focus:border-indigo-500 transition-colors cursor-pointer"
-                          >
-                            <option value="">{lang === 'tr' ? "+ Alt Kategori Seç..." : "+ Choose Sub-Category..."}</option>
-                            {allStoreSubCategories.map((sub: string) => {
-                              const isAssignedToCurrent = selectedSubs.includes(sub);
-                              const assignedToProfile = otherAssignedSubs[sub];
-                              if (isAssignedToCurrent) return null;
-                              return (
-                                <option
-                                  key={sub}
-                                  value={sub}
-                                  disabled={!!assignedToProfile}
-                                  className={assignedToProfile ? "text-slate-400 italic" : "text-slate-800 font-medium"}
-                                >
-                                  {sub} {assignedToProfile ? `(Zaten Atandı: ${assignedToProfile})` : ''}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-                      </div>
-                    );
-                  })()}
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {txt('Kargo & Teslimat Profilleri', 'Shipping Profiles', 'Ρυθμίσεις Μεταφορικών')}
+                  </h3>
                 </div>
                 <button 
                   type="button"
-                  onClick={() => { 
-                    const p = [...branding.shipping_profiles]; 
-                    p.splice(index, 1); 
-                    onBrandingChange('shipping_profiles', p); 
-                  }} 
-                  className="text-red-500 hover:text-red-700 cursor-pointer"
+                  onClick={() => {
+                    const newProfiles = [...(branding.shipping_profiles || []), { id: Date.now().toString(), name: '', cost: 0, currency: branding.default_currency || 'TRY' }];
+                    onBrandingChange('shipping_profiles', newProfiles);
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-bold cursor-pointer"
                 >
-                  <Trash2 className="h-5 w-5" />
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Yeni Profil</span>
                 </button>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Store Locator & Locations */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
-              <MapPin className="h-6 w-6" />
-            </div>
-            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">
-              {isPortfolio ? (lang === 'tr' ? 'Ofis / Şube Konumları' : 'Office / Branch Locations') : (lang === 'tr' ? 'Mağaza ve Rezervasyon' : 'Store & Reservation')}
-            </h3>
-          </div>
-        </div>
-        
-        <div className="space-y-6">
-          {!isPortfolio && (
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={!!branding.reservation_enabled}
-                onChange={(e) => onBrandingChange('reservation_enabled', e.target.checked)}
-                className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
-              />
-              <span className="text-sm font-bold text-slate-900 font-sans">{txt('Mağazadan Teslimat (Rezervasyon) Aktif Et', 'Enable In-Store Pickup (Reservation)', 'Ενεργοποίηση Παραλαβής από το Κατάστημα (Κράτηση)')}</span>
-            </label>
+              <div className="space-y-2">
+                {(branding.shipping_profiles || []).map((profile: any, index: number) => (
+                  <div key={profile.id || index} className="p-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+                    <div className="flex flex-col sm:flex-row gap-2 items-center">
+                      <input 
+                        value={profile.name} 
+                        onChange={(e) => { 
+                          const p = [...branding.shipping_profiles]; 
+                          p[index].name = e.target.value; 
+                          onBrandingChange('shipping_profiles', p); 
+                        }} 
+                        placeholder="Profil Adı (Örn: Standart Kargo)" 
+                        className="flex-1 w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold" 
+                      />
+                      <div className="flex gap-1.5 w-full sm:w-auto">
+                        <input 
+                          type="number" 
+                          value={profile.cost} 
+                          onChange={(e) => { 
+                            const p = [...branding.shipping_profiles]; 
+                            p[index].cost = parseFloat(e.target.value); 
+                            onBrandingChange('shipping_profiles', p); 
+                          }} 
+                          placeholder="Ücret" 
+                          className="w-24 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold" 
+                        />
+                        <input disabled value={profile.currency || 'TRY'} className="w-16 px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-center" />
+                        <button 
+                          type="button"
+                          onClick={() => { 
+                            const p = [...branding.shipping_profiles]; 
+                            p.splice(index, 1); 
+                            onBrandingChange('shipping_profiles', p); 
+                          }} 
+                          className="p-1.5 text-rose-500 hover:text-rose-700 cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Category & Subcategory Group Assignments */}
+                    {(() => {
+                      const otherAssignedCats = getOtherAssignedCategories(index);
+                      const otherAssignedSubs = getOtherAssignedSubCategories(index);
+                      const selectedCats = profile.categories_str ? profile.categories_str.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                      const selectedSubs = profile.sub_categories_str ? profile.sub_categories_str.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Kategoriler</span>
+                            <div className="flex flex-wrap gap-1 mb-1 items-center">
+                              {selectedCats.map((cat: string) => (
+                                <span key={cat} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold border border-indigo-100 dark:border-indigo-900/50">
+                                  {cat}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = selectedCats.filter((c: string) => c !== cat);
+                                      const p = [...branding.shipping_profiles];
+                                      p[index].categories_str = updated.join(', ');
+                                      onBrandingChange('shipping_profiles', p);
+                                    }}
+                                    className="text-indigo-400 hover:text-indigo-600 font-bold ml-1 text-[11px]"
+                                  >
+                                    &times;
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (!val) return;
+                                const p = [...branding.shipping_profiles];
+                                const updated = [...selectedCats, val];
+                                p[index].categories_str = updated.join(', ');
+                                onBrandingChange('shipping_profiles', p);
+                              }}
+                              className="w-full px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs cursor-pointer"
+                            >
+                              <option value="">{lang === 'tr' ? "+ Kategori Seç..." : "+ Choose Category..."}</option>
+                              {allStoreCategories.map((cat: string) => {
+                                const isAssignedToCurrent = selectedCats.includes(cat);
+                                const assignedToProfile = otherAssignedCats[cat];
+                                if (isAssignedToCurrent) return null;
+                                return (
+                                  <option key={cat} value={cat} disabled={!!assignedToProfile}>
+                                    {cat} {assignedToProfile ? `(${assignedToProfile})` : ''}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Eşleşen Alt Kategoriler</span>
+                            <div className="flex flex-wrap gap-1 mb-1 items-center">
+                              {selectedSubs.map((sub: string) => (
+                                <span key={sub} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[11px] font-bold border border-amber-100 dark:border-amber-900/50">
+                                  {sub}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = selectedSubs.filter((s: string) => s !== sub);
+                                      const p = [...branding.shipping_profiles];
+                                      p[index].sub_categories_str = updated.join(', ');
+                                      onBrandingChange('shipping_profiles', p);
+                                    }}
+                                    className="text-amber-400 hover:text-amber-600 font-bold ml-1 text-[11px]"
+                                  >
+                                    &times;
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (!val) return;
+                                const p = [...branding.shipping_profiles];
+                                const updated = [...selectedSubs, val];
+                                p[index].sub_categories_str = updated.join(', ');
+                                onBrandingChange('shipping_profiles', p);
+                              }}
+                              className="w-full px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs cursor-pointer"
+                            >
+                              <option value="">{lang === 'tr' ? "+ Alt Kategori Seç..." : "+ Choose Sub-Category..."}</option>
+                              {allStoreSubCategories.map((sub: string) => {
+                                const isAssignedToCurrent = selectedSubs.includes(sub);
+                                const assignedToProfile = otherAssignedSubs[sub];
+                                if (isAssignedToCurrent) return null;
+                                return (
+                                  <option key={sub} value={sub} disabled={!!assignedToProfile}>
+                                    {sub} {assignedToProfile ? `(${assignedToProfile})` : ''}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
           )}
 
-          <div className="space-y-4">
-             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest font-sans">
-               {isPortfolio ? (lang === 'tr' ? 'Ofis Konumları' : 'Office Locations') : (lang === 'tr' ? 'Mağaza Konumları' : 'Store Locations')}
-             </h4>
+          {/* TAB 7: LOCATIONS & RESERVATION */}
+          {activeOpsTab === 'locations' && (
+            <motion.div 
+              key="locations"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="space-y-3 text-xs"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {isPortfolio ? (lang === 'tr' ? 'Ofis / Şube Konumları' : 'Office Locations') : (lang === 'tr' ? 'Mağaza Konumları & Rezervasyon' : 'Locations & Reservation')}
+                  </h3>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => onBrandingChange('locations', [...(branding.locations || []), { name: '', address: '', active: true, lat: 0, lng: 0 }])}
+                  className="px-3 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  + Mağaza Ekle
+                </button>
+              </div>
+
+              {!isPortfolio && (
+                <label className="flex items-center gap-2 cursor-pointer p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/80">
+                  <input 
+                    type="checkbox" 
+                    checked={!!branding.reservation_enabled}
+                    onChange={(e) => onBrandingChange('reservation_enabled', e.target.checked)}
+                    className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                    {txt('Mağazadan Teslimat (Rezervasyon / Gel-Al) Özelliği Aktif', 'Enable In-Store Pickup (Reservation)', 'Ενεργοποίηση Παραλαβής από το Κατάστημα')}
+                  </span>
+                </label>
+              )}
+
+              <div className="space-y-2">
                 {(branding.locations || []).map((loc: any, idx: number) => (
-                  <div key={idx} className="bg-slate-50 p-4 rounded-xl space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                  <div key={idx} className="p-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                       <input 
-                        name={`location_name_${idx}`} 
-                        id={`location_name_${idx}`} 
                         value={loc.name} 
                         onChange={(e) => { 
                           const l = [...(branding.locations||[])]; 
                           l[idx] = { ...l[idx], name: e.target.value }; 
                           onBrandingChange('locations', l); 
                         }} 
-                        placeholder="Mağaza Adı" 
-                        className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                        placeholder="Mağaza / Şube Adı" 
+                        className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold" 
                       />
                       <input 
-                        name={`location_address_${idx}`} 
-                        id={`location_address_${idx}`} 
                         value={loc.address} 
                         onChange={(e) => { 
                           const l = [...(branding.locations||[])]; 
                           l[idx] = { ...l[idx], address: e.target.value }; 
                           onBrandingChange('locations', l); 
                         }} 
-                        placeholder="Adres" 
-                        className="md:col-span-3 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                        placeholder="Şube Adresi" 
+                        className="md:col-span-3 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold" 
                       />
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-center">
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">LAT</span>
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">LAT</span>
                         <input 
                           type="text"
                           value={loc.lat || ''} 
@@ -1123,11 +1195,12 @@ export const SettingsStoreOpsTab = ({
                             onBrandingChange('locations', l); 
                           }} 
                           placeholder="Latitude" 
-                          className="w-full pl-10 pr-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                          className="w-full pl-8 pr-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold" 
                         />
                       </div>
+
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">LNG</span>
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">LNG</span>
                         <input 
                           type="text"
                           value={loc.lng || ''} 
@@ -1146,136 +1219,206 @@ export const SettingsStoreOpsTab = ({
                             onBrandingChange('locations', l); 
                           }} 
                           placeholder="Longitude" 
-                          className="w-full pl-10 pr-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold font-sans" 
+                          className="w-full pl-8 pr-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold" 
                         />
+                      </div>
+
+                      <div className="col-span-2 flex justify-end">
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const l = [...(branding.locations||[])];
+                            l.splice(idx, 1);
+                            onBrandingChange('locations', l);
+                          }}
+                          className="text-rose-500 hover:text-rose-700 text-xs font-bold cursor-pointer"
+                        >
+                          Sil
+                        </button>
                       </div>
                     </div>
                   </div>
                 ))}
-               <button 
-                 type="button"
-                 onClick={() => onBrandingChange('locations', [...(branding.locations || []), { name: '', address: '', active: true, lat: 0, lng: 0 }])}
-                 className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"
-               >
-                 Mağaza Ekle
-               </button>
-            </div>
-          </div>
-        </div>
+              </div>
+            </motion.div>
+          )}
 
-      {/* Cafe/Restaurant Settings */}
-      {(branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant') && (
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50 mb-8">
-          <div className="flex items-center space-x-3 mb-8">
-            <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
-              <Globe className="h-6 w-6" />
-            </div>
-            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{txt('Kafe / Restoran Ayarları', 'Cafe / Restaurant Settings', 'Ρυθμίσεις Καφέ / Εστιατορίου')}</h3>
-          </div>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">{txt('Masa Sayısı', 'Number of Tables', 'Αριθμός Τραπεζιών')}</label>
-                <div className="relative">
-                   <input
-                     type="number"
-                     min="1"
-                     max="200"
-                     value={branding?.page_layout_settings?.table_count || 12}
-                     onChange={(e) => onBrandingChange('page_layout_settings', { ...branding?.page_layout_settings, table_count: parseInt(e.target.value) || 12 })}
-                     className="w-full pl-4 pr-3 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-900 font-sans"
-                   />
+          {/* TAB 8: HORECA (CAFE / RESTAURANT / HOTEL) */}
+          {activeOpsTab === 'horeca' && isCafeRestaurant && (
+            <motion.div 
+              key="horeca"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="space-y-3 text-xs"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Utensils className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {txt('Kafe / Restoran / Horeca Yapılandırması', 'Cafe / Restaurant Settings', 'Ρυθμίσεις Καφέ / Εστιατορίου')}
+                  </h3>
                 </div>
-                <p className="text-xs text-slate-500 font-medium ml-1">
-                  Mekanınızdaki toplam masa sayısını belirtin. Bu sayı Fast POS / Masalar ekranında görünecektir.
-                </p>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Bulk Price Update */}
-      {!isPortfolio && (
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl p-6 md:p-8 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-900 dark:text-white">
-              <RefreshCw className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{txt('Toplu Fiyat Güncelleme', 'Bulk Price Update', 'Μαζική Ενημέρωση Τιμών')}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Tüm ürün veya belirli kategori fiyatlarını yüzde ya da sabit tutarla otomatik güncelleyin.</p>
-            </div>
-          </div>
-          
-          <form onSubmit={handleBulkPriceSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 bg-slate-50/60 dark:bg-slate-800/30 rounded-2xl border border-slate-200/60 dark:border-slate-800/60">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Hedef</label>
-                <select 
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none"
-                  value={bulkPriceForm.target}
-                  onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, target: e.target.value })}
-                >
-                  <option value="all">{txt('Tüm Ürünler', 'All Products', 'Όλα τα Προϊόντα')}</option>
-                  <option value="category">{txt('Kategori Bazlı', 'Category Based', 'Βάσει Κατηγορίας')}</option>
-                </select>
-              </div>
-              {bulkPriceForm.target === 'category' && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Kategori</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 font-sans focus:outline-none"
-                    value={bulkPriceForm.category || ''}
-                    onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Table Count */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-1">
+                  <label className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">
+                    {txt('Masa Sayısı', 'Number of Tables', 'Αριθμός Τραπεζιών')}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="200"
+                    value={branding?.page_layout_settings?.table_count || 12}
+                    onChange={(e) => onBrandingChange('page_layout_settings', { ...branding?.page_layout_settings, table_count: parseInt(e.target.value) || 12 })}
+                    className="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold"
                   />
+                  <p className="text-[10.5px] text-slate-500 mt-1">
+                    Fast POS & Masalar ekranında oluşturulacak aktif masaların dikey/yatay görünüm adedi.
+                  </p>
                 </div>
-              )}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{txt('İşlem Tipi', 'Operation Type', 'Τύπος Λειτουργίας')}</label>
-                <select 
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none"
-                  value={bulkPriceForm.type}
-                  onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, type: e.target.value })}
-                >
-                  <option value="percentage">{txt('Yüzde (%)', 'Percentage (%)', 'Ποσοστό (%)')}</option>
-                  <option value="fixed">Sabit Tutar</option>
-                </select>
+
+                {/* Hotel & Room Module */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 dark:text-slate-100">Otel & Konaklama Modülü</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${branding.hotel_module_enabled ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}`}>
+                      {branding.hotel_module_enabled ? 'Aktif' : 'Pasif'}
+                    </span>
+                  </div>
+
+                  <div 
+                    onClick={() => {
+                      if (!branding.hotel_license_enabled && !branding.hotel_module_enabled) {
+                        setIsHotelUpgradeModalOpen(true);
+                      }
+                    }}
+                    className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${branding.hotel_module_enabled ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}
+                  >
+                    <input 
+                      type="checkbox"
+                      id="chk_hotel_module_sub"
+                      className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      checked={!!branding.hotel_module_enabled}
+                      onChange={(e) => {
+                        if (e.target.checked && !branding.hotel_license_enabled) {
+                          setIsHotelUpgradeModalOpen(true);
+                          return;
+                        }
+                        onBrandingChange('hotel_module_enabled', e.target.checked);
+                      }}
+                    />
+                    <label htmlFor="chk_hotel_module_sub" className="text-xs font-semibold text-slate-900 dark:text-slate-100 cursor-pointer flex-1">
+                      {lang === 'tr' ? 'Oda Yönetimi & Restorandan Odaya Adisyon Entegrasyonu' : 'Enable Hotel & Room Billing'}
+                    </label>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{txt('Yön', 'Direction', 'Κατεύθυνση')}</label>
-                <select 
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none"
-                  value={bulkPriceForm.direction}
-                  onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, direction: e.target.value })}
-                >
-                  <option value="increase">{txt('Artır', 'Increase', 'Αύξηση')}</option>
-                  <option value="decrease">Azalt</option>
-                </select>
+            </motion.div>
+          )}
+
+          {/* TAB 9: BULK PRICE UPDATE */}
+          {activeOpsTab === 'bulk_price' && !isPortfolio && (
+            <motion.div 
+              key="bulk_price"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="space-y-3 text-xs"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {txt('Toplu Fiyat Güncelleme', 'Bulk Price Update', 'Μαζική Ενημέρωση Τιμών')}
+                  </h3>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{txt('Değer', 'Value', 'Αξία')}</label>
-                <input 
-                  type="number" 
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl font-semibold text-xs text-slate-900 dark:text-slate-100 font-sans focus:outline-none"
-                  value={bulkPriceForm.value}
-                  onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, value: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <button 
-                type="submit" 
-                className="px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-xl text-xs font-semibold tracking-tight transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                <span>Fiyatları Güncelle</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+
+              <form onSubmit={handleBulkPriceSubmit} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 p-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/80">
+                  <div className="space-y-1">
+                    <label className="text-[10.5px] font-semibold text-slate-500">Hedef</label>
+                    <select 
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs cursor-pointer"
+                      value={bulkPriceForm.target}
+                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, target: e.target.value })}
+                    >
+                      <option value="all">{txt('Tüm Ürünler', 'All Products', 'Όλα τα Προϊόντα')}</option>
+                      <option value="category">{txt('Kategori Bazlı', 'Category Based', 'Βάσει Κατηγορίας')}</option>
+                    </select>
+                  </div>
+
+                  {bulkPriceForm.target === 'category' && (
+                    <div className="space-y-1">
+                      <label className="text-[10.5px] font-semibold text-slate-500">Kategori</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs"
+                        value={bulkPriceForm.category || ''}
+                        onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, category: e.target.value })}
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="text-[10.5px] font-semibold text-slate-500">{txt('İşlem Tipi', 'Operation Type', 'Τύπος')}</label>
+                    <select 
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs cursor-pointer"
+                      value={bulkPriceForm.type}
+                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, type: e.target.value })}
+                    >
+                      <option value="percentage">{txt('Yüzde (%)', 'Percentage (%)', 'Ποσοστό (%)')}</option>
+                      <option value="fixed">Sabit Tutar</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10.5px] font-semibold text-slate-500">{txt('Yön', 'Direction', 'Κατεύθυνση')}</label>
+                    <select 
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs cursor-pointer"
+                      value={bulkPriceForm.direction}
+                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, direction: e.target.value })}
+                    >
+                      <option value="increase">{txt('Artır (+)', 'Increase (+)', 'Αύξηση (+)')}</option>
+                      <option value="decrease">Azalt (-)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10.5px] font-semibold text-slate-500">{txt('Değer', 'Value', 'Αξία')}</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs"
+                      value={bulkPriceForm.value}
+                      onChange={(e) => setBulkPriceForm({ ...bulkPriceForm, value: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button 
+                    type="submit" 
+                    className="px-4 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    <span>Fiyatları Güncelle</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <HotelUpgradeModal
+        isOpen={isHotelUpgradeModalOpen}
+        onClose={() => setIsHotelUpgradeModalOpen(false)}
+        lang={lang}
+        storeName={branding.store_name || branding.name}
+      />
     </motion.div>
   );
 };
