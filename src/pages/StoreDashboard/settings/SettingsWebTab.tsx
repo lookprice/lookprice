@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import TeamAccessManagement from "../../../components/TeamAccessManagement";
 import { ShopThemeStudio } from "../../../components/dashboard/ShopThemeStudio";
 import { HorecaThemeStudio } from "../../../components/dashboard/HorecaThemeStudio";
 import {
@@ -67,7 +66,7 @@ export const SettingsWebTab = ({
   const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
-  const [activeSubTab, setActiveSubTab] = useState<'theme' | 'labels' | 'legal' | 'contact' | 'analytics' | 'team'>('theme');
+  const [activeSubTab, setActiveSubTab] = useState<'theme' | 'labels' | 'legal' | 'contact' | 'analytics'>('theme');
 
   const subNavItems = [
     { id: 'theme', label: txt('Vitrin', 'Theme', 'Βιτρίνα'), icon: Palette, show: true },
@@ -75,7 +74,6 @@ export const SettingsWebTab = ({
     { id: 'legal', label: txt('Politikalar', 'Policies', 'Πολιτικές'), icon: FileText, show: !isPortfolio && !isCafeRestaurant },
     { id: 'contact', label: txt('İletişim', 'Contact', 'Επικοινωνία'), icon: Share2, show: true },
     { id: 'analytics', label: txt('SEO', 'SEO', 'SEO'), icon: BarChart3, show: true },
-    { id: 'team', label: txt('Ekip', 'Team', 'Ομάδα'), icon: Users, show: true },
   ].filter(item => item.show);
 
   return (
@@ -525,18 +523,6 @@ export const SettingsWebTab = ({
               <p className="text-[9px] text-slate-400">{txt("Site doğrulama meta content değeri", "Site verification meta content", "Τιμή περιεχομένου επαλήθευσης")}</p>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* SUB-TAB 6: EKİP YETKİLERİ */}
-      {activeSubTab === 'team' && (
-        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-          <TeamAccessManagement 
-            users={users} 
-            currentUser={currentUser} 
-            lang={lang} 
-            onRefreshUsers={onAddUser} 
-          />
         </div>
       )}
     </motion.div>

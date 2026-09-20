@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit2, Trash2, Mail, Phone, MapPin, Building2, BarChart3, Star, Target, Shield, Calendar } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Users, Plus, Edit2, Trash2, Mail, Phone, MapPin, Building2, BarChart3, Star, Target, Shield, Calendar, Search, LayoutGrid, List, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from "../../contexts/LanguageContext";
 import { api } from "../../services/api";
 import { RealEstateCRM } from '../../components/RealEstateCRM';
 import { RealEstateCalendar } from '../../components/RealEstateCalendar';
-import { AutomotiveCRM } from '../../components/AutomotiveCRM';
-import { AutomotiveCalendar } from '../../components/AutomotiveCalendar';
 import { RealEstateModal } from '../../components/RealEstateModal';
 import { ArrangeTourModal } from '../../components/ArrangeTourModal';
 import { toast } from 'sonner';
@@ -51,6 +49,8 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [crmView, setCrmView] = useState<'leads' | 'portfolio' | 'calendar'>('leads');
+  const [leadsDisplayMode, setLeadsDisplayMode] = useState<'list' | 'kanban'>('list');
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
 
@@ -119,7 +119,6 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
     stage: 'Yeni Talep / Aday'
   });
 
-  // State to manage editing properties via RealEstateModal
   const [editingProperty, setEditingProperty] = useState<any>(null);
   const [isRealEstateModalOpen, setIsRealEstateModalOpen] = useState(false);
 
@@ -163,9 +162,11 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
         setEditingAgent(null);
         setFormData({ name: '', email: '', phone: '', role: 'Broker / Yöneticisi', branch_id: '', image_url: '' });
         fetchData();
+        toast.success(isTr ? 'Personel kaydı kaydedildi' : 'Agent saved');
       }
     } catch (error) {
       console.error('Failed to save agent:', error);
+      toast.error(isTr ? 'Personel kaydedilemedi' : 'Failed to save agent');
     } finally {
       setIsSaving(false);
     }
@@ -187,29 +188,37 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
         setEditingBranch(null);
         setBranchFormData({ name: '', address: '', phone: '', slug: '' });
         fetchData();
+        toast.success(isTr ? 'Şube kaydı kaydedildi' : 'Branch saved');
       }
     } catch (error) {
       console.error('Failed to save branch:', error);
+      toast.error(isTr ? 'Şube kaydedilemedi' : 'Failed to save branch');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteBranch = async (id: number) => {
-    if (!window.confirm(lang === 'tr' ? 'Bu şubeyi silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this branch?')) return;
+    if (!window.confirm(isTr ? 'Bu şubeyi silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this branch?')) return;
     try {
       const res = await api.deleteBranch(id, storeId);
-      if (res && !res.error) fetchData();
+      if (res && !res.error) {
+        fetchData();
+        toast.success(isTr ? 'Şube silindi' : 'Branch deleted');
+      }
     } catch (error) {
       console.error('Failed to delete branch:', error);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm(lang === 'tr' ? 'Bu danışmanı silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this agent?')) return;
+    if (!window.confirm(isTr ? 'Bu danışmanı silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this agent?')) return;
     try {
       const res = await api.deleteConsultant(id, storeId);
-      if (res && !res.error) fetchData();
+      if (res && !res.error) {
+        fetchData();
+        toast.success(isTr ? 'Danışman silindi' : 'Agent deleted');
+      }
     } catch (error) {
       console.error('Failed to delete agent:', error);
     }
@@ -220,12 +229,14 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
     
     if (editingDeal) {
       setDeals(prev => prev.map(d => d.id === editingDeal.id ? { ...editingDeal, ...dealFormData } : d));
+      toast.success(isTr ? 'Talep güncellendi' : 'Lead updated');
     } else {
       const newDeal = {
         ...dealFormData,
         id: 'd' + Date.now()
       };
       setDeals(prev => [...prev, newDeal]);
+      toast.success(isTr ? 'Yeni talep eklendi' : 'New lead added');
     }
     setShowDealModal(false);
     setEditingDeal(null);
@@ -245,42 +256,76 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
     setShowModal(true);
   };
 
+  const filteredAgents = agents.filter(a => 
+    a.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    a.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    a.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    a.role?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredDeals = deals.filter(d => 
+    d.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.agent_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.budget?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
-        <div>
-           <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">
-             {lang === 'tr' ? 'Team & Network HUB' : 'Team & Network HUB'}
-           </h2>
-           <div className="flex items-center gap-2 mt-1">
-             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-               {agents.length} {lang === 'tr' ? 'AKTİF PERSONEL' : 'ACTIVE STAFF'} • {branches.length} {lang === 'tr' ? 'ŞUBE' : 'BRANCHES'}
-             </p>
-           </div>
+    <div className="space-y-3 font-sans text-slate-800">
+      {/* FUTURISTIC ULTRA-COMPACT SECTOR-ADAPTIVE CONTROL BANNER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white border border-slate-200/90 rounded-2xl p-2.5 md:p-3 shadow-2xs">
+        <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white flex items-center justify-center font-black shadow-xs shrink-0">
+            <Users className="w-4 h-4" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs md:text-sm font-black uppercase text-slate-900 tracking-tight leading-tight flex items-center gap-2">
+              <span>{isAutomotive ? 'Oto Galeri & Ekip HUB' : 'Team & Network HUB'}</span>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 bg-indigo-50 text-indigo-700 rounded border border-indigo-200/60">
+                {isAutomotive ? 'AUTOLP CRM' : 'RESTATED CRM'}
+              </span>
+            </span>
+            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 mt-0.5">
+              <span className="flex items-center gap-1 text-indigo-700 font-extrabold">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                <span>{agents.length} {isAutomotive ? 'Satış Temsilcisi / Personel' : (isTr ? 'Personel & Danışman' : 'Staff')}</span>
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="flex items-center gap-1 text-slate-600">
+                <Building2 className="w-3 h-3 text-slate-400" />
+                <span>{branches.length} {isAutomotive ? 'Galeri / Şube' : (isTr ? 'Şube' : 'Branches')}</span>
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-3 w-full md:w-auto">
-          <div className="bg-slate-100 p-1 rounded-2xl flex items-center w-full md:w-auto overflow-x-auto custom-scrollbar md:mr-4">
-             <button 
+        {/* Navigation Subtabs & Compact Trigger */}
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center flex-wrap">
+          <div className="bg-slate-100/90 p-0.5 rounded-xl flex items-center border border-slate-200/80">
+            <button 
               onClick={() => setActiveSubTab('agents')}
-              className={`px-4 md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeSubTab === 'agents' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-             >
-                {lang === 'tr' ? 'DANIŞMANLAR' : 'AGENTS'}
-             </button>
-             <button 
+              className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                activeSubTab === 'agents' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {isAutomotive ? 'Temsilciler' : (isTr ? 'Danışmanlar' : 'Agents')}
+            </button>
+            <button 
               onClick={() => setActiveSubTab('branches')}
-              className={`px-4 md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeSubTab === 'branches' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-             >
-                {lang === 'tr' ? 'ŞUBELER' : 'BRANCHES'}
-             </button>
-             <button 
+              className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                activeSubTab === 'branches' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {isTr ? 'Şubeler' : 'Branches'}
+            </button>
+            <button 
               onClick={() => setActiveSubTab('pipeline')}
-              className={`px-4 md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeSubTab === 'pipeline' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-             >
-                {lang === 'tr' ? 'CRM (Pipeline)' : 'PIPELINE'}
-             </button>
+              className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                activeSubTab === 'pipeline' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {isTr ? 'CRM (Pipeline)' : 'Pipeline'}
+            </button>
           </div>
 
           <button 
@@ -299,556 +344,770 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                 setShowDealModal(true);
               }
             }}
-            className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 group"
+            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-[11px] transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 shrink-0"
           >
-            <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
-            {activeSubTab === 'agents' ? (lang === 'tr' ? 'YENİ PERSONEL' : 'ADD AGENT') : 
-             activeSubTab === 'branches' ? (lang === 'tr' ? 'YENİ ŞUBE' : 'ADD BRANCH') : 
-             (lang === 'tr' ? 'YENİ TALEP/FIRSAT' : 'ADD LEAD')}
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <span>
+              {activeSubTab === 'agents' ? (isTr ? '+ Personel' : '+ Agent') : 
+               activeSubTab === 'branches' ? (isTr ? '+ Şube' : '+ Branch') : 
+               (isTr ? '+ Talep/Fırsat' : '+ Lead')}
+            </span>
           </button>
         </div>
       </div>
 
+      {/* COMPACT SEARCH & FILTER BAR */}
+      <div className="flex items-center justify-between gap-2 bg-slate-50/80 p-2 rounded-xl border border-slate-200/80">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input 
+            type="text"
+            placeholder={activeSubTab === 'agents' ? "Danışman adı, e-posta veya görev ara..." : activeSubTab === 'branches' ? "Şube adı veya şehir ara..." : "Talep, müşteri veya bütçe ara..."}
+            className="w-full pl-8 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {activeSubTab === 'pipeline' && crmView === 'leads' && (
+          <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shrink-0">
+            <button 
+              onClick={() => setLeadsDisplayMode('list')}
+              className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                leadsDisplayMode === 'list' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <List className="w-3 h-3" />
+              <span>Liste</span>
+            </button>
+            <button 
+              onClick={() => setLeadsDisplayMode('kanban')}
+              className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                leadsDisplayMode === 'kanban' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <LayoutGrid className="w-3 h-3" />
+              <span>Kanban</span>
+            </button>
+          </div>
+        )}
+      </div>
+
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="flex flex-col items-center justify-center py-12 bg-white rounded-2xl border border-slate-200">
+          <div className="w-7 h-7 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2" />
+          <span className="text-xs font-bold text-slate-500">Yükleniyor...</span>
         </div>
       ) : activeSubTab === 'agents' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {agents.map((agent) => (
-             <div key={agent.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 flex flex-col gap-6 shadow-sm hover:shadow-xl transition-all relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                   <button 
-                    onClick={() => openEdit(agent)}
-                    className="p-3 bg-slate-100 text-indigo-600 rounded-xl hover:bg-indigo-50 transition-colors">
-                      <Edit2 className="w-4 h-4" />
-                   </button>
-                   <button 
-                    onClick={() => handleDelete(agent.id)}
-                    className="p-3 bg-slate-100 text-red-500 rounded-xl hover:bg-red-50 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                   </button>
-                </div>
+        /* DANIŞMANLAR - HIGH DENSITY ROW-BY-ROW TABLE VIEW WITH UNCOVERED ICONS */
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50/90 border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  <th className="py-2.5 px-3">Danışman / Personel</th>
+                  <th className="py-2.5 px-3">Şube</th>
+                  <th className="py-2.5 px-3">İletişim Bilgileri</th>
+                  <th className="py-2.5 px-3 text-center">Performans / İlanlar</th>
+                  <th className="py-2.5 px-3 text-right">Aksiyonlar</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
+                {filteredAgents.map((agent) => {
+                  const assignedItems = portfolioItems.filter((item: any) => item.responsible_consultant_id === agent.id);
+                  const isExpanded = selectedAgentId === agent.id;
 
-                <div className="flex gap-5 items-center">
-                   <div className="h-20 w-20 bg-slate-900 rounded-[2rem] flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-slate-200 uppercase">
-                     {agent.name.substring(0,2)}
-                   </div>
-                   <div>
-                      <h3 className="font-black text-slate-800 text-xl leading-none mb-2">{agent.name}</h3>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-[9px] font-black uppercase tracking-widest">
-                         <Star className="w-3 h-3" />
-                         {agent.role}
-                      </span>
-                      {agent.branch_id && (
-                        <div className="flex items-center gap-1.5 mt-2 text-slate-400">
-                          <Building2 className="w-3 h-3" />
-                          <span className="text-[10px] font-bold uppercase tracking-tight">
-                            {branches.find(b => b.id === agent.branch_id)?.name || 'Şube'}
-                          </span>
-                        </div>
-                      )}
-                   </div>
-                </div>
-
-                <div className="space-y-3 p-5 bg-slate-50/50 rounded-3xl border border-slate-100">
-                   <div className="flex items-center gap-4 text-xs font-bold text-slate-600">
-                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-indigo-500">
-                        <Mail className="w-4 h-4" />
-                      </div>
-                      {agent.email || '---'}
-                   </div>
-                   <div className="flex items-center gap-4 text-xs font-bold text-slate-600">
-                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-indigo-500">
-                        <Phone className="w-4 h-4" />
-                      </div>
-                      {agent.phone || '---'}
-                   </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-50 mt-auto">
-                   <div className="text-center p-3 rounded-2xl bg-indigo-50/30">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{lang==='tr'? 'Satış':'Deals'}</p>
-                      <p className="font-black text-indigo-700 text-lg">{agent.performance?.deals || 0}</p>
-                   </div>
-                   <div className="text-center p-3 rounded-2xl bg-emerald-50/30">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{lang==='tr'? 'Hacim':'Volume'}</p>
-                      <p className="font-black text-emerald-700 text-lg">{agent.performance?.value || '0'}</p>
-                   </div>
-                   <div className="text-center p-3 rounded-2xl bg-amber-50/30 cursor-pointer hover:bg-amber-100/50 transition-colors" onClick={() => setSelectedAgentId(selectedAgentId === agent.id ? null : agent.id)}>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{lang==='tr'? 'Aktif İlan':'Listings'}</p>
-                      <p className="font-black text-amber-700 text-lg">
-                        {portfolioItems.filter((item: any) => item.responsible_consultant_id === agent.id).length}
-                      </p>
-                   </div>
-                </div>
-
-                {selectedAgentId === agent.id && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 animate-in slide-in-from-top-4">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                      {lang === 'tr' ? 'Yetkili Olduğu Portföyler' : 'Assigned Portfolios'}
-                    </h4>
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                      {portfolioItems.filter((item: any) => item.responsible_consultant_id === agent.id).map((item: any) => (
-                        <div 
-                          key={item.id} 
-                          onClick={() => {
-                            setEditingProperty(item);
-                            setIsRealEstateModalOpen(true);
-                          }}
-                          className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-indigo-400 hover:bg-indigo-50/20 transition-all group cursor-pointer active:scale-[0.98]"
-                        >
-                          {item.image_url ? (
-                            <img src={item.image_url} alt={isAutomotive ? `${item.brand} ${item.model}` : item.title} className="w-10 h-10 rounded-lg object-cover" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-300">
-                              <Building2 className="w-4 h-4" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-700 truncate group-hover:text-indigo-600 transition-colors flex items-center gap-1.5 justify-between">
-                              <span className="truncate">{isAutomotive ? `${item.plate} - ${item.brand} ${item.model}` : item.title}</span>
-                              <span className="text-[10px] text-indigo-600 font-extrabold flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                ✍️ Düzenle
+                  return (
+                    <React.Fragment key={agent.id}>
+                      <tr className="hover:bg-indigo-50/30 transition-colors group">
+                        {/* Personel Avatar & Role */}
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center gap-2.5">
+                            {agent.image_url ? (
+                              <img src={agent.image_url} alt={agent.name} className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-black text-xs shrink-0 uppercase shadow-2xs">
+                                {agent.name.substring(0,2)}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-extrabold text-slate-900 truncate leading-tight">{agent.name}</p>
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100 mt-0.5">
+                                <Star className="w-2.5 h-2.5" />
+                                <span>{agent.role || 'Broker / Yöneticisi'}</span>
                               </span>
-                            </p>
-                            <p className="text-[10px] font-black text-slate-400 truncate uppercase mt-0.5">
-                              {isAutomotive ? `${item.year} • ${item.price} ${item.currency}` : `${item.currency} ${Math.round(Number(item.price) || 0).toLocaleString('tr-TR')} • ${item.location}`}
-                            </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Şube */}
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-700">
+                            <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{branches.find(b => b.id === agent.branch_id)?.name || 'Merkez Ofis'}</span>
+                          </div>
+                        </td>
+
+                        {/* İletişim Bilgileri (Always Visible Icons) */}
+                        <td className="py-2.5 px-3">
+                          <div className="space-y-0.5 text-[11px]">
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <Mail className="w-3 h-3 text-indigo-500 shrink-0" />
+                              <span className="truncate">{agent.email || '---'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <span className="truncate">{agent.phone || '---'}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Performans & Aktif İlan Butonu */}
+                        <td className="py-2.5 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold border border-slate-200">
+                              Satış: {agent.performance?.deals || 0}
+                            </span>
+                            <button
+                              onClick={() => setSelectedAgentId(isExpanded ? null : agent.id)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-black border transition-all cursor-pointer flex items-center gap-1 ${
+                                isExpanded 
+                                  ? 'bg-amber-500 text-white border-amber-600' 
+                                  : 'bg-amber-50 text-amber-800 border-amber-200/80 hover:bg-amber-100'
+                              }`}
+                              title="Yetkili olduğu ilanları göster/gizle"
+                            >
+                              <span>İlanlar: {assignedItems.length}</span>
+                              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Aksiyon Butonları (High Contrast Visible Icons) */}
+                        <td className="py-2.5 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => openEdit(agent)}
+                              className="p-1.5 bg-slate-100 hover:bg-indigo-50 text-indigo-600 hover:text-indigo-700 rounded-lg transition-colors cursor-pointer border border-slate-200/60"
+                              title="Düzenle"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(agent.id)}
+                              className="p-1.5 bg-slate-100 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded-lg transition-colors cursor-pointer border border-slate-200/60"
+                              title="Sil"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expandable Portfolio Drawer */}
+                      {isExpanded && (
+                        <tr className="bg-slate-50/80 border-b border-slate-200/80">
+                          <td colSpan={5} className="p-3">
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                                {agent.name} - Atanmış Portföy Listesi ({assignedItems.length})
+                              </p>
+
+                              {assignedItems.length === 0 ? (
+                                <p className="text-xs text-slate-400 font-medium py-1">Henüz portföy atanmamış.</p>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                  {assignedItems.map((item: any) => (
+                                    <div 
+                                      key={item.id}
+                                      onClick={() => {
+                                        setEditingProperty(item);
+                                        setIsRealEstateModalOpen(true);
+                                      }}
+                                      className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-2xs transition-all cursor-pointer group"
+                                    >
+                                      {item.image_url ? (
+                                        <img src={item.image_url} alt={item.title} className="w-8 h-8 rounded-md object-cover shrink-0" />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded-md bg-indigo-50 flex items-center justify-center text-indigo-400 shrink-0">
+                                          <Building2 className="w-4 h-4" />
+                                        </div>
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600">
+                                          {isAutomotive ? `${item.plate} ${item.brand}` : item.title}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 font-bold truncate">
+                                          {item.currency} {Math.round(Number(item.price) || 0).toLocaleString('tr-TR')} • {item.location || 'KKTC'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+
+                {filteredAgents.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-xs text-slate-400 font-bold">
+                      Kayıtlı danışman/personel bulunamadı.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : activeSubTab === 'branches' ? (
+        /* ŞUBELER - HIGH DENSITY TABLE VIEW */
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50/90 border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  <th className="py-2.5 px-3">Şube Adı</th>
+                  <th className="py-2.5 px-3">Kod / Slug</th>
+                  <th className="py-2.5 px-3">İletişim & Adres</th>
+                  <th className="py-2.5 px-3 text-center">Personel Sayısı</th>
+                  <th className="py-2.5 px-3 text-right">Aksiyonlar</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
+                {branches.map((branch) => {
+                  const staffCount = agents.filter(a => a.branch_id === branch.id).length;
+                  return (
+                    <tr key={branch.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 px-3 font-extrabold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                          <span>{branch.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-mono">
+                          {branch.slug?.toUpperCase() || 'ANA-SUBE'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="space-y-0.5 text-[11px] text-slate-600">
+                          <div className="flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <span>{branch.phone || '---'}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-slate-500">
+                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate max-w-xs">{branch.address || '---'}</span>
                           </div>
                         </div>
-                      ))}
-                      {portfolioItems.filter((item: any) => item.responsible_consultant_id === agent.id).length === 0 && (
-                        <p className="text-xs text-slate-400 font-medium pb-2">
-                          {lang === 'tr' ? 'Henüz portföy atanmamış.' : 'No portfolio assigned yet.'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[10px] font-bold">
+                          {staffCount} Personel
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingBranch(branch);
+                              setBranchFormData({ name: branch.name, address: branch.address || '', phone: branch.phone || '', slug: branch.slug || '' });
+                              setShowBranchModal(true);
+                            }}
+                            className="p-1.5 bg-slate-100 hover:bg-indigo-50 text-indigo-600 hover:text-indigo-700 rounded-lg transition-colors cursor-pointer border border-slate-200/60"
+                            title="Düzenle"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBranch(branch.id)}
+                            className="p-1.5 bg-slate-100 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded-lg transition-colors cursor-pointer border border-slate-200/60"
+                            title="Sil"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {branches.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-xs text-slate-400 font-bold">
+                      Kayıtlı şube bulunamadı.
+                    </td>
+                  </tr>
                 )}
-             </div>
-           ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : activeSubTab === 'pipeline' ? (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {/* Sub-Sub Tabs for CRM */}
-          <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl w-fit">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/80">
             <button 
               onClick={() => setCrmView('leads')}
-              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${crmView === 'leads' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                crmView === 'leads' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              {lang === 'tr' ? 'MÜŞTERİ TALEPLERİ' : 'LEAD PIPELINE'}
+              {isTr ? 'Müşteri & Yatırımcı Talepleri' : 'Lead Pipeline'}
             </button>
             <button 
               onClick={() => setCrmView('portfolio')}
-              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${crmView === 'portfolio' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                crmView === 'portfolio' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              {lang === 'tr' ? 'PORTFÖY SÜREÇLERİ' : 'PORTFOLIO PIPELINE'}
+              {isTr ? 'Portföy Süreçleri' : 'Portfolio Pipeline'}
             </button>
             <button 
               onClick={() => setCrmView('calendar')}
-              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${crmView === 'calendar' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer ${
+                crmView === 'calendar' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              {lang === 'tr' ? 'RANDEVU TAKVİMİ' : 'APPOINTMENT CALENDAR'}
+              {isTr ? 'Randevu Takvimi' : 'Appointment Calendar'}
             </button>
           </div>
 
           {crmView === 'leads' ? (
-            <div className="flex gap-6 overflow-x-auto pb-8 snap-x custom-scrollbar">
-              {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map((stage, idx) => {
-                 const stageDeals = deals.filter(d => d.stage === stage);
-                 return (
-                   <div key={idx} className="min-w-[320px] max-w-[320px] bg-slate-50/80 rounded-[2rem] border border-slate-200 p-6 shadow-sm snap-center flex flex-col gap-4">
-                     <div className="flex items-center justify-between">
-                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{stage}</h4>
-                       <div className="w-6 h-6 bg-white border border-slate-200 shadow-sm rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-600 font-mono">
-                         {stageDeals.length}
-                       </div>
-                     </div>
-                     
-                     <div className="space-y-3 overflow-y-auto max-h-[440px] pr-1 custom-scrollbar">
-                       {stageDeals.map((deal) => (
-                         <div key={deal.id} className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all group relative">
-                           {/* Edit and Delete Buttons (hover) */}
-                           <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/95 backdrop-blur-xs rounded-lg p-1 border border-slate-100 shadow-sm z-10">
-                             <button 
-                               type="button"
-                               onClick={() => {
-                                 setEditingDeal(deal);
-                                 setDealFormData({
-                                   title: deal.title,
-                                   description: deal.description || '',
-                                   agent_name: deal.agent_name || '',
-                                   budget: deal.budget || '',
-                                   stage: deal.stage
-                                 });
-                                 setShowDealModal(true);
-                               }}
-                               className="p-1 hover:bg-slate-100 rounded-md text-indigo-605 transition-colors"
-                             >
-                               <Edit2 className="w-3 h-3" />
-                             </button>
-                             <button 
-                               type="button"
-                               onClick={() => {
-                                 if (confirm(lang === 'tr' ? 'Bu kartı silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this deal?')) {
-                                   setDeals(prev => prev.filter(d => d.id !== deal.id));
-                                 }
-                               }}
-                               className="p-1 hover:bg-rose-50 rounded-md text-rose-500 transition-colors"
-                             >
-                               <Trash2 className="w-3 h-3" />
-                             </button>
-                           </div>
-
-                           <p className="font-bold text-slate-800 mb-1 group-hover:text-indigo-605 transition-colors pr-12 text-xs">{deal.title}</p>
-                           <p className="text-[11px] text-slate-500 mb-4 line-clamp-3 leading-relaxed">{deal.description}</p>
-                           
-                           <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-400 border-t border-slate-50 pt-3 mt-1">
-                             <span className="flex items-center gap-1.5 truncate max-w-[130px]" title={deal.agent_name}>
-                               <Users className="w-3.5 h-3.5 text-slate-300 shrink-0"/> {deal.agent_name || 'Atanmamış'}
-                             </span>
-                             <span className="text-indigo-700 bg-indigo-50/80 px-2 py-0.5 rounded text-[9px] font-black shrink-0">
-                               {deal.budget || '---'}
-                             </span>
-                           </div>
-                         </div>
-                       ))}
-
-                       {stageDeals.length === 0 && (
-                         <div className="py-8 text-center text-[10px] text-slate-400 border border-dashed border-slate-205 rounded-2xl bg-white/45">
-                           {lang === 'tr' ? 'Bu aşamada talep yok' : 'No deal in this stage'}
-                         </div>
-                       )}
-                     </div>
-
-                     <button 
-                       type="button"
-                       onClick={() => {
-                         setEditingDeal(null);
-                         setDealFormData({ title: '', description: '', agent_name: '', budget: '', stage: stage });
-                         setShowDealModal(true);
-                       }}
-                       className="mt-auto w-full py-4 rounded-xl border border-slate-200 border-dashed text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 hover:border-slate-305 transition-colors flex items-center justify-center group"
-                     >
-                       <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                     </button>
-                   </div>
-                 );
-               })}
-             </div>
-          ) : crmView === 'portfolio' ? (
-             <RealEstateCRM 
-               storeId={storeId!}
-               properties={portfolioItems}
-               tasks={tasks}
-               onOpenCalendar={() => setCrmView('calendar')}
-               onOpenTourModal={(p) => {
-                 setActiveTourProperty(p);
-                 setIsTourModalOpen(true);
-               }}
-               onRefresh={fetchData}
-             />
-          ) : (
-             <RealEstateCalendar 
-               storeId={storeId!}
-               properties={portfolioItems}
-               onClose={() => setCrmView('portfolio')}
-             />
-          )}
-        </div>
-      ) : activeSubTab === 'branches' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {branches.map((branch) => (
-             <div key={branch.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 flex flex-col gap-6 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                   <button 
-                    onClick={() => { setEditingBranch(branch); setBranchFormData({name: branch.name, address: branch.address || '', phone: branch.phone || '', slug: branch.slug || ''}); setShowBranchModal(true); }}
-                    className="p-3 bg-slate-100 text-indigo-600 rounded-xl hover:bg-indigo-50 transition-colors">
-                      <Edit2 className="w-4 h-4" />
-                   </button>
-                   <button 
-                    onClick={() => handleDeleteBranch(branch.id)}
-                    className="p-3 bg-slate-100 text-red-500 rounded-xl hover:bg-red-50 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                   </button>
-                </div>
-
-                <div className="flex gap-5 items-center">
-                   <div className="h-16 w-16 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center shadow-inner">
-                     <Building2 className="w-8 h-8" />
-                   </div>
-                   <div>
-                      <h3 className="font-black text-slate-800 text-xl leading-none mb-2">{branch.name}</h3>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest">
-                         {branch.slug?.toUpperCase() || (isTr ? 'ANA ŞUBE' : 'MAIN BRANCH')}
-                      </span>
-                   </div>
-                </div>
-
-                <div className="space-y-4 pt-6 border-t border-slate-50">
-                   <div className="flex items-start gap-4 text-xs font-bold text-slate-600">
-                      <MapPin className="w-4 h-4 text-slate-300 mt-0.5 shrink-0" />
-                      {branch.address || '---'}
-                   </div>
-                   <div className="flex items-center gap-4 text-xs font-bold text-slate-600">
-                      <Phone className="w-4 h-4 text-slate-300 shrink-0" />
-                      {branch.phone || '---'}
-                   </div>
-                </div>
-
-                <div className="mt-auto pt-6 flex items-center justify-between">
-                   <div className="flex items-center gap-1.5">
-                      <Users className="w-4 h-4 text-slate-300" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        {agents.filter(a => a.branch_id === branch.id).length} {lang === 'tr' ? 'PERSONEL' : 'STAFF'}
-                      </span>
-                   </div>
-                   <div className="flex -space-x-2">
-                      {[1,2,3].map(i => (
-                        <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-200" />
+            leadsDisplayMode === 'list' ? (
+              /* MÜŞTERİ & YATIRIMCI TALEPLERİ - LISTE GÖRÜNÜMÜ TABLE */
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/90 border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        <th className="py-2.5 px-3">Talep / Müşteri</th>
+                        <th className="py-2.5 px-3">Açıklama & Detay</th>
+                        <th className="py-2.5 px-3">Sorumlu</th>
+                        <th className="py-2.5 px-3">Bütçe</th>
+                        <th className="py-2.5 px-3">Aşama / Statü</th>
+                        <th className="py-2.5 px-3 text-right">Aksiyonlar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
+                      {filteredDeals.map((deal) => (
+                        <tr key={deal.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-2.5 px-3 font-extrabold text-slate-900">
+                            {deal.title}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 max-w-xs">
+                            <p className="truncate text-[11px]">{deal.description || '---'}</p>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="flex items-center gap-1 text-[11px] text-slate-700">
+                              <Users className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>{deal.agent_name || 'Atanmamış'}</span>
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[10px] font-bold">
+                              {deal.budget || '---'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-800 border border-slate-200 rounded text-[10px] font-black">
+                              {deal.stage}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  setEditingDeal(deal);
+                                  setDealFormData({
+                                    title: deal.title,
+                                    description: deal.description || '',
+                                    agent_name: deal.agent_name || '',
+                                    budget: deal.budget || '',
+                                    stage: deal.stage
+                                  });
+                                  setShowDealModal(true);
+                                }}
+                                className="p-1.5 bg-slate-100 hover:bg-indigo-50 text-indigo-600 hover:text-indigo-700 rounded-lg transition-colors cursor-pointer border border-slate-200/60"
+                                title="Düzenle"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(isTr ? 'Bu talebi silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this deal?')) {
+                                    setDeals(prev => prev.filter(d => d.id !== deal.id));
+                                    toast.success(isTr ? 'Talep silindi' : 'Lead deleted');
+                                  }
+                                }}
+                                className="p-1.5 bg-slate-100 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded-lg transition-colors cursor-pointer border border-slate-200/60"
+                                title="Sil"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
                       ))}
-                   </div>
+
+                      {filteredDeals.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-xs text-slate-400 font-bold">
+                            Kayıtlı talep/fırsat bulunamadı.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-             </div>
-           ))}
+              </div>
+            ) : (
+              /* KANBAN VIEW FOR LEADS */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map((stage, idx) => {
+                  const stageDeals = filteredDeals.filter(d => d.stage === stage);
+                  return (
+                    <div key={idx} className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-2 flex flex-col gap-2 min-w-0">
+                      <div className="flex items-center justify-between px-1 py-0.5 border-b border-slate-200/60 pb-1">
+                        <span className="text-[10px] font-black uppercase text-slate-800 truncate">{stage}</span>
+                        <span className="text-[9px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded">
+                          {stageDeals.length}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5 overflow-y-auto max-h-[380px] custom-scrollbar pr-0.5">
+                        {stageDeals.map((deal) => (
+                          <div key={deal.id} className="bg-white p-2.5 rounded-lg border border-slate-200/80 shadow-2xs group relative">
+                            <div className="flex items-start justify-between gap-1 mb-1">
+                              <p className="font-bold text-slate-900 text-xs truncate leading-tight">{deal.title}</p>
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  onClick={() => {
+                                    setEditingDeal(deal);
+                                    setDealFormData({
+                                      title: deal.title,
+                                      description: deal.description || '',
+                                      agent_name: deal.agent_name || '',
+                                      budget: deal.budget || '',
+                                      stage: deal.stage
+                                    });
+                                    setShowDealModal(true);
+                                  }}
+                                  className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Silmek istediğinize emin misiniz?')) {
+                                      setDeals(prev => prev.filter(d => d.id !== deal.id));
+                                    }
+                                  }}
+                                  className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-slate-500 line-clamp-2 mb-2">{deal.description}</p>
+                            <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 pt-1.5 border-t border-slate-100">
+                              <span>{deal.agent_name || 'Atanmamış'}</span>
+                              <span className="text-indigo-700 font-extrabold">{deal.budget || '---'}</span>
+                            </div>
+                          </div>
+                        ))}
+
+                        {stageDeals.length === 0 && (
+                          <div className="py-4 text-center text-[10px] text-slate-400 border border-dashed border-slate-200 rounded-lg">
+                            Talep yok
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : crmView === 'portfolio' ? (
+            <RealEstateCRM 
+              storeId={storeId!}
+              properties={portfolioItems}
+              tasks={tasks}
+              onOpenCalendar={() => setCrmView('calendar')}
+              onOpenTourModal={(p) => {
+                setActiveTourProperty(p);
+                setIsTourModalOpen(true);
+              }}
+              onRefresh={fetchData}
+            />
+          ) : (
+            <RealEstateCalendar 
+              storeId={storeId!}
+              properties={portfolioItems}
+              onClose={() => setCrmView('portfolio')}
+            />
+          )}
         </div>
       ) : null}
 
-      {/* Modals */}
+      {/* COMPACT VIEWPORT-FIT MODALS */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-           <motion.div 
-            initial={{ opacity:0, scale: 0.9 }}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-slate-900/40 backdrop-blur-xs">
+          <motion.div 
+            initial={{ opacity:0, scale: 0.95 }}
             animate={{ opacity:1, scale: 1 }}
-            className="bg-white max-w-lg w-full rounded-[2.5rem] shadow-2xl p-10 relative overflow-hidden"
-           >
-              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-8 leading-none">
-                {editingAgent ? (lang === 'tr' ? 'Personel Düzenle' : 'Edit Staff') : (lang === 'tr' ? 'Personel Kaydı' : 'Agent Registration')}
+            className="bg-white max-w-md w-full rounded-2xl shadow-xl p-4 border border-slate-200 relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                {editingAgent ? (isTr ? 'Personel Düzenle' : 'Edit Staff') : (isTr ? 'Yeni Personel Kaydı' : 'Agent Registration')}
               </h3>
-              <div className="space-y-5">
-                 <div>
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Ad Soyad' : 'Full Name'}</label>
-                   <input 
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
-                    placeholder="Ali Veli"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                   />
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email</label>
-                     <input 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
-                      placeholder="ali@sirket.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                     />
-                   </div>
-                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Telefon' : 'Phone'}</label>
-                     <input 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
-                      placeholder="+90"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                     />
-                   </div>
-                 </div>
-                 <div>
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Profil Resmi' : 'Profile Image'}</label>
-                   <div className="mt-2 flex items-center gap-4">
-                     {formData.image_url && (
-                       <img src={formData.image_url} alt="Profile" className="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
-                     )}
-                     <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50 cursor-pointer hover:bg-slate-100 hover:border-slate-300 transition-colors">
-                       <input 
-                        type="file" 
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setFormData({...formData, image_url: reader.result as string});
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                       />
-                       <span className="text-xs font-bold text-slate-500">{lang === 'tr' ? 'Resim Seç veya Sürükle' : 'Select or Drop Image'}</span>
-                     </label>
-                   </div>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Görev' : 'Role'}</label>
-                     <select 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_1.5rem_center] bg-no-repeat"
-                      value={formData.role}
-                      onChange={(e) => setFormData({...formData, role: e.target.value})}
-                     >
-                       <option>Broker / Yöneticisi</option>
-                       <option>Kıdemli Danışman</option>
-                       <option>Satış Temsilcisi</option>
-                       <option>Asistan</option>
-                     </select>
-                   </div>
-                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Şube Seçimi' : 'Assign Branch'}</label>
-                     <select 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_1.5rem_center] bg-no-repeat"
-                      value={formData.branch_id}
-                      onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
-                     >
-                       <option value="">{lang === 'tr' ? 'Merkez Ofis' : 'Headquarters'}</option>
-                       {branches.map(b => (
-                         <option key={b.id} value={b.id}>{b.name}</option>
-                       ))}
-                     </select>
-                   </div>
-                 </div>
-                 <div className="pt-6 flex gap-4">
-                   <button disabled={isSaving} onClick={() => { setShowModal(false); setEditingAgent(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-colors disabled:opacity-50">İptal</button>
-                   <button disabled={isSaving} onClick={handleSave} className="flex-1 py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</button>
-                 </div>
+              <button onClick={() => { setShowModal(false); setEditingAgent(null); }} className="text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer">✕</button>
+            </div>
+
+            <div className="space-y-2.5 text-xs font-bold">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Ad Soyad' : 'Full Name'}</label>
+                <input 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
+                  placeholder="Ali Veli"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                />
               </div>
-           </motion.div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Email</label>
+                  <input 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
+                    placeholder="ali@sirket.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Telefon' : 'Phone'}</label>
+                  <input 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
+                    placeholder="+90 533..."
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Görev' : 'Role'}</label>
+                  <select 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500 cursor-pointer"
+                    value={formData.role}
+                    onChange={(e) => setFormData({...formData, role: e.target.value})}
+                  >
+                    <option>Broker / Yöneticisi</option>
+                    <option>Kıdemli Danışman</option>
+                    <option>Satış Temsilcisi</option>
+                    <option>Asistan</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Şube' : 'Branch'}</label>
+                  <select 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500 cursor-pointer"
+                    value={formData.branch_id}
+                    onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
+                  >
+                    <option value="">{isTr ? 'Merkez Ofis' : 'Headquarters'}</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Profil Görseli (URL)' : 'Profile Image'}</label>
+                <input 
+                  type="text"
+                  placeholder="https://..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex gap-2">
+                <button 
+                  disabled={isSaving} 
+                  onClick={() => { setShowModal(false); setEditingAgent(null); }} 
+                  className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  İptal
+                </button>
+                <button 
+                  disabled={isSaving} 
+                  onClick={handleSave} 
+                  className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50"
+                >
+                  {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
 
       {showBranchModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-           <motion.div 
-             initial={{ opacity:0, scale: 0.9 }}
-             animate={{ opacity:1, scale: 1 }}
-             className="bg-white max-w-lg w-full rounded-[2.5rem] shadow-2xl p-10 relative overflow-hidden"
-           >
-              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-8 leading-none">
-                {editingBranch ? (lang === 'tr' ? 'Şube Detayları' : 'Edit Branch') : (lang === 'tr' ? 'Şube Kaydı' : 'Branch Registration')}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-slate-900/40 backdrop-blur-xs">
+          <motion.div 
+            initial={{ opacity:0, scale: 0.95 }}
+            animate={{ opacity:1, scale: 1 }}
+            className="bg-white max-w-md w-full rounded-2xl shadow-xl p-4 border border-slate-200 relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                {editingBranch ? (isTr ? 'Şube Düzenle' : 'Edit Branch') : (isTr ? 'Yeni Şube Kaydı' : 'Branch Registration')}
               </h3>
-              <div className="space-y-5">
-                 <div>
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Şube Adı' : 'Branch Name'}</label>
-                   <input 
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
-                    placeholder="Merkez Ofis"
-                    value={branchFormData.name}
-                    onChange={(e) => setBranchFormData({...branchFormData, name: e.target.value})}
-                   />
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Telefon' : 'Phone'}</label>
-                     <input 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
-                      placeholder="+90"
-                      value={branchFormData.phone}
-                      onChange={(e) => setBranchFormData({...branchFormData, phone: e.target.value})}
-                     />
-                   </div>
-                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Slug</label>
-                     <input 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
-                      placeholder="lefkoşa"
-                      value={branchFormData.slug}
-                      onChange={(e) => setBranchFormData({...branchFormData, slug: e.target.value})}
-                     />
-                   </div>
-                 </div>
-                 <div>
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Adres' : 'Address'}</label>
-                   <textarea 
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all min-h-[120px]" 
-                    placeholder="..."
-                    value={branchFormData.address}
-                    onChange={(e) => setBranchFormData({...branchFormData, address: e.target.value})}
-                   />
-                 </div>
-                 <div className="pt-6 flex gap-4">
-                   <button disabled={isSaving} onClick={() => { setShowBranchModal(false); setEditingBranch(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-colors disabled:opacity-50">İptal</button>
-                   <button disabled={isSaving} onClick={handleSaveBranch} className="flex-1 py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</button>
-                 </div>
+              <button onClick={() => { setShowBranchModal(false); setEditingBranch(null); }} className="text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer">✕</button>
+            </div>
+
+            <div className="space-y-2.5 text-xs font-bold">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Şube Adı' : 'Branch Name'}</label>
+                <input 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
+                  placeholder="Merkez Ofis"
+                  value={branchFormData.name}
+                  onChange={(e) => setBranchFormData({...branchFormData, name: e.target.value})}
+                />
               </div>
-           </motion.div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Telefon' : 'Phone'}</label>
+                  <input 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
+                    placeholder="+90..."
+                    value={branchFormData.phone}
+                    onChange={(e) => setBranchFormData({...branchFormData, phone: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Kod / Slug</label>
+                  <input 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
+                    placeholder="lefkosa"
+                    value={branchFormData.slug}
+                    onChange={(e) => setBranchFormData({...branchFormData, slug: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Adres' : 'Address'}</label>
+                <textarea 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500 min-h-[60px]" 
+                  placeholder="Şube adresi..."
+                  value={branchFormData.address}
+                  onChange={(e) => setBranchFormData({...branchFormData, address: e.target.value})}
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex gap-2">
+                <button disabled={isSaving} onClick={() => { setShowBranchModal(false); setEditingBranch(null); }} className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors cursor-pointer">İptal</button>
+                <button disabled={isSaving} onClick={handleSaveBranch} className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50">{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</button>
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
-    
+
       {showDealModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-           <motion.div 
-             initial={{ opacity:0, scale: 0.9 }}
-             animate={{ opacity:1, scale: 1 }}
-             className="bg-white max-w-lg w-full rounded-[2.5rem] shadow-2xl p-10 relative overflow-hidden"
-           >
-              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-8 leading-none">
-                {editingDeal ? (lang === 'tr' ? 'Talebi Düzenle' : 'Edit Deal') : (lang === 'tr' ? 'Yeni Talep / Fırsat' : 'New Lead')}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-slate-900/40 backdrop-blur-xs">
+          <motion.div 
+            initial={{ opacity:0, scale: 0.95 }}
+            animate={{ opacity:1, scale: 1 }}
+            className="bg-white max-w-md w-full rounded-2xl shadow-xl p-4 border border-slate-200 relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                {editingDeal ? (isTr ? 'Talebi Düzenle' : 'Edit Lead') : (isTr ? 'Yeni Müşteri Talebi' : 'New Lead')}
               </h3>
-              <div className="space-y-5">
-                 <div>
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Başlık / Müşteri' : 'Title / Client'}</label>
-                   <input 
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
-                    placeholder="Örn: 3+1 Daire Arayışı"
-                    value={dealFormData.title}
-                    onChange={(e) => setDealFormData({...dealFormData, title: e.target.value})}
-                   />
-                 </div>
-                 <div>
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Açıklama' : 'Description'}</label>
-                   <textarea 
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all min-h-[100px]" 
-                    placeholder="Detaylar..."
-                    value={dealFormData.description}
-                    onChange={(e) => setDealFormData({...dealFormData, description: e.target.value})}
-                   />
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Sorumlu' : 'Agent'}</label>
-                     <select 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 appearance-none"
-                      value={dealFormData.agent_name}
-                      onChange={(e) => setDealFormData({...dealFormData, agent_name: e.target.value})}
-                     >
-                        <option value="">{lang === 'tr' ? 'Seçiniz' : 'Select'}</option>
-                        {agents.map(a => (
-                          <option key={a.id} value={a.name}>{a.name}</option>
-                        ))}
-                        <option value="Merkez">Merkez</option>
-                     </select>
-                   </div>
-                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Bütçe / Durum' : 'Budget / Status'}</label>
-                     <input 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" 
-                      placeholder="Örn: 500k €"
-                      value={dealFormData.budget}
-                      onChange={(e) => setDealFormData({...dealFormData, budget: e.target.value})}
-                     />
-                   </div>
-                 </div>
-                 <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{lang === 'tr' ? 'Aşama' : 'Stage'}</label>
-                    <select 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold mt-2 outline-none focus:ring-4 focus:ring-indigo-100 appearance-none"
-                      value={dealFormData.stage}
-                      onChange={(e) => setDealFormData({...dealFormData, stage: e.target.value})}
-                     >
-                        {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                     </select>
-                 </div>
-                 <div className="pt-6 flex gap-4">
-                   <button onClick={() => { setShowDealModal(false); setEditingDeal(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">İptal</button>
-                   <button onClick={handleSaveDeal} className="flex-1 py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200">Kaydet</button>
-                 </div>
+              <button onClick={() => { setShowDealModal(false); setEditingDeal(null); }} className="text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer">✕</button>
+            </div>
+
+            <div className="space-y-2.5 text-xs font-bold">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Başlık / Müşteri' : 'Title / Client'}</label>
+                <input 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
+                  placeholder="Örn: 3+1 Daire Arayışı (Ahmet Bey)"
+                  value={dealFormData.title}
+                  onChange={(e) => setDealFormData({...dealFormData, title: e.target.value})}
+                />
               </div>
-           </motion.div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Açıklama & İhtiyaç' : 'Description'}</label>
+                <textarea 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500 min-h-[60px]" 
+                  placeholder="Bölge, oda sayısı, alım tarihi detayları..."
+                  value={dealFormData.description}
+                  onChange={(e) => setDealFormData({...dealFormData, description: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Sorumlu' : 'Agent'}</label>
+                  <select 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500 cursor-pointer"
+                    value={dealFormData.agent_name}
+                    onChange={(e) => setDealFormData({...dealFormData, agent_name: e.target.value})}
+                  >
+                    <option value="">{isTr ? 'Seçiniz' : 'Select'}</option>
+                    {agents.map(a => (
+                      <option key={a.id} value={a.name}>{a.name}</option>
+                    ))}
+                    <option value="Merkez">Merkez</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Bütçe / Durum' : 'Budget'}</label>
+                  <input 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500" 
+                    placeholder="Örn: £150,000 Bütçe"
+                    value={dealFormData.budget}
+                    onChange={(e) => setDealFormData({...dealFormData, budget: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTr ? 'Süreç Aşaması' : 'Stage'}</label>
+                <select 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs mt-0.5 outline-none focus:border-indigo-500 cursor-pointer"
+                  value={dealFormData.stage}
+                  onChange={(e) => setDealFormData({...dealFormData, stage: e.target.value})}
+                >
+                  {['Yeni Talep / Aday', 'Görüşme / Analiz', 'Yer Gösterme / Sunum', 'Teklif / Sözleşme', 'Kazanıldı'].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex gap-2">
+                <button onClick={() => { setShowDealModal(false); setEditingDeal(null); }} className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors cursor-pointer">İptal</button>
+                <button onClick={handleSaveDeal} className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-2xs active:scale-95 cursor-pointer">Kaydet</button>
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
 
@@ -883,7 +1142,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
           }}
         />
       )}
-</div>
+    </div>
   );
 };
 

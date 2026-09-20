@@ -26,7 +26,8 @@ import {
   Eye,
   X,
   FileText,
-  Download
+  Download,
+  ArrowLeft
 } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
@@ -743,261 +744,268 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   return (
     <div className="p-4 md:p-6 space-y-6">
       
-      {/* ENRAKİPSİZ ÇOK ŞUBELİ CRM STATS BENTO PANEL */}
-      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-            <Building2 className="w-5 h-5 stroke-[2.5]" />
-          </div>
-          <div>
-            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Ağ Portföyü</span>
-            <span className="text-xl font-black text-slate-900 mt-1 block">
-              {formatNumberVal(safeProperties.length)} <span className="text-[10px] text-slate-500 font-bold">Mülk</span>
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
-            <Share2 className="w-5 h-5 stroke-[2.5]" />
-          </div>
-          <div>
-            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Ortak Havuz</span>
-            <span className="text-xl font-black text-emerald-600 mt-1 block">
-              {formatNumberVal(safeProperties.filter(p => (p.sharing_scope || 'shared_pool') === 'shared_pool').length)} <span className="text-[10px] text-emerald-500 font-bold">Açık</span>
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
-          <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
-            <Lock className="w-5 h-5 stroke-[2.5]" />
-          </div>
-          <div>
-            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Rezervasyon Kilidi</span>
-            <span className="text-xl font-black text-rose-600 mt-1 block">
-              {formatNumberVal(safeProperties.filter(p => !!p.reserved_by_branch).length)} <span className="text-[10px] text-rose-500 font-bold">Kilitli</span>
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-[1.8rem] border border-slate-200/80 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
-          <div className="p-3 bg-cyan-50 text-cyan-600 rounded-2xl">
-            <Globe className="w-5 h-5 stroke-[2.5]" />
-          </div>
-          <div>
-            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Kıbrıs (KKTC)</span>
-            <span className="text-xl font-black text-slate-900 mt-1 block">
-              {formatNumberVal(safeProperties.filter(p => p.country === 'KKTC').length)} <span className="text-[10px] text-slate-500 font-bold">İlan</span>
-            </span>
-          </div>
-        </div>
-      </div>
-      )}
-
-      {/* ŞUBELER ARASI ENRAKİPSİZ FİLTRE KAPLÜLLERİ */}
-      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
-        <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-200/40 space-y-3">
-        <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Şubeler Arası Portföy Süzgeci</span>
-          <div className="flex flex-wrap gap-1.5">
+      {/* TOP NAVIGATION BAR FOR PIPELINE & CALENDAR MODES */}
+      {(viewMode === 'pipeline' || viewMode === 'calendar') && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white border border-slate-200/80 rounded-2xl p-2.5 md:p-3 shadow-2xs">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
             <button
-              onClick={() => setFilterBranch("all")}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                filterBranch === "all" 
-                  ? "bg-slate-900 text-white shadow-sm scale-102"
-                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+              onClick={() => setViewMode('list')}
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 stroke-[3]" />
+              <span>← Gayrimenkul Listesine Dön</span>
+            </button>
+            <span className="text-xs font-black uppercase text-slate-700 tracking-tight shrink-0">
+              {viewMode === 'calendar' ? '📅 Gezi & Randevu Takvimi' : '📊 Gayrimenkul CRM & Pipeline Süreç Yönetimi'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => setViewMode('list')}
+              className="px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200"
+            >
+              📋 Liste
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                viewMode === 'calendar' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              Tüm Şubeler
+              📅 Takvim
             </button>
-            {branches.map(b => (
-              <button
-                key={b.id}
-                onClick={() => setFilterBranch(b.name)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  filterBranch === b.name 
-                    ? "bg-slate-900 text-white shadow-sm scale-102"
-                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
-                }`}
-              >
-                {b.name}
-              </button>
-            ))}
+            <button
+              onClick={() => setViewMode('pipeline')}
+              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                viewMode === 'pipeline' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              📊 Pipeline
+            </button>
           </div>
         </div>
-      </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <div>
-          <h3 className="text-xl font-extrabold text-slate-900">Portföy Listesi</h3>
-          <p className="text-xs text-slate-500">Mevcut şubeniz ve tüm pilot bölgelerdeki portföy</p>
-        </div>
-        <div className="flex items-center gap-2 self-start md:self-auto">
-          {driveConnected && (
+      {/* MINIMALIST & FUTURISTIC ULTRA-COMPACT CONTROL BAR */}
+      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-2.5 md:p-3 shadow-2xs space-y-2">
+          {/* Row 1: Title, Mini Stat Pills, and Action Buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span className="text-xs md:text-sm font-black uppercase text-slate-900 tracking-tight shrink-0">
+                Portföy
+              </span>
+
+              {/* Inline Futuristic Micro Stats */}
+              <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold">
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-md flex items-center gap-1" title="Ağ Portföyü">
+                  <Building2 className="w-3 h-3 text-indigo-600" />
+                  <span>{formatNumberVal(safeProperties.length)} Ağ</span>
+                </span>
+
+                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-md flex items-center gap-1" title="Ortak Havuz">
+                  <Share2 className="w-3 h-3 text-emerald-600" />
+                  <span>{formatNumberVal(safeProperties.filter(p => (p.sharing_scope || 'shared_pool') === 'shared_pool').length)} Havuz</span>
+                </span>
+
+                <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200/80 rounded-md flex items-center gap-1" title="Kilitli / Rezerveli">
+                  <Lock className="w-3 h-3 text-rose-600" />
+                  <span>{formatNumberVal(safeProperties.filter(p => !!p.reserved_by_branch).length)} Kilitli</span>
+                </span>
+
+                <span className="px-2 py-0.5 bg-cyan-50 text-cyan-700 border border-cyan-200/80 rounded-md flex items-center gap-1" title="Kıbrıs (KKTC)">
+                  <Globe className="w-3 h-3 text-cyan-600" />
+                  <span>{formatNumberVal(safeProperties.filter(p => p.country === 'KKTC').length)} KKTC</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Compact Action Buttons */}
+            <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-center">
+              {driveConnected && (
+                <button
+                  onClick={async () => {
+                    setIsBackupLoading(true);
+                    const promise = api.exportToGoogleDrive({ targetType: 'real_estate', format: 'xls' });
+                    toast.promise(promise, {
+                      loading: 'Google Drive yedekleniyor...',
+                      success: 'Emlak Portföyü Google Drive\'a yedeklendi!',
+                      error: 'Google Drive yedeklemesi başarısız.'
+                    });
+                    try {
+                      await promise;
+                    } catch (e) {
+                      console.error(e);
+                    } finally {
+                      setIsBackupLoading(false);
+                    }
+                  }}
+                  disabled={isBackupLoading}
+                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  title="Google Drive'a Excel Yedekle"
+                >
+                  <Cloud className="w-3 h-3 text-emerald-600" />
+                  <span>Drive</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setViewMode((v) => v === 'calendar' ? 'list' : 'calendar')}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                title="Takvim Görünümü"
+              >
+                <CalendarDays className="w-3 h-3 text-indigo-600" />
+                <span>Takvim</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode((v) => v === 'pipeline' ? 'list' : 'pipeline')}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                title="CRM Pipeline"
+              >
+                <Layout className="w-3 h-3 text-indigo-600" />
+                <span>Pipeline</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedProperty(null);
+                  setIsModalOpen(true);
+                }}
+                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span>+ Portföy</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: Search Input & Filter Selects */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="relative md:col-span-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="İlan / başlık ara..."
+                className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <select
+                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
+                value={filterScope}
+                onChange={(e) => setFilterScope(e.target.value)}
+              >
+                <option value="all">🌐 Ağ ve Havuz</option>
+                <option value="shared_pool">🌐 Ortak Havuz</option>
+                <option value="branch_private">🏢 Sadece Kendi Şubem</option>
+                <option value="private">🔑 Şahsi İlanlarım</option>
+                <option value="locked">🔒 Kilitli / Rezerveli</option>
+              </select>
+            </div>
+
+            <div>
+              <select
+                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
+                value={filterRegion}
+                onChange={(e) => setFilterRegion(e.target.value)}
+              >
+                <option value="all">📍 Tüm Bölgeler (KKTC)</option>
+                {uniqueRegions.map(reg => (
+                  <option key={reg} value={reg}>{reg}</option>
+                ))}
+              </select>
+            </div>
+
+            {branches && branches.length > 0 ? (
+              <div>
+                <select
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
+                  value={filterBranch}
+                  onChange={(e) => setFilterBranch(e.target.value)}
+                >
+                  <option value="all">🏢 Tüm Şubeler</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Row 3: Compact Segmented Status Filter Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl overflow-x-auto no-scrollbar">
             <button
-              onClick={async () => {
-                setIsBackupLoading(true);
-                const promise = api.exportToGoogleDrive({ targetType: 'real_estate', format: 'xls' });
-                toast.promise(promise, {
-                  loading: 'Portföy şeması Google Drive\'a yedekleniyor...',
-                  success: 'Emlak Portföy şeması Excel formatında Google Drive\'a başarıyla kaydoldu!',
-                  error: 'Google Drive yedeklemesi başarısız oldu.'
-                });
-                try {
-                  await promise;
-                } catch (e) {
-                  console.error(e);
-                } finally {
-                  setIsBackupLoading(false);
-                }
-              }}
-              disabled={isBackupLoading}
-              className="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 border border-emerald-200 hover:border-emerald-300 px-4 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-sm shadow-emerald-50 active:scale-95"
-              title="Google Drive'a Doğrudan Excel Yedekle"
+              onClick={() => setStatusTabFilter('all')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                statusTabFilter === 'all'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
             >
-              <Cloud className="h-4 w-4 text-emerald-600 animate-pulse font-bold" />
-              Drive'a Yedekle
+              HEPSİ ({totalCount})
             </button>
-          )}
-          <button
-            onClick={() => setViewMode(viewMode === 'calendar' ? 'list' : 'calendar')}
-            className={`flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-sm active:scale-95 hover:bg-slate-50 ${viewMode === 'calendar' ? 'ring-2 ring-indigo-500' : ''}`}
-            title="Gezi & Randevu Takvimi"
-          >
-            <CalendarDays className="h-4 w-4 text-indigo-600" />
-            Takvim
-          </button>
-          <button
-            onClick={() => setViewMode(viewMode === 'pipeline' ? 'list' : 'pipeline')}
-            className={`flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl transition-all font-black text-xs uppercase shadow-sm active:scale-95 hover:bg-slate-50 ${viewMode === 'pipeline' ? 'ring-2 ring-indigo-500' : ''}`}
-            title="CRM Pipeline"
-          >
-            <Layout className="h-4 w-4 text-indigo-600" />
-            CRM Pipeline
-          </button>
-          <button
-            onClick={() => {
-              setSelectedProperty(null);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition-all font-black text-xs uppercase shadow-md hover:shadow-indigo-600/10 active:scale-95 self-start md:self-auto"
-          >
-            <Plus className="h-4 w-4 stroke-[3]" />
-            Yeni Portföy Ekle
-          </button>
-        </div>
-      </div>
 
-      {/* Filters and Search Grid */}
-      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="relative md:col-span-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
-          <input 
-            type="text" 
-            placeholder="Başlık, bölge veya açıklama ara..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border-0 rounded-xl text-xs font-bold focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all text-slate-700"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div>
-          <select
-            className="w-full px-3 py-2 bg-slate-50 border-0 rounded-xl text-xs font-bold text-slate-700 focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
-            value={filterScope}
-            onChange={(e) => setFilterScope(e.target.value)}
-          >
-            <option value="all">🌐 Ağ ve Paylaşım Durumu</option>
-            <option value="shared_pool">🌐 Ortak Havuz İlanları</option>
-            <option value="branch_private">🏢 Sadece Kendi Şubem</option>
-            <option value="private">🔑 Sadece Benim Şahsi İlanlarım</option>
-            <option value="locked">🔒 Kilitli / Rezerveli İlanlar</option>
-          </select>
-        </div>
-        <div>
-          <select
-            className="w-full px-3 py-2 bg-slate-50 border-0 rounded-xl text-xs font-bold text-slate-700 focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
-            value={filterRegion}
-            onChange={(e) => setFilterRegion(e.target.value)}
-          >
-            <option value="all">📍 Tüm Bölgeler (Kuzey Kıbrıs)</option>
-            {uniqueRegions.map(reg => (
-              <option key={reg} value={reg}>{reg}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      )}
+            <button
+              onClick={() => setStatusTabFilter('sale')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                statusTabFilter === 'sale'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              🏠 SATILIK ({saleCount})
+            </button>
 
-      {/* Segmented status filter tab header */}
-      {viewMode !== 'pipeline' && viewMode !== 'calendar' && (
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
-        <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-205/60">
-          <button 
-            onClick={() => setStatusTabFilter('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-              statusTabFilter === 'all'
-                ? 'bg-white text-slate-900 shadow-sm font-bold scale-[1.01]'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            HEPSİ ({totalCount})
-          </button>
-          <button 
-            onClick={() => setStatusTabFilter('sale')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-              statusTabFilter === 'sale'
-                ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            🏠 SATILIK ({saleCount})
-          </button>
-          <button 
-            onClick={() => setStatusTabFilter('rent')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-              statusTabFilter === 'rent'
-                ? 'bg-sky-600 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            🔑 KİRALIK ({rentCount})
-          </button>
-          <button 
-            onClick={() => setStatusTabFilter('optioned')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-              statusTabFilter === 'optioned'
-                ? 'bg-amber-600 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            ✍ OPSİYONLANDI ({optionedCount})
-          </button>
-          <button 
-            onClick={() => setStatusTabFilter('sold')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-              statusTabFilter === 'sold'
-                ? 'bg-rose-600 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            ✅ SATILDI ({soldCount})
-          </button>
-          <button 
-            onClick={() => setStatusTabFilter('rented')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-              statusTabFilter === 'rented'
-                ? 'bg-sky-700 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            🔑 KİRALANDI ({rentedCount})
-          </button>
+            <button
+              onClick={() => setStatusTabFilter('rent')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                statusTabFilter === 'rent'
+                  ? 'bg-sky-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              🔑 KİRALIK ({rentCount})
+            </button>
+
+            <button
+              onClick={() => setStatusTabFilter('optioned')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                statusTabFilter === 'optioned'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              ✍ OPSİYONLU ({optionedCount})
+            </button>
+
+            <button
+              onClick={() => setStatusTabFilter('sold')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                statusTabFilter === 'sold'
+                  ? 'bg-rose-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              ✅ SATILDI ({soldCount})
+            </button>
+
+            <button
+              onClick={() => setStatusTabFilter('rented')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                statusTabFilter === 'rented'
+                  ? 'bg-sky-700 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              🔑 KİRALANDI ({rentedCount})
+            </button>
+          </div>
         </div>
-      </div>
       )}
       
       {viewMode === 'calendar' ? (
@@ -1260,6 +1268,13 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
                           title="Temsilci Keşif / Gösterim Turu Planla"
                         >
                           <Calendar className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => setViewMode('pipeline')}
+                          className="flex items-center justify-center p-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-all shadow active:scale-95 border border-indigo-200 shrink-0"
+                          title="CRM Pipeline & Süreç Yönetimine Git"
+                        >
+                          <Layout className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => {

@@ -775,11 +775,11 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
   };
 
   return (
-    <div className="min-h-screen bg-stone-50/50 text-stone-800 font-sans selection:bg-amber-100 selection:text-amber-900">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-slate-800 selection:text-slate-100">
       
-      {/* Warm Premium Navigation Bar */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-stone-200/80 shadow-xs">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3 sm:gap-6">
+      {/* Minimalist Futuristic Navigation Bar */}
+      <header className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 shadow-xs">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3 sm:gap-6">
           
           {/* Logo & Store Branding */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
@@ -787,87 +787,76 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
               <img
                 src={store.logo_url || store.branding?.logo_url}
                 alt={store.name}
-                className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl object-cover border border-stone-200/80 shadow-xs shrink-0"
+                className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg object-cover border border-slate-800 shadow-xs shrink-0"
               />
             ) : (
-              <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-amber-600 to-amber-800 rounded-xl flex items-center justify-center text-white font-black text-sm sm:text-lg shadow-xs shrink-0">
+              <div className="h-9 w-9 sm:h-10 sm:w-10 bg-slate-900 rounded-lg flex items-center justify-center text-slate-100 font-black text-xs sm:text-sm border border-slate-800 shrink-0">
                 {store.name?.substring(0, 2).toUpperCase()}
               </div>
             )}
             <div className="flex flex-col justify-center min-w-0">
-              <span className="block text-sm sm:text-base font-black tracking-tight text-stone-900 leading-tight whitespace-nowrap">
+              <span className="block text-xs sm:text-sm font-black tracking-tight text-white leading-tight whitespace-nowrap">
                 {store.name}
               </span>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0"></span>
-                <span className="text-[10px] sm:text-[11px] font-bold tracking-wider text-amber-800 uppercase font-sans whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono whitespace-nowrap">
                   {store.branding?.slogan || (isHotelModuleActive ? (isTr ? "Resort Hotel & Fine Dining" : "Resort Hotel & Fine Dining") : (isTr ? "Gurme Lezzetler & Kafe" : "Gourmet Flavors"))}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* DUAL-AURA MODE SWITCHER (RESTANRANT <---> OTEL) - ICON-ONLY ON MOBILE TO PREVENT OVERLAP */}
+          {/* DUAL-AURA MODE SWITCHER (RESTAURANT <---> OTEL) */}
           {isHotelModuleActive && (
-            <div className="bg-stone-100 p-1 rounded-2xl border border-stone-200/90 flex items-center gap-1 shrink-0">
+            <div className="bg-slate-900/90 p-1 rounded-xl border border-slate-800 flex items-center gap-1 shrink-0">
               <button
                 onClick={() => setActiveMode('hotel')}
                 title={isTr ? "Otel & Rezerve Et" : "Hotel & Rooms"}
-                className={`px-2.5 sm:px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2 py-1 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
                   activeMode === 'hotel'
-                    ? "bg-stone-900 text-white shadow-sm"
-                    : "text-stone-600 hover:text-stone-900"
+                    ? "bg-slate-100 text-slate-950 shadow-xs"
+                    : "text-slate-400 hover:text-slate-100"
                 }`}
               >
-                <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
+                <Building2 className="w-3.5 h-3.5 shrink-0" />
                 <span className="hidden md:inline">{isTr ? "Otel & Rezerve Et" : "Hotel & Rooms"}</span>
               </button>
 
               <button
                 onClick={() => setActiveMode('menu')}
                 title={isTr ? "Restoran & Menü" : "Restaurant Menu"}
-                className={`px-2.5 sm:px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2 py-1 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
                   activeMode === 'menu'
-                    ? "bg-amber-600 text-white shadow-sm"
-                    : "text-stone-600 hover:text-stone-900"
+                    ? "bg-slate-100 text-slate-950 shadow-xs"
+                    : "text-slate-400 hover:text-slate-100"
                 }`}
               >
-                <Utensils className="w-4 h-4 shrink-0" />
+                <Utensils className="w-3.5 h-3.5 shrink-0" />
                 <span className="hidden md:inline">{isTr ? "Restoran & Menü" : "Restaurant Menu"}</span>
               </button>
             </div>
           )}
 
-          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs font-bold text-stone-600 shrink-0">
+          {/* MICRO WRITTEN MENU LINKS */}
+          <nav className="hidden lg:flex items-center gap-3 xl:gap-5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 shrink-0">
             {isHotelModuleActive && (
-              <a href="#rooms" onClick={() => setActiveMode('hotel')} className="hover:text-amber-700 transition-colors">
+              <a href="#rooms" onClick={() => setActiveMode('hotel')} className="hover:text-white transition-colors">
                 {isTr ? "Otel Odaları" : "Rooms & Suites"}
               </a>
             )}
-            <a href="#menu" onClick={() => setActiveMode('menu')} className="hover:text-amber-700 transition-colors">
+            <a href="#menu" onClick={() => setActiveMode('menu')} className="hover:text-white transition-colors">
               {isTr ? "Lezzet Menümüz" : "Our Menu"}
             </a>
-            <a href="#story" className="hover:text-amber-700 transition-colors">{isTr ? "Hikayemiz" : "Our Story"}</a>
-            <a href="#hours" className="hover:text-amber-700 transition-colors">{isTr ? "Çalışma Saatleri" : "Hours"}</a>
-            <a href="#contact" className="hover:text-amber-700 transition-colors">{isTr ? "İletişim" : "Contact"}</a>
+            <a href="#story" className="hover:text-white transition-colors">{isTr ? "Hikayemiz" : "Our Story"}</a>
+            <a href="#hours" className="hover:text-white transition-colors">{isTr ? "Çalışma Saatleri" : "Hours"}</a>
+            <a href="#contact" className="hover:text-white transition-colors">{isTr ? "İletişim" : "Contact"}</a>
           </nav>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <a
-              href={digitalMenuUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-amber-600 hover:bg-amber-700 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs tracking-wide shadow-md shadow-amber-600/10 transition-all flex items-center gap-1.5"
-            >
-              <Utensils className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{isTr ? "Dijital Menü" : "Digital Menu"}</span>
-            </a>
-          </div>
         </div>
       </header>
 
-      {/* Atmospheric Cozy Hero Section */}
-      <section className="relative overflow-hidden bg-stone-900 text-white min-h-[65vh] md:min-h-[75vh] flex items-center px-4 sm:px-6 lg:px-8 py-12">
+      {/* Atmospheric Futuristic Hero Section */}
+      <section className="relative overflow-hidden bg-slate-950 text-white min-h-[50vh] md:min-h-[60vh] flex items-center px-4 sm:px-6 lg:px-8 py-10 border-b border-slate-900">
         <div className="absolute inset-0 z-0">
           <img
             src={activeMode === 'hotel' 
@@ -875,19 +864,19 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
               : (store.hero_image_url || "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=1600")
             }
             alt="Hero Background"
-            className="w-full h-full object-cover opacity-35 filter brightness-75 scale-105 transition-all duration-1000"
+            className="w-full h-full object-cover opacity-20 filter brightness-75 transition-all duration-1000"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-900/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/40" />
         </div>
 
-        <div className="relative z-10 max-w-5xl mx-auto text-center space-y-6 md:space-y-8 w-full">
+        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-4 md:space-y-6 w-full">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 text-xs font-bold uppercase tracking-wider"
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 px-3 py-1 bg-slate-900/90 border border-slate-800 rounded-full text-slate-300 text-[10px] font-extrabold uppercase tracking-widest"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-3 h-3 text-emerald-400" />
             {activeMode === 'hotel' 
               ? (isTr ? "LookPrice VIP Konaklama Güvencesi" : "LookPrice VIP Hotel Experience")
               : (isTr ? "Eşsiz Gurme Lezzet Deneyimi" : "An Exquisite Culinary Experience")
@@ -895,10 +884,10 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-3xl sm:text-5xl md:text-6xl font-serif font-bold text-amber-50 tracking-tight leading-tight max-w-4xl mx-auto"
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight max-w-3xl mx-auto font-sans"
           >
             {activeMode === 'hotel'
               ? (isTr ? "Konforlu Odalar, Unutulmaz Bir Tatil" : "Luxury Rooms & Fine Dining")
@@ -907,10 +896,10 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-sm sm:text-lg text-stone-200 font-medium max-w-2xl mx-auto leading-relaxed"
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-xs sm:text-sm text-slate-300 font-medium max-w-xl mx-auto leading-relaxed"
           >
             {activeMode === 'hotel'
               ? (isTr ? "Oda kahvaltı, yarım pansiyon ve her şey dahil konaklama seçenekleriyle tatilinizin keyfini çıkarın." : "Enjoy room breakfast, half board and all inclusive options for your unforgettable stay.")
@@ -918,58 +907,58 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             }
           </motion.p>
 
-          {/* LIVE HOTEL ROOM SEARCH BAR WIDGET WITH DYNAMIC CHILDREN & AGE DISCOUNTS */}
+          {/* LIVE HOTEL ROOM SEARCH BAR WIDGET */}
           {activeMode === 'hotel' && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="bg-white/95 dark:bg-stone-900/95 backdrop-blur-md p-4 sm:p-6 rounded-3xl shadow-2xl border border-white/20 text-stone-800 text-left max-w-4xl mx-auto space-y-4"
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-slate-800 text-slate-100 text-left max-w-3xl mx-auto space-y-3"
             >
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500 flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-amber-600" /> Giriş Tarihi
+                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-slate-300" /> Giriş Tarihi
                   </label>
                   <input
                     type="date"
                     min={todayStr}
                     value={searchCheckIn}
                     onChange={(e) => handleCheckInChange(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900 shadow-xs focus:ring-2 focus:ring-amber-500"
+                    className="w-full mt-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-white shadow-xs focus:ring-1 focus:ring-slate-700"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500 flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-amber-600" /> Çıkış Tarihi
+                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-slate-300" /> Çıkış Tarihi
                   </label>
                   <input
                     type="date"
                     min={getNextDayString(searchCheckIn)}
                     value={searchCheckOut}
                     onChange={(e) => setSearchCheckOut(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900 shadow-xs focus:ring-2 focus:ring-amber-500"
+                    className="w-full mt-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-white shadow-xs focus:ring-1 focus:ring-slate-700"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500 flex items-center gap-1">
-                    <Users className="w-3 h-3 text-amber-600" /> Yetişkin Sayısı
+                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Users className="w-3 h-3 text-slate-300" /> Yetişkin
                   </label>
-                  <div className="flex items-center gap-1.5 mt-1 bg-stone-100 border border-stone-200 rounded-xl p-1">
+                  <div className="flex items-center gap-1 mt-1 bg-slate-950 border border-slate-800 rounded-lg p-1">
                     <button
                       type="button"
                       onClick={() => setSearchAdults(prev => Math.max(1, prev - 1))}
-                      className="w-7 h-7 rounded-lg bg-white shadow-xs font-black text-xs text-stone-700 flex items-center justify-center hover:bg-stone-200 cursor-pointer"
+                      className="w-6 h-6 rounded bg-slate-900 font-black text-xs text-slate-300 flex items-center justify-center hover:bg-slate-800 cursor-pointer"
                     >
                       -
                     </button>
-                    <span className="flex-1 text-center font-black text-xs text-stone-900">{searchAdults} Yetişkin</span>
+                    <span className="flex-1 text-center font-black text-xs text-white">{searchAdults} Yetişkin</span>
                     <button
                       type="button"
                       onClick={() => setSearchAdults(prev => Math.min(8, prev + 1))}
-                      className="w-7 h-7 rounded-lg bg-white shadow-xs font-black text-xs text-stone-700 flex items-center justify-center hover:bg-stone-200 cursor-pointer"
+                      className="w-6 h-6 rounded bg-slate-900 font-black text-xs text-slate-300 flex items-center justify-center hover:bg-slate-800 cursor-pointer"
                     >
                       +
                     </button>
@@ -977,13 +966,13 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-stone-500 flex items-center gap-1">
-                    <Building2 className="w-3 h-3 text-amber-600" /> Pansiyon Tipi
+                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Building2 className="w-3 h-3 text-slate-300" /> Pansiyon
                   </label>
                   <select
                     value={searchBoardType}
                     onChange={(e) => setSearchBoardType(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-xs font-bold text-stone-900 shadow-xs focus:ring-2 focus:ring-amber-500"
+                    className="w-full mt-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-white shadow-xs focus:ring-1 focus:ring-slate-700"
                   >
                     <option value="all">Tüm Pansiyonlar</option>
                     <option value="BB">Oda + Kahvaltı (BB)</option>
@@ -994,90 +983,76 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 </div>
               </div>
 
-              {/* CHILD GUEST SELECTION WITH BIRTH DATES AND AGE GROUP DISCOUNT BADGES */}
-              <div className="bg-amber-50/70 dark:bg-stone-800/80 p-3.5 rounded-2xl border border-amber-200/80 space-y-2.5">
+              {/* CHILD GUEST SELECTION */}
+              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Baby className="w-4 h-4 text-amber-700" />
-                    <span className="text-xs font-black text-stone-900 dark:text-stone-100">
-                      Çocuk Misafir Ekle ({searchChildrenList.length} Çocuk)
+                    <Baby className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-xs font-black text-white">
+                      Çocuk Misafir ({searchChildrenList.length})
                     </span>
-                    <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md">
+                    <span className="text-[9px] font-bold bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md border border-slate-700">
                       Yaş Grubu İndirimli
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={handleAddChild}
-                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                    className="bg-slate-800 hover:bg-slate-700 text-white font-black px-2.5 py-1 rounded-lg text-[10px] uppercase tracking-wider border border-slate-700 transition-all flex items-center gap-1 cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3 h-3" />
                     <span>Çocuk Ekle</span>
                   </button>
                 </div>
 
-                {/* LIST OF ADDED CHILDREN WITH BIRTH DATES */}
-                {searchChildrenList.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {searchChildrenList.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                     {searchChildrenList.map((child, idx) => {
                       const ageInfo = calculateGuestAgeInfo(child.birth_date, dynamicAgePolicy);
                       return (
-                        <div key={child.id} className="bg-white dark:bg-stone-900 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between gap-2 shadow-xs">
+                        <div key={child.id} className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 font-black text-[10px] flex items-center justify-center shrink-0">
+                            <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 font-black text-[9px] flex items-center justify-center shrink-0">
                               {idx + 1}
                             </span>
                             <div className="min-w-0">
-                              <span className="block text-[10px] font-black text-stone-500 uppercase">Doğum Tarihi Gir</span>
+                              <span className="block text-[9px] font-bold text-slate-400 uppercase">Doğum Tarihi</span>
                               <input
                                 type="date"
                                 value={child.birth_date}
                                 onChange={(e) => handleUpdateChildBirthDate(child.id, e.target.value)}
-                                className="px-2 py-1 bg-stone-50 border border-stone-200 rounded-lg text-xs font-bold text-stone-900"
+                                className="px-1.5 py-0.5 bg-slate-950 border border-slate-800 rounded text-xs font-bold text-white"
                               />
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <div className="text-right">
-                              <span className={`block text-[10px] font-black px-1.5 py-0.5 rounded ${
-                                ageInfo.discountRate === 100 ? 'bg-emerald-100 text-emerald-800' :
-                                ageInfo.discountRate === 50 ? 'bg-amber-100 text-amber-800' :
-                                ageInfo.discountRate === 30 ? 'bg-blue-100 text-blue-800' : 'bg-stone-100 text-stone-700'
-                              }`}>
-                                {ageInfo.discountText}
-                              </span>
-                              <span className="text-[10px] text-stone-500 font-semibold">{ageInfo.labelTr}</span>
-                            </div>
-
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[9px] font-bold bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
+                              {ageInfo.discountText}
+                            </span>
                             <button
                               type="button"
                               onClick={() => handleRemoveChild(child.id)}
-                              className="text-stone-400 hover:text-red-600 p-1 rounded-lg hover:bg-stone-100 cursor-pointer"
-                              title="Çocuğu Çıkar"
+                              className="text-slate-400 hover:text-rose-400 p-1 cursor-pointer"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                ) : (
-                  <p className="text-[11px] font-semibold text-stone-600 italic">
-                    {childPolicyDescriptionText}
-                  </p>
                 )}
               </div>
 
-              <div className="flex items-center justify-between border-t border-stone-200/60 pt-3 text-xs font-bold text-stone-600">
-                <span className="flex items-center gap-1.5 text-amber-800">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  {currentNights} Gece Konaklama ({searchAdults} Yetişkin{searchChildrenList.length > 0 ? `, ${searchChildrenList.length} Çocuk` : ''})
+              <div className="flex items-center justify-between border-t border-slate-800 pt-2.5 text-xs font-bold text-slate-400">
+                <span className="flex items-center gap-1 text-slate-300 text-[11px]">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  {currentNights} Gece Konaklama
                 </span>
                 <a
                   href="#rooms"
-                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition-all flex items-center gap-2"
+                  className="bg-slate-100 hover:bg-white text-slate-950 font-black px-4 py-2 rounded-lg text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   <Search className="w-3.5 h-3.5" />
                   <span>Odaları Göster</span>
@@ -1086,98 +1061,86 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             </motion.div>
           )}
 
-          {activeMode === 'menu' && (
+          {activeMode === 'menu' && store.whatsapp_number && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="flex items-center justify-center gap-3 pt-2"
             >
               <a
-                href={digitalMenuUrl}
+                href={`https://wa.me/${store.whatsapp_number.replace(/[^0-9+]/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-bold px-8 py-4 rounded-xl text-sm tracking-wide shadow-xl shadow-amber-600/20 transition-all flex items-center justify-center gap-2 group"
+                className="bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-100 font-extrabold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg"
               >
-                <Utensils className="w-4.5 h-4.5 group-hover:rotate-12 transition-transform" />
-                {isTr ? "Dijital Menüden Sipariş Ver" : "Order from Digital Menu"}
+                <MessageCircle className="w-4 h-4 text-emerald-400" />
+                <span>{isTr ? "Rezervasyon / İletişim" : "Make a Reservation"}</span>
               </a>
-              {store.whatsapp_number && (
-                <a
-                  href={`https://wa.me/${store.whatsapp_number.replace(/[^0-9+]/g, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:w-auto bg-stone-800/80 hover:bg-stone-700/80 backdrop-blur-sm border border-stone-700 text-stone-100 font-bold px-8 py-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
-                >
-                  <MessageCircle className="w-4.5 h-4.5 text-green-400" />
-                  {isTr ? "Rezervasyon / İletişim" : "Make a Reservation"}
-                </a>
-              )}
             </motion.div>
           )}
         </div>
       </section>
 
-      {/* LOOKPRICE HOTEL ROOM SHOWCASE SECTION (When activeMode === 'hotel' or scrolled) */}
+      {/* LOOKPRICE HOTEL ROOM SHOWCASE SECTION */}
       {isHotelModuleActive && activeMode === 'hotel' && (
-        <section id="rooms" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="text-center max-w-2xl mx-auto space-y-3 mb-10">
-            <div className="text-xs text-amber-700 font-black uppercase tracking-widest flex items-center justify-center gap-2">
-              <Building2 className="w-4 h-4 text-amber-600" />
+        <section id="rooms" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center max-w-xl mx-auto space-y-2 mb-8">
+            <div className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest flex items-center justify-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-slate-300" />
               <span>OTEL KONAKLAMA & SÜİTLER</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-serif font-black text-stone-900 tracking-tight">
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight font-sans">
               Müsait Odalar ve Pansiyon Seçenekleri
             </h2>
-            <p className="text-xs font-semibold text-stone-500">
+            <p className="text-[11px] font-medium text-slate-400">
               Gecelik fiyatlar, oda olanakları ve LookPrice VIP esnek iptal avantajları
             </p>
-            <div className="w-12 h-1 bg-amber-600 mx-auto rounded-full mt-2" />
           </div>
 
           {/* HOTEL CONCEPT & AMENITIES BAR */}
-          <div className="mb-10 p-6 bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 rounded-3xl text-white shadow-xl space-y-4 border border-stone-800">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-800 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/30">
-                  <Sparkles className="w-5 h-5" />
+          <div className="mb-8 p-4 sm:p-5 bg-slate-900 rounded-2xl text-slate-100 shadow-lg space-y-3 border border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-slate-200 border border-slate-700">
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider">
                     {store.name} Tesis Olanakları & Konsept Hizmetler
                   </h3>
-                  <p className="text-[11px] text-stone-400">
-                    Giriş: <strong className="text-amber-400">{store.branding?.check_in_time || "14:00"}</strong> • Çıkış: <strong className="text-amber-400">{store.branding?.check_out_time || "12:00"}</strong>
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    Giriş: <strong className="text-slate-200">{store.branding?.check_in_time || "14:00"}</strong> • Çıkış: <strong className="text-slate-200">{store.branding?.check_out_time || "12:00"}</strong>
                   </p>
                 </div>
               </div>
 
               {store.branding?.cancellation_policy && (
-                <div className="px-3.5 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs font-bold flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                <div className="px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 text-[10px] font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span className="truncate max-w-xs">{store.branding.cancellation_policy}</span>
                 </div>
               )}
             </div>
 
             {/* AMENITIES PILLS */}
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
               {(store.branding?.hotel_amenities && store.branding.hotel_amenities.length > 0
                 ? store.branding.hotel_amenities
                 : ["Açık Havuz", "SPA & Wellness", "Özel Plaj", "Ücretsiz Wi-Fi", "Vale & Otopark", "Restoran & Bar", "24/7 Resepsiyon"]
               ).map((amenityItem: string, idx: number) => (
                 <span
                   key={idx}
-                  className="px-3 py-1 bg-stone-800/80 border border-stone-700 text-stone-200 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                  className="px-2.5 py-0.5 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg text-[10px] font-bold flex items-center gap-1"
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                   <span>{amenityItem}</span>
                 </span>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {rooms.map((room) => {
               const baseBBPrice = room.price_per_night || 2500;
               const flexDiscountRate = room.non_refundable_discount || 15;
@@ -1187,137 +1150,91 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
               return (
                 <div
                   key={room.id}
-                  className="bg-white rounded-3xl border border-stone-200/80 hover:border-amber-600/40 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between group"
+                  className="bg-slate-900 rounded-2xl border border-slate-800 hover:border-slate-700 shadow-sm transition-all duration-300 overflow-hidden flex flex-col justify-between group"
                 >
                   <div>
-                    {/* PHOTO COVER WITH GALLERY BADGE */}
-                    <div className="relative h-56 w-full bg-stone-100 overflow-hidden cursor-pointer" onClick={() => { setViewDetailRoom(room); setActiveDetailImageIndex(0); }}>
+                    {/* PHOTO COVER */}
+                    <div className="relative h-48 w-full bg-slate-950 overflow-hidden cursor-pointer" onClick={() => { setViewDetailRoom(room); setActiveDetailImageIndex(0); }}>
                       <img
                         src={roomPhotoList[0]}
                         alt={room.room_type}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
                       />
-                      <div className="absolute top-3 left-3 bg-stone-900/90 backdrop-blur-xs text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg border border-stone-700">
+                      <div className="absolute top-2.5 left-2.5 bg-slate-950/90 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded border border-slate-800">
                         Oda #{room.room_number}
                       </div>
                       {room.status === 'vacant' ? (
-                        <div className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                        <div className="absolute top-2.5 right-2.5 bg-emerald-600/90 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" />
                           Müsait
                         </div>
-                      ) : room.status === 'occupied' ? (
-                        <div className="absolute top-3 right-3 bg-amber-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Dolu
-                        </div>
                       ) : (
-                        <div className="absolute top-3 right-3 bg-slate-700 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                        <div className="absolute top-2.5 right-2.5 bg-slate-800 text-slate-300 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {(room.status as string) === 'cleaning' ? 'Temizlikte' : 'Bakımda'}
+                          {room.status === 'occupied' ? 'Dolu' : 'Bakımda'}
                         </div>
                       )}
 
-                      {/* MULTI PHOTO GALLERY BADGE */}
-                      <div className="absolute bottom-3 left-3 bg-stone-900/80 hover:bg-stone-900 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1.5 rounded-xl border border-white/20 flex items-center gap-1.5 shadow-lg transition-transform group-hover:scale-105">
-                        <Camera className="w-3.5 h-3.5 text-amber-400" />
+                      <div className="absolute bottom-2.5 left-2.5 bg-slate-950/80 backdrop-blur-xs text-slate-200 text-[9px] font-black px-2 py-1 rounded-lg border border-slate-800 flex items-center gap-1">
+                        <Camera className="w-3 h-3 text-slate-300" />
                         <span>{roomPhotoList.length} Fotoğraf</span>
                       </div>
                     </div>
 
                     {/* CONTENT */}
-                    <div className="p-5 space-y-3.5">
+                    <div className="p-4 space-y-3">
                       <div>
-                        <h3 className="font-serif font-black text-stone-900 text-lg group-hover:text-amber-700 transition-colors flex items-center justify-between">
+                        <h3 className="font-black text-white text-base group-hover:text-slate-200 transition-colors flex items-center justify-between font-sans">
                           <span>{room.room_type}</span>
                         </h3>
-                        <div className="flex items-center gap-3 text-xs text-stone-500 font-bold mt-1">
+                        <div className="flex items-center gap-2.5 text-[11px] text-slate-400 font-medium mt-0.5">
                           <span className="flex items-center gap-1">
-                            <Users className="w-3.5 h-3.5 text-stone-400" />
+                            <Users className="w-3 h-3 text-slate-500" />
                             Maks {room.capacity} Kişi
                           </span>
                           <span>•</span>
                           <span className="flex items-center gap-1">
-                            <BedDouble className="w-3.5 h-3.5 text-stone-400" />
+                            <BedDouble className="w-3 h-3 text-slate-500" />
                             {room.bed_info || 'Çift Kişilik Yatak'}
                           </span>
                         </div>
                       </div>
 
-                      {/* AMENITIES BADGES */}
-                      {room.amenities && room.amenities.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {room.amenities.slice(0, 5).map((amenity, idx) => (
-                            <span key={idx} className="text-[10px] font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-md border border-stone-200/60">
-                              {amenity}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* BOARD RATES TABLE (BOOKING.COM STYLE) */}
-                      <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200/60 space-y-1.5 text-xs">
-                        <div className="text-[10px] font-black text-stone-400 uppercase tracking-wider flex items-center justify-between">
-                          <span>Pansiyon Seçeneği</span>
+                      {/* BOARD RATES TABLE */}
+                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800/80 space-y-1 text-xs">
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Pansiyon Tipi</span>
                           <span>Gecelik Tutar</span>
                         </div>
 
-                        <div className="flex justify-between items-center font-bold text-stone-700">
+                        <div className="flex justify-between items-center font-bold text-slate-200 text-[11px]">
                           <span className="flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-amber-600" />
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                             Oda + Kahvaltı (BB)
                           </span>
-                          <span className="text-stone-900 font-black">₺{baseBBPrice.toLocaleString('tr-TR')}</span>
+                          <span className="text-white font-black">₺{baseBBPrice.toLocaleString('tr-TR')}</span>
                         </div>
-
-                        {room.board_prices?.half_board && (
-                          <div className="flex justify-between items-center font-medium text-stone-600">
-                            <span>Yarım Pansiyon (HB)</span>
-                            <span className="font-bold">₺{room.board_prices.half_board.toLocaleString('tr-TR')}</span>
-                          </div>
-                        )}
-
-                        {room.board_prices?.all_inclusive && (
-                          <div className="flex justify-between items-center font-medium text-stone-600">
-                            <span>Her Şey Dahil (AI)</span>
-                            <span className="font-bold">₺{room.board_prices.all_inclusive.toLocaleString('tr-TR')}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* NON REFUNDABLE FLEX DISCOUNT BADGE */}
-                      <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200/80 flex items-center justify-between text-xs font-bold text-emerald-900">
-                        <div className="flex items-center gap-1.5">
-                          <Percent className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <div>
-                            <span className="block text-[10px] text-emerald-700 font-black uppercase">Esnek İptalsiz İndirim</span>
-                            <span className="text-xs font-extrabold text-emerald-800">Gece ₺{nonRefundablePrice.toLocaleString('tr-TR')}</span>
-                          </div>
-                        </div>
-                        <span className="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[10px] font-black uppercase">
-                          %{flexDiscountRate} İndirimli
-                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* ACTION FOOTER */}
-                  <div className="p-5 pt-0 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+                  <div className="p-4 pt-0 border-t border-slate-800/60 flex items-center justify-between gap-2 mt-3">
                     <div>
-                      <span className="block text-[9px] font-black uppercase text-stone-400">Gecelik Başlangıç</span>
-                      <span className="text-lg font-black text-amber-700">₺{baseBBPrice.toLocaleString('tr-TR')}</span>
+                      <span className="block text-[8px] font-black uppercase text-slate-400">Gecelik</span>
+                      <span className="text-base font-black text-white">₺{baseBBPrice.toLocaleString('tr-TR')}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => {
                           setViewDetailRoom(room);
                           setActiveDetailImageIndex(0);
                         }}
-                        className="px-3.5 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold text-xs transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                        className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer"
                       >
-                        <Camera className="w-3.5 h-3.5 text-stone-600" />
-                        <span>Detaylar</span>
+                        Detay
                       </button>
 
                       <button
@@ -1326,9 +1243,9 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                           setSelectedBoardOption('BB');
                           setIsNonRefundableRate(false);
                         }}
-                        className="flex-1 sm:flex-none px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-2 bg-slate-100 hover:bg-white text-slate-950 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shadow-xs"
                       >
-                        <Building2 className="w-4 h-4" />
+                        <Building2 className="w-3.5 h-3.5" />
                         <span>Rezerve Et</span>
                       </button>
                     </div>
@@ -1342,46 +1259,45 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
       {/* Culinary Highlights / Menu Section */}
       {(!isHotelModuleActive || activeMode === 'menu') && (
-        <section id="menu" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center max-w-2xl mx-auto space-y-3 mb-16">
-          <div className="text-xs text-amber-700 font-black uppercase tracking-widest">{isTr ? "SEÇKİN LEZZETLERİMİZ" : "OUR DISHES"}</div>
-          <h2 className="text-3xl md:text-4xl font-serif font-black text-stone-900 tracking-tight">
+        <section id="menu" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center max-w-xl mx-auto space-y-1.5 mb-8">
+          <div className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">{isTr ? "SEÇKİN LEZZETLERİMİZ" : "OUR DISHES"}</div>
+          <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight font-sans">
             {isTr ? "Günün Öne Çıkan Menüsü" : "Signature Specialties"}
           </h2>
-          <div className="w-12 h-1 bg-amber-600 mx-auto rounded-full mt-4" />
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex flex-wrap justify-center gap-2 mb-12">
+        {/* COMPACT MICRO CATEGORY TABS */}
+        <div className="flex flex-wrap justify-center gap-1.5 mb-8">
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
               selectedCategory === "all"
-                ? "bg-amber-700 text-white shadow-md shadow-amber-700/10"
-                : "bg-stone-100 text-stone-600 hover:bg-stone-200/70"
+                ? "bg-slate-100 text-slate-950 shadow-xs"
+                : "bg-slate-900 text-slate-400 hover:text-slate-100 border border-slate-800"
             }`}
           >
             {isTr ? "TÜMÜ" : "ALL"}
           </button>
           <button
             onClick={() => setSelectedCategory("bestsellers")}
-            className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
               selectedCategory === "bestsellers"
-                ? "bg-orange-600 text-white shadow-md shadow-orange-600/20"
-                : "bg-orange-50 text-orange-800 hover:bg-orange-100 border border-orange-200/60"
+                ? "bg-slate-100 text-slate-950 shadow-xs"
+                : "bg-slate-900 text-slate-400 hover:text-slate-100 border border-slate-800"
             }`}
           >
-            <Flame className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
+            <Flame className="w-3 h-3 text-orange-400" />
             {isTr ? "EN ÇOK SATANLAR" : "BESTSELLERS"}
           </button>
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                 selectedCategory === cat
-                  ? "bg-amber-700 text-white shadow-md shadow-amber-700/10"
-                  : "bg-stone-100 text-stone-600 hover:bg-stone-200/70"
+                  ? "bg-slate-100 text-slate-950 shadow-xs"
+                  : "bg-slate-900 text-slate-400 hover:text-slate-100 border border-slate-800"
               }`}
             >
               {cat.toUpperCase()}
@@ -1390,7 +1306,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
         </div>
 
         {/* Gourmet Menu Card Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((product) => {
               const productDesc = product.description || (isTr ? "Özenle hazırlanan taze, eşsiz yerel lezzetler." : "Fresh culinary specialties prepared with premium ingredients.");
@@ -1398,40 +1314,40 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                 <motion.div
                   layout
                   key={product.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
+                  initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
                   onClick={() => onViewProduct(product)}
-                  className="group bg-white p-5 rounded-3xl border border-stone-200/40 hover:border-amber-700/20 shadow-sm hover:shadow-xl hover:shadow-stone-200/30 transition-all duration-300 flex gap-4 sm:gap-6 cursor-pointer relative"
+                  className="group bg-slate-900 p-3.5 sm:p-4 rounded-xl border border-slate-800/80 hover:border-slate-700 shadow-xs transition-all duration-200 flex gap-3 sm:gap-4 cursor-pointer relative"
                 >
-                  <div className="relative h-24 w-24 sm:h-28 sm:w-28 shrink-0 rounded-2xl overflow-hidden bg-stone-100 border border-stone-100">
+                  <div className="relative h-20 w-20 sm:h-22 sm:w-22 shrink-0 rounded-lg overflow-hidden bg-slate-950 border border-slate-800">
                     {product.image_url ? (
                       <img
                         src={product.image_url}
                         alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-stone-300">
-                        <Utensils className="w-8 h-8" />
+                      <div className="w-full h-full flex items-center justify-center text-slate-600">
+                        <Utensils className="w-6 h-6" />
                       </div>
                     )}
                     {product.is_bestseller && (
-                      <div className="absolute top-1.5 left-1.5 bg-orange-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm z-10">
-                        <Flame className="w-2.5 h-2.5 fill-white" />
-                        {isTr ? "POPÜLER" : "POPULAR"}
+                      <div className="absolute top-1 left-1 bg-slate-950/90 text-amber-400 text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-slate-800 flex items-center gap-0.5 z-10">
+                        <Flame className="w-2 h-2 text-amber-400 fill-amber-400" />
+                        <span>POPÜLER</span>
                       </div>
                     )}
                   </div>
                   
-                  <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-start gap-2">
-                        <h3 className="font-serif font-bold text-stone-900 text-base group-hover:text-amber-700 transition-colors leading-snug line-clamp-1">
+                        <h3 className="font-bold text-white text-sm group-hover:text-slate-200 transition-colors leading-snug line-clamp-1">
                           {product.name}
                         </h3>
-                        <span className="text-amber-700 font-black text-sm whitespace-nowrap shrink-0 ml-2">
+                        <span className="text-slate-100 font-black text-xs whitespace-nowrap shrink-0 ml-1">
                           {(() => {
                             let vars: any[] = [];
                             if (product.variants) {
@@ -1455,17 +1371,17 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                           })()}
                         </span>
                       </div>
-                      <p className="text-xs text-stone-400 font-medium mt-1.5 line-clamp-2 leading-relaxed">
+                      <p className="text-[11px] text-slate-400 font-normal mt-1 line-clamp-2 leading-relaxed">
                         {productDesc}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-stone-50">
-                      <span className="text-[10px] bg-stone-50 text-stone-500 px-2.5 py-1 rounded-lg font-bold border border-stone-100">
+                    <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/60">
+                      <span className="text-[9px] bg-slate-950 text-slate-400 px-2 py-0.5 rounded font-bold border border-slate-800 uppercase">
                         {product.category || (isTr ? "Genel" : "General")}
                       </span>
-                      <span className="text-[10px] text-amber-700 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                        {isTr ? "Detayları İncele" : "View Details"} <ChevronRight className="w-3 h-3" />
+                      <span className="text-[9px] text-slate-300 font-bold uppercase tracking-wider flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+                        {isTr ? "İncele" : "View"} <ChevronRight className="w-3 h-3" />
                       </span>
                     </div>
                   </div>
@@ -1476,7 +1392,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
         </div>
 
         {filteredProducts.length === 0 && (
-          <div className="text-center py-20 text-stone-400 font-medium">
+          <div className="text-center py-12 text-slate-500 font-medium text-xs">
             {isTr ? "Bu kategoride henüz ürün bulunmuyor." : "No dishes listed under this category yet."}
           </div>
         )}
@@ -1484,89 +1400,82 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       )}
 
       {/* Story Section */}
-      <section id="story" className="bg-stone-900 text-stone-200 py-24 relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
-          <div className="space-y-6 lg:max-w-xl">
-            <span className="text-xs text-amber-500 font-black uppercase tracking-[0.2em]">{isTr ? "HİKAYEMİZ & TUTKUMUZ" : "OUR HERITAGE"}</span>
-            <h2 className="text-3xl md:text-4xl font-serif font-black text-stone-100 tracking-tight leading-tight">
+      <section id="story" className="bg-slate-950 text-slate-200 py-16 border-t border-slate-900">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+          <div className="space-y-4 lg:max-w-xl">
+            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{isTr ? "HİKAYEMİZ & TUTKUMUZ" : "OUR HERITAGE"}</span>
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight">
               {isTr ? "Her Lokmada Bir Lezzet Öyküsü" : "A Taste Built on Pure Culinary Love"}
             </h2>
-            <div className="w-12 h-1 bg-amber-500 rounded-full" />
-            <p className="text-stone-300 leading-relaxed text-sm sm:text-base font-medium">
+            <p className="text-slate-400 leading-relaxed text-xs sm:text-sm font-medium">
               {store.about_text || (isTr 
                 ? "Sizlere sadece yemek sunmakla kalmıyoruz; keyifle paylaşılan anlara, sıcacık sohbetlere ve unutulmaz anılara ev sahipliği yapıyoruz. En kaliteli yerel malzemeleri seçiyor, usta ellerin vizyonuyla harmanlayıp masanıza getiriyoruz."
                 : "We do not just offer gourmet food; we host warm conversations, shared laughter, and beautiful memories.")}
             </p>
-            <div className="grid grid-cols-3 gap-6 pt-4 border-t border-stone-800">
+            <div className="grid grid-cols-3 gap-4 pt-3 border-t border-slate-900">
               <div>
-                <span className="block text-2xl font-black text-amber-500 font-serif">%100</span>
-                <span className="text-[10px] text-stone-400 uppercase tracking-widest font-bold mt-1 block">{isTr ? "Taze Ürün" : "Fresh Daily"}</span>
+                <span className="block text-xl font-black text-white">%100</span>
+                <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold block">{isTr ? "Taze Ürün" : "Fresh Daily"}</span>
               </div>
               <div>
-                <span className="block text-2xl font-black text-amber-500 font-serif">{totalTables}</span>
-                <span className="text-[10px] text-stone-400 uppercase tracking-widest font-bold mt-1 block">{isTr ? "Masa Servisi" : "Tables"}</span>
+                <span className="block text-xl font-black text-white">{totalTables}</span>
+                <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold block">{isTr ? "Masa Servisi" : "Tables"}</span>
               </div>
               <div>
-                <span className="block text-2xl font-black text-amber-500 font-serif">A+</span>
-                <span className="text-[10px] text-stone-400 uppercase tracking-widest font-bold mt-1 block">{isTr ? "Kalite Hizmet" : "Service Rate"}</span>
+                <span className="block text-xl font-black text-white">A+</span>
+                <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold block">{isTr ? "Kalite Hizmet" : "Service Rate"}</span>
               </div>
             </div>
           </div>
           <div className="relative">
-            <div className="absolute -inset-2 bg-gradient-to-tr from-amber-500 to-stone-800 rounded-[2.5rem] opacity-10 blur-xl" />
             <img
               src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=1000"
               alt="Atmospheric Table Setup"
-              className="w-full h-80 md:h-[400px] object-cover rounded-[2rem] shadow-2xl relative z-10 border border-stone-800"
+              className="w-full h-64 md:h-80 object-cover rounded-2xl shadow-xl border border-slate-800 opacity-90"
             />
           </div>
         </div>
       </section>
 
-      {/* Opening Hours & Atmosphere Section */}
-      <section id="hours" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-stretch">
+      {/* Opening Hours & Contact */}
+      <section id="hours" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
           
-          <div className="bg-white p-8 rounded-[2.5rem] border border-stone-200/50 shadow-xl shadow-stone-200/20 flex flex-col justify-between">
+          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
             <div>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-amber-50 text-amber-700 rounded-2xl border border-amber-100">
-                  <Clock className="w-5 h-5" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-slate-950 text-slate-300 rounded-xl border border-slate-800">
+                  <Clock className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-serif font-extrabold text-stone-900 leading-none">{isTr ? "Çalışma Saatleri" : "Opening Hours"}</h3>
-                  <span className="text-[10px] text-stone-400 uppercase tracking-widest font-bold mt-1 block">{isTr ? "Kapımız Her Gün Açık" : "Open 7 Days a Week"}</span>
+                  <h3 className="text-base font-black text-white leading-none">{isTr ? "Çalışma Saatleri" : "Opening Hours"}</h3>
+                  <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold mt-1 block">{isTr ? "Kapımız Her Gün Açık" : "Open 7 Days a Week"}</span>
                 </div>
               </div>
-              <p className="text-sm text-stone-500 font-medium mb-8 leading-relaxed">
-                {isTr 
-                  ? "Sizlere en iyi deneyimi sunmak adına haftanın her günü taze lezzetlerimiz ve güler yüzlü ekibimizle hizmetinizdeyiz." 
-                  : "We welcome you 7 days a week with a warm environment, fresh ingredients, and helpful staff."}
-              </p>
               
-              <div className="space-y-3.5 border-t border-stone-100 pt-6">
+              <div className="space-y-2 border-t border-slate-800/80 pt-4">
                 {[
                   { days: isTr ? "Pazartesi - Cuma" : "Monday - Friday", hours: "08:30 - 23:00" },
                   { days: isTr ? "Cumartesi" : "Saturday", hours: "09:00 - 23:30" },
                   { days: isTr ? "Pazar" : "Sunday", hours: "09:00 - 22:30" },
                 ].map((schedule, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-sm font-bold text-stone-700">
-                    <span className="text-stone-500">{schedule.days}</span>
-                    <span className="text-stone-900 font-mono">{schedule.hours}</span>
+                  <div key={idx} className="flex justify-between items-center text-xs font-bold text-slate-300">
+                    <span className="text-slate-400">{schedule.days}</span>
+                    <span className="text-white font-mono text-[11px]">{schedule.hours}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {store.phone && (
-              <div className="mt-8 pt-6 border-t border-stone-100 flex items-center justify-between">
+              <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between">
                 <div>
-                  <span className="block text-[10px] text-stone-400 font-bold uppercase tracking-wider">{isTr ? "REZERVASYON VE TELEFON" : "TELEPHONE & BOOKING"}</span>
-                  <span className="block text-base font-black text-stone-800 mt-1">{store.phone}</span>
+                  <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">{isTr ? "REZERVASYON VE TELEFON" : "TELEPHONE & BOOKING"}</span>
+                  <span className="block text-sm font-black text-white mt-0.5">{store.phone}</span>
                 </div>
                 <a
                   href={`tel:${store.phone}`}
-                  className="bg-stone-900 hover:bg-stone-800 text-white p-3.5 rounded-2xl transition-colors shadow-lg shadow-stone-950/10"
+                  className="bg-slate-800 hover:bg-slate-700 text-white p-2.5 rounded-xl border border-slate-700 transition-colors"
                 >
                   <Phone className="w-4 h-4" />
                 </a>
@@ -1574,99 +1483,77 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             )}
           </div>
 
-          <div className="bg-amber-700 text-amber-50 p-8 rounded-[2.5rem] shadow-xl shadow-amber-900/10 flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-amber-600 rounded-full blur-2xl opacity-40 -translate-y-12 translate-x-12" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-white/10 text-white rounded-2xl border border-white/20">
-                  <Award className="w-5 h-5" />
+          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-slate-950 text-slate-300 rounded-xl border border-slate-800">
+                  <Award className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-serif font-extrabold text-white leading-none">{isTr ? "Temassız Masa Servisi" : "Contactless Ordering"}</h3>
-                  <span className="text-[10px] text-amber-200 uppercase tracking-widest font-bold mt-1 block">{isTr ? "Tek Tıkla Sipariş" : "Scan & Order"}</span>
+                  <h3 className="text-base font-black text-white leading-none">{isTr ? "Temassız Masa Servisi" : "Contactless Ordering"}</h3>
+                  <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold mt-1 block">{isTr ? "Masa Kodunu Taratın" : "Scan & Order"}</span>
                 </div>
               </div>
               
-              <h4 className="text-xl md:text-2xl font-serif font-bold text-white mb-4 leading-tight">
+              <h4 className="text-lg font-bold text-white mb-2 leading-tight">
                 {isTr ? "Sıra beklemeden, yerinizden sipariş verin!" : "No lines. Just sit down, scan and enjoy!"}
               </h4>
-              <p className="text-sm text-amber-100/90 leading-relaxed font-medium mb-6">
+              <p className="text-xs text-slate-400 leading-relaxed font-medium">
                 {isTr 
-                  ? "Masalarımızda yer alan QR kodları taratarak veya web sitemiz üzerinden doğrudan dijital sipariş menümüze ulaşabilirsiniz." 
-                  : "Simply scan the QR code at your table or access our beautiful contactless digital menu from your phone."}
+                  ? "Masalarımızda yer alan QR kodları taratarak doğrudan masanıza servis talebi gönderebilirsiniz." 
+                  : "Simply scan the QR code at your table to quickly request service."}
               </p>
             </div>
-
-            <a
-              href={digitalMenuUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white text-amber-900 hover:bg-amber-50 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-center shadow-lg relative z-10 transition-colors flex items-center justify-center gap-2"
-            >
-              <Compass className="w-4 h-4 text-amber-700" />
-              {isTr ? "DİJİTAL MENÜYE GİT" : "VISIT DIGITAL MENU"}
-            </a>
           </div>
 
         </div>
       </section>
 
-      {/* INSTAGRAM SHOWCASE & SOCIAL GRID (INSTA-STYLE) */}
+      {/* INSTAGRAM SHOWCASE */}
       {instagramFeedEnabled && (
-        <section id="instagram-grid" className="py-16 bg-white border-t border-stone-200/80">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        <section id="instagram-grid" className="py-12 bg-slate-950 border-t border-slate-900">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
             
-            {/* Instagram Profile Header */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-stone-100 pb-6">
-              <div className="flex items-center gap-4 text-center sm:text-left">
-                {/* Instagram Gradient Ring Avatar */}
-                <div className="p-0.5 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 shadow-md shrink-0">
-                  <div className="p-0.5 bg-white rounded-full">
-                    {(store.logo_url || store.branding?.logo_url) ? (
-                      <img
-                        src={store.logo_url || store.branding?.logo_url}
-                        alt="Instagram Avatar"
-                        className="w-14 h-14 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-14 h-14 rounded-full bg-stone-900 flex items-center justify-center text-white font-black text-lg">
-                        <Instagram className="w-7 h-7 text-white" />
-                      </div>
-                    )}
-                  </div>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-slate-900 pb-4">
+              <div className="flex items-center gap-3 text-center sm:text-left">
+                <div className="p-0.5 rounded-full bg-slate-800 border border-slate-700 shrink-0">
+                  {(store.logo_url || store.branding?.logo_url) ? (
+                    <img
+                      src={store.logo_url || store.branding?.logo_url}
+                      alt="Instagram Avatar"
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-black text-xs">
+                      <Instagram className="w-5 h-5 text-white" />
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <div className="flex items-center justify-center sm:justify-start gap-2">
-                    <span className="text-base sm:text-lg font-black text-stone-900 tracking-tight">
+                    <span className="text-sm font-black text-white tracking-tight">
                       {instagramHandle}
                     </span>
-                    <span className="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
-                      <Instagram className="w-3 h-3" />
-                      <span>{isTr ? "Resmi Akış" : "Official Feed"}</span>
-                    </span>
                   </div>
-                  <p className="text-xs text-stone-500 font-medium mt-1">
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">
                     {instagramSubtitle}
                   </p>
                 </div>
               </div>
 
-              {/* Follow Button */}
               <a
                 href={instagramProfileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 hover:from-amber-600 hover:via-rose-600 hover:to-purple-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-500/20 hover:shadow-xl transition-all duration-300 flex items-center gap-2 group cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Instagram className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                <Instagram className="w-3.5 h-3.5" />
                 <span>{isTr ? "Instagram'da Takip Et" : "Follow on Instagram"}</span>
-                <ExternalLink className="w-3.5 h-3.5 opacity-80" />
               </a>
             </div>
 
-            {/* 1:1 Aspect-Square Instagram Photo Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
               {instagramPosts.map((post: any, idx: number) => {
                 const targetUrl = post.post_url || instagramProfileUrl;
 
@@ -1676,63 +1563,17 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                     href={targetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group relative aspect-square rounded-2xl overflow-hidden bg-stone-100 border border-stone-200 shadow-xs hover:shadow-xl transition-all duration-300 cursor-pointer block"
+                    className="group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-800 transition-all cursor-pointer block"
                   >
-                    {/* Photo */}
                     <img
                       src={post.image_url}
                       alt={post.caption || `Instagram Post ${idx + 1}`}
-                      className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-90"
                       loading="lazy"
                     />
-
-                    {/* Instagram Badge Tag Top Right */}
-                    <div className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white opacity-80 group-hover:opacity-0 transition-opacity">
-                      <Instagram className="w-3.5 h-3.5" />
-                    </div>
-
-                    {/* Insta Hover Overlay */}
-                    <div className="absolute inset-0 bg-stone-950/75 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center p-3 text-center text-white space-y-2">
-                      <div className="p-2 rounded-full bg-white/20 text-white backdrop-blur-md">
-                        <Instagram className="w-5 h-5 text-white" />
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs font-black">
-                        <span className="flex items-center gap-1 text-rose-300">
-                          <Heart className="w-3.5 h-3.5 fill-current" />
-                          <span>{post.likes || (300 + idx * 47)}</span>
-                        </span>
-                        <span className="flex items-center gap-1 text-stone-300">
-                          <MessageCircle className="w-3.5 h-3.5" />
-                          <span>{Math.floor((post.likes || 300) / 18)}</span>
-                        </span>
-                      </div>
-
-                      {post.caption && (
-                        <p className="text-[10px] font-medium text-stone-200 line-clamp-2 leading-relaxed px-1">
-                          {post.caption}
-                        </p>
-                      )}
-
-                      <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1 pt-1">
-                        <span>{isTr ? "İncele" : "View"}</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </span>
-                    </div>
                   </a>
                 );
               })}
-            </div>
-
-            {/* Bottom Caption Bar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-stone-500 pt-2 font-medium">
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>{instagramTitle}</span>
-              </span>
-              <span className="text-[11px] text-stone-400 font-mono">
-                {isTr ? "Karelerimizi etiketleyin:" : "Tag your moments:"} <strong className="text-stone-700 font-sans">{instagramHandle}</strong>
-              </span>
             </div>
 
           </div>
@@ -1740,64 +1581,49 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       )}
 
       {/* Footer & Contact */}
-      <footer id="contact" className="bg-stone-950 text-stone-400 pt-20 pb-10 border-t border-stone-900">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+      <footer id="contact" className="bg-slate-950 text-slate-400 pt-12 pb-8 border-t border-slate-900">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             
-            <div className="space-y-4">
-              <h3 className="text-lg font-serif font-black text-white">{store.name}</h3>
-              <p className="text-xs text-stone-500 font-medium leading-relaxed">
+            <div className="space-y-3">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">{store.name}</h3>
+              <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
                 {isTr ? "Her damak tadına hitap eden kaliteli malzemelerle bezenmiş lezzet ve konaklama reçeteleri." : "A sensory showcase of delicious culinary delights made with love."}
               </p>
-              {socialLinks.length > 0 && (
-                <div className="flex gap-3 pt-2">
-                  {socialLinks.map((social, idx) => (
-                    <a
-                      key={idx}
-                      href={social.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2.5 bg-stone-900 hover:bg-stone-800 rounded-xl text-stone-400 hover:text-amber-500 transition-all border border-stone-800"
-                    >
-                      {social.icon}
-                    </a>
-                  ))}
-                </div>
-              )}
             </div>
 
-            <div className="space-y-4">
-              <h4 className="text-xs font-black text-white uppercase tracking-widest">{isTr ? "HIZLI LİNKLER" : "QUICK LINKS"}</h4>
-              <ul className="space-y-2 text-xs font-semibold">
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{isTr ? "HIZLI LİNKLER" : "QUICK LINKS"}</h4>
+              <ul className="space-y-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                 {isHotelModuleActive && (
-                  <li><a href="#rooms" onClick={() => setActiveMode('hotel')} className="hover:text-amber-500 transition-colors">{isTr ? "Otel Odaları" : "Rooms & Suites"}</a></li>
+                  <li><a href="#rooms" onClick={() => setActiveMode('hotel')} className="hover:text-white transition-colors">{isTr ? "Otel Odaları" : "Rooms & Suites"}</a></li>
                 )}
-                <li><a href="#menu" onClick={() => setActiveMode('menu')} className="hover:text-amber-500 transition-colors">{isTr ? "Menümüz" : "Our Menu"}</a></li>
-                <li><a href="#story" className="hover:text-amber-500 transition-colors">{isTr ? "Hikayemiz" : "Our Story"}</a></li>
-                <li><a href="#hours" className="hover:text-amber-500 transition-colors">{isTr ? "Çalışma Saatleri" : "Opening Hours"}</a></li>
+                <li><a href="#menu" onClick={() => setActiveMode('menu')} className="hover:text-white transition-colors">{isTr ? "Menümüz" : "Our Menu"}</a></li>
+                <li><a href="#story" className="hover:text-white transition-colors">{isTr ? "Hikayemiz" : "Our Story"}</a></li>
+                <li><a href="#hours" className="hover:text-white transition-colors">{isTr ? "Çalışma Saatleri" : "Opening Hours"}</a></li>
               </ul>
             </div>
 
-            <div className="space-y-4">
-              <h4 className="text-xs font-black text-white uppercase tracking-widest">{isTr ? "İLETİŞİM BİLGİLERİ" : "CONTACT US"}</h4>
-              <ul className="space-y-3.5 text-xs font-semibold">
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{isTr ? "İLETİŞİM BİLGİLERİ" : "CONTACT US"}</h4>
+              <ul className="space-y-2 text-xs font-medium">
                 {store.phone && (
-                  <li className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-amber-500 shrink-0" />
-                    <span className="text-stone-300">{store.phone}</span>
+                  <li className="flex items-center gap-2 text-slate-300">
+                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>{store.phone}</span>
                   </li>
                 )}
                 {store.address && (
-                  <li className="flex items-start gap-2 leading-relaxed">
-                    <MapPin className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                    <span className="text-stone-300">{store.address}</span>
+                  <li className="flex items-start gap-2 leading-relaxed text-slate-300 text-[11px]">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <span>{store.address}</span>
                   </li>
                 )}
               </ul>
             </div>
 
-            <div className="space-y-4">
-              <h4 className="text-xs font-black text-white uppercase tracking-widest">{isTr ? "KONUMUMUZ" : "LOCATION"}</h4>
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{isTr ? "KONUMUMUZ" : "LOCATION"}</h4>
               {(() => {
                 const mapsUrl = (store as any).google_maps_url || store.branding?.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address || store.name)}`;
                 const rawEmbed = (store as any).google_maps_embed || store.branding?.google_maps_embed || "";

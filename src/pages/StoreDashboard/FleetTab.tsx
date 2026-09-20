@@ -754,14 +754,33 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
 
   return (
     <div className="space-y-3">
-      {/* Micro Compact Header Bar */}
-      <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-2 pb-1.5 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">{t.fleetManagement}</h2>
-          <span className="text-xs text-gray-300 font-normal hidden sm:inline">|</span>
-          <p className="text-xs text-gray-500 font-normal hidden sm:block">{t.fleetSubTitle}</p>
+      {/* FUTURISTIC HIGH-DENSITY AUTOLP OTO GALERİ / ARAÇLAR HEADER BANNER */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-3 md:p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-700 text-white flex items-center justify-center font-black shadow-xs shrink-0">
+            <Car className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-200/60">
+                AUTOLP &bull; OTO GALERİ
+              </span>
+              <span className="text-[11px] font-extrabold text-slate-400">/ araçlar</span>
+            </div>
+            <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight mt-0.5">
+              Oto Galeri & Araç Portföy Yönetimi
+            </h1>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+          <div className="hidden md:flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/80 mr-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{vehicles.length} Toplam Araç</span>
+            <span className="text-slate-300">|</span>
+            <span className="text-indigo-600">{vehicles.filter(v => v.status === 'for_sale' || v.status === 'active').length} Satışta</span>
+          </div>
+
           {!isViewer && (
             <button
               onClick={() => {
@@ -783,16 +802,17 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
                 });
                 setShowAddModal(true);
               }}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-all shadow-sm"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-xs active:scale-95 cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" />
-              {t.addVehicle}
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>{t.addVehicle || '+ Araç Ekle'}</span>
             </button>
           )}
+
           <button 
             onClick={exportToExcel} 
             title="Excel İndir" 
-            className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-all border border-gray-200 bg-white"
+            className="p-2 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-slate-200 bg-white cursor-pointer shadow-2xs"
           >
             <Download className="w-4 h-4" />
           </button>
