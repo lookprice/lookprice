@@ -12,7 +12,10 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Maximize2
+  Maximize2,
+  Globe,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { Vehicle, Driver, VehicleDocument, VehicleAssignment, VehicleMaintenance } from '../../../types';
 
@@ -168,7 +171,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                   {getStatusText(vehicle.status)}
                 </span>
                 {vehicle.selling_price && (
-                  <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                  <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
                     {vehicle.selling_price.toLocaleString()} {vehicle.currency || 'TRY'}
                   </span>
                 )}
@@ -311,32 +314,32 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
       <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-gray-50/80 border-b border-gray-100">
               <tr>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Portföy No</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.vehicleInfo}</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.status}</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Yayın Durumu</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">KM</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.alerts}</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">{t.actions}</th>
+                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Portföy No</th>
+                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.vehicleInfo}</th>
+                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[140px]">{t.status}</th>
+                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[125px]">Yayın Durumu</th>
+                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">KM</th>
+                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.alerts}</th>
+                <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right min-w-[170px] whitespace-nowrap">{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {paginatedVehicles.map((vehicle) => (
-                <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="p-4 text-sm font-bold text-gray-900">
+                <tr key={vehicle.id} className="hover:bg-gray-50/80 transition-colors group">
+                  <td className="p-3 text-xs font-semibold text-gray-800">
                     #{vehicle.id}
                   </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
+                  <td className="p-3">
+                    <div className="flex items-center gap-2.5">
                       {(() => {
                         const thumb = getThumbnailUrl(vehicle);
                         if (thumb) {
                           return (
                             <div 
                               onClick={() => openPreview(vehicle)}
-                              className="w-10 h-10 rounded-lg overflow-hidden relative group cursor-pointer border border-gray-100 shadow-sm shrink-0 active:scale-95 transition-all"
+                              className="w-10 h-10 rounded-lg overflow-hidden relative group cursor-pointer border border-gray-100 shadow-2xs shrink-0 active:scale-95 transition-all"
                               title={lang === 'tr' ? "Görseli Büyüt" : "Expand Image"}
                             >
                               <img src={thumb} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt={vehicle.plate} />
@@ -348,72 +351,83 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                         }
                         return (
                           <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all shrink-0">
-                            <Car className="w-6 h-6" />
+                            <Car className="w-5 h-5" />
                           </div>
                         );
                       })()}
                       <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-gray-900">{vehicle.plate}</p>
-                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black uppercase tracking-wider">
-                      {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : 
-                       vehicle.category === 'suv' ? (lang === 'tr' ? 'SUV / Arazi' : 'SUV / Off-Road') :
-                       vehicle.category === 'pickup' ? (lang === 'tr' ? 'Pick-up' : 'Pick-up') :
-                       (lang === 'tr' ? 'Otomobil' : 'Car')}
-                    </span>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-bold text-gray-900 text-sm">{vehicle.plate}</p>
+                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-bold uppercase tracking-wider">
+                            {vehicle.category === 'hafif_ticari' ? (lang === 'tr' ? 'Hafif Ticari' : 'Light Commercial') : 
+                             vehicle.category === 'suv' ? (lang === 'tr' ? 'SUV / Arazi' : 'SUV / Off-Road') :
+                             vehicle.category === 'pickup' ? (lang === 'tr' ? 'Pick-up' : 'Pick-up') :
+                             (lang === 'tr' ? 'Otomobil' : 'Car')}
+                          </span>
                         </div>
-                        <p className="text-xs text-gray-500">{generateVehicleTitle(vehicle)}</p>
+                        <p className="text-xs text-gray-500 font-normal">{generateVehicleTitle(vehicle)}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="p-4">
+                  <td className="p-3 min-w-[140px]">
                     <div className="flex flex-col gap-1 items-start">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${getStatusColor(vehicle.status)}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${getStatusColor(vehicle.status)}`}>
                         {getStatusText(vehicle.status)}
                       </span>
                       {vehicle.selling_price && (
-                        <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                        <span className="text-xs font-normal text-emerald-700 bg-emerald-50/90 px-2 py-0.5 rounded border border-emerald-200/60">
                           {vehicle.selling_price.toLocaleString()} {vehicle.currency || 'TRY'}
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="p-4">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_website !== false ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${vehicle.is_on_website !== false ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          Web: {vehicle.is_on_website !== false ? 'Aktif' : 'Pasif'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${vehicle.is_on_enrakipsiz ? 'bg-indigo-500' : 'bg-gray-300'}`} />
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${vehicle.is_on_enrakipsiz ? 'text-indigo-600' : 'text-gray-400'}`}>
-                          EnR: {vehicle.is_on_enrakipsiz ? 'Aktif' : 'Pasif'}
-                        </span>
-                      </div>
+                  <td className="p-3 min-w-[125px]">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span 
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                          vehicle.is_on_website !== false 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80' 
+                            : 'bg-gray-50 text-gray-400 border-gray-200/60'
+                        }`}
+                        title={vehicle.is_on_website !== false ? "Web Sitem: Aktif" : "Web Sitem: Pasif"}
+                      >
+                        <Globe className={`w-3 h-3 ${vehicle.is_on_website !== false ? 'text-emerald-600' : 'text-gray-400'}`} />
+                        Web
+                      </span>
+                      <span 
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                          vehicle.is_on_enrakipsiz 
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200/80' 
+                            : 'bg-gray-50 text-gray-400 border-gray-200/60'
+                        }`}
+                        title={vehicle.is_on_enrakipsiz ? "EnRakipsiz: Aktif" : "EnRakipsiz: Pasif"}
+                      >
+                        <Sparkles className={`w-3 h-3 ${vehicle.is_on_enrakipsiz ? 'text-indigo-600' : 'text-gray-400'}`} />
+                        EnR
+                      </span>
                       {vehicle.is_trade_in_available && (
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]" />
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600">
-                            Takas: Aktif
-                          </span>
-                        </div>
+                        <span 
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/80"
+                          title="Takas İmkanı Var"
+                        >
+                          <RefreshCw className="w-3 h-3 text-amber-600" />
+                          Takas
+                        </span>
                       )}
                     </div>
                   </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-1 text-sm font-medium text-gray-700">
+                  <td className="p-3">
+                    <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
                       <MapPin className="w-3 h-3 text-gray-400" />
-                      {(vehicle.current_mileage || 0).toLocaleString()}
+                      {(vehicle.current_mileage || 0).toLocaleString()} <span className="text-[10px] text-gray-400">KM</span>
                     </div>
                   </td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
+                  <td className="p-3">
+                    <div className="flex gap-1.5 flex-wrap">
                       {allDocuments
                         .filter(d => d.vehicle_id === vehicle.id && d.type !== 'Ruhsat-Koçan' && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
                         .map((d, idx) => (
-                          <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold border border-amber-100">
+                          <div key={idx} className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[10px] font-medium border border-amber-100">
                             <AlertCircle className="w-3 h-3" />
                             {d.type}
                           </div>
@@ -427,7 +441,7 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                             return allDriverDocuments
                               .filter(d => d.driver_id === driver.id && new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
                               .map((d, idx) => (
-                                <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-600 rounded-md text-[10px] font-bold border border-orange-100">
+                                <div key={idx} className="flex items-center gap-1 px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded text-[10px] font-medium border border-orange-100">
                                   <AlertCircle className="w-3 h-3" />
                                   {driver.name} {d.type}
                                 </div>
@@ -437,24 +451,24 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                         return null;
                       })()}
                       {(vehicle.maintenance_due || 0) > 0 && (vehicle.current_mileage || 0) >= (vehicle.maintenance_due || 0) && (
-                        <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-bold border border-red-100">
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-medium border border-red-100">
                           <AlertCircle className="w-3 h-3" />
                           {t.service}
                         </div>
                       )}
                       {!(vehicle.expiring_docs || 0) && !(vehicle.maintenance_due || 0) && (
-                        <span className="text-[10px] text-green-500 font-bold">{t.noProblem}</span>
+                        <span className="text-[10px] text-green-600 font-medium">{t.noProblem}</span>
                       )}
                     </div>
                   </td>
-                  <td className="p-4 text-right">
-                    <div className="flex justify-end gap-2 items-center">
+                  <td className="p-3 text-right min-w-[170px]">
+                    <div className="flex justify-end gap-1.5 items-center">
                       <button
                         onClick={() => {
                           setAutoContractVehicle(vehicle);
                           setIsAutoContractOpen(true);
                         }}
-                        className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
+                        className="p-1.5 text-violet-600 hover:text-white bg-violet-50 hover:bg-violet-600 rounded-lg transition-all shadow-2xs border border-violet-100 hover:border-violet-600"
                         title="Sözleşme Oluştur"
                       >
                         <FileSignature className="w-4 h-4" />
@@ -466,10 +480,10 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                           fetchVehicleDetails(vehicle);
                           setShowDetailModal(true);
                         }}
-                        className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                        className="p-1.5 text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 rounded-lg transition-all shadow-2xs border border-blue-100 hover:border-blue-600"
                         title="İncele"
                       >
-                        <Eye className="w-5 h-5" />
+                        <Eye className="w-4 h-4" />
                       </button>
 
                       <button
@@ -477,10 +491,10 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                           setShareVehicle(vehicle);
                           setIsShareModalOpen(true);
                         }}
-                        className="p-2 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-                        title="Paylaş"
+                        className="p-1.5 text-indigo-600 hover:text-white bg-indigo-50 hover:bg-indigo-600 rounded-lg transition-all shadow-2xs border border-indigo-100 hover:border-indigo-600"
+                        title="Sosyal Medya / Paylaş"
                       >
-                        <Share2 className="w-5 h-5" />
+                        <Share2 className="w-4 h-4" />
                       </button>
 
                       <button
@@ -523,17 +537,17 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                           });
                           setShowAddModal(true);
                         }}
-                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        className="p-1.5 text-amber-600 hover:text-white bg-amber-50 hover:bg-amber-600 rounded-lg transition-all shadow-2xs border border-amber-100 hover:border-amber-600"
                         title="Düzenle"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteVehicle(vehicle.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1.5 text-red-600 hover:text-white bg-red-50 hover:bg-red-600 rounded-lg transition-all shadow-2xs border border-red-100 hover:border-red-600"
                         title="Sil"
                       >
-                        <Trash2 className="w-5 h-5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>

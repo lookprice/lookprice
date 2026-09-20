@@ -753,13 +753,15 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-gray-900">{t.fleetManagement}</h2>
-          <p className="text-gray-500 font-medium">{t.fleetSubTitle}</p>
+    <div className="space-y-3">
+      {/* Micro Compact Header Bar */}
+      <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-2 pb-1.5 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">{t.fleetManagement}</h2>
+          <span className="text-xs text-gray-300 font-normal hidden sm:inline">|</span>
+          <p className="text-xs text-gray-500 font-normal hidden sm:block">{t.fleetSubTitle}</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 shrink-0">
           {!isViewer && (
             <button
               onClick={() => {
@@ -781,14 +783,18 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
                 });
                 setShowAddModal(true);
               }}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-all shadow-sm"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               {t.addVehicle}
             </button>
           )}
-          <button onClick={exportToExcel} className="p-2.5 text-gray-500 hover:bg-white rounded-xl transition-all border border-transparent hover:border-gray-200">
-            <Download className="w-5 h-5" />
+          <button 
+            onClick={exportToExcel} 
+            title="Excel İndir" 
+            className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-all border border-gray-200 bg-white"
+          >
+            <Download className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -808,7 +814,7 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
         t={t}
       />
 
-      <div className="flex items-center gap-1.5 bg-gray-100/50 p-1.5 rounded-2xl overflow-x-auto max-w-full no-scrollbar whitespace-nowrap scroll-smooth shrink-0">
+      <div className="flex items-center gap-1 bg-gray-100/70 p-1 rounded-xl overflow-x-auto max-w-full no-scrollbar whitespace-nowrap scroll-smooth shrink-0">
         {[
           { id: 'vehicles', icon: Car, label: t.vehicles },
           { id: 'drivers', icon: UserCheck, label: t.drivers },
@@ -821,13 +827,13 @@ const FleetTab: React.FC<FleetTabProps> = ({ storeId, isViewer, branding }) => {
           <button
             key={tab.id}
             onClick={() => setActiveMainTab(tab.id as any)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeMainTab === tab.id
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
+                ? 'bg-white text-blue-600 shadow-2xs'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
             }`}
           >
-            <tab.icon className="w-4 h-4" />
+            <tab.icon className="w-3.5 h-3.5" />
             {tab.label}
           </button>
         ))}
