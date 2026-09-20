@@ -44,7 +44,7 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
   saving = false,
   storeId
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<"visual" | "table_order" | "wifi" | "tables_qr" | "instagram">("visual");
+  const [activeSubTab, setActiveSubTab] = useState<"visual" | "table_order" | "hours" | "wifi" | "tables_qr" | "instagram">("visual");
 
   const txt = (tr: string, en: string, el: string) => {
     if (lang === "tr") return tr;
@@ -52,11 +52,39 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
     return en;
   };
 
+  // Curated vibrant food & restaurant hero images
+  const PRESET_HERO_IMAGES = [
+    {
+      title: txt("Lüks Restoran & Bistro", "Luxury Bistro & Fine Dining", "Πολυτελές Εστιατόριο"),
+      url: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=80"
+    },
+    {
+      title: txt("Modern Kafe & Kahve", "Modern Cafe & Artisan Coffee", "Μοντέρνο Καφέ"),
+      url: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1600&q=80"
+    },
+    {
+      title: txt("İtalyan & Taş Fırın Pizza", "Italian Trattoria & Pizza", "Ιταλικό & Πίτσα"),
+      url: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1600&q=80"
+    },
+    {
+      title: txt("Gurme Burger & Izgara", "Gourmet Grill & Burgers", "Γκουρμέ Μπέργκερ"),
+      url: "https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=1600&q=80"
+    },
+    {
+      title: txt("Deniz Ürünleri & Akdeniz", "Mediterranean Seafood", "Θαλασσινά & Μεσόγειος"),
+      url: "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=1600&q=80"
+    },
+    {
+      title: txt("Tatlı & Butik Fırın", "Artisan Bakery & Desserts", "Γλυκά & Αρτοποιείο"),
+      url: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1600&q=80"
+    }
+  ];
+
   // Safe reading of digital menu settings
   const horecaConfig = useMemo(() => {
     const raw = branding?.digital_menu_settings || branding?.page_layout_settings?.digital_menu_settings || {};
     return {
-      theme: raw.theme || "modern_light", // modern_light | dark_bistro | warm_amber | fresh_emerald
+      theme: raw.theme || branding?.theme || "modern_light", // modern_light | dark_bistro | warm_amber | fresh_emerald
       menu_title: raw.menu_title || branding?.hero_title || (lang === "tr" ? "Lezzet Dolu Bir Deneyim" : "A Tasteful Experience"),
       menu_subtitle: raw.menu_subtitle || branding?.hero_subtitle || (lang === "tr" ? "Özenle seçilmiş taze malzemelerle hazırlanan lezzetlerimizi keşfedin." : "Explore our culinary delights crafted with the finest ingredients."),
       allow_table_orders: raw.allow_table_orders !== false,
@@ -68,14 +96,22 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
       wifi_ssid: raw.wifi_ssid || branding?.wifi_ssid || "",
       wifi_password: raw.wifi_password || branding?.wifi_password || "",
       table_count: branding?.page_layout_settings?.table_count || raw.table_count || 12,
-      cover_image: raw.cover_image || branding?.hero_image_url || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
+      cover_image: raw.cover_image || branding?.hero_image_url || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=80"
     };
-  }, [branding?.digital_menu_settings, branding?.page_layout_settings, branding?.hero_title, branding?.hero_subtitle, branding?.hero_image_url, branding?.wifi_ssid, branding?.wifi_password, lang]);
+  }, [branding?.digital_menu_settings, branding?.page_layout_settings, branding?.hero_title, branding?.hero_subtitle, branding?.hero_image_url, branding?.wifi_ssid, branding?.wifi_password, branding?.theme, lang]);
 
   const updateHorecaConfig = (updates: Partial<typeof horecaConfig>) => {
     const updated = { ...horecaConfig, ...updates };
     onBrandingChange("digital_menu_settings", updated);
     
+    if (updates.theme !== undefined) {
+      onBrandingChange("theme", updates.theme);
+      // set matching default primary color if not customized
+      if (updates.theme === "dark_bistro") onBrandingChange("primary_color", "#f59e0b");
+      else if (updates.theme === "warm_amber") onBrandingChange("primary_color", "#d97706");
+      else if (updates.theme === "fresh_emerald") onBrandingChange("primary_color", "#059669");
+      else onBrandingChange("primary_color", "#4f46e5");
+    }
     if (updates.menu_title !== undefined) onBrandingChange("hero_title", updates.menu_title);
     if (updates.menu_subtitle !== undefined) onBrandingChange("hero_subtitle", updates.menu_subtitle);
     if (updates.cover_image !== undefined) onBrandingChange("hero_image_url", updates.cover_image);
@@ -100,7 +136,7 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
     {
       id: "dark_bistro",
       name: txt("Koyu Gurme & Bistro", "Dark Bistro & Lounge", "Σκοτεινό Μπιστρό"),
-      desc: txt("Siyah ve antrasit arka plan, şık vurgular.", "Deep black & charcoal tones.", "Αριστοκρατικό μαύρο φόντο."),
+      desc: txt("Siyah ve antrasit arka plan, şık altın/amber vurgular.", "Deep black & charcoal tones with warm gold.", "Αριστοκρατικό μαύρο φόντο."),
       tag: "Fine Dining"
     },
     {
@@ -118,8 +154,10 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
   ];
 
   const currentStoreTargetId = storeId || branding?.id || branding?.slug || "";
-  const publicMenuUrl = `${window.location.origin}/digital-menu/${currentStoreTargetId}`;
   const waiterUrl = `${window.location.origin}/digital-menu/${currentStoreTargetId}/garson`;
+
+  // Working Hours Helper
+  const wh = typeof branding?.working_hours === 'object' ? branding.working_hours : {};
 
   return (
     <div className="space-y-3.5 text-slate-800">
@@ -178,9 +216,10 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
         {/* Minimalist Light Sub Navigation Bar */}
         <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-100 overflow-x-auto no-scrollbar">
           {[
-            { id: "visual", label: txt("Tema", "Theme", "Θέμα"), icon: Sparkles },
-            { id: "table_order", label: txt("Sipariş", "Ordering", "Παραγγελίες"), icon: UtensilsCrossed },
-            { id: "wifi", label: txt("Wi-Fi", "Wi-Fi", "Wi-Fi"), icon: Wifi },
+            { id: "visual", label: txt("Tema & Fotoğraflar", "Theme & Photos", "Θέμα & Φωτογραφίες"), icon: Sparkles },
+            { id: "hours", label: txt("Çalışma Saatleri", "Opening Hours", "Ώρες Λειτουργίας"), icon: Clock },
+            { id: "table_order", label: txt("Sipariş & Servis", "Ordering & Service", "Παραγγελίες"), icon: UtensilsCrossed },
+            { id: "wifi", label: txt("Müşteri Wi-Fi", "Guest Wi-Fi", "Wi-Fi"), icon: Wifi },
             { id: "tables_qr", label: txt("Masa QR", "Table QR", "QR Τραπεζιών"), icon: QrCode },
             { id: "instagram", label: txt("Instagram", "Instagram", "Instagram"), icon: Instagram },
           ].map((tab) => {
@@ -213,7 +252,7 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                {txt("QR Menü Görsel Teması", "QR Menu Visual Theme", "Οπτικό Θέμα Μενού")}
+                {txt("QR Menü ve Web Sitesi Görsel Teması", "Visual Theme (Digital Menu & Website)", "Οπτικό Θέμα")}
               </span>
             </div>
 
@@ -251,15 +290,70 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
             </div>
           </div>
 
+          {/* Curated High-Vibrancy Hero Photos Gallery */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Image className="w-3.5 h-3.5 text-slate-500" />
+                {txt("Canlı Kapak & Hero Fotoğrafı Seçimi", "Vibrant Hero / Cover Photo Selection", "Εικόνα Εξωφύλλου")}
+              </span>
+              <span className="text-[10px] font-bold text-slate-500">
+                {txt("Tek tıkla seçin veya özel URL girin", "1-Click pick or paste URL", "Επιλέξτε")}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+              {PRESET_HERO_IMAGES.map((preset, idx) => {
+                const isSelected = horecaConfig.cover_image === preset.url;
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => updateHorecaConfig({ cover_image: preset.url })}
+                    className={`group relative rounded-xl overflow-hidden aspect-video border cursor-pointer transition-all ${
+                      isSelected ? "ring-2 ring-emerald-500 border-emerald-500 shadow-xs" : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <img
+                      src={preset.url}
+                      alt={preset.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 brightness-95"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-1.5">
+                      <span className="text-[9px] font-bold text-white line-clamp-1">{preset.title}</span>
+                    </div>
+                    {isSelected && (
+                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 shrink-0">
+                {txt("Özel Kapak URL'si:", "Custom Cover URL:", "Ειδικό URL:")}
+              </span>
+              <input
+                type="text"
+                value={horecaConfig.cover_image}
+                onChange={(e) => updateHorecaConfig({ cover_image: e.target.value })}
+                placeholder="https://images.unsplash.com/..."
+                className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
           {/* Menu Title, Slogan and Cover Image */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="md:col-span-2 bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                 <ChefHat className="w-3.5 h-3.5 text-slate-500" />
                 {txt("Karşılama Metinleri", "Welcome Texts", "Τίτλος Υποδοχής")}
               </span>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="space-y-2.5">
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
                     {txt("Menü Başlığı", "Menu Heading", "Επικεφαλίδα")}
@@ -288,120 +382,101 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-2xs space-y-2">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 block">
-                {txt("Kapak Görseli URL", "Cover Image URL", "Εικόνα Εξωφύλλου")}
+            {/* STORE LOGO & FAVICON */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Image className="w-3.5 h-3.5 text-slate-500" />
+                {txt("Mağaza Logosu & Favicon", "Store Logo & Favicon", "Λογότυπο & Favicon")}
               </span>
 
-              <div className="flex items-center gap-2">
-                <div className="w-12 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
-                  <img src={horecaConfig.cover_image} alt="Cover" className="w-full h-full object-cover" />
-                </div>
-                <input
-                  type="text"
-                  value={horecaConfig.cover_image}
-                  onChange={(e) => updateHorecaConfig({ cover_image: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-mono text-slate-700 outline-none focus:bg-white focus:border-indigo-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* STORE LOGO & FAVICON */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <Image className="w-3.5 h-3.5 text-slate-500" />
-              {txt("Mağaza Logosu & Favicon", "Store Logo & Favicon", "Λογότυπο & Favicon")}
-            </span>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* LOGO */}
-              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg border border-slate-200 bg-white flex items-center justify-center p-1 shrink-0 shadow-2xs">
-                  {branding?.logo_url ? (
-                    <img src={branding.logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
-                  ) : (
-                    <span className="text-[9px] font-bold text-slate-400">Logo Yok</span>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 flex-1 min-w-0">
-                  <input
-                    type="file"
-                    id="horeca_logo_upload"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        if (typeof reader.result === "string") {
-                          onBrandingChange("logo_url", reader.result);
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                      e.target.value = "";
-                    }}
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById("horeca_logo_upload")?.click()}
-                      className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-md text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 shadow-2xs"
-                    >
-                      <Upload className="w-3 h-3" /> Logo Yükle
-                    </button>
-                    {branding?.logo_url && (
-                      <button
-                        type="button"
-                        onClick={() => onBrandingChange("logo_url", "")}
-                        className="px-2 py-1 text-rose-600 hover:text-rose-700 text-[10px] font-bold cursor-pointer"
-                      >
-                        Sil
-                      </button>
+              <div className="space-y-2">
+                {/* LOGO */}
+                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg border border-slate-200 bg-white flex items-center justify-center p-1 shrink-0 shadow-2xs">
+                    {branding?.logo_url ? (
+                      <img src={branding.logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
+                    ) : (
+                      <span className="text-[8px] font-bold text-slate-400">Logo Yok</span>
                     )}
                   </div>
-                </div>
-              </div>
 
-              {/* FAVICON */}
-              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg border border-slate-200 bg-white flex items-center justify-center p-1 shrink-0 shadow-2xs">
-                  {branding?.favicon_url ? (
-                    <img src={branding.favicon_url} alt="Favicon" className="w-6 h-6 object-contain" />
-                  ) : (
-                    <span className="text-[8px] font-bold text-slate-400">Favicon</span>
-                  )}
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <input
+                      type="file"
+                      id="horeca_logo_upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          if (typeof reader.result === "string") {
+                            onBrandingChange("logo_url", reader.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById("horeca_logo_upload")?.click()}
+                        className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-md text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 shadow-2xs"
+                      >
+                        <Upload className="w-3 h-3" /> Logo Yükle
+                      </button>
+                      {branding?.logo_url && (
+                        <button
+                          type="button"
+                          onClick={() => onBrandingChange("logo_url", "")}
+                          className="px-2 py-1 text-rose-600 hover:text-rose-700 text-[10px] font-bold cursor-pointer"
+                        >
+                          Sil
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-1.5 flex-1 min-w-0">
-                  <input
-                    type="file"
-                    id="horeca_favicon_upload"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        if (typeof reader.result === "string") {
-                          onBrandingChange("favicon_url", reader.result);
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                      e.target.value = "";
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById("horeca_favicon_upload")?.click()}
-                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-md text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 shadow-2xs"
-                  >
-                    <Upload className="w-3 h-3" /> Favicon Yükle
-                  </button>
+                {/* FAVICON */}
+                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg border border-slate-200 bg-white flex items-center justify-center p-1 shrink-0 shadow-2xs">
+                    {branding?.favicon_url ? (
+                      <img src={branding.favicon_url} alt="Favicon" className="w-6 h-6 object-contain" />
+                    ) : (
+                      <span className="text-[8px] font-bold text-slate-400">Favicon</span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <input
+                      type="file"
+                      id="horeca_favicon_upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          if (typeof reader.result === "string") {
+                            onBrandingChange("favicon_url", reader.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById("horeca_favicon_upload")?.click()}
+                      className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-md text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 shadow-2xs"
+                    >
+                      <Upload className="w-3 h-3" /> Favicon Yükle
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -455,6 +530,115 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
                   />
                 </div>
               )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* SUBTAB: ÇALIŞMA SAATLERİ (WORKING HOURS) */}
+      {activeSubTab === "hours" && (
+        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                {txt("Restoran & Kafe Çalışma Saatleri", "Restaurant & Cafe Operating Hours", "Ώρες Λειτουργίας")}
+              </span>
+              <span className="text-[10px] font-bold text-slate-500">
+                {txt("Web sitesi ve QR menüde anlık canlı açık/kapalı durumu hesaplanır", "Live open/closed status displayed on website & QR menu", "Ζωντανή κατάσταση")}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Weekdays */}
+              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-1.5">
+                <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider block">
+                  {txt("Hafta İçi (Pzt - Cuma)", "Weekdays (Mon - Fri)", "Καθημερινές")}
+                </label>
+                <input
+                  type="text"
+                  value={wh.weekdays || "08:30 - 23:00"}
+                  onChange={(e) => onBrandingChange("working_hours", { ...wh, weekdays: e.target.value })}
+                  placeholder="08:30 - 23:00"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Saturday */}
+              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider">
+                    {txt("Cumartesi", "Saturday", "Σάββατο")}
+                  </label>
+                  <label className="flex items-center gap-1 text-[9px] font-bold text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(wh.is_saturday_closed)}
+                      onChange={(e) => onBrandingChange("working_hours", { ...wh, is_saturday_closed: e.target.checked })}
+                      className="w-3 h-3 accent-rose-600 rounded"
+                    />
+                    <span>Kapalı</span>
+                  </label>
+                </div>
+                {!wh.is_saturday_closed ? (
+                  <input
+                    type="text"
+                    value={wh.saturday || "09:00 - 23:30"}
+                    onChange={(e) => onBrandingChange("working_hours", { ...wh, saturday: e.target.value })}
+                    placeholder="09:00 - 23:30"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 outline-none focus:border-indigo-500"
+                  />
+                ) : (
+                  <div className="px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-xs font-bold border border-rose-200">
+                    Kapalı
+                  </div>
+                )}
+              </div>
+
+              {/* Sunday */}
+              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider">
+                    {txt("Pazar", "Sunday", "Κυριακή")}
+                  </label>
+                  <label className="flex items-center gap-1 text-[9px] font-bold text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(wh.is_sunday_closed)}
+                      onChange={(e) => onBrandingChange("working_hours", { ...wh, is_sunday_closed: e.target.checked })}
+                      className="w-3 h-3 accent-rose-600 rounded"
+                    />
+                    <span>Kapalı</span>
+                  </label>
+                </div>
+                {!wh.is_sunday_closed ? (
+                  <input
+                    type="text"
+                    value={wh.sunday || "09:00 - 22:30"}
+                    onChange={(e) => onBrandingChange("working_hours", { ...wh, sunday: e.target.value })}
+                    placeholder="09:00 - 22:30"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 outline-none focus:border-indigo-500"
+                  />
+                ) : (
+                  <div className="px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-xs font-bold border border-rose-200">
+                    Kapalı
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Note */}
+            <div>
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                {txt("Özel Çalışma Saati Notu (İsteğe Bağlı)", "Special Hours Note (Optional)", "Σημείωση")}
+              </label>
+              <input
+                type="text"
+                value={wh.note || ""}
+                onChange={(e) => onBrandingChange("working_hours", { ...wh, note: e.target.value })}
+                placeholder={txt("Örn: Mutfak kapanış saatimiz 22:30'dur. Pazar günleri brunch servisimiz vardır.", "e.g. Kitchen closes at 22:30. Sunday brunch available.", "π.χ. Η κουζίνα κλείνει στις 22:30.")}
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+              />
             </div>
           </div>
         </motion.div>

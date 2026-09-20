@@ -35,10 +35,10 @@ import { ConsultingInsights } from "../../components/ConsultingInsights";
 import { contractTemplates } from "../../utils/contractTemplates";
 import { RealEstateCalendar } from "../../components/RealEstateCalendar";
 import { RealEstateCRM } from "../../components/RealEstateCRM";
+import { ArrangeTourModal } from "../../components/ArrangeTourModal";
 
 const RealEstateModal = React.lazy(() => import("../../components/RealEstateModal").then(m => ({ default: m.RealEstateModal })));
 const LegalContractModal = React.lazy(() => import("../../components/LegalContractModal").then(m => ({ default: m.LegalContractModal })));
-const ArrangeTourModal = React.lazy(() => import("../../components/ArrangeTourModal").then(m => ({ default: m.ArrangeTourModal })));
 const SocialMediaShareModal = React.lazy(() => import("../../components/SocialMediaShareModal").then(m => ({ default: m.SocialMediaShareModal })));
 const TapuTakipModal = React.lazy(() => import("../../components/TapuTakipModal").then(m => ({ default: m.TapuTakipModal })));
 
@@ -742,43 +742,43 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-2 sm:p-3 space-y-2.5">
       
       {/* TOP NAVIGATION BAR FOR PIPELINE & CALENDAR MODES */}
       {(viewMode === 'pipeline' || viewMode === 'calendar') && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white border border-slate-200/80 rounded-2xl p-2.5 md:p-3 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white border border-slate-200/80 rounded-xl p-2 sm:p-2.5 shadow-2xs">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <button
               onClick={() => setViewMode('list')}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer shrink-0"
+              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer shrink-0"
             >
               <ArrowLeft className="w-3.5 h-3.5 stroke-[3]" />
-              <span>← Gayrimenkul Listesine Dön</span>
+              <span>← Portföy Listesine Dön</span>
             </button>
-            <span className="text-xs font-black uppercase text-slate-700 tracking-tight shrink-0">
-              {viewMode === 'calendar' ? '📅 Gezi & Randevu Takvimi' : '📊 Gayrimenkul CRM & Pipeline Süreç Yönetimi'}
+            <span className="text-xs font-black uppercase text-slate-800 tracking-tight shrink-0 font-mono">
+              {viewMode === 'calendar' ? '📅 Gezi & Randevu Takvimi' : '📊 Gayrimenkul CRM & Pipeline'}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => setViewMode('list')}
-              className="px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200"
+              className="px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200"
             >
               📋 Liste
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                viewMode === 'calendar' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                viewMode === 'calendar' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               📅 Takvim
             </button>
             <button
               onClick={() => setViewMode('pipeline')}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                viewMode === 'pipeline' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                viewMode === 'pipeline' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               📊 Pipeline
@@ -1013,12 +1013,14 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
           storeId={storeId || user?.store_id} 
           properties={safeProperties} 
           onClose={() => setViewMode('list')}
+          hideHeader={true}
         />
       ) : viewMode === 'pipeline' ? (
         <RealEstateCRM
           storeId={storeId || user?.store_id || 0}
           properties={safeProperties}
           tasks={tasks}
+          hideHeader={true}
           onOpenCalendar={() => setViewMode('calendar')}
           onOpenTourModal={(p) => {
             setActiveTourProperty(p);
@@ -1384,21 +1386,20 @@ const RealEstateTab = ({ properties, loading, onSave, onDelete, user, branding, 
 
       {/* Tour Arranger Modal */}
       {isTourModalOpen && (
-        <React.Suspense fallback={null}>
-          <ArrangeTourModal
-            onClose={() => {
-              setIsTourModalOpen(false);
-              setActiveTourProperty(null);
-            }}
-            property={activeTourProperty}
-            propertiesList={safeProperties}
-            onSave={() => {
-              setIsTourModalOpen(false);
-              setActiveTourProperty(null);
-              fetchTasks();
-            }}
-          />
-        </React.Suspense>
+        <ArrangeTourModal
+          onClose={() => {
+            setIsTourModalOpen(false);
+            setActiveTourProperty(null);
+          }}
+          property={activeTourProperty}
+          propertiesList={safeProperties}
+          storeId={storeId || user?.store_id}
+          onSave={() => {
+            setIsTourModalOpen(false);
+            setActiveTourProperty(null);
+            fetchTasks();
+          }}
+        />
       )}
 
       {/* Social Media Sharing & Poster Creation Wizard */}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar, User, Clock, Check, Building2, MapPin, Sparkles } from 'lucide-react';
 import { RealEstateProperty } from '../types';
 import { api } from '../services/api';
@@ -7,11 +8,12 @@ import { toast } from 'sonner';
 interface ArrangeTourModalProps {
   property: RealEstateProperty | null;
   propertiesList?: RealEstateProperty[];
+  storeId?: number;
   onClose: () => void;
   onSave: () => void;
 }
 
-export const ArrangeTourModal = ({ property, propertiesList = [], onClose, onSave }: ArrangeTourModalProps) => {
+export const ArrangeTourModal = ({ property, propertiesList = [], storeId, onClose, onSave }: ArrangeTourModalProps) => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | string>(() => property?.id || (propertiesList[0]?.id || ''));
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('14:00');
@@ -36,32 +38,38 @@ export const ArrangeTourModal = ({ property, propertiesList = [], onClose, onSav
       toast.error('Lütfen gösterim / gezi yapılacak gayrimenkulü seçiniz.');
       return;
     }
-    if (!date || !time || !customerName) {
+    if (!date || !time || !customerName.trim()) {
       toast.error('Lütfen tarih, saat ve müşteri adı alanlarını doldurunuz.');
       return;
     }
     setLoading(true);
     try {
-      const descStr = `Gezi Düzenlendi: ${customerName} (Tel: ${customerPhone || '---'}) ${agentName ? '• Danışman: ' + agentName : ''} ${notes ? '• Not: ' + notes : ''}`;
+      const descStr = `Gezi Düzenlendi: ${customerName.trim()} (Tel: ${customerPhone.trim() || '---'}) ${agentName.trim() ? '• Danışman: ' + agentName.trim() : ''} ${notes.trim() ? '• Not: ' + notes.trim() : ''}`;
       await api.createTask({
         property_id: Number(selectedPropertyId),
         task_type: 'tour',
         description: descStr,
         due_date: new Date(`${date}T${time}`).toISOString(),
-      });
+      }, storeId);
       toast.success('Gezi randevusu başarıyla kaydedildi ve Pipeline kartına bağlandı!');
-      onSave();
+      if (onSave) onSave();
       onClose();
     } catch (e) {
+      console.error('Error creating tour task:', e);
       toast.error('Gezi kaydedilirken bir hata oluştu.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 z-[130]">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 relative overflow-hidden flex flex-col max-h-[92vh]">
+  return createPortal(
+    <div 
+      className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 z-[99999]"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 relative overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
         {/* Futuristic Header */}
         <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -78,6 +86,7 @@ export const ArrangeTourModal = ({ property, propertiesList = [], onClose, onSav
           </div>
           <button 
             onClick={onClose} 
+            type="button"
             className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -199,12 +208,14 @@ export const ArrangeTourModal = ({ property, propertiesList = [], onClose, onSav
         {/* Footer */}
         <div className="p-3 bg-white border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
           <button 
+            type="button"
             onClick={onClose} 
             className="px-3.5 py-1.5 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
           >
             Vazgeç
           </button>
           <button 
+            type="button"
             onClick={handleSubmit} 
             disabled={loading} 
             className="px-4 py-1.5 bg-indigo-600 text-white font-black rounded-xl text-xs hover:bg-indigo-700 transition-all cursor-pointer shadow-md shadow-indigo-600/20 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
@@ -214,6 +225,7 @@ export const ArrangeTourModal = ({ property, propertiesList = [], onClose, onSav
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

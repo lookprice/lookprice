@@ -412,7 +412,12 @@ export const RealEstateCRM = ({
         {/* Trigger Controls & Search */}
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
           <button
-            onClick={() => onOpenTourModal(null)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenTourModal(null);
+            }}
             className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
             title="Sisteme yeni bir gezi / gösterim kaydı ekler"
           >
@@ -677,7 +682,12 @@ export const RealEstateCRM = ({
                           {/* Additional showing button if needed */}
                           {(stage.id === 'planned' || stage.id === 'analysis') && (
                             <button 
-                              onClick={() => onOpenTourModal(deal.property)}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onOpenTourModal(deal.property);
+                              }}
                               className="w-full py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600 transition-all cursor-pointer flex items-center justify-center gap-1"
                             >
                               <Plus className="w-3 h-3" />

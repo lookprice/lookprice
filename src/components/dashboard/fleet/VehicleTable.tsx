@@ -15,9 +15,11 @@ import {
   Maximize2,
   Globe,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Calendar
 } from 'lucide-react';
 import { Vehicle, Driver, VehicleDocument, VehicleAssignment, VehicleMaintenance } from '../../../types';
+import { VehicleAppointmentModal } from '../../VehicleAppointmentModal';
 
 interface VehicleTableProps {
   vehicles: Vehicle[];
@@ -71,6 +73,8 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
   const [activePreviewImages, setActivePreviewImages] = useState<string[]>([]);
   const [activePreviewIndex, setActivePreviewIndex] = useState<number>(0);
   const [previewVehiclePlate, setPreviewVehiclePlate] = useState<string>('');
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState<boolean>(false);
+  const [appointmentVehicleId, setAppointmentVehicleId] = useState<number | string | undefined>(undefined);
 
   const getVehicleImagesList = (vehicle: Vehicle): string[] => {
     if (!vehicle.images) return [];
@@ -241,6 +245,16 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                   title="Paylaş"
                 >
                   <Share2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setAppointmentVehicleId(vehicle.id);
+                    setIsAppointmentModalOpen(true);
+                  }}
+                  className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center active:scale-95"
+                  title="Randevu / Test Sürüşü Planla"
+                >
+                  <Calendar className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => {
@@ -465,6 +479,17 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
                     <div className="flex justify-end gap-1.5 items-center">
                       <button
                         onClick={() => {
+                          setAppointmentVehicleId(vehicle.id);
+                          setIsAppointmentModalOpen(true);
+                        }}
+                        className="p-1.5 text-indigo-600 hover:text-white bg-indigo-50 hover:bg-indigo-600 rounded-lg transition-all shadow-2xs border border-indigo-100 hover:border-indigo-600"
+                        title="Randevu / Test Sürüşü Planla"
+                      >
+                        <Calendar className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => {
                           setAutoContractVehicle(vehicle);
                           setIsAutoContractOpen(true);
                         }}
@@ -662,6 +687,22 @@ export const VehicleTable: React.FC<VehicleTableProps> = ({
           </div>
         )}
       </AnimatePresence>
+      {/* Vehicle Appointment Modal */}
+      {isAppointmentModalOpen && (
+        <VehicleAppointmentModal
+          isOpen={isAppointmentModalOpen}
+          onClose={() => {
+            setIsAppointmentModalOpen(false);
+            setAppointmentVehicleId(undefined);
+          }}
+          storeId={vehicles[0]?.store_id || 1}
+          vehicles={vehicles}
+          initialVehicleId={appointmentVehicleId}
+          onSuccess={() => {
+            // Success callback
+          }}
+        />
+      )}
     </div>
   );
 };

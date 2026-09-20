@@ -9,6 +9,7 @@ import { AutomotiveCRM } from '../../components/AutomotiveCRM';
 import { AutomotiveCalendar } from '../../components/AutomotiveCalendar';
 import { RealEstateModal } from '../../components/RealEstateModal';
 import { ArrangeTourModal } from '../../components/ArrangeTourModal';
+import { VehicleAppointmentModal } from '../../components/VehicleAppointmentModal';
 import { toast } from 'sonner';
 
 interface TeamCrmTabProps {
@@ -186,6 +187,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTourProperty, setActiveTourProperty] = useState<any>(null);
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
+  const [isAutoAppointmentModalOpen, setIsAutoAppointmentModalOpen] = useState(false);
 
   const currentStages = isAutomotive ? AUTO_STAGES : RE_STAGES;
   const storageKey = isAutomotive 
@@ -438,16 +440,20 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
             onClick={() => {
               if (activeSubTab === 'agents') {
                 setEditingAgent(null);
-                setFormData({ name: '', email: '', phone: '', role: 'Broker / Yöneticisi', branch_id: '', image_url: '' });
+                setFormData({ name: '', email: '', phone: '', role: isAutomotive ? 'Satış Danışmanı / Temsilcisi' : 'Broker / Yöneticisi', branch_id: '', image_url: '' });
                 setShowModal(true);
               } else if (activeSubTab === 'branches') {
                 setEditingBranch(null);
                 setBranchFormData({ name: '', address: '', phone: '', slug: '' });
                 setShowBranchModal(true);
               } else {
-                setEditingDeal(null);
-                setDealFormData({ title: '', description: '', agent_name: '', budget: '', stage: 'Yeni Talep / Aday' });
-                setShowDealModal(true);
+                if (isAutomotive) {
+                  setIsAutoAppointmentModalOpen(true);
+                } else {
+                  setEditingDeal(null);
+                  setDealFormData({ title: '', description: '', agent_name: '', budget: '', stage: 'Yeni Talep / Aday' });
+                  setShowDealModal(true);
+                }
               }
             }}
             className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-[11px] transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 shrink-0"
@@ -456,6 +462,7 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
             <span>
               {activeSubTab === 'agents' ? (isTr ? '+ Personel' : '+ Agent') : 
                activeSubTab === 'branches' ? (isTr ? '+ Şube' : '+ Branch') : 
+               isAutomotive ? '+ Randevu / Fırsat' :
                (isTr ? '+ Talep/Fırsat' : '+ Lead')}
             </span>
           </button>
@@ -788,6 +795,16 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
                     <span>Kanban</span>
                   </button>
                 </div>
+              )}
+
+              {isAutomotive && (crmView === 'portfolio' || crmView === 'calendar') && (
+                <button
+                  onClick={() => setIsAutoAppointmentModalOpen(true)}
+                  className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>+ Yeni Araç Randevusu</span>
+                </button>
               )}
 
               {crmView === 'portfolio' && !isAutomotive && (
@@ -1302,9 +1319,22 @@ export const TeamCrmTab = ({ storeId, storeName, isAutomotive = false, isRealEst
           }}
           property={activeTourProperty}
           propertiesList={portfolioItems}
+          storeId={storeId}
           onSave={() => {
             setIsTourModalOpen(false);
             setActiveTourProperty(null);
+            fetchData();
+          }}
+        />
+      )}
+
+      {isAutoAppointmentModalOpen && (
+        <VehicleAppointmentModal
+          isOpen={isAutoAppointmentModalOpen}
+          onClose={() => setIsAutoAppointmentModalOpen(false)}
+          storeId={storeId!}
+          vehicles={portfolioItems}
+          onSuccess={() => {
             fetchData();
           }}
         />

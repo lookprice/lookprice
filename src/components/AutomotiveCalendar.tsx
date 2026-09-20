@@ -8,13 +8,15 @@ import {
   Car, 
   Search,
   CheckCircle2,
-  X
+  X,
+  Plus
 } from 'lucide-react';
 import { api } from '../services/api';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isToday } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { VehicleAppointmentModal } from './VehicleAppointmentModal';
 
 interface AutomotiveCalendarProps {
   storeId: number;
@@ -28,13 +30,13 @@ export const AutomotiveCalendar = ({ storeId, vehicles, onClose }: AutomotiveCal
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
   const [searchQuery, setSearchQuery] = useState("");
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
 
   const fetchTasks = async () => {
     try {
       setLoading(true);
       const res = await api.getTasks(storeId);
       if (Array.isArray(res)) {
-        // Filter only appointments for vehicles (assuming type 'appointment')
         setTasks(res.filter((t: any) => t.task_type === 'appointment'));
       }
     } catch (err) {
@@ -63,17 +65,24 @@ export const AutomotiveCalendar = ({ storeId, vehicles, onClose }: AutomotiveCal
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
 
   const filteredTasks = tasks.filter(task => {
-    const vehicle = vehicles.find(v => v.id === task.vehicle_id);
+    const vehicle = vehicles.find(v => v.id === task.vehicle_id || v.id === task.property_id);
     const searchLower = searchQuery.toLowerCase();
     return (
       task.description?.toLowerCase().includes(searchLower) ||
       vehicle?.brand?.toLowerCase().includes(searchLower) ||
-      vehicle?.model?.toLowerCase().includes(searchLower)
+      vehicle?.model?.toLowerCase().includes(searchLower) ||
+      vehicle?.plate?.toLowerCase().includes(searchLower)
     );
   });
 
   const getDayTasks = (day: Date) => {
-    return filteredTasks.filter(task => isSameDay(parseISO(task.due_date), day));
+    return filteredTasks.filter(task => {
+      try {
+        return isSameDay(parseISO(task.due_date), day);
+      } catch (e) {
+        return false;
+      }
+    });
   };
 
   const selectedDayTasks = selectedDay ? getDayTasks(selectedDay) : [];
@@ -92,12 +101,20 @@ export const AutomotiveCalendar = ({ storeId, vehicles, onClose }: AutomotiveCal
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsAppointmentModalOpen(true)}
+            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>+ Yeni Randevu</span>
+          </button>
+
           <div className="relative mr-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text" 
               placeholder="Randevu veya araç ara..."
-              className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold w-64 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+              className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold w-52 sm:w-64 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -152,7 +169,7 @@ export const AutomotiveCalendar = ({ storeId, vehicles, onClose }: AutomotiveCal
                   
                   <div className="space-y-1 mt-1">
                     {dayTasks.slice(0, 3).map((task, tidx) => {
-                      const vehicle = vehicles.find(v => v.id === task.vehicle_id);
+                      const vehicle = vehicles.find(v => v.id === task.vehicle_id || v.id === task.property_id);
                       return (
                         <div key={tidx} className="text-[9px] font-bold bg-white border border-slate-200 p-1 rounded-lg truncate text-slate-600 shadow-sm group-hover:border-indigo-200 transition-all">
                           {format(parseISO(task.due_date), 'HH:mm')} {vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Randevu'}
@@ -195,7 +212,7 @@ export const AutomotiveCalendar = ({ storeId, vehicles, onClose }: AutomotiveCal
                   </motion.div>
                 ) : (
                   selectedDayTasks.map((task) => {
-                    const vehicle = vehicles.find(v => v.id === task.vehicle_id);
+                    const vehicle = vehicles.find(v => v.id === task.vehicle_id || v.id === task.property_id);
                     return (
                       <motion.div
                         key={task.id}
@@ -242,7 +259,7 @@ export const AutomotiveCalendar = ({ storeId, vehicles, onClose }: AutomotiveCal
                                 toast.error("Hata oluştu.");
                               }
                             }}
-                            className="flex-1 bg-slate-900 text-white text-[10px] font-black uppercase py-2 rounded-xl hover:bg-slate-800 transition-all active:scale-95"
+                            className="flex-1 bg-slate-900 text-white text-[10px] font-black uppercase py-2 rounded-xl hover:bg-slate-800 transition-all active:scale-95 cursor-pointer"
                           >
                             Tamamlandı
                           </button>
@@ -256,6 +273,16 @@ export const AutomotiveCalendar = ({ storeId, vehicles, onClose }: AutomotiveCal
           </div>
         </div>
       </div>
+
+      <VehicleAppointmentModal
+        isOpen={isAppointmentModalOpen}
+        onClose={() => setIsAppointmentModalOpen(false)}
+        storeId={storeId}
+        vehicles={vehicles}
+        onSuccess={() => {
+          fetchTasks();
+        }}
+      />
     </div>
   );
 };

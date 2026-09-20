@@ -109,6 +109,9 @@ export async function initRealEstateSchema() {
         status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE property_tasks ADD COLUMN IF NOT EXISTS store_id INTEGER;
+      ALTER TABLE property_tasks ADD COLUMN IF NOT EXISTS completion_note TEXT;
+      ALTER TABLE property_tasks ADD COLUMN IF NOT EXISTS is_completed BOOLEAN DEFAULT FALSE;
     `);
 
     // Create portfolio_transactions table for income and expenses
@@ -219,14 +222,17 @@ router.post('/properties/analyze', authenticate, async (req: any, res) => {
 
 // Create a task
 router.post('/properties/tasks', authenticate, async (req: any, res) => {
-  const { property_id, task_type, description, due_date } = req.body;
-  const consultant_id = req.user.id;
+  const { property_id, task_type, description, due_date, store_id } = req.body;
+  const storeId = store_id || req.query.store_id || req.query.storeId || req.user?.store_id;
+  const consultant_id = req.user?.id;
   try {
-    await pool.query(
-      `INSERT INTO property_tasks (property_id, consultant_id, task_type, description, due_date) VALUES ($1, $2, $3, $4, $5)`,
-      [property_id, consultant_id, task_type, description, due_date || new Date().toISOString()]
+    const insertRes = await pool.query(
+      `INSERT INTO property_tasks (property_id, consultant_id, task_type, description, due_date, status, store_id) 
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6) 
+       RETURNING *`,
+      [property_id || null, consultant_id || null, task_type, description, due_date || new Date().toISOString(), storeId || null]
     );
-    res.json({ success: true });
+    res.json({ success: true, task: insertRes.rows[0] });
   } catch (error) {
     console.error('Error creating task:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -235,12 +241,28 @@ router.post('/properties/tasks', authenticate, async (req: any, res) => {
 
 // Get tasks
 router.get('/properties/tasks', authenticate, async (req: any, res) => {
-  const consultant_id = req.user.id;
+  const storeId = req.query.store_id || req.query.storeId || req.user?.store_id;
+  const consultant_id = req.user?.id;
   try {
-    const result = await pool.query(
-      `SELECT * FROM property_tasks WHERE consultant_id = $1 AND status = 'pending' ORDER BY due_date ASC`,
-      [consultant_id]
-    );
+    let result;
+    if (storeId) {
+      result = await pool.query(
+        `SELECT pt.*, (pt.status = 'completed') as is_completed 
+         FROM property_tasks pt
+         LEFT JOIN real_estate_properties rp ON pt.property_id = rp.id
+         WHERE (rp.store_id = $1 OR pt.store_id = $1 OR (pt.consultant_id = $2 AND pt.consultant_id IS NOT NULL))
+         ORDER BY pt.due_date ASC`,
+        [storeId, consultant_id]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT pt.*, (pt.status = 'completed') as is_completed 
+         FROM property_tasks pt
+         WHERE pt.consultant_id = $1
+         ORDER BY pt.due_date ASC`,
+        [consultant_id]
+      );
+    }
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching tasks:', error);
@@ -248,20 +270,48 @@ router.get('/properties/tasks', authenticate, async (req: any, res) => {
   }
 });
 
-// Complete a task
+// Complete / Patch a task
 router.patch('/properties/tasks/:id', authenticate, async (req: any, res) => {
-    const { id } = req.params;
-    try {
-      await pool.query(
-        `UPDATE property_tasks SET status = 'completed' WHERE id = $1`,
-        [id]
-      );
-      res.json({ success: true });
-    } catch (error) {
-      console.error('Error updating task:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
+  const { id } = req.params;
+  const { completion_note, is_completed, status } = req.body;
+  const newStatus = status || (is_completed !== false ? 'completed' : 'pending');
+  try {
+    await pool.query(
+      `UPDATE property_tasks 
+       SET status = $1, 
+           completion_note = COALESCE($2, completion_note),
+           is_completed = ($1 = 'completed')
+       WHERE id = $3`,
+      [newStatus, completion_note || null, id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating task:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a task (PUT)
+router.put('/properties/tasks/:id', authenticate, async (req: any, res) => {
+  const { id } = req.params;
+  const { due_date, description, status, completion_note } = req.body;
+  try {
+    await pool.query(
+      `UPDATE property_tasks 
+       SET due_date = COALESCE($1, due_date),
+           description = COALESCE($2, description),
+           status = COALESCE($3, status),
+           completion_note = COALESCE($4, completion_note),
+           is_completed = CASE WHEN $3 IS NOT NULL THEN ($3 = 'completed') ELSE is_completed END
+       WHERE id = $5`,
+      [due_date || null, description || null, status || null, completion_note || null, id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating task:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Get Audit Log for a property
 router.get('/properties/:id/audit-log', authenticate, async (req: any, res) => {

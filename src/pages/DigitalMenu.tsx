@@ -492,6 +492,55 @@ export default function DigitalMenuPage() {
               </button>
             )}
           </div>
+
+          {/* Working Hours Status & Phone */}
+          {(() => {
+            const getWorkingHoursStatus = () => {
+              const wh = store?.working_hours || store?.branding?.working_hours;
+              if (!wh) return { isOpen: true, text: "7/7 Açık", badgeBg: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+              const now = new Date();
+              const day = now.getDay();
+              const currentTime = now.getHours() * 60 + now.getMinutes();
+              let hoursStr = "";
+              if (day === 0) {
+                if (wh.is_sunday_closed) return { isOpen: false, text: t("Bugün Kapalı", "Closed Today", "Κλειστά Σήμερα"), badgeBg: "bg-rose-50 text-rose-700 border-rose-200" };
+                hoursStr = wh.sunday || "10:00 - 23:00";
+              } else if (day === 6) {
+                if (wh.is_saturday_closed) return { isOpen: false, text: t("Bugün Kapalı", "Closed Today", "Κλειστά Σήμερα"), badgeBg: "bg-rose-50 text-rose-700 border-rose-200" };
+                hoursStr = wh.saturday || "09:00 - 23:00";
+              } else {
+                hoursStr = wh.weekdays || "09:00 - 23:00";
+              }
+              const parts = hoursStr.split("-").map((s: string) => s.trim());
+              if (parts.length === 2) {
+                const [openH, openM] = parts[0].split(":").map(Number);
+                const [closeH, closeM] = parts[1].split(":").map(Number);
+                const openMinutes = (openH || 0) * 60 + (openM || 0);
+                const closeMinutes = (closeH || 0) * 60 + (closeM || 0);
+                const isOpen = currentTime >= openMinutes && currentTime <= closeMinutes;
+                return {
+                  isOpen,
+                  text: isOpen ? `${t('Açık', 'Open', 'Ανοιχτά')} (${parts[0]} - ${parts[1]})` : `${t('Kapalı', 'Closed', 'Κλειστά')} (${t('Açılış', 'Opens', 'Άνοιγμα')}: ${parts[0]})`,
+                  badgeBg: isOpen ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
+                };
+              }
+              return { isOpen: true, text: hoursStr, badgeBg: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+            };
+            const workStatus = getWorkingHoursStatus();
+            return (
+              <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black border ${workStatus.badgeBg} flex items-center gap-1`}>
+                  <Clock className="w-3 h-3" />
+                  {workStatus.text}
+                </span>
+                {store.phone && (
+                  <a href={`tel:${store.phone}`} className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1">
+                    <span>📞 {store.phone}</span>
+                  </a>
+                )}
+              </div>
+            );
+          })()}
         </header>
 
         {/* Warning alert if no table is selected */}
@@ -724,7 +773,7 @@ export default function DigitalMenuPage() {
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80';
                         }}
-                        className="w-full h-[115px] object-cover rounded-xl shadow-xs" 
+                        className="w-full h-[115px] object-cover rounded-xl shadow-xs filter contrast-105 saturate-105" 
                       />
                       
                       {Number(product.calories) > 0 && (

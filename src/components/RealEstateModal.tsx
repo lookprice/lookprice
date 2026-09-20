@@ -439,60 +439,60 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs" onClick={onClose} />
       
       {/* Modal Main Frame - Viewport Fit Compact & Futuristic */}
-      <div className="bg-white rounded-2xl w-full max-w-5xl relative z-10 flex flex-col h-[94vh] sm:h-[90vh] md:h-[86vh] shadow-2xl border border-slate-200 overflow-hidden text-slate-900">
+      <div className="bg-white rounded-2xl w-full max-w-4xl relative z-10 flex flex-col max-h-[85vh] shadow-2xl border border-slate-200 overflow-hidden text-slate-900">
         
         {/* TOP FUTURISTIC BAR */}
-        <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between gap-3 border-b border-slate-800 shrink-0 select-none">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400 shrink-0">
-              <Building2 className="w-4 h-4" />
+        <div className="bg-slate-900 text-white px-3.5 py-2 flex items-center justify-between gap-2.5 border-b border-slate-800 shrink-0 select-none">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400 shrink-0">
+              <Building2 className="w-3.5 h-3.5" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black tracking-widest text-indigo-400 uppercase font-mono">RESTATELP CORE</span>
-                <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-slate-300 font-mono font-bold">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-black tracking-widest text-indigo-400 uppercase font-mono">RESTATELP</span>
+                <span className="text-[9px] bg-white/10 px-1.5 py-0.2 rounded text-slate-300 font-mono font-bold">
                   {formData.reference_no || 'REF-AUTO'}
                 </span>
               </div>
-              <h3 className="text-xs sm:text-sm font-black text-white truncate">
+              <h3 className="text-xs font-black text-white truncate">
                 {property ? `Portföy Düzenle: ${property.title || property.reference_no}` : 'Yeni Gayrimenkul Portföyü Girişi'}
               </h3>
             </div>
           </div>
 
           {/* Quick Header Switchers & Close */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Intent Switcher */}
-            <div className="flex bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/60">
+            <div className="flex bg-slate-800/90 p-0.5 rounded-lg border border-slate-700/60">
               <button
                 type="button"
                 onClick={() => setFormData({...formData, listing_intent: 'sale'})}
-                className={`px-2 py-1 rounded text-[11px] font-black transition-all cursor-pointer ${formData.listing_intent === 'sale' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer ${formData.listing_intent === 'sale' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
               >
                 SATILIK
               </button>
               <button
                 type="button"
                 onClick={() => setFormData({...formData, listing_intent: 'rent'})}
-                className={`px-2 py-1 rounded text-[11px] font-black transition-all cursor-pointer ${formData.listing_intent === 'rent' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer ${formData.listing_intent === 'rent' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
               >
                 KİRALIK
               </button>
             </div>
 
             {/* Region Switcher */}
-            <div className="hidden sm:flex bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/60">
+            <div className="hidden sm:flex bg-slate-800/90 p-0.5 rounded-lg border border-slate-700/60">
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, country: 'KKTC', currency: formData.currency || 'GBP' })}
-                className={`px-2 py-1 rounded text-[11px] font-black transition-all cursor-pointer ${formData.country === 'KKTC' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer ${formData.country === 'KKTC' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
               >
                 🏝️ KKTC
               </button>
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, country: 'TR', currency: 'TRY' })}
-                className={`px-2 py-1 rounded text-[11px] font-black transition-all cursor-pointer ${formData.country === 'TR' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer ${formData.country === 'TR' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
               >
                 🇹🇷 TR
               </button>
@@ -512,7 +512,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             {/* Close Button */}
             <button 
               onClick={onClose} 
-              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -521,7 +521,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
         {/* FUTURISTIC SEGMENTED TAB BAR (If tabs mode) */}
         {viewMode === 'tabs' && (
-          <div className="bg-slate-50 border-b border-slate-200 px-3 py-1.5 flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0">
+          <div className="bg-slate-50 border-b border-slate-200 px-3 py-1 flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0">
             {TABS.map((tab, idx) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -530,21 +530,21 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => { setActiveTab(tab.id); setValidationError(null); }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-black transition-all shrink-0 cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all shrink-0 cursor-pointer ${
                     isActive 
-                      ? 'bg-indigo-600 text-white shadow-xs scale-100' 
+                      ? 'bg-indigo-600 text-white shadow-xs' 
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                   <span>{tab.label}</span>
                   {tab.id === 'media' && (formData.images?.length || 0) > 0 && (
-                    <span className={`text-[10px] px-1 py-0.2 rounded-full font-mono font-black ${isActive ? 'bg-white text-indigo-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                    <span className={`text-[9px] px-1 rounded-full font-mono font-black ${isActive ? 'bg-white text-indigo-700' : 'bg-indigo-100 text-indigo-700'}`}>
                       {formData.images?.length}
                     </span>
                   )}
                   {tab.id === 'docs' && (formData.documents?.length || 0) > 0 && (
-                    <span className={`text-[10px] px-1 py-0.2 rounded-full font-mono font-black ${isActive ? 'bg-white text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    <span className={`text-[9px] px-1 rounded-full font-mono font-black ${isActive ? 'bg-white text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
                       {formData.documents?.length}
                     </span>
                   )}
@@ -555,12 +555,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         )}
 
         {/* SCROLLABLE FORM BODY - HIGH-DENSITY, MINIMALIST & FUTURISTIC */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-3.5 sm:p-4 space-y-3.5 bg-slate-50/40 text-xs font-bold">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2.5 bg-slate-50/40 text-xs font-bold">
           
           {/* SECTION 1: TEMEL & FİYAT */}
           {(viewMode === 'all' || activeTab === 'basic') && (
-            <div className="bg-white border border-slate-200/90 rounded-xl p-3 sm:p-3.5 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="bg-white border border-slate-200/90 rounded-xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-[11px] font-black uppercase text-indigo-950 flex items-center gap-1.5 tracking-wide">
                   <DollarSign className="w-3.5 h-3.5 text-indigo-600" />
                   1. Temel İlan Detayları & Fiyatlandırma
@@ -571,28 +571,28 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               {/* Reference & Title */}
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                <div className="sm:col-span-3">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <div className="w-full sm:w-36 shrink-0">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
                     Portföy Ref No *
                   </label>
                   <input
                     type="text"
                     required
                     placeholder="TR-1002"
-                    className="w-full px-2.5 py-1.5 h-8.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-black text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                    className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-black text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
                     value={formData.reference_no || ''}
                     onChange={(e) => setFormData({ ...formData, reference_no: e.target.value })}
                   />
                 </div>
-                <div className="sm:col-span-9">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                <div className="flex-1 w-full">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
                     İlan Başlığı *
                   </label>
                   <input
                     type="text"
                     placeholder="Örn: Girne Alsancak Dağ ve Deniz Manzaralı 2+1 Lüks Daire"
-                    className="w-full px-2.5 py-1.5 h-8.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                    className="w-full px-2.5 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
                     value={formData.title}
                     onChange={(e) => setFormData({...formData, title: e.target.value})}
                   />
@@ -600,10 +600,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               {/* Price, Currency, Type, Subtype, Status in one neat high-density row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-2.5 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-2 items-end">
                 {/* Price & Currency (Integrated Group with binlik ayraç) */}
                 <div className="md:col-span-4">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
                     Fiyat ({formData.currency}) *
                   </label>
                   <div className="flex gap-1 items-center">
@@ -611,12 +611,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       type="text"
                       inputMode="numeric"
                       placeholder="850.000"
-                      className="flex-1 min-w-[110px] px-2.5 py-1.5 h-8.5 bg-white border border-slate-300 focus:border-indigo-600 rounded-lg text-xs font-black text-slate-900 shadow-2xs outline-none"
+                      className="flex-1 min-w-[100px] px-2 py-1 h-8 bg-white border border-slate-300 focus:border-indigo-600 rounded-lg text-xs font-black text-slate-900 shadow-2xs outline-none"
                       value={formatPriceDisplay(formData.price)}
                       onChange={(e) => setFormData({ ...formData, price: parsePriceInput(e.target.value) })}
                     />
                     <select
-                      className="w-24 px-2 py-1.5 h-8.5 border border-slate-300 rounded-lg text-xs font-black bg-slate-100 text-slate-800 outline-none cursor-pointer hover:bg-slate-200 transition-colors"
+                      className="w-22 px-1.5 py-1 h-8 border border-slate-300 rounded-lg text-xs font-black bg-slate-100 text-slate-800 outline-none cursor-pointer hover:bg-slate-200 transition-colors"
                       value={formData.currency}
                       onChange={(e) => setFormData({...formData, currency: e.target.value})}
                     >
@@ -630,27 +630,27 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
                 {/* Emlak Tipi */}
                 <div className="md:col-span-3">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
                     Emlak Tipi
                   </label>
                   <select
-                    className="w-full px-2.5 py-1.5 h-8.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
+                    className="w-full px-2 py-1 h-8 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
                     value={formData.type}
                     onChange={(e) => setFormData({...formData, type: e.target.value as any, subtype: ''})}
                   >
-                    <option value="residence">🏠 Konut / Residence</option>
-                    <option value="commercial">🏬 Ticari / Commercial</option>
-                    <option value="land">🌾 Arsa & Arazi / Land</option>
+                    <option value="residence">🏠 Konut</option>
+                    <option value="commercial">🏬 Ticari</option>
+                    <option value="land">🌾 Arsa & Arazi</option>
                   </select>
                 </div>
 
                 {/* Alt Tip */}
                 <div className="md:col-span-3">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
                     Alt Tip
                   </label>
                   <select
-                    className="w-full px-2.5 py-1.5 h-8.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
+                    className="w-full px-2 py-1 h-8 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
                     value={formData.subtype || ''}
                     onChange={(e) => setFormData({...formData, subtype: e.target.value})}
                   >
@@ -663,11 +663,11 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
                 {/* İlan Durumu */}
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
                     İlan Durumu
                   </label>
                   <select
-                    className="w-full px-2 py-1.5 h-8.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
+                    className="w-full px-1.5 py-1 h-8 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                   >
@@ -688,23 +688,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 </div>
               </div>
 
-              {/* KKTC / TR Bölge ve Koçan Seçimi (Compact) */}
-              <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-2.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-indigo-900 uppercase">
-                    🌍 Bölge & Konum Sınıflandırması
-                  </span>
-                  <span className="text-[10px] font-bold text-indigo-600">
-                    {formData.country === 'KKTC' ? 'Kuzey Kıbrıs Pilot Veritabanı' : 'Türkiye Standart'}
-                  </span>
-                </div>
-
+              {/* KKTC / TR Bölge ve Koçan Seçimi (Sleek minimalist bar) */}
+              <div className="border border-indigo-100 rounded-lg p-2 bg-indigo-50/30">
                 {formData.country === 'KKTC' ? (
-                  <div className={`grid grid-cols-1 ${formData.listing_intent === 'rent' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-2.5`}>
+                  <div className={`grid grid-cols-1 ${formData.listing_intent === 'rent' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-2`}>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">KKTC Bölgesi</label>
                       <select
-                        className="w-full px-2 py-1.5 h-8 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                        className="w-full px-2 py-1 h-7.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         value={formData.kktc_region}
                         onChange={(e) => setFormData({ ...formData, kktc_region: e.target.value as any, kktc_sub_region: '' })}
                       >
@@ -716,7 +707,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Alt Bölge</label>
                       <select
-                        className="w-full px-2 py-1.5 h-8 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                        className="w-full px-2 py-1 h-7.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         value={formData.kktc_sub_region}
                         onChange={(e) => setFormData({ ...formData, kktc_sub_region: e.target.value })}
                       >
@@ -730,7 +721,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       <div>
                         <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Koçan Tipi</label>
                         <select
-                          className="w-full px-2 py-1.5 h-8 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                          className="w-full px-2 py-1 h-7.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                           value={formData.kktc_title_type}
                           onChange={(e) => setFormData({ ...formData, kktc_title_type: e.target.value as any })}
                         >
@@ -749,14 +740,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
               {/* Kiralık Özel Alanları (Depozito & Periyot) */}
               {formData.listing_intent === 'rent' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-amber-50/70 p-2.5 rounded-xl border border-amber-200/80">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-amber-50/50 p-2 rounded-lg border border-amber-200/60">
                   <div>
                     <label className="block text-[10px] font-black text-rose-700 mb-0.5">Depozito Tutarı (Zorunlu) *</label>
                     <input
                       type="number"
                       min="1"
                       placeholder="2000"
-                      className="w-full px-2.5 py-1.5 h-8 bg-white border border-amber-300 rounded-lg text-xs font-bold"
+                      className="w-full px-2 py-1 h-7.5 bg-white border border-amber-300 rounded-lg text-xs font-bold"
                       value={formData.deposit || ''}
                       onChange={(e) => {
                         const val = e.target.value === '' ? 0 : Number(e.target.value);
@@ -768,7 +759,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   <div>
                     <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Ödeme Periyodu</label>
                     <select 
-                      className="w-full px-2.5 py-1.5 h-8 border border-amber-300 rounded-lg text-xs font-bold bg-white" 
+                      className="w-full px-2 py-1 h-7.5 border border-amber-300 rounded-lg text-xs font-bold bg-white" 
                       value={formData.billing_period || 'monthly'} 
                       onChange={(e) => setFormData({...formData, billing_period: e.target.value as any})}
                     >
@@ -785,8 +776,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
           {/* SECTION 2: MÜLK SAHİBİ & ADRES & ŞUBE */}
           {(viewMode === 'all' || activeTab === 'owner') && (
-            <div className="bg-white border border-slate-200/90 rounded-xl p-3 sm:p-3.5 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="bg-white border border-slate-200/90 rounded-xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-[11px] font-black uppercase text-amber-950 flex items-center gap-1.5 tracking-wide">
                   <MapPin className="w-3.5 h-3.5 text-amber-600" />
                   2. Mülk Sahibi, Konum Adresi & Şube Ataması
@@ -795,7 +786,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               {/* Owner Autocomplete & Phone */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-amber-50/50 p-2.5 rounded-xl border border-amber-200/70">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-amber-50/40 p-2 rounded-lg border border-amber-200/70">
                 <div>
                   <AutocompleteSelect
                     items={contacts}
@@ -848,13 +839,13 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
                     Mülk Sahibi (Telefon)
                   </label>
                   <input 
                     type="tel" 
                     placeholder="+90 533 123 4567"
-                    className="w-full px-2.5 py-1.5 h-8.5 bg-white border border-amber-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-amber-500 shadow-2xs" 
+                    className="w-full px-2 py-1 h-8 bg-white border border-amber-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-amber-500 shadow-2xs" 
                     value={formData.owner_info?.phone || ''}
                     onChange={(e) => setFormData({...formData, owner_info: {...formData.owner_info, phone: e.target.value} as any})}
                     onBlur={(e) => {
@@ -873,14 +864,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   </label>
                   <input
                     type="text"
-                    className="w-full px-2.5 py-1.5 h-8.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                    className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
                     placeholder="Örn: Girne Merkez, Atatürk Caddesi No: 42 Daire: 5..."
                     value={formData.address || ''}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                   />
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
                   {[
                     { label: 'Mahalle / Köy *', key: 'mahalle', placeholder: 'Alsancak' },
                     { label: 'Ada *', key: 'ada', placeholder: '142' },
@@ -892,7 +883,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       <input 
                         type="text" 
                         placeholder={field.placeholder}
-                        className="w-full px-2 py-1 h-8 bg-white border border-slate-200 rounded-lg text-xs font-bold" 
+                        className="w-full px-2 py-1 h-7.5 bg-white border border-slate-200 rounded-lg text-xs font-bold" 
                         value={(formData as any)[field.key] || ''}
                         onChange={(e) => setFormData({...formData, [field.key]: e.target.value})}
                       />
@@ -902,11 +893,11 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               )}
 
               {/* Branch & Consultant assignment */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-0.5">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Yetkili Şube</label>
                   <select 
-                    className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                    className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
                     value={formData.authorized_branch_id || ''}
                     onChange={(e) => {
                       const id = Number(e.target.value);
@@ -924,7 +915,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Sorumlu Danışman</label>
                   <select 
-                    className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                    className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
                     value={formData.responsible_consultant_id || ''}
                     onChange={(e) => {
                       const id = Number(e.target.value);
@@ -942,7 +933,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Paylaşım Durumu</label>
                   <select
-                    className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                    className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
                     value={formData.sharing_scope || 'shared_pool'}
                     onChange={(e) => setFormData({...formData, sharing_scope: e.target.value as any})}
                   >
@@ -957,8 +948,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
           {/* SECTION 3: METRİKLER & DONANIM */}
           {(viewMode === 'all' || activeTab === 'metrics') && (
-            <div className="bg-white border border-slate-200/90 rounded-xl p-3 sm:p-3.5 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="bg-white border border-slate-200/90 rounded-xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-[11px] font-black uppercase text-sky-950 flex items-center gap-1.5 tracking-wide">
                   <Layers className="w-3.5 h-3.5 text-sky-600" />
                   3. Teknik Metrikler, Alanlar & Donanım Özellikleri
@@ -970,14 +961,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
               {/* LAND (ARSA) FIELDS */}
               {formData.type === 'land' ? (
-                <div className="space-y-2.5">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Arsa Alanı (m²)</label>
                       <input
                         type="number"
                         placeholder="500"
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={formData.square_meters || ''}
                         onChange={(e) => setFormData({...formData, square_meters: Number(e.target.value)})}
                       />
@@ -986,7 +977,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">İmar Durumu</label>
                       <select
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={(formData as any).imar_durumu || ''}
                         onChange={(e) => setFormData({...formData, imar_durumu: e.target.value} as any)}
                       >
@@ -1007,7 +998,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       <input
                         type="text"
                         placeholder="0.35 / 0.70"
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={(formData as any).kaks || ''}
                         onChange={(e) => setFormData({...formData, kaks: e.target.value} as any)}
                       />
@@ -1018,23 +1009,23 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       <input
                         type="text"
                         placeholder="2 Kat (6.5m)"
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={(formData as any).gabari || ''}
                         onChange={(e) => setFormData({...formData, gabari: e.target.value} as any)}
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-700">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
                       <input type="checkbox" checked={!!(formData as any).elektrik_var} onChange={(e) => setFormData({...formData, elektrik_var: e.target.checked} as any)} className="w-3.5 h-3.5 text-sky-600 rounded" />
                       <span>⚡ Elektrik Altyapısı</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
                       <input type="checkbox" checked={!!(formData as any).su_var} onChange={(e) => setFormData({...formData, su_var: e.target.checked} as any)} className="w-3.5 h-3.5 text-sky-600 rounded" />
                       <span>💧 Su Altyapısı</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
                       <input type="checkbox" checked={!!(formData as any).yol_var} onChange={(e) => setFormData({...formData, yol_var: e.target.checked} as any)} className="w-3.5 h-3.5 text-sky-600 rounded" />
                       <span>🛣️ Kadastro Yolu</span>
                     </label>
@@ -1042,12 +1033,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 </div>
               ) : formData.type === 'commercial' ? (
                 /* COMMERCIAL (TİCARİ) FIELDS */
-                <div className="space-y-2.5">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Devir Durumu</label>
                       <select
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={formData.commercial_devir_status || 'empty'}
                         onChange={(e) => setFormData({...formData, commercial_devir_status: e.target.value as any})}
                       >
@@ -1063,7 +1054,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                         <input
                           type="text"
                           placeholder="2.500"
-                          className="w-full px-2 py-1 h-8 bg-slate-50 border border-emerald-300 rounded-lg text-xs font-bold"
+                          className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-emerald-300 rounded-lg text-xs font-bold"
                           value={formatPriceDisplay(formData.monthly_rent_income)}
                           onChange={(e) => setFormData({...formData, monthly_rent_income: parsePriceInput(e.target.value)})}
                         />
@@ -1074,7 +1065,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                         <input
                           type="number"
                           placeholder="12"
-                          className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                          className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                           value={formData.frontage_width || ''}
                           onChange={(e) => setFormData({...formData, frontage_width: Number(e.target.value)})}
                         />
@@ -1087,7 +1078,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                         type="number"
                         step="0.1"
                         placeholder="4.5"
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={formData.ceiling_height || ''}
                         onChange={(e) => setFormData({...formData, ceiling_height: Number(e.target.value)})}
                       />
@@ -1099,14 +1090,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                         <input
                           type="number"
                           placeholder="Net"
-                          className="w-1/2 px-1.5 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                          className="w-1/2 px-1.5 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                           value={formData.square_meters || ''}
                           onChange={(e) => setFormData({...formData, square_meters: Number(e.target.value)})}
                         />
                         <input
                           type="number"
                           placeholder="Brüt"
-                          className="w-1/2 px-1.5 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                          className="w-1/2 px-1.5 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                           value={formData.sqm_gross || ''}
                           onChange={(e) => setFormData({...formData, sqm_gross: Number(e.target.value)})}
                         />
@@ -1115,7 +1106,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   </div>
 
                   {/* Commercial Facility Toggles */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-700">
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input type="checkbox" checked={!!formData.is_main_road_frontage} onChange={(e) => setFormData({...formData, is_main_road_frontage: e.target.checked})} className="w-3.5 h-3.5 text-indigo-600 rounded" />
                       <span>🛣️ Cadde Üzeri</span>
@@ -1136,14 +1127,14 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 </div>
               ) : (
                 /* RESIDENCE (KONUT) FIELDS */
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Net Alan (m²)</label>
                       <input
                         type="number"
                         placeholder="120"
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={formData.square_meters || ''}
                         onChange={(e) => setFormData({...formData, square_meters: Number(e.target.value)})}
                       />
@@ -1154,7 +1145,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       <input
                         type="number"
                         placeholder="140"
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={formData.sqm_gross || ''}
                         onChange={(e) => setFormData({...formData, sqm_gross: Number(e.target.value)})}
                       />
@@ -1165,7 +1156,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       <input
                         type="text"
                         placeholder="2+1, 3+1"
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={formData.room_count || ''}
                         onChange={(e) => setFormData({...formData, room_count: e.target.value})}
                       />
@@ -1176,7 +1167,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       <input
                         type="text"
                         placeholder="0 (Sıfır)"
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={formData.building_age || ''}
                         onChange={(e) => setFormData({...formData, building_age: e.target.value})}
                       />
@@ -1187,7 +1178,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                       <input
                         type="text"
                         placeholder="3. Kat"
-                        className="w-full px-2 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={formData.floor || ''}
                         onChange={(e) => setFormData({...formData, floor: e.target.value})}
                       />
@@ -1196,7 +1187,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Isıtma</label>
                       <select
-                        className="w-full px-1.5 py-1 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                        className="w-full px-1.5 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                         value={formData.heating || ''}
                         onChange={(e) => setFormData({...formData, heating: e.target.value})}
                       >
@@ -1242,8 +1233,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
           {/* SECTION 4: FOTOĞRAFLAR & MEDYA */}
           {(viewMode === 'all' || activeTab === 'media') && (
-            <div className="bg-white border border-slate-200/90 rounded-xl p-3 sm:p-3.5 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="bg-white border border-slate-200/90 rounded-xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-[11px] font-black uppercase text-indigo-950 flex items-center gap-1.5 tracking-wide">
                   <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
                   4. Portföy Fotoğrafları & Medya Galerisi
@@ -1254,7 +1245,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               {/* Uploader & Gallery */}
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="text-xs font-bold text-slate-600">Görselleri Sırala veya Yeni Ekle</span>
                   <MultiImageUploader onImagesUploaded={(urls) => setFormData({...formData, images: [...(formData.images || []), ...urls]})} />
@@ -1274,18 +1265,18 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   <input
                     type="url"
                     placeholder="https://my.matterport.com/show/?m=... veya YouTube linki"
-                    className="w-full px-2.5 py-1.5 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+                    className="w-full px-2 py-1 h-7.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
                     value={formData.virtual_tour_url || ''}
                     onChange={(e) => setFormData({...formData, virtual_tour_url: e.target.value})}
                   />
                 </div>
-                <div className="sm:col-span-4 flex items-center pt-4">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                <div className="sm:col-span-4 flex items-center pt-3 sm:pt-4">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
                     <input 
                       type="checkbox" 
                       checked={!!formData.ai_tour_enabled} 
                       onChange={(e) => setFormData({...formData, ai_tour_enabled: e.target.checked})} 
-                      className="w-4 h-4 text-indigo-600 rounded" 
+                      className="w-3.5 h-3.5 text-indigo-600 rounded" 
                     />
                     <span>✨ AI Sanal Asistan Aktif</span>
                   </label>
@@ -1296,8 +1287,8 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
           {/* SECTION 5: AÇIKLAMA */}
           {(viewMode === 'all' || activeTab === 'description') && (
-            <div className="bg-white border border-slate-200/90 rounded-xl p-3 sm:p-3.5 space-y-2 shadow-2xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="bg-white border border-slate-200/90 rounded-xl p-2.5 sm:p-3 space-y-2 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-[11px] font-black uppercase text-slate-900 flex items-center gap-1.5 tracking-wide">
                   <AlignLeft className="w-3.5 h-3.5 text-indigo-600" />
                   5. Detaylı İlan Metni & Yatırım Açıklamaları
@@ -1310,7 +1301,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                   value={formData.description || ''}
                   onChange={(newContent) => setFormData(prev => ({...prev, description: newContent}))}
                   placeholder="Gayrimenkulün yatırım potansiyeli, konumu, kira çarpanı ve avantajlarını buraya yazın..."
-                  minHeight="180px"
+                  minHeight="140px"
                 />
               </div>
             </div>
@@ -1318,43 +1309,43 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
 
           {/* SECTION 6: DOKÜMAN YÖNETİMİ & YAYIN SEÇENEKLERİ */}
           {(viewMode === 'all' || activeTab === 'docs') && (
-            <div className="space-y-3.5">
+            <div className="space-y-2.5">
               {/* Document Management Box */}
-              <div className="bg-white border border-slate-200/90 rounded-xl p-3 sm:p-3.5 space-y-3 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2 flex-wrap gap-2">
+              <div className="bg-white border border-slate-200/90 rounded-xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 flex-wrap gap-2">
                   <span className="text-[11px] font-black uppercase text-amber-950 flex items-center gap-1.5 tracking-wide">
                     <FileText className="w-3.5 h-3.5 text-amber-600" />
                     6. Güvenli Resmi Evrak Yönetimi (Tapu, DASK, Sözleşme)
                   </span>
                   
                   {/* Verified Badge Checkbox */}
-                  <label className="flex items-center gap-1.5 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 cursor-pointer">
+                  <label className="flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 cursor-pointer">
                     <input
                       type="checkbox"
-                      className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500"
+                      className="w-3 h-3 rounded text-amber-600 focus:ring-amber-500"
                       checked={formData.is_verified || false}
                       onChange={(e) => setFormData({...formData, is_verified: e.target.checked})}
                     />
-                    <span className="text-xs font-black text-amber-900">⭐ Doğrulanmış Portföy Rozeti</span>
+                    <span className="text-[11px] font-black text-amber-900">⭐ Doğrulanmış Portföy Rozeti</span>
                   </label>
                 </div>
 
                 {isOfficeManager ? (
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     {/* Documents List */}
-                    <div className="space-y-1.5">
+                    <div>
                       {(!formData.documents || formData.documents.length === 0) ? (
-                        <div className="text-center py-3 border border-dashed border-slate-200 rounded-lg bg-slate-50 text-slate-400 text-xs">
+                        <div className="text-center py-2 border border-dashed border-slate-200 rounded-lg bg-slate-50 text-slate-400 text-xs">
                           Henüz eklenmiş resmi evrak yok.
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                           {formData.documents.map((doc) => (
-                            <div key={doc.id} className="flex items-center gap-2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                            <div key={doc.id} className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
                               <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                               <span className="font-bold text-slate-800 truncate flex-1">{doc.name}</span>
                               <span className="text-[10px] text-slate-400 font-mono">{doc.size}</span>
-                              <button type="button" onClick={() => handleRemoveDocument(doc.id)} className="text-rose-500 p-1 hover:bg-rose-50 rounded cursor-pointer">
+                              <button type="button" onClick={() => handleRemoveDocument(doc.id)} className="text-rose-500 p-0.5 hover:bg-rose-50 rounded cursor-pointer">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -1364,12 +1355,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                     </div>
 
                     {/* Quick Add Doc Input */}
-                    <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200 space-y-2">
+                    <div className="bg-slate-50/80 p-2 rounded-lg border border-slate-200 space-y-1.5">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Belge Türü</label>
                           <select
-                            className="w-full px-2 py-1 h-8 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white"
+                            className="w-full px-2 py-1 h-7.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white"
                             value={docCategory}
                             onChange={(e) => setDocCategory(e.target.value as any)}
                           >
@@ -1384,7 +1375,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                           <input
                             type="text"
                             placeholder="Örn: Blok A-3 Tapu Örneği"
-                            className="w-full px-2 py-1 h-8 border border-slate-200 rounded-lg text-xs font-bold bg-white"
+                            className="w-full px-2 py-1 h-7.5 border border-slate-200 rounded-lg text-xs font-bold bg-white"
                             value={docName}
                             onChange={(e) => setDocName(e.target.value)}
                           />
@@ -1406,7 +1397,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                         }}
                       />
 
-                      <div className="flex flex-col sm:flex-row items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-center gap-1.5">
                         <input
                           type="file"
                           id="document-secure-file"
@@ -1421,7 +1412,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                           className="hidden"
                         />
 
-                        <label htmlFor="document-secure-file" className="w-full sm:flex-1 px-3 py-1.5 border border-dashed border-slate-300 hover:border-indigo-500 rounded-lg bg-white text-xs font-bold text-slate-600 flex items-center justify-center gap-2 cursor-pointer transition-all">
+                        <label htmlFor="document-secure-file" className="w-full sm:flex-1 px-2.5 py-1 border border-dashed border-slate-300 hover:border-indigo-500 rounded-lg bg-white text-xs font-bold text-slate-600 flex items-center justify-center gap-1.5 cursor-pointer transition-all">
                           <Upload className="w-3.5 h-3.5 text-indigo-600" />
                           {selectedDocFile ? selectedDocFile.name : 'Dosya Seç (PDF, Resim)'}
                         </label>
@@ -1429,7 +1420,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                         <button
                           type="button"
                           onClick={() => docCameraInputRef.current?.click()}
-                          className="w-full sm:w-auto px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xs font-black flex items-center justify-center gap-1 transition-all cursor-pointer"
+                          className="w-full sm:w-auto px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer"
                         >
                           <Camera className="w-3.5 h-3.5" />
                           Kamera
@@ -1439,10 +1430,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                           type="button"
                           onClick={handleAddDocument}
                           disabled={!selectedDocFile && !docName}
-                          className="w-full sm:w-auto px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-black hover:bg-indigo-700 shadow-2xs disabled:opacity-40 flex items-center justify-center gap-1 cursor-pointer"
+                          className="w-full sm:w-auto px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-black hover:bg-indigo-700 shadow-2xs disabled:opacity-40 flex items-center justify-center gap-1 cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                          Evrakı Ekle
+                          Ekle
                         </button>
                       </div>
                     </div>
@@ -1453,59 +1444,59 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               </div>
 
               {/* Publication and Marketing Toggles */}
-              <div className="bg-slate-900 text-white p-3 sm:p-3.5 rounded-xl space-y-2.5 shadow-md">
+              <div className="bg-slate-900 text-white p-2.5 sm:p-3 rounded-xl space-y-2 shadow-md">
                 <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 block">
                   ⚙️ İlan Yayın & Pazarlama Seçenekleri
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <label className="flex items-center gap-2 cursor-pointer bg-white/10 px-2.5 py-1.5 rounded-lg border border-white/10 hover:bg-white/15 transition-all">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  <label className="flex items-center gap-1.5 cursor-pointer bg-white/10 px-2 py-1 rounded-lg border border-white/10 hover:bg-white/15 transition-all">
                     <input 
                       type="checkbox" 
                       checked={!!formData.is_trade_in_available}
                       onChange={(e) => setFormData({...formData, is_trade_in_available: e.target.checked})}
                       className="w-3.5 h-3.5 text-indigo-500 rounded border-slate-400"
                     />
-                    <span className="text-xs font-bold text-white">Takas Kabul</span>
+                    <span className="text-[11px] font-bold text-white">Takas Kabul</span>
                   </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer bg-white/10 px-2.5 py-1.5 rounded-lg border border-white/10 hover:bg-white/15 transition-all">
+                  <label className="flex items-center gap-1.5 cursor-pointer bg-white/10 px-2 py-1 rounded-lg border border-white/10 hover:bg-white/15 transition-all">
                     <input 
                       type="checkbox" 
                       checked={!!formData.is_on_enrakipsiz}
                       onChange={(e) => setFormData({...formData, is_on_enrakipsiz: e.target.checked})}
                       className="w-3.5 h-3.5 text-indigo-500 rounded border-slate-400"
                     />
-                    <span className="text-xs font-bold text-white">EnRakipsiz.com</span>
+                    <span className="text-[11px] font-bold text-white">EnRakipsiz.com</span>
                   </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer bg-white/10 px-2.5 py-1.5 rounded-lg border border-white/10 hover:bg-white/15 transition-all">
+                  <label className="flex items-center gap-1.5 cursor-pointer bg-white/10 px-2 py-1 rounded-lg border border-white/10 hover:bg-white/15 transition-all">
                     <input 
                       type="checkbox" 
                       checked={!!formData.auto_post_instagram}
                       onChange={(e) => setFormData({...formData, auto_post_instagram: e.target.checked})}
                       className="w-3.5 h-3.5 text-indigo-500 rounded border-slate-400"
                     />
-                    <span className="text-xs font-bold text-white">Instagram Otomatik</span>
+                    <span className="text-[11px] font-bold text-white">Instagram Otomatik</span>
                   </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer bg-rose-500/20 px-2.5 py-1.5 rounded-lg border border-rose-500/30 hover:bg-rose-500/30 transition-all">
+                  <label className="flex items-center gap-1.5 cursor-pointer bg-rose-500/20 px-2 py-1 rounded-lg border border-rose-500/30 hover:bg-rose-500/30 transition-all">
                     <input
                       type="checkbox"
                       checked={Boolean((formData as any).is_discounted)}
                       onChange={(e) => setFormData({ ...formData, is_discounted: e.target.checked } as any)}
                       className="w-3.5 h-3.5 text-rose-500 rounded border-slate-400"
                     />
-                    <span className="text-xs font-bold text-rose-200">🔥 Fırsat & Kelepir</span>
+                    <span className="text-[11px] font-bold text-rose-200">🔥 Fırsat & Kelepir</span>
                   </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer bg-amber-500/20 px-2.5 py-1.5 rounded-lg border border-amber-500/30 hover:bg-amber-500/30 transition-all sm:col-span-2">
+                  <label className="flex items-center gap-1.5 cursor-pointer bg-amber-500/20 px-2 py-1 rounded-lg border border-amber-500/30 hover:bg-amber-500/30 transition-all sm:col-span-2">
                     <input
                       type="checkbox"
                       checked={Boolean((formData as any).is_featured)}
                       onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked } as any)}
                       className="w-3.5 h-3.5 text-amber-500 rounded border-slate-400"
                     />
-                    <span className="text-xs font-bold text-amber-200">⭐ Öne Çıkan / VIP Portföy</span>
+                    <span className="text-[11px] font-bold text-amber-200">⭐ Öne Çıkan / VIP Portföy</span>
                   </label>
                 </div>
               </div>
@@ -1514,7 +1505,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
         </div>
 
         {/* FIXED BOTTOM ACTION BAR */}
-        <div className="p-3 sm:px-4 sm:py-2.5 bg-white border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
+        <div className="p-2 sm:px-3.5 sm:py-2 bg-white border-t border-slate-200 flex items-center justify-between gap-2 shrink-0">
           {/* Left: Validation message or step info */}
           <div className="min-w-0 flex-1">
             {validationError ? (
@@ -1523,7 +1514,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
                 <span className="truncate">{validationError}</span>
               </div>
             ) : viewMode === 'tabs' ? (
-              <div className="text-[11px] font-bold text-slate-500 hidden sm:flex items-center gap-2">
+              <div className="text-[11px] font-bold text-slate-500 hidden sm:flex items-center gap-1.5">
                 <span>Adım {currentTabIndex + 1} / {TABS.length}:</span>
                 <span className="text-indigo-600 font-black">{TABS[currentTabIndex]?.short}</span>
               </div>
@@ -1531,12 +1522,12 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
           </div>
 
           {/* Right: Step navigation & Save */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {viewMode === 'tabs' && currentTabIndex > 0 && (
               <button
                 type="button"
                 onClick={() => setActiveTab(TABS[currentTabIndex - 1].id)}
-                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Geri</span>
@@ -1547,7 +1538,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab(TABS[currentTabIndex + 1].id)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black flex items-center gap-1 transition-all cursor-pointer"
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-black flex items-center gap-1 transition-all cursor-pointer"
               >
                 <span>İleri</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1557,7 +1548,7 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             <button
               onClick={onClose}
               type="button"
-              className="px-3 py-1.5 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+              className="px-2.5 py-1 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-xs transition-colors cursor-pointer"
             >
               Kapat
             </button>
@@ -1565,10 +1556,10 @@ export const RealEstateModal: React.FC<RealEstateModalProps> = ({
             <button
               onClick={handleSave}
               type="button"
-              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-black text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer"
             >
               <Check className="w-3.5 h-3.5 stroke-[3]" />
-              <span>{property ? 'Değişiklikleri Kaydet' : 'Portföye Ekle'}</span>
+              <span>{property ? 'Kaydet' : 'Portföye Ekle'}</span>
             </button>
           </div>
         </div>

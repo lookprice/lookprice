@@ -22,9 +22,10 @@ interface RealEstateCalendarProps {
   storeId: number;
   properties: any[];
   onClose?: () => void;
+  hideHeader?: boolean;
 }
 
-export const RealEstateCalendar = ({ storeId, properties, onClose }: RealEstateCalendarProps) => {
+export const RealEstateCalendar = ({ storeId, properties, onClose, hideHeader = false }: RealEstateCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,42 +82,69 @@ export const RealEstateCalendar = ({ storeId, properties, onClose }: RealEstateC
   const selectedDayTasks = selectedDay ? getDayTasks(selectedDay) : [];
 
   return (
-    <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col h-[85vh] max-h-[900px]">
-      {/* Header */}
-      <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-200">
-            <CalendarIcon className="w-6 h-6" />
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden flex flex-col h-[calc(100vh-210px)] min-h-[500px]">
+      {/* Header (hidden if parent already provides header) */}
+      {!hideHeader ? (
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-200">
+              <CalendarIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">Gezi & Randevu Takvimi</h2>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">{format(currentDate, 'MMMM yyyy', { locale: tr })}</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">Gezi & Randevu Takvimi</h2>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{format(currentDate, 'MMMM yyyy', { locale: tr })}</p>
+
+          <div className="flex items-center gap-2">
+            <div className="relative mr-2">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Randevu veya portföy ara..."
+                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold w-52 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="flex bg-white border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
+              <button onClick={prevMonth} className="p-1.5 hover:bg-slate-50 border-r border-slate-200 transition-colors cursor-pointer"><ChevronLeft className="w-4 h-4 text-slate-600" /></button>
+              <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1 text-[11px] font-black uppercase tracking-wider hover:bg-slate-50 transition-colors text-slate-700 cursor-pointer">BUGÜN</button>
+              <button onClick={nextMonth} className="p-1.5 hover:bg-slate-50 border-l border-slate-200 transition-colors cursor-pointer"><ChevronRight className="w-4 h-4 text-slate-600" /></button>
+            </div>
+            {onClose && (
+              <button onClick={onClose} className="p-2 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-lg transition-all cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
+      ) : (
+        /* Compact toolbar when parent has navigation header */
+        <div className="px-3 py-2 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-slate-900 capitalize font-mono">
+              {format(currentDate, 'MMMM yyyy', { locale: tr })}
+            </span>
+            <div className="flex bg-white border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
+              <button onClick={prevMonth} className="p-1 hover:bg-slate-100 border-r border-slate-200 transition-colors cursor-pointer"><ChevronLeft className="w-3.5 h-3.5 text-slate-600" /></button>
+              <button onClick={() => setCurrentDate(new Date())} className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider hover:bg-slate-100 transition-colors text-slate-700 cursor-pointer">BUGÜN</button>
+              <button onClick={nextMonth} className="p-1 hover:bg-slate-100 border-l border-slate-200 transition-colors cursor-pointer"><ChevronRight className="w-3.5 h-3.5 text-slate-600" /></button>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative mr-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <div className="relative w-48 sm:w-60">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input 
               type="text" 
               placeholder="Randevu veya portföy ara..."
-              className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold w-64 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+              className="w-full pl-8 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 shadow-2xs"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-            <button onClick={prevMonth} className="p-2 hover:bg-slate-50 border-r border-slate-200 transition-colors"><ChevronLeft className="w-5 h-5 text-slate-600" /></button>
-            <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-colors text-slate-700">BUGÜN</button>
-            <button onClick={nextMonth} className="p-2 hover:bg-slate-50 border-l border-slate-200 transition-colors"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
-          </div>
-          {onClose && (
-            <button onClick={onClose} className="p-2.5 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-xl transition-all">
-              <X className="w-5 h-5" />
-            </button>
-          )}
         </div>
-      </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Calendar Grid */}

@@ -915,6 +915,8 @@ router.get("/digital-menu/:storeIdentifier/info", async (req, res) => {
       whatsapp_number: store.whatsapp_number,
       phone: store.phone,
       address: store.address,
+      working_hours: store.working_hours || branding?.working_hours || null,
+      page_layout_settings: store.page_layout_settings || branding?.page_layout_settings || {},
       branding: branding || {},
       store_type: store.store_type
     });
