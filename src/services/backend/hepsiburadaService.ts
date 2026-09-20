@@ -1327,12 +1327,18 @@ export class HepsiburadaService {
         }
         mpData = mpData || {};
         const resolvedPid = listing.productId || listing.raw?.productId || mpData.hepsiburada?.productId;
+        const isMasterPid = Boolean(resolvedPid && String(resolvedPid).toUpperCase().startsWith('HBC') && !String(resolvedPid).toUpperCase().startsWith('HBCV') && !String(resolvedPid).toUpperCase().startsWith('HBV'));
+        const pSlug = matchedProd.name ? matchedProd.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') : 'urun';
+        const resolvedUrl = isMasterPid 
+          ? `https://www.hepsiburada.com/${pSlug || 'urun'}-pm-${String(resolvedPid).trim().toLowerCase()}` 
+          : (matchedProd.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(matchedProd.name || '')}`);
+
         mpData.hepsiburada = {
           ...(mpData.hepsiburada || {}),
           hepsiburadaSku: hbSku || mpData.hepsiburada?.hepsiburadaSku,
           merchantSku: mSku || mpData.hepsiburada?.merchantSku,
           productId: resolvedPid,
-          productUrl: resolvedPid ? `https://www.hepsiburada.com/-pm-${resolvedPid}` : mpData.hepsiburada?.productUrl,
+          productUrl: resolvedUrl,
           matchedAt: new Date().toISOString(),
           lastSync: new Date().toISOString(),
           status: listing.status || 'ACTIVE'

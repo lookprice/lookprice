@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal, Info, X, Loader2 } from "lucide-react";
+import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal, Info, X, Loader2, Zap } from "lucide-react";
 import { getAttributesForCategory, MarketplaceAttribute } from "@/data/marketplaceCategoriesData";
+import { autoHydrateTargetAttributes } from "@/services/crossMarketplaceAttributeMapper";
 import { api } from "@/services/api";
 
 interface MarketplaceProductFieldsProps {
@@ -120,7 +121,7 @@ export const MarketplaceProductFields = ({
         } else {
           // Fallback to local calculated attributes
           const fallback = activeCategory 
-            ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [])
+            ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [], effectiveCatId)
             : [];
           setDynamicAttributes(fallback);
         }
@@ -128,7 +129,7 @@ export const MarketplaceProductFields = ({
       .catch((err) => {
         console.warn("Dynamic HB Attributes Fetch Error:", err);
         const fallback = activeCategory 
-          ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [])
+          ? getAttributesForCategory(activeCategory.name || activeCategory.displayName || "", activeCategory.paths || [], effectiveCatId)
           : [];
         setDynamicAttributes(fallback);
       })
@@ -404,144 +405,137 @@ export const MarketplaceProductFields = ({
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {categoryAttributes.map((attr) => {
-                  const inheritedStoreVal = storeCategoryAttrs[attr.id]?.value;
-                  const currentProductVal = marketData.attributes?.[attr.id];
+                {(() => {
+                  const { hydratedAttributes, autoFilledFields } = autoHydrateTargetAttributes(
+                    "hepsiburada",
+                    categoryAttributes,
+                    marketData.attributes || {},
+                    product
+                  );
 
-                  // Resolve dynamic variable mappings like $product.brand or fallbacks
-                  const resolveDynamicValue = (valOrVar: string | undefined): string => {
-                    if (!valOrVar) return "";
-                    if (valOrVar === "$product.brand") return product?.brand || product?.brand_name || "";
-                    if (valOrVar === "$product.name") return product?.name || "";
-                    if (valOrVar === "$product.barcode") return product?.barcode || "";
-                    if (valOrVar === "$product.model") return product?.model || "";
-                    if (valOrVar === "$product.tax_rate" || valOrVar === "$product.kdv") return String(product?.tax_rate || 20);
-                    return valOrVar;
-                  };
+                  return categoryAttributes.map((attr) => {
+                    const inheritedStoreVal = storeCategoryAttrs[attr.id]?.value;
+                    const currentProductVal = marketData.attributes?.[attr.id];
+                    const autoSource = autoFilledFields[attr.id];
 
-                  let effectiveVal = currentProductVal !== undefined && currentProductVal !== "" ? currentProductVal : "";
+                    const resolveDynamicValue = (valOrVar: string | undefined): string => {
+                      if (!valOrVar) return "";
+                      if (valOrVar === "$product.brand") return product?.brand || product?.brand_name || "";
+                      if (valOrVar === "$product.name") return product?.name || "";
+                      if (valOrVar === "$product.barcode") return product?.barcode || "";
+                      if (valOrVar === "$product.model") return product?.model || "";
+                      if (valOrVar === "$product.tax_rate" || valOrVar === "$product.kdv") return String(product?.tax_rate || 20);
+                      return valOrVar;
+                    };
 
-                  if (!effectiveVal) {
-                    if (inheritedStoreVal) {
+                    let effectiveVal = currentProductVal !== undefined && currentProductVal !== "" 
+                      ? currentProductVal 
+                      : (hydratedAttributes[attr.id] || "");
+
+                    if (!effectiveVal && inheritedStoreVal) {
                       effectiveVal = resolveDynamicValue(inheritedStoreVal);
                     }
-                  }
 
-                  const prodName = String(product?.name || "").trim();
+                    const prodName = String(product?.name || "").trim();
 
-                  // If still empty, check if this is Brand / Marka
-                  const isBrandAttr = attr.id.toLowerCase() === "marka" || attr.id.toLowerCase().includes("brand");
-                  if (!effectiveVal && isBrandAttr) {
-                    effectiveVal = product?.brand || product?.brand_name || "";
-                    if (!effectiveVal && prodName) {
-                      const knownBrands = ["Kingston", "SanDisk", "Sandisk", "Samsung", "Toshiba", "Kioxia", "Philips", "Hikvision", "Lexar", "Sony", "Adata", "Western Digital", "WD", "Seagate", "Apple", "Xiaomi", "Logitech", "HP", "Lenovo", "Asus", "Dell", "TP-Link", "Baseus", "Anker", "Ugreen"];
-                      const foundBrand = knownBrands.find(b => new RegExp(`\\b${b}\\b`, 'i').test(prodName));
-                      if (foundBrand) {
-                        effectiveVal = foundBrand;
-                      } else {
-                        const firstWord = prodName.split(" ")[0];
-                        if (firstWord && firstWord.length > 2) effectiveVal = firstWord;
+                    // Brand fallback
+                    const isBrandAttr = attr.id.toLowerCase() === "marka" || attr.id.toLowerCase().includes("brand");
+                    if (!effectiveVal && isBrandAttr) {
+                      effectiveVal = product?.brand || product?.brand_name || "";
+                      if (!effectiveVal && prodName) {
+                        const knownBrands = ["Kingston", "SanDisk", "Sandisk", "Samsung", "Toshiba", "Kioxia", "Philips", "Hikvision", "Lexar", "Sony", "Adata", "Western Digital", "WD", "Seagate", "Apple", "Xiaomi", "Logitech", "HP", "Lenovo", "Asus", "Dell", "TP-Link", "Baseus", "Anker", "Ugreen"];
+                        const foundBrand = knownBrands.find(b => new RegExp(`\\b${b}\\b`, 'i').test(prodName));
+                        if (foundBrand) {
+                          effectiveVal = foundBrand;
+                        } else {
+                          const firstWord = prodName.split(" ")[0];
+                          if (firstWord && firstWord.length > 2) effectiveVal = firstWord;
+                        }
                       }
                     }
-                  }
 
-                  // Smart Capacity Extraction (e.g., "64 Gb" -> "64 GB")
-                  const isCapacityAttr = attr.id.toLowerCase() === "kapasite" || attr.id.toLowerCase().includes("capacity");
-                  if (!effectiveVal && isCapacityAttr && prodName) {
-                    const capMatch = prodName.match(/(\d+)\s*(gb|tb|mb)/i);
-                    if (capMatch) {
-                      const detected = `${capMatch[1]} ${capMatch[2].toUpperCase()}`;
-                      const matchedOption = attr.values?.find((v: string) => v.toLowerCase().replace(/\s+/g, '') === detected.toLowerCase().replace(/\s+/g, ''));
-                      if (matchedOption) {
-                        effectiveVal = matchedOption;
+                    // Smart Capacity Extraction
+                    const isCapacityAttr = attr.id.toLowerCase() === "kapasite" || attr.id.toLowerCase().includes("capacity");
+                    if (!effectiveVal && isCapacityAttr && prodName) {
+                      const capMatch = prodName.match(/(\d+)\s*(gb|tb|mb)/i);
+                      if (capMatch) {
+                        const detected = `${capMatch[1]} ${capMatch[2].toUpperCase()}`;
+                        const matchedOption = attr.values?.find((v: string) => v.toLowerCase().replace(/\s+/g, '') === detected.toLowerCase().replace(/\s+/g, ''));
+                        if (matchedOption) {
+                          effectiveVal = matchedOption;
+                        }
                       }
                     }
-                  }
 
-                  // Smart USB Version Extraction (e.g., "Usb 3.2" -> "USB 3.2 Gen 1")
-                  const isUsbVerAttr = attr.id.toLowerCase() === "usbversiyonu" || attr.id.toLowerCase().includes("usbver");
-                  if (!effectiveVal && isUsbVerAttr && prodName) {
-                    if (/usb\s*3\.2/i.test(prodName)) {
-                      effectiveVal = attr.values?.find((v: string) => v.includes("3.2")) || "USB 3.2 Gen 1";
-                    } else if (/usb\s*3\.1/i.test(prodName)) {
-                      effectiveVal = attr.values?.find((v: string) => v.includes("3.1")) || "USB 3.1";
-                    } else if (/usb\s*3\.0/i.test(prodName)) {
-                      effectiveVal = attr.values?.find((v: string) => v.includes("3.0")) || "USB 3.0";
-                    } else if (/usb\s*2\.0/i.test(prodName)) {
-                      effectiveVal = attr.values?.find((v: string) => v.includes("2.0")) || "USB 2.0";
-                    } else if (/type-?c/i.test(prodName)) {
-                      effectiveVal = attr.values?.find((v: string) => /type-?c/i.test(v)) || "Type-C";
-                    }
-                  }
-
-                  // Smart Power / Wattage Extraction (e.g., "Dell 65w Type-c Adaptör" -> "65W")
-                  const isWattAttr = attr.id.toLowerCase().includes("watt") || attr.id.toLowerCase().includes("guc") || attr.name.toLowerCase().includes("watt") || attr.name.toLowerCase().includes("güç");
-                  if (!effectiveVal && isWattAttr && prodName) {
-                    const wattMatch = prodName.match(/(\d+)\s*w\b/i);
-                    if (wattMatch) {
-                      const detectedWatt = `${wattMatch[1]}W`;
-                      const matchedOption = attr.values?.find((v: string) => v.toUpperCase() === detectedWatt.toUpperCase() || v.toUpperCase().startsWith(detectedWatt.toUpperCase()));
-                      if (matchedOption) {
-                        effectiveVal = matchedOption;
-                      } else {
-                        effectiveVal = detectedWatt;
+                    // Smart Power / Wattage Extraction
+                    const isWattAttr = attr.id.toLowerCase().includes("watt") || attr.id.toLowerCase().includes("guc") || attr.name.toLowerCase().includes("watt") || attr.name.toLowerCase().includes("güç");
+                    if (!effectiveVal && isWattAttr && prodName) {
+                      const wattMatch = prodName.match(/(\d+)\s*w\b/i);
+                      if (wattMatch) {
+                        const detectedWatt = `${wattMatch[1]}W`;
+                        const matchedOption = attr.values?.find((v: string) => v.toUpperCase() === detectedWatt.toUpperCase() || v.toUpperCase().startsWith(detectedWatt.toUpperCase()));
+                        if (matchedOption) {
+                          effectiveVal = matchedOption;
+                        } else {
+                          effectiveVal = detectedWatt;
+                        }
                       }
                     }
-                  }
 
-                  // If still empty, check if this is Origin / Menşei (Default to 'Çin')
-                  const isOriginAttr = attr.id.toLowerCase() === "mensei" || attr.id.toLowerCase().includes("origin");
-                  if (!effectiveVal && isOriginAttr) {
-                    effectiveVal = "Çin";
-                  }
+                    // Origin Country
+                    const isOriginAttr = attr.id.toLowerCase() === "mensei" || attr.id.toLowerCase().includes("origin");
+                    if (!effectiveVal && isOriginAttr) {
+                      effectiveVal = "Çin";
+                    }
 
-                  // If still empty and attribute has a default value defined
-                  if (!effectiveVal && attr.defaultValue) {
-                    effectiveVal = resolveDynamicValue(attr.defaultValue);
-                  }
+                    if (!effectiveVal && attr.defaultValue) {
+                      effectiveVal = resolveDynamicValue(attr.defaultValue);
+                    }
 
-                  return (
-                    <div key={attr.id} className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px]">
-                        <span className="font-bold text-slate-700 flex items-center gap-1">
-                          <span>{attr.name}</span>
-                          {isBrandAttr && product?.brand && (
-                            <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1 rounded font-normal">
-                              ({isTr ? "Üründen Alındı" : "From Product"})
-                            </span>
-                          )}
-                          {isOriginAttr && effectiveVal === "Çin" && (
-                            <span className="text-[9px] text-amber-600 bg-amber-50 px-1 rounded font-normal">
-                              ({isTr ? "Varsayılan: Çin" : "Default: China"})
-                            </span>
-                          )}
-                        </span>
-                        {attr.mandatory && <span className="text-rose-600 font-bold">*</span>}
+                    return (
+                      <div key={attr.id} className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-bold text-slate-700 flex items-center gap-1 flex-wrap">
+                            <span>{attr.name}</span>
+                            {autoSource && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 font-semibold">
+                                <Zap className="h-2.5 w-2.5 text-emerald-600" />
+                                <span>{autoSource}</span>
+                              </span>
+                            )}
+                            {isBrandAttr && product?.brand && !autoSource && (
+                              <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1 rounded font-normal">
+                                ({isTr ? "Üründen Alındı" : "From Product"})
+                              </span>
+                            )}
+                          </span>
+                          {attr.mandatory && <span className="text-rose-600 font-bold">*</span>}
+                        </div>
+
+                        {attr.values && attr.values.length > 0 ? (
+                          <select
+                            value={effectiveVal}
+                            onChange={(e) => handleAttributeChange(attr.id, e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white"
+                          >
+                            <option value="">{isTr ? "-- Seçin --" : "-- Select --"}</option>
+                            {attr.values.map((v) => (
+                              <option key={v} value={v}>{v}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type={attr.type === "number" ? "number" : "text"}
+                            placeholder={attr.defaultValue || attr.placeholder || (isTr ? "Değer girin..." : "Enter value...")}
+                            value={effectiveVal}
+                            onChange={(e) => handleAttributeChange(attr.id, e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white"
+                          />
+                        )}
                       </div>
-
-                      {attr.values && attr.values.length > 0 ? (
-                        <select
-                          value={effectiveVal}
-                          onChange={(e) => handleAttributeChange(attr.id, e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white"
-                        >
-                          <option value="">{isTr ? "-- Seçin --" : "-- Select --"}</option>
-                          {attr.values.map((v) => (
-                            <option key={v} value={v}>{v}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type={attr.type === "number" ? "number" : "text"}
-                          placeholder={attr.defaultValue || attr.placeholder || (isTr ? "Değer girin..." : "Enter value...")}
-                          value={effectiveVal}
-                          onChange={(e) => handleAttributeChange(attr.id, e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             </div>
           )}

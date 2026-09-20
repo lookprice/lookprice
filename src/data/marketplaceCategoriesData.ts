@@ -418,6 +418,96 @@ export const HEPSIBURADA_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
     sector: "computer"
   },
   {
+    id: 1000190,
+    name: "Notebook Adaptörleri",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Notebook Aksesuarları > Notebook Adaptörleri",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Notebook Aksesuarları", "Notebook Adaptörleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000191,
+    name: "Dell Notebook Adaptörleri",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Notebook Aksesuarları > Notebook Adaptörleri > Dell Notebook Adaptörleri",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Notebook Aksesuarları", "Notebook Adaptörleri", "Dell Notebook Adaptörleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000192,
+    name: "Asus Notebook Adaptörleri",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Notebook Aksesuarları > Notebook Adaptörleri > Asus Notebook Adaptörleri",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Notebook Aksesuarları", "Notebook Adaptörleri", "Asus Notebook Adaptörleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000193,
+    name: "HP Notebook Adaptörleri",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Notebook Aksesuarları > Notebook Adaptörleri > HP Notebook Adaptörleri",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Notebook Aksesuarları", "Notebook Adaptörleri", "HP Notebook Adaptörleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000194,
+    name: "Lenovo Notebook Adaptörleri",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Notebook Aksesuarları > Notebook Adaptörleri > Lenovo Notebook Adaptörleri",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Notebook Aksesuarları", "Notebook Adaptörleri", "Lenovo Notebook Adaptörleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000195,
+    name: "Acer Notebook Adaptörleri",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Notebook Aksesuarları > Notebook Adaptörleri > Acer Notebook Adaptörleri",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Notebook Aksesuarları", "Notebook Adaptörleri", "Acer Notebook Adaptörleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000196,
+    name: "Apple Macbook Adaptör & Şarj Cihazları",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Notebook Aksesuarları > Notebook Adaptörleri > Apple Macbook Adaptörleri",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Notebook Aksesuarları", "Notebook Adaptörleri", "Apple Macbook Adaptörleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000197,
+    name: "Muadil & Evrensel Notebook Adaptörleri",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Notebook Aksesuarları > Notebook Adaptörleri > Muadil Notebook Adaptörleri",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Notebook Aksesuarları", "Notebook Adaptörleri", "Muadil Notebook Adaptörleri"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
+    id: 1000198,
+    name: "Notebook Bataryaları & Piller",
+    displayName: "Bilgisayar Sistemleri ve Ekipmanları > Bilgisayar Aksesuarları > Notebook Aksesuarları > Notebook Bataryaları",
+    paths: ["Bilgisayar Sistemleri ve Ekipmanları", "Bilgisayar Aksesuarları", "Notebook Aksesuarları", "Notebook Bataryaları"],
+    leaf: true,
+    available: true,
+    status: "ACTIVE",
+    sector: "computer"
+  },
+  {
     id: 1000123,
     name: "Laptop Çantaları & Kılıfları",
     displayName: "Bilgisayar > Aksesuarlar > Notebook Çantaları & Kılıflar > Laptop Çantaları & Kılıfları",
@@ -990,52 +1080,52 @@ export const TRENDYOL_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
 // 3. Standard Amazon Categories
 export const AMAZON_DEFAULT_CATEGORIES: MarketplaceCategory[] = [
   // --- BİLGİSAYAR & BİLİŞİM (COMPUTER & IT) ---
-  { id: 1000101, name: "USB Flash Bellekler", displayName: "Bilgisayar & Bilişim > Veri Depolama > USB Flash Bellekler", paths: ["Bilgisayar", "Veri Depolama", "USB Flash Bellekler"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000102, name: "Kart Okuyucular & Adaptörler", displayName: "Bilgisayar & Bilişim > Veri Depolama > Kart Okuyucular", paths: ["Bilgisayar", "Veri Depolama", "Kart Okuyucular"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000103, name: "Hafıza Kartları (MicroSD & SD)", displayName: "Bilgisayar & Bilişim > Veri Depolama > Hafıza Kartları", paths: ["Bilgisayar", "Veri Depolama", "Hafıza Kartları"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000104, name: "Harici SSD & Taşınabilir Diskler", displayName: "Bilgisayar & Bilişim > Veri Depolama > Taşınabilir SSD & Harddisk", paths: ["Bilgisayar", "Veri Depolama", "Harici Diskler"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000105, name: "Dahili SSD (NVMe M.2 / SATA)", displayName: "Bilgisayar & Bilişim > Donanım > Dahili SSD", paths: ["Bilgisayar", "Donanım", "Dahili SSD"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000106, name: "Masaüstü & Laptop RAM (Bellek)", displayName: "Bilgisayar & Bilişim > Donanım > RAM Bellek", paths: ["Bilgisayar", "Donanım", "RAM Bellek"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000107, name: "Mouse / Fare (Kablosuz & Oyuncu)", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Mouse / Fare", paths: ["Bilgisayar", "Çevre Birimleri", "Mouse / Fare"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000108, name: "Klavye & Klavye-Mouse Setleri", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Klavye & Setler", paths: ["Bilgisayar", "Çevre Birimleri", "Klavye"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000109, name: "Mousepad & Masa Pedleri", displayName: "Bilgisayar & Bilişim > Aksesuarlar > Mousepad", paths: ["Bilgisayar", "Aksesuarlar", "Mousepad"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000110, name: "Monitör & Ekranlar (Gaming & Ofis)", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Monitörler", paths: ["Bilgisayar", "Monitörler"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000111, name: "Webcam & Yayıncı Kameraları", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Web Kameraları", paths: ["Bilgisayar", "Web Kameraları"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000112, name: "Bilgisayar Kulaklıkları & Mikrofonlar", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Kulaklık & Mikrofon", paths: ["Bilgisayar", "Kulaklık"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000113, name: "Laptop Soğutucu & Standlar", displayName: "Bilgisayar & Bilişim > Aksesuarlar > Laptop Soğutucu & Stand", paths: ["Bilgisayar", "Aksesuarlar", "Laptop Soğutucu"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000114, name: "USB Hub & Çoklayıcı Adaptörler", displayName: "Bilgisayar & Bilişim > Aksesuarlar > USB Hub & Adaptörler", paths: ["Bilgisayar", "Aksesuarlar", "USB Hub"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000115, name: "HDMI, DisplayPort & Görüntü Kabloları", displayName: "Bilgisayar & Bilişim > Aksesuarlar > Görüntü Kabloları", paths: ["Bilgisayar", "Kablolar", "Görüntü Kabloları"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000116, name: "Yazıcı, Tarayıcı & Toner / Kartuş", displayName: "Bilgisayar & Bilişim > Ofis Ekipmanları > Yazıcı & Sarf", paths: ["Bilgisayar", "Yazıcılar"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
-  { id: 1000117, name: "Modem, Wi-Fi Router & Ağ Ekipmanları", displayName: "Bilgisayar & Bilişim > Ağ & İnternet > Modem & Router", paths: ["Bilgisayar", "Ağ Ekipmanları"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000101, name: "USB Flash Bellekler", displayName: "Bilgisayar & Bilişim > Veri Depolama > USB Flash Bellekler", paths: ["Bilgisayar", "Veri Depolama", "USB Flash Bellekler"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000102, name: "Kart Okuyucular & Adaptörler", displayName: "Bilgisayar & Bilişim > Veri Depolama > Kart Okuyucular", paths: ["Bilgisayar", "Veri Depolama", "Kart Okuyucular"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000103, name: "Hafıza Kartları (MicroSD & SD)", displayName: "Bilgisayar & Bilişim > Veri Depolama > Hafıza Kartları", paths: ["Bilgisayar", "Veri Depolama", "Hafıza Kartları"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000104, name: "Harici SSD & Taşınabilir Diskler", displayName: "Bilgisayar & Bilişim > Veri Depolama > Taşınabilir SSD & Harddisk", paths: ["Bilgisayar", "Veri Depolama", "Harici Diskler"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000105, name: "Dahili SSD (NVMe M.2 / SATA)", displayName: "Bilgisayar & Bilişim > Donanım > Dahili SSD", paths: ["Bilgisayar", "Donanım", "Dahili SSD"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000106, name: "Masaüstü & Laptop RAM (Bellek)", displayName: "Bilgisayar & Bilişim > Donanım > RAM Bellek", paths: ["Bilgisayar", "Donanım", "RAM Bellek"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000107, name: "Mouse / Fare (Kablosuz & Oyuncu)", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Mouse / Fare", paths: ["Bilgisayar", "Çevre Birimleri", "Mouse / Fare"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000108, name: "Klavye & Klavye-Mouse Setleri", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Klavye & Setler", paths: ["Bilgisayar", "Çevre Birimleri", "Klavye"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000109, name: "Mousepad & Masa Pedleri", displayName: "Bilgisayar & Bilişim > Aksesuarlar > Mousepad", paths: ["Bilgisayar", "Aksesuarlar", "Mousepad"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000110, name: "Monitör & Ekranlar (Gaming & Ofis)", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Monitörler", paths: ["Bilgisayar", "Monitörler"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000111, name: "Webcam & Yayıncı Kameraları", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Web Kameraları", paths: ["Bilgisayar", "Web Kameraları"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000112, name: "Bilgisayar Kulaklıkları & Mikrofonlar", displayName: "Bilgisayar & Bilişim > Çevre Birimleri > Kulaklık & Mikrofon", paths: ["Bilgisayar", "Kulaklık"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000113, name: "Laptop Soğutucu & Standlar", displayName: "Bilgisayar & Bilişim > Aksesuarlar > Laptop Soğutucu & Stand", paths: ["Bilgisayar", "Aksesuarlar", "Laptop Soğutucu"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000114, name: "USB Hub & Çoklayıcı Adaptörler", displayName: "Bilgisayar & Bilişim > Aksesuarlar > USB Hub & Adaptörler", paths: ["Bilgisayar", "Aksesuarlar", "USB Hub"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000115, name: "HDMI, DisplayPort & Görüntü Kabloları", displayName: "Bilgisayar & Bilişim > Aksesuarlar > Görüntü Kabloları", paths: ["Bilgisayar", "Kablolar", "Görüntü Kabloları"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000116, name: "Yazıcı, Tarayıcı & Toner / Kartuş", displayName: "Bilgisayar & Bilişim > Ofis Ekipmanları > Yazıcı & Sarf", paths: ["Bilgisayar", "Yazıcılar"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
+  { id: 7000117, name: "Modem, Wi-Fi Router & Ağ Ekipmanları", displayName: "Bilgisayar & Bilişim > Ağ & İnternet > Modem & Router", paths: ["Bilgisayar", "Ağ Ekipmanları"], leaf: true, available: true, status: "ACTIVE", sector: "computer" },
 
   // --- TELEFON & AKSESUAR (PHONE & ACCESSORIES) ---
-  { id: 2000101, name: "Akıllı Telefonlar", displayName: "Telefon & Aksesuar > Cep Telefonları > Akıllı Telefonlar", paths: ["Telefon", "Cep Telefonları"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
-  { id: 2000102, name: "Kılıf & Kapaklar (iPhone & Android)", displayName: "Telefon & Aksesuar > Aksesuarlar > Kılıflar", paths: ["Telefon", "Kılıflar"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
-  { id: 2000103, name: "Ekran Koruyucu Camlar", displayName: "Telefon & Aksesuar > Aksesuarlar > Ekran Koruyucular", paths: ["Telefon", "Ekran Koruyucu"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
-  { id: 2000104, name: "Şarj Cihazı, Adaptör & Şarj Kabloları", displayName: "Telefon & Aksesuar > Şarj Cihazları & Kablolar", paths: ["Telefon", "Şarj Cihazları"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
-  { id: 2000105, name: "Powerbank (Taşınabilir Şarj Cihazları)", displayName: "Telefon & Aksesuar > Powerbank & Şarj", paths: ["Telefon", "Powerbank"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
-  { id: 2000106, name: "Bluetooth Kulaklıklar (TWS & Kulak Üstü)", displayName: "Telefon & Aksesuar > Ses > Bluetooth Kulaklıklar", paths: ["Telefon", "Kulaklıklar"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
-  { id: 2000107, name: "Akıllı Saatler & Bileklikler", displayName: "Telefon & Aksesuar > Giyilebilir Teknoloji > Akıllı Saatler", paths: ["Telefon", "Akıllı Saatler"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 7000201, name: "Akıllı Telefonlar", displayName: "Telefon & Aksesuar > Cep Telefonları > Akıllı Telefonlar", paths: ["Telefon", "Cep Telefonları"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 7000202, name: "Kılıf & Kapaklar (iPhone & Android)", displayName: "Telefon & Aksesuar > Aksesuarlar > Kılıflar", paths: ["Telefon", "Kılıflar"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 7000203, name: "Ekran Koruyucu Camlar", displayName: "Telefon & Aksesuar > Aksesuarlar > Ekran Koruyucular", paths: ["Telefon", "Ekran Koruyucu"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 7000204, name: "Şarj Cihazı, Adaptör & Şarj Kabloları", displayName: "Telefon & Aksesuar > Şarj Cihazları & Kablolar", paths: ["Telefon", "Şarj Cihazları"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 7000205, name: "Powerbank (Taşınabilir Şarj Cihazları)", displayName: "Telefon & Aksesuar > Powerbank & Şarj", paths: ["Telefon", "Powerbank"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 7000206, name: "Bluetooth Kulaklıklar (TWS & Kulak Üstü)", displayName: "Telefon & Aksesuar > Ses > Bluetooth Kulaklıklar", paths: ["Telefon", "Kulaklıklar"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
+  { id: 7000207, name: "Akıllı Saatler & Bileklikler", displayName: "Telefon & Aksesuar > Giyilebilir Teknoloji > Akıllı Saatler", paths: ["Telefon", "Akıllı Saatler"], leaf: true, available: true, status: "ACTIVE", sector: "phone" },
 
   // --- ELEKTRONİK & TV (ELECTRONICS) ---
-  { id: 3000101, name: "Televizyonlar (Smart & OLED TV)", displayName: "Elektronik & TV > Televizyonlar", paths: ["Elektronik", "Televizyon"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
-  { id: 3000102, name: "Soundbar & Ses Sistemleri", displayName: "Elektronik & TV > Ses Sistemleri > Soundbar", paths: ["Elektronik", "Soundbar"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
-  { id: 3000103, name: "Bluetooth Hoparlörler (Portable Speaker)", displayName: "Elektronik & TV > Ses Sistemleri > Bluetooth Hoparlör", paths: ["Elektronik", "Hoparlör"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
-  { id: 3000104, name: "Aksiyon Kameralar & Güvenlik Kameraları", displayName: "Elektronik & TV > Kamera & Güvenlik", paths: ["Elektronik", "Kameralar"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
+  { id: 7000301, name: "Televizyonlar (Smart & OLED TV)", displayName: "Elektronik & TV > Televizyonlar", paths: ["Elektronik", "Televizyon"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
+  { id: 7000302, name: "Soundbar & Ses Sistemleri", displayName: "Elektronik & TV > Ses Sistemleri > Soundbar", paths: ["Elektronik", "Soundbar"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
+  { id: 7000303, name: "Bluetooth Hoparlörler (Portable Speaker)", displayName: "Elektronik & TV > Ses Sistemleri > Bluetooth Hoparlör", paths: ["Elektronik", "Hoparlör"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
+  { id: 7000304, name: "Aksiyon Kameralar & Güvenlik Kameraları", displayName: "Elektronik & TV > Kamera & Güvenlik", paths: ["Elektronik", "Kameralar"], leaf: true, available: true, status: "ACTIVE", sector: "electronics" },
 
   // --- EV, YAŞAM & MUTFAK (HOME & KITCHEN) ---
-  { id: 4000101, name: "Kahve Makineleri & Çay Makineleri", displayName: "Ev, Yaşam & Mutfak > Küçük Ev Aletleri > Kahve & Çay", paths: ["Ev & Mutfak", "Kahve Makineleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
-  { id: 4000102, name: "Robot Süpürgeler & Dikey Süpürgeler", displayName: "Ev, Yaşam & Mutfak > Küçük Ev Aletleri > Süpürgeler", paths: ["Ev & Mutfak", "Süpürgeler"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
-  { id: 4000103, name: "Tencere, Tava & Mutfak Gereçleri", displayName: "Ev, Yaşam & Mutfak > Mutfak Gereçleri", paths: ["Ev & Mutfak", "Mutfak"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 7000401, name: "Kahve Makineleri & Çay Makineleri", displayName: "Ev, Yaşam & Mutfak > Küçük Ev Aletleri > Kahve & Çay", paths: ["Ev & Mutfak", "Kahve Makineleri"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 7000402, name: "Robot Süpürgeler & Dikey Süpürgeler", displayName: "Ev, Yaşam & Mutfak > Küçük Ev Aletleri > Süpürgeler", paths: ["Ev & Mutfak", "Süpürgeler"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
+  { id: 7000403, name: "Tencere, Tava & Mutfak Gereçleri", displayName: "Ev, Yaşam & Mutfak > Mutfak Gereçleri", paths: ["Ev & Mutfak", "Mutfak"], leaf: true, available: true, status: "ACTIVE", sector: "home" },
 
   // --- MODA & TEKSTİL (FASHION) ---
-  { id: 5000101, name: "Erkek Giyim & Tişörtler", displayName: "Moda & Tekstil > Erkek Giyim", paths: ["Moda", "Erkek Giyim"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
-  { id: 5000102, name: "Kadın Giyim & Elbiseler", displayName: "Moda & Tekstil > Kadın Giyim", paths: ["Moda", "Kadın Giyim"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
-  { id: 5000103, name: "Spor Ayakkabılar & Sneaker", displayName: "Moda & Tekstil > Ayakkabı & Çanta > Spor Ayakkabı", paths: ["Moda", "Ayakkabı"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
+  { id: 7000501, name: "Erkek Giyim & Tişörtler", displayName: "Moda & Tekstil > Erkek Giyim", paths: ["Moda", "Erkek Giyim"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
+  { id: 7000502, name: "Kadın Giyim & Elbiseler", displayName: "Moda & Tekstil > Kadın Giyim", paths: ["Moda", "Kadın Giyim"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
+  { id: 7000503, name: "Spor Ayakkabılar & Sneaker", displayName: "Moda & Tekstil > Ayakkabı & Çanta > Spor Ayakkabı", paths: ["Moda", "Ayakkabı"], leaf: true, available: true, status: "ACTIVE", sector: "fashion" },
 
   // --- OTO & YAPI MARKET (AUTO & TOOLS) ---
-  { id: 6000101, name: "Oto Aksesuar & Araç İçi Donanım", displayName: "Oto & Yapı Market > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" },
-  { id: 6000102, name: "Şarjlı Matkap & El Aletleri", displayName: "Oto & Yapı Market > Yapı Market > El Aletleri", paths: ["Yapı Market", "El Aletleri"], leaf: true, available: true, status: "ACTIVE", sector: "auto" }
+  { id: 7000601, name: "Oto Aksesuar & Araç İçi Donanım", displayName: "Oto & Yapı Market > Oto Aksesuar", paths: ["Otomotiv", "Aksesuar"], leaf: true, available: true, status: "ACTIVE", sector: "auto" },
+  { id: 7000602, name: "Şarjlı Matkap & El Aletleri", displayName: "Oto & Yapı Market > Yapı Market > El Aletleri", paths: ["Yapı Market", "El Aletleri"], leaf: true, available: true, status: "ACTIVE", sector: "auto" }
 ];
 
 // 4. Standard Pazarama Categories
@@ -1123,6 +1213,96 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36", "60"], defaultValue: "24" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
   ],
+  ram_memory: [
+    { id: "Marka", name: "Marka (Brand)", description: "Bellek markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "Kapasite", name: "Bellek Kapasitesi (GB)", description: "RAM boyutu", mandatory: true, type: "select", values: ["4 GB", "8 GB", "16 GB", "32 GB", "64 GB (2x32GB)", "128 GB"], defaultValue: "16 GB" },
+    { id: "BellekTipi", name: "Bellek Tipi", description: "RAM jenerasyonu", mandatory: true, type: "select", values: ["DDR5", "DDR4", "DDR3", "LPDDR5"], defaultValue: "DDR5" },
+    { id: "BellekHizi", name: "Bellek Hızı (MHz)", description: "Çalışma frekansı", mandatory: true, type: "select", values: ["3200 MHz", "3600 MHz", "4800 MHz", "5200 MHz", "5600 MHz", "6000 MHz", "6400 MHz", "7200 MHz"], defaultValue: "6000 MHz" },
+    { id: "FormFaktoru", name: "Form Faktörü / Kullanım Alanı", description: "Masaüstü (UDIMM) veya Laptop (SO-DIMM)", mandatory: true, type: "select", values: ["Masaüstü (UDIMM)", "Laptop / Notebook (SO-DIMM)"], defaultValue: "Masaüstü (UDIMM)" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Tayvan" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36", "60", "Ömür Boyu"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  motherboard: [
+    { id: "Marka", name: "Marka (Brand)", description: "Anakart markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "SoketTipi", name: "İşlemci Soket Tipi", description: "Uyumlu işlemci soketi", mandatory: true, type: "select", values: ["AMD AM5", "AMD AM4", "Intel LGA1700", "Intel LGA1200", "Intel LGA1851"], defaultValue: "AMD AM5" },
+    { id: "YongaSeti", name: "Yonga Seti (Chipset)", description: "Anakart çipseti", mandatory: true, type: "select", values: ["AMD B650", "AMD X670 / X870", "AMD A620", "AMD B550", "Intel Z790", "Intel B760", "Intel H610"], defaultValue: "AMD B650" },
+    { id: "FormFaktoru", name: "Form Faktörü", description: "Fiziksel anakart boyutu", mandatory: true, type: "select", values: ["ATX", "Micro-ATX", "Mini-ITX", "E-ATX"], defaultValue: "Micro-ATX" },
+    { id: "RamDesteği", name: "RAM Tipi & Kanalı", description: "Desteklenen bellek teknolojisi", mandatory: false, type: "select", values: ["DDR5 (Çift Kanal)", "DDR4 (Çift Kanal)"], defaultValue: "DDR5 (Çift Kanal)" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Tayvan" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "36" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  cpu_processor: [
+    { id: "Marka", name: "Marka (Brand)", description: "İşlemci üreticisi", mandatory: true, type: "select", values: ["Intel", "AMD"], defaultValue: "AMD" },
+    { id: "IslemciAilesi", name: "İşlemci Ailesi / Serisi", description: "Seri adı", mandatory: true, type: "select", values: ["AMD Ryzen 7", "AMD Ryzen 5", "AMD Ryzen 9", "Intel Core i7", "Intel Core i5", "Intel Core i9", "Intel Core Ultra 7", "Intel Core Ultra 5"], defaultValue: "AMD Ryzen 7" },
+    { id: "SoketTipi", name: "Soket Tipi", description: "Anakart bağlantı soketi", mandatory: true, type: "select", values: ["Socket AM5", "Socket AM4", "LGA1700", "LGA1851", "LGA1200"], defaultValue: "Socket AM5" },
+    { id: "CekirdekSayisi", name: "Çekirdek Sayısı", description: "Fiziksel çekirdek adedi", mandatory: false, type: "select", values: ["6 Çekirdek", "8 Çekirdek", "12 Çekirdek", "16 Çekirdek", "20 Çekirdek", "24 Çekirdek"], defaultValue: "8 Çekirdek" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Malezya" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "36" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  gpu_graphics_card: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ekran kartı markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "GpuUreticisi", name: "GPU Chipset Üreticisi", description: "Grafik çip üreticisi", mandatory: true, type: "select", values: ["NVIDIA", "AMD", "Intel"], defaultValue: "NVIDIA" },
+    { id: "BellekKapasitesi", name: "VRAM Kapasitesi (GB)", description: "Grafik bellek miktarı", mandatory: true, type: "select", values: ["6 GB", "8 GB", "12 GB", "16 GB", "20 GB", "24 GB"], defaultValue: "12 GB" },
+    { id: "BellekTipi", name: "Bellek Tipi", description: "VRAM teknolojisi", mandatory: false, type: "select", values: ["GDDR6X", "GDDR6", "GDDR7"], defaultValue: "GDDR6X" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  monitors_screens: [
+    { id: "Marka", name: "Marka (Brand)", description: "Monitör markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "EkranBoyutu", name: "Ekran Boyutu (İnç)", description: "Panel boyutu", mandatory: true, type: "select", values: ["23.8 inç", "24 inç", "27 inç", "31.5 inç / 32 inç", "34 inç Ultrawide", "49 inç"], defaultValue: "27 inç" },
+    { id: "YenilemeHizi", name: "Yenileme Hızı (Hz)", description: "Tazeleme frekansı", mandatory: true, type: "select", values: ["60 Hz / 75 Hz", "100 Hz", "144 Hz", "165 Hz / 180 Hz", "240 Hz", "360 Hz+"], defaultValue: "165 Hz / 180 Hz" },
+    { id: "Cozunurluk", name: "Çözünürlük Standardı", description: "Ekran çözünürlüğü", mandatory: true, type: "select", values: ["Full HD (1920x1080)", "2K QHD (2560x1440)", "4K UHD (3840x2160)", "UWQHD (3440x1440)"], defaultValue: "2K QHD (2560x1440)" },
+    { id: "PanelTipi", name: "Panel Teknolojisi", description: "Ekran paneli türü", mandatory: false, type: "select", values: ["Fast IPS", "OLED / QD-OLED", "VA Panel", "TN Panel"], defaultValue: "Fast IPS" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  keyboards_mice: [
+    { id: "Marka", name: "Marka (Brand)", description: "Klavye / Mouse markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "BaglantiTipi", name: "Bağlantı Türü", description: "Kablosuz veya kablolu bağlantı", mandatory: true, type: "select", values: ["2.4 GHz Kablosuz + Bluetooth", "Kablolu USB", "Bluetooth", "Kablolu + Kablosuz (Çift Mod)"], defaultValue: "2.4 GHz Kablosuz + Bluetooth" },
+    { id: "UrunTipi", name: "Ürün Türü", description: "Klavye, mouse veya set", mandatory: true, type: "select", values: ["Mouse / Fare", "Mekanik Klavye", "Membran Klavye", "Klavye + Mouse Seti", "Mousepad / Masa Pedi"], defaultValue: "Mouse / Fare" },
+    { id: "Renk", name: "Renk (Color)", description: "Ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Gri", "Pembe", "Çok Renkli / RGB"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  power_supply_case: [
+    { id: "Marka", name: "Marka (Brand)", description: "Kasa / Güç kaynağı markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "GucKapasitesi", name: "Güç Kapasitesi (Watt)", description: "PSU watt değeri", mandatory: false, type: "select", values: ["500W", "600W / 650W", "750W", "850W", "1000W+", "Güç Kaynağı Yok (Yalnız Kasa)"], defaultValue: "750W" },
+    { id: "Sertifika", name: "80 Plus Verimlilik Sertifikası", description: "Güç sertifikası", mandatory: false, type: "select", values: ["80 Plus Gold", "80 Plus Bronze", "80 Plus Platinum", "Sertifikasız / Standart"], defaultValue: "80 Plus Gold" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36", "60"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  pc_cooling: [
+    { id: "Marka", name: "Marka (Brand)", description: "Soğutucu markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "SogutucuTipi", name: "Soğutucu Türü", description: "Sıvı veya hava soğutma", mandatory: true, type: "select", values: ["Sıvı Soğutma (AIO)", "Kule Tipi Hava Soğutma", "Kasa Fanı", "Laptop Soğutucu Stand"], defaultValue: "Sıvı Soğutma (AIO)" },
+    { id: "RadyatorBoyutu", name: "Radyatör / Fan Boyutu", description: "Radyatör veya fan boyutu", mandatory: false, type: "select", values: ["240 mm", "360 mm", "120 mm", "140 mm", "280 mm"], defaultValue: "240 mm" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  printers_scanners: [
+    { id: "Marka", name: "Marka (Brand)", description: "Yazıcı markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "YaziciTipi", name: "Yazıcı Teknolojisi", description: "Baskı teknolojisi", mandatory: true, type: "select", values: ["Tanklı Mürekkep Sistemli", "Lazer (Siyah Beyaz)", "Lazer (Renkli)", "Mürekkep Püskürtmeli (Kartuşlu)", "Barkod & Etiket Yazıcı"], defaultValue: "Tanklı Mürekkep Sistemli" },
+    { id: "Islev", name: "Fonksiyon / İşlev", description: "Yazıcı özellikleri", mandatory: true, type: "select", values: ["Çok Fonksiyonlu (Yazıcı+Tarayıcı+Fotokopi)", "Tek Fonksiyonlu (Yalnız Yazıcı)"], defaultValue: "Çok Fonksiyonlu (Yazıcı+Tarayıcı+Fotokopi)" },
+    { id: "Baglanti", name: "Bağlantı Özelliği", description: "Kablosuz veya USB", mandatory: false, type: "select", values: ["Wi-Fi + USB", "Wi-Fi + Ethernet + USB", "Yalnızca USB"], defaultValue: "Wi-Fi + USB" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Filipinler" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  network_router: [
+    { id: "Marka", name: "Marka (Brand)", description: "Ağ cihazı markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "CihazTipi", name: "Ağ Cihazı Türü", description: "Ağ ekipmanı türü", mandatory: true, type: "select", values: ["Wi-Fi Router", "VDSL2 / ADSL2+ Modem", "Mesh Wi-Fi Sistemi", "Masaüstü / Gigabit Switch", "Menzil Genişletici (Range Extender)"], defaultValue: "Wi-Fi Router" },
+    { id: "WifiStandardi", name: "Wi-Fi Standardı", description: "Kablosuz hız standardı", mandatory: false, type: "select", values: ["Wi-Fi 6 (802.11ax)", "Wi-Fi 6E / Wi-Fi 7", "Wi-Fi 5 (802.11ac)", "Wi-Fi 4 (802.11n)"], defaultValue: "Wi-Fi 6 (802.11ax)" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["24", "36"], defaultValue: "36" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "KDV Oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
   phone_accessories: [
     { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
     { id: "UyumluMarka", name: "Uyumlu Telefon Markası", description: "Aksesuarın uyumlu olduğu telefon markası", mandatory: false, type: "select", values: ["Apple iPhone", "Samsung", "Xiaomi", "Huawei", "Oppo", "Evrensel (Tüm Markalar)"], defaultValue: "Apple iPhone" },
@@ -1130,6 +1310,54 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
     { id: "BaglantiTipi", name: "Bağlantı / Şarj Tipi", description: "Kablo / adaptör çıkışı", mandatory: false, type: "select", values: ["Type-C", "Lightning", "Micro USB", "Kablosuz (MagSafe / Qi)", "Yok"], defaultValue: "Type-C" },
     { id: "GucWatt", name: "Güç Çıkışı (Watt)", description: "Şarj adaptörü veya kablo kapasitesi", mandatory: false, type: "select", values: ["20W", "25W", "30W", "45W", "65W", "100W", "Yok"], defaultValue: "20W" },
     { id: "Renk", name: "Renk (Color)", description: "Ürün rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz", "Şeffaf", "Mavi", "Mor", "Yeşil", "Gri", "Gümüş", "Gold", "Pembe"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  tablet_devices: [
+    { id: "Marka", name: "Marka (Brand)", description: "Tablet üretici markası", mandatory: true, type: "select", values: ["Apple", "Samsung", "Lenovo", "Xiaomi", "Huawei", "TCL", "Honor", "Casper", "Reeder", "Diğer"], defaultValue: "Apple" },
+    { id: "EkranBoyutu", name: "Ekran Boyutu (İnç)", description: "Tablet ekran boyutu", mandatory: true, type: "select", values: ["10.1 inç", "10.9 inç / 11 inç", "12.9 inç / 13 inç", "8.7 inç / 8 inç", "12.4 inç"], defaultValue: "10.9 inç / 11 inç" },
+    { id: "DahiliHafiza", name: "Dahili Hafıza / Depolama", description: "Tablet depolama kapasitesi", mandatory: true, type: "select", values: ["32 GB", "64 GB", "128 GB", "256 GB", "512 GB", "1 TB"], defaultValue: "128 GB" },
+    { id: "RamKapasitesi", name: "RAM Kapasitesi (GB)", description: "Bellek miktarı", mandatory: true, type: "select", values: ["3 GB", "4 GB", "6 GB", "8 GB", "12 GB", "16 GB"], defaultValue: "8 GB" },
+    { id: "IsletimSistemi", name: "İşletim Sistemi", description: "Tablet yazılım altyapısı", mandatory: true, type: "select", values: ["iPadOS", "Android", "Windows 11", "HarmonyOS"], defaultValue: "iPadOS" },
+    { id: "HagBaglanti", name: "Hücresel Bağlantı (SIM)", description: "SIM kart veya 4G/5G desteği", mandatory: false, type: "select", values: ["Yalnızca Wi-Fi", "Wi-Fi + Cellular (SIM Kartlı)"], defaultValue: "Yalnızca Wi-Fi" },
+    { id: "Renk", name: "Renk (Color)", description: "Tablet rengi", mandatory: true, type: "select", values: ["Uzay Grisi", "Gümüş", "Siyah", "Koyu Gri", "Mavi", "Pembe", "Altın / Gold", "Yeşil"], defaultValue: "Uzay Grisi" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Yasal garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  notebook_adapters: [
+    { id: "Marka", name: "Marka (Brand)", description: "Adaptör üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "UyumluMarka", name: "Uyumlu Notebook Markası", description: "Adaptörün uyumlu olduğu bilgisayar markası", mandatory: true, type: "select", values: ["Dell", "Asus", "HP", "Lenovo", "Apple Macbook", "Acer", "Monster", "Casper", "Toshiba", "Samsung", "Evrensel / Tüm Markalar"], defaultValue: "Dell" },
+    { id: "GucWatt", name: "Güç Çıkışı (Watt)", description: "Adaptör gücü", mandatory: true, type: "select", values: ["45W", "65W", "90W", "120W", "130W", "180W", "230W", "240W", "300W", "100W Type-C", "65W Type-C"], defaultValue: "65W" },
+    { id: "VoltajV", name: "Çıkış Voltajı (V)", description: "Gerilim değeri", mandatory: true, type: "select", values: ["19.5V", "19V", "20V", "18.5V", "12V", "5V - 20V (Type-C PD)"], defaultValue: "19.5V" },
+    { id: "AkımAmper", name: "Çıkış Akımı (Amper)", description: "Akım gücü", mandatory: false, type: "select", values: ["3.34A", "3.42A", "4.62A", "4.74A", "2.25A", "3.25A", "6.15A", "9.23A", "11.8A"], defaultValue: "3.34A" },
+    { id: "Uckonnektor", name: "Konnektor / Uç Tipi", description: "Adaptör soket ucu", mandatory: false, type: "select", values: ["Dell 7.4x5.0mm İğneli Uç", "Dell 4.5x3.0mm Mavi Uç", "Type-C (USB-C PD)", "Lenovo Square (Dikdörtgen)", "Standart 5.5x2.5mm", "Asus 4.0x1.35mm", "HP 4.5x3.0mm Mavi Uç"], defaultValue: "Dell 4.5x3.0mm Mavi Uç" },
+    { id: "Renk", name: "Renk (Color)", description: "Adaptör rengi", mandatory: true, type: "select", values: ["Siyah", "Beyaz"], defaultValue: "Siyah" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  usb_hub_adapters: [
+    { id: "Marka", name: "Marka (Brand)", description: "USB Hub veya dönüştürücü üretici markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "GirisArabirimi", name: "Giriş Arayüzü / Erkek Uç", description: "Cihaza takılan erkek uç", mandatory: true, type: "select", values: ["Type-C (USB-C)", "USB 3.0 (USB-A)", "Thunderbolt 3 / 4", "Lightning"], defaultValue: "Type-C (USB-C)" },
+    { id: "PortSayisi", name: "Çıkış / Port Sayısı", description: "Çoklayıcı toplam port sayısı", mandatory: true, type: "select", values: ["4 Port", "5 in 1", "6 in 1", "7 in 1", "8 in 1", "10 in 1", "11+ in 1"], defaultValue: "4 Port" },
+    { id: "CikisPortlari", name: "Desteklenen Çıkışlar", description: "Hub üzerindeki konnektör tipleri", mandatory: false, type: "select", values: ["4 x USB 3.0 / USB 2.0", "HDMI + USB 3.0 + Type-C PD", "HDMI + RJ45 Ethernet + USB 3.0 + SD/TF", "VGA + HDMI + USB 3.0", "USB 3.0 + Type-C"], defaultValue: "4 x USB 3.0 / USB 2.0" },
+    { id: "HDMIDestegi", name: "Görüntü Çıkışı Desteği", description: "HDMI veya DisplayPort çözünürlüğü", mandatory: false, type: "select", values: ["4K @ 60Hz", "4K @ 30Hz", "1080p Full HD", "Görüntü Çıkışı Yok"], defaultValue: "Görüntü Çıkışı Yok" },
+    { id: "GucPD", name: "USB Type-C PD Şarj Desteği", description: "Power Delivery şarj kapasitesi", mandatory: false, type: "select", values: ["100W PD Şarj", "87W PD Şarj", "60W PD Şarj", "Şarj Desteği Yok"], defaultValue: "Şarj Desteği Yok" },
+    { id: "GovdeMalzemesi", name: "Gövde Malzemesi", description: "Kasa ve ısı dağıtım malzemesi", mandatory: false, type: "select", values: ["Alüminyum Alaşım", "ABS Isıya Dayanıklı Plastik"], defaultValue: "Alüminyum Alaşım" },
+    { id: "Renk", name: "Renk (Color)", description: "Cihaz rengi", mandatory: true, type: "select", values: ["Uzay Grisi / Antrasit", "Gümüş", "Siyah"], defaultValue: "Uzay Grisi / Antrasit" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
+  cables_converters: [
+    { id: "Marka", name: "Marka (Brand)", description: "Kablo / adaptör markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "KabloTipi", name: "Kablo / Bağlantı Türü", description: "Kablo fonksiyonu", mandatory: true, type: "select", values: ["HDMI Kablo", "DisplayPort Kablo", "Type-C - HDMI Dönüştürücü Kablo", "VGA Kablo", "Ethernet Cat6 / Cat7", "USB Extension / Uzatma", "Aux 3.5mm Ses Kablosu", "Güç / SATA Kablosu"], defaultValue: "HDMI Kablo" },
+    { id: "Uzunluk", name: "Kablo Uzunluğu", description: "Kablo boyu", mandatory: true, type: "select", values: ["0.5 Metre", "1 Metre", "1.5 Metre", "2 Metre", "3 Metre", "5 Metre", "10 Metre"], defaultValue: "1.5 Metre" },
+    { id: "KonnektorUclari", name: "Konnektör Uçları", description: "Giriş ve çıkış konnektörleri", mandatory: false, type: "select", values: ["Erkek - Erkek (Male to Male)", "Erkek - Dişi (Male to Female)", "Dişi - Dişi (Female to Female)"], defaultValue: "Erkek - Erkek (Male to Male)" },
+    { id: "Kaplama", name: "Kablo Kaplaması / Örgü", description: "Dış koruma malzemesi", mandatory: false, type: "select", values: ["Örgülü Kumaş / Naylon", "PVC / Standart", "Altın Kaplama Uçlu (Gold Plated)"], defaultValue: "Örgülü Kumaş / Naylon" },
+    { id: "Renk", name: "Renk (Color)", description: "Kablo rengi", mandatory: true, type: "select", values: ["Siyah", "Gri", "Gümüş", "Kırmızı", "Mavi", "Beyaz"], defaultValue: "Siyah" },
     { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
@@ -1198,6 +1426,20 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
     { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
     { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
   ],
+  security_camera: [
+    { id: "Marka", name: "Marka (Brand)", description: "Güvenlik kamerası markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
+    { id: "KameraCozunurluk", name: "Kamera Çözünürlüğü (MP / HD)", description: "Görüntü kalitesi ve çözünürlük", mandatory: true, type: "select", values: ["1080p Full HD (2 MP)", "2K QHD (3 MP / 4 MP)", "4K Ultra HD (8 MP)", "720p HD (1 MP)"], defaultValue: "1080p Full HD (2 MP)" },
+    { id: "KullanimAlani", name: "Kullanım Alanı & Tipi", description: "İç mekan / dış mekan / bebek kamerası", mandatory: true, type: "select", values: ["İç Mekan & Dış Mekan (IP66 Su Geçirmez)", "Yalnızca İç Mekan", "Kablosuz Bataryalı / Güneş Panelli", "Bebek & Evcil Hayvan Kamerası"], defaultValue: "İç Mekan & Dış Mekan (IP66 Su Geçirmez)" },
+    { id: "GeceGorus", name: "Gece Görüş Özelliği", description: "Gece aydınlatma ve görüş teknolojisi", mandatory: true, type: "select", values: ["Renkli Gece Görüşü (Spot Işıklı)", "Kızılötesi (IR) Gece Görüşü", "Akıllı Çift Işık (Dual Light)"], defaultValue: "Kızılötesi (IR) Gece Görüşü" },
+    { id: "BaglantiTipi", name: "Bağlantı Teknolojisi", description: "Wi-Fi, Ethernet veya SIM Kartlı", mandatory: true, type: "select", values: ["Wi-Fi (Kablosuz)", "Ethernet (PoE / Kablolu)", "4G / SIM Kartlı", "Wi-Fi + Ethernet"], defaultValue: "Wi-Fi (Kablosuz)" },
+    { id: "HareketAlgilama", name: "Hareket Algılama & AI Takip", description: "Otomatik algılama ve bildirim", mandatory: false, type: "select", values: ["AI İnsan & Araç Algılama (360° Takip)", "PIR Hareket Sensörü", "Standart Hareket Algılama"], defaultValue: "AI İnsan & Araç Algılama (360° Takip)" },
+    { id: "SesOzelligi", name: "Ses Desteği & Konuşma", description: "Mikrofon ve hoparlör desteği", mandatory: false, type: "select", values: ["Karşılıklı İki Yönlü Ses (Mikrofon + Hoparlör)", "Yalnızca Dahili Mikrofon (Ses Kayıt)", "Ses Desteği Yok"], defaultValue: "Karşılıklı İki Yönlü Ses (Mikrofon + Hoparlör)" },
+    { id: "DepolamaDesteği", name: "Hafıza & Kayıt Desteği", description: "SD Kart veya NVR/DVR desteği", mandatory: false, type: "select", values: ["MicroSD Kart Desteği (Max 128GB/256GB)", "NVR / DVR Kayıt Cihazı Uyumlu", "Bulut Depolama (Cloud) + MicroSD"], defaultValue: "MicroSD Kart Desteği (Max 128GB/256GB)" },
+    { id: "Renk", name: "Renk", description: "Kamera gövde rengi", mandatory: true, type: "select", values: ["Beyaz", "Siyah", "Gri"], defaultValue: "Beyaz" },
+    { id: "Mensei", name: "Menşei Ülke", description: "Üretim ülkesi", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
+    { id: "GarantiSuresi", name: "Garanti Süresi (Ay)", description: "Garanti süresi", mandatory: true, type: "select", values: ["12", "24", "36"], defaultValue: "24" },
+    { id: "tax_vat_rate", name: "KDV Oranı (%)", description: "Vergi oranı", mandatory: true, type: "select", values: ["1", "10", "20"], defaultValue: "20" }
+  ],
   general: [
     { id: "Marka", name: "Marka (Brand)", description: "Ürün markası", mandatory: true, type: "text", defaultValue: "$product.brand" },
     { id: "Mensei", name: "Menşei Ülke (Origin Country)", description: "Üretim yeri", mandatory: true, type: "select", values: MARKETPLACE_ORIGIN_COUNTRIES, defaultValue: "Çin" },
@@ -1206,9 +1448,231 @@ export const COMMON_MARKETPLACE_ATTRIBUTES: Record<string, MarketplaceAttribute[
   ]
 };
 
-// Returns relevant attributes based on category name or category path
-export function getAttributesForCategory(catName: string, paths: string[] = []): MarketplaceAttribute[] {
+// Exact Category ID Schema Registry (CTO Deterministic Map)
+export const CATEGORY_ID_ATTRIBUTE_MAP: Record<string, MarketplaceAttribute[]> = {
+  // Security & IP Cameras
+  "2000103": COMMON_MARKETPLACE_ATTRIBUTES.security_camera,
+  "7000304": COMMON_MARKETPLACE_ATTRIBUTES.security_camera,
+
+  // Mobile & Tablets
+  "371972": COMMON_MARKETPLACE_ATTRIBUTES.tablet_devices,
+  "371960": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "371965": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "371966": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "371969": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "371970": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "371971": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "371973": COMMON_MARKETPLACE_ATTRIBUTES.phone_accessories,
+  "371967": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
+  "371968": COMMON_MARKETPLACE_ATTRIBUTES.smartwatch,
+
+  // USB Hubs & Adapters
+  "1000122": COMMON_MARKETPLACE_ATTRIBUTES.usb_hub_adapters,
+  "7000114": COMMON_MARKETPLACE_ATTRIBUTES.usb_hub_adapters,
+
+  // Notebook Adapters
+  "1000190": COMMON_MARKETPLACE_ATTRIBUTES.notebook_adapters,
+  "1000191": COMMON_MARKETPLACE_ATTRIBUTES.notebook_adapters,
+  "1000192": COMMON_MARKETPLACE_ATTRIBUTES.notebook_adapters,
+  "1000193": COMMON_MARKETPLACE_ATTRIBUTES.notebook_adapters,
+  "1000194": COMMON_MARKETPLACE_ATTRIBUTES.notebook_adapters,
+  "1000195": COMMON_MARKETPLACE_ATTRIBUTES.notebook_adapters,
+  "1000196": COMMON_MARKETPLACE_ATTRIBUTES.notebook_adapters,
+  "1000197": COMMON_MARKETPLACE_ATTRIBUTES.notebook_adapters,
+
+  // USB Flash Storage & Memory Cards
+  "970": COMMON_MARKETPLACE_ATTRIBUTES.usb_storage,
+  "7000101": COMMON_MARKETPLACE_ATTRIBUTES.usb_storage,
+  "698": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
+  "1100011": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
+  "60003724": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
+  "7000102": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
+  "7000103": COMMON_MARKETPLACE_ATTRIBUTES.memory_cards,
+
+  // SSD & Hard Drives
+  "1000104": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+  "1000105": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+  "1000106": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+  "1000107": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+  "7000104": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+  "7000105": COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware,
+
+  // PC Components
+  "1000108": COMMON_MARKETPLACE_ATTRIBUTES.ram_memory,
+  "7000106": COMMON_MARKETPLACE_ATTRIBUTES.ram_memory,
+  "1000109": COMMON_MARKETPLACE_ATTRIBUTES.motherboard,
+  "1000110": COMMON_MARKETPLACE_ATTRIBUTES.cpu_processor,
+  "1000111": COMMON_MARKETPLACE_ATTRIBUTES.gpu_graphics_card,
+  "1000112": COMMON_MARKETPLACE_ATTRIBUTES.power_supply_case,
+  "1000113": COMMON_MARKETPLACE_ATTRIBUTES.pc_cooling,
+  "1000124": COMMON_MARKETPLACE_ATTRIBUTES.pc_cooling,
+  "7000113": COMMON_MARKETPLACE_ATTRIBUTES.pc_cooling,
+
+  // Monitors & TV
+  "1000117": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
+  "2000101": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
+  "7000110": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
+  "7000301": COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens,
+
+  // Keyboards & Mice
+  "1000118": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+  "1000119": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+  "7000107": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+  "7000108": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+  "7000109": COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice,
+
+  // Audio & Soundbars
+  "1000120": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
+  "2000102": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
+  "7000112": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
+  "7000206": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
+  "7000302": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
+  "7000303": COMMON_MARKETPLACE_ATTRIBUTES.audio_headphone,
+
+  // Cables & Converters
+  "1000181": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "1000182": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "1000183": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "1000184": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "1000185": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "1000186": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "1000187": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "1000188": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "1000189": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+  "7000115": COMMON_MARKETPLACE_ATTRIBUTES.cables_converters,
+
+  // Laptop Bags
+  "1000123": COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags,
+  "1000135": COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags,
+  "1000136": COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags,
+  "1000137": COMMON_MARKETPLACE_ATTRIBUTES.laptop_bags,
+
+  // Presenters & Office
+  "1000138": COMMON_MARKETPLACE_ATTRIBUTES.presenter_remote,
+  "1000139": COMMON_MARKETPLACE_ATTRIBUTES.presenter_remote,
+
+  // Network & Routers
+  "1000125": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "1000126": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "1000127": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "1000128": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+  "7000117": COMMON_MARKETPLACE_ATTRIBUTES.network_router,
+
+  // Printers & Scanners
+  "1000129": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
+  "1000130": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
+  "1000131": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
+  "7000116": COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners,
+
+  // Photography Cameras & Accessories
+  "2000201": COMMON_MARKETPLACE_ATTRIBUTES.photography_camera,
+  "2000202": COMMON_MARKETPLACE_ATTRIBUTES.photography_camera,
+  "2000203": COMMON_MARKETPLACE_ATTRIBUTES.photography_camera,
+  "2000204": COMMON_MARKETPLACE_ATTRIBUTES.photography_camera,
+  "2000205": COMMON_MARKETPLACE_ATTRIBUTES.photography_camera,
+  "2000206": COMMON_MARKETPLACE_ATTRIBUTES.photography_camera,
+  "2000207": COMMON_MARKETPLACE_ATTRIBUTES.photography_camera,
+
+  // Apparel & Shoes
+  "60003858": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "60003859": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "60003857": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "60003860": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "12101943": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "12101944": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "12101945": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "12101946": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "12101947": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "12101948": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+  "12101949": COMMON_MARKETPLACE_ATTRIBUTES.apparel,
+
+  // General Electronics
+  "1000198": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  "2000104": COMMON_MARKETPLACE_ATTRIBUTES.electronics,
+  "7000111": COMMON_MARKETPLACE_ATTRIBUTES.electronics
+};
+
+// Returns relevant attributes based on Category ID or category name/path
+export function getAttributesForCategory(catName: string, paths: string[] = [], categoryId?: string | number): MarketplaceAttribute[] {
+  // 1. Direct O(1) Category ID Schema Resolution (Strict & Deterministic)
+  if (categoryId) {
+    const strId = String(categoryId).trim();
+    if (CATEGORY_ID_ATTRIBUTE_MAP[strId]) {
+      return CATEGORY_ID_ATTRIBUTE_MAP[strId];
+    }
+  }
+
   const text = `${catName} ${paths.join(" ")}`.toLowerCase();
+
+  // 0a. Tablet Bilgisayarlar & iPad (Device itself) - MUST match before phone accessories!
+  if (
+    text.includes("371972") ||
+    text.includes("tablet bilgisayar") ||
+    text.includes("ipad") ||
+    (text.includes("tablet") && !text.includes("kılıf") && !text.includes("kilif") && !text.includes("cam") && !text.includes("koruyucu") && !text.includes("kalem") && !text.includes("tutucu") && !text.includes("aksesuar") && !text.includes("çanta") && !text.includes("canta") && !text.includes("şarj") && !text.includes("sarj") && !text.includes("stant") && !text.includes("stand"))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.tablet_devices;
+  }
+
+  // 0b. Notebook Adaptörleri & Şarj Cihazları (Dell, Asus, HP, Lenovo vb.) - MUST match before phone chargers!
+  if (
+    text.includes("notebook adaptör") ||
+    text.includes("laptop adaptör") ||
+    text.includes("notebook adaptor") ||
+    text.includes("laptop adaptor") ||
+    text.includes("dell notebook adaptör") ||
+    text.includes("asus notebook adaptör") ||
+    text.includes("hp notebook adaptör") ||
+    text.includes("lenovo notebook adaptör") ||
+    text.includes("macbook şarj") ||
+    text.includes("macbook adaptor") ||
+    text.includes("notebook şarj") ||
+    (text.includes("adaptör") && (text.includes("notebook") || text.includes("laptop") || text.includes("dell") || text.includes("asus") || text.includes("hp") || text.includes("lenovo") || text.includes("bilgisayar")))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.notebook_adapters;
+  }
+
+  // 0c. USB Hub, Type-C Çoklayıcı & Dönüştürücüler (#1000122) - MUST match BEFORE USB Flash Storage!
+  if (
+    text.includes("1000122") ||
+    text.includes("usb hub") ||
+    text.includes("usb-c hub") ||
+    text.includes("type-c hub") ||
+    text.includes("type c hub") ||
+    text.includes("multihub") ||
+    text.includes("type-c dönüştürücü") ||
+    text.includes("type c dönüştürücü") ||
+    text.includes("type-c donusturucu") ||
+    text.includes("type-c çoklayıcı") ||
+    text.includes("type c çoklayıcı") ||
+    text.includes("type-c coklayici") ||
+    text.includes("çoklayıcı adaptör") ||
+    text.includes("coklayici adaptor") ||
+    text.includes("multiport") ||
+    text.includes("docking station") ||
+    (text.includes("usb") && (text.includes("hub") || text.includes("çoklayıcı") || text.includes("coklayici") || text.includes("dönüştürücü") || text.includes("donusturucu")))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.usb_hub_adapters;
+  }
+
+  // 0d. Kablo & Görüntü/Ağ/Ses Kablo ve Dönüştürücüleri (#1000181 - #1000187)
+  if (
+    text.includes("1000181") ||
+    text.includes("1000182") ||
+    text.includes("1000183") ||
+    text.includes("1000184") ||
+    text.includes("1000185") ||
+    text.includes("1000186") ||
+    text.includes("1000187") ||
+    text.includes("hdmi kablo") ||
+    text.includes("displayport kablo") ||
+    text.includes("ethernet kablo") ||
+    text.includes("cat6") ||
+    text.includes("cat7") ||
+    text.includes("aux kablo")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.cables_converters;
+  }
 
   // 1. Laptop & Notebook Çantaları, Kılıfları, Sleeveler (MUST match BEFORE phone accessories!)
   if (
@@ -1252,6 +1716,20 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.usb_storage;
   }
 
+  // 3.5. Güvenlik & IP Kameraları (#2000103) - MUST match BEFORE photography_camera!
+  if (
+    text.includes("2000103") ||
+    text.includes("7000304") ||
+    text.includes("güvenlik kamera") ||
+    text.includes("guvenlik kamera") ||
+    text.includes("ip kamera") ||
+    text.includes("ip güvenlik") ||
+    text.includes("güvenlik sistemleri") ||
+    (text.includes("güvenlik") && text.includes("kamera"))
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.security_camera;
+  }
+
   // 4. Fotoğrafçılık, Kameralar, Tripod, Lens, Aksiyon Kamera, Kamera Çantası
   if (
     text.includes("fotoğraf") ||
@@ -1290,17 +1768,121 @@ export function getAttributesForCategory(catName: string, paths: string[] = []):
     return COMMON_MARKETPLACE_ATTRIBUTES.memory_cards;
   }
 
-  // 6. SSD & Sabit Disk & PC Donanım
+  // 6a. RAM & Bellek
+  if (
+    text.includes("ram") ||
+    text.includes("bellek") ||
+    text.includes("ddr4") ||
+    text.includes("ddr5") ||
+    text.includes("so-dimm")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.ram_memory;
+  }
+
+  // 6b. Anakart / Motherboard
+  if (
+    text.includes("anakart") ||
+    text.includes("motherboard") ||
+    text.includes("chipset") ||
+    text.includes("yonga seti")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.motherboard;
+  }
+
+  // 6c. İşlemci / CPU
+  if (
+    text.includes("işlemci") ||
+    text.includes("islemci") ||
+    text.includes("processor") ||
+    text.includes("ryzen") ||
+    text.includes("intel core")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.cpu_processor;
+  }
+
+  // 6d. Ekran Kartı / GPU
+  if (
+    text.includes("ekran kartı") ||
+    text.includes("ekran karti") ||
+    text.includes("graphics card") ||
+    text.includes("vram") ||
+    text.includes("rtx") ||
+    text.includes("gtx") ||
+    text.includes("radeon")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.gpu_graphics_card;
+  }
+
+  // 6e. Monitör & Ekran
+  if (
+    text.includes("monitör") ||
+    text.includes("monitor") ||
+    text.includes("ekranlar")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.monitors_screens;
+  }
+
+  // 6f. Klavye & Mouse / Fare
+  if (
+    text.includes("klavye") ||
+    text.includes("mouse") ||
+    text.includes("fare") ||
+    text.includes("mousepad")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.keyboards_mice;
+  }
+
+  // 6g. Güç Kaynağı (PSU) & Bilgisayar Kasası
+  if (
+    text.includes("güç kaynağı") ||
+    text.includes("guc kaynagi") ||
+    text.includes("psu") ||
+    text.includes("bilgisayar kasası") ||
+    text.includes("kasa")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.power_supply_case;
+  }
+
+  // 6h. Soğutucu & Fan
+  if (
+    text.includes("soğutucu") ||
+    text.includes("sogutucu") ||
+    text.includes("sıvı soğutma") ||
+    text.includes("fan") ||
+    text.includes("radyatör")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.pc_cooling;
+  }
+
+  // 6i. Yazıcı & Tarayıcı
+  if (
+    text.includes("yazıcı") ||
+    text.includes("yazici") ||
+    text.includes("tarayıcı") ||
+    text.includes("toner") ||
+    text.includes("kartuş")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.printers_scanners;
+  }
+
+  // 6j. Ağ & Router & Modem
+  if (
+    text.includes("modem") ||
+    text.includes("router") ||
+    text.includes("ağ ekipman") ||
+    text.includes("access point") ||
+    text.includes("wi-fi")
+  ) {
+    return COMMON_MARKETPLACE_ATTRIBUTES.network_router;
+  }
+
+  // 6k. SSD & Sabit Disk & Genel PC Donanım
   if (
     text.includes("ssd") ||
     text.includes("harddisk") ||
     text.includes("sabit disk") ||
     text.includes("m.2") ||
-    text.includes("nvme") ||
-    text.includes("ram") ||
-    text.includes("anakart") ||
-    text.includes("işlemci") ||
-    text.includes("ekran kartı")
+    text.includes("nvme")
   ) {
     return COMMON_MARKETPLACE_ATTRIBUTES.ssd_hardware;
   }

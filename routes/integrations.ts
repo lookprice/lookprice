@@ -6,6 +6,7 @@ import { IntegrationService } from "../src/services/IntegrationService";
 import { HepsiburadaService } from "../src/services/backend/hepsiburadaService";
 import { HepsiburadaServiceV3 } from "../src/services/backend/HepsiburadaServiceV3";
 import { AmazonService } from "../src/services/backend/amazonService";
+import { isHepsiburadaMasterCatalogId, slugifyText } from "../src/utils/marketplaceUrls";
 import { 
   processMarketplaceOrderLines, 
   syncN11Orders, 
@@ -1201,9 +1202,9 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
         status: matched.status || 'ACTIVE',
         isSalable,
         productUrl: pid 
-          ? `https://www.hepsiburada.com/-pm-${pid}` 
-          : (hbSku && String(hbSku).toUpperCase().startsWith('HBC') 
-            ? `https://www.hepsiburada.com/-pm-${hbSku}` 
+          ? `https://www.hepsiburada.com/${slugifyText(name || 'urun')}-pm-${String(pid).trim().toLowerCase()}` 
+          : (hbSku && isHepsiburadaMasterCatalogId(hbSku) 
+            ? `https://www.hepsiburada.com/${slugifyText(name || 'urun')}-pm-${String(hbSku).trim().toLowerCase()}` 
             : (barcode 
               ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(barcode)}` 
               : (name ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(name)}` : null))),
@@ -1470,15 +1471,17 @@ router.post("/hepsiburada/publish", authenticate, async (req: any, res) => {
 
     const isLive = Boolean(resolvedHbSku);
 
+    const isMasterHbSku = Boolean(resolvedHbSku && resolvedHbSku.toUpperCase().startsWith('HBC') && !resolvedHbSku.toUpperCase().startsWith('HBCV') && !resolvedHbSku.toUpperCase().startsWith('HBV'));
+
     // Update product marketplace metadata
     mpData.hepsiburada = {
       ...hbData,
       categoryId: categoryId ? Number(categoryId) : undefined,
       attributes,
       hepsiburadaSku: resolvedHbSku || hbData.hepsiburadaSku || null,
-      productId: hbData.productId || (resolvedHbSku?.startsWith('HBC') ? resolvedHbSku : null),
+      productId: hbData.productId || (isMasterHbSku ? resolvedHbSku : null),
       status: isLive ? 'ACTIVE' : 'PENDING_APPROVAL',
-      productUrl: isLive ? (inputHbUrl || hbData.productUrl || (resolvedHbSku?.startsWith('HBC') ? `https://www.hepsiburada.com/-pm-${resolvedHbSku}` : (p.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name)}`))) : undefined,
+      productUrl: isLive ? (inputHbUrl && !inputHbUrl.includes('HBCV') ? inputHbUrl : (isMasterHbSku ? `https://www.hepsiburada.com/${slugifyText(p.name || 'urun')}-pm-${String(resolvedHbSku).trim().toLowerCase()}` : (p.barcode ? `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.barcode)}` : `https://www.hepsiburada.com/ara?q=${encodeURIComponent(p.name)}`))) : undefined,
       catalogTrackingId: catalogTrackingId || hbData.catalogTrackingId,
       listingTrackingId: result.trackingId || hbData.listingTrackingId,
       lastSync: new Date().toISOString()
@@ -2059,7 +2062,7 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
     const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId));
     const catName = matchedCat?.name || (categoryId === "970" ? "USB Flash Bellekler" : String(categoryId));
     const catPaths = matchedCat?.paths || (categoryId === "970" ? ["Bilgisayar", "Veri Depolama", "Usb Bellek"] : []);
-    const verifiedAttrs = getAttributesForCategory(catName, catPaths);
+    const verifiedAttrs = getAttributesForCategory(catName, catPaths, categoryId || rawCategoryId);
 
     res.json({ success: true, attributes: verifiedAttrs, source: "verified_catalog", categoryId });
   } catch (error: any) {
@@ -2068,7 +2071,7 @@ router.get("/hepsiburada/categories/:categoryId/attributes", authenticate, async
       const matchedCat = HEPSIBURADA_DEFAULT_CATEGORIES.find((c: any) => String(c.id) === String(categoryId) || String(c.id) === String(rawCategoryId));
       const catName = matchedCat?.name || (categoryId === "970" ? "USB Flash Bellekler" : String(categoryId));
       const catPaths = matchedCat?.paths || (categoryId === "970" ? ["Bilgisayar", "Veri Depolama", "Usb Bellek"] : []);
-      res.json({ success: true, attributes: getAttributesForCategory(catName, catPaths), source: "verified_catalog", categoryId });
+      res.json({ success: true, attributes: getAttributesForCategory(catName, catPaths, categoryId || rawCategoryId), source: "verified_catalog", categoryId });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
