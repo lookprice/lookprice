@@ -721,19 +721,26 @@ router.get("/stores/by-domain", async (req, res) => {
       }
     }
 
-    const cleanDomain = (domain as string).trim();
-    const cleanNormalized = (normalizedDomain as string).trim();
+    const cleanQuery = (domain as string).toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+    const queryWithWww = `www.${cleanQuery}`;
 
-    const result = await pool.query(
-      "SELECT slug FROM stores WHERE LOWER(TRIM(custom_domain)) = LOWER($1) OR LOWER(TRIM(custom_domain)) = LOWER($2) LIMIT 1",
-      [cleanDomain, cleanNormalized]
-    );
+    // Fetch all stores with custom_domain
+    const storesRes = await pool.query("SELECT slug, custom_domain FROM stores WHERE custom_domain IS NOT NULL AND custom_domain != ''");
+    
+    let matchedSlug: string | null = null;
+    for (const row of storesRes.rows) {
+      const dbDomain = (row.custom_domain || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+      if (dbDomain === cleanQuery || dbDomain === queryWithWww || `www.${dbDomain}` === cleanQuery) {
+        matchedSlug = row.slug;
+        break;
+      }
+    }
 
-    if (result.rows.length > 0) {
-      const payload = { slug: result.rows[0].slug };
+    if (matchedSlug) {
+      const payload = { slug: matchedSlug };
       publicApiCache.set(cacheKey, payload, 120);
       res.setHeader('Cache-Control', 'public, max-age=120');
-      res.json(payload);
+      return res.json(payload);
     } else {
       res.status(404).json({ error: "Store not found" });
     }
@@ -745,139 +752,144 @@ router.get("/stores/by-domain", async (req, res) => {
 
 router.get("/store/:slug", async (req, res) => {
   const { slug } = req.params;
-  const cacheKey = `store_${slug.toLowerCase()}`;
-  const cached = publicApiCache.get(cacheKey);
-  if (cached) {
-    res.setHeader('Cache-Control', 'public, max-age=60');
-    return res.json(cached);
-  }
-
-  const storeRes = await pool.query(`
-    SELECT 
-      id, name, slug, store_type, sub_sector, hotel_module_enabled, working_hours, page_layout_settings,
-      logo_url, favicon_url, primary_color, default_currency, background_image_url,
-      hero_title, hero_subtitle, hero_image_url, about_text, description,
-      instagram_url, facebook_url, twitter_url, whatsapp_number,
-      address, phone, email, emails, phones, footer_links, parent_id, payment_settings, meta_settings, shipping_profiles, custom_domain,
-      branding, page_layout, menu_links, status, is_approved
-    FROM stores 
-    WHERE LOWER(slug) = LOWER($1)
-  `, [slug]);
-  let store = storeRes.rows[0];
-
-  if (store) {
-    if (store.is_approved === false || store.status === 'suspended') {
-      return res.status(403).json({ error: 'store_suspended', message: 'Bu mağaza geçici olarak askıya alınmıştır veya onaylanmamıştır.' });
-    }
-    if (store.status === 'pending') {
-      return res.status(403).json({ error: 'store_pending', message: 'Bu mağaza onay sürecindedir. Lütfen daha sonra tekrar deneyiniz.' });
+  try {
+    const cacheKey = `store_${slug.toLowerCase()}`;
+    const cached = publicApiCache.get(cacheKey);
+    if (cached) {
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      return res.json(cached);
     }
 
-    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links', 'working_hours', 'page_layout_settings'];
-    jsonFields.forEach(field => {
-      if (typeof store[field] === 'string') {
-        try {
-          store[field] = JSON.parse(store[field]);
-        } catch (e) {
+    const storeRes = await pool.query(`
+      SELECT 
+        id, name, slug, store_type, sub_sector, hotel_module_enabled, working_hours, page_layout_settings,
+        logo_url, favicon_url, primary_color, default_currency, background_image_url,
+        hero_title, hero_subtitle, hero_image_url, about_text, description,
+        instagram_url, facebook_url, twitter_url, whatsapp_number,
+        address, phone, email, emails, phones, footer_links, parent_id, payment_settings, meta_settings, shipping_profiles, custom_domain,
+        branding, page_layout, menu_links, status, is_approved
+      FROM stores 
+      WHERE LOWER(slug) = LOWER($1)
+    `, [slug]);
+    let store = storeRes.rows[0];
+
+    if (store) {
+      if (store.is_approved === false || store.status === 'suspended') {
+        return res.status(403).json({ error: 'store_suspended', message: 'Bu mağaza geçici olarak askıya alınmıştır veya onaylanmamıştır.' });
+      }
+      if (store.status === 'pending') {
+        return res.status(403).json({ error: 'store_pending', message: 'Bu mağaza onay sürecindedir. Lütfen daha sonra tekrar deneyiniz.' });
+      }
+
+      const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links', 'working_hours', 'page_layout_settings'];
+      jsonFields.forEach(field => {
+        if (typeof store[field] === 'string') {
+          try {
+            store[field] = JSON.parse(store[field]);
+          } catch (e) {
+            store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' ? {} : [];
+          }
+        } else if (!store[field]) {
           store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' ? {} : [];
         }
-      } else if (!store[field]) {
-        store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' ? {} : [];
+      });
+
+      if (store.branding && typeof store.branding === 'object') {
+        const msFromCol = store.meta_settings || {};
+        const msFromBr = store.branding.meta_settings || {};
+        const whFromCol = store.working_hours || {};
+        const whFromBr = store.branding.working_hours || {};
+        const plsFromCol = store.page_layout_settings || {};
+        const plsFromBr = store.branding.page_layout_settings || {};
+        
+        const brandingCopy = { ...store.branding };
+        Object.assign(store, store.branding);
+        store.branding = brandingCopy;
+        store.meta_settings = { ...msFromCol, ...msFromBr };
+        store.working_hours = { ...whFromCol, ...whFromBr };
+        store.page_layout_settings = { ...plsFromCol, ...plsFromBr };
       }
-    });
 
-    if (store.branding && typeof store.branding === 'object') {
-      const msFromCol = store.meta_settings || {};
-      const msFromBr = store.branding.meta_settings || {};
-      const whFromCol = store.working_hours || {};
-      const whFromBr = store.branding.working_hours || {};
-      const plsFromCol = store.page_layout_settings || {};
-      const plsFromBr = store.branding.page_layout_settings || {};
-      
-      const brandingCopy = { ...store.branding };
-      Object.assign(store, store.branding);
-      store.branding = brandingCopy;
-      store.meta_settings = { ...msFromCol, ...msFromBr };
-      store.working_hours = { ...whFromCol, ...whFromBr };
-      store.page_layout_settings = { ...plsFromCol, ...plsFromBr };
+      if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {
+        store.whatsapp_number = "905488902309";
+      }
+      if (!store.phone || store.phone === "905428655000" || store.phone === "+905428655000") {
+        store.phone = "+90 548 890 23 09";
+      }
+
+      // Sanitize payment_settings to only expose enabled flags and sandbox mode
+      let ps = store.payment_settings || {};
+      if (typeof ps === 'string') {
+        try {
+          ps = JSON.parse(ps);
+        } catch (e) {
+          ps = {};
+        }
+      }
+      store.payment_settings = {
+        iyzico_enabled: !!ps.iyzico_enabled,
+        iyzico_sandbox: !!ps.iyzico_sandbox,
+        paypal_enabled: !!ps.paypal_enabled,
+        paypal_sandbox: !!ps.paypal_sandbox,
+        payoneer_enabled: !!ps.payoneer_enabled,
+        payoneer_sandbox: !!ps.payoneer_sandbox,
+        bank_transfer_enabled: ps.bank_transfer_enabled !== false && ps.hotel_bank_transfer_enabled !== false,
+        bank_details: ps.bank_details || ps.hotel_bank_details || '',
+        cod_enabled: ps.cod_enabled !== false && ps.hotel_pay_at_hotel_enabled !== false,
+        credit_card_enabled: ps.credit_card_enabled !== false && ps.hotel_credit_card_enabled !== false,
+        hotel_pay_at_hotel_enabled: ps.hotel_pay_at_hotel_enabled !== false && ps.cod_enabled !== false,
+        hotel_bank_transfer_enabled: ps.hotel_bank_transfer_enabled !== false && ps.bank_transfer_enabled !== false,
+        hotel_credit_card_enabled: ps.hotel_credit_card_enabled !== false && ps.credit_card_enabled !== false,
+        hotel_bank_details: ps.hotel_bank_details || ps.bank_details || ''
+      };
     }
 
-    if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {
-      store.whatsapp_number = "905488902309";
-    }
-    if (!store.phone || store.phone === "905428655000" || store.phone === "+905428655000") {
-      store.phone = "+90 548 890 23 09";
-    }
-
-    // Sanitize payment_settings to only expose enabled flags and sandbox mode
-    let ps = store.payment_settings || {};
-    if (typeof ps === 'string') {
-      try {
-        ps = JSON.parse(ps);
-      } catch (e) {
-        ps = {};
+    if (store && store.parent_id) {
+      // This is a branch. Redirect to parent store's website.
+      const parentRes = await pool.query("SELECT slug FROM stores WHERE id = $1", [store.parent_id]);
+      if (parentRes.rows[0]) {
+        return res.json({ redirect: `/store/${parentRes.rows[0].slug}`, isBranch: true });
       }
     }
-    store.payment_settings = {
-      iyzico_enabled: !!ps.iyzico_enabled,
-      iyzico_sandbox: !!ps.iyzico_sandbox,
-      paypal_enabled: !!ps.paypal_enabled,
-      paypal_sandbox: !!ps.paypal_sandbox,
-      payoneer_enabled: !!ps.payoneer_enabled,
-      payoneer_sandbox: !!ps.payoneer_sandbox,
-      bank_transfer_enabled: ps.bank_transfer_enabled !== false && ps.hotel_bank_transfer_enabled !== false,
-      bank_details: ps.bank_details || ps.hotel_bank_details || '',
-      cod_enabled: ps.cod_enabled !== false && ps.hotel_pay_at_hotel_enabled !== false,
-      credit_card_enabled: ps.credit_card_enabled !== false && ps.hotel_credit_card_enabled !== false,
-      hotel_pay_at_hotel_enabled: ps.hotel_pay_at_hotel_enabled !== false && ps.cod_enabled !== false,
-      hotel_bank_transfer_enabled: ps.hotel_bank_transfer_enabled !== false && ps.bank_transfer_enabled !== false,
-      hotel_credit_card_enabled: ps.hotel_credit_card_enabled !== false && ps.credit_card_enabled !== false,
-      hotel_bank_details: ps.hotel_bank_details || ps.bank_details || ''
-    };
-  }
-
-  if (store && store.parent_id) {
-    // This is a branch. Redirect to parent store's website.
-    const parentRes = await pool.query("SELECT slug FROM stores WHERE id = $1", [store.parent_id]);
-    if (parentRes.rows[0]) {
-      return res.json({ redirect: `/store/${parentRes.rows[0].slug}`, isBranch: true });
+    
+    if (!store && (slug === 'demo-store' || slug === 'demo')) {
+      store = {
+        id: -1,
+        name: "Demo Mağaza",
+        logo_url: "",
+        primary_color: "#4f46e5",
+        default_currency: "TRY",
+        background_image_url: "",
+        hero_title: "Hoş Geldiniz",
+        hero_subtitle: "En iyi ürünler burada",
+        about_text: "Biz bir demo mağazayız."
+      };
     }
-  }
-  
-  if (!store && (slug === 'demo-store' || slug === 'demo')) {
-    store = {
-      id: -1,
-      name: "Demo Mağaza",
-      logo_url: "",
-      primary_color: "#4f46e5",
-      default_currency: "TRY",
-      background_image_url: "",
-      hero_title: "Hoş Geldiniz",
-      hero_subtitle: "En iyi ürünler burada",
-      about_text: "Biz bir demo mağazayız."
-    };
-  }
-  
-  if (!store) return res.status(404).json({ error: "Store not found" });
+    
+    if (!store) return res.status(404).json({ error: "Store not found" });
 
-  // Fetch branches, blog posts, and consultants in parallel
-  const [branchesRes, blogRes, consultantsRes2] = await Promise.all([
-    !store.parent_id
-      ? pool.query("SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1", [store.id])
-      : Promise.resolve({ rows: [] }),
-    pool.query("SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC", [store.id]),
-    pool.query("SELECT id, name, email, phone, role, image_url FROM consultants WHERE store_id = $1 AND (status IS NULL OR status != 'inactive') ORDER BY name ASC", [store.id])
-  ]);
+    // Fetch branches, blog posts, and consultants in parallel with safety catch
+    const [branchesRes, blogRes, consultantsRes2] = await Promise.all([
+      !store.parent_id
+        ? pool.query("SELECT id, name, slug, address, phone FROM stores WHERE parent_id = $1", [store.id]).catch(() => ({ rows: [] }))
+        : Promise.resolve({ rows: [] }),
+      pool.query("SELECT * FROM blog_posts WHERE store_id = $1 AND status = 'published' ORDER BY created_at DESC", [store.id]).catch(() => ({ rows: [] })),
+      pool.query("SELECT id, name, email, phone, role, image_url FROM consultants WHERE store_id = $1 AND (status IS NULL OR status != 'inactive') ORDER BY name ASC", [store.id]).catch(() => ({ rows: [] }))
+    ]);
 
-  if (!store.parent_id) {
-    store.branches = branchesRes.rows;
+    if (!store.parent_id) {
+      store.branches = branchesRes.rows;
+    }
+    store.blog_posts = blogRes.rows;
+    store.consultants = consultantsRes2.rows;
+
+    publicApiCache.set(cacheKey, store, 60);
+    res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
+    res.json(store);
+  } catch (error: any) {
+    console.error("Error in /store/:slug:", error);
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
-  store.blog_posts = blogRes.rows;
-  store.consultants = consultantsRes2.rows;
-
-  publicApiCache.set(cacheKey, store, 60);
-  res.header('Cache-Control', PUBLIC_CACHE_CONTROL);
-  res.json(store);
 });
 
 // Cache for 5 minutes, serve stale for up to 1 hour

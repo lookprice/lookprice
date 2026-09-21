@@ -1043,14 +1043,17 @@ function sanitizeFilename(originalName: string): string {
                              host.includes("0.0.0.0");
 
       if (!isPlatformHost) {
-        // Look up if this custom domain belongs to a specific store (handling www. and non-www. variants)
-        const normalizedHost = host.startsWith("www.") ? host.substring(4) : host;
-        const storeCheck = await pool.query(
-          "SELECT id, name, slug, custom_domain, updated_at FROM stores WHERE LOWER(TRIM(custom_domain)) = LOWER($1) OR LOWER(TRIM(custom_domain)) = LOWER($2) LIMIT 1",
-          [host, normalizedHost]
-        );
-        if (storeCheck.rows.length > 0) {
-          const storeObj = storeCheck.rows[0];
+        const cleanHost = host.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+        const allStores = await pool.query("SELECT id, name, slug, custom_domain, updated_at FROM stores WHERE custom_domain IS NOT NULL AND custom_domain != ''");
+        let storeObj = null;
+        for (const row of allStores.rows) {
+          const dbDom = (row.custom_domain || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+          if (dbDom === cleanHost || dbDom === `www.${cleanHost}` || `www.${dbDom}` === cleanHost) {
+            storeObj = row;
+            break;
+          }
+        }
+        if (storeObj) {
           const storeBaseUrl = `${protocol}://${storeObj.custom_domain}`;
           const storeLastMod = storeObj.updated_at 
             ? new Date(storeObj.updated_at).toISOString().split('T')[0] 

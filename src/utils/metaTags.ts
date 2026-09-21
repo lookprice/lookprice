@@ -365,11 +365,17 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
         );
         store = storeRes.rows[0];
       } else {
-        const storeRes = await pool.query(
-          "SELECT id, name, slug, default_currency, currency_rates, meta_settings, logo_url FROM stores WHERE custom_domain = $1 OR custom_domain = $2 LIMIT 1",
-          [host, normalizedHost]
-        );
-        store = storeRes.rows[0];
+        const cleanHost = host.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+        const allStores = await pool.query("SELECT id, name, slug, default_currency, currency_rates, meta_settings, logo_url, custom_domain FROM stores WHERE custom_domain IS NOT NULL AND custom_domain != ''");
+        let matchedStore = null;
+        for (const row of allStores.rows) {
+          const dbDom = (row.custom_domain || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+          if (dbDom === cleanHost || dbDom === `www.${cleanHost}` || `www.${dbDom}` === cleanHost) {
+            matchedStore = row;
+            break;
+          }
+        }
+        store = matchedStore;
       }
 
       if (store) {
@@ -536,10 +542,17 @@ export async function generateMetaTags(url: string, req: any): Promise<string> {
         [storeSlug]
       );
     } else {
-      storeRes = await pool.query(
-        "SELECT id, name, slug, default_currency, currency_rates, meta_settings, custom_domain, description, logo_url, address, hero_title, branding FROM stores WHERE custom_domain = $1 OR custom_domain = $2 LIMIT 1",
-        [host, normalizedHost]
-      );
+      const cleanHost = host.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+      const allStores = await pool.query("SELECT id, name, slug, default_currency, currency_rates, meta_settings, custom_domain, description, logo_url, address, hero_title, branding FROM stores WHERE custom_domain IS NOT NULL AND custom_domain != ''");
+      let matchedStoreRes = { rows: [] as any[] };
+      for (const row of allStores.rows) {
+        const dbDom = (row.custom_domain || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').trim();
+        if (dbDom === cleanHost || dbDom === `www.${cleanHost}` || `www.${dbDom}` === cleanHost) {
+          matchedStoreRes.rows = [row];
+          break;
+        }
+      }
+      storeRes = matchedStoreRes;
     }
 
     // A. Fallback to platform-wide LookPrice landing page metadata if store is not found

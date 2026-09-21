@@ -84,7 +84,13 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
   const horecaConfig = useMemo(() => {
     const raw = branding?.digital_menu_settings || branding?.page_layout_settings?.digital_menu_settings || {};
     return {
-      theme: raw.theme || branding?.theme || "modern_light", // modern_light | dark_bistro | warm_amber | fresh_emerald
+      theme: raw.theme || branding?.theme || "modern_light",
+      font_family: raw.font_family || branding?.font_family || "Plus Jakarta Sans",
+      primary_color: raw.primary_color || branding?.primary_color || "#4f46e5",
+      accent_color: raw.accent_color || branding?.accent_color || "#f59e0b",
+      card_style: raw.card_style || "grid", // grid | list | compact
+      corner_radius: raw.corner_radius || "xl", // lg | xl | 2xl | full
+      header_style: raw.header_style || "banner", // banner | centered | minimalist
       menu_title: raw.menu_title || branding?.hero_title || (lang === "tr" ? "Lezzet Dolu Bir Deneyim" : "A Tasteful Experience"),
       menu_subtitle: raw.menu_subtitle || branding?.hero_subtitle || (lang === "tr" ? "Özenle seçilmiş taze malzemelerle hazırlanan lezzetlerimizi keşfedin." : "Explore our culinary delights crafted with the finest ingredients."),
       allow_table_orders: raw.allow_table_orders !== false,
@@ -98,7 +104,7 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
       table_count: branding?.page_layout_settings?.table_count || raw.table_count || 12,
       cover_image: raw.cover_image || branding?.hero_image_url || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=80"
     };
-  }, [branding?.digital_menu_settings, branding?.page_layout_settings, branding?.hero_title, branding?.hero_subtitle, branding?.hero_image_url, branding?.wifi_ssid, branding?.wifi_password, branding?.theme, lang]);
+  }, [branding?.digital_menu_settings, branding?.page_layout_settings, branding?.hero_title, branding?.hero_subtitle, branding?.hero_image_url, branding?.wifi_ssid, branding?.wifi_password, branding?.theme, branding?.font_family, branding?.primary_color, lang]);
 
   const updateHorecaConfig = (updates: Partial<typeof horecaConfig>) => {
     const updated = { ...horecaConfig, ...updates };
@@ -106,12 +112,21 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
     
     if (updates.theme !== undefined) {
       onBrandingChange("theme", updates.theme);
-      // set matching default primary color if not customized
       if (updates.theme === "dark_bistro") onBrandingChange("primary_color", "#f59e0b");
       else if (updates.theme === "warm_amber") onBrandingChange("primary_color", "#d97706");
       else if (updates.theme === "fresh_emerald") onBrandingChange("primary_color", "#059669");
+      else if (updates.theme === "royal_gold") onBrandingChange("primary_color", "#eab308");
+      else if (updates.theme === "cyber_neon") onBrandingChange("primary_color", "#06b6d4");
+      else if (updates.theme === "italian_trattoria") onBrandingChange("primary_color", "#b91c1c");
+      else if (updates.theme === "vintage_diner") onBrandingChange("primary_color", "#db2777");
+      else if (updates.theme === "ocean_blue") onBrandingChange("primary_color", "#0284c7");
+      else if (updates.theme === "sunset_terracotta") onBrandingChange("primary_color", "#c2410c");
+      else if (updates.theme === "nordic_minimal") onBrandingChange("primary_color", "#334155");
+      else if (updates.theme === "rose_gold_bistro") onBrandingChange("primary_color", "#e11d48");
       else onBrandingChange("primary_color", "#4f46e5");
     }
+    if (updates.font_family !== undefined) onBrandingChange("font_family", updates.font_family);
+    if (updates.primary_color !== undefined) onBrandingChange("primary_color", updates.primary_color);
     if (updates.menu_title !== undefined) onBrandingChange("hero_title", updates.menu_title);
     if (updates.menu_subtitle !== undefined) onBrandingChange("hero_subtitle", updates.menu_subtitle);
     if (updates.cover_image !== undefined) onBrandingChange("hero_image_url", updates.cover_image);
@@ -150,7 +165,66 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
       name: txt("Taze Yeşil & Botanik", "Fresh Botanical", "Φρέσκο Βοτανικό"),
       desc: txt("Organik ve ferah zümrüt yeşili konsept.", "Organic emerald green for wholesome dining.", "Οργανικό σμαραγδί."),
       tag: "Sağlıklı"
+    },
+    {
+      id: "royal_gold",
+      name: txt("Kraliyet Altın & Siyah", "Royal Gold & Black", "Βασιλικό Χρυσό"),
+      desc: txt("Lüks oteller ve prestijli restoranlar için altın detaylar.", "Luxury gold accents for elite venues.", "Πολυτελές χρυσό."),
+      tag: "Lüks"
+    },
+    {
+      id: "cyber_neon",
+      name: txt("Neon Cyberpunk Bistro", "Cyber Neon Bistro", "Cyber Neon"),
+      desc: txt("Koyu zemin üzerinde canlı turkuaz ve fuşya neonlar.", "Vibrant cyan & magenta neon glows.", "Neon στυλ."),
+      tag: "Modern Bar"
+    },
+    {
+      id: "italian_trattoria",
+      name: txt("İtalyan Trattoria", "Italian Trattoria", "Ιταλική Τρατορία"),
+      desc: txt("Sıcak terracotta ve klasik İtalyan bistro havası.", "Warm terracotta and rustic Italian vibes.", "Ιταλική ατμόσφαιρα."),
+      tag: "Pizzeria"
+    },
+    {
+      id: "vintage_diner",
+      name: txt("Vintage Retro Diner", "Vintage Retro Diner", "Retro Diner"),
+      desc: txt("50'ler nostaljik amerikan lokantası konsepti.", "Classic retro 1950s diner palette.", "Vintage στυλ."),
+      tag: "Burger & Shake"
+    },
+    {
+      id: "ocean_blue",
+      name: txt("Okyanus Mavisi", "Ocean Blue & Marine", "Ωκεανός"),
+      desc: txt("Deniz ürünleri ve ferah yazlık mekanlar için mavi tonlar.", "Crisp marine blue for seafood & coastal dining.", "Θαalassinό."),
+      tag: "Balık & Deniz"
+    },
+    {
+      id: "sunset_terracotta",
+      name: txt("Gün Batımı Terracotta", "Sunset Terracotta", "Ηλιοβασίλεμα"),
+      desc: txt("Sıcak turuncu ve gün batımı gradyanları.", "Warm sunset orange and earthy tones.", "Ζεστά χρώματα."),
+      tag: "Terrace Bar"
+    },
+    {
+      id: "nordic_minimal",
+      name: txt("İskandinav Minimal", "Nordic Minimal", "Σκανδιναβικό"),
+      desc: txt("Soğuk gri, taş ve yalın İskandinav tasarımı.", "Scandi clean stone & slate minimalism.", "Minimal."),
+      tag: "Butik Kafe"
+    },
+    {
+      id: "rose_gold_bistro",
+      name: txt("Rose Gold & Kadife", "Rose Gold & Velvet", "Rose Gold"),
+      desc: txt("Zarif gül kurusu ve şık tasarım detayları.", "Sophisticated rose gold and velvet accents.", "Zarif."),
+      tag: "Patisserie"
     }
+  ];
+
+  const FONT_FAMILIES = [
+    { id: "Plus Jakarta Sans", name: "Plus Jakarta Sans (Modern & Clean)" },
+    { id: "Playfair Display", name: "Playfair Display (Classic Serif / Fine Dining)" },
+    { id: "Inter", name: "Inter (Tech & Crisp)" },
+    { id: "Lora", name: "Lora (Artistic Serif)" },
+    { id: "Montserrat", name: "Montserrat (Geometric Bold)" },
+    { id: "Cinzel", name: "Cinzel (Luxury Roman)" },
+    { id: "Merriweather", name: "Merriweather (Readable Serif)" },
+    { id: "Poppins", name: "Poppins (Friendly Rounded)" }
   ];
 
   const currentStoreTargetId = storeId || branding?.id || branding?.slug || "";
@@ -247,46 +321,134 @@ export const HorecaThemeStudio: React.FC<HorecaThemeStudioProps> = ({
       {/* SUBTAB 1: TEMA VE GÖRSEL TASARIM */}
       {activeSubTab === "visual" && (
         <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-          {/* Preset Theme Selection Cards */}
+          {/* Preset Theme Selection Cards (12 Professional Themes) */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                {txt("QR Menü ve Web Sitesi Görsel Teması", "Visual Theme (Digital Menu & Website)", "Οπτικό Θέμα")}
+                {txt("QR Menü ve Web Sitesi Görsel Teması (12 Seçenek)", "Visual Theme (12 Options)", "Οπτικό Θέμα")}
+              </span>
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                {txt("Tam Sektörel Esneklik", "Full Flexibility", "Πλήρης Ευελιξία")}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
               {THEMES.map((theme) => {
                 const isSelected = horecaConfig.theme === theme.id;
                 return (
                   <div
                     key={theme.id}
                     onClick={() => updateHorecaConfig({ theme: theme.id })}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between ${
+                    className={`p-2.5 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between ${
                       isSelected
-                        ? "border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-500 shadow-2xs"
+                        ? "border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500 shadow-2xs"
                         : "border-slate-200 bg-slate-50/50 hover:bg-white hover:border-slate-300"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider bg-slate-200/80 text-slate-700 rounded">
+                      <span className="px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider bg-slate-200/80 text-slate-700 rounded">
                         {theme.tag}
                       </span>
                       {isSelected && (
                         <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-                          <Check className="w-3 h-3 stroke-[3]" />
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
                         </span>
                       )}
                     </div>
 
                     <div>
                       <h4 className="font-extrabold text-[11px] text-slate-900 truncate">{theme.name}</h4>
-                      <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{theme.desc}</p>
+                      <p className="text-[9px] text-slate-500 line-clamp-1 mt-0.5">{theme.desc}</p>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* ADVANCED CUSTOMIZATION PANEL (Font, Colors, Card Styles, Radius) */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 md:p-4 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <ChefHat className="w-3.5 h-3.5 text-indigo-600" />
+                {txt("Gelişmiş Tipografi, Renk ve Stil Yönetimi", "Advanced Typography, Color & Style Management", "Προηγμένη Διαχείριση Στυλ")}
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">
+                {txt("Değişiklikler anında vitrine yansır", "Instant live preview", "Άμεση προεπισκόπηση")}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Font Family */}
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Yazı Tipi (Font)", "Font Family", "Γραμματοσειρά")}
+                </label>
+                <select
+                  value={horecaConfig.font_family}
+                  onChange={(e) => updateHorecaConfig({ font_family: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                >
+                  {FONT_FAMILIES.map(f => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Primary Color Picker */}
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Ana Vurgu Rengi", "Primary Accent Color", "Χρώμα Έμφασης")}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={horecaConfig.primary_color}
+                    onChange={(e) => updateHorecaConfig({ primary_color: e.target.value })}
+                    className="w-9 h-9 rounded-xl border border-slate-200 cursor-pointer p-0.5 bg-slate-50"
+                  />
+                  <input
+                    type="text"
+                    value={horecaConfig.primary_color}
+                    onChange={(e) => updateHorecaConfig({ primary_color: e.target.value })}
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Card Style */}
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Ürün Kart Stili", "Product Card Layout", "Στυλ Κάρτας")}
+                </label>
+                <select
+                  value={horecaConfig.card_style}
+                  onChange={(e) => updateHorecaConfig({ card_style: e.target.value } as any)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                >
+                  <option value="grid">{txt("2 Sütunlu Kartlar (Grid)", "2-Column Cards (Grid)", "Πλέγμα 2 στηλών")}</option>
+                  <option value="list">{txt("Yatay Liste (List)", "Horizontal List (List)", "Οριζόντια Λίστα")}</option>
+                  <option value="compact">{txt("Kompakt Liste", "Compact Minimalist", "Συμπαγής")}</option>
+                </select>
+              </div>
+
+              {/* Corner Radius */}
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  {txt("Köşe Yuvarlaklığı", "Corner Roundness", "Γωνίες")}
+                </label>
+                <select
+                  value={horecaConfig.corner_radius}
+                  onChange={(e) => updateHorecaConfig({ corner_radius: e.target.value } as any)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                >
+                  <option value="lg">{txt("Orta (LG)", "Medium (LG)", "Μεσαίο")}</option>
+                  <option value="xl">{txt("Yumuşak (XL)", "Smooth (XL)", "Ομαλό")}</option>
+                  <option value="2xl">{txt("Geniş (2XL)", "Rounded (2XL)", "Στρογγυλό")}</option>
+                  <option value="full">{txt("Tam Hap (Pill)", "Full Pill", "Χάπι")}</option>
+                </select>
+              </div>
             </div>
           </div>
 
