@@ -10,7 +10,7 @@ interface NetflixBookRowProps {
   products: Product[];
   store: StoreInfo | null;
   lang: string;
-  onViewProduct: (p: Product) => void;
+  onViewProduct: (p: Product, rowProducts: Product[]) => void;
   addToBasket: (p: Product) => void;
   primaryColor?: string;
   secondaryColor?: string;
@@ -152,7 +152,7 @@ export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
             product={product}
             store={store}
             lang={lang}
-            onView={onViewProduct}
+            onView={(p) => onViewProduct(p, products)}
             addToBasket={addToBasket}
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}

@@ -137,6 +137,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [activeModalProducts, setActiveModalProducts] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState<"default" | "priceAsc" | "priceDesc">("default");
   const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "bank_transfer" | "cash_on_delivery" | "payoneer" | "paypal" | "iyzico" | "store_reservation">("credit_card");
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState<string | null>(null);
@@ -780,7 +781,10 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
             <BookstoreNetflixLayout
               store={store}
               products={products}
-              onViewProduct={setSelectedProduct}
+              onViewProduct={(p, rowProds) => {
+                setActiveModalProducts(rowProds && rowProds.length > 0 ? rowProds : products);
+                setSelectedProduct(p);
+              }}
               addToBasket={addToBasket}
               basket={basket}
               setBasket={setBasket}
@@ -920,7 +924,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
               onClose={() => setSelectedProduct(null)} addToBasket={addToBasket}
               primaryColor={primaryColor} isLuxury={isLuxury} sector={sector}
               showAboutModal={showAboutModal} setShowAboutModal={setShowAboutModal}
-              allProducts={products} onNavigateProduct={setSelectedProduct}
+              allProducts={activeModalProducts.length > 0 ? activeModalProducts : products} onNavigateProduct={setSelectedProduct}
             />
           )}
         </AnimatePresence>

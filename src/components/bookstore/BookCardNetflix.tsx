@@ -117,6 +117,7 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
     ? "Bu değerli eser; güçlü kurgusu, akıcı üslubu ve derin karakter tahlilleriyle okurlarına unutulmaz bir edebi deneyim sunuyor." 
     : "An extraordinary masterpiece that provides an unforgettable literary experience.");
   
+  const totalProductStock = Number((product as any).stock_quantity ?? (product as any).stock ?? (product as any).quantity ?? 0);
   const coverImage = product.image_url || "";
   const price = Number(product.price) || 0;
   const currency = product.currency || store?.currency || "TRY";
@@ -395,18 +396,25 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
                   </span>
                   {branchStocks.length > 0 ? (
                     <div className="space-y-1 max-h-16 overflow-y-auto no-scrollbar">
-                      {branchStocks.map((b: any, bIdx: number) => (
-                        <div key={bIdx} className="flex items-center justify-between text-[9px] bg-slate-800/80 px-2 py-1 rounded">
-                          <span className="text-slate-300 truncate max-w-[110px]">{b.branch_name}</span>
-                          <span className={`font-bold ${b.quantity > 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                            {b.quantity > 0 ? `${b.quantity} Adet` : (isTr ? "Tükendi" : "Out")}
-                          </span>
-                        </div>
-                      ))}
+                      {branchStocks.map((b: any, bIdx: number) => {
+                        const effectiveQty = (b.quantity !== undefined && b.quantity !== null && b.quantity > 0)
+                          ? b.quantity
+                          : (totalProductStock > 0 ? totalProductStock : (b.quantity || 0));
+                        return (
+                          <div key={bIdx} className="flex items-center justify-between text-[9px] bg-slate-800/80 px-2 py-1 rounded">
+                            <span className="text-slate-300 truncate max-w-[110px]">{b.branch_name}</span>
+                            <span className={`font-bold ${effectiveQty > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                              {effectiveQty > 0 ? `${effectiveQty} Adet` : (isTr ? "Tükendi" : "Out")}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <p className="text-[10px] text-slate-500 italic">
-                      {isTr ? "Tüm şubelerde mevcut" : "Available in branches"}
+                    <p className="text-[10px] text-slate-400 font-semibold">
+                      {totalProductStock > 0 
+                        ? (isTr ? `Genel Stok: ${totalProductStock} Adet` : `In Stock: ${totalProductStock}`)
+                        : (isTr ? "Tüm şubelerde mevcut" : "Available in branches")}
                     </p>
                   )}
                 </div>

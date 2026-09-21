@@ -38,7 +38,7 @@ import { getBookstoreThemeConfig, BookstoreThemeConfig } from "../data/bookstore
 interface BookstoreNetflixLayoutProps {
   store: StoreInfo | null;
   products: Product[];
-  onViewProduct: (product: Product) => void;
+  onViewProduct: (product: Product, rowProducts?: Product[]) => void;
   addToBasket: (product: Product) => void;
   basket: any[];
   setBasket: (b: any[]) => void;
@@ -219,7 +219,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   const newArrivalBooks = useMemo(() => {
     const tagged = products.filter((p) => hasBookstoreBadge(p, 'new_arrival'));
     if (tagged.length > 0) return tagged;
-    return [...products].reverse().slice(0, 15);
+    return [...products].reverse();
   }, [products]);
 
   const editorsPickBooks = useMemo(() => {
@@ -579,7 +579,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                     <div className="flex flex-wrap items-center gap-3 pt-2">
                       <button
                         type="button"
-                        onClick={() => onViewProduct(heroBook)}
+                        onClick={() => onViewProduct(heroBook, weeklyBooks)}
                         className="px-5 sm:px-6 py-2.5 bg-white hover:bg-slate-200 text-slate-950 font-black text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl cursor-pointer"
                       >
                         <Info className="w-4 h-4" />
@@ -611,7 +611,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                           exit={{ opacity: 0, scale: 0.95, rotateY: 10 }}
                           transition={{ duration: 0.35 }}
                           className="relative group cursor-pointer"
-                          onClick={() => onViewProduct(heroBook)}
+                          onClick={() => onViewProduct(heroBook, weeklyBooks)}
                         >
                           {/* 3D Book Cover Frame */}
                           <div className="relative w-44 sm:w-52 md:w-60 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl shadow-black/80 border-2 border-slate-700/80 bg-slate-900 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300">
