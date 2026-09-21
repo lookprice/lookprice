@@ -375,6 +375,115 @@ export const ShopThemeStudio: React.FC<ShopThemeStudioProps> = ({
       {/* TAB 1: KONSEPT & RENKLER */}
       {activeTab === "presets" && (
         <div className="space-y-3">
+          {/* Mağaza Logosu & Favicon Kimliği */}
+          <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+                  {lang === "tr" ? "Mağaza Logosu & Favicon" : "Store Logo & Favicon"}
+                </h3>
+                <p className="text-[11px] text-slate-500 font-normal">
+                  {lang === "tr" ? "Kurumsal logonuzu ve tarayıcı sekme ikonunuzu (favicon) yönetin." : "Manage your store logo and browser tab favicon."}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Logo URL */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                  {lang === "tr" ? "Kurumsal Logo URL" : "Corporate Logo URL"}
+                </label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={branding?.logo_url || branding?.logo || ""}
+                    onChange={(e) => {
+                      onBrandingChange("logo_url", e.target.value);
+                      onBrandingChange("logo", e.target.value);
+                    }}
+                    placeholder="https://... (Görsel URL)"
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                  {(branding?.logo_url || branding?.logo) && (
+                    <div className="w-10 h-10 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center p-1 shrink-0">
+                      <img src={branding?.logo_url || branding?.logo} alt="Logo Preview" className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400"; }} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <label className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold cursor-pointer transition-colors flex items-center gap-1">
+                    <Upload className="w-3 h-3" />
+                    {lang === "tr" ? "Dosyadan Yükle" : "Upload File"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const b64 = ev.target?.result as string;
+                            onBrandingChange("logo_url", b64);
+                            onBrandingChange("logo", b64);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <span className="text-[10px] text-slate-400">PNG, JPG, SVG (Max 2MB)</span>
+                </div>
+              </div>
+
+              {/* Favicon URL */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                  {lang === "tr" ? "Favicon (Tarayıcı Sekme İkonu) URL" : "Favicon URL"}
+                </label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={branding?.favicon_url || ""}
+                    onChange={(e) => onBrandingChange("favicon_url", e.target.value)}
+                    placeholder="https://... (Favicon URL)"
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                  {branding?.favicon_url && (
+                    <div className="w-10 h-10 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center p-1 shrink-0">
+                      <img src={branding?.favicon_url} alt="Favicon Preview" className="max-h-full max-w-full object-contain" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <label className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold cursor-pointer transition-colors flex items-center gap-1">
+                    <Upload className="w-3 h-3" />
+                    {lang === "tr" ? "Dosyadan Yükle" : "Upload File"}
+                    <input
+                      type="file"
+                      accept="image/*,.ico"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const b64 = ev.target?.result as string;
+                            onBrandingChange("favicon_url", b64);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <span className="text-[10px] text-slate-400">ICO, PNG (32x32px)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Hazır Tema Konseptleri */}
           <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">

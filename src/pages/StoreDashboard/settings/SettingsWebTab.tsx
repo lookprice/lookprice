@@ -18,6 +18,11 @@ import {
   MessageCircle,
   ExternalLink,
   BookOpen,
+  Image as ImageIcon,
+  UploadCloud,
+  Trash2,
+  CheckCircle2,
+  Globe,
 } from "lucide-react";
 
 interface SettingsWebTabProps {
@@ -58,17 +63,22 @@ export const SettingsWebTab = ({
   updatePhone,
   removePhone,
   addPhone,
+  onLogoUpload,
+  onFaviconUpload,
+  onBannerUpload,
   users,
   onAddUser,
+  onDeleteUser,
   onSaveBranding,
   savingBranding,
 }: SettingsWebTabProps) => {
   const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
 
-  const [activeSubTab, setActiveSubTab] = useState<'theme' | 'labels' | 'legal' | 'contact' | 'analytics'>('theme');
+  const [activeSubTab, setActiveSubTab] = useState<'brand' | 'theme' | 'labels' | 'legal' | 'contact' | 'analytics'>('brand');
 
   const subNavItems = [
+    { id: 'brand', label: txt('Logo & Favicon', 'Logo & Favicon', 'Λογότυπο & Favicon'), icon: ImageIcon, show: true },
     { id: 'theme', label: txt('Vitrin', 'Theme', 'Βιτρίνα'), icon: Palette, show: true },
     { id: 'labels', label: txt('Etiketler', 'Labels', 'Ετικέτες'), icon: Tag, show: !isPortfolio && !isCafeRestaurant },
     { id: 'legal', label: txt('Politikalar', 'Policies', 'Πολιτικές'), icon: FileText, show: !isPortfolio && !isCafeRestaurant },
@@ -127,6 +137,309 @@ export const SettingsWebTab = ({
           </button>
         )}
       </div>
+
+      {/* SUB-TAB 0: LOGO & FAVICON & MARKA KİMLİĞİ */}
+      {activeSubTab === 'brand' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 1. MAĞAZA LOGOSU */}
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>{txt('Mağaza Kurumsal Logosu', 'Store Corporate Logo', 'Εταιρικό Λογότυπο Καταστήματος')}</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                    {txt('Web sitenizde, üst menüde (header) ve dökümanlarda görüntülenir.', 'Displayed in your website header, invoices, and legal documents.', 'Εμφανίζεται στην κεφαλίδα του ιστότοπου και στα έγγραφα.')}
+                  </p>
+                </div>
+                {(branding?.logo_url || branding?.logo) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onBrandingChange("logo_url", "");
+                      onBrandingChange("logo", "");
+                    }}
+                    className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                    title={txt('Logoyu Kaldır', 'Remove Logo', 'Αφαίρεση')}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Logo Görsel Önizleme Alanı */}
+              <div className="flex items-center justify-center p-4 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 min-h-[110px] relative overflow-hidden group">
+                {branding?.logo_url || branding?.logo ? (
+                  <img
+                    src={branding?.logo_url || branding?.logo}
+                    alt="Logo Preview"
+                    className="max-h-24 max-w-full object-contain drop-shadow-xs transition-transform group-hover:scale-105 duration-200"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400";
+                    }}
+                  />
+                ) : (
+                  <div className="text-center space-y-1">
+                    <ImageIcon className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                      {txt('Henüz Logo Yüklenmedi', 'No Logo Uploaded', 'Δεν έχει μεταφορτωθεί λογότυπο')}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Dosya Yükleme & URL Girişi */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs">
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>{txt('Dosyadan Logo Yükle', 'Upload Logo File', 'Μεταφόρτωση Αρχείου')}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (onLogoUpload) {
+                          onLogoUpload(e);
+                        } else {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const b64 = ev.target?.result as string;
+                              onBrandingChange("logo_url", b64);
+                              onBrandingChange("logo", b64);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }
+                      }}
+                    />
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                    PNG, SVG, WebP, JPG (Max 5MB)
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {txt('Veya Doğrudan Görsel URL Linki', 'Or Direct Image URL Link', 'ή Σύνδεσμος URL Εικόνας')}
+                  </label>
+                  <input
+                    type="url"
+                    value={branding?.logo_url || branding?.logo || ""}
+                    onChange={(e) => {
+                      onBrandingChange("logo_url", e.target.value);
+                      onBrandingChange("logo", e.target.value);
+                    }}
+                    placeholder="https://... (Doğrudan görsel linki)"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-900/30 text-[10px] text-indigo-700 dark:text-indigo-300 font-medium">
+                💡 {txt('İpucu: Saydam (şeffaf) arka planlı PNG veya SVG formatı, hem açık hem koyu sayfa arka planlarında en profesyonel sonucu verir.', 'Tip: Transparent background PNG or SVG provides the most professional look across all theme modes.', 'Συμβουλή: Το διαφανές φόντο PNG ή SVG παρέχει το πιο επαγγελματικό αποτέλεσμα.')}
+              </div>
+            </div>
+
+            {/* 2. FAVICON (TARAYICI SEKME İKONU) */}
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>{txt('Favicon (Tarayıcı Sekme İkonu)', 'Favicon (Browser Tab Icon)', 'Favicon (Εικονίδιο Καρτέλας)')}</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                    {txt('Tarayıcı sekmelerinde ve mobil ana ekran kısayollarında görünür.', 'Appears in browser tabs and mobile home-screen bookmarks.', 'Εμφανίζεται στις καρτέλες του προγράμματος περιήγησης.')}
+                  </p>
+                </div>
+                {branding?.favicon_url && (
+                  <button
+                    type="button"
+                    onClick={() => onBrandingChange("favicon_url", "")}
+                    className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                    title={txt('Faviconu Kaldır', 'Remove Favicon', 'Αφαίρεση')}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Gerçekçi Tarayıcı Sekmesi Simülasyonu */}
+              <div className="p-3 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">
+                  {txt('Tarayıcı Görünüm Simülasyonu', 'Browser Tab Simulation', 'Προεπισκόπηση Καρτέλας')}
+                </span>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 max-w-xs shadow-2xs">
+                  <div className="w-4 h-4 rounded-sm flex items-center justify-center shrink-0 overflow-hidden bg-slate-50 dark:bg-slate-800">
+                    {branding?.favicon_url ? (
+                      <img
+                        src={branding?.favicon_url}
+                        alt="Favicon"
+                        className="w-4 h-4 object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/favicon.ico";
+                        }}
+                      />
+                    ) : (
+                      <Globe className="w-3.5 h-3.5 text-slate-400" />
+                    )}
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                    {branding?.store_name || branding?.name || "Mağaza Web Vitrini"}
+                  </span>
+                  <X className="w-3 h-3 text-slate-400 ml-auto shrink-0" />
+                </div>
+              </div>
+
+              {/* Dosya Yükleme & URL Girişi */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs">
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>{txt('Dosyadan Favicon Yükle', 'Upload Favicon File', 'Μεταφόρτωση Favicon')}</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/x-icon,image/svg+xml,image/jpeg"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (onFaviconUpload) {
+                          onFaviconUpload(e);
+                        } else {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              onBrandingChange("favicon_url", ev.target?.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }
+                      }}
+                    />
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                    ICO, PNG, SVG (32x32 veya 64x64px)
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {txt('Veya Doğrudan Favicon URL Linki', 'Or Direct Favicon URL Link', 'ή Σύνδεσμος URL Favicon')}
+                  </label>
+                  <input
+                    type="url"
+                    value={branding?.favicon_url || ""}
+                    onChange={(e) => onBrandingChange("favicon_url", e.target.value)}
+                    placeholder="https://.../favicon.png"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl border border-emerald-100 dark:border-emerald-900/30 text-[10px] text-emerald-700 dark:text-emerald-300 font-medium">
+                ✨ {txt('Tavsiye: Kare (1:1 oranlı), 32x32px veya 64x64px PNG/ICO formatı tüm tarayıcılarda kristal netliğinde görünür.', 'Recommended: 1:1 square ratio, 32x32px or 64x64px PNG/ICO format appears razor sharp across all devices.', 'Συνιστάται: Τετράγωνη αναλογία 1:1, μορφή PNG/ICO 32x32px.')}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. WEB SİTESİ KAPAK / HERO BANNER GÖRSELİ */}
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Palette className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span>{txt('Web Sitesi Kapak / Hero Banner Görseli', 'Website Hero Banner Image', 'Εικόνα Banner Ιστότοπου')}</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                  {txt('Ana sayfa vitrininde ve arka plan başlığında kullanılan geniş görseldir.', 'Wide banner image used on your homepage header and storefront.', 'Εικόνα banner που χρησιμοποιείται στην κεφαλίδα.')}
+                </p>
+              </div>
+              {(branding?.hero_image_url || branding?.background_image_url) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onBrandingChange("hero_image_url", "");
+                    onBrandingChange("background_image_url", "");
+                  }}
+                  className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                  title={txt('Kapağı Kaldır', 'Remove Banner', 'Αφαίρεση')}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Banner Önizleme */}
+            <div className="h-32 sm:h-40 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 overflow-hidden relative group flex items-center justify-center">
+              {branding?.hero_image_url || branding?.background_image_url ? (
+                <img
+                  src={branding?.hero_image_url || branding?.background_image_url}
+                  alt="Hero Banner Preview"
+                  className="w-full h-full object-cover transition-transform group-hover:scale-102 duration-300"
+                />
+              ) : (
+                <div className="text-center space-y-1">
+                  <ImageIcon className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                    {txt('Özel Banner Tanımlanmadı (Varsayılan tema görseli gösterilir)', 'No Banner Defined (Default theme image shown)', 'Δεν έχει οριστεί banner')}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  {txt('Banner Görsel URL Linki', 'Banner Image URL Link', 'Σύνδεσμος URL Banner')}
+                </label>
+                <input
+                  type="url"
+                  value={branding?.hero_image_url || branding?.background_image_url || ""}
+                  onChange={(e) => {
+                    onBrandingChange("hero_image_url", e.target.value);
+                    onBrandingChange("background_image_url", e.target.value);
+                  }}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center justify-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs">
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  <span>{txt('Dosyadan Banner Yükle', 'Upload Banner File', 'Μεταφόρτωση Banner')}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (onBannerUpload) {
+                        onBannerUpload(e);
+                      } else {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const b64 = ev.target?.result as string;
+                            onBrandingChange("hero_image_url", b64);
+                            onBrandingChange("background_image_url", b64);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SUB-TAB 1: TEMA VE VİTRİN STÜDYOSU */}
       {activeSubTab === 'theme' && (

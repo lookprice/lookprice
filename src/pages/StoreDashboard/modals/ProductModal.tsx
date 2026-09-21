@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 import { compressImageToWebP } from "../../../utils/imageUtils";
@@ -10,6 +10,7 @@ import ProductMovementModal from "../../../components/ProductMovementModal";
 import { BookstoreSectorSpecs } from "../../../components/bookstore/BookstoreSectorSpecs";
 import { getConnectedMarketplaces } from "../../../utils/marketplaceEStores";
 import { BOOKSTORE_CATEGORIES } from "../../../data/bookstoreCategories";
+import { BOOKSTORE_BADGES, extractProductLabels } from "../../../data/bookstoreBadges";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -60,6 +61,9 @@ export const ProductModal = ({
   const [prepTimeMin, setPrepTimeMin] = useState<number | string>("");
   const [portionSize, setPortionSize] = useState<string>("");
 
+  // Bookstore Curated Badges State
+  const [selectedBookBadges, setSelectedBookBadges] = useState<string[]>([]);
+
   // ShopLP Retail Variant Matrix States
   const [variantBarcodeMode, setVariantBarcodeMode] = useState<'individual' | 'shared'>('individual');
   const [showMatrixGenerator, setShowMatrixGenerator] = useState(false);
@@ -72,7 +76,18 @@ export const ProductModal = ({
   const isShopLp = !isCafeRestaurant && !isPortfolio;
   const connectedMarketplaces = useMemo(() => getConnectedMarketplaces(branding), [branding]);
   const isHbEnabled = isShopLp && connectedMarketplaces.hepsiburada;
-  const isBookstore = Boolean(branding?.bookstore_module_enabled || branding?.active_preset === 'bookstore_netflix');
+  const isBookstore = Boolean(
+    branding?.bookstore_module_enabled ||
+    branding?.branding?.bookstore_module_enabled ||
+    branding?.page_layout_settings?.active_preset === 'bookstore_netflix' ||
+    branding?.branding?.page_layout_settings?.active_preset === 'bookstore_netflix' ||
+    branding?.active_preset === 'bookstore_netflix' ||
+    branding?.store_type === 'bookstore' ||
+    branding?.product_label === 'Kitap' ||
+    branding?.branding?.product_label === 'Kitap' ||
+    branding?.page_layout_settings?.sector === 'bookstore' ||
+    branding?.page_layout_settings?.sub_sector === 'bookstore'
+  );
 
   useEffect(() => {
     if (showProductModal && isHbEnabled) {
@@ -265,6 +280,12 @@ export const ProductModal = ({
       setPrepTimeMin(editingProduct?.prep_time_min || "");
       setPortionSize(editingProduct?.portion_size || "");
 
+      if (isBookstore) {
+        setSelectedBookBadges(extractProductLabels(editingProduct));
+      } else {
+        setSelectedBookBadges([]);
+      }
+
       const hasCategories = categoriesList.length > 0;
       const warrantsNewCat = cat ? !categoriesList.includes(cat) : !hasCategories;
       setIsNewCategoryMode(warrantsNewCat);
@@ -281,6 +302,7 @@ export const ProductModal = ({
       setHasVariants(false);
       setVariants([]);
       setSelectedAllergens([]);
+      setSelectedBookBadges([]);
       setCalories("");
       setPrepTimeMin("");
       setPortionSize("");
@@ -288,7 +310,18 @@ export const ProductModal = ({
       setIsNewSubCategoryMode(false);
       setRecipeItems([]);
     }
-  }, [showProductModal, editingProduct]);
+  }, [showProductModal, editingProduct, isBookstore]);
+
+  const toggleBookBadge = (badgeId: string) => {
+    setSelectedBookBadges((prev) => {
+      const exists = prev.some((b) => b.toLowerCase() === badgeId.toLowerCase());
+      if (exists) {
+        return prev.filter((b) => b.toLowerCase() !== badgeId.toLowerCase());
+      } else {
+        return [...prev, badgeId];
+      }
+    });
+  };
 
   const handleCategoryChange = (val: string) => {
     setSelectedCategory(val);
@@ -307,39 +340,50 @@ export const ProductModal = ({
   if (!showProductModal) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-3 bg-black/60 backdrop-blur-sm">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl xl:max-w-6xl max-h-[92vh] flex flex-col overflow-hidden animate-fade-in"
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl max-h-[95vh] flex flex-col overflow-hidden animate-fade-in border border-slate-200"
       >
-        <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
-          <div>
-            <h3 className="text-base font-black uppercase tracking-wider text-white">
-              {editingProduct
-                ? isTr
-                  ? "Ürünü Düzenle"
-                  : "Edit Product"
-                : isTr
-                ? "Yeni Ürün Kaydet"
-                : "Create New Product"}
-            </h3>
-            <p className="text-xs text-slate-300 mt-0.5">
-              {isTr
-                ? "Stok listenize yeni ürün veya hizmet tanımlayın."
-                : "Define new product or service in inventory."}
-            </p>
+        {/* COMPACT MODAL HEADER */}
+        <div className="px-4 py-2 border-b border-slate-800 flex items-center justify-between bg-slate-900 text-white shrink-0">
+          <div className="flex items-center gap-2">
+            {isBookstore && <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />}
+            <div>
+              <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white flex items-center gap-1.5">
+                <span>
+                  {editingProduct
+                    ? isTr
+                      ? isBookstore ? "Eseri / Kitabı Düzenle" : "Ürünü Düzenle"
+                      : isBookstore ? "Edit Book" : "Edit Product"
+                    : isTr
+                    ? isBookstore ? "Yeni Eser / Kitap Ekle" : "Yeni Ürün Kaydet"
+                    : isBookstore ? "Add New Book" : "Create New Product"}
+                </span>
+                {hasVariants && (
+                  <span className="px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 text-[9px] font-bold rounded border border-indigo-500/30">
+                    Varyantlı
+                  </span>
+                )}
+              </h3>
+              <p className="text-[10px] text-slate-300 leading-none mt-0.5">
+                {isTr
+                  ? isBookstore ? "Eser künyesi, yayıncılık nitelikleri, manşet vitrini ve fiyatlandırma." : "Stok listenize yeni ürün veya hizmet tanımlayın."
+                  : isBookstore ? "Define book bibliographic data and pricing." : "Define new product or service in inventory."}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {editingProduct?.id && (
               <button
                 type="button"
                 onClick={() => setShowMovementModal(true)}
-                className="px-3.5 py-1.5 bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-400/30 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                className="px-2.5 py-1 bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-400/30 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all shadow-xs cursor-pointer"
                 title={isTr ? "Ürün Hareketleri & Ekstresi" : "Product Movement & Statement"}
               >
-                <History className="h-4 w-4" />
+                <History className="h-3.5 w-3.5" />
                 <span>{isTr ? "Stok Ekstresi" : "Statement"}</span>
               </button>
             )}
@@ -349,1002 +393,874 @@ export const ProductModal = ({
                 setShowProductModal(false);
                 setEditingProduct(null);
               }}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-300 hover:text-white border-0 outline-none cursor-pointer"
+              className="p-1 hover:bg-white/10 rounded-full transition-colors text-slate-300 hover:text-white border-0 outline-none cursor-pointer"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
+        {/* UNIFIED FORM WITH FIXED STICKY FOOTER */}
         <form
           onSubmit={(e) => {
             if (handleAddProduct) handleAddProduct(e);
           }}
-          className="flex-1 overflow-y-auto p-6 space-y-5"
+          className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
-          {/* SECTION 1: Kimlik & Temel Bilgiler (Soft Indigo Tint) */}
-          <div className="p-4 bg-indigo-50/30 rounded-3xl border border-indigo-100/80 space-y-4">
-            <div className="flex items-center justify-between border-b border-indigo-100 pb-2">
-              <span className="text-[11px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-                {isTr ? "Temel Kimlik & Barkod" : "Core Identification & SKU"}
-              </span>
-              {hasVariants && (
-                <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-100 px-2.5 py-0.5 rounded-md border border-indigo-200">
-                  {isTr ? "Varyant Takipli" : "Variant Tracked"}
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 items-start">
-              <div className="space-y-1 flex-1 w-full">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Ürün / Hizmet Adı *" : "Product / Service Name *"}
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  placeholder={isTr ? "örn: Samsung 990 Pro 1TB SSD" : "Product name"}
-                  className="w-full px-3.5 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-extrabold text-slate-900 text-xs sm:text-sm shadow-2xs"
-                  defaultValue={editingProduct?.name || ""}
-                />
-              </div>
-
-              <div className="space-y-1 w-full sm:w-48 sm:max-w-[190px] shrink-0">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr 
-                    ? (hasVariants ? "Barkod" : isBookstore ? "Barkod / ISBN *" : `Barkod${isCafeRestaurant ? " (İsteğe)" : " *"}`) 
-                    : (hasVariants ? "Barcode" : isBookstore ? "Barcode / ISBN *" : `Barcode${isCafeRestaurant ? " (Opt)" : " *"}`)}
-                </label>
-                <input
-                  type="text"
-                  name="barcode"
-                  required={!hasVariants && !isCafeRestaurant}
-                  disabled={hasVariants}
-                  placeholder={hasVariants ? (isTr ? "Varyantta" : "In variants") : (isTr ? (isCafeRestaurant ? "Oto boş bırak..." : isBookstore ? "örn: 978-605-241-607-5" : "Barkod (13 hane)") : isBookstore ? "e.g. 978-605-241-607-5" : "EAN / Barcode")}
-                  className={`w-full px-3 py-2 border-2 rounded-xl transition-all font-mono font-bold text-xs ${
-                    hasVariants 
-                      ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-80" 
-                      : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 focus:ring-0 shadow-2xs"
-                  }`}
-                  defaultValue={editingProduct?.barcode || (editingProduct as any)?.sector_data?.isbn || ""}
-                />
-              </div>
-
-              <div className="space-y-1 w-full sm:w-44 sm:max-w-[170px] shrink-0">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Kod / SKU" : "SKU / Code"}
-                </label>
-                <input
-                  type="text"
-                  name="product_code"
-                  placeholder={isTr ? "SKU-12345" : "e.g. SKU-12345"}
-                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-mono font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.product_code || editingProduct?.sku || ""}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 2: Kategoriler ve Sektörel Sınıflandırma (Soft Slate Tint) */}
-          <div className="p-4 bg-slate-50/80 rounded-3xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-slate-700"></span>
-                {isTr ? "Kategoriler & Marka" : "Categories & Brand"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1 flex flex-col justify-between">
-                <div className="flex justify-between items-center ml-1 mb-1">
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                    {isTr ? "Kategori" : "Category"}
-                  </label>
-                  {categoriesList.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const prevMode = isNewCategoryMode;
-                        setIsNewCategoryMode(!prevMode);
-                        if (!prevMode) {
-                          setIsNewSubCategoryMode(true);
-                        } else {
-                          setSelectedCategory("");
-                          setSelectedSubCategory("");
-                          setIsNewSubCategoryMode(false);
-                        }
-                      }}
-                      className="text-[10px] font-black text-indigo-700 hover:text-indigo-900 uppercase tracking-widest cursor-pointer border-0 outline-none"
-                    >
-                      {isNewCategoryMode
-                        ? (isTr ? "Listeden Seç" : "Select from List")
-                        : (isTr ? "+ Yeni Kategori" : "+ New Category")}
-                    </button>
-                  )}
-                </div>
-                {isNewCategoryMode || categoriesList.length === 0 ? (
-                  <input
-                    type="text"
-                    name="category"
-                    placeholder={isTr ? "örn: İnşaat, Yiyecek" : "Category"}
-                    className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                    value={selectedCategory}
-                    onChange={(e) => handleCategoryTextChange(e.target.value)}
-                  />
-                ) : (
-                  <div className="relative">
-                    <select
-                      name="category"
-                      value={selectedCategory}
-                      onChange={(e) => handleCategoryChange(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none h-[42px] text-xs shadow-2xs"
-                    >
-                      <option value="">{isTr ? "-- Kategori Seçin --" : "-- Select Category --"}</option>
-                      {categoriesList.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-                      </svg>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-1 flex flex-col justify-between">
-                <div className="flex justify-between items-center ml-1 mb-1">
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                    {isTr ? "Alt Kategori" : "Sub Category"}
-                  </label>
-                  {!isNewCategoryMode && selectedCategory && (subCategoriesMap.get(selectedCategory)?.size || 0) > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsNewSubCategoryMode(!isNewSubCategoryMode);
-                        if (isNewSubCategoryMode) {
-                          setSelectedSubCategory("");
-                        }
-                      }}
-                      className="text-[10px] font-black text-indigo-700 hover:text-indigo-900 uppercase tracking-widest cursor-pointer border-0 outline-none"
-                    >
-                      {isNewSubCategoryMode
-                        ? (isTr ? "Listeden Seç" : "Select from List")
-                        : (isTr ? "+ Yeni Alt Kategori" : "+ New Sub Category")}
-                    </button>
-                  )}
-                </div>
-                {isNewSubCategoryMode || isNewCategoryMode || !selectedCategory || (subCategoriesMap.get(selectedCategory)?.size || 0) === 0 ? (
-                  <input
-                    type="text"
-                    name="sub_category"
-                    placeholder={isTr ? "örn: Çatı Paneli" : "Sub category"}
-                    className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                    value={selectedSubCategory}
-                    onChange={(e) => setSelectedSubCategory(e.target.value)}
-                  />
-                ) : (
-                  <div className="relative">
-                    <select
-                      name="sub_category"
-                      value={selectedSubCategory}
-                      onChange={(e) => setSelectedSubCategory(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none h-[42px] text-xs shadow-2xs"
-                    >
-                      <option value="">{isTr ? "-- Alt Kategori Seçin --" : "-- Select Sub Category --"}</option>
-                      {Array.from(subCategoriesMap.get(selectedCategory) || []).map((sub) => (
-                        <option key={sub} value={sub}>
-                          {sub}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-                      </svg>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "2. Kategori" : "2nd Category"}
-                </label>
-                <input
-                  type="text"
-                  name="category_2"
-                  placeholder={isTr ? "örn: Soğuk İçecekler" : "2nd Category"}
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  value={selectedCategory2}
-                  onChange={(e) => setSelectedCategory2(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "2. Alt Kategori" : "2nd Sub Category"}
-                </label>
-                <input
-                  type="text"
-                  name="sub_category_2"
-                  placeholder={isTr ? "örn: Milkshake & Smoothie" : "2nd Sub Category"}
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  value={selectedSubCategory2}
-                  onChange={(e) => setSelectedSubCategory2(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isBookstore ? (isTr ? "Yayınevi / Yayıncı" : "Publisher") : (isTr ? "Marka" : "Brand")}
-                </label>
-                <input
-                  type="text"
-                  name="brand"
-                  placeholder={isBookstore ? (isTr ? "örn: Can Yayınları, İş Bankası, YKY" : "Publisher") : (isTr ? "örn: GAP, Nike, Apple" : "Brand name")}
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.brand || (editingProduct as any)?.sector_data?.publisher || ""}
-                />
-              </div>
-
-              {isBookstore && (
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                    {isTr ? "Eser Sahibi / Yazar" : "Author"}
-                  </label>
-                  <input
-                    type="text"
-                    name="author"
-                    placeholder={isTr ? "örn: Fyodor Dostoyevski" : "Author name"}
-                    className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                    defaultValue={editingProduct?.author || (editingProduct as any)?.sector_data?.author || ""}
-                  />
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Ürün Tipi" : "Product Type"}
-                </label>
-                <select
-                  name="product_type"
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[42px] shadow-2xs"
-                  defaultValue={editingProduct?.product_type || "product"}
-                >
-                  <option value="product">{isTr ? "Fiziksel Ürün (Stoklu)" : "Physical Product"}</option>
-                  <option value="service">{isTr ? "Hizmet / Servis (Stoksuz)" : "Service / Labor"}</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* BOOKSTORE SECTOR SPECIAL SPECS (Only shown if bookstore module or concept is active) */}
-          {(branding?.bookstore_module_enabled || branding?.active_preset === 'bookstore_netflix') && (
-            <BookstoreSectorSpecs
-              editingProduct={editingProduct}
-              isTr={isTr}
-              branding={branding}
-            />
-          )}
-
-          {/* SECTION 3: Fiyatlandırma & Maliyetler (Soft Emerald Tint) */}
-          <div className="p-4 bg-emerald-50/30 rounded-3xl border border-emerald-100/80 space-y-4">
-            <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
-              <span className="text-[11px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                {isTr ? "Fiyatlandırma & Maliyet Yönetimi" : "Pricing & Cost Management"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Satış Fiyatı + Para Birimi Entegre Grup */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? `Satış Fiyatı${hasVariants || (Array.isArray(variants) && variants.length > 0) ? "" : " *"}` : `Sales Price${hasVariants || (Array.isArray(variants) && variants.length > 0) ? "" : " *"}`}
-                </label>
-                <div className="flex items-center">
-                  <input
-                    type="text"
-                    name="price"
-                    required={!(hasVariants || (Array.isArray(variants) && variants.length > 0))}
-                    placeholder={hasVariants || (Array.isArray(variants) && variants.length > 0) ? (isTr ? "Varyantta" : "In variants") : "0.00"}
-                    className="flex-1 min-w-0 px-3 py-2 bg-white border-2 border-r-0 border-slate-200 rounded-l-xl focus:border-indigo-600 focus:ring-0 transition-all font-black text-emerald-700 text-xs sm:text-sm shadow-2xs"
-                    defaultValue={editingProduct?.price || ""}
-                  />
-                  <select
-                    name="currency"
-                    className="w-20 shrink-0 px-2 py-2 bg-slate-100 border-2 border-slate-200 rounded-r-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs text-center cursor-pointer"
-                    defaultValue={editingProduct?.currency || branding?.default_currency || "TRY"}
-                  >
-                    <option value="TRY">TRY (₺)</option>
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* 2. Fiyat */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "2. Fiyat (Toptan)" : "2nd Price"}
-                </label>
-                <input
-                  type="text"
-                  name="price_2"
-                  placeholder="0.00"
-                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.price_2 || ""}
-                />
-              </div>
-
-              {/* Eski Fiyat */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Eski Fiyat (Çizili)" : "Old Price"}
-                </label>
-                <input
-                  type="text"
-                  name="old_price"
-                  placeholder="0.00"
-                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                  defaultValue={editingProduct?.old_price || ""}
-                />
-              </div>
-
-              {/* KDV Oranı (Kompakt w-24) */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "KDV Oranı" : "VAT Rate"}
-                </label>
-                <select
-                  name="tax_rate"
-                  className="w-full px-2.5 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs cursor-pointer shadow-2xs"
-                  defaultValue={editingProduct?.tax_rate !== undefined ? String(editingProduct.tax_rate) : "20"}
-                >
-                  <option value="20">%20 (Genel)</option>
-                  <option value="10">%10 (Gıda/Tıbbi)</option>
-                  <option value="1">%1 (Temel)</option>
-                  <option value="0">%0 (Muaf)</option>
-                </select>
-              </div>
-
-              {/* Maliyet Fiyatı + Maliyet Para Birimi Entegre Grup */}
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Maliyet Fiyatı & Para Birimi" : "Cost Price & Currency"}
-                </label>
-                <div className="flex items-center">
-                  <input
-                    type="text"
-                    name="cost_price"
-                    placeholder="0.00"
-                    className="flex-1 min-w-0 px-3 py-2 bg-white border-2 border-r-0 border-slate-200 rounded-l-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs shadow-2xs"
-                    defaultValue={editingProduct?.cost_price || ""}
-                  />
-                  <select
-                    name="cost_currency"
-                    className="w-24 shrink-0 px-2 py-2 bg-slate-100 border-2 border-slate-200 rounded-r-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs text-center cursor-pointer"
-                    defaultValue={editingProduct?.cost_currency || branding?.default_currency || "TRY"}
-                  >
-                    <option value="TRY">TRY (₺)</option>
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION: Varyant Yönetimi & Kombinasyon Matrisi (Sektörel İzolasyonlu: ShopLP / HorecaLP) */}
-          <div className="p-5 bg-indigo-50/40 rounded-3xl border border-indigo-200/80 space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-indigo-200 pb-3 gap-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="has_variants"
-                    id="prod_has_variants"
-                    checked={hasVariants}
-                    onChange={(e) => {
-                      const val = e.target.checked;
-                      setHasVariants(val);
-                      if (val && variants.length === 0) {
-                        setVariants([{ 
-                          id: `var_${Date.now()}_1`,
-                          name: isTr ? (isCafeRestaurant ? "Standart Boy / Porsiyon" : "Standart / Tek Ebat") : "Standard", 
-                          price: editingProduct?.price || 0, 
-                          stock_quantity: editingProduct?.stock_quantity || 10, 
-                          barcode: "",
-                          sku: `${editingProduct?.barcode || 'PRD'}-STD`,
-                          variant_type: 'standard',
-                          is_active: true
-                        }]);
-                      }
-                    }}
-                    className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                  />
-                  <label htmlFor="prod_has_variants" className="text-xs font-black text-indigo-950 uppercase tracking-wider cursor-pointer select-none flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-                    {isCafeRestaurant 
-                      ? (isTr ? "Varyantlı / Boyutlu / Porsiyonlu Ürün" : "Variant / Portion Product") 
-                      : (isTr ? "Varyantlı Ürün (Renk, Beden, Hafıza, Kumaş, Ebat vb.)" : "Variant Product (Color, Size, Capacity, Fabric)")}
-                  </label>
-                </div>
-                <p className="text-[10px] text-indigo-900 font-bold mt-1 ml-7">
-                  {isCafeRestaurant
-                    ? (isTr ? "Yiyecek & İçecek için porsiyon, pişme, sos veya hamur kırılımları." : "Food & beverage portion, cook, sauce, dough breakdowns.")
-                    : (isTr ? "EAV tabanlı dinamik nitelik matrisi: Tekstil, ayakkabı, elektronik, mobilya ve market için sınırsız kırılım." : "Dynamic EAV matrix for fashion, electronics, furniture, FMCG.")}
-                </p>
-              </div>
-            </div>
-
-            {hasVariants && (
-              <VariantMatrixManager
-                variants={variants}
-                onChange={(updated) => setVariants(updated)}
-                baseProduct={{
-                  name: editingProduct?.name,
-                  price: editingProduct?.price,
-                  cost_price: editingProduct?.cost_price,
-                  barcode: editingProduct?.barcode,
-                  sku: editingProduct?.sku || editingProduct?.barcode,
-                  stock_quantity: editingProduct?.stock_quantity,
-                  currency: editingProduct?.currency,
-                  image_url: productImageUrl
-                }}
-                isCafeRestaurant={isCafeRestaurant}
-                lang={lang}
-              />
-            )}
-
-            <input type="hidden" name="variants_data" value={JSON.stringify(variants)} />
-          </div>
-
-          {/* SECTION 4: Stok ve Lojistik Yönetimi (Soft Amber Tint) */}
-          <div className="p-4 bg-amber-50/30 rounded-3xl border border-amber-100/80 space-y-4">
-            <div className="flex items-center justify-between border-b border-amber-100 pb-2">
-              <span className="text-[11px] font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-                {isTr ? "Stok & Kargo Profili" : "Stock & Shipping"}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap sm:flex-nowrap gap-3 items-end">
-              <div className="space-y-1 w-28 sm:w-32 shrink-0">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Birim *" : "Unit *"}
-                </label>
-                <select
-                  name="unit"
-                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[38px] shadow-2xs"
-                  defaultValue={editingProduct?.unit || "Adet"}
-                >
-                  <option value="Adet">{isTr ? "Adet (pcs)" : "Pieces (pcs)"}</option>
-                  <option value="Paket">{isTr ? "Paket" : "Pack"}</option>
-                  <option value="Kutu">{isTr ? "Kutu" : "Box"}</option>
-                  <option value="Koli">{isTr ? "Koli" : "Carton"}</option>
-                  <option value="Çift">{isTr ? "Çift" : "Pair"}</option>
-                  <option value="Takım">{isTr ? "Takım" : "Set"}</option>
-                  <option value="Metre">{isTr ? "Metre" : "Meter"}</option>
-                  <option value="m²">{isTr ? "m²" : "m²"}</option>
-                  <option value="kg">{isTr ? "kg" : "kg"}</option>
-                  <option value="gr">{isTr ? "gr" : "g"}</option>
-                  <option value="L">{isTr ? "Litre" : "Liter"}</option>
-                  <option value="ml">{isTr ? "ml" : "ml"}</option>
-                  <option value="Rulo">{isTr ? "Rulo" : "Roll"}</option>
-                  <option value="Palet">{isTr ? "Palet" : "Pallet"}</option>
-                  <option value="Demet">{isTr ? "Demet" : "Bundle"}</option>
-                  <option value="Düzine">{isTr ? "Düzine" : "Dozen"}</option>
-                  {isCafeRestaurant && <option value="Porsiyon">{isTr ? "Porsiyon" : "Portion"}</option>}
-                  {isCafeRestaurant && <option value="Şişe">{isTr ? "Şişe" : "Bottle"}</option>}
-                  {isCafeRestaurant && <option value="Kasa">{isTr ? "Kasa" : "Case"}</option>}
-                </select>
-              </div>
-
-              <div className="space-y-1 w-24 sm:w-28 shrink-0">
-                <div className="flex items-center justify-between ml-1">
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                    {isTr ? "Stok" : "Stock"}
-                  </label>
-                  {hasVariants && (
-                    <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 px-1 py-0.5 rounded border border-amber-200">
-                      {isTr ? "Varyant" : "Variant"}
+          {/* SCROLLABLE BODY (COMPACT BENTO GRID) */}
+          <div className="flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-start">
+              
+              {/* LEFT COLUMN: IDENTIFICATION, SPECS, DESCRIPTION, RECIPE */}
+              <div className="lg:col-span-7 xl:col-span-8 space-y-2">
+                {/* 1. TEMEL KİMLİK & KODLAR */}
+                <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-1">
+                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                      <span>{isTr ? (isBookstore ? "Eser Kimliği & ISBN" : "Temel Kimlik & Barkod") : "Core Identity & Barcode"}</span>
                     </span>
-                  )}
-                </div>
-                <input
-                  type="number"
-                  name="stock_quantity"
-                  readOnly={hasVariants}
-                  disabled={hasVariants}
-                  placeholder="0"
-                  className={`w-full px-3 py-2 border-2 rounded-xl transition-all font-bold text-xs h-[38px] ${
-                    hasVariants 
-                      ? "bg-slate-100 text-slate-700 border-slate-200 cursor-not-allowed opacity-90 font-black" 
-                      : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 focus:ring-0 shadow-2xs"
-                  }`}
-                  value={hasVariants ? variants.reduce((acc, curr) => acc + (parseInt(curr.stock_quantity) || 0), 0) : undefined}
-                  defaultValue={!hasVariants ? (editingProduct?.stock_quantity !== undefined ? String(editingProduct.stock_quantity) : "0") : undefined}
-                />
-              </div>
-
-              <div className="space-y-1 w-20 sm:w-24 shrink-0">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Kritik" : "Min"}
-                </label>
-                <input
-                  type="number"
-                  name="min_stock_level"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-[38px] shadow-2xs"
-                  defaultValue={editingProduct?.min_stock_level !== undefined ? String(editingProduct.min_stock_level) : "5"}
-                />
-              </div>
-
-              {isCafeRestaurant && (
-                <div className="space-y-1 w-28 sm:w-32 shrink-0">
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                    {isTr ? "Hacim (ml/gr)" : "Vol (ml/g)"}
-                  </label>
-                  <input
-                    type="number"
-                    name="volume_ml"
-                    placeholder="700"
-                    className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-[38px] shadow-2xs"
-                    defaultValue={editingProduct?.volume_ml || ""}
-                  />
-                </div>
-              )}
-
-              <div className="space-y-1 flex-1 min-w-[180px]">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Kargo" : "Shipping"}
-                </label>
-                <div className="relative">
-                  <select
-                    name="shipping_profile_id"
-                    className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 appearance-none text-xs h-[38px] shadow-2xs"
-                    defaultValue={editingProduct?.shipping_profile_id || ""}
-                  >
-                    <option value="">{isTr ? "Varsayılan" : "Default"}</option>
-                    {(branding?.shipping_profiles || []).map((profile: any) => (
-                      <option key={profile.id} value={profile.id}>
-                        {profile.name || (isTr ? "Profil" : "Profile")} - {profile.cost} {profile.currency}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-                    </svg>
+                    <span className="text-[9px] font-bold text-slate-500">
+                      {isBookstore ? "ISBN / EAN Standart" : "EAN-13 Standart"}
+                    </span>
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* SECTION 5: Görsel, Açıklama ve Etiketler */}
-          <div className="p-4 bg-slate-50/80 rounded-3xl border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-slate-500"></span>
-                {isTr ? "Görsel, Açıklama & Etiketler" : "Media, Description & Tags"}
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {/* Row 1: Görsel Tek Satırda Görsel + URL Input + Kompakt Butonlar */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                  {isTr ? "Görsel" : "Image"}
-                </label>
-                <div className="flex items-center gap-2 p-1.5 bg-white rounded-xl border-2 border-slate-200 shadow-2xs">
-                  <div className="w-9 h-9 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs bg-cover bg-center">
-                    {productImageUrl ? (
-                      <img 
-                        src={productImageUrl} 
-                        alt="Preview" 
-                        className="w-full h-full object-cover" 
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          if (!target.dataset.fallback && productImageUrl.startsWith('http')) {
-                            target.dataset.fallback = '1';
-                            target.src = `/api/proxy-image?url=${encodeURIComponent(productImageUrl)}`;
-                          } else {
-                            target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21 8-9-4-9 4v8l9 4 9-4V8z'/%3E%3Cpath d='M3.27 6.96 12 12.01l8.73-5.05'/%3E%3Cpath d='M12 22.08V12'/%3E%3C/svg%3E";
-                          }
-                        }}
+                  <div className="flex flex-col sm:flex-row gap-2 items-start">
+                    <div className="space-y-0.5 flex-1 w-full min-w-0">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? (isBookstore ? "Eser / Kitap Adı *" : "Ürün / Hizmet Adı *") : "Product / Book Name *"}
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        required
+                        placeholder={isTr ? (isBookstore ? "örn: Suç ve Ceza, İnce Memed" : "Ürün Adı") : "Product name"}
+                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                        defaultValue={editingProduct?.name || ""}
                       />
-                    ) : (
-                      <span className="text-[9px] text-slate-400 font-bold">{isTr ? "Yok" : "Blank"}</span>
-                    )}
+                    </div>
+
+                    <div className="space-y-0.5 w-full sm:w-44 sm:max-w-[170px] shrink-0">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr 
+                          ? (hasVariants ? "Barkod" : isBookstore ? "Barkod / ISBN *" : `Barkod${isCafeRestaurant ? " (İsteğe)" : " *"}`) 
+                          : (hasVariants ? "Barcode" : isBookstore ? "Barcode / ISBN *" : `Barcode${isCafeRestaurant ? " (Opt)" : " *"}`)}
+                      </label>
+                      <input
+                        type="text"
+                        name="barcode"
+                        required={!hasVariants && !isCafeRestaurant}
+                        disabled={hasVariants}
+                        placeholder={hasVariants ? (isTr ? "Varyantta" : "In variants") : (isTr ? (isCafeRestaurant ? "Oto boş bırak..." : isBookstore ? "örn: 978-605-241-607-5" : "Barkod") : "Barcode")}
+                        className={`w-full px-2 py-1 border rounded-lg transition-all font-mono font-bold text-xs h-7.5 outline-none ${
+                          hasVariants 
+                            ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-80" 
+                            : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600 shadow-2xs"
+                        }`}
+                        defaultValue={editingProduct?.barcode || (editingProduct as any)?.sector_data?.isbn || ""}
+                      />
+                    </div>
+
+                    <div className="space-y-0.5 w-full sm:w-32 sm:max-w-[120px] shrink-0">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "Kod / SKU" : "SKU / Code"}
+                      </label>
+                      <input
+                        type="text"
+                        name="product_code"
+                        placeholder={isTr ? "SKU-123" : "SKU-123"}
+                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-mono font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                        defaultValue={editingProduct?.product_code || editingProduct?.sku || ""}
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    name="image_url"
-                    placeholder="https://..."
-                    className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-semibold text-xs text-slate-900 h-8"
-                    value={productImageUrl}
-                    onChange={(e) => setProductImageUrl(e.target.value)}
-                  />
-                  <div className="shrink-0">
-                    <MultiImageUploader 
-                      compact={true}
-                      onImagesUploaded={(urls) => {
-                        if (urls && urls.length > 0) {
-                          setProductImageUrl(urls[0]);
-                        }
-                      }} 
-                      lang={lang} 
-                    />
+
+                  {/* 2. SATIR: YAZAR / MARKA & KATEGORİLER */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-0.5">
+                    {/* Eser Sahibi / Yazar (Bookstore ise öncelikli) */}
+                    {isBookstore ? (
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                          {isTr ? "Eser Sahibi / Yazar *" : "Author *"}
+                        </label>
+                        <input
+                          type="text"
+                          name="author"
+                          placeholder={isTr ? "örn: Dostoyevski" : "Author"}
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          defaultValue={editingProduct?.author || (editingProduct as any)?.sector_data?.author || ""}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                          {isTr ? "Marka / Üretici" : "Brand"}
+                        </label>
+                        <input
+                          type="text"
+                          name="brand"
+                          placeholder={isTr ? "örn: Apple, Nike" : "Brand"}
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          defaultValue={editingProduct?.brand || ""}
+                        />
+                      </div>
+                    )}
+
+                    {/* Yayınevi (Bookstore) / Ürün Tipi */}
+                    {isBookstore ? (
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                          {isTr ? "Yayınevi / Yayıncı *" : "Publisher *"}
+                        </label>
+                        <input
+                          type="text"
+                          name="brand"
+                          placeholder={isTr ? "örn: Can Yayınları" : "Publisher"}
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          defaultValue={editingProduct?.brand || (editingProduct as any)?.sector_data?.publisher || ""}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                          {isTr ? "Ürün Tipi" : "Type"}
+                        </label>
+                        <select
+                          name="product_type"
+                          className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                          defaultValue={editingProduct?.product_type || "product"}
+                        >
+                          <option value="product">{isTr ? "Fiziksel Ürün" : "Physical"}</option>
+                          <option value="service">{isTr ? "Hizmet / Servis" : "Service"}</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Kategori */}
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                          {isTr ? "Kategori" : "Category"}
+                        </label>
+                        {categoriesList.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const prevMode = isNewCategoryMode;
+                              setIsNewCategoryMode(!prevMode);
+                              if (!prevMode) {
+                                setIsNewSubCategoryMode(true);
+                              } else {
+                                setSelectedCategory("");
+                                setSelectedSubCategory("");
+                                setIsNewSubCategoryMode(false);
+                              }
+                            }}
+                            className="text-[9px] font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer border-0 outline-none"
+                          >
+                            {isNewCategoryMode ? (isTr ? "Listeden" : "List") : (isTr ? "+ Yeni" : "+ New")}
+                          </button>
+                        )}
+                      </div>
+                      {isNewCategoryMode || categoriesList.length === 0 ? (
+                        <input
+                          type="text"
+                          name="category"
+                          placeholder={isTr ? (isBookstore ? "örn: Edebiyat" : "Kategori") : "Category"}
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          value={selectedCategory}
+                          onChange={(e) => handleCategoryTextChange(e.target.value)}
+                        />
+                      ) : (
+                        <select
+                          name="category"
+                          value={selectedCategory}
+                          onChange={(e) => handleCategoryChange(e.target.value)}
+                          className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                        >
+                          <option value="">{isTr ? "-- Kategori Seçin --" : "-- Select --"}</option>
+                          {categoriesList.map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    {/* Alt Kategori */}
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                          {isTr ? "Alt Kategori" : "Sub Category"}
+                        </label>
+                        {!isNewCategoryMode && selectedCategory && (subCategoriesMap.get(selectedCategory)?.size || 0) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsNewSubCategoryMode(!isNewSubCategoryMode);
+                              if (isNewSubCategoryMode) setSelectedSubCategory("");
+                            }}
+                            className="text-[9px] font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer border-0 outline-none"
+                          >
+                            {isNewSubCategoryMode ? (isTr ? "Listeden" : "List") : (isTr ? "+ Yeni" : "+ New")}
+                          </button>
+                        )}
+                      </div>
+                      {isNewSubCategoryMode || isNewCategoryMode || !selectedCategory || (subCategoriesMap.get(selectedCategory)?.size || 0) === 0 ? (
+                        <input
+                          type="text"
+                          name="sub_category"
+                          placeholder={isTr ? (isBookstore ? "örn: Dünya Klasikleri" : "Alt Kategori") : "Sub Category"}
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                          value={selectedSubCategory}
+                          onChange={(e) => setSelectedSubCategory(e.target.value)}
+                        />
+                      ) : (
+                        <select
+                          name="sub_category"
+                          value={selectedSubCategory}
+                          onChange={(e) => setSelectedSubCategory(e.target.value)}
+                          className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                        >
+                          <option value="">{isTr ? "-- Alt Kategori --" : "-- Select --"}</option>
+                          {Array.from(subCategoriesMap.get(selectedCategory) || []).map((sub) => (
+                            <option key={sub} value={sub}>{sub}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Row 2: Açıklama ve Etiketler Yan Yana */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                    {isTr ? "Açıklama" : "Description"}
-                  </label>
+                {/* 2. BOOKSTORE ÖZEL NİTELİKLERİ (HAFTANIN ESERİ + 4x2 SPECS + SPOT/ÖDÜLLER) */}
+                {isBookstore && (
+                  <BookstoreSectorSpecs
+                    editingProduct={editingProduct}
+                    isTr={isTr}
+                    branding={branding}
+                  />
+                )}
+
+                {/* 3. AÇIKLAMA / ARKA KAPAK YAZISI */}
+                <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
+                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
+                      {isBookstore ? (isTr ? "Arka Kapak Tanıtım Yazısı / Eser Özeti" : "Book Synopsis") : (isTr ? "Açıklama & Detaylar" : "Description")}
+                    </label>
+                  </div>
                   <textarea
                     name="description"
-                    rows={1}
-                    placeholder={isTr ? "Ürün teknik özellikleri ve detayları" : "Detailed specs"}
-                    className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-semibold text-slate-900 text-xs shadow-2xs resize-none"
+                    rows={2}
+                    placeholder={isBookstore 
+                      ? (isTr ? "Arka kapak tanıtım yazısı veya detaylı eser bilgisi..." : "Book synopsis or bibliographic review...") 
+                      : (isTr ? "Ürün teknik özellikleri ve detayları" : "Detailed specs")}
+                    className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 focus:ring-0 transition-all font-medium text-slate-900 text-xs shadow-2xs resize-none outline-none leading-relaxed"
                     defaultValue={editingProduct?.description || ""}
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider ml-1">
-                    {isTr ? "Etiketler" : "Labels"}
-                  </label>
-                  <input
-                    type="text"
-                    name="labels"
-                    placeholder={isTr ? "Örn: Kampanya, Fırsat, Yeni" : "e.g. Campaign, Deal, New"}
-                    className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-600 focus:ring-0 transition-all font-semibold text-slate-900 text-xs shadow-2xs h-[38px]"
-                    defaultValue={
-                      Array.isArray(editingProduct?.labels) 
-                        ? editingProduct.labels.join(", ") 
-                        : (typeof editingProduct?.labels === 'string' ? editingProduct.labels.replace(/[\[\]"]/g, '') : "")
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 6: Reçete / BOM ve Varyantlar (Horeca & Retail) */}
-          {isCafeRestaurant && (
-            <div className="p-4 bg-orange-50/40 rounded-3xl border border-orange-200/80 space-y-4">
-              <div className="flex justify-between items-center border-b border-orange-200 pb-2">
-                <div>
-                  <h4 className="text-[11px] font-black text-orange-950 uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-orange-600"></span>
-                    {isTr ? "Malzeme Yapısı (Reçete / BOM)" : "Bill of Materials (Recipe)"}
-                  </h4>
-                  <p className="text-[10px] text-orange-900 font-bold mt-0.5">
-                    {isTr ? "Bu ürün satıldığında stoktan düşecek malzemeler." : "Ingredients deducted upon sale."}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowIngredientSelector(!showIngredientSelector)}
-                  className="px-3 py-1.5 bg-orange-100 text-orange-900 rounded-xl hover:bg-orange-200 transition-all border border-orange-300 font-black text-[10px] uppercase flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>{isTr ? "Malzeme Ekle" : "Add Ingredient"}</span>
-                </button>
-              </div>
-
-              {showIngredientSelector && (
-                <div className="p-3 bg-white rounded-2xl border border-orange-300 space-y-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder={isTr ? "Malzeme ara..." : "Search ingredient..."}
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                      value={ingredientSearch}
-                      onChange={(e) => setIngredientSearch(e.target.value)}
-                    />
-                  </div>
-                  <div className="max-h-36 overflow-y-auto space-y-1">
-                    {products
-                      .filter(p => p.id !== editingProduct?.id && (p.name.toLowerCase().includes(ingredientSearch.toLowerCase()) || p.barcode?.toLowerCase().includes(ingredientSearch.toLowerCase())))
-                      .slice(0, 10)
-                      .map(p => (
+                {/* HORECA / CAFE RESTAURANT RECIPE & NUTRITION (Only if cafe_restaurant) */}
+                {isCafeRestaurant && (
+                  <>
+                    <div className="p-3 bg-orange-50/40 rounded-xl border border-orange-200/80 space-y-2">
+                      <div className="flex justify-between items-center border-b border-orange-200 pb-1">
+                        <span className="text-[10px] font-black text-orange-950 uppercase tracking-wider flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
+                          <span>{isTr ? "Malzeme Reçetesi (BOM)" : "Recipe (BOM)"}</span>
+                        </span>
                         <button
-                          key={p.id}
                           type="button"
-                          onClick={() => {
-                            if (!recipeItems.find(item => item.ingredient_id === p.id)) {
-                              setRecipeItems([...recipeItems, { 
-                                ingredient_id: p.id, 
-                                ingredient_name: p.name, 
-                                amount: 1, 
-                                ingredient_unit: p.unit || 'ml' 
-                              }]);
-                            }
-                            setShowIngredientSelector(false);
-                            setIngredientSearch("");
-                          }}
-                          className="w-full text-left p-2 hover:bg-orange-50 rounded-lg text-[11px] font-bold text-slate-800 flex justify-between items-center cursor-pointer"
+                          onClick={() => setShowIngredientSelector(!showIngredientSelector)}
+                          className="px-2 py-0.5 bg-orange-100 text-orange-900 rounded-md font-bold text-[10px] uppercase flex items-center gap-1 cursor-pointer"
                         >
-                          <span>{p.name} <span className="text-slate-500 font-medium">({p.barcode})</span></span>
-                          <span className="text-[10px] px-2 py-0.5 bg-slate-200 rounded-md">{p.unit}</span>
+                          <Plus className="h-3 w-3" />
+                          <span>{isTr ? "Malzeme Ekle" : "Add"}</span>
                         </button>
-                      ))}
+                      </div>
+
+                      {showIngredientSelector && (
+                        <div className="p-2 bg-white rounded-lg border border-orange-300 space-y-1">
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                            <input
+                              type="text"
+                              placeholder={isTr ? "Malzeme ara..." : "Search..."}
+                              className="w-full pl-8 pr-2 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-900"
+                              value={ingredientSearch}
+                              onChange={(e) => setIngredientSearch(e.target.value)}
+                            />
+                          </div>
+                          <div className="max-h-28 overflow-y-auto space-y-0.5">
+                            {products
+                              .filter(p => p.id !== editingProduct?.id && (p.name.toLowerCase().includes(ingredientSearch.toLowerCase()) || p.barcode?.toLowerCase().includes(ingredientSearch.toLowerCase())))
+                              .slice(0, 8)
+                              .map(p => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (!recipeItems.find(item => item.ingredient_id === p.id)) {
+                                      setRecipeItems([...recipeItems, { 
+                                        ingredient_id: p.id, 
+                                        ingredient_name: p.name, 
+                                        amount: 1, 
+                                        ingredient_unit: p.unit || 'ml' 
+                                      }]);
+                                    }
+                                    setShowIngredientSelector(false);
+                                    setIngredientSearch("");
+                                  }}
+                                  className="w-full text-left px-2 py-1 hover:bg-orange-50 rounded text-[11px] font-bold text-slate-800 flex justify-between items-center cursor-pointer"
+                                >
+                                  <span>{p.name}</span>
+                                  <span className="text-[10px] px-1.5 py-0.2 bg-slate-200 rounded">{p.unit}</span>
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        {recipeItems.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 p-1.5 bg-white border border-orange-200 rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-900 truncate">{item.ingredient_name}</p>
+                            </div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-16 px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold text-slate-900 text-center"
+                              value={item.amount}
+                              onChange={(e) => {
+                                const newItems = [...recipeItems];
+                                newItems[idx].amount = parseFloat(e.target.value) || 0;
+                                setRecipeItems(newItems);
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setRecipeItems(recipeItems.filter((_, i) => i !== idx))}
+                              className="p-1 text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <input type="hidden" name="recipe_data" value={JSON.stringify(recipeItems)} />
+                    </div>
+
+                    <div className="p-3 bg-emerald-50/40 rounded-xl border border-emerald-200/80 space-y-2">
+                      <div className="border-b border-emerald-200 pb-1 flex items-center justify-between">
+                        <span className="text-[10px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                          <span>{isTr ? "Besin Değeri & Alerjenler" : "Nutrition & Allergens"}</span>
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <input
+                          type="number"
+                          name="calories"
+                          value={calories}
+                          onChange={(e) => setCalories(e.target.value)}
+                          placeholder={isTr ? "Kalori (kcal)" : "Calories"}
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                        />
+                        <input
+                          type="text"
+                          name="portion_size"
+                          value={portionSize}
+                          onChange={(e) => setPortionSize(e.target.value)}
+                          placeholder={isTr ? "Porsiyon (gr/ml)" : "Portion"}
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                        />
+                        <input
+                          type="number"
+                          name="prep_time_min"
+                          value={prepTimeMin}
+                          onChange={(e) => setPrepTimeMin(e.target.value)}
+                          placeholder={isTr ? "Hazırlık (Dk)" : "Prep (Min)"}
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                        />
+                      </div>
+                      <input type="hidden" name="allergens_data" value={JSON.stringify(selectedAllergens)} />
+                    </div>
+                  </>
+                )}
+
+                {/* VARYANT MATRİSİ AÇIKSA GÖSTERİMİ */}
+                {hasVariants && (
+                  <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-200 space-y-2">
+                    <span className="text-[10px] font-black text-indigo-950 uppercase tracking-wider block">
+                      {isTr ? "Varyant ve Ebat Kırılımları" : "Variant Attributes Matrix"}
+                    </span>
+                    <VariantMatrixManager
+                      variants={variants}
+                      onChange={(updated) => setVariants(updated)}
+                      baseProduct={{
+                        name: editingProduct?.name,
+                        price: editingProduct?.price,
+                        cost_price: editingProduct?.cost_price,
+                        barcode: editingProduct?.barcode,
+                        sku: editingProduct?.sku || editingProduct?.barcode,
+                        stock_quantity: editingProduct?.stock_quantity,
+                        currency: editingProduct?.currency,
+                        image_url: productImageUrl
+                      }}
+                      isCafeRestaurant={isCafeRestaurant}
+                      lang={lang}
+                    />
+                    <input type="hidden" name="variants_data" value={JSON.stringify(variants)} />
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT COLUMN: PRICING, STOCK, MEDIA, VISIBILITY */}
+              <div className="lg:col-span-5 xl:col-span-4 space-y-2">
+                
+                {/* 1. FİYATLANDIRMA & MALİYETLER */}
+                <div className="p-2 bg-emerald-50/30 rounded-xl border border-emerald-100 space-y-1.5">
+                  <div className="flex items-center justify-between border-b border-emerald-100 pb-0.5">
+                    <span className="text-[10px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                      <span>{isTr ? "Fiyat & Vergi Yönetimi" : "Pricing & VAT"}</span>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Satış Fiyatı + Para Birimi */}
+                    <div className="space-y-0.5 col-span-2">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? `Satış Fiyatı${hasVariants ? "" : " *"}` : `Price${hasVariants ? "" : " *"}`}
+                      </label>
+                      <div className="flex items-center">
+                        <input
+                          type="text"
+                          name="price"
+                          required={!hasVariants}
+                          placeholder={hasVariants ? (isTr ? "Varyantta" : "In variants") : "0.00"}
+                          className="flex-1 min-w-0 px-2.5 py-1 bg-white border border-r-0 border-slate-200 rounded-l-lg focus:border-indigo-600 font-black text-emerald-700 text-xs sm:text-sm h-7.5 shadow-2xs outline-none"
+                          defaultValue={editingProduct?.price || ""}
+                        />
+                        <select
+                          name="currency"
+                          className="w-18 shrink-0 px-1 py-1 bg-slate-100 border border-slate-200 rounded-r-lg font-bold text-slate-900 text-xs text-center cursor-pointer h-7.5 outline-none"
+                          defaultValue={editingProduct?.currency || branding?.default_currency || "TRY"}
+                        >
+                          <option value="TRY">TRY (₺)</option>
+                          <option value="USD">USD ($)</option>
+                          <option value="EUR">EUR (€)</option>
+                          <option value="GBP">GBP (£)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Eski Fiyat & 2. Fiyat */}
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "Eski Fiyat (Çizili)" : "Old Price"}
+                      </label>
+                      <input
+                        type="text"
+                        name="old_price"
+                        placeholder="0.00"
+                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                        defaultValue={editingProduct?.old_price || ""}
+                      />
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "2. Fiyat (Toptan)" : "2nd Price"}
+                      </label>
+                      <input
+                        type="text"
+                        name="price_2"
+                        placeholder="0.00"
+                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none"
+                        defaultValue={editingProduct?.price_2 || ""}
+                      />
+                    </div>
+
+                    {/* Maliyet & KDV */}
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "Maliyet Fiyatı" : "Cost"}
+                      </label>
+                      <div className="flex items-center">
+                        <input
+                          type="text"
+                          name="cost_price"
+                          placeholder="0.00"
+                          className="flex-1 min-w-0 px-2 py-1 bg-white border border-r-0 border-slate-200 rounded-l-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 outline-none"
+                          defaultValue={editingProduct?.cost_price || ""}
+                        />
+                        <select
+                          name="cost_currency"
+                          className="w-16 shrink-0 px-1 py-1 bg-slate-100 border border-slate-200 rounded-r-lg font-bold text-slate-900 text-[11px] text-center cursor-pointer h-7.5 outline-none"
+                          defaultValue={editingProduct?.cost_currency || branding?.default_currency || "TRY"}
+                        >
+                          <option value="TRY">TRY</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "KDV Oranı" : "VAT Rate"}
+                      </label>
+                      <select
+                        name="tax_rate"
+                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7.5 shadow-2xs outline-none cursor-pointer"
+                        defaultValue={editingProduct?.tax_rate !== undefined ? String(editingProduct.tax_rate) : "20"}
+                      >
+                        <option value="20">%20 (Genel)</option>
+                        <option value="10">%10 (Gıda/Tıbbi)</option>
+                        <option value="1">%1 (Temel)</option>
+                        <option value="0">%0 (Muaf / Kitap)</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-              )}
 
-              <div className="space-y-2">
-                {recipeItems.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3 p-2.5 bg-white border border-orange-200 rounded-xl shadow-2xs">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">{item.ingredient_name}</p>
-                      <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{item.ingredient_unit}</p>
+                {/* 2. STOK, BİRİM & KARGO */}
+                <div className="p-2 bg-amber-50/30 rounded-xl border border-amber-100 space-y-1.5">
+                  <div className="flex items-center justify-between border-b border-amber-100 pb-0.5">
+                    <span className="text-[10px] font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                      <span>{isTr ? "Stok, Birim & Kargo" : "Stock & Shipping"}</span>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "Birim *" : "Unit *"}
+                      </label>
+                      <select
+                        name="unit"
+                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7 outline-none cursor-pointer"
+                        defaultValue={editingProduct?.unit || (isBookstore ? "Adet" : "Adet")}
+                      >
+                        <option value="Adet">{isTr ? "Adet" : "Pieces"}</option>
+                        <option value="Paket">{isTr ? "Paket" : "Pack"}</option>
+                        <option value="Kutu">{isTr ? "Kutu" : "Box"}</option>
+                        <option value="Koli">{isTr ? "Koli" : "Carton"}</option>
+                        <option value="kg">{isTr ? "kg" : "kg"}</option>
+                        {isCafeRestaurant && <option value="Porsiyon">{isTr ? "Porsiyon" : "Portion"}</option>}
+                      </select>
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "Stok Miktarı" : "Stock"}
+                      </label>
                       <input
                         type="number"
-                        step="0.01"
-                        className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-slate-900 text-center focus:border-indigo-600 focus:ring-0"
-                        value={item.amount}
-                        onChange={(e) => {
-                          const newItems = [...recipeItems];
-                          newItems[idx].amount = parseFloat(e.target.value) || 0;
-                          setRecipeItems(newItems);
-                        }}
+                        name="stock_quantity"
+                        readOnly={hasVariants}
+                        disabled={hasVariants}
+                        placeholder="0"
+                        className={`w-full px-2 py-0.5 border rounded-lg font-bold text-xs h-7 outline-none ${
+                          hasVariants 
+                            ? "bg-slate-100 text-slate-700 border-slate-200 cursor-not-allowed font-black" 
+                            : "bg-white border-slate-200 text-slate-900 focus:border-indigo-600"
+                        }`}
+                        value={hasVariants ? variants.reduce((acc, curr) => acc + (parseInt(curr.stock_quantity) || 0), 0) : undefined}
+                        defaultValue={!hasVariants ? (editingProduct?.stock_quantity !== undefined ? String(editingProduct.stock_quantity) : "0") : undefined}
                       />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRecipeItems(recipeItems.filter((_, i) => i !== idx));
-                        }}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border-0 outline-none cursor-pointer"
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "Kritik Stok" : "Min Stock"}
+                      </label>
+                      <input
+                        type="number"
+                        name="min_stock_level"
+                        placeholder="5"
+                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7 outline-none"
+                        defaultValue={editingProduct?.min_stock_level !== undefined ? String(editingProduct.min_stock_level) : "5"}
+                      />
+                    </div>
+
+                    <div className="space-y-0.5 col-span-3">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "Kargo Profili" : "Shipping Profile"}
+                      </label>
+                      <select
+                        name="shipping_profile_id"
+                        className="w-full px-2 py-0.5 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-bold text-slate-900 text-xs h-7 outline-none cursor-pointer"
+                        defaultValue={editingProduct?.shipping_profile_id || ""}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                        <option value="">{isTr ? "Varsayılan Kargo Profili" : "Default Profile"}</option>
+                        {(branding?.shipping_profiles || []).map((profile: any) => (
+                          <option key={profile.id} value={profile.id}>
+                            {profile.name || (isTr ? "Profil" : "Profile")} - {profile.cost} {profile.currency}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-                ))}
-              </div>
-              <input type="hidden" name="recipe_data" value={JSON.stringify(recipeItems)} />
-            </div>
-          )}
-
-          {/* SECTION: HoReCaLP Besin Değeri, Alerjen ve Hazırlık Bilgileri */}
-          {isCafeRestaurant && (
-            <div className="p-5 bg-emerald-50/40 rounded-3xl border border-emerald-200/80 space-y-4">
-              <div className="border-b border-emerald-200 pb-3 flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                    {isTr ? "Besin Değeri, Kalori & Alerjen Bilgileri" : "Nutrition, Calories & Allergens"}
-                  </h4>
-                  <p className="text-[10px] text-emerald-900 font-bold mt-0.5">
-                    {isTr ? "QR Dijital Menüde misafirlerinize gösterilecek sağlık ve porsiyon detayları." : "Health, calories, and portion details displayed in QR Digital Menu."}
-                  </p>
-                </div>
-                <span className="text-[9px] font-black uppercase px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
-                  {isTr ? "HoReCa Menü" : "HoReCa Menu"}
-                </span>
-              </div>
-
-              {/* Kalori, Porsiyon, Hazırlık Süresi */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-white p-3 rounded-2xl border border-emerald-150">
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase tracking-wider">
-                    {isTr ? "Enerji (Kalori - kcal)" : "Calories (kcal)"}
-                  </label>
-                  <input
-                    type="number"
-                    name="calories"
-                    value={calories}
-                    onChange={(e) => setCalories(e.target.value)}
-                    placeholder="örn: 320"
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
-                  />
                 </div>
 
-                <div className="bg-white p-3 rounded-2xl border border-emerald-150">
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase tracking-wider">
-                    {isTr ? "Porsiyon Gramaj / Hacim" : "Portion Size / Weight"}
-                  </label>
-                  <input
-                    type="text"
-                    name="portion_size"
-                    value={portionSize}
-                    onChange={(e) => setPortionSize(e.target.value)}
-                    placeholder={isTr ? "örn: 180 gr / 330 ml" : "e.g. 180 g / 330 ml"}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
-                  />
-                </div>
-
-                <div className="bg-white p-3 rounded-2xl border border-emerald-150">
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase tracking-wider">
-                    {isTr ? "Ortalama Hazırlık (Dk)" : "Prep Time (Min)"}
-                  </label>
-                  <input
-                    type="number"
-                    name="prep_time_min"
-                    value={prepTimeMin}
-                    onChange={(e) => setPrepTimeMin(e.target.value)}
-                    placeholder="örn: 15"
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Alerjen Seçim Rozetleri */}
-              <div className="bg-white p-3.5 rounded-2xl border border-emerald-150 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                    {isTr ? "Alerjen ve Özel Tercih Etiketleri" : "Allergen & Dietary Badges"}
-                  </span>
-                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                    {selectedAllergens.length} {isTr ? "Seçili" : "Selected"}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {[
-                    { id: "gluten", labelTr: "Gluten", labelEn: "Gluten", icon: "🌾" },
-                    { id: "lactose", labelTr: "Laktoz / Süt", labelEn: "Dairy / Lactose", icon: "🥛" },
-                    { id: "nuts", labelTr: "Kuruyemiş / Fıstık", labelEn: "Nuts / Peanuts", icon: "🥜" },
-                    { id: "egg", labelTr: "Yumurta", labelEn: "Egg", icon: "🥚" },
-                    { id: "soy", labelTr: "Soya", labelEn: "Soy", icon: "🌱" },
-                    { id: "seafood", labelTr: "Deniz Ürünü / Kabuklu", labelEn: "Seafood / Shellfish", icon: "🦐" },
-                    { id: "fish", labelTr: "Balık", labelEn: "Fish", icon: "🐟" },
-                    { id: "mustard", labelTr: "Hardal", labelEn: "Mustard", icon: "🌭" },
-                    { id: "sesame", labelTr: "Susam", labelEn: "Sesame", icon: "🥯" },
-                    { id: "spicy", labelTr: "Acı / Baharatlı", labelEn: "Spicy", icon: "🌶️" },
-                    { id: "vegan", labelTr: "Vegan", labelEn: "Vegan", icon: "🥬" },
-                    { id: "vegetarian", labelTr: "Vejetaryen", labelEn: "Vegetarian", icon: "🥗" },
-                    { id: "sugar_free", labelTr: "Şekersiz", labelEn: "Sugar Free", icon: "🍃" },
-                    { id: "pork_free", labelTr: "Domuz Ürünü İçermez (Helal)", labelEn: "No Pork (Halal)", icon: "✨" },
-                  ].map((item) => {
-                    const isSelected = selectedAllergens.includes(item.id);
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedAllergens(selectedAllergens.filter(x => x !== item.id));
-                          } else {
-                            setSelectedAllergens([...selectedAllergens, item.id]);
-                          }
-                        }}
-                        className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
-                          isSelected
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                            : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                        }`}
-                      >
-                        <span>{item.icon}</span>
-                        <span>{isTr ? item.labelTr : item.labelEn}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <input type="hidden" name="allergens_data" value={JSON.stringify(selectedAllergens)} />
-            </div>
-          )}
-
-          {/* SECTION: Hepsiburada Pazaryeri İlanı & Kategori Eşleme (Yalnızca Hepsiburada Hesabı Bağlıysa Görüntülenir) */}
-          {isHbEnabled && (
-            <div className="space-y-2">
-              <MarketplaceProductFields
-                product={editingProduct || {}}
-                onUpdate={(updated) => {
-                  if (editingProduct) {
-                    setEditingProduct({ ...editingProduct, ...updated });
-                  }
-                }}
-                isTr={isTr}
-                categories={hbCategories}
-                storeSettings={branding?.hepsiburada_settings}
-              />
-
-              {editingProduct?.id && (
-                <div className="flex justify-end pt-1">
-                  <button
-                    type="button"
-                    onClick={handleDirectPublishToHb}
-                    disabled={isPublishingToHb}
-                    className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>
-                      {isPublishingToHb 
-                        ? (isTr ? "Hepsiburada'ya Gönderiliyor..." : "Publishing...") 
-                        : (isTr ? "Bu Ürünü Hepsiburada'da İlana / Satışa Aç" : "Publish to Hepsiburada")}
+                {/* 3. GÖRSEL, ETİKETLER & VİTRİN ANAHTARLARI */}
+                <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 space-y-1.5">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
+                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                      <span>{isTr ? (isBookstore ? "Kapak Görseli & Etiketler" : "Görsel & Etiketler") : "Image & Media"}</span>
                     </span>
-                  </button>
+                  </div>
+
+                  {/* Görsel Satırı */}
+                  <div className="flex items-center gap-2 p-1 bg-white rounded-lg border border-slate-200 shadow-2xs">
+                    <div className="w-7 h-7 rounded border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                      {productImageUrl ? (
+                        <img 
+                          src={productImageUrl} 
+                          alt="Cover" 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            if (!target.dataset.fallback && productImageUrl.startsWith('http')) {
+                              target.dataset.fallback = '1';
+                              target.src = `/api/proxy-image?url=${encodeURIComponent(productImageUrl)}`;
+                            }
+                          }}
+                        />
+                      ) : (
+                        <span className="text-[8px] text-slate-400 font-bold">{isTr ? "Yok" : "None"}</span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      name="image_url"
+                      placeholder="https://... görsel adresi"
+                      className="flex-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] font-semibold text-slate-900 h-6.5 outline-none"
+                      value={productImageUrl}
+                      onChange={(e) => setProductImageUrl(e.target.value)}
+                    />
+                    <div className="shrink-0 scale-90 origin-right">
+                      <MultiImageUploader 
+                        compact={true}
+                        onImagesUploaded={(urls) => {
+                          if (urls && urls.length > 0) setProductImageUrl(urls[0]);
+                        }} 
+                        lang={lang} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Etiketler & Rozetler */}
+                  {isBookstore ? (
+                    <div className="space-y-1 pt-0.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-indigo-600" />
+                          <span>{isTr ? "Vitrin Rozetleri & Izgara Seçimi" : "Showcase Badges & Curated Grids"}</span>
+                        </label>
+                        <span className="text-[9px] text-slate-500 font-medium">
+                          {isTr ? "Seçilen ızgaralarda listelenir" : "Appears in selected rows"}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-white rounded-lg border border-slate-200">
+                        {BOOKSTORE_BADGES.map((b) => {
+                          const isSelected = selectedBookBadges.some(s => s.toLowerCase() === b.id.toLowerCase());
+                          const IconComponent = 
+                            b.iconName === 'Flame' ? Flame :
+                            b.iconName === 'Sparkles' ? Sparkles :
+                            b.iconName === 'Star' ? Star :
+                            b.iconName === 'Award' ? Award :
+                            b.iconName === 'Crown' ? Crown :
+                            b.iconName === 'Clock' ? Clock : Tag;
+
+                          return (
+                            <button
+                              key={`badge-opt-${b.id}`}
+                              type="button"
+                              onClick={() => toggleBookBadge(b.id)}
+                              className={`px-2 py-1.5 rounded-lg text-[10px] font-black flex items-center justify-between gap-1 transition-all border cursor-pointer select-none text-left ${
+                                isSelected
+                                  ? `${b.badgeBgClass} border-transparent shadow-xs scale-[1.01]`
+                                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 truncate">
+                                <IconComponent className={`w-3.5 h-3.5 shrink-0 ${isSelected ? "text-current" : b.textClass}`} />
+                                <span className="truncate">{isTr ? b.labelTr : b.labelEn}</span>
+                              </div>
+                              {isSelected ? (
+                                <Check className="w-3.5 h-3.5 shrink-0 ml-1" />
+                              ) : (
+                                <Plus className="w-3 h-3 shrink-0 text-slate-400 opacity-60 ml-1" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Hidden form inputs to pass values seamlessly */}
+                      <input type="hidden" name="labels" value={selectedBookBadges.join(", ")} />
+                      {selectedBookBadges.some(s => s.toLowerCase() === "bestseller") && (
+                        <input type="hidden" name="is_bestseller" value="on" />
+                      )}
+                      {selectedBookBadges.some(s => s.toLowerCase() === "featured_week") && (
+                        <input type="hidden" name="sector_spec_is_weekly_pick" value="true" />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {isTr ? "Etiketler / Rozetler" : "Labels"}
+                      </label>
+                      <input
+                        type="text"
+                        name="labels"
+                        placeholder={isTr ? "Örn: Kampanya, Fırsat" : "e.g. Campaign, Deal"}
+                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-semibold text-slate-900 text-xs h-7 shadow-2xs outline-none"
+                        defaultValue={
+                          Array.isArray(editingProduct?.labels) 
+                            ? editingProduct.labels.join(", ") 
+                            : (typeof editingProduct?.labels === 'string' ? editingProduct.labels.replace(/[\[\]"]/g, '') : "")
+                        }
+                      />
+                    </div>
+                  )}
+
+                  {/* Vitrin ve Satış Durumu Anahtarları (Kompakt Tek Satır) */}
+                  <div className="p-1.5 bg-slate-100/90 rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    <label htmlFor="prod_is_web_sale" className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        name="is_web_sale"
+                        id="prod_is_web_sale"
+                        className="h-3.5 w-3.5 text-indigo-600 rounded cursor-pointer"
+                        defaultChecked={editingProduct?.is_web_sale !== false}
+                      />
+                      <span className="text-[11px] font-black text-slate-900">
+                        {isTr ? "Vitrinde Yayınla" : "Showcase"}
+                      </span>
+                    </label>
+
+                    <label htmlFor="prod_is_sellable" className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        name="is_sellable"
+                        id="prod_is_sellable"
+                        className="h-3.5 w-3.5 text-amber-500 rounded cursor-pointer"
+                        defaultChecked={editingProduct?.is_sellable !== false}
+                      />
+                      <span className="text-[11px] font-black text-slate-900">
+                        {isTr ? "Satışa Açık" : "Sellable"}
+                      </span>
+                    </label>
+
+                    {isCafeRestaurant && (
+                      <label htmlFor="prod_is_bestseller" className="flex items-center gap-1.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          name="is_bestseller"
+                          id="prod_is_bestseller"
+                          className="h-3.5 w-3.5 text-orange-600 rounded cursor-pointer"
+                          defaultChecked={!!editingProduct?.is_bestseller}
+                        />
+                        <span className="text-[11px] font-black text-slate-900 flex items-center gap-0.5">
+                          <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
+                          <span>{isTr ? "En Çok Satan" : "Bestseller"}</span>
+                        </span>
+                      </label>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* Published Visibility Switches */}
-          <div className="p-4 bg-slate-100 rounded-3xl border border-slate-200 space-y-3">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                name="is_web_sale"
-                id="prod_is_web_sale"
-                className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                defaultChecked={editingProduct?.is_web_sale !== false}
-              />
-              <label htmlFor="prod_is_web_sale" className="text-xs font-black text-slate-900 cursor-pointer select-none">
-                {isTr ? "Bu Ürün Mağaza Web Sitesinde Vitrinde Yayınlansın" : "Publish product in public store showcase page"}
-              </label>
-            </div>
+                {/* 4. VARYANT AÇ/KAPAT TOGGLE */}
+                <div className="p-2 bg-indigo-50/40 rounded-xl border border-indigo-200/80 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="has_variants"
+                      id="prod_has_variants"
+                      checked={hasVariants}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setHasVariants(val);
+                        if (val && variants.length === 0) {
+                          setVariants([{ 
+                            id: `var_${Date.now()}_1`,
+                            name: isTr ? (isBookstore ? "Ciltli / Özel Baskı" : isCafeRestaurant ? "Standart Porsiyon" : "Standart Boy") : "Standard", 
+                            price: editingProduct?.price || 0, 
+                            stock_quantity: editingProduct?.stock_quantity || 10, 
+                            barcode: "",
+                            sku: `${editingProduct?.barcode || 'PRD'}-V1`,
+                            variant_type: 'standard',
+                            is_active: true
+                          }]);
+                        }
+                      }}
+                      className="h-4 w-4 text-indigo-600 rounded cursor-pointer"
+                    />
+                    <label htmlFor="prod_has_variants" className="text-[11px] font-black text-indigo-950 uppercase tracking-wider cursor-pointer select-none">
+                      {isTr ? (isBookstore ? "Varyantlı Eser (Cilt, Boyut, Set)" : "Varyantlı Ürün (Beden, Renk vb.)") : "Has Variants"}
+                    </label>
+                  </div>
+                  {hasVariants && (
+                    <span className="text-[9px] font-black text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded">
+                      {variants.length} {isTr ? "Varyant" : "Vars"}
+                    </span>
+                  )}
+                </div>
 
-            {isCafeRestaurant && (
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  name="is_bestseller"
-                  id="prod_is_bestseller"
-                  className="h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500 cursor-pointer"
-                  defaultChecked={!!editingProduct?.is_bestseller}
-                />
-                <label htmlFor="prod_is_bestseller" className="text-xs font-black text-slate-900 cursor-pointer select-none flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-orange-500 fill-orange-500 shrink-0" />
-                  <span>
-                    {isTr ? "En Çok Satan Ürün (Dijital Menü Öne Çıkarılan)" : "Bestseller Product"}
-                  </span>
-                </label>
+                {/* HEPSIBURADA INTEGRATION (IF CONNECTED) */}
+                {isHbEnabled && (
+                  <div className="space-y-1.5">
+                    <MarketplaceProductFields
+                      product={editingProduct || {}}
+                      onUpdate={(updated) => {
+                        if (editingProduct) setEditingProduct({ ...editingProduct, ...updated });
+                      }}
+                      isTr={isTr}
+                      categories={hbCategories}
+                      storeSettings={branding?.hepsiburada_settings}
+                    />
+                    {editingProduct?.id && (
+                      <button
+                        type="button"
+                        onClick={handleDirectPublishToHb}
+                        disabled={isPublishingToHb}
+                        className="w-full py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        <span>{isPublishingToHb ? "Hepsiburada'ya Gönderiliyor..." : "Hepsiburada'da Satışa Aç"}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-            
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                name="is_sellable"
-                id="prod_is_sellable"
-                className="h-5 w-5 text-amber-500 border-gray-300 rounded focus:ring-amber-500 cursor-pointer"
-                defaultChecked={editingProduct?.is_sellable !== false}
-              />
-              <label htmlFor="prod_is_sellable" className="text-xs font-black text-slate-900 cursor-pointer select-none">
-                {isTr ? "Bu ürün satışa açıktır (Mamül)" : "This product is available for sale (Finished Good)"}
-              </label>
             </div>
           </div>
 
-          <div className="flex gap-4 pt-2">
+          {/* FIXED STICKY FOOTER - ALWAYS IN VIEWPORT */}
+          <div className="px-4 py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-end gap-2.5 shrink-0">
             <button
               type="button"
               onClick={() => {
                 setShowProductModal(false);
                 setEditingProduct(null);
               }}
-              className="flex-1 py-3.5 bg-slate-200 text-slate-800 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-300 transition-all cursor-pointer border-0"
+              className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer border-0"
             >
               {t.cancel}
             </button>
             <button
               type="submit"
-              className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all cursor-pointer border-0"
+              className="px-6 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer border-0 flex items-center gap-1.5"
             >
-              {isTr ? "Ürünü Kaydet" : "Save Product Record"}
+              <span>{isTr ? (isBookstore ? "Eseri / Kitabı Kaydet" : "Ürünü Kaydet") : (isBookstore ? "Save Book Record" : "Save Product")}</span>
             </button>
           </div>
         </form>

@@ -19,7 +19,11 @@ import {
   Quote,
   X,
   Building2,
-  Layers
+  Layers,
+  Award,
+  Crown,
+  Clock,
+  Tag
 } from "lucide-react";
 import { Product, Store as StoreInfo } from "../types";
 import { NetflixBookRow } from "./bookstore/NetflixBookRow";
@@ -28,6 +32,7 @@ import { StoreFooter } from "./showcase/StoreFooter";
 import { getBookCoverFallbackSvg } from "../utils/imageFallback";
 import { BOOKSTORE_CATEGORIES, getBookstoreSubcategories } from "../data/bookstoreCategories";
 import { bookstoreInteraction } from "../services/bookstoreInteractionService";
+import { BOOKSTORE_BADGES, hasBookstoreBadge } from "../data/bookstoreBadges";
 
 interface BookstoreNetflixLayoutProps {
   store: StoreInfo | null;
@@ -76,6 +81,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>("all");
   const [selectedAuthor, setSelectedAuthor] = useState<string>("all");
   const [selectedPublisher, setSelectedPublisher] = useState<string>("all");
+  const [selectedBadge, setSelectedBadge] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"home" | "catalog" | "bestsellers">("home");
   const [favCount, setFavCount] = useState<number>(() => bookstoreInteraction.getFavorites(store?.id).length);
 
@@ -177,20 +183,37 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
     return valid.length > 0 ? valid.slice(0, 12) : [];
   }, [products]);
 
-  // Categorized Rows for Netflix Home
+  // Categorized Rows for Netflix Home based on selectable bookstore badges
   const bestsellerBooks = useMemo(() => {
+    const tagged = products.filter((p) => hasBookstoreBadge(p, 'bestseller') || p.is_bestseller);
+    if (tagged.length > 0) return tagged;
     return products.filter((p) => p.is_bestseller || (p.stock_quantity && p.stock_quantity > 10));
   }, [products]);
 
   const newArrivalBooks = useMemo(() => {
+    const tagged = products.filter((p) => hasBookstoreBadge(p, 'new_arrival'));
+    if (tagged.length > 0) return tagged;
     return [...products].reverse().slice(0, 15);
+  }, [products]);
+
+  const editorsPickBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'editors_pick'));
   }, [products]);
 
   const awardWinningBooks = useMemo(() => {
     return products.filter((p) => {
+      if (hasBookstoreBadge(p, 'award_winning')) return true;
       const s = (p as any).sector_data;
       return s?.awards || (s?.rating && Number(s.rating) >= 4.8);
     });
+  }, [products]);
+
+  const comingSoonBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'coming_soon'));
+  }, [products]);
+
+  const discountedBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'discounted'));
   }, [products]);
 
   // Catalog filtered products
@@ -208,12 +231,13 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
       const matchesSubCategory = selectedSubCategory === "all" || pSub === selectedSubCategory || p.sub_category === selectedSubCategory;
       const matchesAuthor = selectedAuthor === "all" || (p.author === selectedAuthor || (p as any).sector_data?.author === selectedAuthor);
       const matchesPublisher = selectedPublisher === "all" || (p.brand === selectedPublisher || (p as any).sector_data?.publisher === selectedPublisher);
+      const matchesBadge = selectedBadge === "all" || hasBookstoreBadge(p, selectedBadge);
 
-      return matchesSearch && matchesCategory && matchesSubCategory && matchesAuthor && matchesPublisher;
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesAuthor && matchesPublisher && matchesBadge;
     });
-  }, [products, searchQuery, selectedCategory, selectedSubCategory, selectedAuthor, selectedPublisher]);
+  }, [products, searchQuery, selectedCategory, selectedSubCategory, selectedAuthor, selectedPublisher, selectedBadge]);
 
-  const isSearchActive = searchQuery.trim().length > 0 || selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || activeTab === "catalog";
+  const isSearchActive = searchQuery.trim().length > 0 || selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || selectedBadge !== "all" || activeTab === "catalog";
 
   const basketItemCount = useMemo(() => {
     return basket.reduce((acc, item) => acc + (item.quantity || 1), 0);
@@ -258,6 +282,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                 onClick={() => { 
                   setActiveTab("catalog"); 
                   setSelectedCategory("all");
+                  setSelectedBadge("bestseller");
                 }}
                 className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
               >
@@ -624,6 +649,62 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               addToBasket={addToBasket}
             />
 
+            {/* Row 3: Editörün Seçimi (Editor's Pick) */}
+            {editorsPickBooks.length > 0 && (
+              <NetflixBookRow
+                title={isTr ? "Editörün Seçimi" : "Editor's Choice"}
+                subtitle={isTr ? "Edebiyat danışmanlarımız ve editörlerimiz tarafından özenle seçilen özel seçki" : "Carefully curated selections by our literary editors"}
+                badge={isTr ? "EDİTÖR" : "CURATED"}
+                products={editorsPickBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+              />
+            )}
+
+            {/* Row 4: Ödüllü Eserler (Award Winners) */}
+            {awardWinningBooks.length > 0 && (
+              <NetflixBookRow
+                title={isTr ? "Ödüllü Eserler & Başyapıtlar" : "Award-Winning Masterpieces"}
+                subtitle={isTr ? "Ulusal ve uluslararası prestijli edebiyat ödülleriyle taçlandırılmış eserler" : "Books honored with prestigious national & international literary awards"}
+                badge={isTr ? "ÖDÜLLÜ" : "AWARD"}
+                products={awardWinningBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+              />
+            )}
+
+            {/* Row 5: Yakında Gelecekler & Ön Sipariş (Coming Soon) */}
+            {comingSoonBooks.length > 0 && (
+              <NetflixBookRow
+                title={isTr ? "Yakında Raflarda & Ön Sipariş" : "Coming Soon & Pre-Order"}
+                subtitle={isTr ? "Baskı aşamasında olan ve merakla beklenen yeni yayınlar" : "Upcoming anticipated releases and pre-orders"}
+                badge={isTr ? "YAKINDA" : "COMING SOON"}
+                products={comingSoonBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+              />
+            )}
+
+            {/* Row 6: Fırsat & İndirimdekiler (Discounted) */}
+            {discountedBooks.length > 0 && (
+              <NetflixBookRow
+                title={isTr ? "Özel Fırsat & İndirimli Eserler" : "Special Deals & Discounts"}
+                subtitle={isTr ? "Kaçırılmayacak fiyat avantajlarıyla okurlarını bekleyen seçili kitaplar" : "Handpicked books with limited-time discount opportunities"}
+                badge={isTr ? "FIRSAT" : "DEAL"}
+                products={discountedBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+              />
+            )}
+
             {/* Category Specific Rows */}
             {categories.slice(0, 4).map((catName) => {
               const catProducts = products.filter((p) => p.category === catName);
@@ -660,7 +741,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               </div>
 
               {/* Clear filters button */}
-              {(selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || searchQuery) && (
+              {(selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || selectedBadge !== "all" || searchQuery) && (
                 <button
                   type="button"
                   onClick={() => {
@@ -668,6 +749,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                     setSelectedSubCategory("all");
                     setSelectedAuthor("all");
                     setSelectedPublisher("all");
+                    setSelectedBadge("all");
                     setSearchQuery("");
                   }}
                   className="self-start sm:self-auto px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
@@ -676,6 +758,56 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                   <span>{isTr ? "Filtreleri Sıfırla" : "Clear Filters"}</span>
                 </button>
               )}
+            </div>
+
+            {/* Quick Badge / Concept Filter Chips */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setSelectedBadge("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 border ${
+                  selectedBadge === "all"
+                    ? "bg-red-600 border-red-500 text-white shadow-md shadow-red-600/30"
+                    : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <span>{isTr ? "Tüm Eserler" : "All Books"}</span>
+                <span className="text-[10px] opacity-75">({products.length})</span>
+              </button>
+
+              {BOOKSTORE_BADGES.map((b) => {
+                const count = products.filter(p => hasBookstoreBadge(p, b.id)).length;
+                const active = selectedBadge === b.id;
+                const IconComp = 
+                  b.iconName === 'Flame' ? Flame :
+                  b.iconName === 'Sparkles' ? Sparkles :
+                  b.iconName === 'Star' ? Star :
+                  b.iconName === 'Award' ? Award :
+                  b.iconName === 'Crown' ? Crown :
+                  b.iconName === 'Clock' ? Clock : Tag;
+                return (
+                  <button
+                    key={`catalog-badge-${b.id}`}
+                    type="button"
+                    onClick={() => setSelectedBadge(active ? "all" : b.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 border ${
+                      active
+                        ? `${b.badgeBgClass} border-transparent shadow-md text-white`
+                        : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <IconComp className={`w-3.5 h-3.5 ${active ? "text-white" : b.textClass}`} />
+                    <span>{isTr ? b.labelTr : b.labelEn}</span>
+                    {count > 0 && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        active ? "bg-white/20 text-white" : "bg-slate-800 text-slate-400"
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Filter Selectors Grid */}

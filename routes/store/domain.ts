@@ -1,5 +1,6 @@
 import express from "express";
 import { pool } from "../../models/db";
+import { publicApiCache } from "../public";
 
 const router = express.Router();
 
@@ -36,6 +37,10 @@ router.post("/", async (req: any, res) => {
       "UPDATE stores SET custom_domain = $1, custom_domain_status = $2, cf_zone_id = $3, cf_name_servers = $4, cf_api_token = $5, cf_account_id = $6, cf_api_email = $7 WHERE id = $8",
       [domain, zoneResult.status || 'pending', zoneId, JSON.stringify(nameServers), manualToken || null, manualAccount || null, manualEmail || null, storeId]
     );
+
+    publicApiCache.del(`domain_${domain}`);
+    publicApiCache.del(`domain_www.${domain}`);
+    publicApiCache.del(`store_${storeId}`);
     
     res.json({ success: true, name_servers: nameServers, status: zoneResult.status });
   } catch (e: any) {
@@ -152,6 +157,11 @@ router.post("/manual", async (req: any, res) => {
       "UPDATE stores SET custom_domain = $1, custom_domain_status = $2 WHERE id = $3",
       [domain, 'manual', storeId]
     );
+
+    publicApiCache.del(`domain_${domain}`);
+    publicApiCache.del(`domain_www.${domain}`);
+    publicApiCache.del(`store_${storeId}`);
+
     res.json({ success: true, message: "Domain saved manually" });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

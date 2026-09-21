@@ -17,12 +17,18 @@ import {
   ChevronRight,
   Info,
   Package,
-  Heart
+  Heart,
+  Flame,
+  Award,
+  Crown,
+  Clock,
+  Tag
 } from "lucide-react";
 import { Product, Store as StoreInfo } from "../../types";
 import { api } from "../../services/api";
 import { getBookCoverFallbackSvg } from "../../utils/imageFallback";
 import { bookstoreInteraction } from "../../services/bookstoreInteractionService";
+import { BOOKSTORE_BADGES, getProductBookstoreBadges } from "../../data/bookstoreBadges";
 
 interface BookCardNetflixProps {
   product: Product;
@@ -104,6 +110,11 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
   const currency = product.currency || store?.currency || "TRY";
   const currencySymbol = currency === "TRY" ? "₺" : currency === "USD" ? "$" : currency === "EUR" ? "€" : "£";
 
+  // Extract bookstore badges
+  const bookBadges = React.useMemo(() => {
+    return getProductBookstoreBadges(product);
+  }, [product]);
+
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     setAddedAnimation(true);
@@ -168,17 +179,38 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
                 <div className="absolute top-0 left-0 bottom-0 w-3.5 bg-gradient-to-r from-black/60 via-black/20 to-transparent pointer-events-none" />
 
                 {/* Top Overlay Badges */}
-                <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10 pointer-events-none">
-                  <div className="flex items-center gap-1 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 text-[10px] font-black text-amber-300">
+                <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10 pointer-events-none gap-1">
+                  <div className="flex items-center gap-1 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 text-[10px] font-black text-amber-300 shrink-0">
                     <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                     <span>{ratingScore}</span>
                   </div>
 
-                  {product.is_bestseller && (
-                    <span className="bg-red-600/90 backdrop-blur-md text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm">
-                      {isTr ? "Çok Satan" : "Top"}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1 flex-wrap justify-end max-w-[70%]">
+                    {bookBadges.length > 0 ? (
+                      bookBadges.slice(0, 2).map((badge) => {
+                        const IconComp = 
+                          badge.iconName === 'Flame' ? Flame :
+                          badge.iconName === 'Sparkles' ? Sparkles :
+                          badge.iconName === 'Star' ? Star :
+                          badge.iconName === 'Award' ? Award :
+                          badge.iconName === 'Crown' ? Crown :
+                          badge.iconName === 'Clock' ? Clock : Tag;
+                        return (
+                          <span 
+                            key={`cover-badge-${badge.id}`}
+                            className={`${badge.badgeBgClass} backdrop-blur-md text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1`}
+                          >
+                            <IconComp className="w-2.5 h-2.5 shrink-0" />
+                            <span className="truncate max-w-[75px]">{isTr ? badge.badgeTr : badge.badgeEn}</span>
+                          </span>
+                        );
+                      })
+                    ) : product.is_bestseller ? (
+                      <span className="bg-red-600/90 backdrop-blur-md text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm">
+                        {isTr ? "Çok Satan" : "Top"}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
 
                 {/* Featured Quote / Spot Overlay on Front Cover (Sleek, non-intrusive) */}
@@ -280,6 +312,30 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
                     <RotateCw className="w-3.5 h-3.5" />
                   </button>
                 </div>
+
+                {/* Badges / Rozetler */}
+                {bookBadges.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {bookBadges.map((badge) => {
+                      const IconComp = 
+                        badge.iconName === 'Flame' ? Flame :
+                        badge.iconName === 'Sparkles' ? Sparkles :
+                        badge.iconName === 'Star' ? Star :
+                        badge.iconName === 'Award' ? Award :
+                        badge.iconName === 'Crown' ? Crown :
+                        badge.iconName === 'Clock' ? Clock : Tag;
+                      return (
+                        <span 
+                          key={`back-badge-${badge.id}`}
+                          className={`${badge.badgeBgClass} text-white px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}
+                        >
+                          <IconComp className="w-2.5 h-2.5 shrink-0" />
+                          <span>{isTr ? badge.badgeTr : badge.badgeEn}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Metadata tags: Publisher & Pages & Year (Author removed) */}
                 <div className="space-y-1 text-[10px] text-slate-400">

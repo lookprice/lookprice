@@ -1128,4 +1128,35 @@ router.delete("/enrakipsiz/videos/:id", async (req: any, res) => {
   }
 });
 
+router.post("/clean-gunes-plaza", async (req: any, res) => {
+  try {
+    const storeRes = await pool.query(
+      "SELECT id, name, slug FROM stores WHERE slug ILIKE '%gunes%' OR name ILIKE '%Güneş Plaza%' OR name ILIKE '%Gunes Plaza%'"
+    );
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Güneş Plaza store not found" });
+    }
+
+    const storeIds = storeRes.rows.map(s => s.id);
+    console.log("[Clean Güneş Plaza] Found stores:", storeRes.rows);
+
+    await pool.query("DELETE FROM quotation_items WHERE quotation_id IN (SELECT id FROM quotations WHERE store_id = ANY($1))", [storeIds]);
+    await pool.query("DELETE FROM quotations WHERE store_id = ANY($1)", [storeIds]);
+
+    await pool.query("DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE store_id = ANY($1))", [storeIds]);
+    await pool.query("DELETE FROM sale_payments WHERE sale_id IN (SELECT id FROM sales WHERE store_id = ANY($1))", [storeIds]);
+    await pool.query("DELETE FROM sales WHERE store_id = ANY($1)", [storeIds]);
+
+    await pool.query("DELETE FROM sales_invoice_items WHERE sales_invoice_id IN (SELECT id FROM sales_invoices WHERE store_id = ANY($1))", [storeIds]);
+    await pool.query("DELETE FROM sales_invoices WHERE store_id = ANY($1)", [storeIds]);
+
+    await pool.query("DELETE FROM current_account_transactions WHERE store_id = ANY($1)", [storeIds]);
+
+    res.json({ success: true, message: "Güneş Plaza teklif, satış ve cari hesap verileri (ürünler korunarak) başarıyla silindi.", stores: storeRes.rows });
+  } catch (e: any) {
+    console.error("Clean Güneş Plaza error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

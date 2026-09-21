@@ -36,7 +36,11 @@ import {
   Cloud,
   Barcode,
   Layers,
-  Clock
+  Clock,
+  Award,
+  Crown,
+  Star,
+  Check
 } from "lucide-react";
 import { motion } from "motion/react";
 import { translations } from "@/translations";
@@ -56,6 +60,7 @@ import { toast } from "sonner";
 import { getLabels } from "../../utils/showcase";
 import { getConnectedMarketplaces } from "../../utils/marketplaceEStores";
 import { getMarketplaceListingUrl } from "../../utils/marketplaceUrls";
+import { BOOKSTORE_BADGES, extractProductLabels, toggleBookstoreBadgeData } from "../../data/bookstoreBadges";
 
 interface ProductsTabProps {
   products: any[];
@@ -263,6 +268,94 @@ const ProductsTab = ({
     branding?.page_layout_settings?.sector === 'horeca';
   const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
   const isShopLp = !isCafe && !isPortfolio;
+  const isBookstore = Boolean(
+    branding?.bookstore_module_enabled ||
+    branding?.branding?.bookstore_module_enabled ||
+    branding?.page_layout_settings?.active_preset === 'bookstore_netflix' ||
+    branding?.branding?.page_layout_settings?.active_preset === 'bookstore_netflix' ||
+    branding?.active_preset === 'bookstore_netflix' ||
+    branding?.store_type === 'bookstore' ||
+    branding?.product_label === 'Kitap' ||
+    branding?.branding?.product_label === 'Kitap' ||
+    branding?.page_layout_settings?.sector === 'bookstore' ||
+    branding?.page_layout_settings?.sub_sector === 'bookstore'
+  );
+  const [badgePopoverProductId, setBadgePopoverProductId] = useState<number | null>(null);
+
+  const getProductBadgesLocal = (p: any): string[] => {
+    return extractProductLabels(p);
+  };
+
+  const hasProductBadgeLocal = (p: any, badgeId: string): boolean => {
+    const labels = getProductBadgesLocal(p);
+    const normalized = badgeId.toLowerCase().trim();
+    if (labels.some(l => l.toLowerCase() === normalized)) return true;
+    const def = BOOKSTORE_BADGES.find(b => b.id === normalized);
+    if (def) {
+      const aliases = [def.id.toLowerCase(), def.labelTr.toLowerCase(), def.labelEn.toLowerCase(), def.badgeTr.toLowerCase(), def.badgeEn.toLowerCase()];
+      if (labels.some(l => aliases.includes(l.toLowerCase()))) return true;
+    }
+    return false;
+  };
+
+  const handleToggleBookBadge = async (e: React.MouseEvent, p: any, badgeId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const exists = hasProductBadgeLocal(p, badgeId);
+    const updatePayload = toggleBookstoreBadgeData(p, badgeId);
+
+    // Optimistic UI override
+    setProductOverrides(prev => ({
+      ...prev,
+      [p.id]: {
+        ...(prev[p.id] || {}),
+        labels: updatePayload.labels,
+        is_bestseller: updatePayload.is_bestseller !== undefined ? updatePayload.is_bestseller : p.is_bestseller,
+        is_weekly_pick: updatePayload.is_weekly_pick !== undefined ? updatePayload.is_weekly_pick : p.is_weekly_pick,
+        sector_data: updatePayload.sector_data
+      }
+    }));
+
+    if (badgeId === 'bestseller') {
+      setBestsellerStateMap(prev => ({ ...prev, [p.id]: !exists }));
+    }
+
+    try {
+      await api.updateProduct(p.id, updatePayload, currentStoreId);
+      const def = BOOKSTORE_BADGES.find(b => b.id === badgeId);
+      const badgeLabel = def ? (lang === 'tr' ? def.labelTr : def.labelEn) : badgeId;
+      toast.success(
+        lang === 'tr'
+          ? `"${p.name}": ${badgeLabel} ${!exists ? 'rozetine eklendi' : 'rozetinden çıkarıldı'}`
+          : `"${p.name}": ${badgeLabel} ${!exists ? 'added' : 'removed'}`
+      );
+    } catch (err: any) {
+      console.error("Failed to update bookstore badge:", err);
+      // Revert optimistic override
+      setProductOverrides(prev => {
+        const next = { ...prev };
+        delete next[p.id];
+        return next;
+      });
+      toast.error(lang === 'tr' ? "Rozet güncellenirken bir hata oluştu" : "Failed to update badge");
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target?.closest?.('.book-badge-popover')) {
+        setBadgePopoverProductId(null);
+      }
+      if (!target?.closest?.('.action-menu-dropdown') && !target?.closest?.('.action-menu-trigger')) {
+        setOpenActionMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const connectedMarketplaces = useMemo(() => getConnectedMarketplaces(branding), [branding]);
 
   const productColumns = useMemo<ColumnDefinition[]>(() => {
@@ -635,7 +728,7 @@ const ProductsTab = ({
   };
 
   const categories = Array.from(new Set(effectiveProducts.map(p => p.category).filter(Boolean)));
-  const isSelectedCategoryValid = selectedCategory === "all" || selectedCategory === "bestsellers" || categories.includes(selectedCategory);
+  const isSelectedCategoryValid = selectedCategory === "all" || selectedCategory === "bestsellers" || (isBookstore && selectedCategory.startsWith("badge_")) || categories.includes(selectedCategory);
   const effectiveCategory = isSelectedCategoryValid ? selectedCategory : "all";
 
   const hbActiveCount = effectiveProducts.filter(p => p.is_hepsiburada_active).length;
@@ -656,9 +749,15 @@ const ProductsTab = ({
     const matchesSearch = searchTerms.length === 0 ? true : searchTerms.every(term => 
       normalizeSearch(p.name || "").includes(term) || (p.barcode && p.barcode.toString().includes(term))
     );
-    const matchesCategory = effectiveCategory === "bestsellers" 
-      ? getIsBestseller(p) 
-      : (effectiveCategory === "all" || p.category === effectiveCategory);
+    let matchesCategory = true;
+    if (effectiveCategory === "bestsellers") {
+      matchesCategory = getIsBestseller(p) || (isBookstore && hasProductBadgeLocal(p, "bestseller"));
+    } else if (isBookstore && effectiveCategory.startsWith("badge_")) {
+      const bId = effectiveCategory.replace("badge_", "");
+      matchesCategory = hasProductBadgeLocal(p, bId);
+    } else {
+      matchesCategory = (effectiveCategory === "all" || p.category === effectiveCategory);
+    }
 
     const isAnyMpActive = Boolean(p.is_hepsiburada_active || p.is_trendyol_active || p.is_n11_active || p.is_amazon_active || p.is_pazarama_active);
     const hasAnyMpError = Boolean(p.hepsiburada_last_error || p.trendyol_last_error || p.n11_last_error || p.amazon_last_error || p.pazarama_last_error);
@@ -999,13 +1098,22 @@ const ProductsTab = ({
               >
                 <option value="all">{t.allCategories}</option>
                 {isCafe && <option value="bestsellers">🔥 {lang === 'tr' ? 'En Çok Satanlar' : 'Bestsellers'}</option>}
+                {isBookstore && (
+                  <optgroup label={lang === 'tr' ? "Vitrin Izgara Rozetleri" : "Showcase Badges"}>
+                    {BOOKSTORE_BADGES.map((b) => (
+                      <option key={`opt-badge-${b.id}`} value={`badge_${b.id}`}>
+                        {b.iconName === 'Flame' ? '🔥' : b.iconName === 'Sparkles' ? '✨' : b.iconName === 'Star' ? '⭐' : b.iconName === 'Award' ? '🏆' : b.iconName === 'Crown' ? '👑' : b.iconName === 'Clock' ? '⏳' : '🏷️'} {lang === 'tr' ? b.labelTr : b.labelEn}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
                 {categories.map((cat: any) => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
             </div>
 
-            {/* Quick Bestseller Filter Toggle */}
+            {/* Quick Bestseller Filter Toggle for Cafe */}
             {isCafe && (
               <button
                 type="button"
@@ -1026,6 +1134,47 @@ const ProductsTab = ({
                   {products.filter(p => getIsBestseller(p)).length}
                 </span>
               </button>
+            )}
+
+            {/* Quick Badges / Showcase Grids Filter Bar for Bookstore */}
+            {isBookstore && (
+              <div className="hidden sm:flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 max-w-[50vw]">
+                {BOOKSTORE_BADGES.map((b) => {
+                  const filterVal = `badge_${b.id}`;
+                  const isSelected = selectedCategory === filterVal;
+                  const count = products.filter(p => hasProductBadgeLocal(p, b.id)).length;
+                  const IconComp = 
+                    b.iconName === 'Flame' ? Flame :
+                    b.iconName === 'Sparkles' ? Sparkles :
+                    b.iconName === 'Star' ? Star :
+                    b.iconName === 'Award' ? Award :
+                    b.iconName === 'Crown' ? Crown :
+                    b.iconName === 'Clock' ? Clock : Tag;
+
+                  return (
+                    <button
+                      key={`quick-filter-${b.id}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory(selectedCategory === filterVal ? 'all' : filterVal);
+                        setPage(1);
+                      }}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all shrink-0 border cursor-pointer select-none active:scale-95 ${
+                        isSelected
+                          ? `${b.badgeBgClass} border-transparent shadow-xs scale-[1.02]`
+                          : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                      }`}
+                      title={lang === 'tr' ? `${b.labelTr} (${count} Kitap)` : `${b.labelEn} (${count} Books)`}
+                    >
+                      <IconComp className={`w-3 h-3 ${isSelected ? 'text-current' : b.textClass}`} />
+                      <span className="hidden xl:inline">{lang === 'tr' ? b.labelTr : b.labelEn}</span>
+                      <span className={`px-1 rounded text-[9px] font-black ${isSelected ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
 
             <TableManager 
@@ -1514,6 +1663,116 @@ const ProductsTab = ({
                                       <Flame className="h-2.5 w-2.5 fill-white text-white" />
                                       {lang === 'tr' ? 'ÇOK SATAN' : 'BESTSELLER'}
                                     </span>
+                                  )}
+                                  {isBookstore && (
+                                    <>
+                                      {getProductBadgesLocal(p).map((badgeKey) => {
+                                        const def = BOOKSTORE_BADGES.find(b => 
+                                          b.id.toLowerCase() === badgeKey.toLowerCase() || 
+                                          b.labelTr.toLowerCase() === badgeKey.toLowerCase() || 
+                                          b.badgeTr.toLowerCase() === badgeKey.toLowerCase()
+                                        );
+                                        if (!def) return null;
+                                        const IconComp = 
+                                          def.iconName === 'Flame' ? Flame :
+                                          def.iconName === 'Sparkles' ? Sparkles :
+                                          def.iconName === 'Star' ? Star :
+                                          def.iconName === 'Award' ? Award :
+                                          def.iconName === 'Crown' ? Crown :
+                                          def.iconName === 'Clock' ? Clock : Tag;
+                                        return (
+                                          <span 
+                                            key={`table-badge-${p.id}-${def.id}`}
+                                            className={`text-[8px] font-bold px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 shadow-2xs ${def.badgeBgClass}`}
+                                            title={`${lang === 'tr' ? def.labelTr : def.labelEn} (${lang === 'tr' ? def.gridTitleTr : def.gridTitleEn})`}
+                                          >
+                                            <IconComp className="w-2.5 h-2.5 shrink-0" />
+                                            <span>{lang === 'tr' ? def.badgeTr : def.badgeEn}</span>
+                                          </span>
+                                        );
+                                      })}
+
+                                      {/* Quick Rozet/Izgara Secici Popover Trigger */}
+                                      <div className="relative inline-block book-badge-popover">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setBadgePopoverProductId(badgePopoverProductId === p.id ? null : p.id);
+                                          }}
+                                          className={`text-[8px] font-bold px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 transition-all cursor-pointer ${
+                                            badgePopoverProductId === p.id 
+                                              ? 'bg-indigo-600 text-white shadow-xs' 
+                                              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80'
+                                          }`}
+                                          title={lang === 'tr' ? "Kitap Vitrin Rozetlerini & Izgaralarini Degistir" : "Edit Showcase Badges"}
+                                        >
+                                          <Sparkles className="w-2.5 h-2.5" />
+                                          <span>{lang === 'tr' ? 'Rozet' : 'Badges'}</span>
+                                        </button>
+
+                                        {badgePopoverProductId === p.id && (
+                                          <div 
+                                            className="absolute left-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
+                                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1">
+                                                <Sparkles className="w-3 h-3 text-indigo-600" />
+                                                <span>{lang === 'tr' ? "Vitrin Izgara Rozetleri" : "Showcase Badges"}</span>
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setBadgePopoverProductId(null);
+                                                }}
+                                                className="p-0.5 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+                                              >
+                                                <X className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                            <div className="space-y-1 max-h-56 overflow-y-auto">
+                                              {BOOKSTORE_BADGES.map((b) => {
+                                                const active = hasProductBadgeLocal(p, b.id);
+                                                const IconComp = 
+                                                  b.iconName === 'Flame' ? Flame :
+                                                  b.iconName === 'Sparkles' ? Sparkles :
+                                                  b.iconName === 'Star' ? Star :
+                                                  b.iconName === 'Award' ? Award :
+                                                  b.iconName === 'Crown' ? Crown :
+                                                  b.iconName === 'Clock' ? Clock : Tag;
+                                                return (
+                                                  <button
+                                                    key={`popover-badge-${p.id}-${b.id}`}
+                                                    type="button"
+                                                    onClick={(e) => handleToggleBookBadge(e, p, b.id)}
+                                                    className={`w-full px-2 py-1 rounded-lg text-[10px] font-bold flex items-center justify-between transition-all border cursor-pointer select-none text-left ${
+                                                      active 
+                                                        ? `${b.badgeBgClass} border-transparent shadow-xs` 
+                                                        : "bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200"
+                                                    }`}
+                                                  >
+                                                    <div className="flex items-center gap-1.5 truncate">
+                                                      <IconComp className={`w-3 h-3 shrink-0 ${active ? "text-current" : b.textClass}`} />
+                                                      <span className="truncate">{lang === 'tr' ? b.labelTr : b.labelEn}</span>
+                                                    </div>
+                                                    {active ? (
+                                                      <Check className="w-3 h-3 shrink-0" />
+                                                    ) : (
+                                                      <Plus className="w-3 h-3 shrink-0 opacity-50" />
+                                                    )}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                            <p className="text-[9px] text-slate-400 mt-1.5 pt-1 border-t border-slate-100 leading-tight">
+                                              {lang === 'tr' ? "Isaretlenen kitap aninda web sitesindeki ilgili vitrin izgarasinda gosterilir." : "Books appear instantly in the selected showcase row."}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </>
                                   )}
                                   {p.is_web_sale === false && (
                                     <span className="text-[8px] font-bold text-rose-500 bg-rose-50 border border-rose-100 px-1 py-0.2 rounded uppercase">
