@@ -13,6 +13,12 @@ interface NetflixBookRowProps {
   onViewProduct: (p: Product) => void;
   addToBasket: (p: Product) => void;
   primaryColor?: string;
+  secondaryColor?: string;
+  enableCardFlip?: boolean;
+  showCardSynopsis?: boolean;
+  showCardBadges?: boolean;
+  showCardRating?: boolean;
+  showCardQuickAdd?: boolean;
 }
 
 export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
@@ -24,7 +30,13 @@ export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
   lang,
   onViewProduct,
   addToBasket,
-  primaryColor = "#ef4444"
+  primaryColor = "#ef4444",
+  secondaryColor = "#f59e0b",
+  enableCardFlip = true,
+  showCardSynopsis = true,
+  showCardBadges = true,
+  showCardRating = true,
+  showCardQuickAdd = true
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -143,6 +155,12 @@ export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
             onView={onViewProduct}
             addToBasket={addToBasket}
             primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            enableCardFlip={enableCardFlip}
+            showCardSynopsis={showCardSynopsis}
+            showCardBadges={showCardBadges}
+            showCardRating={showCardRating}
+            showCardQuickAdd={showCardQuickAdd}
           />
         ))}
       </div>

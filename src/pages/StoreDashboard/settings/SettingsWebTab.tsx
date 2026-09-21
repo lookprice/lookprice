@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "motion/react";
 import { ShopThemeStudio } from "../../../components/dashboard/ShopThemeStudio";
 import { HorecaThemeStudio } from "../../../components/dashboard/HorecaThemeStudio";
+import { BookstoreThemeStudio } from "../../../components/dashboard/BookstoreThemeStudio";
 import {
   Palette,
   Tag,
@@ -74,6 +75,14 @@ export const SettingsWebTab = ({
 }: SettingsWebTabProps) => {
   const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
+  const isBookstore = Boolean(
+    branding?.bookstore_module_enabled ||
+    branding?.active_preset === 'bookstore_netflix' ||
+    branding?.store_concept === 'bookstore' ||
+    branding?.sector === 'bookstore' ||
+    branding?.page_layout_settings?.sector === 'bookstore' ||
+    (branding as any)?.bookstore_theme
+  );
 
   const [activeSubTab, setActiveSubTab] = useState<'brand' | 'theme' | 'labels' | 'legal' | 'contact' | 'analytics'>('brand');
 
@@ -444,7 +453,16 @@ export const SettingsWebTab = ({
       {/* SUB-TAB 1: TEMA VE VİTRİN STÜDYOSU */}
       {activeSubTab === 'theme' && (
         <div className="space-y-4">
-          {isCafeRestaurant ? (
+          {isBookstore ? (
+            <BookstoreThemeStudio
+              branding={branding}
+              onBrandingChange={onBrandingChange}
+              lang={lang}
+              onSave={onSaveBranding}
+              saving={savingBranding}
+              storeId={branding?.id || branding?.slug}
+            />
+          ) : isCafeRestaurant ? (
             <HorecaThemeStudio
               branding={branding}
               onBrandingChange={onBrandingChange}

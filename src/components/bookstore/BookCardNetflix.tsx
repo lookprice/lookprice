@@ -37,8 +37,14 @@ interface BookCardNetflixProps {
   onView: (p: Product) => void;
   addToBasket: (p: Product) => void;
   primaryColor?: string;
+  secondaryColor?: string;
   isWishlisted?: boolean;
   onToggleWishlist?: (id: number | string) => void;
+  enableCardFlip?: boolean;
+  showCardSynopsis?: boolean;
+  showCardBadges?: boolean;
+  showCardRating?: boolean;
+  showCardQuickAdd?: boolean;
 }
 
 export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
@@ -48,8 +54,14 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
   onView,
   addToBasket,
   primaryColor = "#ef4444",
+  secondaryColor = "#f59e0b",
   isWishlisted = false,
-  onToggleWishlist
+  onToggleWishlist,
+  enableCardFlip = true,
+  showCardSynopsis = true,
+  showCardBadges = true,
+  showCardRating = true,
+  showCardQuickAdd = true
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -180,37 +192,41 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
 
                 {/* Top Overlay Badges */}
                 <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10 pointer-events-none gap-1">
-                  <div className="flex items-center gap-1 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 text-[10px] font-black text-amber-300 shrink-0">
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    <span>{ratingScore}</span>
-                  </div>
+                  {showCardRating ? (
+                    <div className="flex items-center gap-1 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 text-[10px] font-black text-amber-300 shrink-0">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      <span>{ratingScore}</span>
+                    </div>
+                  ) : <div />}
 
-                  <div className="flex items-center gap-1 flex-wrap justify-end max-w-[70%]">
-                    {bookBadges.length > 0 ? (
-                      bookBadges.slice(0, 2).map((badge) => {
-                        const IconComp = 
-                          badge.iconName === 'Flame' ? Flame :
-                          badge.iconName === 'Sparkles' ? Sparkles :
-                          badge.iconName === 'Star' ? Star :
-                          badge.iconName === 'Award' ? Award :
-                          badge.iconName === 'Crown' ? Crown :
-                          badge.iconName === 'Clock' ? Clock : Tag;
-                        return (
-                          <span 
-                            key={`cover-badge-${badge.id}`}
-                            className={`${badge.badgeBgClass} backdrop-blur-md text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1`}
-                          >
-                            <IconComp className="w-2.5 h-2.5 shrink-0" />
-                            <span className="truncate max-w-[75px]">{isTr ? badge.badgeTr : badge.badgeEn}</span>
-                          </span>
-                        );
-                      })
-                    ) : product.is_bestseller ? (
-                      <span className="bg-red-600/90 backdrop-blur-md text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm">
-                        {isTr ? "Çok Satan" : "Top"}
-                      </span>
-                    ) : null}
-                  </div>
+                  {showCardBadges && (
+                    <div className="flex items-center gap-1 flex-wrap justify-end max-w-[70%]">
+                      {bookBadges.length > 0 ? (
+                        bookBadges.slice(0, 2).map((badge) => {
+                          const IconComp = 
+                            badge.iconName === 'Flame' ? Flame :
+                            badge.iconName === 'Sparkles' ? Sparkles :
+                            badge.iconName === 'Star' ? Star :
+                            badge.iconName === 'Award' ? Award :
+                            badge.iconName === 'Crown' ? Crown :
+                            badge.iconName === 'Clock' ? Clock : Tag;
+                          return (
+                            <span 
+                              key={`cover-badge-${badge.id}`}
+                              className={`${badge.badgeBgClass} backdrop-blur-md text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1`}
+                            >
+                              <IconComp className="w-2.5 h-2.5 shrink-0" />
+                              <span className="truncate max-w-[75px]">{isTr ? badge.badgeTr : badge.badgeEn}</span>
+                            </span>
+                          );
+                        })
+                      ) : product.is_bestseller ? (
+                        <span className="bg-red-600/90 backdrop-blur-md text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm">
+                          {isTr ? "Çok Satan" : "Top"}
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
 
                 {/* Featured Quote / Spot Overlay on Front Cover (Sleek, non-intrusive) */}
@@ -223,17 +239,19 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
                 )}
 
                 {/* Flip Card Action Trigger Button (Bottom Right) */}
-                <button
-                  type="button"
-                  title={isTr ? "Kitabın arkasını çevir (Özet & Detay)" : "Flip to back cover"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsFlipped(true);
-                  }}
-                  className="absolute bottom-2.5 right-2.5 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-red-600 text-white flex items-center justify-center backdrop-blur-md border border-white/20 shadow-xl transition-all duration-300 hover:rotate-180 active:scale-95 cursor-pointer"
-                >
-                  <RotateCw className="w-4 h-4" />
-                </button>
+                {enableCardFlip && (
+                  <button
+                    type="button"
+                    title={isTr ? "Kitabın arkasını çevir (Özet & Detay)" : "Flip to back cover"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsFlipped(true);
+                    }}
+                    className="absolute bottom-2.5 right-2.5 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-red-600 text-white flex items-center justify-center backdrop-blur-md border border-white/20 shadow-xl transition-all duration-300 hover:rotate-180 active:scale-95 cursor-pointer"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               {/* Front Info Bottom Bar */}
@@ -358,14 +376,16 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
                 </div>
 
                 {/* Synopsis - Full Text with proper line spacing */}
-                <div className="pt-1">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                    {isTr ? "ÖZET & İÇERİK" : "SYNOPSIS"}
-                  </span>
-                  <p className="text-[11px] text-slate-300 leading-relaxed italic line-clamp-6">
-                    &ldquo;{synopsis}&rdquo;
-                  </p>
-                </div>
+                {showCardSynopsis && (
+                  <div className="pt-1">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                      {isTr ? "ÖZET & İÇERİK" : "SYNOPSIS"}
+                    </span>
+                    <p className="text-[11px] text-slate-300 leading-relaxed italic line-clamp-6">
+                      &ldquo;{synopsis}&rdquo;
+                    </p>
+                  </div>
+                )}
 
                 {/* Branch Stocks Info */}
                 <div className="pt-2 border-t border-slate-800">
@@ -402,14 +422,16 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
                   <Eye className="w-3 h-3" />
                   <span>{isTr ? "İncele" : "Details"}</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleQuickAdd}
-                  className="p-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all cursor-pointer"
-                  title={isTr ? "Sepete Ekle" : "Add to Cart"}
-                >
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                </button>
+                {showCardQuickAdd && (
+                  <button
+                    type="button"
+                    onClick={handleQuickAdd}
+                    className="p-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all cursor-pointer"
+                    title={isTr ? "Sepete Ekle" : "Add to Cart"}
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
