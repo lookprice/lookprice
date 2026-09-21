@@ -754,7 +754,8 @@ router.get("/store/:slug", async (req, res) => {
 
   const storeRes = await pool.query(`
     SELECT 
-      id, name, slug, logo_url, favicon_url, primary_color, default_currency, background_image_url,
+      id, name, slug, store_type, sub_sector, hotel_module_enabled, working_hours, page_layout_settings,
+      logo_url, favicon_url, primary_color, default_currency, background_image_url,
       hero_title, hero_subtitle, hero_image_url, about_text, description,
       instagram_url, facebook_url, twitter_url, whatsapp_number,
       address, phone, email, emails, phones, footer_links, parent_id, payment_settings, meta_settings, shipping_profiles, custom_domain,
@@ -772,24 +773,33 @@ router.get("/store/:slug", async (req, res) => {
       return res.status(403).json({ error: 'store_pending', message: 'Bu mağaza onay sürecindedir. Lütfen daha sonra tekrar deneyiniz.' });
     }
 
-    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links'];
+    const jsonFields = ['emails', 'phones', 'footer_links', 'shipping_profiles', 'branding', 'meta_settings', 'page_layout', 'menu_links', 'working_hours', 'page_layout_settings'];
     jsonFields.forEach(field => {
       if (typeof store[field] === 'string') {
         try {
           store[field] = JSON.parse(store[field]);
         } catch (e) {
-          store[field] = field === 'branding' || field === 'meta_settings' ? {} : [];
+          store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' ? {} : [];
         }
       } else if (!store[field]) {
-        store[field] = field === 'branding' || field === 'meta_settings' ? {} : [];
+        store[field] = field === 'branding' || field === 'meta_settings' || field === 'working_hours' || field === 'page_layout_settings' ? {} : [];
       }
     });
 
     if (store.branding && typeof store.branding === 'object') {
       const msFromCol = store.meta_settings || {};
       const msFromBr = store.branding.meta_settings || {};
+      const whFromCol = store.working_hours || {};
+      const whFromBr = store.branding.working_hours || {};
+      const plsFromCol = store.page_layout_settings || {};
+      const plsFromBr = store.branding.page_layout_settings || {};
+      
+      const brandingCopy = { ...store.branding };
       Object.assign(store, store.branding);
+      store.branding = brandingCopy;
       store.meta_settings = { ...msFromCol, ...msFromBr };
+      store.working_hours = { ...whFromCol, ...whFromBr };
+      store.page_layout_settings = { ...plsFromCol, ...plsFromBr };
     }
 
     if (!store.whatsapp_number || store.whatsapp_number === "905428655000") {
@@ -918,6 +928,8 @@ router.get("/digital-menu/:storeIdentifier/info", async (req, res) => {
       working_hours: store.working_hours || branding?.working_hours || null,
       page_layout_settings: store.page_layout_settings || branding?.page_layout_settings || {},
       branding: branding || {},
+      digital_menu_settings: branding?.digital_menu_settings || {},
+      theme: branding?.digital_menu_settings?.theme || branding?.theme || 'modern_light',
       store_type: store.store_type
     });
   } catch (error: any) {

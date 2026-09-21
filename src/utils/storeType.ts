@@ -6,30 +6,58 @@ export const getStoreType = (store: StoreInfo | null): StoreType => {
   if (!store) return "product";
 
   const s = store as any;
-  const storeType = s.store_type || s.branding?.store_type;
-  const sector = s.sector || s.page_layout_settings?.sector || s.branding?.page_layout_settings?.sector || s.branding?.sector;
+  const rawStoreType = (s.store_type || s.branding?.store_type || "").toString().toLowerCase().trim();
+  const rawSector = (s.sector || s.page_layout_settings?.sector || s.branding?.page_layout_settings?.sector || s.branding?.sector || "").toString().toLowerCase().trim();
+  const rawSubSector = (s.sub_sector || s.branding?.sub_sector || "").toString().toLowerCase().trim();
 
+  // HorecaLP / Cafe / Restaurant / Hotel detection
   if (
-    storeType === "cafe_restaurant" || 
-    sector === "cafe_restaurant"
+    rawStoreType === "cafe_restaurant" ||
+    rawStoreType === "horeca" ||
+    rawStoreType === "horecalp" ||
+    rawStoreType === "restaurant" ||
+    rawStoreType === "cafe" ||
+    rawStoreType === "hotel" ||
+    rawStoreType === "otel" ||
+    rawSector === "cafe_restaurant" ||
+    rawSector === "horeca" ||
+    rawSector === "horecalp" ||
+    rawSector === "restaurant" ||
+    rawSector === "cafe" ||
+    rawSector === "hotel" ||
+    rawSubSector === "cafe_restaurant" ||
+    rawSubSector === "horeca" ||
+    rawSubSector === "horecalp" ||
+    rawSubSector === "restaurant" ||
+    rawSubSector === "hotel" ||
+    s.hotel_module_enabled === true ||
+    s.branding?.hotel_module_enabled === true ||
+    s.branding?.digital_menu_settings?.theme !== undefined
   ) {
     return "cafe_restaurant";
   }
 
   if (
-    storeType === "real_estate" || 
-    storeType === "portfolio" ||
-    sector === "real_estate" ||
-    sector === "portfolio"
+    rawStoreType === "real_estate" || 
+    rawStoreType === "portfolio" ||
+    rawStoreType === "emlak" ||
+    rawSector === "real_estate" ||
+    rawSector === "portfolio" ||
+    rawSector === "emlak" ||
+    rawSubSector === "real_estate"
   ) {
     return "real_estate";
   }
 
   if (
-    storeType === "motor_vehicle" || 
-    storeType === "automotive" || 
-    sector === "motor_vehicle" || 
-    sector === "automotive"
+    rawStoreType === "motor_vehicle" || 
+    rawStoreType === "automotive" || 
+    rawStoreType === "oto" ||
+    rawStoreType === "galeri" ||
+    rawSector === "motor_vehicle" || 
+    rawSector === "automotive" ||
+    rawSubSector === "automotive" ||
+    rawSubSector === "motor_vehicle"
   ) {
     return "automotive";
   }

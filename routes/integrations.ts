@@ -1234,10 +1234,34 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
           : `Ürün Hepsiburada'da bulundu ancak şu an pasif durumda (Durum: ${matched.status}).`
       });
     } else {
-      // Not matched yet: review is still pending
+      // Not matched yet in live listings: check if there is a catalog tracking ID to diagnose status
+      let trackingDetail: any = null;
+      const trackingId = hbData.catalogTrackingId || hbData.listingTrackingId || hbData.trackingId;
+      if (trackingId) {
+        try {
+          trackingDetail = await hbService.checkCatalogStatus(trackingId);
+        } catch (tErr: any) {
+          console.warn("[HB-Status] Tracking check failed:", tErr.message);
+        }
+      }
+
+      let statusMsg = "Hepsiburada katalog ve barkod incelemesi sürüyor. Henüz onaylanıp mağaza envanterinize eklenmemiş.";
+      if (trackingDetail) {
+        const state = trackingDetail.status || trackingDetail.state || "";
+        const errors = trackingDetail.errors || trackingDetail.failureReasons || [];
+        if (errors.length > 0) {
+          const errList = errors.map((e: any) => typeof e === "string" ? e : (e.message || e.description || JSON.stringify(e))).join(", ");
+          statusMsg = `Hepsiburada katalog incelemesinde eksik/uyarı tespit edildi: ${errList}`;
+        } else if (state) {
+          statusMsg = `Hepsiburada katalog inceleme aşaması: ${state} (Takip No: ${trackingId})`;
+        }
+      }
+
       mpData.hepsiburada = {
         ...hbData,
         status: 'PENDING_APPROVAL',
+        trackingId: trackingId || null,
+        trackingDetail: trackingDetail || hbData.trackingDetail || null,
         lastChecked: new Date().toISOString()
       };
 
@@ -1253,12 +1277,73 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
         success: true,
         isLive: false,
         status: 'PENDING_APPROVAL',
-        trackingId: hbData.catalogTrackingId || hbData.listingTrackingId,
-        message: "Hepsiburada katalog ve barkod incelemesi sürüyor. Henüz onaylanıp mağaza envanterinize eklenmemiş."
+        trackingId: trackingId || null,
+        trackingDetail,
+        message: statusMsg
       });
     }
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Durum sorgulanamadı." });
+  }
+});
+
+// 5.2 Bulk Check & Auto-Resolve Pending Approval Products on Hepsiburada
+router.post("/hepsiburada/check-bulk-pending-status", authenticate, async (req: any, res) => {
+  const rawStoreId = req.body?.storeId || req.query?.storeId || req.user?.store_id;
+  const storeId = req.user.role === "superadmin" 
+    ? Number(rawStoreId || req.user.store_id || 1) 
+    : Number(req.user.store_id || rawStoreId);
+
+  try {
+    const storeRes = await pool.query("SELECT hepsiburada_settings, branding FROM stores WHERE id = $1", [storeId]);
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Mağaza bulunamadı" });
+    }
+
+    const row = storeRes.rows[0];
+    let settings = row?.hepsiburada_settings || row?.branding?.hepsiburada_settings || {};
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
+
+    const merchantId = String(settings?.merchantId || "").trim();
+    const apiKey = String(settings?.apiKey || "lookprice_dev").trim();
+    const apiSecret = String(settings?.apiSecret || "").trim();
+
+    if (!merchantId || !apiSecret) {
+      return res.status(400).json({ error: "Hepsiburada API bilgileri eksik." });
+    }
+
+    const cleanSettings = { ...settings, merchantId, apiKey, apiSecret, isTestMode: Boolean(settings?.isTestMode) };
+    const hbService = new HepsiburadaService(cleanSettings, storeId);
+
+    // Reconcile and auto-match store products with live Hepsiburada merchant listings
+    const matchResult = await hbService.matchListingsWithStoreProducts({ importMissing: false });
+
+    // Query current pending products count
+    const pendingRes = await pool.query(
+      `SELECT COUNT(*) as count 
+       FROM products 
+       WHERE store_id = $1 
+         AND is_hepsiburada_active = false 
+         AND (
+           marketplace_data->'hepsiburada'->>'status' = 'PENDING_APPROVAL' 
+           OR (marketplace_data->'hepsiburada' IS NOT NULL AND (hepsiburada_sku IS NULL OR hepsiburada_sku = ''))
+         )`,
+      [storeId]
+    );
+    const remainingPending = parseInt(pendingRes.rows[0]?.count || 0, 10);
+
+    return res.json({
+      success: true,
+      totalListings: matchResult.totalListings,
+      matchedCount: matchResult.matchedCount,
+      updatedCount: matchResult.updatedCount,
+      remainingPending,
+      message: matchResult.matchedCount > 0 
+        ? `${matchResult.matchedCount} onay bekleyen ürün Hepsiburada'da onaylanmış bulundu ve anında 'Satışta' durumuna geçirildi! (${remainingPending} ürün incelemede)`
+        : `Hepsiburada canlı ilan listesi tarandı. ${remainingPending > 0 ? `${remainingPending} ürün halen Hepsiburada içerik ve katalog onay kuyruğunda bekliyor.` : "Onay bekleyen ürün bulunmuyor."}`
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Toplu onay sorgulaması gerçekleştirilemedi." });
   }
 });
 

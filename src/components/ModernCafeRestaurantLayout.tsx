@@ -777,11 +777,19 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
   // ----------------------------------------------------
   // DYNAMIC PERSONALIZATION & THEME RESOLUTION
   // ----------------------------------------------------
-  const activeTheme = store.branding?.digital_menu_settings?.theme || store.branding?.theme || "modern_light";
-  const customPrimaryColor = store.branding?.primary_color;
-  const customHeroImage = store.branding?.digital_menu_settings?.cover_image || store.branding?.hero_image_url || store.hero_image_url;
-  const customHeroTitle = store.branding?.digital_menu_settings?.menu_title || store.branding?.hero_title || store.hero_title;
-  const customHeroSubtitle = store.branding?.digital_menu_settings?.menu_subtitle || store.branding?.hero_subtitle || store.hero_subtitle;
+  const activeTheme = (
+    store.branding?.digital_menu_settings?.theme ||
+    (store as any).digital_menu_settings?.theme ||
+    store.branding?.theme ||
+    (store as any).theme ||
+    store.branding?.page_layout_settings?.digital_menu_settings?.theme ||
+    (store as any).page_layout_settings?.digital_menu_settings?.theme ||
+    "modern_light"
+  );
+  const customPrimaryColor = store.branding?.digital_menu_settings?.primary_color || store.branding?.primary_color || (store as any).primary_color;
+  const customHeroImage = store.branding?.digital_menu_settings?.cover_image || (store as any).digital_menu_settings?.cover_image || store.branding?.hero_image_url || store.hero_image_url || (store as any).cover_image;
+  const customHeroTitle = store.branding?.digital_menu_settings?.menu_title || (store as any).digital_menu_settings?.menu_title || store.branding?.hero_title || store.hero_title;
+  const customHeroSubtitle = store.branding?.digital_menu_settings?.menu_subtitle || (store as any).digital_menu_settings?.menu_subtitle || store.branding?.hero_subtitle || store.hero_subtitle;
 
   // Working Hours Resolution
   const workingHours = store.branding?.working_hours || (store as any).working_hours || {};
@@ -965,7 +973,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           >
             {activeMode === 'hotel'
               ? (isTr ? "Konforlu Odalar, Unutulmaz Bir Tatil" : "Luxury Rooms & Fine Dining")
-              : (store.hero_title || (isTr ? "Sıcak Bir Atmosfer, Seçkin Tatlar" : "Warm Atmosphere, Fine Tastes"))
+              : (customHeroTitle || store.hero_title || (isTr ? "Sıcak Bir Atmosfer, Seçkin Tatlar" : "Warm Atmosphere, Fine Tastes"))
             }
           </motion.h1>
 
@@ -977,7 +985,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           >
             {activeMode === 'hotel'
               ? (isTr ? "Oda kahvaltı, yarım pansiyon ve her şey dahil konaklama seçenekleriyle tatilinizin keyfini çıkarın." : "Enjoy room breakfast, half board and all inclusive options for your unforgettable stay.")
-              : (store.hero_subtitle || (isTr ? "Usta şeflerimizin özenle hazırladığı taze lezzetler ve kaliteli kahve çeşitlerimizle günün her anına keyif katıyoruz." : "We elevate every moment of your day with fresh dishes masterfully crafted by our chefs."))
+              : (customHeroSubtitle || store.hero_subtitle || (isTr ? "Usta şeflerimizin özenle hazırladığı taze lezzetler ve kaliteli kahve çeşitlerimizle günün her anına keyif katıyoruz." : "We elevate every moment of your day with fresh dishes masterfully crafted by our chefs."))
             }
           </motion.p>
 

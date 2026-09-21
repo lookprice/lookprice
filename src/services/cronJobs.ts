@@ -18,12 +18,21 @@ export function startCronJobs() {
     syncHepsiburadaOrdersCron().catch(err => {
       console.warn("[CRON] Initial Hepsiburada order sync failed:", err.message);
     });
+    syncHepsiburadaPendingAndListingsCron().catch(err => {
+      console.warn("[CRON] Initial Hepsiburada listings sync failed:", err.message);
+    });
   }, 5000);
 
   // High-frequency Hepsiburada Order Sync (Every 5 minutes)
   cron.schedule('*/5 * * * *', async () => {
     console.log("[CRON] Running Hepsiburada order sync (5-minute interval)...");
     await syncHepsiburadaOrdersCron();
+  });
+
+  // Hepsiburada Pending Approval & Listings Reconciliation (Every 15 minutes)
+  cron.schedule('*/15 * * * *', async () => {
+    console.log("[CRON] Running Hepsiburada pending approvals & listings reconciliation...");
+    await syncHepsiburadaPendingAndListingsCron();
   });
 
   // Amazon Order Sync (Every 10 minutes)
@@ -115,6 +124,56 @@ export async function syncHepsiburadaOrdersCron() {
     }
   } catch (err: any) {
     console.error("[CRON-HB] Genel Hepsiburada sipariş senkronizasyonu hatası:", err.message || err);
+  }
+}
+
+/**
+ * Periodically reconciles Hepsiburada live listings and auto-promotes approved items from "Onay Bekliyor" to "Satışta"
+ */
+export async function syncHepsiburadaPendingAndListingsCron() {
+  try {
+    const storesRes = await pool.query("SELECT id, name, hepsiburada_settings, branding FROM stores");
+    for (const store of storesRes.rows) {
+      try {
+        let settings = store.hepsiburada_settings;
+        if (typeof settings === 'string') {
+          try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+        }
+        let branding = store.branding;
+        if (typeof branding === 'string') {
+          try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+        }
+
+        if (!settings || !settings.merchantId) {
+          settings = branding?.hepsiburada_settings || settings || {};
+        }
+
+        const merchantId = String(settings?.merchantId || "").trim();
+        const apiSecret = String(settings?.apiSecret || "").trim();
+        const apiKey = String(settings?.apiKey || "lookprice_dev").trim() || "lookprice_dev";
+
+        if (merchantId && apiSecret) {
+          const cleanSettings = {
+            ...settings,
+            merchantId,
+            apiKey,
+            apiSecret,
+            isTestMode: Boolean(settings?.isTestMode)
+          };
+
+          const hbService = new HepsiburadaService(cleanSettings, store.id);
+          const result = await hbService.matchListingsWithStoreProducts({ importMissing: false });
+
+          if (result.matchedCount > 0) {
+            console.log(`[CRON-HB] Store #${store.id} (${store.name}): ${result.matchedCount} onay bekleyen/eşleşen ürün Hepsiburada canlı satışına bağlandı.`);
+          }
+        }
+      } catch (storeErr: any) {
+        console.warn(`[CRON-HB] Store #${store.id} ilan/onay senkronizasyon uyarısı:`, storeErr.message || storeErr);
+      }
+    }
+  } catch (err: any) {
+    console.error("[CRON-HB] Genel Hepsiburada ilan senkronizasyon hatası:", err.message || err);
   }
 }
 

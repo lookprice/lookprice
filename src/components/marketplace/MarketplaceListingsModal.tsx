@@ -214,6 +214,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isBulkPublishing, setIsBulkPublishing] = useState(false);
   const [isMatchingListings, setIsMatchingListings] = useState(false);
+  const [isCheckingBulkPending, setIsCheckingBulkPending] = useState(false);
   const [isSyncingOrders, setIsSyncingOrders] = useState(false);
   const [matchResult, setMatchResult] = useState<any | null>(null);
   const [showCategoryMappingModal, setShowCategoryMappingModal] = useState(false);
@@ -245,6 +246,26 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
       toast.error(err.response?.data?.error || err.message || (isTr ? "Eşleştirme hatası" : "Matching error"));
     } finally {
       setIsMatchingListings(false);
+    }
+  };
+
+  const handleCheckBulkPendingStatus = async () => {
+    try {
+      setIsCheckingBulkPending(true);
+      const res = await api.checkHepsiburadaBulkPendingStatus(currentStoreId);
+      const data = res.data;
+      if (data && data.success) {
+        toast.success(data.message, { duration: 6000 });
+        if (data.matchedCount > 0 && onRefresh) {
+          onRefresh();
+        }
+      } else {
+        toast.error(data?.message || (isTr ? "Sorgulama tamamlanamadı." : "Check failed."));
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || (isTr ? "Toplu sorgulama hatası" : "Bulk check error"));
+    } finally {
+      setIsCheckingBulkPending(false);
     }
   };
 
@@ -1068,6 +1089,17 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
                   <button
                     type="button"
+                    onClick={handleCheckBulkPendingStatus}
+                    disabled={isCheckingBulkPending}
+                    className="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs border border-amber-500 transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                    title={isTr ? "Onay bekleyen tüm ürünleri Hepsiburada ile canlı sorgulayıp eşleştirir" : "Check and resolve all pending products with Hepsiburada"}
+                  >
+                    <Clock className={`w-3.5 h-3.5 ${isCheckingBulkPending ? 'animate-spin' : ''}`} />
+                    <span>{isCheckingBulkPending ? (isTr ? "Sorgulanıyor..." : "Checking...") : (isTr ? "Onayları Canlı Sorgula" : "Check Pending")}</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={handleSyncHepsiburadaOrders}
                     disabled={isSyncingOrders}
                     className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-300 dark:border-slate-700 transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
@@ -1154,6 +1186,36 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
               >
                 <X className="w-3.5 h-3.5" />
               </button>
+            </div>
+          )}
+
+          {/* Pending Approval Explanation & Action Banner */}
+          {selectedStatus === 'pending' && (
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
+              <div className="flex items-start gap-2.5">
+                <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-amber-950 dark:text-amber-100">
+                    {isTr ? "Hepsiburada Katalog ve İçerik Onay Süreci" : "Hepsiburada Catalog & Content Review"}
+                  </p>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                    {isTr 
+                      ? "İlk kez açılan barkodlar Hepsiburada katalog ekibi tarafından incelenir. Ürünler onaylandığında otomatik 'Satışta' durumuna geçer veya 'Canlı Sorgula' ile anında taranabilir."
+                      : "New barcodes undergo Hepsiburada catalog review. Once approved, they auto-switch to active status."}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={handleCheckBulkPendingStatus}
+                  disabled={isCheckingBulkPending}
+                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isCheckingBulkPending ? 'animate-spin' : ''}`} />
+                  {isCheckingBulkPending ? (isTr ? "Taranıyor..." : "Checking...") : (isTr ? "Tüm Onayları Canlı Sorgula" : "Check All Statuses")}
+                </button>
+              </div>
             </div>
           )}
 

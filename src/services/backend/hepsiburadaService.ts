@@ -1051,6 +1051,26 @@ export class HepsiburadaService {
   }
 
   /**
+   * 5.1 Check Catalog Tracking Status
+   */
+  async checkCatalogStatus(trackingId: string): Promise<any> {
+    const headers = this.getHeaders();
+    try {
+      const url = `${this.catalogBaseUrl}/products/status/${trackingId}`;
+      const response = await axios.get(url, { headers, timeout: 15000 });
+      return response.data?.data || response.data;
+    } catch (error: any) {
+      try {
+        const url2 = `${this.listingBaseUrl}/inventory/import/status/${this.config.merchantId}/task/${trackingId}`;
+        const res2 = await axios.get(url2, { headers, timeout: 15000 });
+        return res2.data;
+      } catch (err2: any) {
+        throw new Error(`Katalog takip durumu sorgulanamadı: ${error.response?.data?.message || error.message}`);
+      }
+    }
+  }
+
+  /**
    * 6. Fatura ve Kargo Yükleme (Invoice & Package Upload)
    */
   async sendInvoice(orderNumberOrPackageNumber: string, invoiceData: {

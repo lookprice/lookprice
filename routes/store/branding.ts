@@ -346,9 +346,11 @@ router.post("/", async (req: any, res) => {
         const sSlug = storeInfoRes.rows[0].slug;
         const sCustomDomain = storeInfoRes.rows[0].custom_domain;
         publicApiCache.del(`store_${targetStoreId}`);
+        publicApiCache.del(`digital_menu_${targetStoreId}`);
         if (sSlug) {
           publicApiCache.del(`store_${sSlug.toLowerCase()}`);
           publicApiCache.del(`products_${sSlug.toLowerCase()}`);
+          publicApiCache.del(`digital_menu_${sSlug.toLowerCase()}`);
         }
         if (sCustomDomain) {
           publicApiCache.del(`domain_${sCustomDomain.toLowerCase()}`);

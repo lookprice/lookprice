@@ -405,43 +405,87 @@ export default function DigitalMenuPage() {
     );
   }
 
+  const activeTheme = (
+    store?.branding?.digital_menu_settings?.theme ||
+    (store as any)?.digital_menu_settings?.theme ||
+    store?.branding?.theme ||
+    (store as any)?.theme ||
+    "modern_light"
+  );
+  const isDark = activeTheme === "dark_bistro";
+  const isAmber = activeTheme === "warm_amber";
+  const isEmerald = activeTheme === "fresh_emerald";
+
   return (
-    <div className="min-h-screen bg-slate-100/50 flex justify-center py-0 md:py-8 digital-menu-compact">
-      <div className="w-full max-w-xl md:max-w-md min-h-screen md:min-h-0 bg-slate-50 p-3.5 pb-24 relative shadow-2xl md:border md:border-slate-200 md:rounded-[2.5rem] overflow-hidden">
+    <div className={`min-h-screen flex justify-center py-0 md:py-8 digital-menu-compact transition-colors duration-300 ${
+      isDark ? "bg-slate-950 text-slate-100" :
+      isAmber ? "bg-stone-900 text-stone-900" :
+      isEmerald ? "bg-emerald-950 text-slate-900" :
+      "bg-slate-100/60 text-slate-900"
+    }`}>
+      <div className={`w-full max-w-xl md:max-w-md min-h-screen md:min-h-0 p-3.5 pb-24 relative shadow-2xl md:border md:rounded-[2.5rem] overflow-hidden transition-colors duration-300 ${
+        isDark ? "bg-slate-900 border-slate-800 text-slate-100" :
+        isAmber ? "bg-stone-50 border-amber-200 text-stone-900" :
+        isEmerald ? "bg-white border-emerald-100 text-slate-900" :
+        "bg-slate-50 border-slate-200 text-slate-900"
+      }`}>
         {/* Top Right Language Switcher */}
-        <div className="absolute top-4 right-4 z-30 flex items-center gap-1 bg-white p-1 rounded-2xl shadow-md border border-slate-200">
+        <div className={`absolute top-4 right-4 z-30 flex items-center gap-1 p-1 rounded-2xl shadow-md border ${
+          isDark ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+        }`}>
           <button
             onClick={() => setLang('tr')}
-            className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${lang === 'tr' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
+              lang === 'tr' 
+                ? (isAmber ? 'bg-amber-600 text-white' : isEmerald ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white')
+                : (isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900')
+            }`}
           >
             TR
           </button>
           <button
             onClick={() => setLang('en')}
-            className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${lang === 'en' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
+              lang === 'en' 
+                ? (isAmber ? 'bg-amber-600 text-white' : isEmerald ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white')
+                : (isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900')
+            }`}
           >
             EN
           </button>
           <button
             onClick={() => setLang('el')}
-            className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${lang === 'el' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
+              lang === 'el' 
+                ? (isAmber ? 'bg-amber-600 text-white' : isEmerald ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white')
+                : (isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900')
+            }`}
           >
             EL
           </button>
         </div>
 
         {/* Brand Header */}
-        <header className="bg-white p-4 rounded-3xl shadow-sm mb-4 border border-slate-100 space-y-3.5 animate-fade-in pr-20">
+        <header className={`p-4 rounded-3xl shadow-sm mb-4 border space-y-3.5 animate-fade-in pr-20 transition-colors ${
+          isDark ? "bg-slate-800/90 border-slate-700/80 text-white" :
+          isAmber ? "bg-white border-amber-200/80 text-stone-900" :
+          isEmerald ? "bg-white border-emerald-100 text-slate-900" :
+          "bg-white border-slate-100 text-slate-900"
+        }`}>
           <div className="flex items-center gap-3">
             {store.logo_url ? (
               <img src={store.logo_url} alt={store.name} className="h-14 w-14 rounded-2xl object-cover border border-slate-100 shrink-0 shadow-sm" />
             ) : (
-              <div className="h-14 w-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-extrabold text-xl shrink-0">
+              <div className={`h-14 w-14 rounded-2xl flex items-center justify-center font-extrabold text-xl shrink-0 ${
+                isDark ? "bg-slate-700 text-amber-400" : isAmber ? "bg-amber-100 text-amber-800" : isEmerald ? "bg-emerald-100 text-emerald-800" : "bg-indigo-50 text-indigo-600"
+              }`}>
                 {store.name?.substring(0, 2).toUpperCase()}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h1 className="text-base font-extrabold text-slate-800 tracking-tight truncate leading-tight">{store.name}</h1>
+              <h1 className={`text-base font-extrabold tracking-tight truncate leading-tight ${
+                isDark ? "text-white" : "text-slate-800"
+              }`}>{store.name}</h1>
               <div className="flex items-center gap-2 mt-1.5">
                 {activeTableId ? (
                   <button
