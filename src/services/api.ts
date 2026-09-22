@@ -167,6 +167,7 @@ export const api = {
   saveProductRecipe: (id: number, items: any[], storeId?: number) => api.post(`/api/store/products/${id}/recipe${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { items }),
   reformatProductNames: (storeId?: number) => api.post(`/api/store/ai/reformat-product-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
   bulkEnrichBooks: (storeId?: number) => api.post(`/api/store/products/bulk-enrich-books${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, {}),
+  lookupBarcode: (barcode: string, storeId?: number) => api.get(`/api/store/products/lookup-barcode?barcode=${encodeURIComponent(barcode)}${(storeId !== undefined && storeId !== null) ? `&storeId=${storeId}` : ""}`),
   syncProductNamesFromInvoices: (storeId?: number) => api.post(`/api/store/products/sync-names${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { storeId }),
   getDuplicateCandidates: (storeId?: number) => api.get(`/api/store/products/duplicate-candidates${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   mergeProducts: (sourceId: number, targetId: number, storeId?: number) => api.post(`/api/store/products/merge${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { sourceId, targetId }),

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2 } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 import { compressImageToWebP } from "../../../utils/imageUtils";
@@ -124,6 +124,48 @@ export const ProductModal = ({
   };
 
   const [isPublishingToHb, setIsPublishingToHb] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
+
+  const handleAutoLookup = async () => {
+    const barcodeInput = document.querySelector('input[name="barcode"]') as HTMLInputElement;
+    const barcodeVal = barcodeInput?.value?.trim();
+    if (!barcodeVal || barcodeVal.length < 5) {
+      alert(isTr ? "Lütfen önce geçerli bir ISBN / barkod giriniz (örn: 9789752128262)!" : "Please enter a valid ISBN/barcode first!");
+      return;
+    }
+    try {
+      setLookupLoading(true);
+      const res = await api.lookupBarcode(barcodeVal, branding?.id || branding?.store_id);
+      if (res && res.success && res.data) {
+        const d = res.data;
+        const nameInput = document.querySelector('input[name="name"]') as HTMLInputElement;
+        if (nameInput && d.name) nameInput.value = d.name;
+
+        const authorInput = document.querySelector('input[name="author"]') as HTMLInputElement;
+        if (authorInput && d.author) authorInput.value = d.author;
+
+        const brandInput = document.querySelector('input[name="brand"]') as HTMLInputElement;
+        if (brandInput && d.brand) brandInput.value = d.brand;
+
+        const categoryInput = document.querySelector('input[name="category"]') as HTMLInputElement;
+        if (categoryInput && d.category) categoryInput.value = d.category;
+
+        const subCategoryInput = document.querySelector('input[name="sub_category"]') as HTMLInputElement;
+        if (subCategoryInput && d.sub_category) subCategoryInput.value = d.sub_category;
+
+        const descInput = document.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+        if (descInput && d.description) descInput.value = d.description;
+
+        alert(isTr ? `Kitap bilgileri başarıyla getirildi:\nEser: ${d.name}\nYazar: ${d.author}` : `Book details retrieved successfully!`);
+      } else {
+        alert(res?.error || (isTr ? "Kitap bulunamadı" : "Book not found"));
+      }
+    } catch (err: any) {
+      alert(err?.message || (isTr ? "Kitap bilgisi getirilemedi" : "Failed to lookup book"));
+    } finally {
+      setLookupLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (showProductModal && hbCategories.length === 0) {
@@ -460,6 +502,18 @@ export const ProductModal = ({
                         }`}
                         defaultValue={editingProduct?.barcode || (editingProduct as any)?.sector_data?.isbn || ""}
                       />
+                      {isBookstore && (
+                        <button
+                          type="button"
+                          onClick={handleAutoLookup}
+                          disabled={lookupLoading}
+                          className="mt-1 w-full py-1 px-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-md text-[9px] font-black flex items-center justify-center gap-1 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                          title="Google Books ile ISBN sorgula ve bilgileri doldur"
+                        >
+                          {lookupLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5 text-amber-300" />}
+                          <span>{isTr ? "ISBN İle Doldur" : "Auto-Fill ISBN"}</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="space-y-0.5 w-full sm:w-32 sm:max-w-[120px] shrink-0">
