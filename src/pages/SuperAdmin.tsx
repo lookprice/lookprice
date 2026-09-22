@@ -7,7 +7,8 @@ import {
   Video,
   Server,
   ShieldCheck,
-  UserCircle
+  UserCircle,
+  Layers
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { translations } from "@/translations";
@@ -20,6 +21,7 @@ import { SuperAdminStats } from "../components/superadmin/SuperAdminStats";
 import { SuperAdminLeads } from "../components/superadmin/SuperAdminLeads";
 import { SuperAdminRegistrations } from "../components/superadmin/SuperAdminRegistrations";
 import { SuperAdminStoresTable } from "../components/superadmin/SuperAdminStoresTable";
+import { MultiTenancyDashboard } from "../components/superadmin/MultiTenancyDashboard";
 import { EnrakipsizPortalManager } from "../components/superadmin/EnrakipsizPortalManager";
 import { IntegratorHub } from "../components/IntegratorHub";
 import { SuperAdminVideosManager } from "../components/superadmin/SuperAdminVideosManager";
@@ -70,7 +72,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
   const [storeFilter, setStoreFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [leadFilter, setLeadFilter] = useState<'all' | 'new' | 'contacted' | 'converted'>('all');
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'enrakipsiz' | 'videos' | 'integrator' | 'audit' | 'profile'>('dashboard');
   
   // Enrakipsiz states
   const [enrakipsizSettings, setEnrakipsizSettings] = useState<EnrakipsizSettings>({
@@ -638,7 +640,18 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
             }`}
           >
             <Activity className="h-4 w-4" />
-            <span>Mağaza & Talepler</span>
+            <span>Genel Özet & Talepler</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('tenants')}
+            className={`px-4 py-3 rounded-xl md:rounded-2xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center gap-2.5 ${
+              activeTab === 'tenants'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg shadow-slate-900/10'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <Layers className="h-4 w-4 text-indigo-400" />
+            <span>Multi-Tenancy Mağazalar</span>
           </button>
           <button
             onClick={() => setActiveTab('enrakipsiz')}
@@ -697,7 +710,13 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
           </button>
         </div>
 
-        {activeTab === 'enrakipsiz' ? (
+        {activeTab === 'tenants' ? (
+          <MultiTenancyDashboard 
+            stores={stores}
+            onRefreshStores={fetchData}
+            lang={lang}
+          />
+        ) : activeTab === 'enrakipsiz' ? (
           <EnrakipsizPortalManager 
             lang={lang}
             st={st}
@@ -761,6 +780,7 @@ export default function SuperAdminDashboard({ token, onLogout }: SuperAdminDashb
               setStoreToDelete={setStoreToDelete}
               onToggleHotel={handleToggleHotel}
               onToggleBookstore={handleToggleBookstore}
+              onNavigateToMultiTenancy={() => setActiveTab('tenants')}
             />
           </>
         )}

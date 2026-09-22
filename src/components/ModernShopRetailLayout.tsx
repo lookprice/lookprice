@@ -986,20 +986,18 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
       <section id="catalog" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-6 xl:gap-8 items-start">
           {/* Desktop Filter Sidebar */}
-          {themeConfig.preset_name !== "bookstore_netflix" && (
-            <div className="hidden lg:block w-60 xl:w-64 shrink-0 sticky top-28 z-10">
-              <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
-                <ShopFilterSidebar
+          <div className="hidden lg:block w-60 xl:w-64 shrink-0 sticky top-28 z-10">
+            <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
+              <ShopFilterSidebar
                 products={products}
                 filterState={filters}
                 onFilterChange={handleFilterChange}
                 onResetFilters={handleResetFilters}
                 lang={lang}
                 currency={store.currency || "TRY"}
-                />
-              </div>
+              />
             </div>
-          )}
+          </div>
 
           {/* Product Grid & Controls */}
           <div className="flex-1 min-w-0">
@@ -1286,7 +1284,7 @@ export const ModernShopRetailLayout: React.FC<ModernShopRetailLayoutProps> = ({
       {/* 10. Mobile Filter Drawer */}
       <AnimatePresence>
         {isMobileFiltersOpen && (
-          <div className={`fixed inset-0 z-[110] ${themeConfig.preset_name === 'bookstore_netflix' ? '' : 'lg:hidden'} overflow-hidden`}>
+          <div className="fixed inset-0 z-[110] lg:hidden overflow-hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

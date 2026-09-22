@@ -40,8 +40,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
-import PurchaseInvoices from "../../components/PurchaseInvoices";
-import SalesInvoices from "../../components/SalesInvoices";
 import { playHotelReservationChime } from "../../utils/hotelSound";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useDashboardController } from "../../hooks/useDashboardController";
@@ -52,11 +50,11 @@ import { useCompanies } from "../../hooks/useCompanies";
 import { useRealEstate } from "../../hooks/useRealEstate";
 import { api } from "../../services/api";
 import { User, Product } from "../../types";
-// import * as XLSX from 'xlsx';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from "sonner";
 import { handleDownloadQuotationPDF } from "../../utils/dashboardUtils";
 import { numberToTurkishWords } from "../../utils/formatUtils";
+import { resolveDomainId, hasSectorCapability } from "../../utils/sectorCapability";
 
 // Modular Components
 import { DashboardLayout } from "./DashboardLayout";
@@ -65,6 +63,8 @@ import { DashboardModals } from "./DashboardModals";
 // Lazy Tabs
 const CockpitTab = React.lazy(() => import("./CockpitTab"));
 const ProductsTab = React.lazy(() => import("./ProductsTab"));
+const PurchaseInvoices = React.lazy(() => import("../../components/PurchaseInvoices"));
+const SalesInvoices = React.lazy(() => import("../../components/SalesInvoices"));
 const AnalyticsTab = React.lazy(() => import("./AnalyticsTab"));
 const PortfolioAnalyticsTab = React.lazy(() => import("./PortfolioAnalyticsTab"));
 const PortfolioNotificationsTab = React.lazy(() => import("./PortfolioNotificationsTab").then(m => ({ default: m.PortfolioNotificationsTab })));
@@ -125,19 +125,14 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     branding, setBranding
   } = useDashboardController(user);
 
-  const isGapStore = 
-    slug?.toLowerCase() === 'gap' || 
-    branding?.slug?.toLowerCase() === 'gap' || 
-    branding?.store_name?.toUpperCase().includes('GAP') ||
-    user?.store_slug?.toLowerCase() === 'gap';
-
-  const isPortfolio = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive');
-  const isRealEstate = !isGapStore && (branding?.store_type === 'real_estate' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate');
-  const isAutomotive = !isGapStore && (branding?.store_type === 'motor_vehicle' || branding?.store_type === 'automotive' || branding?.page_layout_settings?.sector === 'automotive');
-  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
-  const isShopLp = !isPortfolio && !isCafeRestaurant;
-  const isHotelModuleActive = isCafeRestaurant && Boolean(branding?.hotel_module_enabled);
-  const isBookstoreModuleActive = (!isGapStore && !isRealEstate && !isAutomotive && !isCafeRestaurant) && Boolean(branding?.bookstore_module_enabled);
+  const domainId = resolveDomainId(branding);
+  const isRealEstate = domainId === 'REAL_ESTATE';
+  const isAutomotive = domainId === 'AUTOMOTIVE';
+  const isPortfolio = isRealEstate || isAutomotive;
+  const isCafeRestaurant = domainId === 'HORECA' || domainId === 'HOTEL';
+  const isHotelModuleActive = domainId === 'HOTEL';
+  const isBookstoreModuleActive = domainId === 'BOOKSTORE';
+  const isShopLp = domainId === 'RETAIL' || domainId === 'BOOKSTORE';
 
   // Cafe/Restaurant Role-based authorization state
   const [activeStaffRole, setActiveStaffRole] = useState<'manager' | 'cashier' | 'waiter'>(() => {
@@ -752,32 +747,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     }
   };
 
-  useEffect(() => {
-    if (!isHotelModuleActive && activeTab === 'hotel-rooms') {
-      setActiveTab('products');
-    }
-  }, [isHotelModuleActive, activeTab, setActiveTab]);
-
-  useEffect(() => {
-    if (isPortfolio && (['products', 'pos', 'fast-pos', 'procurements', 'stock_transfer', 'service'].includes(activeTab))) {
-      if (isAutomotive && !isRealEstate) {
-        setActiveTab('fleet');
-      } else {
-        setActiveTab('real_estate');
-      }
-    }
-  }, [isPortfolio, isAutomotive, isRealEstate, activeTab, setActiveTab]);
-
-  // Active role restricted tabs safety effect
-  useEffect(() => {
-    if (isCafeRestaurant) {
-      if (activeStaffRole === 'waiter' && activeTab !== 'fast-pos') {
-        setActiveTab('fast-pos');
-      } else if (activeStaffRole === 'cashier' && !['fast-pos', 'products', 'sales_invoices'].includes(activeTab)) {
-        setActiveTab('fast-pos');
-      }
-    }
-  }, [activeStaffRole, activeTab, isCafeRestaurant, setActiveTab]);
+  // Redirection effects have been unified below permittedTabIds definition for dynamic/lazy execution.
 
   const rawNavItems = isPortfolio ? [
     { type: 'category', key: "real_estate", title: txt('Portföy & İlan', 'Portfolios & Listings', 'Χαρτοφυλάκιο & Αγγελίες'), items: [
@@ -889,6 +859,52 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [rawNavItems, activeStaffRole, isCafeRestaurant, isTr, t.companies, t.purchase_invoices, t.procurements, t.stock_transfer]);
 
   const currentMenuItem: any = (navItems as any[]).flatMap(c => c.type === 'category' ? c.items : [c]).find(i => i && i.id === activeTab);
+
+  const permittedTabIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    navItems.forEach((item: any) => {
+      if (item.type === 'category') {
+        item.items?.forEach((child: any) => {
+          if (child?.id) ids.add(child.id);
+        });
+      } else if (item.id) {
+        ids.add(item.id);
+      }
+    });
+    // ALWAYS permit 'settings' and 'settings_yedekleme' as a fallback safety
+    ids.add('settings');
+    ids.add('settings_yedekleme');
+    return ids;
+  }, [navItems]);
+
+  // Bulletproof fallback redirection for unauthorized/unrelated tabs (Zero-Stale Tab Protocol)
+  useEffect(() => {
+    if (permittedTabIds.size > 0 && !permittedTabIds.has(activeTab)) {
+      // If we are in portfolio, prefer real_estate/fleet over fast-pos or default
+      if (isPortfolio) {
+        if (isAutomotive && !isRealEstate && permittedTabIds.has('fleet')) {
+          setActiveTab('fleet');
+          return;
+        }
+        if (permittedTabIds.has('real_estate')) {
+          setActiveTab('real_estate');
+          return;
+        }
+      }
+      
+      // If we are in cafe/restaurant, prefer fast-pos
+      if (isCafeRestaurant && permittedTabIds.has('fast-pos')) {
+        setActiveTab('fast-pos');
+        return;
+      }
+
+      // Default fallback
+      const firstTab = Array.from(permittedTabIds)[0];
+      if (firstTab) {
+        setActiveTab(firstTab);
+      }
+    }
+  }, [permittedTabIds, activeTab, setActiveTab, isPortfolio, isAutomotive, isRealEstate, isCafeRestaurant]);
 
   return (
     <DashboardLayout
@@ -1087,8 +1103,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
             className={`transition-opacity duration-200 max-w-full overflow-x-clip ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
           >
             <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}>
-              {activeTab === "faq" && isCafeRestaurant && <FaqTab />}
-              {activeTab === "products" && (
+              {activeTab === "faq" && isCafeRestaurant && permittedTabIds.has("faq") && <FaqTab />}
+              {activeTab === "products" && permittedTabIds.has("products") && (
                 <ProductsTab 
                   products={products}
                   loading={loading}
@@ -1117,7 +1133,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onRefresh={fetchProductsData}
                 />
               )}
-              {activeTab === "real_estate" && (
+              {activeTab === "real_estate" && permittedTabIds.has("real_estate") && (
                 <RealEstateTab 
                   properties={properties}
                   loading={realEstateLoading}
@@ -1130,10 +1146,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   storeId={currentStoreId!}
                 />
               )}
-              {activeTab === "fleet" && (
+              {activeTab === "fleet" && permittedTabIds.has("fleet") && (
                 <FleetTab storeId={currentStoreId!} isViewer={isViewer} branding={branding} />
               )}
-              {activeTab === "analytics" && (
+              {activeTab === "analytics" && permittedTabIds.has("analytics") && (
                 isPortfolio ? (
                   <PortfolioAnalyticsTab 
                     analytics={analytics} 
@@ -1151,7 +1167,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   />
                 )
               )}
-              {activeTab === "pos" && (
+              {activeTab === "pos" && permittedTabIds.has("pos") && (
                 <PosTab 
                   sales={sales}
                   loading={salesLoading}
@@ -1193,7 +1209,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   </motion.div>
                 </div>
               )}
-              {activeTab === "fast-pos" && (
+              {activeTab === "fast-pos" && permittedTabIds.has("fast-pos") && (
                 <FastPosTab 
                   branding={branding} 
                   onSaleComplete={handleSaleSuccess}
@@ -1203,7 +1219,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   setQuickProductForm={setQuickProductForm}
                 />
               )}
-              {activeTab === "sales_invoices" && !isPortfolio && (
+              {activeTab === "sales_invoices" && !isPortfolio && permittedTabIds.has("sales_invoices") && (
                 <SalesInvoices 
                   storeId={currentStoreId} 
                   role={user.role} 
@@ -1230,7 +1246,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   }}
                 />
               )}
-              {activeTab === "e_waybills" && !isPortfolio && (
+              {activeTab === "e_waybills" && !isPortfolio && permittedTabIds.has("e_waybills") && (
                 <EWaybillsTab 
                   storeId={currentStoreId} 
                   lang={lang} 
@@ -1238,7 +1254,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   branding={branding} 
                 />
               )}
-              {activeTab === "quotations" && (
+              {activeTab === "quotations" && permittedTabIds.has("quotations") && (
                 <QuotationsTab 
                   quotations={quotationList}
                   isViewer={isViewer}
@@ -1257,7 +1273,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onNewQuotation={() => { setEditingQuotation(null); setQuotationItems([]); setShowQuotationModal(true); }}
                 />
               )}
-              {activeTab === "companies" && (
+              {activeTab === "companies" && permittedTabIds.has("companies") && (
                 <CompaniesTab 
                   companies={companyList} 
                   isViewer={isViewer}
@@ -1271,10 +1287,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onNewCompany={() => { setEditingCompany(null); setShowCompanyModal(true); }}
                 />
               )}
-              {activeTab === "procurements" && (
+              {activeTab === "procurements" && permittedTabIds.has("procurements") && (
                 <ProcurementTab storeId={currentStoreId!} isViewer={isViewer} />
               )}
-              {activeTab === "purchase_invoices" && !isPortfolio && (
+              {activeTab === "purchase_invoices" && !isPortfolio && permittedTabIds.has("purchase_invoices") && (
                 <PurchaseInvoices 
                   storeId={currentStoreId} 
                   role={user.role} 
@@ -1301,7 +1317,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   }}
                 />
               )}
-              {activeTab === "stock_transfer" && (
+              {activeTab === "stock_transfer" && permittedTabIds.has("stock_transfer") && (
                 <StockTransferTab 
                   storeId={currentStoreId!} 
                   products={products}
@@ -1310,7 +1326,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onUpdate={fetchData}
                 />
               )}
-              {activeTab === "service" && (
+              {activeTab === "service" && permittedTabIds.has("service") && (
                 <ServiceTab 
                   storeId={currentStoreId!} 
                   isViewer={isViewer} 
@@ -1319,10 +1335,10 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onTabChange={(tab) => setActiveTab(tab)} 
                 />
               )}
-              {activeTab === "audit-logs" && (
+              {activeTab === "audit-logs" && permittedTabIds.has("audit-logs") && (
                 <AuditLogTab storeId={currentStoreId!} />
               )}
-              {(activeTab === "settings" || activeTab === "settings_yedekleme") && (
+              {(activeTab === "settings" || activeTab === "settings_yedekleme") && permittedTabIds.has(activeTab) && (
                 <SettingsTab 
                   branding={branding}
                   onBrandingChange={onBrandingChange}
@@ -1344,23 +1360,23 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   savingBranding={savingBranding}
                 />
               )}
-              {activeTab === "blog" && (
+              {activeTab === "blog" && permittedTabIds.has("blog") && (
                 <BlogTab 
                   storeId={currentStoreId!} 
                   storeName={branding?.store_name || branding?.name || ""} 
                   isTr={lang === 'tr'} 
                 />
               )}
-              {activeTab === "seo" && (
+              {activeTab === "seo" && permittedTabIds.has("seo") && (
                 <SEOTab storeId={currentStoreId!} />
               )}
-              {activeTab === "meta" && (
+              {activeTab === "meta" && permittedTabIds.has("meta") && (
                 <MetaIntegrationTab />
               )}
-              {activeTab === "google-merchant" && (
+              {activeTab === "google-merchant" && permittedTabIds.has("google-merchant") && (
                 <GoogleMerchantTab />
               )}
-              {activeTab === "hotel-rooms" && isHotelModuleActive && (
+              {activeTab === "hotel-rooms" && isHotelModuleActive && permittedTabIds.has("hotel-rooms") && (
                 <HotelRoomManagement 
                   storeId={currentStoreId!} 
                   isTr={isTr} 
@@ -1370,13 +1386,13 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   }}
                 />
               )}
-              {activeTab === "notifications" && (
+              {activeTab === "notifications" && permittedTabIds.has("notifications") && (
                 <PortfolioNotificationsTab analytics={analytics} />
               )}
-              {activeTab === "website-generator" && (
+              {activeTab === "website-generator" && permittedTabIds.has("website-generator") && (
                 <PortfolioWebsiteGeneratorTab storeId={currentStoreId!} />
               )}
-              {activeTab === "team-crm" && (
+              {activeTab === "team-crm" && permittedTabIds.has("team-crm") && (
                 <TeamCrmTab 
                   storeId={currentStoreId!} 
                   storeName={branding?.store_name || branding?.name || ""}
@@ -1384,17 +1400,17 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   isRealEstate={isRealEstate}
                 />
               )}
-              {activeTab === "real_estate_crm" && (
+              {activeTab === "real_estate_crm" && permittedTabIds.has("real_estate_crm") && (
                 <RealEstateCrmTab 
                   contacts={contacts}
                   onSaveContact={saveContact}
                   onDeleteContact={deleteContact}
                 />
               )}
-              {activeTab === "radar_alerts" && (
+              {activeTab === "radar_alerts" && permittedTabIds.has("radar_alerts") && (
                 <RadarAlertsTab sector={branding?.sector || branding?.store_type} />
               )}
-              {activeTab === "authority_transfer" && (
+              {activeTab === "authority_transfer" && permittedTabIds.has("authority_transfer") && (
                 <AuthorityTransferTab 
                   storeId={currentStoreId!} 
                   properties={properties} 
@@ -1403,7 +1419,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   onUpdate={fetchData}
                 />
               )}
-              {activeTab === "portfolio_finances" && (
+              {activeTab === "portfolio_finances" && permittedTabIds.has("portfolio_finances") && (
                 <PortfolioFinancesTab 
                   storeId={currentStoreId!} 
                   isAutomotive={isAutomotive} 

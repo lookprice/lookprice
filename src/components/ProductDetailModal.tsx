@@ -31,6 +31,7 @@ import SEO from "./SEO";
 import { Product, Store as StoreInfo } from "../types";
 import { getColorHex } from "../utils/variantPresets";
 import { getLabels } from "../utils/showcase";
+import { isBookstoreStore } from "../utils/storeType";
 
 const MAP_KEY = import.meta.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || "";
 
@@ -804,23 +805,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <div className="flex-1 min-h-0 p-3.5 sm:p-4 md:p-5 overflow-y-auto no-scrollbar space-y-2.5">
             {/* Metadata Badges (Category, Author, Publisher, Brand, Stock) */}
             {(() => {
-              const isBook = Boolean(
+              const isStoreBookstore = isBookstoreStore(store);
+              const hasExplicitBookData = Boolean(
                 (product.sector_data as any)?.isbn ||
                 (product.sector_data as any)?.author ||
-                product.author ||
                 (product.sector_data as any)?.publisher ||
                 (product.sector_data as any)?.page_count ||
                 (product.sector_data as any)?.cover_type ||
                 (product.sector_data as any)?.synopsis ||
-                (product.sector_data as any)?.translator ||
-                store?.branding?.bookstore_module_enabled ||
-                (store as any)?.bookstore_module_enabled ||
-                store?.branding?.active_preset === 'bookstore_netflix'
+                (product.sector_data as any)?.translator
               );
+              const isBook = isStoreBookstore || hasExplicitBookData;
 
               const authorName = (product.author || (product.sector_data as any)?.author || "").trim();
-              const publisherName = ((product.sector_data as any)?.publisher || (isBook ? product.brand : "") || "").trim();
-              const brandName = (!isBook ? product.brand : "")?.trim();
+              const publisherName = ((product.sector_data as any)?.publisher || (isBook && authorName ? product.brand : "") || "").trim();
+              const brandName = (publisherName ? "" : product.brand || "")?.trim();
 
               return (
                 <div className="flex flex-wrap gap-1.5 items-center">

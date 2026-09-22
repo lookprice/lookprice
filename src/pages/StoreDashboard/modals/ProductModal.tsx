@@ -76,17 +76,18 @@ export const ProductModal = ({
   const isShopLp = !isCafeRestaurant && !isPortfolio;
   const connectedMarketplaces = useMemo(() => getConnectedMarketplaces(branding), [branding]);
   const isHbEnabled = isShopLp && connectedMarketplaces.hepsiburada;
-  const isBookstore = Boolean(
-    branding?.bookstore_module_enabled ||
-    branding?.branding?.bookstore_module_enabled ||
-    branding?.page_layout_settings?.active_preset === 'bookstore_netflix' ||
-    branding?.branding?.page_layout_settings?.active_preset === 'bookstore_netflix' ||
-    branding?.active_preset === 'bookstore_netflix' ||
+  const isGapStore = 
+    branding?.slug?.toLowerCase() === 'gap' || 
+    branding?.store_name?.toUpperCase().includes('GAP') ||
+    branding?.name?.toUpperCase().includes('GAP');
+
+  const isBookstore = !isGapStore && !isPortfolio && !isCafeRestaurant && Boolean(
+    branding?.bookstore_module_enabled === true ||
+    branding?.branding?.bookstore_module_enabled === true ||
+    branding?.bookstore_license_enabled === true ||
+    branding?.branding?.bookstore_license_enabled === true ||
     branding?.store_type === 'bookstore' ||
-    branding?.product_label === 'Kitap' ||
-    branding?.branding?.product_label === 'Kitap' ||
-    branding?.page_layout_settings?.sector === 'bookstore' ||
-    branding?.page_layout_settings?.sub_sector === 'bookstore'
+    branding?.page_layout_settings?.sector === 'bookstore'
   );
 
   useEffect(() => {

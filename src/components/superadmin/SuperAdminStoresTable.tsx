@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Filter, Download, Database, Users, ChevronRight, Edit2, Trash2, Building2 } from "lucide-react";
+import { Search, Filter, Download, Database, Users, ChevronRight, Edit2, Trash2, Building2, Layers } from "lucide-react";
 import { Store } from "../../types/superadmin";
 import StoreLogo from "../StoreLogo";
 
@@ -16,6 +16,7 @@ interface SuperAdminStoresTableProps {
   setStoreToDelete: (store: Store) => void;
   onToggleHotel?: (store: Store) => void;
   onToggleBookstore?: (store: Store) => void;
+  onNavigateToMultiTenancy?: (store: Store) => void;
 }
 
 export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
@@ -30,7 +31,8 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
   setEditingStore,
   setStoreToDelete,
   onToggleHotel,
-  onToggleBookstore
+  onToggleBookstore,
+  onNavigateToMultiTenancy
 }) => {
   const filteredStores = stores.filter(s => {
     const storeSearchTerms = storeSearchTerm.toLowerCase().split(' ').filter(Boolean);
@@ -243,6 +245,15 @@ export const SuperAdminStoresTable: React.FC<SuperAdminStoresTableProps> = ({
                             </button>
                           ) : null;
                         })()}
+                        {onNavigateToMultiTenancy && (
+                          <button 
+                            onClick={() => onNavigateToMultiTenancy(store)}
+                            className="p-2 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 rounded-lg transition-all"
+                            title="Multi-Tenancy Konfigürasyon Merkezi"
+                          >
+                            <Layers className="h-4 w-4" />
+                          </button>
+                        )}
                         <button 
                           onClick={() => setSelectedStore(store)}
                           className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"

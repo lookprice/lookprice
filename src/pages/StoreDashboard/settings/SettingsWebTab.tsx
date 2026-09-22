@@ -75,13 +75,17 @@ export const SettingsWebTab = ({
 }: SettingsWebTabProps) => {
   const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
   const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
-  const isBookstore = Boolean(
-    branding?.bookstore_module_enabled ||
-    branding?.active_preset === 'bookstore_netflix' ||
+  const isGapStore = 
+    branding?.slug?.toLowerCase() === 'gap' || 
+    branding?.store_name?.toUpperCase().includes('GAP') ||
+    branding?.name?.toUpperCase().includes('GAP');
+
+  const isBookstore = !isGapStore && !isPortfolio && !isCafeRestaurant && Boolean(
+    branding?.bookstore_module_enabled === true ||
+    branding?.bookstore_license_enabled === true ||
     branding?.store_concept === 'bookstore' ||
     branding?.sector === 'bookstore' ||
-    branding?.page_layout_settings?.sector === 'bookstore' ||
-    (branding as any)?.bookstore_theme
+    branding?.page_layout_settings?.sector === 'bookstore'
   );
 
   const [activeSubTab, setActiveSubTab] = useState<'brand' | 'theme' | 'labels' | 'legal' | 'contact' | 'analytics'>('brand');

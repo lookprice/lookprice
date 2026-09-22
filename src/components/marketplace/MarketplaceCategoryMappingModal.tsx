@@ -1,29 +1,29 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  X, Search, Sparkles, Layers, Settings2, CheckCircle2, AlertCircle, 
-  ChevronRight, ChevronDown, ChevronUp, Save, RefreshCw, SlidersHorizontal, ArrowRight, 
-  HelpCircle, Trash2, Check, Info, ShieldCheck, Tag, Laptop, Smartphone,
-  Tv, Shirt, Home, Wrench, LayoutGrid, FolderTree, Filter, Percent
+  AlertCircle, Save, Info
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
 import { 
   MarketplaceCategory, 
   MarketplaceAttribute,
-  MARKETPLACE_SECTORS,
-  MarketplaceSectorOption,
   detectCategorySector,
   HEPSIBURADA_DEFAULT_CATEGORIES,
   TRENDYOL_DEFAULT_CATEGORIES,
   AMAZON_DEFAULT_CATEGORIES,
   PAZARAMA_DEFAULT_CATEGORIES,
   getAttributesForCategory,
-  suggestMarketplaceCategory,
-  normalizeCategoryText,
-  matchCategorySearchToken
+  suggestMarketplaceCategory
 } from '@/data/marketplaceCategoriesData';
 
-export type MarketplaceType = 'hepsiburada' | 'trendyol' | 'amazon' | 'pazarama';
+import { MarketplaceType, LocalCategoryItem } from './categoryMapping/types';
+import { CategoryAttributeModal } from './categoryMapping/CategoryAttributeModal';
+import { CommissionSettingsBar } from './categoryMapping/CommissionSettingsBar';
+import { SectorFilterBar } from './categoryMapping/SectorFilterBar';
+import { CategoryMappingHeader } from './categoryMapping/CategoryMappingHeader';
+import { CategoryMappingRow } from './categoryMapping/CategoryMappingRow';
+
+export type { MarketplaceType, LocalCategoryItem };
 
 interface MarketplaceCategoryMappingModalProps {
   isOpen: boolean;
@@ -36,27 +36,6 @@ interface MarketplaceCategoryMappingModalProps {
   onBrandingChange?: (field: string, value: any) => void;
   onRefresh?: () => void;
   lang?: string;
-}
-
-const PRODUCT_FIELD_OPTIONS = [
-  { value: '$product.brand', label: 'Ürün Markası (Brand / Marka)' },
-  { value: '$product.name', label: 'Ürün Adı (Product Name)' },
-  { value: '$product.barcode', label: 'Barkod / SKU (Barcode)' },
-  { value: '$product.description', label: 'Ürün Açıklaması (Description)' },
-  { value: '$product.category', label: 'Mağaza Kategorisi' },
-  { value: '$product.sub_category', label: 'Alt Kategori' },
-  { value: '$product.variant_color', label: 'Varyant Rengi (Color Swatch)' },
-  { value: '$product.variant_size', label: 'Varyant Bedeni / Ölçüsü (Size)' },
-  { value: '$product.tax_rate', label: 'KDV Oranı (%)' },
-  { value: '$product.price', label: 'Satış Fiyatı (Price)' }
-];
-
-export interface LocalCategoryItem {
-  key: string;
-  mainCategory: string;
-  subCategory?: string;
-  isSubCategory: boolean;
-  productCount: number;
 }
 
 export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappingModalProps> = ({
@@ -75,10 +54,10 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   const [saving, setSaving] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
 
-  // Sector Filtering State (e.g. 'all', 'computer', 'phone', 'electronics', 'fashion', 'home', 'auto')
+  // Sector Filtering State
   const [selectedSector, setSelectedSector] = useState<string>('all');
   
-  // Local Category Scope Filter (e.g. 'all', 'sub', 'main', 'unmapped')
+  // Local Category Scope Filter
   const [localScopeFilter, setLocalScopeFilter] = useState<'all' | 'sub' | 'main' | 'unmapped'>('all');
 
   // Active Category Dropdown Search & State
@@ -103,7 +82,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   });
 
   // Local category attributes configuration per marketplace
-  // Structure: { [marketplace]: { [categoryId]: { [attributeId]: { mode: 'fixed' | 'field', value: string } } } }
   const [attributesConfig, setAttributesConfig] = useState<Record<MarketplaceType, Record<string, Record<string, any>>>>({
     hepsiburada: branding.hepsiburada_settings?.categoryAttributes || {},
     trendyol: branding.trendyol_settings?.categoryAttributes || {},
@@ -112,7 +90,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   });
 
   // Category-specific Commission & Markup configuration per marketplace
-  // Structure: { [marketplace]: { [localCategoryKey]: { commissionRate?: number, fixedFee?: number } } }
   const [categoryMarkups, setCategoryMarkups] = useState<Record<MarketplaceType, Record<string, { commissionRate?: number; fixedFee?: number }>>>({
     hepsiburada: branding.hepsiburada_settings?.categoryMarkups || {},
     trendyol: branding.trendyol_settings?.categoryMarkups || {},
@@ -134,9 +111,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     amazon: branding.amazon_settings?.defaultFixedFee ?? 20,
     pazarama: branding.pazarama_settings?.defaultFixedFee ?? 20
   });
-
-  const [showPricingFormulaInfo, setShowPricingFormulaInfo] = useState(false);
-  const [isCommissionOpen, setIsCommissionOpen] = useState(false);
 
   // Sync state whenever modal opens or branding changes
   useEffect(() => {
@@ -236,9 +210,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             }));
           }
         })
-        .catch(() => {
-          // Keep curated default categories
-        });
+        .catch(() => {});
     } else if (activeMarketplace === 'trendyol') {
       api.getTrendyolCategories()
         .then((res) => {
@@ -256,9 +228,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             }));
           }
         })
-        .catch(() => {
-          // Keep curated default categories
-        });
+        .catch(() => {});
     } else if (activeMarketplace === 'pazarama') {
       api.getPazaramaCategories(currentStoreId)
         .then((res) => {
@@ -275,9 +245,7 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
             }));
           }
         })
-        .catch(() => {
-          // Keep curated default categories
-        });
+        .catch(() => {});
     }
   }, [isOpen, activeMarketplace, currentStoreId]);
 
@@ -331,7 +299,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
       const cat2 = p.category_2 ? String(p.category_2).trim() : '';
       const sub2 = p.sub_category_2 ? String(p.sub_category_2).trim() : '';
 
-      // 1. Primary Hierarchical Sub-Category (e.g. "BELLEK&HAFIZA KARTLARI > USB BELLEK")
       if (cat1 && sub1) {
         const key = `${cat1} > ${sub1}`;
         if (!itemMap.has(key)) {
@@ -346,7 +313,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         itemMap.get(key)!.productCount += 1;
       }
 
-      // 2. Primary Main Category (e.g. "BELLEK&HAFIZA KARTLARI")
       if (cat1) {
         const key = cat1;
         if (!itemMap.has(key)) {
@@ -360,7 +326,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
         itemMap.get(key)!.productCount += 1;
       }
 
-      // 3. Secondary Category & Subcategory if exists
       if (cat2 && sub2) {
         const key = `${cat2} > ${sub2}`;
         if (!itemMap.has(key)) {
@@ -387,7 +352,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
       }
     });
 
-    // Sub-categories first, then descending by product count
     return Array.from(itemMap.values()).sort((a, b) => {
       if (a.isSubCategory && !b.isSubCategory) return -1;
       if (!a.isSubCategory && b.isSubCategory) return 1;
@@ -397,27 +361,16 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
   const localCategories = useMemo(() => localCategoryItems.map((i) => i.key), [localCategoryItems]);
 
-  // Count of products per local category key
-  const productCountPerCategory = useMemo(() => {
-    const counts: Record<string, number> = {};
-    localCategoryItems.forEach((i) => {
-      counts[i.key] = i.productCount;
-    });
-    return counts;
-  }, [localCategoryItems]);
-
   // Statistics for active marketplace
   const currentMappings = mappings[activeMarketplace] || {};
   const mappedCount = localCategories.filter((cat) => !!currentMappings[cat]).length;
   const totalCount = localCategories.length;
   const completionPercent = totalCount > 0 ? Math.round((mappedCount / totalCount) * 100) : 0;
 
-  // Subcategory and main category counts
   const subCategoryCount = localCategoryItems.filter((i) => i.isSubCategory).length;
   const mainCategoryCount = localCategoryItems.filter((i) => !i.isSubCategory).length;
   const unmappedCount = localCategories.filter((cat) => !currentMappings[cat]).length;
 
-  // Handler: Set single mapping
   const handleSelectMapping = (localCat: string, marketCatId: string | number) => {
     setMappings((prev) => ({
       ...prev,
@@ -431,7 +384,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     toast.success(`"${localCat}" kategorisi eşleştirildi.`);
   };
 
-  // Handler: Clear mapping
   const handleRemoveMapping = (localCat: string) => {
     setMappings((prev) => {
       const nextMap = { ...prev[activeMarketplace] };
@@ -444,7 +396,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     toast.info(`"${localCat}" eşleştirmesi kaldırıldı.`);
   };
 
-  // Handler: Smart Auto-Match with sector awareness and subcategory prioritization
   const handleAutoMatch = () => {
     const availableCats = marketCategories[activeMarketplace] || [];
     if (availableCats.length === 0) {
@@ -457,7 +408,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
     localCategoryItems.forEach((item) => {
       if (!updated[item.key]) {
-        // If sector selected and not 'all', try sector categories first
         let pool = availableCats;
         if (selectedSector !== 'all') {
           const sectorCats = availableCats.filter((c) => (c.sector || detectCategorySector(c.name, c.paths)) === selectedSector);
@@ -471,7 +421,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           updated[item.key] = String(bestMatch.id);
           newlyMatched++;
         } else if (pool !== availableCats) {
-          // Fallback to all categories
           const fallback = suggestMarketplaceCategory(item.key, availableCats);
           if (fallback.bestMatch && fallback.score >= 35) {
             updated[item.key] = String(fallback.bestMatch.id);
@@ -492,7 +441,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     }
   };
 
-  // Open attributes configurator for a mapped category
   const handleOpenAttributes = async (localCat: string, marketCatId: string | number) => {
     const availableCats = marketCategories[activeMarketplace] || [];
     const matched = availableCats.find((c) => String(c.id) === String(marketCatId));
@@ -523,7 +471,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
           setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || []));
         }
       } else {
-        // Fallback for other marketplaces
         setCurrentCategoryAttributes(getAttributesForCategory(catName, matched?.paths || []));
       }
     } catch (e) {
@@ -533,7 +480,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     }
   };
 
-  // Set attribute configuration for a specific attribute
   const handleUpdateAttributeValue = (attrId: string, mode: 'fixed' | 'field', value: string) => {
     if (!attributeModalCategory) return;
     const catId = String(attributeModalCategory.marketCatId);
@@ -555,7 +501,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     });
   };
 
-  // Quick fill recommended defaults for attributes
   const handleAutoFillAttributes = () => {
     if (!attributeModalCategory) return;
     const catId = String(attributeModalCategory.marketCatId);
@@ -603,7 +548,6 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
     toast.success('Önerilen varsayılan alanlar otomatik dolduruldu.');
   };
 
-  // Save all settings for the active marketplace
   const handleSaveAll = async () => {
     setSaving(true);
     try {
@@ -691,40 +635,31 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
 
   if (!isOpen) return null;
 
-  const currentAvailableMarketCats = useMemo(() => {
-    return (marketCategories[activeMarketplace] || []).map((c) => ({
-      ...c,
-      sector: c.sector || detectCategorySector(c.name || c.displayName || '', c.paths || [])
-    }));
-  }, [marketCategories, activeMarketplace]);
+  const currentAvailableMarketCats = (marketCategories[activeMarketplace] || []).map((c) => ({
+    ...c,
+    sector: c.sector || detectCategorySector(c.name || c.displayName || '', c.paths || [])
+  }));
 
-  // Categories filtered by the selected sector
-  const sectorFilteredMarketCats = useMemo(() => {
-    if (selectedSector === 'all') return currentAvailableMarketCats;
-    return currentAvailableMarketCats.filter((c) => c.sector === selectedSector);
-  }, [currentAvailableMarketCats, selectedSector]);
+  const sectorFilteredMarketCats = selectedSector === 'all' 
+    ? currentAvailableMarketCats 
+    : currentAvailableMarketCats.filter((c) => c.sector === selectedSector);
 
-  // Filter local category items by search term and local scope
-  const filteredLocalCategoryItems = useMemo(() => {
-    return localCategoryItems.filter((item) => {
-      const mappedId = currentMappings[item.key];
+  const filteredLocalCategoryItems = localCategoryItems.filter((item) => {
+    const mappedId = currentMappings[item.key];
 
-      // Text search
-      if (searchFilter.trim()) {
-        const s = searchFilter.toLowerCase();
-        const matchKey = item.key.toLowerCase().includes(s);
-        const matchMapped = mappedId && String(mappedId).includes(s);
-        if (!matchKey && !matchMapped) return false;
-      }
+    if (searchFilter.trim()) {
+      const s = searchFilter.toLowerCase();
+      const matchKey = item.key.toLowerCase().includes(s);
+      const matchMapped = mappedId && String(mappedId).includes(s);
+      if (!matchKey && !matchMapped) return false;
+    }
 
-      // Scope filter: all, sub, main, unmapped
-      if (localScopeFilter === 'sub' && !item.isSubCategory) return false;
-      if (localScopeFilter === 'main' && item.isSubCategory) return false;
-      if (localScopeFilter === 'unmapped' && !!mappedId) return false;
+    if (localScopeFilter === 'sub' && !item.isSubCategory) return false;
+    if (localScopeFilter === 'main' && item.isSubCategory) return false;
+    if (localScopeFilter === 'unmapped' && !!mappedId) return false;
 
-      return true;
-    });
-  }, [localCategoryItems, searchFilter, localScopeFilter, currentMappings]);
+    return true;
+  });
 
   const activeMarketplaceConfig = {
     hepsiburada: {
@@ -749,345 +684,63 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
       activeTabBg: 'bg-blue-600 text-white',
       ringColor: 'focus:border-blue-500',
       accentColor: 'text-blue-600',
-      tag: 'SP-API Partner'
+      tag: 'SP-API Listings'
     },
     pazarama: {
       title: 'Pazarama',
-      badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-      activeTabBg: 'bg-indigo-600 text-white',
-      ringColor: 'focus:border-indigo-500',
-      accentColor: 'text-indigo-600',
+      badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      activeTabBg: 'bg-emerald-600 text-white',
+      ringColor: 'focus:border-emerald-500',
+      accentColor: 'text-emerald-600',
       tag: 'Pazarama API'
     }
   }[activeMarketplace];
-
-  // Helper: Icon for sector
-  const getSectorIcon = (sectorId: string) => {
-    switch (sectorId) {
-      case 'computer': return <Laptop className="h-3.5 w-3.5" />;
-      case 'phone': return <Smartphone className="h-3.5 w-3.5" />;
-      case 'electronics': return <Tv className="h-3.5 w-3.5" />;
-      case 'fashion': return <Shirt className="h-3.5 w-3.5" />;
-      case 'home': return <Home className="h-3.5 w-3.5" />;
-      case 'auto': return <Wrench className="h-3.5 w-3.5" />;
-      default: return <LayoutGrid className="h-3.5 w-3.5" />;
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-2 md:p-4 overflow-y-auto animate-fade-in">
       <div className="bg-white w-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[94vh] overflow-hidden my-auto">
         
-        {/* MODAL HEADER */}
-        <div className="px-4 py-2.5 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/80">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-1.5 bg-slate-900 text-white rounded-xl shadow-xs">
-              <Layers className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="text-sm md:text-base font-bold text-slate-900 flex items-center gap-1.5">
-                <span>{lang === 'tr' ? 'Pazaryeri Kategori & Özellik Eşleştirme' : 'Marketplace Category & Attribute Mapping'}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  Hiyerarşik Alt Kategori Destekli
-                </span>
-              </h2>
-              <p className="text-[11px] text-slate-500 font-medium">
-                {lang === 'tr' 
-                  ? 'Ürünlerinizin alt kategorilerini resmi pazaryeri kategorileriyle sektörel olarak eşleştirin.' 
-                  : 'Map store sub-categories with official marketplace categories using sector-based filtering.'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        {/* HEADER & TABS */}
+        <CategoryMappingHeader
+          onClose={onClose}
+          activeMarketplace={activeMarketplace}
+          setActiveMarketplace={setActiveMarketplace}
+          mappings={mappings}
+          localCategories={localCategories}
+          handleAutoMatch={handleAutoMatch}
+          localScopeFilter={localScopeFilter}
+          setLocalScopeFilter={setLocalScopeFilter}
+          totalCount={totalCount}
+          subCategoryCount={subCategoryCount}
+          mainCategoryCount={mainCategoryCount}
+          unmappedCount={unmappedCount}
+          completionPercent={completionPercent}
+          mappedCount={mappedCount}
+          searchFilter={searchFilter}
+          setSearchFilter={setSearchFilter}
+          lang={lang}
+        />
 
-        {/* MARKETPLACE TABS SELECTOR */}
-        <div className="px-4 py-1.5 bg-white border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5">
-            {(['hepsiburada', 'trendyol', 'amazon', 'pazarama'] as MarketplaceType[]).map((m) => {
-              const count = localCategories.filter((c) => !!mappings[m]?.[c]).length;
-              const isSelected = activeMarketplace === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => {
-                    setActiveMarketplace(m);
-                    setOpenDropdownFor(null);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                    isSelected
-                      ? `${activeMarketplaceConfig.activeTabBg} shadow-xs`
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <span className="capitalize">{m === 'amazon' ? 'Amazon TR' : m}</span>
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
-                    isSelected ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {count}/{totalCount}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        {/* PRICING STRATEGY & REVERSE MARGIN COMMISSION BANNER */}
+        <CommissionSettingsBar
+          activeMarketplace={activeMarketplace}
+          activeMarketplaceTitle={activeMarketplaceConfig.title}
+          defaultCommissionRates={defaultCommissionRates}
+          setDefaultCommissionRates={setDefaultCommissionRates}
+          defaultFixedFees={defaultFixedFees}
+          setDefaultFixedFees={setDefaultFixedFees}
+          calculateSimulatedPrice={calculateSimulatedPrice}
+          lang={lang}
+        />
 
-          <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={handleAutoMatch}
-              className="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
-              title="Alt kategori ve ana kategori isimlerine göre otomatik akıllı eşleme yap"
-            >
-              <Sparkles className="h-3 w-3" />
-              <span>{lang === 'tr' ? 'Akıllı Otomatik Eşleştir' : 'Auto Match'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* COLLAPSIBLE PRICING STRATEGY & REVERSE MARGIN COMMISSION BANNER (DEFAULT CLOSED) */}
-        <div className="border-b border-slate-700 bg-slate-900 text-white">
-          <div 
-            onClick={() => setIsCommissionOpen(!isCommissionOpen)}
-            className="px-4 py-1.5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-between cursor-pointer select-none transition-all hover:bg-slate-800"
-          >
-            <div className="flex items-center space-x-2 overflow-x-auto py-0.5">
-              <Percent className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              <span className="text-[11px] font-black uppercase text-amber-400 tracking-wide whitespace-nowrap">
-                {activeMarketplaceConfig.title} {lang === 'tr' ? 'Fiyat & Komisyon Stratejisi' : 'Pricing Strategy'}
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/10 text-slate-200 font-mono whitespace-nowrap border border-white/10">
-                {lang === 'tr' ? 'Genel:' : 'Def:'} %{defaultCommissionRates[activeMarketplace] ?? 18} + {defaultFixedFees[activeMarketplace] ?? 20} TL
-              </span>
-              <span className="hidden md:inline text-[10px] text-amber-300 font-mono whitespace-nowrap">
-                (1.000 TL Web ➔ {calculateSimulatedPrice(1000, defaultCommissionRates[activeMarketplace] ?? 18, defaultFixedFees[activeMarketplace] ?? 20).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL)
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-1.5 shrink-0 pl-2">
-              <span className="text-[10px] text-slate-300 font-medium">
-                {isCommissionOpen ? (lang === 'tr' ? 'Formülü Gizle' : 'Hide') : (lang === 'tr' ? 'Formülü Düzenle' : 'Edit')}
-              </span>
-              {isCommissionOpen ? (
-                <ChevronUp className="h-3.5 w-3.5 text-amber-300" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 text-amber-300" />
-              )}
-            </div>
-          </div>
-
-          {isCommissionOpen && (
-            <div className="px-4 py-2.5 bg-slate-900 border-t border-slate-700/80 space-y-2 animate-fade-in">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
-                <div className="space-y-0.5">
-                  <p className="text-[10px] text-slate-300">
-                    {lang === 'tr' 
-                      ? 'Pazaryeri komisyon ve kargo kesintisi yapıldığında kasanıza net fiyatın kalması için fiyat ters marjla otomatik yükseltilir.'
-                      : 'Prices are marked up dynamically so your net profit remains equal to your store price.'}
-                  </p>
-                </div>
-
-                <div className="flex items-center space-x-2 shrink-0 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
-                  <div className="flex items-center space-x-1">
-                    <span className="text-[10px] font-bold text-slate-300 uppercase">{lang === 'tr' ? 'Komisyon:' : 'Comm:'}</span>
-                    <div className="flex items-center bg-slate-900/90 rounded px-1.5 py-0.5 border border-white/20">
-                      <span className="text-[10px] font-bold text-amber-400 mr-0.5">%</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="99"
-                        step="0.5"
-                        value={defaultCommissionRates[activeMarketplace] ?? 18}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          setDefaultCommissionRates((prev) => ({ ...prev, [activeMarketplace]: isNaN(v) ? 0 : v }));
-                        }}
-                        className="w-10 bg-transparent text-[11px] font-black text-white focus:outline-hidden text-right"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-1">
-                    <span className="text-[10px] font-bold text-slate-300 uppercase">{lang === 'tr' ? 'Sabit Gider:' : 'Fixed:'}</span>
-                    <div className="flex items-center bg-slate-900/90 rounded px-1.5 py-0.5 border border-white/20">
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={defaultFixedFees[activeMarketplace] ?? 20}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          setDefaultFixedFees((prev) => ({ ...prev, [activeMarketplace]: isNaN(v) ? 0 : v }));
-                        }}
-                        className="w-10 bg-transparent text-[11px] font-black text-white focus:outline-hidden text-right"
-                      />
-                      <span className="text-[10px] font-bold text-slate-300 ml-0.5">TL</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPricingFormulaInfo(!showPricingFormulaInfo)}
-                    className="text-[10px] px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-slate-200 border border-white/20 flex items-center gap-1 cursor-pointer transition-all"
-                  >
-                    <Info className="h-3 w-3 text-amber-300" />
-                    <span>{showPricingFormulaInfo ? (lang === 'tr' ? 'Kapat' : 'Hide') : (lang === 'tr' ? 'Detay' : 'Details')}</span>
-                  </button>
-                </div>
-              </div>
-
-              {showPricingFormulaInfo && (
-                <div className="pt-2 border-t border-white/10 text-[10px] grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-200">
-                  <div className="bg-white/5 p-2 rounded-lg border border-white/10 space-y-0.5">
-                    <p className="font-bold text-white flex items-center gap-1">
-                      <span className="text-amber-400">📐</span> {lang === 'tr' ? 'Ters Marj Formülü:' : 'Formula:'}
-                    </p>
-                    <div className="font-mono text-[10px] bg-slate-950/80 p-1.5 rounded text-emerald-400 border border-white/10 overflow-x-auto">
-                      Fiyat_Pazaryeri = (Fiyat_Web + Sabit_Gider) / (1 - (Komisyon_Oranı / 100))
-                    </div>
-                  </div>
-
-                  <div className="bg-white/5 p-2 rounded-lg border border-white/10 space-y-0.5">
-                    <p className="font-bold text-white flex items-center gap-1">
-                      <span className="text-amber-400">💡</span> {lang === 'tr' ? 'Kategori Bazlı Özel Komisyon:' : 'Category Overrides:'}
-                    </p>
-                    <p className="text-[10px] text-slate-300">
-                      {lang === 'tr' 
-                        ? 'Aşağıdaki her kategori satırından özel komisyon (%) ve sabit pay (TL) tanımlayabilirsiniz. Boş bırakılanlar bu genel oranları kullanır.'
-                        : 'You can set category-specific rates on individual rows below. Empty rows automatically inherit defaults.'}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* SECTOR FILTER BAR (SEKTÖREL KATEGORİ SEÇİMİ) */}
-        <div className="px-4 py-1.5 bg-slate-50 border-b border-slate-200/80">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
-              <Filter className="h-3 w-3 text-indigo-600" />
-              {lang === 'tr' ? 'Pazaryeri Sektör Filtresi:' : 'Marketplace Sector Filter:'}
-            </span>
-            <span className="text-[9px] text-slate-400 font-medium">
-              {sectorFilteredMarketCats.length} {lang === 'tr' ? 'kategori listeleniyor' : 'categories available'}
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-            {MARKETPLACE_SECTORS.map((sector) => {
-              const isCurrent = selectedSector === sector.id;
-              const sectorCatsCount = sector.id === 'all' 
-                ? currentAvailableMarketCats.length 
-                : currentAvailableMarketCats.filter((c) => c.sector === sector.id).length;
-
-              return (
-                <button
-                  key={sector.id}
-                  type="button"
-                  onClick={() => setSelectedSector(sector.id)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center space-x-1 whitespace-nowrap cursor-pointer border ${
-                    isCurrent
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'
-                  }`}
-                  title={sector.description}
-                >
-                  {getSectorIcon(sector.id)}
-                  <span>{sector.name}</span>
-                  <span className={`text-[9px] px-1 py-0.2 rounded-full font-mono ${
-                    isCurrent ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {sectorCatsCount}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* PROGRESS, SEARCH & SCOPE TABS */}
-        <div className="px-4 py-1.5 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-          {/* SCOPE TABS */}
-          <div className="flex items-center space-x-1 overflow-x-auto py-0.5">
-            <button
-              type="button"
-              onClick={() => setLocalScopeFilter('all')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
-                localScopeFilter === 'all' 
-                  ? 'bg-slate-200 text-slate-900' 
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {lang === 'tr' ? 'Tümü' : 'All'} ({totalCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setLocalScopeFilter('sub')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors flex items-center space-x-1 cursor-pointer ${
-                localScopeFilter === 'sub' 
-                  ? 'bg-purple-100 text-purple-900' 
-                  : 'text-purple-700 hover:bg-purple-50'
-              }`}
-            >
-              <FolderTree className="h-3 w-3" />
-              <span>{lang === 'tr' ? 'Alt Kategoriler' : 'Sub-Categories'} ({subCategoryCount})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setLocalScopeFilter('main')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
-                localScopeFilter === 'main' 
-                  ? 'bg-blue-100 text-blue-900' 
-                  : 'text-blue-700 hover:bg-blue-50'
-              }`}
-            >
-              {lang === 'tr' ? 'Ana' : 'Main'} ({mainCategoryCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setLocalScopeFilter('unmapped')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
-                localScopeFilter === 'unmapped' 
-                  ? 'bg-rose-100 text-rose-900' 
-                  : 'text-rose-700 hover:bg-rose-50'
-              }`}
-            >
-              {lang === 'tr' ? 'Eşleşmemiş' : 'Unmapped'} ({unmappedCount})
-            </button>
-          </div>
-
-          <div className="flex items-center space-x-2.5 shrink-0">
-            <div className="flex items-center space-x-1.5">
-              <div className="w-24 bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                <div 
-                  className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" 
-                  style={{ width: `${completionPercent}%` }}
-                />
-              </div>
-              <span className="font-mono font-bold text-slate-800 text-[10px]">
-                %{completionPercent} ({mappedCount}/{totalCount})
-              </span>
-            </div>
-
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={lang === 'tr' ? 'Kategori ara...' : 'Filter categories...'}
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                className="pl-7 pr-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium focus:ring-2 focus:ring-indigo-500/20 w-36 transition-all"
-              />
-              <Search className="h-3 w-3 text-slate-400 absolute left-2 top-1.5" />
-            </div>
-          </div>
-        </div>
+        {/* SECTOR FILTER BAR */}
+        <SectorFilterBar
+          selectedSector={selectedSector}
+          setSelectedSector={setSelectedSector}
+          currentAvailableMarketCats={currentAvailableMarketCats}
+          sectorFilteredMarketCats={sectorFilteredMarketCats}
+          lang={lang}
+        />
 
         {/* MAPPING TABLE / LIST */}
         <div className="px-4 py-2.5 overflow-y-auto flex-1 space-y-1.5">
@@ -1099,380 +752,50 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
               </p>
               <p className="text-[11px] text-slate-500 mt-0.5 max-w-sm mx-auto">
                 {lang === 'tr' 
-                  ? 'Ürün eklerken kategori veya alt kategori belirlediğinizde burada listelenecektir.' 
-                  : 'Categories and sub-categories will appear here once you assign categories to your products.'}
+                  ? 'Ürünlerinizi içeri aktardıktan sonra kategorileri buradan pazaryeri kataloglarına bağlayabilirsiniz.' 
+                  : 'After importing products, map your store categories here.'}
               </p>
             </div>
           ) : filteredLocalCategoryItems.length === 0 ? (
-            <div className="text-center py-6 text-slate-500 text-xs font-medium bg-slate-50 rounded-xl border border-slate-100">
-              {lang === 'tr' ? 'Seçilen filtre ve aramayla eşleşen kategori bulunamadı.' : 'No matching categories found.'}
+            <div className="text-center py-8 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
+              {lang === 'tr' ? 'Arama filtresine uygun kategori bulunamadı.' : 'No categories matched your filter.'}
             </div>
           ) : (
             filteredLocalCategoryItems.map((item) => {
               const localCat = item.key;
               const mappedId = currentMappings[localCat];
-              const matchedMarketCat = currentAvailableMarketCats.find((c) => String(c.id) === String(mappedId));
-              const prodCount = item.productCount;
-              const isDropdownOpen = openDropdownFor === localCat;
-
-              // Check attributes configured count
-              const currentCatAttrs = attributesConfig[activeMarketplace]?.[String(mappedId)] || {};
-              const configuredAttrCount = Object.keys(currentCatAttrs).length;
-
-              // Suggestion pill if unmapped (prioritizes active sector pool if available)
-              const suggestionPool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : currentAvailableMarketCats;
-              const suggestion = !mappedId ? suggestMarketplaceCategory(localCat, suggestionPool).bestMatch : null;
-
-              // Filter marketplace categories for dropdown (sector filtered first, fallback to all if search term used)
-              const primaryPool = sectorFilteredMarketCats.length > 0 ? sectorFilteredMarketCats : currentAvailableMarketCats;
-
-              let filteredMarketCats = primaryPool.filter((c) => {
-                if (!catSearchTerm.trim()) return true;
-                const normSearch = normalizeCategoryText(catSearchTerm);
-                if (!normSearch) return true;
-
-                const catIdStr = String(c.id || (c as any).categoryId || '');
-                if (catIdStr === catSearchTerm.trim()) return true;
-
-                const fullTextNorm = normalizeCategoryText(`${c.name || ''} ${c.displayName || ''} ${(c.paths || []).join(' ')}`);
-                const tokens = normSearch.split(' ').filter(Boolean);
-                return tokens.every((token) => matchCategorySearchToken(fullTextNorm, token));
-              });
-
-              // Smart Fallback: If sector search returned zero results, search across all categories
-              if (filteredMarketCats.length === 0 && catSearchTerm.trim() && selectedSector !== 'all') {
-                filteredMarketCats = currentAvailableMarketCats.filter((c) => {
-                  const normSearch = normalizeCategoryText(catSearchTerm);
-                  if (!normSearch) return true;
-                  const catIdStr = String(c.id || (c as any).categoryId || '');
-                  if (catIdStr === catSearchTerm.trim()) return true;
-
-                  const fullTextNorm = normalizeCategoryText(`${c.name || ''} ${c.displayName || ''} ${(c.paths || []).join(' ')}`);
-                  const tokens = normSearch.split(' ').filter(Boolean);
-                  return tokens.every((token) => matchCategorySearchToken(fullTextNorm, token));
-                });
-              }
+              const matchedMarketCat = mappedId 
+                ? (currentAvailableMarketCats.find((c) => String(c.id) === String(mappedId)) || { id: mappedId, name: `Kategori #${mappedId}` })
+                : undefined;
+              const currentCatAttrs = mappedId ? (attributesConfig[activeMarketplace]?.[String(mappedId)] || {}) : {};
 
               return (
-                <div 
+                <CategoryMappingRow
                   key={localCat}
-                  className={`p-2.5 rounded-xl border transition-all ${
-                    mappedId 
-                      ? 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs' 
-                      : 'bg-slate-50/60 border-slate-200/80'
-                  }`}
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
-                    
-                    {/* STORE CATEGORY COLUMN (HIERARCHICAL & SUBCATEGORY AWARE) */}
-                    <div className="lg:w-1/3 space-y-0.5">
-                      {item.isSubCategory ? (
-                        <div>
-                          <div className="flex items-center space-x-1 text-[10px] font-semibold text-slate-400">
-                            <FolderTree className="h-2.5 w-2.5 text-purple-500 shrink-0" />
-                            <span>{item.mainCategory}</span>
-                            <span>&gt;</span>
-                          </div>
-                          <div className="flex items-center space-x-1.5 mt-0.5">
-                            <span className="font-black text-slate-900 text-xs">{item.subCategory}</span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
-                              {lang === 'tr' ? 'Alt Kategori' : 'Sub-Category'}
-                            </span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
-                              {prodCount} {lang === 'tr' ? 'Ürün' : 'Prod'}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="flex items-center space-x-1.5">
-                            <span className="font-bold text-slate-900 text-xs">{item.mainCategory}</span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
-                              {lang === 'tr' ? 'Ana Kategori' : 'Main'}
-                            </span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
-                              {prodCount} {lang === 'tr' ? 'Ürün' : 'Prod'}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
-                            {lang === 'tr' ? 'Mağaza ana kategorisi' : 'Store category'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* MARKETPLACE MAPPING SELECTOR COLUMN */}
-                    <div className="lg:w-1/2 relative">
-                      {mappedId && matchedMarketCat ? (
-                        <div className="flex items-center justify-between p-1.5 px-2.5 bg-slate-50/90 rounded-lg border border-slate-200">
-                          <div className="space-y-0.5 pr-2 min-w-0">
-                            <div className="flex items-center space-x-1.5 truncate">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                              <span className="text-[11px] font-bold text-slate-900 truncate">
-                                {matchedMarketCat.displayName || matchedMarketCat.name}
-                              </span>
-                            </div>
-                            {matchedMarketCat.paths && matchedMarketCat.paths.length > 0 && (
-                              <p className="text-[9px] text-slate-500 font-medium pl-5 truncate max-w-xs md:max-w-md">
-                                {matchedMarketCat.paths.join(' > ')}
-                              </p>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center space-x-1 shrink-0">
-                            <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-white text-slate-600 border border-slate-200">
-                              #{mappedId}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenDropdownFor(localCat);
-                                setCatSearchTerm('');
-                              }}
-                              className="text-[10px] text-indigo-600 font-bold hover:underline px-1.5 py-0.5 cursor-pointer"
-                            >
-                              {lang === 'tr' ? 'Değiştir' : 'Change'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMapping(localCat)}
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
-                              title={lang === 'tr' ? 'Eşleştirmeyi Kaldır' : 'Remove'}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenDropdownFor(isDropdownOpen ? null : localCat);
-                              setCatSearchTerm('');
-                            }}
-                            className="w-full text-left px-3 py-1.5 bg-white border border-dashed border-slate-300 hover:border-indigo-400 rounded-lg text-[11px] font-bold text-slate-600 flex items-center justify-between cursor-pointer transition-all"
-                          >
-                            <span className="flex items-center gap-1 truncate">
-                              <span>{lang === 'tr' ? `${activeMarketplaceConfig.title} Kategorisi Seç...` : 'Select category...'}</span>
-                              {selectedSector !== 'all' && (
-                                <span className="text-[10px] font-normal text-indigo-600 truncate">
-                                  ({MARKETPLACE_SECTORS.find((s) => s.id === selectedSector)?.name})
-                                </span>
-                              )}
-                            </span>
-                            <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
-                          </button>
-
-                          {/* SMART SUGGESTION PILL */}
-                          {suggestion && (
-                            <div className="flex items-center space-x-1.5 text-[10px]">
-                              <span className="text-slate-400 font-medium">
-                                {lang === 'tr' ? 'Öneri:' : 'Suggestion:'}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectMapping(localCat, suggestion.id)}
-                                className="px-2 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded font-bold flex items-center space-x-1 cursor-pointer transition-colors"
-                              >
-                                <Sparkles className="h-2.5 w-2.5 text-purple-600" />
-                                <span>{suggestion.displayName || suggestion.name} (#{suggestion.id})</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* DROPDOWN SEARCH MENU WITH SECTOR QUICK SWITCH */}
-                      {isDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 space-y-1.5 max-h-72 flex flex-col">
-                          
-                          {/* Mini Sector Switcher inside dropdown */}
-                          <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-[9px] font-bold border-b border-slate-100">
-                            {MARKETPLACE_SECTORS.map((s) => (
-                              <button
-                                key={s.id}
-                                type="button"
-                                onClick={() => setSelectedSector(s.id)}
-                                className={`px-1.5 py-0.5 rounded cursor-pointer whitespace-nowrap ${
-                                  selectedSector === s.id
-                                    ? 'bg-slate-900 text-white'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                }`}
-                              >
-                                {s.name}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="relative">
-                            <input
-                              type="text"
-                              autoFocus
-                              placeholder={lang === 'tr' ? 'Kategori ara (örn: USB Bellek, Kart Okuyucu)...' : 'Search category...'}
-                              value={catSearchTerm}
-                              onChange={(e) => setCatSearchTerm(e.target.value)}
-                              className="w-full pl-7 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium focus:ring-2 focus:ring-indigo-500/20"
-                            />
-                            <Search className="h-3 w-3 text-slate-400 absolute left-2 top-2" />
-                          </div>
-
-                          <div className="overflow-y-auto flex-1 space-y-1 max-h-48 pr-1">
-                            {filteredMarketCats.length === 0 ? (
-                              <div className="text-center py-3 space-y-1">
-                                <p className="text-[11px] text-slate-400">
-                                  {lang === 'tr' ? 'Seçili sektörde uygun kategori bulunamadı' : 'No categories found'}
-                                </p>
-                                {selectedSector !== 'all' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setSelectedSector('all')}
-                                    className="text-[10px] text-indigo-600 font-bold hover:underline cursor-pointer"
-                                  >
-                                    {lang === 'tr' ? 'Tüm sektörleri göster' : 'Show all sectors'}
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              filteredMarketCats.map((c) => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  onClick={() => handleSelectMapping(localCat, c.id)}
-                                  className="w-full text-left p-1.5 hover:bg-slate-50 rounded-lg text-[11px] transition-colors flex items-center justify-between group cursor-pointer"
-                                >
-                                  <div className="truncate pr-2">
-                                    <p className="font-bold text-slate-900 group-hover:text-indigo-600 truncate">
-                                      {c.displayName || c.name}
-                                    </p>
-                                    {c.paths && c.paths.length > 0 && (
-                                      <p className="text-[9px] text-slate-400 truncate">{c.paths.join(' > ')}</p>
-                                    )}
-                                  </div>
-                                  <span className="font-mono text-[9px] bg-slate-100 group-hover:bg-indigo-50 text-slate-600 group-hover:text-indigo-700 px-1.5 py-0.2 rounded border border-slate-200 shrink-0 ml-1">
-                                    #{c.id}
-                                  </span>
-                                </button>
-                              ))
-                            )}
-                          </div>
-
-                          <div className="border-t border-slate-100 pt-1.5 flex justify-between items-center text-[10px] text-slate-400">
-                            <span>{filteredMarketCats.length} {lang === 'tr' ? 'kategori' : 'categories'}</span>
-                            <button
-                              type="button"
-                              onClick={() => setOpenDropdownFor(null)}
-                              className="text-[10px] font-bold text-slate-500 hover:text-slate-800 px-2 py-0.5 cursor-pointer"
-                            >
-                              {lang === 'tr' ? 'Kapat' : 'Close'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ATTRIBUTES BUTTON COLUMN */}
-                    <div className="lg:w-auto flex items-center justify-end">
-                      {mappedId ? (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAttributes(localCat, mappedId)}
-                          title={
-                            configuredAttrCount > 0 
-                              ? `${configuredAttrCount} özellik ayarlandı. Düzenlemek için tıklayın.` 
-                              : 'Pazaryeri zorunlu özelliklerini ayarla'
-                          }
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center space-x-1 cursor-pointer border ${
-                            configuredAttrCount > 0
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                          }`}
-                        >
-                          <SlidersHorizontal className="h-3 w-3" />
-                          <span className="hidden sm:inline">
-                            {configuredAttrCount > 0 
-                              ? `${configuredAttrCount} ${lang === 'tr' ? 'Özellik' : 'Attrs'}` 
-                              : (lang === 'tr' ? 'Özellikler' : 'Attributes')}
-                          </span>
-                          <span className={`text-[9px] px-1 py-0.2 rounded-full font-mono font-bold ${
-                            configuredAttrCount > 0 ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'
-                          }`}>
-                            {configuredAttrCount}
-                          </span>
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 italic">
-                          {lang === 'tr' ? 'Önce kategori eşleyin' : 'Map first'}
-                        </span>
-                      )}
-                    </div>
-
-                  </div>
-
-                  {/* CATEGORY COMMISSION & REVERSE MARGIN PRICING BAR */}
-                  <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-1.5 text-[10px]">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
-                        <Percent className="h-2.5 w-2.5 text-indigo-500" />
-                        <span>{lang === 'tr' ? 'Özel Komisyon:' : 'Category Markup:'}</span>
-                      </span>
-                      
-                      <div className="flex items-center space-x-1 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase">{lang === 'tr' ? 'Kom' : 'Comm'}</span>
-                        <div className="flex items-center">
-                          <span className="text-[10px] font-bold text-indigo-600 mr-0.5">%</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max="99"
-                            step="0.5"
-                            placeholder={String(defaultCommissionRates[activeMarketplace] ?? 18)}
-                            value={categoryMarkups[activeMarketplace]?.[localCat]?.commissionRate ?? ''}
-                            onChange={(e) => handleUpdateCategoryMarkup(localCat, 'commissionRate', e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                            className="w-9 bg-transparent text-[10px] font-bold text-slate-800 focus:outline-hidden text-right"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-1 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase">{lang === 'tr' ? 'Sabit' : 'Fixed'}</span>
-                        <div className="flex items-center">
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            placeholder={String(defaultFixedFees[activeMarketplace] ?? 20)}
-                            value={categoryMarkups[activeMarketplace]?.[localCat]?.fixedFee ?? ''}
-                            onChange={(e) => handleUpdateCategoryMarkup(localCat, 'fixedFee', e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                            className="w-9 bg-transparent text-[10px] font-bold text-slate-800 focus:outline-hidden text-right"
-                          />
-                          <span className="text-[9px] font-bold text-slate-500 ml-0.5">TL</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-1.5 text-[9px]">
-                      {(() => {
-                        const customComm = categoryMarkups[activeMarketplace]?.[localCat]?.commissionRate;
-                        const customFee = categoryMarkups[activeMarketplace]?.[localCat]?.fixedFee;
-                        const comm = customComm !== undefined && !isNaN(Number(customComm)) ? Number(customComm) : (defaultCommissionRates[activeMarketplace] ?? 18);
-                        const fee = customFee !== undefined && !isNaN(Number(customFee)) ? Number(customFee) : (defaultFixedFees[activeMarketplace] ?? 20);
-                        const sim = calculateSimulatedPrice(1000, comm, fee);
-                        const hasCustom = customComm !== undefined || customFee !== undefined;
-                        return (
-                          <span className={`px-1.5 py-0.5 rounded font-mono font-bold flex items-center space-x-1 border ${
-                            hasCustom 
-                              ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                              : 'bg-slate-100 text-slate-600 border-slate-200'
-                          }`}>
-                            <span className="text-[8px] uppercase">{hasCustom ? 'Özel:' : 'Varsayılan:'}</span>
-                            <span>1.000 TL ➔ {sim.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
+                  item={item}
+                  activeMarketplace={activeMarketplace}
+                  activeMarketplaceConfig={activeMarketplaceConfig}
+                  mappedId={mappedId}
+                  matchedMarketCat={matchedMarketCat}
+                  currentCatAttrs={currentCatAttrs}
+                  categoryMarkups={categoryMarkups}
+                  defaultCommissionRates={defaultCommissionRates}
+                  defaultFixedFees={defaultFixedFees}
+                  calculateSimulatedPrice={calculateSimulatedPrice}
+                  openDropdownFor={openDropdownFor}
+                  setOpenDropdownFor={setOpenDropdownFor}
+                  catSearchTerm={catSearchTerm}
+                  setCatSearchTerm={setCatSearchTerm}
+                  selectedSector={selectedSector}
+                  setSelectedSector={setSelectedSector}
+                  sectorFilteredMarketCats={sectorFilteredMarketCats}
+                  currentAvailableMarketCats={currentAvailableMarketCats}
+                  handleSelectMapping={handleSelectMapping}
+                  handleRemoveMapping={handleRemoveMapping}
+                  handleOpenAttributes={handleOpenAttributes}
+                  handleUpdateCategoryMarkup={handleUpdateCategoryMarkup}
+                  lang={lang}
+                />
               );
             })
           )}
@@ -1512,171 +835,17 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
       </div>
 
       {/* ATTRIBUTES CONFIGURATION SUB-MODAL */}
-      {attributeModalCategory && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[85vh] overflow-hidden my-auto">
-            
-            {/* SUB-MODAL HEADER */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                  <SlidersHorizontal className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm md:text-base">
-                    {attributeModalCategory.marketCatName}
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    {lang === 'tr' ? 'Mağaza Kategorisi:' : 'Store Category:'} <strong className="text-slate-700">{attributeModalCategory.localCat}</strong> (Kategori ID: #{attributeModalCategory.marketCatId})
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setAttributeModalCategory(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* INFO & QUICK ACTION */}
-            <div className="px-6 py-3 bg-indigo-50/50 border-b border-indigo-100/50 flex items-center justify-between text-xs">
-              <div className="flex items-center space-x-2 text-indigo-900 font-medium">
-                <Sparkles className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span>
-                  {lang === 'tr' 
-                    ? 'Pazaryerinin istediği zorunlu alanları sabit değer veya ürün alanıyla bağlayın.' 
-                    : 'Map required attributes to static values or product fields.'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleAutoFillAttributes}
-                className="px-2.5 py-1 bg-white border border-indigo-200 text-indigo-700 rounded-lg font-bold text-[11px] hover:bg-indigo-50 transition-all cursor-pointer shrink-0"
-              >
-                {lang === 'tr' ? 'Önerilenleri Doldur' : 'Auto Fill'}
-              </button>
-            </div>
-
-            {/* ATTRIBUTES LIST */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              {loadingAttributes ? (
-                <div className="text-center py-12">
-                  <RefreshCw className="h-6 w-6 text-indigo-600 animate-spin mx-auto mb-2" />
-                  <p className="text-xs text-slate-500 font-medium">{lang === 'tr' ? 'Özellikler yükleniyor...' : 'Loading attributes...'}</p>
-                </div>
-              ) : currentCategoryAttributes.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-8">
-                  {lang === 'tr' ? 'Bu kategori için ek zorunlu özellik bulunamadı.' : 'No required attributes for this category.'}
-                </p>
-              ) : (
-                currentCategoryAttributes.map((attr) => {
-                  const catId = String(attributeModalCategory.marketCatId);
-                  const existingSetting = attributesConfig[activeMarketplace]?.[catId]?.[attr.id] || {
-                    mode: attr.type === 'select' || attr.defaultValue ? 'fixed' : 'field',
-                    value: attr.defaultValue || ''
-                  };
-
-                  return (
-                    <div 
-                      key={attr.id}
-                      className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-2.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-bold text-slate-900">{attr.name}</span>
-                          {attr.mandatory && (
-                            <span className="text-[10px] px-2 py-0.2 bg-rose-50 text-rose-700 border border-rose-200 rounded-md font-bold">
-                              {lang === 'tr' ? 'Zorunlu' : 'Required'}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* MODE SELECTOR (Fixed vs Field) */}
-                        <div className="inline-flex p-0.5 bg-slate-200/80 rounded-lg text-[10px] font-bold">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateAttributeValue(attr.id, 'fixed', existingSetting.value || attr.defaultValue || '')}
-                            className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
-                              existingSetting.mode === 'fixed'
-                                ? 'bg-white text-slate-900 shadow-2xs'
-                                : 'text-slate-600'
-                            }`}
-                          >
-                            {lang === 'tr' ? 'Sabit Değer' : 'Static'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateAttributeValue(attr.id, 'field', existingSetting.value || '$product.brand')}
-                            className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
-                              existingSetting.mode === 'field'
-                                ? 'bg-white text-slate-900 shadow-2xs'
-                                : 'text-slate-600'
-                            }`}
-                          >
-                            {lang === 'tr' ? 'Ürün Alanından Al' : 'From Product'}
-                          </button>
-                        </div>
-                      </div>
-
-                      {attr.description && (
-                        <p className="text-[11px] text-slate-500">{attr.description}</p>
-                      )}
-
-                      {/* VALUE INPUT ACCORDING TO MODE */}
-                      {existingSetting.mode === 'field' ? (
-                        <select
-                          value={existingSetting.value || ''}
-                          onChange={(e) => handleUpdateAttributeValue(attr.id, 'field', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                          <option value="">{lang === 'tr' ? '-- Ürün Alanı Seçin --' : '-- Select Product Field --'}</option>
-                          {PRODUCT_FIELD_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
-                      ) : attr.values && attr.values.length > 0 ? (
-                        <select
-                          value={existingSetting.value || ''}
-                          onChange={(e) => handleUpdateAttributeValue(attr.id, 'fixed', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                          <option value="">{lang === 'tr' ? '-- Değer Seçin --' : '-- Select Value --'}</option>
-                          {attr.values.map((v) => (
-                            <option key={v} value={v}>{v}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type={attr.type === 'number' ? 'number' : 'text'}
-                          placeholder={attr.placeholder || (lang === 'tr' ? 'Varsayılan değer yazın...' : 'Enter default value...')}
-                          value={existingSetting.value || ''}
-                          onChange={(e) => handleUpdateAttributeValue(attr.id, 'fixed', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
-                        />
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* SUB-MODAL FOOTER */}
-            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={() => setAttributeModalCategory(null)}
-                className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 cursor-pointer shadow-sm"
-              >
-                {lang === 'tr' ? 'Tamamla & Uygula' : 'Done & Apply'}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      <CategoryAttributeModal
+        attributeModalCategory={attributeModalCategory}
+        onClose={() => setAttributeModalCategory(null)}
+        activeMarketplace={activeMarketplace}
+        loadingAttributes={loadingAttributes}
+        currentCategoryAttributes={currentCategoryAttributes}
+        attributesConfig={attributesConfig}
+        onUpdateAttributeValue={handleUpdateAttributeValue}
+        onAutoFillAttributes={handleAutoFillAttributes}
+        lang={lang}
+      />
 
     </div>
   );

@@ -468,6 +468,321 @@ router.post("/stores/:id/enrakipsiz-featured", async (req: any, res) => {
   }
 });
 
+// SuperAdmin: Get Full Multi-Tenant Store Config
+router.get("/stores/:id/config", async (req: any, res) => {
+  const { id } = req.params;
+  try {
+    const storeRes = await pool.query(`
+      SELECT s.*, 
+             u.email as admin_email,
+             (SELECT COUNT(*)::INT FROM products WHERE store_id = s.id) as product_count,
+             (SELECT COUNT(*)::INT FROM vehicles WHERE store_id = s.id) as vehicle_count,
+             (SELECT COUNT(*)::INT FROM real_estate WHERE store_id = s.id) as property_count,
+             (SELECT COUNT(*)::INT FROM users WHERE store_id = s.id) as user_count,
+             (SELECT COUNT(*)::INT FROM customers WHERE store_id = s.id) as customer_count
+      FROM stores s 
+      LEFT JOIN users u ON s.id = u.store_id AND u.role = 'storeadmin'
+      WHERE s.id = $1
+    `, [id]);
+
+    if (storeRes.rows.length === 0) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    const store = storeRes.rows[0];
+    let br = store.branding;
+    if (typeof br === 'string') {
+      try { br = JSON.parse(br); } catch(e) { br = {}; }
+    } else if (!br) {
+      br = {};
+    }
+
+    const isHotel = Boolean(store.hotel_module_enabled || br.hotel_module_enabled || br.hotel_license_enabled);
+    const isBookstore = Boolean(store.bookstore_module_enabled || br.bookstore_module_enabled || br.bookstore_license_enabled);
+
+    res.json({
+      store: {
+        ...store,
+        hotel_module_enabled: isHotel,
+        hotel_license_enabled: isHotel,
+        bookstore_module_enabled: isBookstore,
+        bookstore_license_enabled: isBookstore,
+        branding: {
+          ...br,
+          hotel_module_enabled: isHotel,
+          hotel_license_enabled: isHotel,
+          bookstore_module_enabled: isBookstore,
+          bookstore_license_enabled: isBookstore
+        }
+      }
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// SuperAdmin: Update Multi-Tenant Store Config (Branding, Design, Integrations, Limits)
+router.put("/stores/:id/config", async (req: any, res) => {
+  const { id } = req.params;
+  const { 
+    name, slug, email, phone, address, contact_person, country, default_currency, language, plan,
+    status, is_approved, subscription_end, store_type, sub_sector,
+    max_products, max_properties, max_vehicles, max_users, max_customers,
+    custom_domain,
+    branding,
+    hotel_module_enabled,
+    bookstore_module_enabled
+  } = req.body;
+
+  try {
+    await pool.query("BEGIN");
+    const existing = await pool.query("SELECT * FROM stores WHERE id = $1", [id]);
+    if (existing.rows.length === 0) {
+      await pool.query("ROLLBACK");
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    const currentStore = existing.rows[0];
+    let currentBr = currentStore.branding;
+    if (typeof currentBr === 'string') {
+      try { currentBr = JSON.parse(currentBr); } catch(e) { currentBr = {}; }
+    } else if (!currentBr) {
+      currentBr = {};
+    }
+
+    // Merge branding safely
+    const updatedBranding = {
+      ...currentBr,
+      ...(branding || {}),
+      store_name: name || branding?.store_name || currentBr.store_name || currentStore.name,
+      name: name || branding?.name || currentBr.name || currentStore.name,
+      phone: phone !== undefined ? phone : (currentBr.phone || currentStore.phone),
+      email: email !== undefined ? email : (currentBr.email || currentStore.email),
+      address: address !== undefined ? address : (currentBr.address || currentStore.address),
+      contact_person: contact_person !== undefined ? contact_person : (currentBr.contact_person || currentStore.contact_person),
+      country: country || currentBr.country || currentStore.country || 'TR',
+      default_currency: default_currency || currentBr.default_currency || currentStore.default_currency || 'TRY',
+      language: language || currentBr.language || currentStore.language || 'tr',
+      store_type: store_type || currentBr.store_type || currentStore.store_type || 'product',
+      sub_sector: sub_sector !== undefined ? sub_sector : (currentBr.sub_sector || currentStore.sub_sector)
+    };
+
+    // Strict Sector Isolation for Marketplaces: only retail (shopLP) can have marketplaces
+    const isRetail = (store_type || currentStore.store_type) === 'product' || !(store_type || currentStore.store_type);
+    if (!isRetail) {
+      if (updatedBranding.marketplaces) {
+        delete updatedBranding.marketplaces;
+      }
+    }
+
+    const isHotel = hotel_module_enabled !== undefined ? Boolean(hotel_module_enabled) : Boolean(currentStore.hotel_module_enabled || currentBr.hotel_module_enabled);
+    const isBookstore = bookstore_module_enabled !== undefined ? Boolean(bookstore_module_enabled) : Boolean(currentStore.bookstore_module_enabled || currentBr.bookstore_module_enabled);
+
+    updatedBranding.hotel_module_enabled = isHotel;
+    updatedBranding.hotel_license_enabled = isHotel;
+    updatedBranding.bookstore_module_enabled = isBookstore;
+    updatedBranding.bookstore_license_enabled = isBookstore;
+
+    if (!updatedBranding.page_layout_settings) {
+      updatedBranding.page_layout_settings = {};
+    }
+    updatedBranding.page_layout_settings.sector = store_type || currentStore.store_type || 'product';
+
+    await pool.query(`
+      UPDATE stores
+      SET name = COALESCE($1, name),
+          slug = COALESCE($2, slug),
+          email = COALESCE($3, email),
+          phone = COALESCE($4, phone),
+          address = COALESCE($5, address),
+          contact_person = COALESCE($6, contact_person),
+          country = COALESCE($7, country),
+          default_currency = COALESCE($8, default_currency),
+          language = COALESCE($9, language),
+          plan = COALESCE($10, plan),
+          status = COALESCE($11, status),
+          is_approved = COALESCE($12, is_approved),
+          subscription_end = COALESCE($13, subscription_end),
+          store_type = COALESCE($14, store_type),
+          sub_sector = $15,
+          max_products = COALESCE($16, max_products),
+          max_properties = COALESCE($17, max_properties),
+          max_vehicles = COALESCE($18, max_vehicles),
+          max_users = COALESCE($19, max_users),
+          max_customers = COALESCE($20, max_customers),
+          custom_domain = $21,
+          hotel_module_enabled = $22,
+          bookstore_module_enabled = $23,
+          branding = $24
+      WHERE id = $25
+    `, [
+      name || null,
+      slug || null,
+      email || null,
+      phone || null,
+      address || null,
+      contact_person || null,
+      country || null,
+      default_currency || null,
+      language || null,
+      plan || null,
+      status || null,
+      is_approved !== undefined ? is_approved : null,
+      subscription_end || null,
+      store_type || null,
+      sub_sector !== undefined ? sub_sector : null,
+      max_products !== undefined ? Number(max_products) : null,
+      max_properties !== undefined ? Number(max_properties) : null,
+      max_vehicles !== undefined ? Number(max_vehicles) : null,
+      max_users !== undefined ? Number(max_users) : null,
+      max_customers !== undefined ? Number(max_customers) : null,
+      custom_domain !== undefined ? custom_domain : currentStore.custom_domain,
+      isHotel,
+      isBookstore,
+      JSON.stringify(updatedBranding),
+      id
+    ]);
+
+    // Record audit log
+    await pool.query(`
+      INSERT INTO audit_logs (store_id, user_id, action, details)
+      VALUES ($1, $2, 'SUPERADMIN_UPDATE_STORE_CONFIG', $3)
+    `, [id, req.user.id, JSON.stringify({ updated_by: req.user.email, store_id: id, updated_at: new Date() })]).catch(() => {});
+
+    await pool.query("COMMIT");
+    res.json({ success: true, branding: updatedBranding });
+  } catch (e: any) {
+    await pool.query("ROLLBACK");
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// SuperAdmin: Clone Design/Configuration Preset to Store
+router.post("/stores/:id/clone-config", async (req: any, res) => {
+  const { id } = req.params;
+  const { presetKey } = req.body;
+
+  try {
+    const existing = await pool.query("SELECT * FROM stores WHERE id = $1", [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    const currentStore = existing.rows[0];
+    let br = currentStore.branding;
+    if (typeof br === 'string') {
+      try { br = JSON.parse(br); } catch(e) { br = {}; }
+    } else if (!br) {
+      br = {};
+    }
+
+    // Preset configurations
+    const presets: Record<string, any> = {
+      shoplp_minimal: {
+        theme_color: "#0f172a",
+        primary_color: "#0f172a",
+        accent_color: "#3b82f6",
+        active_preset: "shoplp_minimal",
+        page_layout_settings: {
+          active_preset: "shoplp_minimal",
+          hero_layout: "grid_bento",
+          section_style: "grid_cards",
+          dark_mode: false,
+          font_family: "Inter",
+          sector: "product"
+        }
+      },
+      modern_tech: {
+        theme_color: "#2563eb",
+        primary_color: "#2563eb",
+        accent_color: "#06b6d4",
+        active_preset: "modern_tech",
+        page_layout_settings: {
+          active_preset: "modern_tech",
+          hero_layout: "fullscreen_slider",
+          section_style: "grid_cards",
+          dark_mode: true,
+          font_family: "Outfit",
+          sector: "product"
+        }
+      },
+      bookstore_netflix: {
+        theme_color: "#e11d48",
+        primary_color: "#e11d48",
+        accent_color: "#f59e0b",
+        active_preset: "bookstore_netflix",
+        bookstore_module_enabled: true,
+        bookstore_license_enabled: true,
+        page_layout_settings: {
+          active_preset: "bookstore_netflix",
+          hero_layout: "netflix_hero",
+          section_style: "horizontal_scroll",
+          dark_mode: true,
+          font_family: "Plus Jakarta Sans",
+          sector: "bookstore"
+        }
+      },
+      luxury_auto: {
+        theme_color: "#d97706",
+        primary_color: "#d97706",
+        accent_color: "#f59e0b",
+        active_preset: "luxury_auto",
+        page_layout_settings: {
+          active_preset: "luxury_auto",
+          hero_layout: "cinematic_video",
+          section_style: "luxury_grid",
+          dark_mode: true,
+          font_family: "Plus Jakarta Sans",
+          sector: "automotive"
+        }
+      },
+      real_estate_idx: {
+        theme_color: "#0284c7",
+        primary_color: "#0284c7",
+        accent_color: "#38bdf8",
+        active_preset: "real_estate_idx",
+        page_layout_settings: {
+          active_preset: "real_estate_idx",
+          hero_layout: "map_search_hero",
+          section_style: "split_map_grid",
+          dark_mode: false,
+          font_family: "Inter",
+          sector: "real_estate"
+        }
+      },
+      horeca_bistro: {
+        theme_color: "#ea580c",
+        primary_color: "#ea580c",
+        accent_color: "#f97316",
+        active_preset: "horeca_bistro",
+        page_layout_settings: {
+          active_preset: "horeca_bistro",
+          hero_layout: "qr_menu_hero",
+          section_style: "menu_categories",
+          dark_mode: false,
+          font_family: "Poppins",
+          sector: "cafe_restaurant"
+        }
+      }
+    };
+
+    const targetPreset = presets[presetKey] || presets.shoplp_minimal;
+    const mergedBranding = {
+      ...br,
+      ...targetPreset,
+      page_layout_settings: {
+        ...(br.page_layout_settings || {}),
+        ...targetPreset.page_layout_settings
+      }
+    };
+
+    await pool.query("UPDATE stores SET branding = $1 WHERE id = $2", [JSON.stringify(mergedBranding), id]);
+    res.json({ success: true, branding: mergedBranding });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post("/stores/:id/delete", async (req: any, res) => {
   const { id } = req.params;
   const { password } = req.body;

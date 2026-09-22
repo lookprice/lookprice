@@ -35,6 +35,12 @@ import { useIntegrationSync } from "@/hooks/useIntegrationSync";
 import { toast } from "sonner";
 import { MarketplaceCategoryMappingModal } from "@/components/marketplace/MarketplaceCategoryMappingModal";
 import { MarketplaceListingsModal } from "@/components/marketplace/MarketplaceListingsModal";
+import { HepsiburadaIntegrationForm } from "@/components/marketplace/HepsiburadaIntegrationForm";
+import { TrendyolIntegrationForm } from "@/components/marketplace/TrendyolIntegrationForm";
+import { AmazonIntegrationForm } from "@/components/marketplace/AmazonIntegrationForm";
+import { PazaramaIntegrationForm } from "@/components/marketplace/PazaramaIntegrationForm";
+import { N11IntegrationForm } from "@/components/marketplace/N11IntegrationForm";
+
 
 interface SettingsEStoresTabProps {
   branding: any;
@@ -1020,1283 +1026,160 @@ export const SettingsEStoresTab = ({
       {/* HEPSIBURADA INTEGRATION CARD                                              */}
       {/* ========================================================================= */}
       {(activeTab === 'hepsiburada' || activeTab === 'all') && (
-        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs space-y-4" id="hb-integration-card">
-          {/* Card Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200/70 flex items-center justify-center font-black text-orange-600 text-xs tracking-tighter">
-                HB
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-sm font-semibold text-slate-900">{t.hepsiburadaIntegration || "Hepsiburada Entegrasyonu"}</h3>
-                  <span className="text-[10px] text-slate-400 font-mono">Merchant API v3</span>
-                </div>
-                <p className="text-xs text-slate-500">{t.hepsiburadaIntegrationDesc || "Katalog, sipariş ve anlık stok senkronizasyonu"}</p>
-              </div>
-            </div>
-
-            {/* Dynamic Status Badge */}
-            <div className="flex items-center space-x-2">
-              {isHbConnected ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 text-xs font-semibold" id="hb-connected-badge">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
-                  <span>{lang === 'tr' ? 'HB Hesabı Bağlı' : 'HB Account Connected'}</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200/70 text-xs font-medium" id="hb-disconnected-badge">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  <span>{lang === 'tr' ? 'Bağlantı Yapılmadı' : 'Not Connected'}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Compact Form Fields Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {/* Merchant ID */}
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                {t.hepsiburadaMerchantId || "Hepsiburada Merchant ID (Mağaza ID)"}
-                <span className="text-rose-500 ml-0.5">*</span>
-              </label>
-              <input 
-                type="text" 
-                id="hb-merchant-id-input"
-                name="hb_merchant_id_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={hbMerchantId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setHbMerchantId(val);
-                  onBrandingChange('hepsiburada_settings', {
-                    ...(branding.hepsiburada_settings || {}),
-                    merchantId: val,
-                    apiSecret: hbApiSecret,
-                    apiKey: hbApiKey || "lookprice_dev"
-                  });
-                }}
-                placeholder="örn. ea3f02b7-ef8c-439b-ac03-9e2ed38a4deb"
-              />
-            </div>
-
-            {/* API Secret */}
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                {t.hepsiburadaApiSecret || "Hepsiburada API Secret (Password)"}
-                <span className="text-rose-500 ml-0.5">*</span>
-              </label>
-              <div className="relative">
-                <input 
-                  type={showHbSecret ? "text" : "password"} 
-                  id="hb-api-secret-input"
-                  name="hb_api_secret_no_autofill"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                  value={hbApiSecret}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setHbApiSecret(val);
-                    onBrandingChange('hepsiburada_settings', {
-                      ...(branding.hepsiburada_settings || {}),
-                      merchantId: hbMerchantId,
-                      apiSecret: val,
-                      apiKey: hbApiKey || "lookprice_dev"
-                    });
-                  }}
-                  placeholder="Hepsiburada API Şifresi"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowHbSecret(!showHbSecret)}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  tabIndex={-1}
-                >
-                  {showHbSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* API Key (Optional) */}
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                {t.hepsiburadaApiKey || "API Kullanıcı Adı (Opsiyonel)"}
-              </label>
-              <input 
-                type="text" 
-                id="hb-api-key-input"
-                name="hb_api_key_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={hbApiKey}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setHbApiKey(val);
-                  onBrandingChange('hepsiburada_settings', {
-                    ...(branding.hepsiburada_settings || {}),
-                    merchantId: hbMerchantId,
-                    apiSecret: hbApiSecret,
-                    apiKey: val || "lookprice_dev"
-                  });
-                }}
-                placeholder="lookprice_dev"
-              />
-            </div>
-
-            {/* Cargo Company */}
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                {t.hepsiburadaDefaultCargo || "Varsayılan Kargo Şirketi"}
-              </label>
-              <select 
-                value={hbDefaultCargoCompany}
-                onChange={(e) => setHbDefaultCargoCompany(e.target.value)}
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs text-slate-900 transition-colors"
-              >
-                <option value="Hepsijet">HepsiJet</option>
-                <option value="YurticiKargo">Yurtiçi Kargo</option>
-                <option value="ArasKargo">Aras Kargo</option>
-                <option value="MNGKargo">MNG Kargo</option>
-                <option value="PTTKargo">PTT Kargo</option>
-                <option value="Sendeo">Sendeo</option>
-                <option value="HorozLojistik">Horoz Lojistik</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Operational Strip: Dispatch & Automations (Compact Mercedes Cleanliness) */}
-          <div className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/70 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center space-x-4">
-              <label className="flex items-center space-x-1.5 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={hbAutoSyncOrders}
-                  onChange={(e) => setHbAutoSyncOrders(e.target.checked)}
-                  className="rounded border-slate-300 text-slate-900 focus:ring-slate-800 h-3.5 w-3.5"
-                />
-                <span className="font-medium text-slate-700">{lang === 'tr' ? 'Otomatik Sipariş Çekme' : 'Auto Sync Orders'}</span>
-              </label>
-
-              <label className="flex items-center space-x-1.5 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={hbAutoStockSync}
-                  onChange={(e) => setHbAutoStockSync(e.target.checked)}
-                  className="rounded border-slate-300 text-slate-900 focus:ring-slate-800 h-3.5 w-3.5"
-                />
-                <span className="font-medium text-slate-700">{lang === 'tr' ? 'Anlık Stok Eşitleme' : 'Real-time Stock'}</span>
-              </label>
-
-              <label className="flex items-center space-x-1.5 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={hbIsTestMode}
-                  onChange={(e) => setHbIsTestMode(e.target.checked)}
-                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-3.5 w-3.5"
-                />
-                <span className="font-medium text-slate-700">{lang === 'tr' ? 'Test Modu' : 'Test Mode'}</span>
-              </label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="text-slate-500 text-[11px]">{lang === 'tr' ? 'Kargoya Verme:' : 'Dispatch:'}</span>
-              <select 
-                value={hbDefaultDispatchTime}
-                onChange={(e) => setHbDefaultDispatchTime(Number(e.target.value))}
-                className="h-7 px-2 text-xs bg-white border border-slate-200 rounded-md font-medium text-slate-800"
-              >
-                <option value={1}>1 Gün</option>
-                <option value={2}>2 Gün</option>
-                <option value={3}>3 Gün</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Webhook Quick Copy Strip */}
-          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-slate-50/50 rounded-lg border border-slate-200/60 text-[11px]">
-            <span className="text-slate-500 font-mono truncate">
-              {window.location.origin}/api/integrations/hepsiburada/webhook/{currentStoreId || 1}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/api/integrations/hepsiburada/webhook/${currentStoreId || 1}`);
-                setCopiedWebhook(true);
-                toast.success(lang === 'tr' ? 'Webhook URL kopyalandı!' : 'Webhook URL copied!');
-                setTimeout(() => setCopiedWebhook(false), 2500);
-              }}
-              className="inline-flex items-center gap-1 text-slate-700 hover:text-slate-900 font-medium px-2 py-0.5 rounded bg-white border border-slate-200/80 cursor-pointer shrink-0"
-            >
-              {copiedWebhook ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-400" />}
-              <span>{copiedWebhook ? (lang === 'tr' ? 'Kopyalandı' : 'Copied') : (lang === 'tr' ? 'Webhook Kopyala' : 'Copy Webhook')}</span>
-            </button>
-          </div>
-
-          {/* Action Buttons (Executive Class: Apple / Mercedes Precision) */}
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
-            {/* Left Utility Actions */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button 
-                type="button"
-                onClick={handleTestHb}
-                id="hb-test-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
-              >
-                <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
-                <span>{lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test API'}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={handleSyncHbOrders}
-                disabled={hbSync.isSyncing}
-                id="hb-sync-orders-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-                title={lang === 'tr' ? "01.09.2026'dan itibaren son 30 günün tüm Hepsiburada siparişlerini canlı çeker" : "Sync orders"}
-              >
-                <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${hbSync.isSyncing ? 'animate-spin' : ''}`} />
-                <span>{hbSync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Canlı Çek' : 'Sync Orders')}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={handleMatchHbListings}
-                disabled={hbMatching}
-                id="hb-match-listings-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition-all disabled:opacity-50 cursor-pointer active:scale-95"
-                title={lang === 'tr' ? "Hepsiburada satıcı hesabınızdaki önceden satışa açılan ürünleri çeker, mağazadaki ürünlerle barkod ve SKU bazında eşleştirir" : "Match live merchant listings"}
-              >
-                <Layers className={`h-3.5 w-3.5 ${hbMatching ? 'animate-spin' : ''}`} />
-                <span>{hbMatching ? (lang === 'tr' ? 'Eşleştiriliyor...' : 'Matching...') : (lang === 'tr' ? 'HB Ürünlerini Çek & Eşle' : 'Match HB Listings')}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => {
-                  setListingsModalTab('hepsiburada');
-                  setShowListingsModal(true);
-                }}
-                id="hb-view-listings-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-orange-50 hover:bg-orange-100 text-orange-900 border border-orange-200/90 shadow-xs transition-colors cursor-pointer"
-                title={lang === 'tr' ? "Hepsiburada'da Satışta Olan ve Hata Alan Ürünleri Listele" : "List active and failed Hepsiburada products"}
-              >
-                <Store className="h-3.5 w-3.5 text-orange-600" />
-                <span>{lang === 'tr' ? 'İlanlar & Hatalar' : 'Listings & Errors'}</span>
-                {hbLiveCount > 0 && (
-                  <span className="text-[10px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded-full">
-                    {hbLiveCount}
-                  </span>
-                )}
-                {hbErrCount > 0 && (
-                  <span className="text-[10px] font-black bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse">
-                    {hbErrCount}
-                  </span>
-                )}
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => {
-                  setSelectedMappingMarketplace('hepsiburada');
-                  setCategoryMappingModalOpen(true);
-                }}
-                id="hb-category-mapping-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
-              >
-                <Layers className="h-3.5 w-3.5 text-slate-500" />
-                <span>{lang === 'tr' ? 'Kategori & Nitelik Eşle' : 'Category Mapping'}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={handleFetchHbCategories}
-                id="hb-categories-guide-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-              >
-                <Info className="h-3.5 w-3.5" />
-                <span>{lang === 'tr' ? 'Kategori Rehberi' : 'Category Guide'}</span>
-              </button>
-            </div>
-
-            {/* Right Primary Action: Dynamic Button Text & State */}
-            <div className="flex items-center gap-2">
-              {isHbConnected && (
-                <button 
-                  type="button"
-                  onClick={handleDisconnectHb}
-                  id="hb-disconnect-btn"
-                  className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                >
-                  {t.disconnect || "Bağlantıyı Kes"}
-                </button>
-              )}
-
-              <button 
-                type="button"
-                onClick={handleSaveHbSettings}
-                id="hb-save-connect-btn"
-                className={`inline-flex items-center gap-1.5 h-8.5 px-4 rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer ${
-                  isHbConnected
-                    ? 'bg-slate-900 hover:bg-black text-white border border-slate-800'
-                    : 'bg-slate-900 hover:bg-black text-white'
-                }`}
-              >
-                {isHbConnected ? (
-                  <>
-                    <CheckCheck className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>{lang === 'tr' ? '✓ HB Hesabı Bağlı (Güncelle)' : '✓ HB Connected (Update)'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-3.5 w-3.5 text-slate-300" />
-                    <span>{lang === 'tr' ? 'Hepsiburada Hesabını Bağla' : 'Connect Hepsiburada'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <HepsiburadaIntegrationForm
+          lang={lang}
+          currentStoreId={currentStoreId}
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          t={t}
+          hbMerchantId={hbMerchantId}
+          setHbMerchantId={setHbMerchantId}
+          hbApiSecret={hbApiSecret}
+          setHbApiSecret={setHbApiSecret}
+          hbApiKey={hbApiKey}
+          setHbApiKey={setHbApiKey}
+          hbDefaultCargoCompany={hbDefaultCargoCompany}
+          setHbDefaultCargoCompany={setHbDefaultCargoCompany}
+          hbAutoSyncOrders={hbAutoSyncOrders}
+          setHbAutoSyncOrders={setHbAutoSyncOrders}
+          hbAutoStockSync={hbAutoStockSync}
+          setHbAutoStockSync={setHbAutoStockSync}
+          hbIsTestMode={hbIsTestMode}
+          setHbIsTestMode={setHbIsTestMode}
+          hbDefaultDispatchTime={hbDefaultDispatchTime}
+          setHbDefaultDispatchTime={setHbDefaultDispatchTime}
+          isHbConnected={isHbConnected}
+          hbLiveCount={hbLiveCount}
+          hbErrCount={hbErrCount}
+          hbMatching={hbMatching}
+          handleTestHb={handleTestHb}
+          handleSyncHbOrders={handleSyncHbOrders}
+          handleMatchHbListings={handleMatchHbListings}
+          handleFetchHbCategories={handleFetchHbCategories}
+          handleDisconnectHb={handleDisconnectHb}
+          handleSaveHbSettings={handleSaveHbSettings}
+          setListingsModalTab={setListingsModalTab}
+          setShowListingsModal={setShowListingsModal}
+          setSelectedMappingMarketplace={setSelectedMappingMarketplace}
+          setCategoryMappingModalOpen={setCategoryMappingModalOpen}
+          hbSync={hbSync}
+        />
       )}
 
       {/* ========================================================================= */}
       {/* TRENDYOL INTEGRATION CARD                                                 */}
       {/* ========================================================================= */}
       {(activeTab === 'trendyol' || activeTab === 'all') && (
-        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs space-y-4" id="ty-integration-card">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200/70 flex items-center justify-center font-black text-orange-600 text-xs tracking-tighter">
-                TY
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">{t.trendyolIntegration || "Trendyol Entegrasyonu"}</h3>
-                <p className="text-xs text-slate-500">{t.trendyolIntegrationDesc || "Trendyol Marketplace API sipariş ve ürün yönetimi"}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {isTyConnected ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 text-xs font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
-                  <span>{lang === 'tr' ? 'Trendyol Hesabı Bağlı' : 'Trendyol Connected'}</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200/70 text-xs font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  <span>{lang === 'tr' ? 'Bağlantı Yapılmadı' : 'Not Connected'}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.trendyolApiKey || "API Key"}</label>
-              <input 
-                type="text" 
-                id="ty-api-key-input"
-                name="ty_api_key_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={tyApiKey}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setTyApiKey(val);
-                  onBrandingChange('trendyol_settings', {
-                    ...(branding.trendyol_settings || {}),
-                    apiKey: val,
-                    apiSecret: tyApiSecret,
-                    merchantId: tyMerchantId
-                  });
-                }}
-                placeholder="API Key"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.trendyolApiSecret || "API Secret"}</label>
-              <div className="relative">
-                <input 
-                  type={showTySecret ? "text" : "password"} 
-                  id="ty-api-secret-input"
-                  name="ty_api_secret_no_autofill"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                  value={tyApiSecret}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setTyApiSecret(val);
-                    onBrandingChange('trendyol_settings', {
-                      ...(branding.trendyol_settings || {}),
-                      apiKey: tyApiKey,
-                      apiSecret: val,
-                      merchantId: tyMerchantId
-                    });
-                  }}
-                  placeholder="API Secret"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowTySecret(!showTySecret)}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  tabIndex={-1}
-                >
-                  {showTySecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.trendyolMerchantId || "Satıcı ID (Supplier ID)"}</label>
-              <input 
-                type="text" 
-                id="ty-merchant-id-input"
-                name="ty_merchant_id_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={tyMerchantId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setTyMerchantId(val);
-                  onBrandingChange('trendyol_settings', {
-                    ...(branding.trendyol_settings || {}),
-                    apiKey: tyApiKey,
-                    apiSecret: tyApiSecret,
-                    merchantId: val
-                  });
-                }}
-                placeholder="Satıcı ID"
-              />
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
-            <div className="flex flex-wrap items-center gap-2">
-              <button 
-                type="button"
-                onClick={handleTestTy}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
-              >
-                <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
-                <span>{lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test API'}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={handleSyncTyOrders}
-                disabled={tySync.isSyncing}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${tySync.isSyncing ? 'animate-spin' : ''}`} />
-                <span>{tySync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => {
-                  setListingsModalTab('trendyol');
-                  setShowListingsModal(true);
-                }}
-                id="ty-view-listings-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90 shadow-xs transition-colors cursor-pointer"
-                title={lang === 'tr' ? "Trendyol'da Satışta Olan ve Hata Alan Ürünleri Listele" : "List active and failed Trendyol products"}
-              >
-                <Store className="h-3.5 w-3.5 text-amber-600" />
-                <span>{lang === 'tr' ? 'İlanlar & Hatalar' : 'Listings & Errors'}</span>
-                {tyLiveCount > 0 && (
-                  <span className="text-[10px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded-full">
-                    {tyLiveCount}
-                  </span>
-                )}
-                {tyErrCount > 0 && (
-                  <span className="text-[10px] font-black bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse">
-                    {tyErrCount}
-                  </span>
-                )}
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => {
-                  setSelectedMappingMarketplace('trendyol');
-                  setCategoryMappingModalOpen(true);
-                }}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
-              >
-                <Layers className="h-3.5 w-3.5 text-slate-500" />
-                <span>{lang === 'tr' ? 'Kategori & Nitelik Eşle' : 'Category Mapping'}</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {isTyConnected && (
-                <button 
-                  type="button"
-                  onClick={handleDisconnectTy}
-                  className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                >
-                  {t.disconnect || "Bağlantıyı Kes"}
-                </button>
-              )}
-
-              <button 
-                type="button"
-                onClick={handleSaveTySettings}
-                id="ty-save-connect-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-4 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-black text-white shadow-xs transition-all cursor-pointer"
-              >
-                {isTyConnected ? (
-                  <>
-                    <CheckCheck className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>{lang === 'tr' ? '✓ Trendyol Hesabı Bağlı (Güncelle)' : '✓ Trendyol Connected (Update)'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-3.5 w-3.5 text-slate-300" />
-                    <span>{lang === 'tr' ? 'Trendyol Hesabını Bağla' : 'Connect Trendyol'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <TrendyolIntegrationForm
+          lang={lang}
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          t={t}
+          tyApiKey={tyApiKey}
+          setTyApiKey={setTyApiKey}
+          tyApiSecret={tyApiSecret}
+          setTyApiSecret={setTyApiSecret}
+          tyMerchantId={tyMerchantId}
+          setTyMerchantId={setTyMerchantId}
+          isTyConnected={isTyConnected}
+          tyLiveCount={tyLiveCount}
+          tyErrCount={tyErrCount}
+          handleTestTy={handleTestTy}
+          handleSyncTyOrders={handleSyncTyOrders}
+          handleDisconnectTy={handleDisconnectTy}
+          handleSaveTySettings={handleSaveTySettings}
+          setListingsModalTab={setListingsModalTab}
+          setShowListingsModal={setShowListingsModal}
+          setSelectedMappingMarketplace={setSelectedMappingMarketplace}
+          setCategoryMappingModalOpen={setCategoryMappingModalOpen}
+          tySync={tySync}
+        />
       )}
 
       {/* ========================================================================= */}
       {/* AMAZON SP-API INTEGRATION CARD                                            */}
       {/* ========================================================================= */}
       {(activeTab === 'amazon' || activeTab === 'all') && (
-        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs space-y-4" id="amazon-integration-card">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200/70 flex items-center justify-center font-black text-amber-700 text-xs tracking-tighter">
-                AMZ
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">{t.amazonIntegration || "Amazon SP-API Entegrasyonu"}</h3>
-                <p className="text-xs text-slate-500">{t.amazonIntegrationDesc || "Selling Partner API ile sipariş ve envanter"}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {isAmazonConnected ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 text-xs font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
-                  <span>{lang === 'tr' ? 'Amazon Hesabı Bağlı' : 'Amazon Connected'}</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200/70 text-xs font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  <span>{lang === 'tr' ? 'Bağlantı Yapılmadı' : 'Not Connected'}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Sandbox & Production Environment Selector */}
-          <div className="mb-4 p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div>
-                <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full ${amazonIsSandbox ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                  {amazonIsSandbox ? (lang === 'tr' ? 'SP-API Sandbox (Test) Modu Aktif' : 'SP-API Sandbox Mode Active') : (lang === 'tr' ? 'Canlı (Production) Modu Aktif' : 'Live Production Mode Active')}
-                </span>
-                <p className="text-[11px] text-amber-800/90 mt-0.5">
-                  {amazonIsSandbox 
-                    ? (lang === 'tr' ? "Uygulamanız Amazon Portal'da 'Status: Sandbox' durumunda iken test uç noktalarını kullanır. Canlı satışa geçtiğinizde canlı moda alınız." : "Uses test endpoints while your app status is Sandbox. Switch to production when published.")
-                    : (lang === 'tr' ? "Canlı Amazon.com.tr (EU Endpoint) mağaza verileri ve siparişleri işlenir." : "Live Amazon.com.tr marketplace data & orders are processed.")}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newVal = !amazonIsSandbox;
-                    setAmazonIsSandbox(newVal);
-                    onBrandingChange('amazon_settings', {
-                      ...(branding.amazon_settings || {}),
-                      appId: amazonAppId,
-                      clientId: amazonClientId,
-                      clientSecret: amazonClientSecret,
-                      refresh_token: amazonRefreshToken,
-                      sellerId: amazonSellerId,
-                      isSandbox: newVal
-                    });
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors border ${
-                    amazonIsSandbox 
-                      ? 'bg-amber-600 text-white border-amber-700 shadow-xs' 
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                  }`}
-                >
-                  {amazonIsSandbox ? (lang === 'tr' ? '✓ Sandbox Aktif' : '✓ Sandbox Active') : (lang === 'tr' ? 'Sandbox Moduna Al' : 'Switch to Sandbox')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAmazonIsSandbox(false);
-                    onBrandingChange('amazon_settings', {
-                      ...(branding.amazon_settings || {}),
-                      appId: amazonAppId,
-                      clientId: amazonClientId,
-                      clientSecret: amazonClientSecret,
-                      refresh_token: amazonRefreshToken,
-                      sellerId: amazonSellerId,
-                      isSandbox: false
-                    });
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors border ${
-                    !amazonIsSandbox 
-                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs' 
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                  }`}
-                >
-                  {!amazonIsSandbox ? (lang === 'tr' ? '✓ Canlı (Prod) Aktif' : '✓ Live Active') : (lang === 'tr' ? 'Canlı Moda Geç' : 'Switch to Live')}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Credentials Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {/* LWA Client ID */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
-                  <span>LWA Client Identifier (Client ID)</span>
-                  <span className="text-rose-500">*</span>
-                </label>
-                <span className="text-[10px] text-slate-400 font-mono">amzn1.application-oa2-client...</span>
-              </div>
-              <input 
-                type="text" 
-                id="amz-client-id-input"
-                name="amz_client_id_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={amazonClientId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setAmazonClientId(val);
-                  onBrandingChange('amazon_settings', {
-                    ...(branding.amazon_settings || {}),
-                    appId: amazonAppId,
-                    clientId: val,
-                    clientSecret: amazonClientSecret,
-                    refresh_token: amazonRefreshToken,
-                    sellerId: amazonSellerId,
-                    isSandbox: amazonIsSandbox
-                  });
-                }}
-                placeholder="amzn1.application-oa2-client.61775aeb..."
-              />
-            </div>
-
-            {/* LWA Client Secret */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
-                  <span>LWA Client Secret</span>
-                  <span className="text-rose-500">*</span>
-                </label>
-                <span className="text-[10px] text-slate-400 font-mono">amzn1.oa2-cs.v1...</span>
-              </div>
-              <div className="relative">
-                <input 
-                  type={showAmazonSecret ? "text" : "password"} 
-                  id="amz-client-secret-input"
-                  name="amz_client_secret_no_autofill"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                  value={amazonClientSecret}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setAmazonClientSecret(val);
-                    onBrandingChange('amazon_settings', {
-                      ...(branding.amazon_settings || {}),
-                      appId: amazonAppId,
-                      clientId: amazonClientId,
-                      clientSecret: val,
-                      refresh_token: amazonRefreshToken,
-                      sellerId: amazonSellerId,
-                      isSandbox: amazonIsSandbox
-                    });
-                  }}
-                  placeholder="amzn1.oa2-cs.v1.c2384dd..."
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowAmazonSecret(!showAmazonSecret)}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  tabIndex={-1}
-                >
-                  {showAmazonSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* SP-API Refresh Token */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
-                  <span>SP-API Refresh Token</span>
-                  <span className="text-rose-500">*</span>
-                </label>
-                <span className="text-[10px] text-indigo-600 font-medium cursor-pointer hover:underline" onClick={() => setShowAmazonGuideModal(true)}>
-                  Nasıl Alınır?
-                </span>
-              </div>
-              <div className="relative">
-                <input 
-                  type={showAmazonRefresh ? "text" : "password"} 
-                  id="amz-refresh-token-input"
-                  name="amz_refresh_token_no_autofill"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                  value={amazonRefreshToken}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setAmazonRefreshToken(val);
-                    onBrandingChange('amazon_settings', {
-                      ...(branding.amazon_settings || {}),
-                      appId: amazonAppId,
-                      clientId: amazonClientId,
-                      clientSecret: amazonClientSecret,
-                      refresh_token: val,
-                      sellerId: amazonSellerId,
-                      isSandbox: amazonIsSandbox
-                    });
-                  }}
-                  placeholder="Atzr|IQEBLzAtAhUA..."
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowAmazonRefresh(!showAmazonRefresh)}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  tabIndex={-1}
-                >
-                  {showAmazonRefresh ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Amazon Seller ID (Merchant Token) */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
-                  <span>{t.amazonSellerId || "Amazon Satıcı Kimliği (Seller ID / Merchant Token)"}</span>
-                </label>
-                <span className="text-[10px] text-slate-400">Seller Central &gt; Hesap Bilgileri</span>
-              </div>
-              <input 
-                type="text" 
-                id="amz-seller-id-input"
-                name="amz_seller_id_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={amazonSellerId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setAmazonSellerId(val);
-                  onBrandingChange('amazon_settings', {
-                    ...(branding.amazon_settings || {}),
-                    appId: amazonAppId,
-                    clientId: amazonClientId,
-                    clientSecret: amazonClientSecret,
-                    refresh_token: amazonRefreshToken,
-                    sellerId: val,
-                    isSandbox: amazonIsSandbox
-                  });
-                }}
-                placeholder="Örn: A3J..."
-              />
-            </div>
-
-            {/* Amazon App ID (Solution ID) */}
-            <div className="md:col-span-2">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
-                  <span>Amazon App ID (Solution ID)</span>
-                  <span className="text-[10px] text-slate-400 font-normal">(İsteğe Bağlı / Referans)</span>
-                </label>
-                <span className="text-[10px] text-slate-400 font-mono">amzn1.sp.solution...</span>
-              </div>
-              <input 
-                type="text" 
-                id="amz-app-id-input"
-                name="amz_app_id_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={amazonAppId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setAmazonAppId(val);
-                  onBrandingChange('amazon_settings', {
-                    ...(branding.amazon_settings || {}),
-                    appId: val,
-                    clientId: amazonClientId,
-                    clientSecret: amazonClientSecret,
-                    refresh_token: amazonRefreshToken,
-                    sellerId: amazonSellerId,
-                    isSandbox: amazonIsSandbox
-                  });
-                }}
-                placeholder="amzn1.sp.solution.201c524b-1384-4d46-8d65-acfcef0e4c24"
-              />
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
-            <div className="flex flex-wrap items-center gap-2">
-              <button 
-                type="button"
-                onClick={handleTestAmazon}
-                disabled={testingAmazon}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-                title="Amazon SP-API Bağlantısını Ve İzinlerini Test Et"
-              >
-                <CheckCircle2 className={`h-3.5 w-3.5 text-indigo-600 ${testingAmazon ? 'animate-spin' : ''}`} />
-                <span>{testingAmazon ? (lang === 'tr' ? 'Test Ediliyor...' : 'Testing...') : (lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test Connection')}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={handleSyncOrders}
-                disabled={amazonSync.isSyncing}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${amazonSync.isSyncing ? 'animate-spin' : ''}`} />
-                <span>{amazonSync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={handleMatchAmazonListings}
-                disabled={amazonMatching}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-                title="Amazon İlanlarını Paneldeki Ürünler ile Eşleştir veya Eksikleri Aktar"
-              >
-                <Layers className={`h-3.5 w-3.5 text-amber-700 ${amazonMatching ? 'animate-spin' : ''}`} />
-                <span>{amazonMatching ? (lang === 'tr' ? 'Eşleştiriliyor...' : 'Matching...') : (lang === 'tr' ? 'İlanları Eşleştir' : 'Match Listings')}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={handleBulkSyncAmazon}
-                disabled={bulkSyncingAmazon}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-                title="Tüm Ürünlerin Stok ve Fiyatlarını Amazon SP-API ile Eşitle"
-              >
-                <UploadCloud className={`h-3.5 w-3.5 text-emerald-600 ${bulkSyncingAmazon ? 'animate-spin' : ''}`} />
-                <span>{bulkSyncingAmazon ? (lang === 'tr' ? 'Güncelleniyor...' : 'Syncing...') : (lang === 'tr' ? 'Stok & Fiyat Gönder' : 'Push Inventory')}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => {
-                  setSelectedMappingMarketplace('amazon');
-                  setCategoryMappingModalOpen(true);
-                }}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
-              >
-                <Layers className="h-3.5 w-3.5 text-slate-500" />
-                <span>{lang === 'tr' ? 'Kategori & Nitelik Eşle' : 'Category Mapping'}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => setShowAmazonGuideModal(true)}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 shadow-xs transition-colors cursor-pointer"
-              >
-                <HelpCircle className="h-3.5 w-3.5 text-amber-600" />
-                <span>{lang === 'tr' ? 'SP-API Kurulum Rehberi' : 'SP-API Setup Guide'}</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {isAmazonConnected && (
-                <button 
-                  type="button"
-                  onClick={handleDisconnectAmazon}
-                  className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                >
-                  {t.disconnect || "Bağlantıyı Kes"}
-                </button>
-              )}
-
-              <button 
-                type="button"
-                onClick={handleSaveAmazonSettings}
-                id="amazon-save-connect-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-4 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-black text-white shadow-xs transition-all cursor-pointer"
-              >
-                {isAmazonConnected ? (
-                  <>
-                    <CheckCheck className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>{lang === 'tr' ? '✓ Amazon Hesabı Bağlı (Güncelle)' : '✓ Amazon Connected (Update)'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-3.5 w-3.5 text-slate-300" />
-                    <span>{lang === 'tr' ? 'Amazon Hesabını Kaydet' : 'Save Amazon Settings'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AmazonIntegrationForm
+          lang={lang}
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          t={t}
+          amazonAppId={amazonAppId}
+          setAmazonAppId={setAmazonAppId}
+          amazonClientId={amazonClientId}
+          setAmazonClientId={setAmazonClientId}
+          amazonClientSecret={amazonClientSecret}
+          setAmazonClientSecret={setAmazonClientSecret}
+          amazonRefreshToken={amazonRefreshToken}
+          setAmazonRefreshToken={setAmazonRefreshToken}
+          amazonSellerId={amazonSellerId}
+          setAmazonSellerId={setAmazonSellerId}
+          amazonIsSandbox={amazonIsSandbox}
+          setAmazonIsSandbox={setAmazonIsSandbox}
+          isAmazonConnected={isAmazonConnected}
+          testingAmazon={testingAmazon}
+          amazonSync={amazonSync}
+          amazonMatching={amazonMatching}
+          bulkSyncingAmazon={bulkSyncingAmazon}
+          handleTestAmazon={handleTestAmazon}
+          handleSyncOrders={handleSyncOrders}
+          handleMatchAmazonListings={handleMatchAmazonListings}
+          handleBulkSyncAmazon={handleBulkSyncAmazon}
+          handleDisconnectAmazon={handleDisconnectAmazon}
+          handleSaveAmazonSettings={handleSaveAmazonSettings}
+          setShowAmazonGuideModal={setShowAmazonGuideModal}
+          setSelectedMappingMarketplace={setSelectedMappingMarketplace}
+          setCategoryMappingModalOpen={setCategoryMappingModalOpen}
+        />
       )}
 
       {/* ========================================================================= */}
       {/* PAZARAMA INTEGRATION CARD                                                 */}
       {/* ========================================================================= */}
       {(activeTab === 'pazarama' || activeTab === 'all') && (
-        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs space-y-4" id="pz-integration-card">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200/70 flex items-center justify-center font-black text-blue-600 text-xs tracking-tighter">
-                PZ
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">{lang === 'tr' ? 'Pazarama Entegrasyonu' : 'Pazarama Integration'}</h3>
-                <p className="text-xs text-slate-500">{lang === 'tr' ? 'İş Bankası Pazarama API bağlantısı' : 'Isbank Pazarama API connection'}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {isPzConnected ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 text-xs font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
-                  <span>{lang === 'tr' ? 'Pazarama Hesabı Bağlı' : 'Pazarama Connected'}</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200/70 text-xs font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  <span>{lang === 'tr' ? 'Bağlantı Yapılmadı' : 'Not Connected'}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Pazarama API Key</label>
-              <input 
-                type="text" 
-                id="pz-api-key-input"
-                name="pz_api_key_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={pzApiKey}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setPzApiKey(val);
-                  onBrandingChange('pazarama_settings', {
-                    ...(branding.pazarama_settings || {}),
-                    apiKey: val,
-                    apiSecret: pzApiSecret,
-                    merchantId: pzMerchantId
-                  });
-                }}
-                placeholder="API Key"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Pazarama API Secret</label>
-              <div className="relative">
-                <input 
-                  type={showPzSecret ? "text" : "password"} 
-                  id="pz-api-secret-input"
-                  name="pz_api_secret_no_autofill"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                  value={pzApiSecret}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setPzApiSecret(val);
-                    onBrandingChange('pazarama_settings', {
-                      ...(branding.pazarama_settings || {}),
-                      apiKey: pzApiKey,
-                      apiSecret: val,
-                      merchantId: pzMerchantId
-                    });
-                  }}
-                  placeholder="API Secret"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPzSecret(!showPzSecret)}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  tabIndex={-1}
-                >
-                  {showPzSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Pazarama Merchant ID</label>
-              <input 
-                type="text" 
-                id="pz-merchant-id-input"
-                name="pz_merchant_id_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={pzMerchantId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setPzMerchantId(val);
-                  onBrandingChange('pazarama_settings', {
-                    ...(branding.pazarama_settings || {}),
-                    apiKey: pzApiKey,
-                    apiSecret: pzApiSecret,
-                    merchantId: val
-                  });
-                }}
-                placeholder="Satıcı Kodu"
-              />
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
-            <div className="flex flex-wrap items-center gap-2">
-              <button 
-                type="button"
-                onClick={handleTestPz}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
-              >
-                <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
-                <span>{lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test API'}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={handleSyncPzOrders}
-                disabled={pzSync.isSyncing}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${pzSync.isSyncing ? 'animate-spin' : ''}`} />
-                <span>{pzSync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => {
-                  setSelectedMappingMarketplace('pazarama');
-                  setCategoryMappingModalOpen(true);
-                }}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
-              >
-                <Layers className="h-3.5 w-3.5 text-slate-500" />
-                <span>{lang === 'tr' ? 'Kategori & Nitelik Eşle' : 'Category Mapping'}</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {isPzConnected && (
-                <button 
-                  type="button"
-                  onClick={handleDisconnectPz}
-                  className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                >
-                  {t.disconnect || "Bağlantıyı Kes"}
-                </button>
-              )}
-
-              <button 
-                type="button"
-                onClick={handleSavePzSettings}
-                id="pz-save-connect-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-4 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-black text-white shadow-xs transition-all cursor-pointer"
-              >
-                {isPzConnected ? (
-                  <>
-                    <CheckCheck className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>{lang === 'tr' ? '✓ Pazarama Hesabı Bağlı (Güncelle)' : '✓ Pazarama Connected (Update)'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-3.5 w-3.5 text-slate-300" />
-                    <span>{lang === 'tr' ? 'Pazarama Hesabını Bağla' : 'Connect Pazarama'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PazaramaIntegrationForm
+          lang={lang}
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          t={t}
+          pzApiKey={pzApiKey}
+          setPzApiKey={setPzApiKey}
+          pzApiSecret={pzApiSecret}
+          setPzApiSecret={setPzApiSecret}
+          pzMerchantId={pzMerchantId}
+          setPzMerchantId={setPzMerchantId}
+          isPzConnected={isPzConnected}
+          handleTestPz={handleTestPz}
+          handleSyncPzOrders={handleSyncPzOrders}
+          handleDisconnectPz={handleDisconnectPz}
+          handleSavePzSettings={handleSavePzSettings}
+          setSelectedMappingMarketplace={setSelectedMappingMarketplace}
+          setCategoryMappingModalOpen={setCategoryMappingModalOpen}
+          pzSync={pzSync}
+        />
       )}
 
       {/* ========================================================================= */}
       {/* N11 INTEGRATION CARD                                                      */}
       {/* ========================================================================= */}
       {(activeTab === 'n11' || activeTab === 'all') && (
-        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs space-y-4" id="n11-integration-card">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-red-50 border border-red-200/70 flex items-center justify-center font-black text-red-600 text-xs tracking-tighter">
-                N11
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">{t.n11Integration || "N11 Entegrasyonu"}</h3>
-                <p className="text-xs text-slate-500">{t.n11IntegrationDesc || "N11 SOAP Web Servisi bağlantısı"}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {isN11Connected ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 text-xs font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
-                  <span>{lang === 'tr' ? 'N11 Hesabı Bağlı' : 'N11 Connected'}</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200/70 text-xs font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  <span>{lang === 'tr' ? 'Bağlantı Yapılmadı' : 'Not Connected'}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.n11AppKey || "N11 App Key"}</label>
-              <input 
-                type="text" 
-                id="n11-app-key-input"
-                name="n11_app_key_no_autofill"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                className="w-full h-9 px-3 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                value={n11AppKey}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setN11AppKey(val);
-                  onBrandingChange('n11_settings', {
-                    ...(branding.n11_settings || {}),
-                    appKey: val,
-                    appSecret: n11AppSecret
-                  });
-                }}
-                placeholder="N11 App Key"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t.n11AppSecret || "N11 App Secret"}</label>
-              <div className="relative">
-                <input 
-                  type={showN11Secret ? "text" : "password"} 
-                  id="n11-app-secret-input"
-                  name="n11_app_secret_no_autofill"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  className="w-full h-9 px-3 pr-8 bg-slate-50/70 focus:bg-white border border-slate-200 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 rounded-lg text-xs font-mono text-slate-900 transition-colors"
-                  value={n11AppSecret}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setN11AppSecret(val);
-                    onBrandingChange('n11_settings', {
-                      ...(branding.n11_settings || {}),
-                      appKey: n11AppKey,
-                      appSecret: val
-                    });
-                  }}
-                  placeholder="N11 App Secret"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowN11Secret(!showN11Secret)}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 cursor-pointer"
-                  tabIndex={-1}
-                >
-                  {showN11Secret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
-            <div className="flex flex-wrap items-center gap-2">
-              <button 
-                type="button"
-                onClick={handleTestN11}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors cursor-pointer"
-              >
-                <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
-                <span>{lang === 'tr' ? 'Bağlantıyı Test Et' : 'Test API'}</span>
-              </button>
-
-              <button 
-                type="button"
-                onClick={handleSyncN11Orders}
-                disabled={n11Sync.isSyncing}
-                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${n11Sync.isSyncing ? 'animate-spin' : ''}`} />
-                <span>{n11Sync.isSyncing ? t.loading : (lang === 'tr' ? 'Siparişleri Çek' : 'Sync Orders')}</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {isN11Connected && (
-                <button 
-                  type="button"
-                  onClick={handleDisconnectN11}
-                  className="text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                >
-                  {t.disconnect || "Bağlantıyı Kes"}
-                </button>
-              )}
-
-              <button 
-                type="button"
-                onClick={handleSaveN11Settings}
-                id="n11-save-connect-btn"
-                className="inline-flex items-center gap-1.5 h-8.5 px-4 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-black text-white shadow-xs transition-all cursor-pointer"
-              >
-                {isN11Connected ? (
-                  <>
-                    <CheckCheck className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>{lang === 'tr' ? '✓ N11 Hesabı Bağlı (Güncelle)' : '✓ N11 Connected (Update)'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-3.5 w-3.5 text-slate-300" />
-                    <span>{lang === 'tr' ? 'N11 Hesabını Bağla' : 'Connect N11'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <N11IntegrationForm
+          lang={lang}
+          branding={branding}
+          onBrandingChange={onBrandingChange}
+          t={t}
+          n11AppKey={n11AppKey}
+          setN11AppKey={setN11AppKey}
+          n11AppSecret={n11AppSecret}
+          setN11AppSecret={setN11AppSecret}
+          isN11Connected={isN11Connected}
+          handleTestN11={handleTestN11}
+          handleSyncN11Orders={handleSyncN11Orders}
+          handleDisconnectN11={handleDisconnectN11}
+          handleSaveN11Settings={handleSaveN11Settings}
+          n11Sync={n11Sync}
+        />
       )}
 
       {/* Hepsiburada Live Category Guide Modal */}

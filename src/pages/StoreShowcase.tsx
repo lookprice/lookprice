@@ -51,7 +51,7 @@ import { Pagination } from '../components/showcase/Pagination';
 import { ProductCard } from "../components/ProductCard";
 
 // Utilities
-import { getStoreType } from "../utils/storeType";
+import { getStoreType, isBookstoreStore } from "../utils/storeType";
 
 const StoreMapSection = React.lazy(() => import("../components/StoreMapSection").then(m => ({ default: m.StoreMapSection })));
 const ProductDetailModal = React.lazy(() => import("../components/ProductDetailModal").then(m => ({ default: m.ProductDetailModal })));
@@ -767,11 +767,7 @@ const StoreShowcase: React.FC<{ customSlug?: string }> = ({ customSlug }) => {
     );
   }
 
-  const isBookstore = Boolean(
-    store?.branding?.bookstore_module_enabled || 
-    store?.branding?.active_preset === "bookstore_netflix" || 
-    (store as any)?.bookstore_module_enabled
-  );
+  const isBookstore = isBookstoreStore(store);
 
   return (
     <ErrorBoundary lang={lang}>
