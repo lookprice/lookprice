@@ -118,8 +118,19 @@ export const MultiTenancyDashboard: React.FC<MultiTenancyDashboardProps> = ({
               ...(br.page_layout_settings || {}),
               sector: res.store.store_type || "product"
             },
-            marketplaces: br.marketplaces || {},
-            einvoice: br.einvoice || { enabled: false, environment: "test" },
+            marketplaces: br.marketplaces && Object.keys(br.marketplaces).length > 0 ? br.marketplaces : {
+              trendyol: { enabled: true, supplier_id: "GAP-TR-01", api_key: "api_key_demo" },
+              hepsiburada: { enabled: true, merchant_id: "GAP-HB-01", api_key: "api_key_demo" },
+              n11: { enabled: true, supplier_code: "GAP-N11-01" },
+              amazon: { enabled: true, seller_id: "GAP-AMZ-01" },
+              pazarama: { enabled: true, supplier_id: "GAP-PZR-01" }
+            },
+            einvoice: br.einvoice && br.einvoice.enabled !== undefined ? br.einvoice : {
+              enabled: true,
+              username: "mysoft_gap",
+              password: "secret_password",
+              environment: "test"
+            },
             currency_sync: br.currency_sync || { auto_tcmb: true }
           }
         });

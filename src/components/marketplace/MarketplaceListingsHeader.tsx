@@ -72,7 +72,7 @@ export const MarketplaceListingsHeader: React.FC<MarketplaceListingsHeaderProps>
       </div>
 
       {/* Marketplace Selector Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap w-full">
+      <div className="px-4 sm:px-6 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap w-full">
         <button
           type="button"
           onClick={() => setSelectedMarketplace('all')}

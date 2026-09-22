@@ -1,5 +1,6 @@
 import React from "react";
-import { Palette, Sliders } from "lucide-react";
+import { Palette, Sliders, BookOpen } from "lucide-react";
+import { BOOKSTORE_THEME_PRESETS } from "../../../data/bookstoreThemePresets";
 
 interface MultiTenancyDesignTabProps {
   configForm: any;
@@ -10,12 +11,14 @@ export const MultiTenancyDesignTab: React.FC<MultiTenancyDesignTabProps> = ({
   configForm,
   setConfigForm
 }) => {
+  const currentPreset = configForm.branding?.active_preset || configForm.branding?.theme_config?.preset_name || "shoplp_minimal";
+
   return (
-    <div className="space-y-5 pt-2">
+    <div className="space-y-6 pt-2">
       {/* Preset Selector Cards */}
       <div>
-        <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-          Hazır Tasarım & Tema Önayarı (Preset)
+        <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <Palette className="w-4 h-4 text-indigo-500" /> Genel Sektör & Hazır Tasarım Önayarları (Preset)
         </label>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {[
@@ -64,6 +67,10 @@ export const MultiTenancyDesignTab: React.FC<MultiTenancyDesignTabProps> = ({
                   branding: {
                     ...(prev.branding || {}),
                     active_preset: preset.id,
+                    theme_config: {
+                      ...(prev.branding?.theme_config || {}),
+                      preset_name: preset.id
+                    },
                     page_layout_settings: {
                       ...(prev.branding?.page_layout_settings || {}),
                       active_preset: preset.id
@@ -72,8 +79,8 @@ export const MultiTenancyDesignTab: React.FC<MultiTenancyDesignTabProps> = ({
                 }));
               }}
               className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                configForm.branding?.active_preset === preset.id
-                  ? "bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 shadow-xs"
+                currentPreset === preset.id
+                  ? "bg-indigo-50/90 dark:bg-indigo-950/40 border-indigo-500 shadow-xs ring-2 ring-indigo-500/20"
                   : "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:border-slate-300"
               }`}
             >
@@ -82,12 +89,71 @@ export const MultiTenancyDesignTab: React.FC<MultiTenancyDesignTabProps> = ({
                   {preset.name}
                 </span>
                 <div
-                  className="w-3.5 h-3.5 rounded-full border border-white dark:border-slate-900 shadow-xs"
+                  className="w-3.5 h-3.5 rounded-full border border-white dark:border-slate-900 shadow-xs shrink-0"
                   style={{ backgroundColor: preset.color }}
                 />
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
                 {preset.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bookstore / Literary Concept Presets (BookLP / D&G Coffee & Books etc.) */}
+      <div>
+        <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <BookOpen className="w-4 h-4 text-rose-500" /> Kitap Konsepti & Edebi Atmosferler (BookLP Vitrin Şablonları)
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          {BOOKSTORE_THEME_PRESETS.map((bPreset) => (
+            <div
+              key={bPreset.id}
+              onClick={() => {
+                setConfigForm((prev: any) => ({
+                  ...prev,
+                  branding: {
+                    ...(prev.branding || {}),
+                    active_preset: bPreset.id,
+                    primary_color: bPreset.primaryColor,
+                    accent_color: bPreset.secondaryColor,
+                    theme_config: {
+                      ...(prev.branding?.theme_config || {}),
+                      preset_name: bPreset.id,
+                      primary_color: bPreset.primaryColor,
+                      accent_color: bPreset.secondaryColor,
+                      background_mode: bPreset.backgroundMode
+                    },
+                    page_layout_settings: {
+                      ...(prev.branding?.page_layout_settings || {}),
+                      active_preset: bPreset.id,
+                      bookstore_preset: bPreset.id
+                    }
+                  }
+                }));
+              }}
+              className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                currentPreset === bPreset.id
+                  ? "bg-rose-50/90 dark:bg-rose-950/40 border-rose-500 shadow-xs ring-2 ring-rose-500/20"
+                  : "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                  {bPreset.nameTr}
+                  {currentPreset === bPreset.id && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.2 bg-rose-600 text-white rounded-md">Aktif</span>
+                  )}
+                </span>
+                <div className="flex items-center gap-1">
+                  {bPreset.previewColors.map((c, idx) => (
+                    <div key={idx} className="w-3 h-3 rounded-full border border-white/40 shadow-2xs" style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 mt-1">
+                {bPreset.taglineTr}
               </p>
             </div>
           ))}
@@ -99,7 +165,7 @@ export const MultiTenancyDesignTab: React.FC<MultiTenancyDesignTabProps> = ({
         {/* Primary & Accent Color */}
         <div className="space-y-3 p-4 bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
           <h3 className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-            <Palette className="h-4 w-4 text-indigo-500" /> Marka Renk Paleti
+            <Palette className="h-4 w-4 text-indigo-500" /> Marka Renk Paleti & Web Vitrin Modu
           </h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -177,15 +243,14 @@ export const MultiTenancyDesignTab: React.FC<MultiTenancyDesignTabProps> = ({
             </div>
           </div>
 
-          {/* Dark Mode & Font */}
           <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              Varsayılan Koyu Tema (Dark Mode)
+              Varsayılan Koyu Tema (Dark Mode / Sinematik Mod)
             </span>
             <input
               type="checkbox"
               className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              checked={Boolean(configForm.branding?.page_layout_settings?.dark_mode)}
+              checked={Boolean(configForm.branding?.page_layout_settings?.dark_mode ?? true)}
               onChange={(e) =>
                 setConfigForm((prev: any) => ({
                   ...prev,
@@ -205,7 +270,7 @@ export const MultiTenancyDesignTab: React.FC<MultiTenancyDesignTabProps> = ({
         {/* Logo & Banner URLs */}
         <div className="space-y-3 p-4 bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
           <h3 className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-            <Sliders className="h-4 w-4 text-purple-500" /> Görsel Varlıklar
+            <Sliders className="h-4 w-4 text-purple-500" /> Web Vitrin Görsel Varlıkları
           </h3>
 
           <div>
