@@ -28,6 +28,9 @@ interface ProductsHeaderActionsProps {
   driveConnected: boolean;
   isBackupLoading: boolean;
   setIsBackupLoading: (loading: boolean) => void;
+  isBookstore?: boolean;
+  onRefresh?: () => void;
+  currentStoreId?: number;
 }
 
 export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
@@ -47,6 +50,9 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
   driveConnected,
   isBackupLoading,
   setIsBackupLoading,
+  isBookstore,
+  onRefresh,
+  currentStoreId,
 }) => {
   return (
     <div className="flex items-center justify-between gap-3 w-full">
@@ -129,6 +135,29 @@ export const ProductsHeaderActions: React.FC<ProductsHeaderActionsProps> = ({
                 {lang === 'tr' ? "İsimleri Eşitle" : "Sync Names"}
               </span>
             </button>
+            {isBookstore && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const promise = api.bulkEnrichBooks(currentStoreId);
+                  toast.promise(promise, {
+                    loading: lang === 'tr' ? 'Kitaplar Google Books ve Yapay Zeka ile eşleştiriliyor...' : 'Matching books with Google Books and AI...',
+                    success: (res: any) => {
+                      if (onRefresh) onRefresh();
+                      return res.message || (lang === 'tr' ? 'Eşleştirme tamamlandı!' : 'Matching completed!');
+                    },
+                    error: lang === 'tr' ? 'Eşleştirme başarısız oldu.' : 'Enrichment failed.'
+                  });
+                }}
+                className="os-btn-secondary p-2 text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-all border border-violet-200 hover:border-violet-300 active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title={lang === 'tr' ? "Google Books & Yapay Zeka ile Barkodlu Kitapları Toplu Eşleştir" : "Bulk Match Books with Google Books & AI"}
+              >
+                <Sparkles className="h-4 w-4 text-violet-600 shrink-0" />
+                <span className="text-[11px] font-bold text-violet-900 hidden lg:inline whitespace-nowrap">
+                  {lang === 'tr' ? "Kitapları Eşleştir" : "Match Books"}
+                </span>
+              </button>
+            )}
             <button 
               type="button"
               onClick={() => setIsMergeModalOpen(true)}

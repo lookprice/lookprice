@@ -171,43 +171,43 @@ router.post("/", upload.single("file"), async (req: any, res) => {
             paramIdx++;
           }
 
-          if (mapping.sub_category && item[mapping.sub_category] !== undefined) {
+          if (mapping.sub_category && item[mapping.sub_category] !== undefined && String(item[mapping.sub_category]).trim() !== "") {
             updateQuery += `, sub_category = $${paramIdx}`;
-            updateParams.push(String(item[mapping.sub_category]).trim() || '');
+            updateParams.push(String(item[mapping.sub_category]).trim());
             paramIdx++;
           }
 
-          if (mapping.brand && item[mapping.brand] !== undefined) {
+          if (mapping.brand && item[mapping.brand] !== undefined && String(item[mapping.brand]).trim() !== "") {
             updateQuery += `, brand = $${paramIdx}`;
-            updateParams.push(String(item[mapping.brand]).trim() || '');
+            updateParams.push(String(item[mapping.brand]).trim());
             paramIdx++;
           }
 
-          if (mapping.author && item[mapping.author] !== undefined) {
+          if (mapping.author && item[mapping.author] !== undefined && String(item[mapping.author]).trim() !== "") {
             updateQuery += `, author = $${paramIdx}`;
-            updateParams.push(String(item[mapping.author]).trim() || '');
+            updateParams.push(String(item[mapping.author]).trim());
             paramIdx++;
           }
 
-          if (mapping.description && item[mapping.description] !== undefined) {
+          if (mapping.description && item[mapping.description] !== undefined && String(item[mapping.description]).trim() !== "") {
             updateQuery += `, description = $${paramIdx}`;
-            updateParams.push(item[mapping.description] || '');
+            updateParams.push(String(item[mapping.description]).trim());
             paramIdx++;
           }
 
-          if (mapping.unit && item[mapping.unit] !== undefined) {
+          if (mapping.unit && item[mapping.unit] !== undefined && String(item[mapping.unit]).trim() !== "") {
             updateQuery += `, unit = $${paramIdx}`;
-            updateParams.push(String(item[mapping.unit]).trim() || 'Adet');
+            updateParams.push(String(item[mapping.unit]).trim());
             paramIdx++;
           }
 
-          if (mapping.currency && item[mapping.currency] !== undefined) {
+          if (mapping.currency && item[mapping.currency] !== undefined && String(item[mapping.currency]).trim() !== "") {
             updateQuery += `, currency = $${paramIdx}`;
-            updateParams.push(item[mapping.currency] || 'TRY');
+            updateParams.push(String(item[mapping.currency]).trim());
             paramIdx++;
           }
 
-          if (mapping.min_stock_level && item[mapping.min_stock_level] !== undefined) {
+          if (mapping.min_stock_level && item[mapping.min_stock_level] !== undefined && String(item[mapping.min_stock_level]).trim() !== "") {
             updateQuery += `, min_stock_level = $${paramIdx}`;
             updateParams.push(parseInt(String(item[mapping.min_stock_level])) || 5);
             paramIdx++;

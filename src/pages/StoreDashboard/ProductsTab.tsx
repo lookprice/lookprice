@@ -69,7 +69,13 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const isCafe = sectorType === 'horeca' || sectorType === 'cafe' || sectorType === 'restaurant' || isCafeRestaurant;
   const isPortfolio = sectorType === 'real_estate' || sectorType === 'automotive' || sectorType === 'emlak' || sectorType === 'oto';
   const isShopLp = !isCafe && !isPortfolio;
-  const isBookstore = branding?.page_layout_settings?.bookstore_mode === true || branding?.theme_config?.bookstore_mode === true;
+  const isBookstore = 
+    branding?.page_layout_settings?.bookstore_mode === true || 
+    branding?.theme_config?.bookstore_mode === true ||
+    sectorType.includes('book') ||
+    sectorType.includes('kitap') ||
+    sectorType.includes('sahaf') ||
+    sectorType.includes('yayın');
 
   // Table Manager for responsive columns & metadata display modes
   const tableManager = useTableManager({
@@ -558,6 +564,9 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         driveConnected={driveConnected}
         isBackupLoading={isBackupLoading}
         setIsBackupLoading={setIsBackupLoading}
+        isBookstore={isBookstore}
+        onRefresh={onRefresh}
+        currentStoreId={currentStoreId}
       />
 
       {/* 2. Filter & Marketplace Toolbar */}

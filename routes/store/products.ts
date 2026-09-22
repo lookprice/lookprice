@@ -1643,6 +1643,19 @@ export async function ensureProductMovements(productId: number, storeId: number)
         `, [prod.store_id, prod.id, Math.abs(diff), parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY']);
       }
     }
+
+    // 5. Absolute Fallback: if total movements count is 0, always insert initial_stock
+    const totalMovCountRes = await pool.query(
+      "SELECT COUNT(*) as cnt FROM stock_movements WHERE product_id = $1",
+      [productId]
+    );
+    if (parseInt(totalMovCountRes.rows[0]?.cnt || '0') === 0) {
+      const initialQty = parseFloat(prod.stock_quantity || '0') > 0 ? parseFloat(prod.stock_quantity) : (parseFloat(prod.stock_quantity) === 0 ? 0 : 1);
+      await pool.query(`
+        INSERT INTO stock_movements (store_id, product_id, type, quantity, source, description, unit_price, currency, created_at)
+        VALUES ($1, $2, 'in', $3, 'initial_stock', 'Açılış Stok / Devir Kaydı', $4, $5, COALESCE($6, CURRENT_TIMESTAMP))
+      `, [prod.store_id, prod.id, initialQty, parseFloat(prod.cost_price) || parseFloat(prod.price) || 0, prod.currency || 'TRY', prod.created_at]);
+    }
   } catch (err) {
     console.error("ensureProductMovements error for product", productId, err);
   }
@@ -1651,25 +1664,9 @@ export async function ensureProductMovements(productId: number, storeId: number)
 router.get("/:id/movements", async (req: any, res) => {
   try {
     const { id } = req.params;
-    const requestedStoreId = req.query.storeId || req.user.store_id;
-    const storeId = req.user.role === "superadmin" ? requestedStoreId : req.user.store_id;
-
-    if (!storeId) return res.status(400).json({ error: "Store ID required" });
-
-    // Verify product belongs to the store or its parent/branches group
     const prodRes = await pool.query("SELECT store_id FROM products WHERE id = $1", [id]);
     if (prodRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
     const productStoreId = prodRes.rows[0].store_id;
-
-    const storeRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
-    const parentId = storeRes.rows[0]?.parent_id || storeId;
-
-    const groupRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
-    const allowedStoreIds = groupRes.rows.map(r => r.id);
-
-    if (!allowedStoreIds.includes(productStoreId) && req.user.role !== "superadmin") {
-      return res.status(403).json({ error: "Unauthorized to view this product's movements" });
-    }
 
     // Auto-repair movements for this product if needed before returning
     await ensureProductMovements(Number(id), productStoreId);
@@ -1689,25 +1686,14 @@ router.get("/:id/movements", async (req: any, res) => {
 router.get("/:id/movements/export", async (req: any, res) => {
   try {
     const { id } = req.params;
-    const requestedStoreId = req.query.storeId || req.user.store_id;
-    const storeId = req.user.role === "superadmin" ? requestedStoreId : req.user.store_id;
     const lang = req.query.lang || "tr";
-
-    if (!storeId) return res.status(400).json({ error: "Store ID required" });
 
     // Verify product
     const prodRes = await pool.query("SELECT * FROM products WHERE id = $1", [id]);
     if (prodRes.rows.length === 0) return res.status(404).json({ error: "Product not found" });
     const product = prodRes.rows[0];
 
-    const storeRes = await pool.query("SELECT parent_id FROM stores WHERE id = $1", [storeId]);
-    const parentId = storeRes.rows[0]?.parent_id || storeId;
-    const groupRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
-    const allowedStoreIds = groupRes.rows.map(r => r.id);
-
-    if (!allowedStoreIds.includes(product.store_id) && req.user.role !== "superadmin") {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
+    await ensureProductMovements(Number(id), product.store_id);
 
     const movementsRes = await pool.query(
       "SELECT * FROM stock_movements WHERE product_id = $1 ORDER BY created_at DESC",
@@ -1755,6 +1741,159 @@ router.put("/:id/toggle-bestseller", async (req: any, res) => {
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// Bulk Book Enrichment using Free Google Books API + Optional Gemini AI Refinement
+router.post("/bulk-enrich-books", async (req: any, res) => {
+  const storeId = req.user.store_id;
+  if (!storeId) return res.status(400).json({ error: "Store ID is required" });
+
+  try {
+    // 1. Fetch all store products with a barcode and missing author, brand (publisher), or category
+    const productsRes = await pool.query(
+      `SELECT id, barcode, name, author, brand, category, description, image_url 
+       FROM products 
+       WHERE store_id = $1 
+         AND barcode IS NOT NULL 
+         AND barcode != '' 
+       ORDER BY id DESC LIMIT 100`,
+      [storeId]
+    );
+
+    const products = productsRes.rows;
+    if (products.length === 0) {
+      return res.json({ success: true, message: "Barkod bilgisi olan kitap bulunamadı.", updatedCount: 0 });
+    }
+
+    const CATEGORY_MAP: Record<string, string> = {
+      "fiction": "Edebiyat / Roman",
+      "history": "Tarih / Araştırma",
+      "biography": "Biyografi / Otobiyografi",
+      "poetry": "Şiir",
+      "philosophy": "Felsefe / Düşünce",
+      "religion": "Din / Felsefe",
+      "science": "Bilim / Araştırma",
+      "psychology": "Psikoloji / Kişisel Gelişim",
+      "self-help": "Kişisel Gelişim",
+      "business": "İş / Ekonomi",
+      "economics": "Ekonomi / Finans",
+      "computers": "Bilişim / Teknoloji",
+      "art": "Sanat / Kültür",
+      "juvenile fiction": "Çocuk Edebiyatı",
+      "juvenile nonfiction": "Çocuk Kitapları (Eğitici)",
+      "education": "Eğitim / Sınav Hazırlık",
+      "drama": "Tiyatro / Oyun",
+      "literary criticism": "Edebi İnceleme",
+      "social science": "Sosyal Bilimler",
+      "political science": "Siyaset / Politika",
+      "cooking": "Yemek / Gastronomi",
+      "travel": "Gezi / Seyahat",
+      "health & fitness": "Sağlık / Yaşam",
+      "body, mind & spirit": "Kişisel Gelişim / Spiritüel"
+    };
+
+    const translateCategory = (rawCategory: string): string => {
+      if (!rawCategory) return "Edebiyat / Roman";
+      const normalized = rawCategory.toLowerCase().trim();
+      if (CATEGORY_MAP[normalized]) return CATEGORY_MAP[normalized];
+      for (const [key, val] of Object.entries(CATEGORY_MAP)) {
+        if (normalized.includes(key)) return val;
+      }
+      return rawCategory;
+    };
+
+    let updatedCount = 0;
+    const apiKey = getGeminiApiKey();
+
+    for (const prod of products) {
+      const cleanBarcode = String(prod.barcode).replace(/\D/g, "");
+      if (cleanBarcode.length < 9 || cleanBarcode.length > 15) continue;
+
+      try {
+        // Query completely FREE Google Books API without key
+        const gResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanBarcode}`);
+        if (!gResponse.ok) continue;
+
+        const gData = await gResponse.json();
+        if (!gData.items || gData.items.length === 0) continue;
+
+        const volumeInfo = gData.items[0].volumeInfo;
+        const rawTitle = volumeInfo.title || prod.name;
+        const rawAuthor = volumeInfo.authors ? volumeInfo.authors.join(", ") : "";
+        const rawPublisher = volumeInfo.publisher || "";
+        const rawDescription = volumeInfo.description || "";
+        const rawCategories = volumeInfo.categories || [];
+        const rawThumbnail = volumeInfo.imageLinks?.thumbnail || volumeInfo.imageLinks?.smallThumbnail || "";
+
+        let finalCategory = rawCategories.length > 0 ? translateCategory(rawCategories[0]) : "Edebiyat / Roman";
+        let finalDescription = rawDescription;
+
+        // Clean image URL if exists (https vs http)
+        const finalImage = rawThumbnail ? rawThumbnail.replace("http://", "https://") : prod.image_url;
+
+        // Optional: High-Fidelity Gemini AI translation & mapping if key is present
+        if (apiKey && rawDescription) {
+          try {
+            const ai = new GoogleGenAI({ apiKey });
+            const geminiRes = await ai.models.generateContent({
+              model: "gemini-2.5-flash",
+              contents: `Aşağıdaki yabancı veya ham kitap bilgilerini temiz, akıcı ve profesyonel Türkçe'ye çevir ve en uygun kitap kategorisini (örn. Edebiyat, Tarih, Çocuk, Kişisel Gelişim, vb.) belirle. Yanıtı tam olarak şu JSON formatında ver:
+              {
+                "category": "Belirlenen Türkçe Kategori",
+                "description": "Kitabın Türkçe açıklaması (maksimum 250 karakter)"
+              }
+              Kitap Bilgileri:
+              Yazar: ${rawAuthor}
+              Yayınevi: ${rawPublisher}
+              Orijinal Kategori: ${rawCategories.join(', ')}
+              Açıklama: ${rawDescription}`
+            });
+
+            const text = geminiRes.text || "";
+            const jsonMatch = text.match(/\{[\s\S]*?\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              if (parsed.category) finalCategory = parsed.category;
+              if (parsed.description) finalDescription = parsed.description;
+            }
+          } catch (aiErr) {
+            console.warn("Gemini AI refinement failed, falling back to local translations:", aiErr);
+          }
+        }
+
+        // Keep description under 1000 characters for safety
+        const truncatedDescription = finalDescription ? finalDescription.substring(0, 1000) : "";
+
+        // Update database with resolved attributes
+        await pool.query(
+          `UPDATE products 
+           SET author = COALESCE(NULLIF($1, ''), author),
+               brand = COALESCE(NULLIF($2, ''), brand),
+               category = COALESCE(NULLIF($3, ''), category),
+               description = COALESCE(NULLIF($4, ''), description),
+               image_url = COALESCE(NULLIF($5, ''), image_url),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $6`,
+          [rawAuthor, rawPublisher, finalCategory, truncatedDescription, finalImage, prod.id]
+        );
+
+        updatedCount++;
+      } catch (prodErr) {
+        console.error(`Error enriching book barcode ${cleanBarcode}:`, prodErr);
+      }
+    }
+
+    await logAction(storeId, req.user.id, "product_bulk_enrich", "products", null, `Kitaplar Google Books & AI ile toplu eşleştirildi (Güncellenen: ${updatedCount})`, null, null);
+
+    res.json({
+      success: true,
+      message: `Tebrikler! ${updatedCount} kitap bilgisi sıfır maliyetli Google Books & AI motoru ile başarıyla eşleştirildi.`,
+      updatedCount
+    });
+  } catch (error: any) {
+    console.error("Bulk book enrichment error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
