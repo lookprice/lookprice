@@ -258,7 +258,7 @@ export function extractProductLabels(product: any): string[] {
   const normalizedLabels: string[] = [];
   rawLabels.forEach((raw) => {
     const clean = raw.toLowerCase().trim();
-    if (!clean) return;
+    if (!clean || clean === "curated_badges" || clean === "curated_badge" || clean === "labels" || clean === "sector_data") return;
     
     // Check if clean matches any badge id or alias
     const matchedBadge = BOOKSTORE_BADGES.find(b => 

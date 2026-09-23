@@ -127,7 +127,9 @@ export const ProductModal = ({
   const [lookupLoading, setLookupLoading] = useState(false);
 
   const handleAutoLookup = async () => {
-    const barcodeInput = document.querySelector('input[name="barcode"]') as HTMLInputElement;
+    // Find barcode input from modal form
+    const barcodeInput = document.querySelector('form input[name="barcode"]') as HTMLInputElement || 
+                         document.querySelector('input[name="barcode"]') as HTMLInputElement;
     const barcodeVal = barcodeInput?.value?.trim();
     if (!barcodeVal || barcodeVal.length < 5) {
       alert(isTr ? "Lütfen önce geçerli bir ISBN / barkod giriniz (örn: 9789752128262)!" : "Please enter a valid ISBN/barcode first!");
@@ -136,36 +138,54 @@ export const ProductModal = ({
     try {
       setLookupLoading(true);
       const res = await api.lookupBarcode(barcodeVal, branding?.id || branding?.store_id);
-      if (res && res.success && res.data) {
-        const d = res.data;
-        const nameInput = document.querySelector('input[name="name"]') as HTMLInputElement;
-        if (nameInput && d.name) nameInput.value = d.name;
+      const dataObj = res?.data || res;
+      if (dataObj && (dataObj.success || dataObj.data || dataObj.name)) {
+        const d = dataObj.data || dataObj;
+        
+        const setValAndTrigger = (selector: string, val?: string) => {
+          if (!val) return;
+          const el = document.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement;
+          if (el) {
+            el.value = val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        };
 
-        const authorInput = document.querySelector('input[name="author"]') as HTMLInputElement;
-        if (authorInput && d.author) authorInput.value = d.author;
+        setValAndTrigger('form input[name="name"]', d.name);
+        setValAndTrigger('form input[name="author"]', d.author);
+        setValAndTrigger('form input[name="brand"]', d.publisher || d.brand);
+        setValAndTrigger('form input[name="category"]', d.category);
+        setValAndTrigger('form input[name="sub_category"]', d.sub_category);
+        setValAndTrigger('form textarea[name="description"]', d.description);
+        setValAndTrigger('form input[name="image_url"]', d.image_url);
 
-        const brandInput = document.querySelector('input[name="brand"]') as HTMLInputElement;
-        if (brandInput && d.brand) brandInput.value = d.brand;
+        if (d.image_url) {
+          setProductImageUrl(d.image_url);
+        }
 
-        const categoryInput = document.querySelector('input[name="category"]') as HTMLInputElement;
-        if (categoryInput && d.category) categoryInput.value = d.category;
+        if (editingProduct) {
+          setEditingProduct((prev: any) => ({
+            ...prev,
+            name: d.name || prev?.name,
+            author: d.author || prev?.author,
+            brand: d.publisher || d.brand || prev?.brand,
+            category: d.category || prev?.category,
+            sub_category: d.sub_category || prev?.sub_category,
+            description: d.description || prev?.description,
+            image_url: d.image_url || prev?.image_url
+          }));
+        }
 
-        const subCategoryInput = document.querySelector('input[name="sub_category"]') as HTMLInputElement;
-        if (subCategoryInput && d.sub_category) subCategoryInput.value = d.sub_category;
-
-        const descInput = document.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
-        if (descInput && d.description) descInput.value = d.description;
-
-        const imageInput = document.querySelector('input[name="image_url"]') as HTMLInputElement;
-        if (imageInput && d.image_url) imageInput.value = d.image_url;
-        if (d.image_url) setProductImageUrl(d.image_url);
-
-        alert(isTr ? `Kitap bilgileri başarıyla getirildi:\nEser: ${d.name}\nYazar: ${d.author}` : `Book details retrieved successfully!`);
+        alert(isTr 
+          ? `Kitap bilgileri ve kapak görseli başarıyla getirildi:\n\n📖 Eser: ${d.name}\n✍️ Yazar: ${d.author || 'Belirtilmemiş'}\n🏢 Yayıncı: ${d.publisher || d.brand || 'Belirtilmemiş'}` 
+          : `Book details retrieved successfully!\nTitle: ${d.name}\nAuthor: ${d.author}`);
       } else {
-        alert(res?.error || (isTr ? "Kitap bulunamadı" : "Book not found"));
+        alert(dataObj?.error || (isTr ? "Kataloglarda bu ISBN numarasına ait kitap bulunamadı." : "Book not found in catalogs."));
       }
     } catch (err: any) {
-      alert(err?.message || (isTr ? "Kitap bilgisi getirilemedi" : "Failed to lookup book"));
+      const errMsg = err?.response?.data?.error || err?.message || (isTr ? "Kitap bilgisi getirilemedi" : "Failed to lookup book");
+      alert(errMsg);
     } finally {
       setLookupLoading(false);
     }

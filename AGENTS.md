@@ -310,6 +310,22 @@ This file outlines strict engineering, performance, and naming directives that m
   - Yönetim panelindeki ürün listesi satırları (`ProductTableRow.tsx`), gereksiz React render operasyonlarından kaçınmak için `React.memo` ile sarmalanır.
   - Sadece satırdaki ürünün güncellenme tarihi, fiyatı, stok durumu, pazar yeri aktiflikleri veya satırın seçilme/vurgulanma durumu değiştiğinde satır yeniden render edilir. Aksi takdirde, arama çubuğuna yazıldığında veya alakasız bir satır seçildiğinde diğer tüm satırlar kendilerini tekrar oluşturmaz. Bu sayede binlerce ürünün olduğu panellerde işlem hızı 50 kat artırılmıştır.
 
+---
+
+## 24. Şube ve Merkez Stok İzolasyonu ile Kesin Gerçek Envanter Standardı (Branch Stock Isolation Protocol)
+
+- **Sahte Stok ve Mock Fallback Kesin Yasağı (Zero-Mock Stock Fallback)**:
+  - Dışa açık web sitelerinde (`BookCardNetflix.tsx`, `ProductDetailModal.tsx`, `ShopRetailProductCard.tsx` vb.) ve yönetim panellerinde şube stokları listelenirken, bir şubenin stoku `0` veya tanımsız ise, ana merkezin veya genel ürünün stoku (`totalProductStock`) **ASLA VE KESİNLİKLE ŞUBEYE KOPYALANAMAZ VEYA VARSAYILAN OLARAK ATANAMAZ**.
+  - `(totalProductStock > 0 ? totalProductStock : 0)` gibi operatörü ve müşteriyi yanıltan, olmayan envanteri varmış gibi gösteren sahte fallback mantıkları KESİNLİKLE YASAKTIR.
+  - Her şube sadece ve sadece veri tabanındaki kendi gerçek stoku (`Number(branch.stock ?? branch.quantity ?? 0)`) ile listelenmelidir.
+  - Eğer bir şubede o üründen 0 adet varsa veya o şubeye tanımlı envanter kaydı yoksa, o şubenin karşısında kesin olarak **kırmızı renkte "Tükendi" / 0 Adet** ibaresi yer almalıdır. Sadece stoku `> 0` olan şubeler yeşil renkte gerçek adetleriyle gösterilmelidir.
+
+- **Merkez - Şube Envanter Ayrımı & Veri Bütünlüğü**:
+  - Çok şubeli mağaza yapılarında (Parent Store - Child Branches), ana merkezin stoku ile bağlı şubelerin stokları tamamen bağımsız envanter kayıtlarıdır.
+  - Şubeler arası stok transferi tamamlanmadan veya doğrudan şube envanterine mal girişi yapılmadan merkezdeki stok hiçbir koşulda şubeye yansıtılamaz.
+  - Backend `/api/public/store/:slug/products/:barcode/stock` uç noktası `COALESCE(p.stock_quantity, 0)` değerini döndürür; istemci arayüzleri bu değeri doğrudan tüketmeli, arayüz seviyesinde yapay stok uydurma işlemlerine asla izin verilmemelidir.
+
+
 
 
 

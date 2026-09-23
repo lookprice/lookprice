@@ -4,6 +4,7 @@ import { getAuthorizedStoreId, getTurkishSearchSnippet, normalizeTurkishParam, c
 import { isValidStandardBarcode } from "./invoiceMatching";
 import { GoogleGenAI } from "@google/genai";
 import XLSX from "xlsx";
+import { masterBookLookup, splitAndCleanCategory, generateHighResBookCoverSvg } from "./bookLookupService";
 
 /**
  * Reusable engine to merge a duplicate/temporary product into a target real product.
@@ -1919,62 +1920,16 @@ router.post("/bulk-enrich-books", async (req: any, res) => {
       if (cleanBarcode.length < 9 || cleanBarcode.length > 15) continue;
 
       try {
-        // Query completely FREE Google Books API without key
-        const gResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanBarcode}`);
-        if (!gResponse.ok) continue;
+        const bookData = await masterBookLookup(cleanBarcode);
+        if (!bookData || !bookData.name) continue;
 
-        const gData = await gResponse.json();
-        if (!gData.items || gData.items.length === 0) continue;
-
-        const volumeInfo = gData.items[0].volumeInfo;
-        const rawTitle = volumeInfo.title || prod.name;
-        const rawAuthor = volumeInfo.authors ? volumeInfo.authors.join(", ") : "";
-        const rawPublisher = volumeInfo.publisher || "";
-        const rawDescription = volumeInfo.description || "";
-        const rawCategories = volumeInfo.categories || [];
-        const rawThumbnail = volumeInfo.imageLinks?.thumbnail || volumeInfo.imageLinks?.smallThumbnail || "";
-
-        let finalCategory = rawCategories.length > 0 ? translateCategory(rawCategories[0]) : "Edebiyat / Roman";
-        let finalDescription = rawDescription;
-
-        // Clean image URL if exists (https vs http)
-        const finalImage = rawThumbnail ? rawThumbnail.replace("http://", "https://") : prod.image_url;
-
-        // Optional: High-Fidelity Gemini AI translation & mapping if key is present
-        if (apiKey && rawDescription) {
-          try {
-            const ai = new GoogleGenAI({ apiKey });
-            const geminiRes = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: `Aşağıdaki yabancı veya ham kitap bilgilerini temiz, akıcı ve profesyonel Türkçe'ye çevir ve en uygun kitap kategorisini (örn. Edebiyat, Tarih, Çocuk, Kişisel Gelişim, vb.) belirle. Yanıtı tam olarak şu JSON formatında ver:
-              {
-                "category": "Belirlenen Türkçe Kategori",
-                "description": "Kitabın Türkçe açıklaması (maksimum 250 karakter)"
-              }
-              Kitap Bilgileri:
-              Yazar: ${rawAuthor}
-              Yayınevi: ${rawPublisher}
-              Orijinal Kategori: ${rawCategories.join(', ')}
-              Açıklama: ${rawDescription}`
-            });
-
-            const text = geminiRes.text || "";
-            const jsonMatch = text.match(/\{[\s\S]*?\}/);
-            if (jsonMatch) {
-              const parsed = JSON.parse(jsonMatch[0]);
-              if (parsed.category) finalCategory = parsed.category;
-              if (parsed.description) finalDescription = parsed.description;
-            }
-          } catch (aiErr) {
-            console.warn("Gemini AI refinement failed, falling back to local translations:", aiErr);
-          }
-        }
-
-        // Keep description under 1000 characters for safety
-        const truncatedDescription = finalDescription ? finalDescription.substring(0, 1000) : "";
-
-        // Parse and split category and subcategory cleanly
-        const { category: cat, subCategory: subCat } = splitAndCleanCategory(finalCategory);
+        const finalName = prod.name && prod.name.length > 3 ? prod.name : bookData.name;
+        const finalAuthor = bookData.author || "";
+        const finalPublisher = bookData.publisher || bookData.brand || "";
+        const finalCategory = bookData.category || "Edebiyat";
+        const finalSubCategory = bookData.sub_category || "Roman";
+        const finalDescription = (bookData.description || "").substring(0, 1000);
+        const finalImage = bookData.image_url || prod.image_url;
 
         // Update database with resolved attributes
         await pool.query(
@@ -1987,7 +1942,7 @@ router.post("/bulk-enrich-books", async (req: any, res) => {
                image_url = COALESCE(NULLIF($6, ''), image_url),
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $7`,
-          [rawAuthor, rawPublisher, cat, subCat, truncatedDescription, finalImage, prod.id]
+          [finalAuthor, finalPublisher, finalCategory, finalSubCategory, finalDescription, finalImage, prod.id]
         );
 
         updatedCount++;
@@ -2009,7 +1964,7 @@ router.post("/bulk-enrich-books", async (req: any, res) => {
   }
 });
 
-// Single Book Barcode Lookup for Instant Auto-Fill
+// Single Book Barcode Lookup for Instant Auto-Fill using Multi-Layer Data Mining Pipeline
 router.get("/lookup-barcode", async (req: any, res) => {
   try {
     const barcode = String(req.query.barcode || "").trim();
@@ -2018,200 +1973,50 @@ router.get("/lookup-barcode", async (req: any, res) => {
       return res.status(400).json({ error: "Geçerli bir barkod / ISBN giriniz" });
     }
 
-    let gResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanBarcode}`);
-    let gData = await gResponse.json();
+    let bookData = await masterBookLookup(cleanBarcode);
 
-    const isQuotaExceeded = gData.error && (
-      String(gData.error.message || "").toLowerCase().includes("quota") ||
-      String(gData.error.status || "").toLowerCase().includes("exhausted")
+    if (bookData && bookData.name) {
+      return res.json({
+        success: true,
+        data: {
+          barcode,
+          name: bookData.name,
+          author: bookData.author || "",
+          brand: bookData.publisher || bookData.brand || "",
+          publisher: bookData.publisher || bookData.brand || "",
+          category: bookData.category || "Edebiyat",
+          sub_category: bookData.sub_category || "Roman",
+          description: bookData.description || "",
+          image_url: bookData.image_url || generateHighResBookCoverSvg(bookData.name, bookData.author, bookData.publisher, bookData.category)
+        }
+      });
+    }
+
+    // Check existing database records if external catalog lookup is unavailable
+    const existing = await query(
+      "SELECT name, author, brand, category, sub_category, description, image_url FROM products WHERE barcode = $1 OR barcode = $2 LIMIT 1",
+      [barcode, cleanBarcode]
     );
 
-    if (!isQuotaExceeded && (!gData.items || gData.items.length === 0)) {
-      gResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${cleanBarcode}`);
-      gData = await gResponse.json();
+    if (existing.rows.length > 0) {
+      const p = existing.rows[0];
+      return res.json({
+        success: true,
+        data: {
+          barcode,
+          name: p.name,
+          author: p.author || "",
+          brand: p.brand || "",
+          publisher: p.brand || "",
+          category: p.category || "Edebiyat",
+          sub_category: p.sub_category || "Roman",
+          description: p.description || "",
+          image_url: p.image_url || generateHighResBookCoverSvg(p.name, p.author, p.brand, p.category)
+        }
+      });
     }
 
-    if (isQuotaExceeded || !gData.items || gData.items.length === 0) {
-      // Offline fallback dictionary for common ISBNs & test ISBNs (e.g., 9789752128262)
-      const offlineLibrary: Record<string, any> = {
-        "9789752128262": { 
-          name: "Uzun Yürüyüş (The Long Walk)", 
-          author: "Stephen King (Richard Bachman)", 
-          publisher: "Altın Kitaplar", 
-          category: "Bilim Kurgu / Distopya", 
-          description: "Stephen King'in Richard Bachman mahlasıyla kaleme aldığı kült distopik eseri. Kazananın her şeye sahip olduğu, kaybedenin ise hayatta kalamayacağı amansız bir yürüyüşün hikayesi.",
-          image_url: "https://covers.openlibrary.org/b/isbn/9789752128262-L.jpg"
-        },
-        "9786256843639": { 
-          name: "Görünmeyen Kadınlar", 
-          author: "Dr. Gülseren Budayıcıoğlu", 
-          publisher: "Doğan Kitap", 
-          category: "Edebiyat / Roman / Psikoloji", 
-          description: "Dr. Gülseren Budayıcıoğlu'nun kaleminden kadınların kafeslerin ardındaki yaşantılarına, görünmez kılınan hayatlarına ve mücadelelerine ışık tutan, gerçek insan hikayelerinden esinlenmiş sarsıcı bir başyapıt.",
-          image_url: "https://covers.openlibrary.org/b/isbn/9786256843639-L.jpg"
-        },
-        "9789750802967": { 
-          name: "Kürk Mantolu Madonna", 
-          author: "Sabahattin Ali", 
-          publisher: "Yapı Kredi Yayınları", 
-          category: "Edebiyat / Roman", 
-          description: "Sabahattin Ali'nin aşk, yalnızlık ve yabancılaşma temalarını işleyen unutulmaz eseri.",
-          image_url: "https://covers.openlibrary.org/b/isbn/9789750802967-L.jpg"
-        },
-        "9789750738609": { 
-          name: "İçimizdeki Şeytan", 
-          author: "Sabahattin Ali", 
-          publisher: "Can Yayınları", 
-          category: "Edebiyat / Roman", 
-          description: "Bireyin iç dünyasındaki çatışmaları ve toplumsal baskıları gözler önüne seren başyapıt.",
-          image_url: "https://covers.openlibrary.org/b/isbn/9789750738609-L.jpg"
-        }
-      };
-
-      const foundBook = offlineLibrary[cleanBarcode];
-      if (foundBook) {
-        const { category: cat, subCategory: subCat } = splitAndCleanCategory(foundBook.category);
-        return res.json({
-          success: true,
-          data: {
-            barcode,
-            name: foundBook.name,
-            author: foundBook.author,
-            brand: foundBook.publisher,
-            publisher: foundBook.publisher,
-            category: cat,
-            sub_category: subCat,
-            description: foundBook.description,
-            image_url: foundBook.image_url
-          }
-        });
-      }
-
-      // Try Open Library API as a high-reliability fallback provider to bypass Google Books rate limits!
-      try {
-        const olResponse = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanBarcode}&format=json&jscmd=data`);
-        if (olResponse.ok) {
-          const olData = await olResponse.json();
-          const bookKey = `ISBN:${cleanBarcode}`;
-          if (olData && olData[bookKey]) {
-            const olBook = olData[bookKey];
-            const name = olBook.title || "";
-            const author = olBook.authors ? olBook.authors.map((a: any) => a.name).join(", ") : "";
-            const publisher = olBook.publishers ? olBook.publishers.map((p: any) => p.name).join(", ") : "";
-            const description = olBook.notes || "";
-            const image_url = olBook.cover?.large || olBook.cover?.medium || olBook.cover?.small || `https://covers.openlibrary.org/b/isbn/${cleanBarcode}-L.jpg`;
-            const rawCategoryString = olBook.subjects ? olBook.subjects.map((s: any) => s.name).join(" / ") : "Edebiyat / Roman";
-            const { category: cat, subCategory: subCat } = splitAndCleanCategory(rawCategoryString);
-
-            return res.json({
-              success: true,
-              data: {
-                barcode,
-                name,
-                author,
-                brand: publisher,
-                publisher,
-                category: cat,
-                sub_category: subCat,
-                description,
-                image_url
-              }
-            });
-          }
-        }
-      } catch (olErr) {
-        console.error("Open Library fallback failed:", olErr);
-      }
-
-      // Try Gemini AI Model fallback if API key or system environment is present
-      try {
-        const apiKey = getGeminiApiKey();
-        const ai = apiKey ? new GoogleGenAI({ apiKey }) : new GoogleGenAI();
-        const aiRes = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: `Aşağıdaki ISBN / barkod numarasına sahip Türkiye'de basılmış kitabın künye bilgilerini tam olarak bul ve yanıtla: ${cleanBarcode}.
-          Yanıtı SADECE geçerli bir JSON formatında ver (başka hiçbir metin veya markdown bloğu ekleme):
-          {
-            "found": true,
-            "name": "Kitap Adı",
-            "author": "Yazar Adı",
-            "publisher": "Yayınevi Adı",
-            "category": "Edebiyat / Roman",
-            "description": "Kitap özeti veya açıklaması"
-          }
-          Eğer kitap tamamen bilinmiyorsa: { "found": false }`
-        });
-
-        const text = aiRes.text || "";
-        const match = text.match(/\{[\s\S]*?\}/);
-        if (match) {
-          const parsed = JSON.parse(match[0]);
-          if (parsed.found && parsed.name) {
-            const { category: cat, subCategory: subCat } = splitAndCleanCategory(parsed.category || "Edebiyat / Roman");
-            return res.json({
-              success: true,
-              data: {
-                barcode,
-                name: parsed.name,
-                author: parsed.author || "",
-                brand: parsed.publisher || "",
-                publisher: parsed.publisher || "",
-                category: cat,
-                sub_category: subCat,
-                description: parsed.description || "",
-                image_url: `https://covers.openlibrary.org/b/isbn/${cleanBarcode}-L.jpg`
-              }
-            });
-          }
-        }
-      } catch (aiErr) {
-        console.warn("Gemini AI book lookup fallback attempted:", aiErr);
-      }
-
-      return res.status(404).json({ error: "Eser kataloglarında bu barkoda ait bilgi bulunamadı. Lütfen detayları manuel doldurunuz." });
-    }
-
-    const volumeInfo = gData.items[0].volumeInfo;
-    const title = volumeInfo.title || "";
-    const authors = volumeInfo.authors ? volumeInfo.authors.join(", ") : "";
-    const publisher = volumeInfo.publisher || "";
-    const description = volumeInfo.description || "";
-    const categories = volumeInfo.categories || [];
-    const thumbnail = volumeInfo.imageLinks?.thumbnail || volumeInfo.imageLinks?.smallThumbnail || "";
-    
-    // Auto-upgrade Google Books image to high-resolution (zoom=2) or fallback to Open Library Cover API large-size image
-    let image_url = "";
-    if (thumbnail) {
-      let upgraded = thumbnail.replace("http://", "https://");
-      if (upgraded.includes("zoom=1")) {
-        upgraded = upgraded.replace("zoom=1", "zoom=2");
-      } else if (upgraded.includes("zoom=5")) {
-        upgraded = upgraded.replace("zoom=5", "zoom=2");
-      } else if (!upgraded.includes("zoom=")) {
-        upgraded += "&zoom=2";
-      }
-      image_url = upgraded;
-    } else if (cleanBarcode && cleanBarcode.length >= 10) {
-      image_url = `https://covers.openlibrary.org/b/isbn/${cleanBarcode}-L.jpg`;
-    }
-
-    const rawCategoryString = categories.length > 0 ? categories[0] : "Edebiyat / Roman";
-    const { category: cat, subCategory: subCat } = splitAndCleanCategory(rawCategoryString);
-
-    res.json({
-      success: true,
-      data: {
-        barcode,
-        name: title,
-        author: authors,
-        brand: publisher,
-        publisher,
-        category: cat,
-        sub_category: subCat,
-        description: description.substring(0, 1000),
-        image_url
-      }
-    });
+    return res.status(404).json({ error: "Eser kataloglarında bu barkoda ait bilgi bulunamadı. Lütfen detayları manuel doldurunuz." });
   } catch (error: any) {
     console.error("Lookup barcode error:", error);
     res.status(500).json({ error: error.message });
