@@ -1,5 +1,6 @@
 import React from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Zap, Droplets, DoorClosed, Star, Award, Quote } from "lucide-react";
 
 interface SectorSpecsProps {
   sector: string;
@@ -37,7 +38,8 @@ const INTERNAL_SYSTEM_KEYS = new Set([
   'subtype', 'material', 'fit', 'collection', 'acceleration',
   // Internal marketing/flags that shouldn't appear as raw spec cards
   'is_weekly_pick', 'is_featured_weekly', 'is_popular', 'weekly_pick', 'featured_weekly',
-  'rating', 'synopsis', 'market_story'
+  'rating', 'synopsis', 'market_story', 'featured_quote', 'spot_quote', 'quote', 'spot',
+  'curated_badges', 'curated_badge', 'badges'
 ]);
 
 const SPEC_KEY_LABELS: Record<string, { tr: string; en: string }> = {
@@ -63,7 +65,14 @@ const SPEC_KEY_LABELS: Record<string, { tr: string; en: string }> = {
   publisher: { tr: "Yayınevi", en: "Publisher" },
   author: { tr: "Yazar", en: "Author" },
   model: { tr: "Model", en: "Model" },
-  sku: { tr: "Ürün Kodu", en: "SKU" }
+  sku: { tr: "Ürün Kodu", en: "SKU" },
+  featured_quote: { tr: "Öne Çıkan Alıntı", en: "Featured Quote" },
+  spot_quote: { tr: "Öne Çıkan Alıntı", en: "Featured Quote" },
+  quote: { tr: "Öne Çıkan Alıntı", en: "Quote" },
+  spot: { tr: "Spot / Vurgu", en: "Spotlight" },
+  awards: { tr: "Ödüller & Başarılar", en: "Awards & Honors" },
+  award: { tr: "Ödül", en: "Award" },
+  rating: { tr: "Okur Değerlendirmesi", en: "Rating" }
 };
 
 const formatSpecKey = (key: string, lang: string = 'tr') => {
@@ -478,7 +487,10 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
           <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
             <span className={`w-1.5 h-1.5 rounded-full ${data.elektrik_var ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-            <span>{data.elektrik_var ? (lang === 'tr' ? '⚡ Altyapı Var' : 'Available') : (lang === 'tr' ? 'Yok' : 'None')}</span>
+            <span className="flex items-center gap-1">
+              {data.elektrik_var ? <Zap className="w-3.5 h-3.5 text-amber-500" /> : null}
+              {data.elektrik_var ? (lang === 'tr' ? 'Altyapı Mevcut' : 'Available') : (lang === 'tr' ? 'Yok' : 'None')}
+            </span>
           </div>
         </div>
       )}
@@ -490,7 +502,10 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
           <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
             <span className={`w-1.5 h-1.5 rounded-full ${data.su_var ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-            <span>{data.su_var ? (lang === 'tr' ? '💧 Altyapı Var' : 'Available') : (lang === 'tr' ? 'Yok' : 'None')}</span>
+            <span className="flex items-center gap-1">
+              {data.su_var ? <Droplets className="w-3.5 h-3.5 text-sky-500" /> : null}
+              {data.su_var ? (lang === 'tr' ? 'Altyapı Mevcut' : 'Available') : (lang === 'tr' ? 'Yok' : 'None')}
+            </span>
           </div>
         </div>
       )}
@@ -502,7 +517,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
           </p>
           <div className="flex items-center gap-1.5 font-black text-sm text-slate-900">
             <span className={`w-1.5 h-1.5 rounded-full ${data.yol_var ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-            <span>{data.yol_var ? (lang === 'tr' ? '🛣️ Kadastro Yolu Var' : 'Road Access') : (lang === 'tr' ? 'Yok' : 'None')}</span>
+            <span>{data.yol_var ? (lang === 'tr' ? 'Kadastro Yolu Mevcut' : 'Road Access Available') : (lang === 'tr' ? 'Yok' : 'None')}</span>
           </div>
         </div>
       )}
@@ -537,7 +552,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
             {lang === "tr" ? "STRATEJİK KONUM" : "STRATEGIC LOCATION"}
           </p>
           <p className="text-sm font-black text-amber-950 transition-colors uppercase flex items-center gap-1.5">
-            <span>🛣️</span> {lang === "tr" ? "Ana Yol / Cadde Üzeri" : "Main Road Frontage"}
+            {lang === "tr" ? "Ana Yol / Cadde Üzeri" : "Main Road Frontage"}
           </p>
         </div>
       )}
@@ -548,9 +563,9 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
             {lang === "tr" ? "DEVİR & KİRACI DURUMU" : "TRANSFER / TENANT STATUS"}
           </p>
           <p className="text-sm font-black text-blue-950 transition-colors uppercase">
-            {data.commercial_devir_status === 'tenant' ? (lang === "tr" ? "📈 Hazır Kiracılı" : "Tenant Occupied") :
-             data.commercial_devir_status === 'devren' ? (lang === "tr" ? "🔄 Devren Satılık" : "Business Transfer") :
-             (lang === "tr" ? "🔑 Boş / Kullanıma Hazır" : "Vacant / Ready")}
+            {data.commercial_devir_status === 'tenant' ? (lang === "tr" ? "Hazır Kiracılı" : "Tenant Occupied") :
+             data.commercial_devir_status === 'devren' ? (lang === "tr" ? "Devren Satılık" : "Business Transfer") :
+             (lang === "tr" ? "Boş / Kullanıma Hazır" : "Vacant / Ready")}
           </p>
         </div>
       )}
@@ -569,7 +584,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
       {data.frontage_width && data.frontage_width > 0 && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase flex items-center gap-1">
-            <span>📏</span> {lang === "tr" ? "VİTRİN / CEPHE GENİŞLİĞİ" : "FRONTAGE WIDTH"}
+            {lang === "tr" ? "VİTRİN / CEPHE GENİŞLİĞİ" : "FRONTAGE WIDTH"}
           </p>
           <p className="text-sm font-black text-slate-900 transition-colors uppercase">
             {data.frontage_width} Meter (m)
@@ -580,7 +595,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
       {data.ceiling_height && data.ceiling_height > 0 && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase flex items-center gap-1">
-            <span>📐</span> {lang === "tr" ? "TAVAN / VİTRİN YÜKSEKLİĞİ" : "CEILING HEIGHT"}
+            {lang === "tr" ? "TAVAN / VİTRİN YÜKSEKLİĞİ" : "CEILING HEIGHT"}
           </p>
           <p className="text-sm font-black text-slate-900 transition-colors uppercase">
             {data.ceiling_height} Meter (m)
@@ -591,7 +606,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
       {data.water_tank_capacity && data.water_tank_capacity > 0 && (
         <div className="p-4 bg-sky-50 rounded-2xl border border-sky-100 group hover:border-sky-300 transition-all">
           <p className="text-[8px] font-black text-sky-600 tracking-widest mb-1 uppercase flex items-center gap-1">
-            <span>🚰</span> {lang === "tr" ? "SU DEPOSU KAPASİTESİ" : "WATER TANK CAPACITY"}
+            <Droplets className="w-3 h-3" /> {lang === "tr" ? "SU DEPOSU KAPASİTESİ" : "WATER TANK CAPACITY"}
           </p>
           <p className="text-sm font-black text-sky-950 transition-colors uppercase">
             {data.water_tank_capacity} {lang === "tr" ? "Ton Su Deposu" : "Ton Water Tank"}
@@ -602,7 +617,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
       {data.generator_capacity_kva && data.generator_capacity_kva > 0 && (
         <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 group hover:border-amber-300 transition-all">
           <p className="text-[8px] font-black text-amber-600 tracking-widest mb-1 uppercase flex items-center gap-1">
-            <span>⚡</span> {lang === "tr" ? "JENERATÖR GÜCÜ" : "GENERATOR POWER"}
+            <Zap className="w-3 h-3" /> {lang === "tr" ? "JENERATÖR GÜCÜ" : "GENERATOR POWER"}
           </p>
           <p className="text-sm font-black text-amber-950 transition-colors uppercase">
             {data.generator_capacity_kva} kVA {lang === "tr" ? "Jeneratör" : "Generator"}
@@ -613,7 +628,7 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
       {data.entrance_count && (
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-300 transition-all">
           <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1 uppercase flex items-center gap-1">
-            <span>🚪</span> {lang === "tr" ? "GİRİŞ / SEVKİYAT KAPISI" : "ENTRANCE COUNT"}
+            <DoorClosed className="w-3 h-3" /> {lang === "tr" ? "GİRİŞ / SEVKİYAT KAPISI" : "ENTRANCE COUNT"}
           </p>
           <p className="text-sm font-black text-slate-900 transition-colors uppercase">
             {data.entrance_count}

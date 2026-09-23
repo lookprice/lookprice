@@ -20,6 +20,10 @@ import {
   ArrowDownUp,
   Sparkles,
   ChevronDown,
+  Feather,
+  Building2,
+  Quote,
+  Award,
 } from "lucide-react";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { api } from "../services/api";
@@ -848,17 +852,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
                   {/* Author Badge */}
                   {authorName && (
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200/70 flex items-center gap-1">
-                      <span>✍️</span>
-                      <span>{lang === "tr" ? "Yazar:" : "Author:"} {authorName}</span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200/80 flex items-center gap-1.5 shadow-2xs">
+                      <Feather className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                      <span className="text-indigo-600/90 font-medium">{lang === "tr" ? "Yazar:" : "Author:"}</span>
+                      <span className="font-bold">{authorName}</span>
                     </span>
                   )}
 
                   {/* Publisher Badge */}
                   {publisherName && (
-                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200/80 flex items-center gap-1">
-                      <span>🏛️</span>
-                      <span>{lang === "tr" ? "Yayınevi:" : "Publisher:"} {publisherName}</span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200/90 flex items-center gap-1.5 shadow-2xs">
+                      <Building2 className="w-2.5 h-2.5 text-slate-500 shrink-0" />
+                      <span className="text-slate-500 font-medium">{lang === "tr" ? "Yayınevi:" : "Publisher:"}</span>
+                      <span className="font-bold">{publisherName}</span>
                     </span>
                   )}
 
@@ -966,6 +972,44 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       {isDescExpanded ? (lang === "tr" ? "Daha az göster ▲" : "Show less ▲") : (lang === "tr" ? "Devamını oku ▼" : "Read more ▼")}
                     </button>
                   )}
+                </div>
+              );
+            })()}
+
+            {/* Featured Quote / Spot Callout (if present) */}
+            {(() => {
+              const quoteText = ((product.sector_data as any)?.featured_quote || (product.sector_data as any)?.spot_quote || (product.sector_data as any)?.quote || (product as any).featured_quote || (product as any).quote || (product as any).spot || "")?.trim();
+              if (!quoteText) return null;
+              return (
+                <div className="relative p-3 bg-gradient-to-r from-amber-50/80 via-indigo-50/50 to-slate-50/80 rounded-xl border border-amber-200/70 shadow-2xs overflow-hidden">
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-700 shrink-0 mt-0.5">
+                      <Quote className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-[9px] font-black text-amber-900/80 uppercase tracking-widest mb-0.5">
+                        {lang === "tr" ? "ÖNE ÇIKAN ALINTI" : "FEATURED QUOTE"}
+                      </h4>
+                      <p className="text-xs font-serif italic text-slate-800 leading-relaxed font-medium">
+                        &ldquo;{quoteText}&rdquo;
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Literary Awards & Honors (if present) */}
+            {(() => {
+              const awardsText = ((product.sector_data as any)?.awards || (product.sector_data as any)?.award || (product as any).awards || "")?.trim();
+              if (!awardsText) return null;
+              return (
+                <div className="flex items-center gap-2 p-2.5 bg-amber-500/10 rounded-xl border border-amber-300/40 text-amber-950">
+                  <Award className="w-4 h-4 text-amber-600 shrink-0" />
+                  <div className="text-xs font-medium">
+                    <span className="font-bold mr-1">{lang === "tr" ? "Ödül & Başarı:" : "Awards & Honors:"}</span>
+                    <span>{awardsText}</span>
+                  </div>
                 </div>
               );
             })()}

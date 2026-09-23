@@ -178,8 +178,8 @@ export const ProductModal = ({
         }
 
         alert(isTr 
-          ? `Kitap bilgileri ve kapak görseli başarıyla getirildi:\n\n📖 Eser: ${d.name}\n✍️ Yazar: ${d.author || 'Belirtilmemiş'}\n🏢 Yayıncı: ${d.publisher || d.brand || 'Belirtilmemiş'}` 
-          : `Book details retrieved successfully!\nTitle: ${d.name}\nAuthor: ${d.author}`);
+          ? `Kitap bilgileri ve kapak görseli başarıyla getirildi:\n\n• Eser: ${d.name}\n• Yazar: ${d.author || 'Belirtilmemiş'}\n• Yayıncı: ${d.publisher || d.brand || 'Belirtilmemiş'}` 
+          : `Book details retrieved successfully!\n\n• Title: ${d.name}\n• Author: ${d.author || 'Not specified'}\n• Publisher: ${d.publisher || d.brand || 'Not specified'}`);
       } else {
         alert(dataObj?.error || (isTr ? "Kataloglarda bu ISBN numarasına ait kitap bulunamadı." : "Book not found in catalogs."));
       }

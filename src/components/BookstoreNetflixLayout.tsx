@@ -563,14 +563,18 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
                         </div>
 
                         {/* Spot Quote (Çarpıcı Alıntı) */}
-                        {themeConfig.show_hero_quote !== false && ((heroBook as any).sector_data?.spot_quote || (heroBook as any).spot_quote) && (
-                          <div className="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90 text-amber-300/90 text-xs sm:text-sm italic flex items-start gap-2 max-w-xl backdrop-blur-md">
-                            <Quote className="w-4 h-4 shrink-0 mt-0.5 text-amber-400 opacity-75" />
-                            <p className="line-clamp-2 font-serif">
-                              "{((heroBook as any).sector_data?.spot_quote || (heroBook as any).spot_quote)}"
-                            </p>
-                          </div>
-                        )}
+                        {(() => {
+                          const heroQuote = (heroBook as any).sector_data?.spot_quote || (heroBook as any).sector_data?.featured_quote || (heroBook as any).sector_data?.quote || (heroBook as any).spot_quote || (heroBook as any).featured_quote || (heroBook as any).quote || (heroBook as any).spot;
+                          if (themeConfig.show_hero_quote === false || !heroQuote) return null;
+                          return (
+                            <div className="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90 text-amber-300/90 text-xs sm:text-sm italic flex items-start gap-2 max-w-xl backdrop-blur-md shadow-lg">
+                              <Quote className="w-4 h-4 shrink-0 mt-0.5 text-amber-400 opacity-85" />
+                              <p className="line-clamp-2 font-serif">
+                                &ldquo;{heroQuote}&rdquo;
+                              </p>
+                            </div>
+                          );
+                        })()}
 
                         {/* Short Description */}
                         <p className="text-xs sm:text-sm text-slate-300 line-clamp-3 leading-relaxed max-w-2xl font-normal">
