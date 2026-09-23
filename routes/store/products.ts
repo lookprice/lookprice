@@ -496,6 +496,11 @@ router.get("/", async (req: any, res) => {
 
     query += ` ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC`;
 
+    const limit = req.query.limit ? Number(req.query.limit) : null;
+    if (limit && !isNaN(limit)) {
+      query += ` LIMIT ${limit}`;
+    }
+
     const productsRes = await pool.query(query, params);
     res.json(productsRes.rows);
   } catch (error) {
@@ -1947,18 +1952,51 @@ router.get("/lookup-barcode", async (req: any, res) => {
     let gResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanBarcode}`);
     let gData = await gResponse.json();
 
-    if (!gData.items || gData.items.length === 0) {
+    const isQuotaExceeded = gData.error && (
+      String(gData.error.message || "").toLowerCase().includes("quota") ||
+      String(gData.error.status || "").toLowerCase().includes("exhausted")
+    );
+
+    if (!isQuotaExceeded && (!gData.items || gData.items.length === 0)) {
       gResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${cleanBarcode}`);
       gData = await gResponse.json();
     }
 
-    if (!gData.items || gData.items.length === 0) {
+    if (isQuotaExceeded || !gData.items || gData.items.length === 0) {
       // Offline fallback dictionary for common ISBNs & test ISBNs (e.g., 9789752128262)
       const offlineLibrary: Record<string, any> = {
-        "9789752128262": { name: "Uzun Yürüyüş (The Long Walk)", author: "Stephen King (Richard Bachman)", publisher: "Altın Kitaplar", category: "Bilim Kurgu / Distopya", description: "Stephen King'in Richard Bachman mahlasıyla kaleme aldığı kült distopik eseri. Kazananın her şeye sahip olduğu, kaybedenin ise hayatta kalamayacağı amansız bir yürüyüşün hikayesi." },
-        "9786256843639": { name: "Görünmeyen Kadınlar", author: "Dr. Gülseren Budayıcıoğlu", publisher: "Doğan Kitap", category: "Edebiyat / Roman / Psikoloji", description: "Dr. Gülseren Budayıcıoğlu'nun kaleminden kadınların kafeslerin ardındaki yaşantılarına, görünmez kılınan hayatlarına ve mücadelelerine ışık tutan, gerçek insan hikayelerinden esinlenmiş sarsıcı bir başyapıt." },
-        "9789750802967": { name: "Kürk Mantolu Madonna", author: "Sabahattin Ali", publisher: "Yapı Kredi Yayınları", category: "Edebiyat / Roman", description: "Sabahattin Ali'nin aşk, yalnızlık ve yabancılaşma temalarını işleyen unutulmaz eseri." },
-        "9789750738609": { name: "İçimizdeki Şeytan", author: "Sabahattin Ali", publisher: "Can Yayınları", category: "Edebiyat / Roman", description: "Bireyin iç dünyasındaki çatışmaları ve toplumsal baskıları gözler önüne seren başyapıt." }
+        "9789752128262": { 
+          name: "Uzun Yürüyüş (The Long Walk)", 
+          author: "Stephen King (Richard Bachman)", 
+          publisher: "Altın Kitaplar", 
+          category: "Bilim Kurgu / Distopya", 
+          description: "Stephen King'in Richard Bachman mahlasıyla kaleme aldığı kült distopik eseri. Kazananın her şeye sahip olduğu, kaybedenin ise hayatta kalamayacağı amansız bir yürüyüşün hikayesi.",
+          image_url: "https://covers.openlibrary.org/b/isbn/9789752128262-L.jpg"
+        },
+        "9786256843639": { 
+          name: "Görünmeyen Kadınlar", 
+          author: "Dr. Gülseren Budayıcıoğlu", 
+          publisher: "Doğan Kitap", 
+          category: "Edebiyat / Roman / Psikoloji", 
+          description: "Dr. Gülseren Budayıcıoğlu'nun kaleminden kadınların kafeslerin ardındaki yaşantılarına, görünmez kılınan hayatlarına ve mücadelelerine ışık tutan, gerçek insan hikayelerinden esinlenmiş sarsıcı bir başyapıt.",
+          image_url: "https://covers.openlibrary.org/b/isbn/9786256843639-L.jpg"
+        },
+        "9789750802967": { 
+          name: "Kürk Mantolu Madonna", 
+          author: "Sabahattin Ali", 
+          publisher: "Yapı Kredi Yayınları", 
+          category: "Edebiyat / Roman", 
+          description: "Sabahattin Ali'nin aşk, yalnızlık ve yabancılaşma temalarını işleyen unutulmaz eseri.",
+          image_url: "https://covers.openlibrary.org/b/isbn/9789750802967-L.jpg"
+        },
+        "9789750738609": { 
+          name: "İçimizdeki Şeytan", 
+          author: "Sabahattin Ali", 
+          publisher: "Can Yayınları", 
+          category: "Edebiyat / Roman", 
+          description: "Bireyin iç dünyasındaki çatışmaları ve toplumsal baskıları gözler önüne seren başyapıt.",
+          image_url: "https://covers.openlibrary.org/b/isbn/9789750738609-L.jpg"
+        }
       };
 
       const foundBook = offlineLibrary[cleanBarcode];
@@ -1975,8 +2013,14 @@ router.get("/lookup-barcode", async (req: any, res) => {
             category: cat,
             sub_category: subCat,
             description: foundBook.description,
-            image_url: ""
+            image_url: foundBook.image_url
           }
+        });
+      }
+
+      if (isQuotaExceeded) {
+        return res.status(429).json({ 
+          error: "Google Books API günlük sorgu limiti doldu! Lütfen test barkodlarını (örn: 9786256843639 veya 9789752128262) deneyin." 
         });
       }
 
@@ -1990,7 +2034,22 @@ router.get("/lookup-barcode", async (req: any, res) => {
     const description = volumeInfo.description || "";
     const categories = volumeInfo.categories || [];
     const thumbnail = volumeInfo.imageLinks?.thumbnail || volumeInfo.imageLinks?.smallThumbnail || "";
-    const image_url = thumbnail ? thumbnail.replace("http://", "https://") : "";
+    
+    // Auto-upgrade Google Books image to high-resolution (zoom=2) or fallback to Open Library Cover API large-size image
+    let image_url = "";
+    if (thumbnail) {
+      let upgraded = thumbnail.replace("http://", "https://");
+      if (upgraded.includes("zoom=1")) {
+        upgraded = upgraded.replace("zoom=1", "zoom=2");
+      } else if (upgraded.includes("zoom=5")) {
+        upgraded = upgraded.replace("zoom=5", "zoom=2");
+      } else if (!upgraded.includes("zoom=")) {
+        upgraded += "&zoom=2";
+      }
+      image_url = upgraded;
+    } else if (cleanBarcode && cleanBarcode.length >= 10) {
+      image_url = `https://covers.openlibrary.org/b/isbn/${cleanBarcode}-L.jpg`;
+    }
 
     const rawCategoryString = categories.length > 0 ? categories[0] : "Edebiyat / Roman";
     const { category: cat, subCategory: subCat } = splitAndCleanCategory(rawCategoryString);

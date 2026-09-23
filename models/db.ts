@@ -10,8 +10,8 @@ export const pool = new Pool({
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
   max: 25,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-  statement_timeout: 10000,
+  connectionTimeoutMillis: 30000, // Increased to 30s to allow scale-to-zero database cold-starts
+  statement_timeout: 30000, // Increased to 30s to prevent statement timeouts during startup schema checks
 });
 
 // Initialize Database

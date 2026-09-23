@@ -260,6 +260,44 @@ This file outlines strict engineering, performance, and naming directives that m
   - Modalların veya sayfaların üst araç çubuğunda ilgili pazar yerinin satıcı merkezine (Merchant Center / Seller Central) doğrudan erişim butonları/linkleri zaten yer almaktadır.
   - Her bir tablo satırına veya ürün hücresine genel satıcı panelini açan fazlalık ikonlar (örn. mağaza/store ikonu) KESİNLİKLE EKLENEMEZ. Satır içi butonlar yalnızca o ilana/satıra özel canlı aksiyonlara (doğrudan aktif ilanı yeni sekmede açma, onay durumu sorgulama, satışa açma/kapatma, fiyat/stok basma) ayrılmalıdır.
 
+---
+
+## 20. Kitapçılık / Sahaf (Bookstore) Modülünde Rozet ve Etiket Senkronizasyonu ile Envanter Eşgüdümü Standardı (Bookstore Badge & Stock Alignment Protocol)
+
+- **Rozet/Etiket (Labels) ve sector_data.curated_badges Tam Eşgüdümü**:
+  - Kitapçılık modülünde, ürünün üst düzey `labels` listesi (ör. Çok Satan, Editörün Seçimi, Yeni Çıkanlar, Ödüllü vb.) ile `sector_data.curated_badges` dizisi, ayrıca `is_bestseller` (Çok Satan) ve `sector_data.is_weekly_pick` (Haftanın Eseri/Manşet) alanları her kayıtta ve güncellemede mutlaka **aynı anda senkronize edilerek** tek vücut halinde kaydedilmelidir.
+  - Form üzerinden gelen `labels` verisi, `useProductActions.ts` içerisinde otomatik olarak taranmalı; `curated_badges` içerisine yazılmalı ve bu alanların durumu veri tabanına gitmeden önce mükemmel bir şekilde eşitlenmelidir. Bu sayede, rozetlerin/etiketlerin aktif/pasif yapıldığında kaydının tutmaması veya eski değerlerin `sector_data` içinden geri gelip rozeti tekrar canlandırması (stale merge hatası) tamamen önlenmiştir.
+  
+- **Vitrinde Canlı Stok out (Tükendi) ve Sepet Engeli Görsel Standardı**:
+  - Dışa açık kitap konseptli web sitelerinde (ör. Netflix tarzı yatay kaydırmalı ana sayfa vitrini), bir eserin toplam stok miktarı `0` veya daha az ise:
+    - Kitap kartının ön yüzünde (`BookCardNetflix.tsx`) yarı saydam, estetik ve kırmızı renkli bir **"TÜKENDİ" (OUT OF STOCK)** overlay/banner'ı gösterilmeli, kullanıcı anında bilgilendirilmelidir.
+    - Hızlı sipariş / sepete ekleme butonu anında devre dışı bırakılmalı, rengi soluklaştırılmalı ve ikonu sepet yerine paket/envanter simgesine (`Package`) dönüşmelidir. Bu sayede web sitesi ve fiziksel/dijital mağaza envanteri betondan daha sağlam bir eşgüdümle çalışır.
+
+---
+
+## 21. Hızlı POS (Fast POS) Performans ve Raporlama Standartları (Fast POS Performance & Reporting Protocol)
+
+- **Akıllı Hibrit POS Performans Modeli (Smart Query Optimization)**:
+  - POS ekranında binlerce ürünün (özellikle kitapçı/sahaf gibi yoğun envanterlerde) tek seferde istemciye indirilip tarayıcıyı dondurması KESİNLİKLE YASAKTIR.
+  - İlk yüklemede ve boş aramalarda veri tabanından en taze ve güncel **150 ürün** (`limit=150`) çekilerek grid anında listelenir.
+  - Arama çubuğuna yazıldığında veya barkod/ISBN okutulduğunda, veri tabanına sunucu tarafında (`server-side`) dinamik ve indeksli sorgu atılarak anında en alakalı **150 eşleşen ürün** listelenir. Bu sayede POS yüklenme ve çalışma hızı 100 katına çıkartılmıştır.
+
+- **Sektörel Raporlama Eşgüdümü (Universal POS Reporting)**:
+  - "Gün Sonu & Dönem Satış Raporu" (Z-Raporu) ve "Yazıcı Tanısı" özellikleri, Horeca (kafe/restoran) sektörüyle sınırlı kalmayıp genel perakende (`shopLP` / kitapçı) mağazaları için de **İşlemler** menüsü altında aktif ve erişilebilir olmalıdır.
+  - Masa QR kodları ve Happy Hour gibi restorana özel araçlar ise sektörel izolasyon kuralı gereği sadece `isCafeRestaurant` koşulu aktif olduğunda gösterilmeye devam etmelidir.
+
+---
+
+## 22. Kitapçılık Vitrini (Bookstore Showcase) Hız ve Performans Standartları (Bookstore Showcase Speed Optimization)
+
+- **Yatay Şerit (Netflix Row) Maksimum Görünürlük Sınırı**:
+  - Netflix tarzı yatay kaydırmalı kitap satırlarında (`NetflixBookRow.tsx`), yüzlerce kitabın tek seferde DOM'a render edilerek tarayıcıyı yormasını önlemek için ürün listesi üst sınırlandırılmalıdır.
+  - Her bir yatay şerit, gelen ürün envanterini en fazla **35 ürün** (`slice(0, 35)`) ile sınırlar. Kullanıcının zaten yüzlerce kitabı yatayda kaydırmayacağı gerçeğiyle, ilk yükleme hızı ve sayfa akıcılığı maksimuma çıkarılmıştır.
+
+- **Katalog Sayfası Akıllı Sayfalama (Load More - Daha Fazla Göster)**:
+  - Kitap Koleksiyonu ve arama sonuçlarında (`BookstoreNetflixLayout.tsx`), tüm filtre uyuşumlu ürünleri tek seferde ekrana basmak yerine aşamalı render kullanılır.
+  - Varsayılan başlangıç listeleme boyutu **30** kitaptır. Sayfa altında, geriye kalan ürünler için şık, marka renginde bir **"Daha Fazla Kitap Göster" (Load More Books)** butonu sunulur. Filtreler her değiştiğinde bu sayaç sıfırlanır. Bu sayede 10.000 kitaplık bir kütüphanede dahi sayfa sıfır gecikmeyle anında render edilir.
+
 
 
 

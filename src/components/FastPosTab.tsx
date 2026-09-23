@@ -1113,7 +1113,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
     const fetchAllProducts = async () => {
       setLoading(true);
       try {
-        const res = await api.getProducts("", storeId, false, true);
+        const res = await api.getProducts("", storeId, false, true, 150);
         const products = Array.isArray(res) ? res : [];
         setSearchResults(products);
         setAllProducts(products);
@@ -1140,7 +1140,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
         }
 
         try {
-          const res = await api.getProducts(trimmed, storeId, false, true);
+          const res = await api.getProducts(trimmed, storeId, false, true, 150);
           const products = Array.isArray(res) ? res : [];
           setSearchResults(products);
           
@@ -1160,7 +1160,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           setSearchResults(allProducts);
         } else {
           try {
-            const res = await api.getProducts("", storeId, false, true);
+            const res = await api.getProducts("", storeId, false, true, 150);
             const products = Array.isArray(res) ? res : [];
             setSearchResults(products);
             setAllProducts(products);

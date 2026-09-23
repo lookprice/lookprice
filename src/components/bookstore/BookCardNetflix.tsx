@@ -191,6 +191,16 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
                 {/* Subtle Book Spine Shadow Left */}
                 <div className="absolute top-0 left-0 bottom-0 w-3.5 bg-gradient-to-r from-black/60 via-black/20 to-transparent pointer-events-none" />
 
+                {/* Out of Stock Premium Styled Overlay */}
+                {totalProductStock <= 0 && (
+                  <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[1px] flex flex-col items-center justify-center text-center p-3 z-15 pointer-events-none">
+                    <div className="px-3 py-1.5 rounded-xl bg-red-600/90 border border-red-500/30 text-white font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-1.5 scale-95 animate-pulse">
+                      <Package className="w-3.5 h-3.5 shrink-0" />
+                      <span>{isTr ? "TÜKENDİ" : "OUT OF STOCK"}</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Top Overlay Badges */}
                 <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10 pointer-events-none gap-1">
                   {showCardRating ? (
@@ -288,15 +298,24 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
 
                     <button
                       type="button"
+                      disabled={totalProductStock <= 0}
                       onClick={handleQuickAdd}
-                      title={isTr ? "Sepete Ekle" : "Add to Cart"}
+                      title={totalProductStock <= 0 ? (isTr ? "Tükendi" : "Out of Stock") : (isTr ? "Sepete Ekle" : "Add to Cart")}
                       className={`p-1.5 rounded-lg transition-all active:scale-95 cursor-pointer ${
-                        addedAnimation 
-                          ? "bg-emerald-600 text-white" 
-                          : "bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-600/20"
+                        totalProductStock <= 0
+                          ? "bg-slate-800 text-slate-600 cursor-not-allowed opacity-40"
+                          : addedAnimation 
+                            ? "bg-emerald-600 text-white" 
+                            : "bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-600/20"
                       }`}
                     >
-                      {addedAnimation ? <Check className="w-3.5 h-3.5" /> : <ShoppingBag className="w-3.5 h-3.5" />}
+                      {totalProductStock <= 0 ? (
+                        <Package className="w-3.5 h-3.5" />
+                      ) : addedAnimation ? (
+                        <Check className="w-3.5 h-3.5" />
+                      ) : (
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>

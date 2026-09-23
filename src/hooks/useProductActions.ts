@@ -150,6 +150,23 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       else if (sector_data.isbn) data.barcode = sector_data.isbn;
     }
 
+    // Ensure bookstore badges and sector_data curated_badges are synchronized perfectly
+    const isBookstore = Boolean(
+      branding?.bookstore_module_enabled === true ||
+      branding?.branding?.bookstore_module_enabled === true ||
+      branding?.bookstore_license_enabled === true ||
+      branding?.branding?.bookstore_license_enabled === true ||
+      branding?.store_type === 'bookstore' ||
+      branding?.page_layout_settings?.sector === 'bookstore'
+    );
+
+    if (isBookstore && sector_data && typeof sector_data === 'object') {
+      sector_data.curated_badges = data.labels;
+      sector_data.is_weekly_pick = data.labels.some((l: string) => l.toLowerCase() === "featured_week");
+      sector_data.is_featured_weekly = sector_data.is_weekly_pick;
+      data.is_bestseller = data.labels.some((l: string) => l.toLowerCase() === "bestseller");
+    }
+
     if (data.has_variants && data.variants.length > 0) {
       // Automatically sum variant stocks so stock_quantity is correctly set and recognized by filters and website publishing
       const totalVariantStock = data.variants.reduce((acc: number, curr: any) => acc + (Number(curr.stock_quantity) || 0), 0);

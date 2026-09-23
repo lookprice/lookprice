@@ -85,6 +85,12 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
   const [selectedBadge, setSelectedBadge] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"home" | "catalog" | "bestsellers">("home");
   const [favCount, setFavCount] = useState<number>(() => bookstoreInteraction.getFavorites(store?.id).length);
+  const [visibleCount, setVisibleCount] = useState<number>(30);
+
+  // Reset visibleCount on filter change
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [searchQuery, selectedCategory, selectedSubCategory, selectedAuthor, selectedPublisher, selectedBadge, activeTab]);
 
   // Sync favorites count
   useEffect(() => {
@@ -844,8 +850,8 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               />
             )}
 
-            {/* Category Specific Rows */}
-            {themeConfig.show_row_categories !== false && categories.slice(0, themeConfig.max_category_rows || 4).map((catName) => {
+            {/* Category Specific Rows (Netflix Horizontal Style) */}
+            {themeConfig.show_row_categories !== false && categories.map((catName) => {
               const catProducts = products.filter((p) => p.category === catName);
               if (catProducts.length === 0) return null;
               return (
@@ -1040,24 +1046,40 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
 
           {/* Book Cards Grid */}
           {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-              {filteredProducts.map((product) => (
-                <BookCardNetflix
-                  key={`catalog-book-${product.id}`}
-                  product={product}
-                  store={store}
-                  lang={lang}
-                  onView={onViewProduct}
-                  addToBasket={addToBasket}
-                  primaryColor={themeConfig.primary_color}
-                  secondaryColor={themeConfig.secondary_color}
-                  enableCardFlip={themeConfig.enable_card_flip}
-                  showCardSynopsis={themeConfig.show_card_synopsis}
-                  showCardBadges={themeConfig.show_card_badges}
-                  showCardRating={themeConfig.show_card_rating}
-                  showCardQuickAdd={themeConfig.show_card_quick_add}
-                />
-              ))}
+            <div className="flex flex-col gap-8 sm:gap-10">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                {filteredProducts.slice(0, visibleCount).map((product) => (
+                  <BookCardNetflix
+                    key={`catalog-book-${product.id}`}
+                    product={product}
+                    store={store}
+                    lang={lang}
+                    onView={onViewProduct}
+                    addToBasket={addToBasket}
+                    primaryColor={themeConfig.primary_color}
+                    secondaryColor={themeConfig.secondary_color}
+                    enableCardFlip={themeConfig.enable_card_flip}
+                    showCardSynopsis={themeConfig.show_card_synopsis}
+                    showCardBadges={themeConfig.show_card_badges}
+                    showCardRating={themeConfig.show_card_rating}
+                    showCardQuickAdd={themeConfig.show_card_quick_add}
+                  />
+                ))}
+              </div>
+
+              {filteredProducts.length > visibleCount && (
+                <div className="flex justify-center pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + 30)}
+                    className="px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-wider text-white shadow-lg shadow-black/40 hover:scale-102 active:scale-98 transition-all cursor-pointer flex items-center gap-2 border border-white/10"
+                    style={{ backgroundColor: themeConfig.primary_color || "#ef4444" }}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>{isTr ? "Daha Fazla Kitap Göster" : "Load More Books"}</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="py-20 text-center space-y-3 bg-slate-900/50 rounded-3xl border border-slate-800">

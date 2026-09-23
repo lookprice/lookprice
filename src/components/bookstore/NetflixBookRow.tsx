@@ -60,6 +60,9 @@ export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
     }
   };
 
+  // Slice to max 35 products for a row because horizontal scroll should not contain hundreds of elements.
+  const visibleProducts = (products || []).slice(0, 35);
+
   if (!products || products.length === 0) return null;
 
   return (
@@ -146,13 +149,13 @@ export const NetflixBookRow: React.FC<NetflixBookRowProps> = ({
         onScroll={checkScroll}
         className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth px-4 sm:px-8 md:px-12 pr-12 sm:pr-16"
       >
-        {products.map((product) => (
+        {visibleProducts.map((product) => (
           <BookCardNetflix
             key={`netflix-book-${product.id}-${product.barcode || ""}`}
             product={product}
             store={store}
             lang={lang}
-            onView={(p) => onViewProduct(p, products)}
+            onView={(p) => onViewProduct(p, visibleProducts)}
             addToBasket={addToBasket}
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}

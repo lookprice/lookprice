@@ -124,24 +124,24 @@ export const PosHeaderToolbar: React.FC<PosHeaderToolbarProps> = ({
       </div>
       
       <div className="flex items-center gap-2">
-        {/* Cafe Restaurant Specific Tools */}
-        {isCafeRestaurant && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowCafeTools(!showCafeTools)}
-              className={`p-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center justify-center ${
-                showCafeTools ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-              title={lang === 'tr' ? "İşlemler (Masa QR, Gün Sonu, vb.)" : "Actions (Table QR, Z-Report, etc.)"}
-            >
-              <div className="flex items-center gap-1">
-                <span className="px-1">{lang === 'tr' ? "İşlemler" : "Actions"}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showCafeTools ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-            </button>
+        {/* Actions Menu for both Cafe and Retail */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCafeTools(!showCafeTools)}
+            className={`p-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center justify-center ${
+              showCafeTools ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+            title={lang === 'tr' ? "İşlemler (Gün Sonu, vb.)" : "Actions (Z-Report, etc.)"}
+          >
+            <div className="flex items-center gap-1">
+              <span className="px-1">{lang === 'tr' ? "İşlemler" : "Actions"}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showCafeTools ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </button>
 
-            {showCafeTools && (
-              <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
+          {showCafeTools && (
+            <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
+              {isCafeRestaurant && (
                 <button
                   onClick={() => setShowQrModal(true)}
                   className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
@@ -149,26 +149,28 @@ export const PosHeaderToolbar: React.FC<PosHeaderToolbarProps> = ({
                 >
                   <QrCode className="h-4 w-4" />
                 </button>
+              )}
 
-                <button
-                  onClick={() => setShowReportModal(true)}
-                  className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
-                  title={lang === 'tr' ? "Gün Sonu Raporu" : "End of Day Report"}
-                >
-                  <Calendar className="h-4 w-4" />
-                </button>
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
+                title={lang === 'tr' ? "Gün Sonu Raporu" : "End of Day Report"}
+              >
+                <Calendar className="h-4 w-4" />
+              </button>
 
-                <button
-                  onClick={() => {
-                    setPrinterDiagStep('idle');
-                    setShowPrinterDiagnosticModal(true);
-                  }}
-                  className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
-                  title={lang === 'tr' ? "Yazıcı Tanısı" : "Printer Diagnosis"}
-                >
-                  <Printer className="h-4 w-4" />
-                </button>
+              <button
+                onClick={() => {
+                  setPrinterDiagStep('idle');
+                  setShowPrinterDiagnosticModal(true);
+                }}
+                className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer"
+                title={lang === 'tr' ? "Yazıcı Tanısı" : "Printer Diagnosis"}
+              >
+                <Printer className="h-4 w-4" />
+              </button>
 
+              {isCafeRestaurant && (
                 <button
                   onClick={() => setShowHappyHourModal(true)}
                   className={`p-1.5 rounded-lg transition-all flex items-center justify-center shadow-2xs active:scale-95 cursor-pointer border ${
@@ -180,10 +182,10 @@ export const PosHeaderToolbar: React.FC<PosHeaderToolbarProps> = ({
                 >
                   <Flame className={`h-4 w-4 ${isHappyHourActive ? 'text-white' : ''}`} />
                 </button>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Bridge Status Indicator */}
         {branding?.pos_bridge_enabled && (

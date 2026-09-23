@@ -156,6 +156,10 @@ export const ProductModal = ({
         const descInput = document.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
         if (descInput && d.description) descInput.value = d.description;
 
+        const imageInput = document.querySelector('input[name="image_url"]') as HTMLInputElement;
+        if (imageInput && d.image_url) imageInput.value = d.image_url;
+        if (d.image_url) setProductImageUrl(d.image_url);
+
         alert(isTr ? `Kitap bilgileri başarıyla getirildi:\nEser: ${d.name}\nYazar: ${d.author}` : `Book details retrieved successfully!`);
       } else {
         alert(res?.error || (isTr ? "Kitap bulunamadı" : "Book not found"));
@@ -502,7 +506,7 @@ export const ProductModal = ({
                         }`}
                         defaultValue={editingProduct?.barcode || (editingProduct as any)?.sector_data?.isbn || ""}
                       />
-                      {isBookstore && (
+                      {(isBookstore || isShopLp) && (
                         <button
                           type="button"
                           onClick={handleAutoLookup}
