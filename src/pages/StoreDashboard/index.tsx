@@ -1326,6 +1326,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   isViewer={isViewer} 
                   includeBranches={includeBranches}
                   onUpdate={fetchData}
+                  branding={branding}
                 />
               )}
               {activeTab === "service" && permittedTabIds.has("service") && (

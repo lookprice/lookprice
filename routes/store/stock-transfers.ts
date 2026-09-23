@@ -4,19 +4,42 @@ import { pool, addStockMovement } from "../../models/db";
 const router = express.Router();
 
 router.get("/", async (req: any, res) => {
-  const storeId = req.user.role === "superadmin" ? (req.query.storeId || req.user.store_id) : req.user.store_id;
+  const storeId = req.query.storeId || req.user.store_id;
+  const includeBranches = req.query.includeBranches === 'true';
   if (!storeId) return res.status(400).json({ error: "Store ID required" });
 
   try {
-    const result = await pool.query(
-      `SELECT st.*, s1.name as from_store_name, s2.name as to_store_name 
-       FROM stock_transfers st
-       JOIN stores s1 ON st.from_store_id = s1.id
-       JOIN stores s2 ON st.to_store_id = s2.id
-       WHERE st.from_store_id = $1 OR st.to_store_id = $1
-       ORDER BY st.created_at DESC`,
-      [storeId]
-    );
+    let query = `
+      SELECT st.*, 
+             s1.name as from_store_name, 
+             s2.name as to_store_name,
+             u1.email as created_by_email,
+             u2.email as shipped_by_email
+      FROM stock_transfers st
+      JOIN stores s1 ON st.from_store_id = s1.id
+      JOIN stores s2 ON st.to_store_id = s2.id
+      LEFT JOIN users u1 ON st.created_by = u1.id
+      LEFT JOIN users u2 ON st.shipped_by = u2.id
+    `;
+    let params: any[] = [];
+
+    // Get family IDs (parent + branches)
+    const parentRes = await pool.query("SELECT id, parent_id FROM stores WHERE id = $1", [storeId]);
+    const parentId = parentRes.rows[0]?.parent_id || storeId;
+    const familyRes = await pool.query("SELECT id FROM stores WHERE id = $1 OR parent_id = $1", [parentId]);
+    const familyIds = familyRes.rows.map(r => r.id);
+
+    if (includeBranches || familyIds.length > 1) {
+      query += ` WHERE st.from_store_id = ANY($1::int[]) OR st.to_store_id = ANY($1::int[])`;
+      params.push(familyIds);
+    } else {
+      query += ` WHERE st.from_store_id = $1 OR st.to_store_id = $1`;
+      params.push(storeId);
+    }
+
+    query += ` ORDER BY st.created_at DESC`;
+
+    const result = await pool.query(query, params);
     
     const transfersWithItems = await Promise.all(result.rows.map(async (t: any) => {
       const items = await pool.query("SELECT * FROM stock_transfer_items WHERE transfer_id = $1", [t.id]);
@@ -25,34 +48,91 @@ router.get("/", async (req: any, res) => {
     
     res.json(transfersWithItems);
   } catch (error) {
+    console.error("Error fetching transfers:", error);
     res.status(500).json({ error: "Failed to fetch transfers" });
   }
 });
 
 router.post("/", async (req: any, res) => {
-  const fromStoreId = req.user.store_id;
-  const { toStoreId, items, notes } = req.body;
+  const userStoreId = req.user.store_id;
+  const { from_store_id, to_store_id, fromStoreId, toStoreId, items, notes, status: requestedStatus } = req.body;
+
+  const actualFromStoreId = Number(from_store_id || fromStoreId || userStoreId);
+  const actualToStoreId = Number(to_store_id || toStoreId);
+  const initialStatus = requestedStatus === 'shipped' ? 'shipped' : 'pending';
+
+  if (!actualFromStoreId || !actualToStoreId) {
+    return res.status(400).json({ error: "Çıkış ve Varış mağazaları belirtilmelidir." });
+  }
+
+  if (actualFromStoreId === actualToStoreId) {
+    return res.status(400).json({ error: "Aynı mağazaya transfer veya sevkiyat yapılamaz." });
+  }
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: "Lütfen en az bir ürün ekleyin." });
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+
+    // If initialStatus === 'shipped', verify stock in sender store first
+    if (initialStatus === 'shipped') {
+      for (const item of items) {
+        if (item.product_type === 'service') continue;
+        const pRes = await client.query(
+          "SELECT stock_quantity, name FROM products WHERE id = $1 AND store_id = $2",
+          [item.product_id || item.id, actualFromStoreId]
+        );
+        const prod = pRes.rows[0];
+        if (!prod || Number(prod.stock_quantity) < Number(item.quantity)) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({
+            error: `Yetersiz stok: ${prod?.name || item.product_name || item.name || 'Ürün'} (Çıkış Mağazası Mevcut Stoğu: ${prod?.stock_quantity || 0}, Gönderilmek İstenen: ${item.quantity})`
+          });
+        }
+      }
+    }
+
     const transferRes = await client.query(
-      "INSERT INTO stock_transfers (from_store_id, to_store_id, notes, status, created_by) VALUES ($1, $2, $3, 'pending', $4) RETURNING id",
-      [fromStoreId, toStoreId, notes, req.user.id]
+      `INSERT INTO stock_transfers (from_store_id, to_store_id, notes, status, created_by, shipped_by) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [actualFromStoreId, actualToStoreId, notes || '', initialStatus, req.user.id, initialStatus === 'shipped' ? req.user.id : null]
     );
     const transferId = transferRes.rows[0].id;
 
     for (const item of items) {
       await client.query(
-        "INSERT INTO stock_transfer_items (transfer_id, product_id, barcode, product_name, quantity, product_type) VALUES ($1, $2, $3, $4, $5, $6)",
-        [transferId, item.id, item.barcode, item.name, item.quantity, item.product_type || 'product']
+        `INSERT INTO stock_transfer_items (transfer_id, product_id, barcode, product_name, quantity, product_type) 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [transferId, item.product_id || item.id, item.barcode || '', item.product_name || item.name, item.quantity, item.product_type || 'product']
       );
+
+      // Deduct stock if direct shipment
+      if (initialStatus === 'shipped' && item.product_type !== 'service') {
+        await client.query(
+          "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2 AND store_id = $3",
+          [item.quantity, item.product_id || item.id, actualFromStoreId]
+        );
+        await addStockMovement(
+          client,
+          actualFromStoreId,
+          item.product_id || item.id,
+          'out',
+          item.quantity,
+          'transfer',
+          `Sevkiyat Yapıldı (Transfer ID: ${transferId}) - Hedef Mağaza ID: ${actualToStoreId}`
+        );
+      }
     }
 
     await client.query("COMMIT");
-    res.status(201).json({ id: transferId });
+    res.status(201).json({ id: transferId, success: true });
   } catch (error) {
     await client.query("ROLLBACK");
-    res.status(500).json({ error: "Failed to create transfer" });
+    console.error("Error creating stock transfer:", error);
+    res.status(500).json({ error: "Transfer işlemi kaydedilirken hata oluştu." });
   } finally {
     client.release();
   }
