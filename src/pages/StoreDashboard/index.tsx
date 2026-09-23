@@ -436,22 +436,22 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   const publicUrl = `${window.location.origin}/s/${effectiveSlug}`;
   const scanUrl = `${window.location.origin}/scan/${effectiveSlug}`;
 
+  const hasDashboardInitialLoaded = useRef(false);
+
   const fetchAnalytics = async (start?: string, end?: string) => {
     if (!currentStoreId) return;
     try {
-      setLoading(true);
       const res = await api.getAnalytics(currentStoreId, start, end);
       setAnalytics(res && !res.error ? res : null);
     } catch (error) {
       console.error("Fetch analytics error:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchData = useCallback(async (isSilent = false) => {
+    const silent = isSilent || hasDashboardInitialLoaded.current;
     try {
-      if (!isSilent) setLoading(true);
+      if (!silent) setLoading(true);
       
       let targetStoreId = currentStoreId || user.store_id;
       
@@ -460,7 +460,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         if (storeInfo && storeInfo.id) {
           targetStoreId = storeInfo.id;
         } else if (storeInfo && storeInfo.error) {
-          if (!isSilent) setLoading(false);
+          if (!silent) setLoading(false);
           return;
         }
       } else if (user.role === 'superadmin' && !targetStoreId) {
@@ -469,7 +469,7 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       }
       
       if (targetStoreId === undefined || targetStoreId === null) {
-        if (!isSilent) setLoading(false);
+        if (!silent) setLoading(false);
         return;
       }
       
@@ -489,10 +489,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       if (brandingRes && !brandingRes.error) setBranding(brandingRes);
       setUsers(Array.isArray(usersRes) ? usersRes : []);
       setBranches(Array.isArray(branchesRes) ? branchesRes : []);
+
+      hasDashboardInitialLoaded.current = true;
     } catch (error) {
       console.error("Fetch error in StoreDashboard:", error);
     } finally {
-      if (!isSilent) setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [includeBranches, user.role, user.store_id, slug, currentStoreId, setProducts, setBranding, setLoading]);
 

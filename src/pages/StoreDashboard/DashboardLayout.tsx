@@ -13,6 +13,13 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout = ({ children, sidebarProps, loading, lang }: DashboardLayoutProps) => {
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [hasRenderedChildren, setHasRenderedChildren] = useState(Boolean(children));
+
+  useEffect(() => {
+    if (children) {
+      setHasRenderedChildren(true);
+    }
+  }, [children]);
 
   const branding = sidebarProps?.branding || {};
   const headerLogoUrl = branding.logo_url || branding.logo;
@@ -37,6 +44,13 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans relative operator-compact-layout">
+      {/* Top Non-blocking Loading Bar */}
+      {loading && (
+        <div className="fixed top-0 left-0 right-0 z-[9999] h-1 bg-indigo-100/80 overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 animate-pulse w-full" />
+        </div>
+      )}
+
       {/* Offline Alert Banner */}
       {!isOnline && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] flex items-center gap-3 px-5 py-3 bg-rose-600 text-white rounded-full shadow-2xl font-bold text-xs sm:text-sm animate-pulse border border-rose-500/30">
@@ -100,12 +114,14 @@ export const DashboardLayout = ({ children, sidebarProps, loading, lang }: Dashb
         <div className="flex-1 overflow-y-auto p-3.5 md:p-5 bg-slate-50/50">
           <div className="max-w-7xl mx-auto space-y-5">
             <ErrorBoundary lang={lang}>
-              {loading ? (
+              {!hasRenderedChildren && loading ? (
                 <div className="flex flex-col items-center justify-center h-64">
-                   <Loader2 className="h-12 w-12 text-indigo-600 animate-spin mb-4" />
-                   <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">{lang === 'tr' ? 'Veriler Yükleniyor...' : 'Loading Data...'}</p>
+                   <Loader2 className="h-10 w-10 text-indigo-600 animate-spin mb-3" />
+                   <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">{lang === 'tr' ? 'Sistem Yükleniyor...' : 'Loading System...'}</p>
                 </div>
-              ) : children}
+              ) : (
+                children
+              )}
             </ErrorBoundary>
           </div>
         </div>
