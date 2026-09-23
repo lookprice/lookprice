@@ -1298,15 +1298,18 @@ router.get("/store/:slug/products", async (req, res) => {
           id: existing.id,
           store_id: existing.store_id,
           branch_name: existing.branch_name || store.name,
-          branch_slug: existing.branch_slug || store.slug
+          branch_slug: existing.branch_slug || store.slug,
+          stock_quantity: Number(existing.stock_quantity) || 0
         }];
       }
       existing.available_branches.push({
         id: p.id,
         store_id: p.store_id,
         branch_name: p.branch_name || store.name,
-        branch_slug: p.branch_slug || store.slug
+        branch_slug: p.branch_slug || store.slug,
+        stock_quantity: Number(p.stock_quantity) || 0
       });
+      existing.stock_quantity = (Number(existing.stock_quantity) || 0) + (Number(p.stock_quantity) || 0);
     } else {
       groupedProductsMap.set(key, { ...p });
     }

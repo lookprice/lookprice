@@ -27,6 +27,9 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   branding,
   showStoreName,
   currentStoreId,
+  includeBranches,
+  branches,
+  setIncludeBranches,
   isCafeRestaurant,
   onRefresh
 }) => {
@@ -609,6 +612,9 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         hasProductBadgeLocal={hasProductBadgeLocal}
         lang={lang}
         t={t}
+        branches={branches}
+        includeBranches={includeBranches}
+        onToggleIncludeBranches={setIncludeBranches}
       />
 
       {/* 3. Products Table & Pagination */}

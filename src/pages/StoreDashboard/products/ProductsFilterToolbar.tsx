@@ -50,6 +50,9 @@ interface ProductsFilterToolbarProps {
   hasProductBadgeLocal: (p: any, id: string) => boolean;
   lang: string;
   t: any;
+  branches?: any[];
+  includeBranches?: boolean;
+  onToggleIncludeBranches?: (val: boolean) => void;
 }
 
 export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
@@ -84,6 +87,9 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
   hasProductBadgeLocal,
   lang,
   t,
+  branches = [],
+  includeBranches = false,
+  onToggleIncludeBranches
 }) => {
   return (
     <div className="space-y-2">
@@ -226,6 +232,26 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               {lang === 'tr' ? '0 Stok' : '0 Stock'}
             </span>
           </label>
+
+          {branches && branches.length > 0 && onToggleIncludeBranches && (
+            <label className={`flex items-center cursor-pointer group shrink-0 select-none px-2 py-1 rounded-lg border transition-all ${
+              includeBranches ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold' : 'hover:bg-slate-100 border-slate-200 text-slate-600'
+            }`}>
+              <input 
+                type="checkbox" 
+                className="peer h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                checked={includeBranches}
+                onChange={(e) => onToggleIncludeBranches(e.target.checked)}
+              />
+              <span className="ml-1.5 text-xs font-semibold whitespace-nowrap flex items-center gap-1">
+                <Store className="w-3 h-3 text-indigo-500" />
+                {lang === 'tr' ? 'Şube Stokları' : 'Branch Stocks'}
+                <span className="px-1 py-0.2 text-[9px] rounded bg-indigo-100 text-indigo-800 font-extrabold">
+                  +{branches.length}
+                </span>
+              </span>
+            </label>
+          )}
         </div>
       </div>
 

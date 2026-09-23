@@ -2087,13 +2087,90 @@ router.get("/lookup-barcode", async (req: any, res) => {
         });
       }
 
-      if (isQuotaExceeded) {
-        return res.status(429).json({ 
-          error: "Google Books API günlük sorgu limiti doldu! Lütfen test barkodlarını (örn: 9786256843639 veya 9789752128262) deneyin." 
-        });
+      // Try Open Library API as a high-reliability fallback provider to bypass Google Books rate limits!
+      try {
+        const olResponse = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanBarcode}&format=json&jscmd=data`);
+        if (olResponse.ok) {
+          const olData = await olResponse.json();
+          const bookKey = `ISBN:${cleanBarcode}`;
+          if (olData && olData[bookKey]) {
+            const olBook = olData[bookKey];
+            const name = olBook.title || "";
+            const author = olBook.authors ? olBook.authors.map((a: any) => a.name).join(", ") : "";
+            const publisher = olBook.publishers ? olBook.publishers.map((p: any) => p.name).join(", ") : "";
+            const description = olBook.notes || "";
+            const image_url = olBook.cover?.large || olBook.cover?.medium || olBook.cover?.small || `https://covers.openlibrary.org/b/isbn/${cleanBarcode}-L.jpg`;
+            const rawCategoryString = olBook.subjects ? olBook.subjects.map((s: any) => s.name).join(" / ") : "Edebiyat / Roman";
+            const { category: cat, subCategory: subCat } = splitAndCleanCategory(rawCategoryString);
+
+            return res.json({
+              success: true,
+              data: {
+                barcode,
+                name,
+                author,
+                brand: publisher,
+                publisher,
+                category: cat,
+                sub_category: subCat,
+                description,
+                image_url
+              }
+            });
+          }
+        }
+      } catch (olErr) {
+        console.error("Open Library fallback failed:", olErr);
       }
 
-      return res.status(404).json({ error: "Google Books veritabanında bu barkoda ait eser bulunamadı" });
+      // Try Gemini AI Model fallback if API key is present
+      const apiKey = getGeminiApiKey();
+      if (apiKey) {
+        try {
+          const ai = new GoogleGenAI({ apiKey });
+          const aiRes = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Aşağıdaki ISBN / barkod numarasına sahip Türkiye'de basılmış kitabın künye bilgilerini tam olarak bul ve yanıtla: ${cleanBarcode}.
+            Yanıtı SADECE geçerli bir JSON formatında ver:
+            {
+              "found": true,
+              "name": "Kitap Adı",
+              "author": "Yazar Adı",
+              "publisher": "Yayınevi Adı",
+              "category": "Edebiyat / Roman",
+              "description": "Kitap özeti veya açıklaması"
+            }
+            Eğer kitap tamamen bilinmiyorsa: { "found": false }`
+          });
+
+          const text = aiRes.text || "";
+          const match = text.match(/\{[\s\S]*?\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            if (parsed.found && parsed.name) {
+              const { category: cat, subCategory: subCat } = splitAndCleanCategory(parsed.category || "Edebiyat / Roman");
+              return res.json({
+                success: true,
+                data: {
+                  barcode,
+                  name: parsed.name,
+                  author: parsed.author || "",
+                  brand: parsed.publisher || "",
+                  publisher: parsed.publisher || "",
+                  category: cat,
+                  sub_category: subCat,
+                  description: parsed.description || "",
+                  image_url: `https://covers.openlibrary.org/b/isbn/${cleanBarcode}-L.jpg`
+                }
+              });
+            }
+          }
+        } catch (aiErr) {
+          console.error("Gemini AI book lookup fallback failed:", aiErr);
+        }
+      }
+
+      return res.status(404).json({ error: "Eser kataloglarında bu barkoda ait bilgi bulunamadı. Lütfen detayları manuel doldurunuz." });
     }
 
     const volumeInfo = gData.items[0].volumeInfo;

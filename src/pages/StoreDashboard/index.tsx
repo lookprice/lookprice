@@ -1128,6 +1128,8 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                   showStoreName={branding?.show_store_name}
                   currentStoreId={currentStoreId!}
                   includeBranches={includeBranches}
+                  branches={branches}
+                  setIncludeBranches={setIncludeBranches}
                   propertiesCount={properties.length}
                   onSwitchTab={(tab) => setActiveTab(tab)}
                   onRefresh={fetchProductsData}

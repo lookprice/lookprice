@@ -20,6 +20,8 @@ export interface ProductsTabProps {
   showStoreName?: boolean;
   currentStoreId?: number;
   includeBranches?: boolean;
+  branches?: any[];
+  setIncludeBranches?: (val: boolean) => void;
   propertiesCount?: number;
   onSwitchTab?: (tab: string) => void;
   isCafeRestaurant?: boolean;

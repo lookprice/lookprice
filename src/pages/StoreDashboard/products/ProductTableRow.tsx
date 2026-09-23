@@ -15,7 +15,8 @@ import {
   Star,
   Award,
   Crown,
-  Tag
+  Tag,
+  Store
 } from "lucide-react";
 import { BookstoreBadgePopover } from "./BookstoreBadgePopover";
 import { BOOKSTORE_BADGES } from "@/data/bookstoreBadges";
@@ -185,10 +186,16 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <div className="text-xs font-semibold text-slate-900 truncate max-w-[180px] sm:max-w-[240px] md:max-w-[320px] leading-tight" title={p.name}>
                   {p.name || 'İsimsiz Ürün'}
                 </div>
+                {p.store_name && (showStoreName || p.store_name) && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80 shrink-0" title={`Şube / Mağaza: ${p.store_name}`}>
+                    <Store className="w-2.5 h-2.5 text-amber-600" />
+                    {p.store_name}
+                  </span>
+                )}
                 {p.description && (
                   <div className="group/desc relative hover:z-[60] shrink-0">
                     <div className="p-0.5 text-indigo-500 hover:bg-indigo-50 rounded cursor-help">
