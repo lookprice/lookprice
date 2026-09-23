@@ -2123,51 +2123,49 @@ router.get("/lookup-barcode", async (req: any, res) => {
         console.error("Open Library fallback failed:", olErr);
       }
 
-      // Try Gemini AI Model fallback if API key is present
-      const apiKey = getGeminiApiKey();
-      if (apiKey) {
-        try {
-          const ai = new GoogleGenAI({ apiKey });
-          const aiRes = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Aşağıdaki ISBN / barkod numarasına sahip Türkiye'de basılmış kitabın künye bilgilerini tam olarak bul ve yanıtla: ${cleanBarcode}.
-            Yanıtı SADECE geçerli bir JSON formatında ver:
-            {
-              "found": true,
-              "name": "Kitap Adı",
-              "author": "Yazar Adı",
-              "publisher": "Yayınevi Adı",
-              "category": "Edebiyat / Roman",
-              "description": "Kitap özeti veya açıklaması"
-            }
-            Eğer kitap tamamen bilinmiyorsa: { "found": false }`
-          });
-
-          const text = aiRes.text || "";
-          const match = text.match(/\{[\s\S]*?\}/);
-          if (match) {
-            const parsed = JSON.parse(match[0]);
-            if (parsed.found && parsed.name) {
-              const { category: cat, subCategory: subCat } = splitAndCleanCategory(parsed.category || "Edebiyat / Roman");
-              return res.json({
-                success: true,
-                data: {
-                  barcode,
-                  name: parsed.name,
-                  author: parsed.author || "",
-                  brand: parsed.publisher || "",
-                  publisher: parsed.publisher || "",
-                  category: cat,
-                  sub_category: subCat,
-                  description: parsed.description || "",
-                  image_url: `https://covers.openlibrary.org/b/isbn/${cleanBarcode}-L.jpg`
-                }
-              });
-            }
+      // Try Gemini AI Model fallback if API key or system environment is present
+      try {
+        const apiKey = getGeminiApiKey();
+        const ai = apiKey ? new GoogleGenAI({ apiKey }) : new GoogleGenAI();
+        const aiRes = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: `Aşağıdaki ISBN / barkod numarasına sahip Türkiye'de basılmış kitabın künye bilgilerini tam olarak bul ve yanıtla: ${cleanBarcode}.
+          Yanıtı SADECE geçerli bir JSON formatında ver (başka hiçbir metin veya markdown bloğu ekleme):
+          {
+            "found": true,
+            "name": "Kitap Adı",
+            "author": "Yazar Adı",
+            "publisher": "Yayınevi Adı",
+            "category": "Edebiyat / Roman",
+            "description": "Kitap özeti veya açıklaması"
           }
-        } catch (aiErr) {
-          console.error("Gemini AI book lookup fallback failed:", aiErr);
+          Eğer kitap tamamen bilinmiyorsa: { "found": false }`
+        });
+
+        const text = aiRes.text || "";
+        const match = text.match(/\{[\s\S]*?\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          if (parsed.found && parsed.name) {
+            const { category: cat, subCategory: subCat } = splitAndCleanCategory(parsed.category || "Edebiyat / Roman");
+            return res.json({
+              success: true,
+              data: {
+                barcode,
+                name: parsed.name,
+                author: parsed.author || "",
+                brand: parsed.publisher || "",
+                publisher: parsed.publisher || "",
+                category: cat,
+                sub_category: subCat,
+                description: parsed.description || "",
+                image_url: `https://covers.openlibrary.org/b/isbn/${cleanBarcode}-L.jpg`
+              }
+            });
+          }
         }
+      } catch (aiErr) {
+        console.warn("Gemini AI book lookup fallback attempted:", aiErr);
       }
 
       return res.status(404).json({ error: "Eser kataloglarında bu barkoda ait bilgi bulunamadı. Lütfen detayları manuel doldurunuz." });

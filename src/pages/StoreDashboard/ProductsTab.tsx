@@ -82,13 +82,27 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const isCafe = sectorType === 'horeca' || sectorType === 'cafe' || sectorType === 'restaurant' || isCafeRestaurant;
   const isPortfolio = sectorType === 'real_estate' || sectorType === 'automotive' || sectorType === 'emlak' || sectorType === 'oto';
   const isShopLp = !isCafe && !isPortfolio;
-  const isBookstore = 
-    branding?.page_layout_settings?.bookstore_mode === true || 
-    branding?.theme_config?.bookstore_mode === true ||
-    sectorType.includes('book') ||
-    sectorType.includes('kitap') ||
-    sectorType.includes('sahaf') ||
-    sectorType.includes('yayın');
+  const isBookstore = useMemo(() => {
+    return (
+      branding?.page_layout_settings?.bookstore_mode === true || 
+      branding?.theme_config?.bookstore_mode === true ||
+      branding?.bookstore_module_enabled === true ||
+      branding?.bookstore_license_enabled === true ||
+      branding?.store_concept === 'bookstore' ||
+      sectorType.includes('book') ||
+      sectorType.includes('kitap') ||
+      sectorType.includes('sahaf') ||
+      sectorType.includes('yayın') ||
+      (branding?.store_name || '').toLowerCase().includes('book') ||
+      (branding?.store_name || '').toLowerCase().includes('kitap') ||
+      (branding?.name || '').toLowerCase().includes('book') ||
+      (branding?.name || '').toLowerCase().includes('kitap') ||
+      (branding?.slug || '').toLowerCase().includes('book') ||
+      (branding?.slug || '').toLowerCase().includes('kitap') ||
+      (branding?.slug || '').toLowerCase().includes('dgbook') ||
+      products.some((p: any) => p.author || (p as any).sector_data?.author || (p as any).sector_data?.isbn || (Array.isArray(p.labels) && p.labels.length > 0) || (p as any).sector_data?.curated_badges?.length > 0)
+    );
+  }, [branding, sectorType, products]);
 
   // Table Manager for responsive columns & metadata display modes
   const tableManager = useTableManager({
@@ -418,10 +432,13 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     return Array.from(cats).sort();
   }, [products]);
 
+  const effectiveShowStoreName = Boolean(showStoreName || includeBranches || (branches && branches.length > 0));
+
   // Filtered products calculation
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      if (currentStoreId && p.store_id && p.store_id !== currentStoreId && !showStoreName) {
+      // If store_id belongs to a branch and user has not enabled "Şube Stokları", hide branch products
+      if (currentStoreId && p.store_id && Number(p.store_id) !== Number(currentStoreId) && !includeBranches) {
         return false;
       }
       
@@ -430,7 +447,8 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         p.name?.toLowerCase().includes(q) || 
         p.barcode?.toLowerCase().includes(q) ||
         p.brand?.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q);
+        p.description?.toLowerCase().includes(q) ||
+        p.store_name?.toLowerCase().includes(q);
 
       let matchesCategory = true;
       if (selectedCategory === "all") {
@@ -491,7 +509,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
 
       return matchesSearch && matchesCategory && matchesStock && matchesMarketplace;
     });
-  }, [products, search, selectedCategory, includeZeroStock, marketplaceFilter, isShopLp, currentStoreId, showStoreName, optimisticBadges]);
+  }, [products, search, selectedCategory, includeZeroStock, marketplaceFilter, isShopLp, currentStoreId, includeBranches, effectiveShowStoreName, optimisticBadges]);
 
   // Counts for quick chips
   const { 
@@ -628,7 +646,9 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         isCafeRestaurant={isCafeRestaurant}
         isShopLp={isShopLp}
         isBookstore={isBookstore}
-        showStoreName={showStoreName}
+        showStoreName={effectiveShowStoreName}
+        currentStoreId={currentStoreId}
+        includeBranches={includeBranches}
         tableManager={tableManager}
         selectedIds={selectedIds}
         toggleSelect={toggleSelect}

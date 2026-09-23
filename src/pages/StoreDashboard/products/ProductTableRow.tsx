@@ -29,6 +29,7 @@ interface ProductTableRowProps {
   isShopLp: boolean;
   isBookstore: boolean;
   showStoreName?: boolean;
+  currentStoreId?: number;
   tableManager: any;
   selectedIds: number[];
   toggleSelect: (id: number) => void;
@@ -70,6 +71,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
   isShopLp,
   isBookstore,
   showStoreName,
+  currentStoreId,
   tableManager,
   selectedIds,
   toggleSelect,
@@ -190,7 +192,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                 <div className="text-xs font-semibold text-slate-900 truncate max-w-[180px] sm:max-w-[240px] md:max-w-[320px] leading-tight" title={p.name}>
                   {p.name || 'İsimsiz Ürün'}
                 </div>
-                {p.store_name && (showStoreName || p.store_name) && (
+                {p.store_name && (showStoreName || (currentStoreId && Number(p.store_id) !== Number(currentStoreId))) && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80 shrink-0" title={`Şube / Mağaza: ${p.store_name}`}>
                     <Store className="w-2.5 h-2.5 text-amber-600" />
                     {p.store_name}
@@ -761,6 +763,7 @@ export const ProductTableRow = React.memo(ProductTableRowComponent, (prevProps, 
     prevProps.isShopLp === nextProps.isShopLp &&
     prevProps.isBookstore === nextProps.isBookstore &&
     prevProps.showStoreName === nextProps.showStoreName &&
+    prevProps.currentStoreId === nextProps.currentStoreId &&
     prevProps.lang === nextProps.lang &&
     prevProps.selectedIds.includes(prevProps.product.id) === nextProps.selectedIds.includes(nextProps.product.id) &&
     (prevProps.openActionMenuId === prevProps.product.id) === (nextProps.openActionMenuId === nextProps.product.id) &&

@@ -278,9 +278,29 @@ export const resolveDomainId = (store: StoreInfo | any | null): DomainId => {
     s.branding?.bookstore_module_enabled === true ||
     s.bookstore_license_enabled === true ||
     s.branding?.bookstore_license_enabled === true ||
+    s.store_concept === "bookstore" ||
+    s.branding?.store_concept === "bookstore" ||
+    s.page_layout_settings?.bookstore_mode === true ||
+    s.branding?.page_layout_settings?.bookstore_mode === true ||
+    s.theme_config?.bookstore_mode === true ||
+    s.branding?.theme_config?.bookstore_mode === true ||
     rawStoreType === "bookstore" ||
+    rawStoreType === "kitap" ||
+    rawStoreType === "sahaf" ||
     rawSector === "bookstore" ||
-    rawSubSector === "bookstore"
+    rawSector === "kitap" ||
+    rawSector === "sahaf" ||
+    rawSubSector === "bookstore" ||
+    rawSubSector === "kitap" ||
+    name.includes("BOOK") ||
+    name.includes("KITAP") ||
+    name.includes("KİTAP") ||
+    name.includes("SAHAF") ||
+    name.includes("YAYIN") ||
+    slug.includes("book") ||
+    slug.includes("kitap") ||
+    slug.includes("dgbook") ||
+    slug.includes("dgkitap")
   );
 
   if (isBookActive) {

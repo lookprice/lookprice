@@ -33,7 +33,7 @@ export const normalizeTurkishParam = (term: string) => {
   return `%${norm}%`;
 };
 
-export const getGeminiApiKey = () => {
+export const getGeminiApiKey = (): string => {
   const key = process.env.GEMINI_API_KEY || 
          process.env.Gemini_API_Key || 
          process.env.Gemini_API_KEY || 
@@ -42,11 +42,7 @@ export const getGeminiApiKey = () => {
          process.env.API_KEY || 
          '';
          
-  if (key && !key.startsWith('AIza')) {
-    throw new Error("Lütfen 'Secrets' sekmesindeki (sol alt) hatalı 'GEMINI_API_KEY' değerini silin. (Please delete the invalid 'GEMINI_API_KEY' from the Secrets tab to use the built-in system key.)");
-  }
-
-  return key;
+  return String(key).trim();
 };
 
 export const API_KEY_ERROR = "AI API anahtarı bulunamadı. Lütfen 'Secrets' sekmesine (sol alt) 'GEMINI_API_KEY' adıyla anahtarınızı eklediğinizden ve sunucuyu yeniden başlattığınızdan emin olun. (AI API key not found. Please ensure you have added 'GEMINI_API_KEY' in the Secrets tab and restarted the server).";

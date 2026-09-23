@@ -13,6 +13,8 @@ interface ProductsTableProps {
   isShopLp: boolean;
   isBookstore: boolean;
   showStoreName?: boolean;
+  currentStoreId?: number;
+  includeBranches?: boolean;
   tableManager: any;
   selectedIds: number[];
   toggleSelect: (id: number) => void;
@@ -61,6 +63,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   isShopLp,
   isBookstore,
   showStoreName,
+  currentStoreId,
+  includeBranches,
   tableManager,
   selectedIds,
   toggleSelect,
@@ -165,6 +169,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                   isShopLp={isShopLp}
                   isBookstore={isBookstore}
                   showStoreName={showStoreName}
+                  currentStoreId={currentStoreId}
                   tableManager={tableManager}
                   selectedIds={selectedIds}
                   toggleSelect={toggleSelect}

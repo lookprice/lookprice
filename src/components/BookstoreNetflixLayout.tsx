@@ -222,30 +222,30 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
     return products.filter((p) => p.is_bestseller || (p.stock_quantity && p.stock_quantity > 10));
   }, [products]);
 
-  const newArrivalBooks = useMemo(() => {
-    const tagged = products.filter((p) => hasBookstoreBadge(p, 'new_arrival'));
-    if (tagged.length > 0) return tagged;
-    return [...products].reverse();
+  const featuredWeekBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'featured_week'));
+  }, [products]);
+
+  const dealBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'deal'));
+  }, [products]);
+
+  const awardWinningBooks = useMemo(() => {
+    return products.filter((p) => hasBookstoreBadge(p, 'award_winning'));
   }, [products]);
 
   const editorsPickBooks = useMemo(() => {
     return products.filter((p) => hasBookstoreBadge(p, 'editors_pick'));
   }, [products]);
 
-  const awardWinningBooks = useMemo(() => {
-    return products.filter((p) => {
-      if (hasBookstoreBadge(p, 'award_winning')) return true;
-      const s = (p as any).sector_data;
-      return s?.awards || (s?.rating && Number(s.rating) >= 4.8);
-    });
+  const newArrivalBooks = useMemo(() => {
+    const tagged = products.filter((p) => hasBookstoreBadge(p, 'new_release'));
+    if (tagged.length > 0) return tagged;
+    return [...products].reverse();
   }, [products]);
 
   const comingSoonBooks = useMemo(() => {
     return products.filter((p) => hasBookstoreBadge(p, 'coming_soon'));
-  }, [products]);
-
-  const discountedBooks = useMemo(() => {
-    return products.filter((p) => hasBookstoreBadge(p, 'discounted'));
   }, [products]);
 
   // Catalog filtered products
@@ -745,13 +745,13 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               />
             )}
 
-            {/* Row 2: Yeni Gelenler (New Arrivals) */}
-            {themeConfig.show_row_new_arrivals !== false && (
+            {/* Row 2: Haftanın Öne Çıkan Eserleri (Weekly Featured) */}
+            {featuredWeekBooks.length > 0 && (
               <NetflixBookRow
-                title={themeConfig.title_new_arrivals || (isTr ? "Yeni Çıkanlar & Raflarda" : "New Releases & Just In")}
-                subtitle={themeConfig.subtitle_new_arrivals || (isTr ? "Bu hafta raflarımızda yerini alan en taze edebi yayınlar" : "Fresh literary publications that arrived this week")}
-                badge={isTr ? "YENİ" : "NEW"}
-                products={newArrivalBooks}
+                title={themeConfig.title_weekly_picks || (isTr ? "Haftanın Öne Çıkan Eserleri" : "Books of the Week")}
+                subtitle={themeConfig.subtitle_weekly_picks || (isTr ? "Bu haftanın vitrin manşetinde yer alan özel edebi seçki" : "Handpicked weekly spotlight on our hero showcase")}
+                badge={isTr ? "HAFTANIN ESERİ" : "WEEKLY PICK"}
+                products={featuredWeekBooks}
                 store={store}
                 lang={lang}
                 onViewProduct={onViewProduct}
@@ -766,13 +766,13 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               />
             )}
 
-            {/* Row 3: Editörün Seçimi (Editor's Pick) */}
-            {themeConfig.show_row_editors_pick !== false && editorsPickBooks.length > 0 && (
+            {/* Row 3: Fırsat & İndirimdekiler (Deals & Discounts) */}
+            {themeConfig.show_row_discounted !== false && dealBooks.length > 0 && (
               <NetflixBookRow
-                title={themeConfig.title_editors_pick || (isTr ? "Editörün Seçimi" : "Editor's Choice")}
-                subtitle={themeConfig.subtitle_editors_pick || (isTr ? "Edebiyat danışmanlarımız ve editörlerimiz tarafından özenle seçilen özel seçki" : "Carefully curated selections by our literary editors")}
-                badge={isTr ? "EDİTÖR" : "CURATED"}
-                products={editorsPickBooks}
+                title={themeConfig.title_discounted || (isTr ? "Haftanın Fırsat & İndirimli Eserleri" : "Special Deals & Discounts")}
+                subtitle={themeConfig.subtitle_discounted || (isTr ? "Sınırlı süreye özel avantajlı fiyatlar ve haftanın indirimli seçkin eserleri" : "Limited-time deals and advantageous prices on selected books")}
+                badge={isTr ? "FIRSAT" : "DEAL"}
+                products={dealBooks}
                 store={store}
                 lang={lang}
                 onViewProduct={onViewProduct}
@@ -808,13 +808,13 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               />
             )}
 
-            {/* Row 5: Yakında Gelecekler & Ön Sipariş (Coming Soon) */}
-            {themeConfig.show_row_coming_soon !== false && comingSoonBooks.length > 0 && (
+            {/* Row 5: Editörün Seçimi (Editor's Pick) */}
+            {themeConfig.show_row_editors_pick !== false && editorsPickBooks.length > 0 && (
               <NetflixBookRow
-                title={themeConfig.title_coming_soon || (isTr ? "Yakında Raflarda & Ön Sipariş" : "Coming Soon & Pre-Order")}
-                subtitle={themeConfig.subtitle_coming_soon || (isTr ? "Baskı aşamasında olan ve merakla beklenen yeni yayınlar" : "Upcoming anticipated releases and pre-orders")}
-                badge={isTr ? "YAKINDA" : "COMING SOON"}
-                products={comingSoonBooks}
+                title={themeConfig.title_editors_pick || (isTr ? "Editörün Seçimi Eserler" : "Editor's Choice")}
+                subtitle={themeConfig.subtitle_editors_pick || (isTr ? "Edebiyat danışmanlarımız ve editörlerimiz tarafından özenle seçilen özel seçki" : "Carefully curated selections by our literary editors")}
+                badge={isTr ? "EDİTÖR" : "CURATED"}
+                products={editorsPickBooks}
                 store={store}
                 lang={lang}
                 onViewProduct={onViewProduct}
@@ -829,13 +829,34 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
               />
             )}
 
-            {/* Row 6: Fırsat & İndirimdekiler (Discounted) */}
-            {themeConfig.show_row_discounted !== false && discountedBooks.length > 0 && (
+            {/* Row 6: Yeni Gelenler (New Arrivals) */}
+            {themeConfig.show_row_new_arrivals !== false && (
               <NetflixBookRow
-                title={themeConfig.title_discounted || (isTr ? "Özel Fırsat & İndirimli Eserler" : "Special Deals & Discounts")}
-                subtitle={themeConfig.subtitle_discounted || (isTr ? "Kaçırılmayacak fiyat avantajlarıyla okurlarını bekleyen seçili kitaplar" : "Handpicked books with limited-time discount opportunities")}
-                badge={isTr ? "FIRSAT" : "DEAL"}
-                products={discountedBooks}
+                title={themeConfig.title_new_arrivals || (isTr ? "Yeni Çıkanlar & Raflarda" : "New Releases & Just In")}
+                subtitle={themeConfig.subtitle_new_arrivals || (isTr ? "Bu hafta raflarımızda yerini alan en taze edebi yayınlar" : "Fresh literary publications that arrived this week")}
+                badge={isTr ? "YENİ" : "NEW"}
+                products={newArrivalBooks}
+                store={store}
+                lang={lang}
+                onViewProduct={onViewProduct}
+                addToBasket={addToBasket}
+                primaryColor={themeConfig.primary_color}
+                secondaryColor={themeConfig.secondary_color}
+                enableCardFlip={themeConfig.enable_card_flip}
+                showCardSynopsis={themeConfig.show_card_synopsis}
+                showCardBadges={themeConfig.show_card_badges}
+                showCardRating={themeConfig.show_card_rating}
+                showCardQuickAdd={themeConfig.show_card_quick_add}
+              />
+            )}
+
+            {/* Row 7: Yakında Gelecekler & Ön Sipariş (Coming Soon) */}
+            {themeConfig.show_row_coming_soon !== false && comingSoonBooks.length > 0 && (
+              <NetflixBookRow
+                title={themeConfig.title_coming_soon || (isTr ? "Yakında Raflarda & Ön Sipariş" : "Coming Soon & Pre-Order")}
+                subtitle={themeConfig.subtitle_coming_soon || (isTr ? "Baskı aşamasında olan ve merakla beklenen yeni yayınlar" : "Upcoming anticipated releases and pre-orders")}
+                badge={isTr ? "YAKINDA" : "COMING SOON"}
+                products={comingSoonBooks}
                 store={store}
                 lang={lang}
                 onViewProduct={onViewProduct}
