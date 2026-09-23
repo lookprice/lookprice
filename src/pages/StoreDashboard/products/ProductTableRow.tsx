@@ -61,7 +61,7 @@ interface ProductTableRowProps {
   t: any;
 }
 
-export const ProductTableRow: React.FC<ProductTableRowProps> = ({
+export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
   product: p,
   isViewer,
   isCafe,
@@ -736,3 +736,28 @@ export const ProductTableRow: React.FC<ProductTableRowProps> = ({
     </React.Fragment>
   );
 };
+
+export const ProductTableRow = React.memo(ProductTableRowComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.product.id === nextProps.product.id &&
+    prevProps.product.updated_at === nextProps.product.updated_at &&
+    prevProps.product.stock_quantity === nextProps.product.stock_quantity &&
+    prevProps.product.price === nextProps.product.price &&
+    prevProps.product.is_hepsiburada_active === nextProps.product.is_hepsiburada_active &&
+    prevProps.product.is_trendyol_active === nextProps.product.is_trendyol_active &&
+    prevProps.product.is_n11_active === nextProps.product.is_n11_active &&
+    prevProps.product.is_amazon_active === nextProps.product.is_amazon_active &&
+    prevProps.product.is_pazarama_active === nextProps.product.is_pazarama_active &&
+    prevProps.isViewer === nextProps.isViewer &&
+    prevProps.isCafe === nextProps.isCafe &&
+    prevProps.isCafeRestaurant === nextProps.isCafeRestaurant &&
+    prevProps.isShopLp === nextProps.isShopLp &&
+    prevProps.isBookstore === nextProps.isBookstore &&
+    prevProps.showStoreName === nextProps.showStoreName &&
+    prevProps.lang === nextProps.lang &&
+    prevProps.selectedIds.includes(prevProps.product.id) === nextProps.selectedIds.includes(nextProps.product.id) &&
+    (prevProps.openActionMenuId === prevProps.product.id) === (nextProps.openActionMenuId === nextProps.product.id) &&
+    (prevProps.badgePopoverProductId === prevProps.product.id) === (nextProps.badgePopoverProductId === nextProps.product.id) &&
+    (prevProps.highlightedProductId === prevProps.product.id) === (nextProps.highlightedProductId === nextProps.product.id)
+  );
+});

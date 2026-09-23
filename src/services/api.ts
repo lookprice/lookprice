@@ -142,17 +142,20 @@ export const api = {
   getSEOPages: (storeId?: number) => api.get(`/api/store/seo${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   
   // Store Methods
-  getProducts: (search = "", storeId?: number, includeBranches = false, sellableOnly = false, limit?: number) => {
+  getProducts: (search = "", storeId?: number, includeBranches = false, sellableOnly = false, limit?: number, category?: string, subCategory?: string) => {
     const params = new URLSearchParams();
     if (search) params.append("search", search);
     if (storeId !== undefined && storeId !== null) params.append("storeId", storeId.toString());
     if (includeBranches) params.append("includeBranches", "true");
     if (sellableOnly) params.append("sellableOnly", "true");
     if (limit !== undefined && limit !== null) params.append("limit", limit.toString());
+    if (category) params.append("category", category);
+    if (subCategory) params.append("subCategory", subCategory);
     const queryString = params.toString();
     const url = `/api/store/products${queryString ? `?${queryString}` : ""}`;
     return api.get(url);
   },
+  getProductCategories: (storeId?: number) => api.get(`/api/store/products/categories${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`),
   addProduct: (data: any, storeId?: number) => api.post(`/api/store/products${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   updateProduct: (id: number, data: any, storeId?: number) => api.put(`/api/store/products/${id}${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, data),
   bulkUpdateTax: (category: string, taxRate: number, storeId?: number, includeBranches?: boolean) => api.put(`/api/store/products/bulk-update-tax${(storeId !== undefined && storeId !== null) ? `?storeId=${storeId}` : ""}`, { category, taxRate, includeBranches }),

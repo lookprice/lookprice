@@ -126,15 +126,25 @@ export const PosHeaderToolbar: React.FC<PosHeaderToolbarProps> = ({
       <div className="flex items-center gap-2">
         {/* Actions Menu for both Cafe and Retail */}
         <div className="flex items-center gap-2">
+          {/* Always visible "Günlük Kasa Raporu" button */}
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg border border-indigo-500 text-xs font-black transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5"
+            title={lang === 'tr' ? "Günlük Kasa Raporu (Z-Raporu)" : "Daily Cash Report (Z-Report)"}
+          >
+            <Calendar className="h-3.5 w-3.5" />
+            <span>{lang === 'tr' ? "Günlük Kasa Raporu" : "Daily Cash Report"}</span>
+          </button>
+
           <button
             onClick={() => setShowCafeTools(!showCafeTools)}
             className={`p-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer flex items-center justify-center ${
               showCafeTools ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
-            title={lang === 'tr' ? "İşlemler (Gün Sonu, vb.)" : "Actions (Z-Report, etc.)"}
+            title={lang === 'tr' ? "Diğer İşlemler" : "Other Actions"}
           >
             <div className="flex items-center gap-1">
-              <span className="px-1">{lang === 'tr' ? "İşlemler" : "Actions"}</span>
+              <span className="px-1">{lang === 'tr' ? "Diğer" : "More"}</span>
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showCafeTools ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6"/></svg>
             </div>
           </button>

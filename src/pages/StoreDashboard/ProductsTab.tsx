@@ -4,7 +4,7 @@ import { api } from "@/services/api";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/translations";
 import { useTableManager } from "@/hooks/useTableManager";
-import { BOOKSTORE_BADGES } from "@/data/bookstoreBadges";
+import { BOOKSTORE_BADGES, extractProductLabels, hasBookstoreBadge, toggleBookstoreBadgeData } from "@/data/bookstoreBadges";
 
 // Vertical Slices
 import { ProductsTabProps, MarketplaceFilterType, MarketplaceModalTab, MarketplaceModalStatus } from "./products/types";
@@ -34,6 +34,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const t = translations[lang]?.dashboard || translations.tr.dashboard;
 
   // Primary filtering and pagination state
+  const [localSearch, setLocalSearch] = useState("");
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -41,6 +42,15 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const [page, setPage] = useState(1);
   const itemsPerPage = 25;
   const [isFixingNames, setIsFixingNames] = useState(false);
+
+  // Debounce search state update to prevent jank when typing
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearch(localSearch);
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [localSearch]);
 
   // Dropdowns and popovers
   const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
@@ -142,21 +152,14 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     if (optimisticBadges[p.id] !== undefined) {
       return optimisticBadges[p.id];
     }
-    if (Array.isArray(p.book_badges)) return p.book_badges;
-    if (typeof p.book_badges === 'string') {
-      try {
-        const parsed = JSON.parse(p.book_badges);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
-        return p.book_badges.split(',').map((s: string) => s.trim()).filter(Boolean);
-      }
-    }
-    return [];
+    return extractProductLabels(p);
   };
 
   const hasProductBadgeLocal = (p: any, badgeId: string): boolean => {
-    const current = getProductBadgesLocal(p);
-    return current.some(b => b.toLowerCase() === badgeId.toLowerCase());
+    if (optimisticBadges[p.id] !== undefined) {
+      return optimisticBadges[p.id].some(b => b.toLowerCase() === badgeId.toLowerCase());
+    }
+    return hasBookstoreBadge(p, badgeId);
   };
 
   const handleToggleBookBadge = async (e: React.MouseEvent, p: any, badgeId: string) => {
@@ -170,8 +173,12 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     setOptimisticBadges(prev => ({ ...prev, [p.id]: updated }));
 
     try {
+      const updatedFields = toggleBookstoreBadgeData(p, badgeId);
       await api.updateProduct(p.id, {
-        book_badges: JSON.stringify(updated)
+        labels: JSON.stringify(updatedFields.labels || []),
+        is_bestseller: updatedFields.is_bestseller ?? p.is_bestseller,
+        is_weekly_pick: updatedFields.is_weekly_pick ?? p.is_weekly_pick,
+        sector_data: JSON.stringify(updatedFields.sector_data || {})
       });
       const badgeDef = BOOKSTORE_BADGES.find(b => b.id === badgeId);
       const badgeName = badgeDef ? (lang === 'tr' ? badgeDef.labelTr : badgeDef.labelEn) : badgeId;
@@ -571,8 +578,8 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
 
       {/* 2. Filter & Marketplace Toolbar */}
       <ProductsFilterToolbar
-        search={search}
-        setSearch={setSearch}
+        search={localSearch}
+        setSearch={setLocalSearch}
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
         categories={categories}

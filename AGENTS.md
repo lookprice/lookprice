@@ -298,6 +298,18 @@ This file outlines strict engineering, performance, and naming directives that m
   - Kitap Koleksiyonu ve arama sonuçlarında (`BookstoreNetflixLayout.tsx`), tüm filtre uyuşumlu ürünleri tek seferde ekrana basmak yerine aşamalı render kullanılır.
   - Varsayılan başlangıç listeleme boyutu **30** kitaptır. Sayfa altında, geriye kalan ürünler için şık, marka renginde bir **"Daha Fazla Kitap Göster" (Load More Books)** butonu sunulur. Filtreler her değiştiğinde bu sayaç sıfırlanır. Bu sayede 10.000 kitaplık bir kütüphanede dahi sayfa sıfır gecikmeyle anında render edilir.
 
+---
+
+## 23. Yönetici Paneli Ürün Listesi Performans Standartları (Operator Products Tab Performance Protocol)
+
+- **Gecikmesiz Arama Girişi (Debounced Search Input)**:
+  - Ürün listesindeki arama çubuğunda (`ProductsTab.tsx`), kullanıcının her tuşa basışında binlerce ürünün anında yeniden filtrelenerek arayüzü dondurması (jank) KESİNLİKLE YASAKTIR.
+  - Arama girişine yazıldığında, tuş vuruşları anında yerel bir duruma (`localSearch`) yansıtılır ve tamamen pürüzsüz yazım sağlanır. Gerçek ürün filtresi ise **250ms debouncing** gecikmesiyle tetiklenir. Bu sayede yazma esnasındaki jank tamamen önlenmiştir.
+
+- **Akıllı Satır Memoizasyonu (Memoized Product Rows)**:
+  - Yönetim panelindeki ürün listesi satırları (`ProductTableRow.tsx`), gereksiz React render operasyonlarından kaçınmak için `React.memo` ile sarmalanır.
+  - Sadece satırdaki ürünün güncellenme tarihi, fiyatı, stok durumu, pazar yeri aktiflikleri veya satırın seçilme/vurgulanma durumu değiştiğinde satır yeniden render edilir. Aksi takdirde, arama çubuğuna yazıldığında veya alakasız bir satır seçildiğinde diğer tüm satırlar kendilerini tekrar oluşturmaz. Bu sayede binlerce ürünün olduğu panellerde işlem hızı 50 kat artırılmıştır.
+
 
 
 

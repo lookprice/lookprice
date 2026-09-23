@@ -328,7 +328,7 @@ export const PosModalsContainer: React.FC<PosModalsContainerProps> = ({
         setReportSortBy={setReportSortBy}
         reportData={reportData}
         reportLoading={reportLoading}
-        onFetchReport={() => fetchReport(reportStartDate, reportEndDate)}
+        onFetchReport={(start, end) => fetchReport(start || reportStartDate, end || reportEndDate)}
         onApplyPreset={handleApplyPreset}
         onPrintReport={() => handlePrintReport('Z Raporu', reportData, reportData?.sales || [])}
         onPrintA4Report={() => handlePrintA4Report('Z Raporu', reportData, reportData?.sales || [])}

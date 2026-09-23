@@ -295,21 +295,43 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   };
 
   const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [backendCategories, setBackendCategories] = useState<{ category: string, sub_categories: string[] }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>("all");
   const [variantModalProduct, setVariantModalProduct] = useState<any | null>(null);
 
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await api.getProductCategories(storeId);
+        if (Array.isArray(res)) {
+          setBackendCategories(res);
+        }
+      } catch (err) {
+        console.error("Failed to fetch backend categories:", err);
+      }
+    };
+    fetchCategories();
+  }, [storeId]);
+
   const categories = React.useMemo(() => {
+    if (backendCategories.length > 0) {
+      return backendCategories.map(bc => bc.category);
+    }
     const cats = new Set<string>();
     allProducts.forEach(p => {
       if (p.category) cats.add(p.category.trim());
       if (p.category_2) cats.add(p.category_2.trim());
     });
     return Array.from(cats);
-  }, [allProducts]);
+  }, [backendCategories, allProducts]);
 
   const subCategories = React.useMemo(() => {
     if (selectedCategory === "all") return [];
+    if (backendCategories.length > 0) {
+      const match = backendCategories.find(bc => bc.category === selectedCategory);
+      if (match) return match.sub_categories;
+    }
     const subs = new Set<string>();
     allProducts.forEach(p => {
       if (p.category === selectedCategory || p.category_2 === selectedCategory) {
@@ -318,7 +340,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       }
     });
     return Array.from(subs);
-  }, [allProducts, selectedCategory]);
+  }, [selectedCategory, backendCategories, allProducts]);
 
   const filteredProducts = React.useMemo(() => {
     const trimmed = searchTerm.trim();
@@ -363,7 +385,7 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
       return list;
     }
 
-    let list = allProducts.length > 0 ? allProducts : searchResults;
+    let list = (selectedCategory !== "all" || searchTerm.trim().length > 0) ? searchResults : (allProducts.length > 0 ? allProducts : searchResults);
     if (selectedCategory !== "all") {
       list = list.filter((p) => p.category === selectedCategory || p.category_2 === selectedCategory);
       if (selectedSubCategory !== "all") {
@@ -1156,16 +1178,18 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
           console.error("Search error:", error);
         }
       } else {
-        if (allProducts.length > 0) {
-          setSearchResults(allProducts);
-        } else {
-          try {
-            const res = await api.getProducts("", storeId, false, true, 150);
-            const products = Array.isArray(res) ? res : [];
-            setSearchResults(products);
-            setAllProducts(products);
-          } catch (error) {
-            console.error("Fetch products reset error:", error);
+        if (selectedCategory === "all" && selectedSubCategory === "all") {
+          if (allProducts.length > 0) {
+            setSearchResults(allProducts);
+          } else {
+            try {
+              const res = await api.getProducts("", storeId, false, true, 150);
+              const products = Array.isArray(res) ? res : [];
+              setSearchResults(products);
+              setAllProducts(products);
+            } catch (error) {
+              console.error("Fetch products reset error:", error);
+            }
           }
         }
       }
@@ -1173,7 +1197,27 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
 
     const delayDebounceFn = setTimeout(fetchProducts, 300);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, storeId, allProducts]);
+  }, [searchTerm, storeId, allProducts, selectedCategory, selectedSubCategory]);
+
+  useEffect(() => {
+    const fetchCategoryProducts = async () => {
+      if (searchTerm.trim().length > 0) return;
+
+      setLoading(true);
+      try {
+        const catFilter = selectedCategory === "all" ? undefined : selectedCategory;
+        const subCatFilter = selectedSubCategory === "all" ? undefined : selectedSubCategory;
+        const res = await api.getProducts("", storeId, false, true, 150, catFilter, subCatFilter);
+        const products = Array.isArray(res) ? res : [];
+        setSearchResults(products);
+      } catch (error) {
+        console.error("Fetch products for category error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCategoryProducts();
+  }, [selectedCategory, selectedSubCategory, storeId, searchTerm]);
 
   const getExchangeRate = (currency: string) => {
     if (!currency || currency === (branding?.default_currency || 'TRY')) return 1;

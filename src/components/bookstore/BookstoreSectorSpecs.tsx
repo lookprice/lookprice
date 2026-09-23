@@ -11,11 +11,15 @@ interface BookstoreSectorSpecsProps {
   editingProduct: any;
   isTr: boolean;
   branding?: any;
+  selectedBookBadges?: string[];
+  setSelectedBookBadges?: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
   editingProduct,
-  isTr
+  isTr,
+  selectedBookBadges,
+  setSelectedBookBadges
 }) => {
   const [sectorData, setSectorData] = useState<any>(() => {
     const raw = editingProduct?.sector_data;
@@ -25,15 +29,27 @@ export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
     return raw || {};
   });
 
+  React.useEffect(() => {
+    if (selectedBookBadges) {
+      const hasWeekly = selectedBookBadges.some((s: string) => s.toLowerCase() === "featured_week");
+      if (sectorData.is_weekly_pick !== hasWeekly || sectorData.is_featured_weekly !== hasWeekly) {
+        setSectorData((prev: any) => ({
+          ...prev,
+          is_weekly_pick: hasWeekly,
+          is_featured_weekly: hasWeekly
+        }));
+      }
+    }
+  }, [selectedBookBadges]);
+
   const updateField = (key: string, val: any) => {
     setSectorData((prev: any) => ({ ...prev, [key]: val }));
   };
 
   const isWeeklyPick = Boolean(
-    sectorData.is_weekly_pick || 
-    sectorData.is_featured_weekly || 
-    editingProduct?.is_weekly_pick || 
-    editingProduct?.is_featured_weekly
+    selectedBookBadges
+      ? selectedBookBadges.some((s: string) => s.toLowerCase() === "featured_week")
+      : (sectorData.is_weekly_pick || sectorData.is_featured_weekly || editingProduct?.is_weekly_pick || editingProduct?.is_featured_weekly)
   );
 
   return (
@@ -65,6 +81,17 @@ export const BookstoreSectorSpecs: React.FC<BookstoreSectorSpecsProps> = ({
             checked={isWeeklyPick}
             onChange={(e) => {
               const val = e.target.checked;
+              if (setSelectedBookBadges) {
+                setSelectedBookBadges(prev => {
+                  const alreadyHas = prev.some(b => b.toLowerCase() === "featured_week");
+                  if (val && !alreadyHas) {
+                    return [...prev, "featured_week"];
+                  } else if (!val && alreadyHas) {
+                    return prev.filter(b => b.toLowerCase() !== "featured_week");
+                  }
+                  return prev;
+                });
+              }
               updateField("is_weekly_pick", val);
               updateField("is_featured_weekly", val);
             }}

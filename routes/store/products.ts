@@ -1,7 +1,8 @@
 import express from "express";
 import { pool, logAction } from "../../models/db";
-import { getAuthorizedStoreId, getTurkishSearchSnippet, normalizeTurkishParam, checkProductLimit } from "./utils";
+import { getAuthorizedStoreId, getTurkishSearchSnippet, normalizeTurkishParam, checkProductLimit, getGeminiApiKey } from "./utils";
 import { isValidStandardBarcode } from "./invoiceMatching";
+import { GoogleGenAI } from "@google/genai";
 import XLSX from "xlsx";
 
 /**
@@ -426,6 +427,59 @@ router.post("/sync-names", async (req: any, res) => {
   }
 });
 
+// GET /products/categories
+router.get("/categories", async (req: any, res) => {
+  const currentStoreId = req.user.store_id;
+  const requestedStoreId = req.query.storeId || currentStoreId;
+  if (!requestedStoreId) return res.status(400).json({ error: "Store ID required" });
+
+  try {
+    const storeIdNum = Number(requestedStoreId);
+    if (isNaN(storeIdNum)) return res.status(400).json({ error: "Invalid Store ID" });
+
+    const query = `
+      SELECT DISTINCT 
+        TRIM(COALESCE(category, '')) as category,
+        TRIM(COALESCE(sub_category, '')) as sub_category,
+        TRIM(COALESCE(category_2, '')) as category_2,
+        TRIM(COALESCE(sub_category_2, '')) as sub_category_2
+      FROM products
+      WHERE store_id = $1 AND (
+        (category IS NOT NULL AND TRIM(category) <> '') OR
+        (category_2 IS NOT NULL AND TRIM(category_2) <> '')
+      )
+    `;
+    const result = await pool.query(query, [storeIdNum]);
+
+    const catMap = new Map<string, Set<string>>();
+
+    result.rows.forEach(row => {
+      const c1 = row.category;
+      const s1 = row.sub_category;
+      const c2 = row.category_2;
+      const s2 = row.sub_category_2;
+
+      if (c1) {
+        if (!catMap.has(c1)) catMap.set(c1, new Set<string>());
+        if (s1) catMap.get(c1)!.add(s1);
+      }
+      if (c2) {
+        if (!catMap.has(c2)) catMap.set(c2, new Set<string>());
+        if (s2) catMap.get(c2)!.add(s2);
+      }
+    });
+
+    const response = Array.from(catMap.entries()).map(([category, subs]) => ({
+      category,
+      sub_categories: Array.from(subs).filter(Boolean)
+    }));
+
+    res.json(response);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to fetch categories" });
+  }
+});
+
 // GET /products
 router.get("/", async (req: any, res) => {
   const currentStoreId = req.user.store_id;
@@ -483,6 +537,21 @@ router.get("/", async (req: any, res) => {
     
     if (sellableOnly) {
       query += ` AND (p.is_sellable IS TRUE OR p.is_sellable IS NULL)`;
+    }
+
+    const categoryFilter = req.query.category as string;
+    const subCategoryFilter = req.query.sub_category as string;
+
+    if (categoryFilter) {
+      const pIdx = params.length + 1;
+      query += ` AND (p.category = $${pIdx} OR p.category_2 = $${pIdx})`;
+      params.push(categoryFilter);
+    }
+
+    if (subCategoryFilter) {
+      const pIdx = params.length + 1;
+      query += ` AND (p.sub_category = $${pIdx} OR p.sub_category_2 = $${pIdx})`;
+      params.push(subCategoryFilter);
     }
 
     if (search) {

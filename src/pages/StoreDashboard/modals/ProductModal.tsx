@@ -696,6 +696,8 @@ export const ProductModal = ({
                     editingProduct={editingProduct}
                     isTr={isTr}
                     branding={branding}
+                    selectedBookBadges={selectedBookBadges}
+                    setSelectedBookBadges={setSelectedBookBadges}
                   />
                 )}
 
