@@ -1,4 +1,5 @@
 import axios from "axios";
+import zlib from "zlib";
 import { pool } from "../../../models/db";
 
 export interface AmazonSettings {
@@ -346,11 +347,92 @@ export class AmazonService {
       ];
     }
 
-    // Live mode listing fetch attempt
+    // Live mode listing fetch attempt via Amazon SP-API Reports API
     try {
       const accessToken = await this.getAccessToken();
+      const endpoint = this.getApiEndpoint();
       const sellerId = this.settings.sellerId || "A2M0PNCK7GMIY6";
       
+      const liveReportListings: any[] = [];
+
+      // 1. Check for ready/completed merchant listings reports
+      try {
+        const reportsRes = await axios.get(
+          `${endpoint}/reports/2021-06-30/reports?reportTypes=GET_MERCHANT_LISTINGS_ALL_DATA,GET_FLAT_FILE_OPEN_LISTINGS_DATA&pageSize=5`,
+          {
+            headers: { "x-amz-access-token": accessToken },
+            timeout: 10000,
+          }
+        );
+
+        const reportsList = reportsRes.data?.reports || [];
+        const doneReport = reportsList.find((r: any) => r.processingStatus === "DONE" && r.reportDocumentId);
+
+        if (doneReport) {
+          const docRes = await axios.get(`${endpoint}/reports/2021-06-30/documents/${doneReport.reportDocumentId}`, {
+            headers: { "x-amz-access-token": accessToken },
+            timeout: 10000,
+          });
+
+          if (docRes.data?.url) {
+            const downloadRes = await axios.get(docRes.data.url, { responseType: "arraybuffer", timeout: 15000 });
+            let text = "";
+            if (docRes.data.compressionAlgorithm === "GZIP") {
+              text = zlib.gunzipSync(downloadRes.data).toString("utf-8");
+            } else {
+              text = Buffer.from(downloadRes.data).toString("utf-8");
+            }
+
+            const lines = text.split("\n").filter((l: string) => l.trim().length > 0);
+            if (lines.length > 1) {
+              const header = lines[0].split("\t");
+              for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split("\t");
+                const rowObj: any = {};
+                header.forEach((h: string, idx: number) => {
+                  rowObj[h] = cols[idx];
+                });
+
+                const asin = rowObj["asin1"] || rowObj["product-id"];
+                const sku = rowObj["seller-sku"];
+                const title = rowObj["item-name"] || "";
+                const price = parseFloat(rowObj["price"]) || 0;
+                const quantity = parseInt(rowObj["quantity"] || "0", 10);
+                const status = String(rowObj["status"] || "ACTIVE").toUpperCase();
+
+                if (asin || sku) {
+                  liveReportListings.push({
+                    asin,
+                    sku,
+                    title,
+                    price,
+                    quantity,
+                    barcode: sku && !sku.includes("-") ? sku : null,
+                    status: status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+                    raw: rowObj
+                  });
+                }
+              }
+            }
+          }
+        } else {
+          // If no report is done yet, trigger a new background report request
+          axios.post(
+            `${endpoint}/reports/2021-06-30/reports`,
+            {
+              reportType: "GET_MERCHANT_LISTINGS_ALL_DATA",
+              marketplaceIds: [this.settings.marketplace_id || "A33AVAJ2PDY3EV"]
+            },
+            {
+              headers: { "x-amz-access-token": accessToken },
+              timeout: 10000
+            }
+          ).catch((e: any) => console.warn("[AmazonService] Report trigger warn:", e.message));
+        }
+      } catch (err: any) {
+        console.warn("[AmazonService] SP-API Reports fetch warn:", err.message);
+      }
+
       // Known verified pilot listing for GAP Bilişim
       const pilotListings = [
         {
@@ -376,15 +458,20 @@ export class AmazonService {
           [this.storeId]
         );
 
-        // Fetch products from local DB that have ASIN/SKU or return verified Amazon listings
+        // Fetch products from local DB that have ASIN/SKU
         const res = await pool.query(
           "SELECT amazon_asin as asin, amazon_sku as sku, barcode, name as title, price, stock_quantity as quantity FROM products WHERE store_id = $1 AND (amazon_asin IS NOT NULL OR amazon_sku IS NOT NULL) AND amazon_asin != 'B08N5WRWNW'",
           [this.storeId]
         );
         const dbListings = res.rows.map(r => ({ ...r, status: "ACTIVE" }));
         
-        // Merge without duplicates based on ASIN/barcode
-        const combined = [...pilotListings];
+        // Merge report listings + pilot listings + DB listings without duplicates
+        const combined = [...liveReportListings];
+        for (const p of pilotListings) {
+          if (!combined.some(c => c.asin === p.asin || (c.barcode && c.barcode === p.barcode))) {
+            combined.push(p);
+          }
+        }
         for (const d of dbListings) {
           if (d.asin === "B08N5WRWNW") continue;
           if (!combined.some(c => c.asin === d.asin || (c.barcode && c.barcode === d.barcode))) {
@@ -393,7 +480,7 @@ export class AmazonService {
         }
         return combined;
       }
-      return pilotListings;
+      return liveReportListings.length > 0 ? liveReportListings : pilotListings;
     } catch (err: any) {
       console.warn("[AmazonService] Fetch listings error:", err.message);
       return [

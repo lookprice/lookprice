@@ -1344,37 +1344,50 @@ router.post("/hepsiburada/check-product-status", authenticate, async (req: any, 
       }
 
       let statusMsg = "Hepsiburada katalog ve barkod incelemesi sürüyor. Henüz onaylanıp mağaza envanterinize eklenmemiş.";
+      let isFailed = false;
+      let failureReason = "";
+
       if (trackingDetail) {
-        const state = trackingDetail.status || trackingDetail.state || "";
-        const errors = trackingDetail.errors || trackingDetail.failureReasons || [];
-        if (errors.length > 0) {
-          const errList = errors.map((e: any) => typeof e === "string" ? e : (e.message || e.description || JSON.stringify(e))).join(", ");
-          statusMsg = `Hepsiburada katalog incelemesinde eksik/uyarı tespit edildi: ${errList}`;
-        } else if (state) {
-          statusMsg = `Hepsiburada katalog inceleme aşaması: ${state} (Takip No: ${trackingId})`;
+        const itemInfo = Array.isArray(trackingDetail) ? trackingDetail[0] : trackingDetail;
+        const importStatus = itemInfo?.importStatus || itemInfo?.status || itemInfo?.state || "";
+        const importMessages = itemInfo?.importMessages || itemInfo?.errors || itemInfo?.failureReasons || [];
+
+        if (importStatus === "FAILED" || (Array.isArray(importMessages) && importMessages.some((m: any) => m.severity === "ERROR" || m.message))) {
+          isFailed = true;
+          const errList = Array.isArray(importMessages) 
+            ? importMessages.map((e: any) => typeof e === "string" ? e : (e.message || e.description || JSON.stringify(e))).join("; ")
+            : String(importMessages);
+          failureReason = errList ? `Hepsiburada Katalog Reddi: ${errList}` : "Hepsiburada katalog aktarımı başarısız oldu.";
+          statusMsg = failureReason;
+        } else if (importStatus === "COMPLETED" && itemInfo?.hbSku) {
+          statusMsg = `Hepsiburada katalog incelemesi tamamlandı! (HB SKU: ${itemInfo.hbSku})`;
+        } else if (importStatus) {
+          statusMsg = `Hepsiburada katalog inceleme aşaması: ${importStatus} (Takip No: ${trackingId})`;
         }
       }
 
       mpData.hepsiburada = {
         ...hbData,
-        status: 'PENDING_APPROVAL',
+        status: isFailed ? 'FAILED' : 'PENDING_APPROVAL',
         trackingId: trackingId || null,
         trackingDetail: trackingDetail || hbData.trackingDetail || null,
+        error: isFailed ? failureReason : null,
         lastChecked: new Date().toISOString()
       };
 
       await pool.query(
         `UPDATE products 
          SET is_hepsiburada_active = false,
-             marketplace_data = $1
-         WHERE id = $2`,
-        [JSON.stringify(mpData), productId]
+             hepsiburada_last_error = $1,
+             marketplace_data = $2
+         WHERE id = $3`,
+        [isFailed ? failureReason : null, JSON.stringify(mpData), productId]
       );
 
       return res.json({
         success: true,
         isLive: false,
-        status: 'PENDING_APPROVAL',
+        status: isFailed ? 'FAILED' : 'PENDING_APPROVAL',
         trackingId: trackingId || null,
         trackingDetail,
         message: statusMsg

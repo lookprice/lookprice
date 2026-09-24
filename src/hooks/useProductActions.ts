@@ -136,7 +136,12 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       portion_size: String(rawData.portion_size || '').trim(),
       product_type: rawData.product_type || 'product',
       sync_group: rawData.sync_group === 'on',
-      marketplace_data: marketplaceData
+      marketplace_data: marketplaceData,
+      hepsiburada_sku: rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku || editingProduct?.hepsiburada_sku || null,
+      is_hepsiburada_active: rawData.is_hepsiburada_active === 'true' || rawData.is_hepsiburada_active === true || Boolean(rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku),
+      amazon_asin: rawData.amazon_asin || marketplaceData?.amazon?.asin || editingProduct?.amazon_asin || null,
+      amazon_sku: rawData.amazon_sku || marketplaceData?.amazon?.sku || editingProduct?.amazon_sku || null,
+      is_amazon_active: rawData.is_amazon_active === 'true' || rawData.is_amazon_active === true || Boolean(rawData.amazon_asin || marketplaceData?.amazon?.asin)
     };
 
     // Defensive synchronization between top-level fields and book sector_data

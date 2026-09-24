@@ -78,12 +78,12 @@ export const ProductModal = ({
   const isBookstore = domainId === 'BOOKSTORE';
   const isShopLp = domainId === 'RETAIL' || domainId === 'BOOKSTORE';
   const connectedMarketplaces = useMemo(() => getConnectedMarketplaces(branding), [branding]);
-  const isHbEnabled = isShopLp && connectedMarketplaces.hepsiburada;
+  const isMarketplaceEnabled = isShopLp;
 
   useEffect(() => {
-    if (showProductModal && isHbEnabled) {
+    if (showProductModal && isMarketplaceEnabled) {
       setLoadingHbCategories(true);
-      api.getHepsiburadaCategories(branding.id)
+      api.getHepsiburadaCategories(branding?.id || branding?.store_id)
         .then(res => {
           if (res.data?.categories) setHbCategories(res.data.categories);
           else if (Array.isArray(res.categories)) setHbCategories(res.categories);
@@ -91,7 +91,7 @@ export const ProductModal = ({
         .catch(err => console.error("HB Cat Fetch Error:", err))
         .finally(() => setLoadingHbCategories(false));
     }
-  }, [showProductModal, isHbEnabled]);
+  }, [showProductModal, isMarketplaceEnabled]);
 
   const handleVariantImageUpload = async (vIdx: number, file: File) => {
     try {
@@ -1286,8 +1286,8 @@ export const ProductModal = ({
                   )}
                 </div>
 
-                {/* HEPSIBURADA INTEGRATION (IF CONNECTED) */}
-                {isHbEnabled && (
+                {/* MARKETPLACE INTEGRATION (HEPSIBURADA & AMAZON) */}
+                {isMarketplaceEnabled && (
                   <div className="space-y-1.5">
                     <MarketplaceProductFields
                       product={editingProduct || {}}
@@ -1298,7 +1298,7 @@ export const ProductModal = ({
                       categories={hbCategories}
                       storeSettings={branding?.hepsiburada_settings}
                     />
-                    {editingProduct?.id && (
+                    {editingProduct?.id && connectedMarketplaces.hepsiburada && (
                       <button
                         type="button"
                         onClick={handleDirectPublishToHb}

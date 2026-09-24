@@ -1068,6 +1068,22 @@ router.put("/:id", async (req: any, res) => {
 
     const finalBarcode = barcode ? String(barcode).trim() : (existingProductRes.rows[0]?.barcode || 'GEN-' + Date.now().toString());
 
+    const finalHbSku = req.body.hepsiburada_sku !== undefined 
+      ? (String(req.body.hepsiburada_sku).trim() || null)
+      : (finalMarketplaceData?.hepsiburada?.hepsiburadaSku || finalMarketplaceData?.hepsiburada?.hbSku || existingProductRes.rows[0]?.hepsiburada_sku || null);
+    const finalIsHbActive = req.body.is_hepsiburada_active !== undefined 
+      ? Boolean(req.body.is_hepsiburada_active) 
+      : (Boolean(finalHbSku) && finalMarketplaceData?.hepsiburada?.status !== 'PENDING_APPROVAL');
+    const finalAmzAsin = req.body.amazon_asin !== undefined 
+      ? (String(req.body.amazon_asin).trim() || null) 
+      : (finalMarketplaceData?.amazon?.asin || existingProductRes.rows[0]?.amazon_asin || null);
+    const finalAmzSku = req.body.amazon_sku !== undefined 
+      ? (String(req.body.amazon_sku).trim() || null) 
+      : (finalMarketplaceData?.amazon?.sku || existingProductRes.rows[0]?.amazon_sku || null);
+    const finalIsAmzActive = req.body.is_amazon_active !== undefined 
+      ? Boolean(req.body.is_amazon_active) 
+      : (Boolean(finalAmzAsin) || existingProductRes.rows[0]?.is_amazon_active || false);
+
     await pool.query(`
       UPDATE products SET 
         barcode = $1, product_code = $2, sku = $2, name = $3, price = $4, currency = $5, 
@@ -1078,8 +1094,11 @@ router.put("/:id", async (req: any, res) => {
         labels = $20, image_url = $21, is_web_sale = $22, is_bestseller = $23, product_type = $24,
         price_2 = $25, price_2_currency = $26, tax_rate = $27, shipping_profile_id = $28, volume_ml = $29, is_sellable = $30,
         allergens = $31::jsonb, calories = $32, prep_time_min = $33, portion_size = $34,
-        marketplace_data = $35::jsonb, sector_data = $36::jsonb, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $37 AND store_id = $38
+        marketplace_data = $35::jsonb, sector_data = $36::jsonb,
+        hepsiburada_sku = $37, is_hepsiburada_active = $38,
+        amazon_asin = $39, amazon_sku = $40, is_amazon_active = $41,
+        updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $42 AND store_id = $43
     `, [
       finalBarcode, finalProductCode, name, finalPrice, currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
@@ -1102,6 +1121,8 @@ router.put("/:id", async (req: any, res) => {
       portion_size !== undefined ? String(portion_size) : (existingProductRes.rows[0]?.portion_size || ''),
       JSON.stringify(finalMarketplaceData),
       JSON.stringify(finalSectorData),
+      finalHbSku, finalIsHbActive,
+      finalAmzAsin, finalAmzSku, finalIsAmzActive,
       id, storeId
     ]);
 
