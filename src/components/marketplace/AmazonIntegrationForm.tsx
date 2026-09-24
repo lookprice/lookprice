@@ -261,9 +261,24 @@ export const AmazonIntegrationForm: React.FC<AmazonIntegrationFormProps> = ({
               <span>SP-API Refresh Token</span>
               <span className="text-rose-500">*</span>
             </label>
-            <span className="text-[10px] text-indigo-600 font-medium cursor-pointer hover:underline" onClick={() => setShowAmazonGuideModal(true)}>
-              Nasıl Alınır?
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const appId = amazonAppId || "amzn1.sp.solution.d6950e6e-a94f-4d43-a258-a6e0cbd2d3e9";
+                  const statePayload = btoa(JSON.stringify({ slug: branding?.slug || "gap", storeId: branding?.id || 1 }));
+                  const oauthUrl = `https://sellercentral.amazon.com.tr/apps/authorize/consent?application_id=${encodeURIComponent(appId)}&state=${encodeURIComponent(statePayload)}&version=beta`;
+                  window.open(oauthUrl, '_blank', 'width=700,height=750');
+                }}
+                className="text-[10px] bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded border border-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Seller Central üzerinden tek tıkla OAuth yetkilendirmesi başlat"
+              >
+                <span>⚡ Tek Tıkla Amazon'dan Al (OAuth)</span>
+              </button>
+              <span className="text-[10px] text-indigo-600 font-medium cursor-pointer hover:underline" onClick={() => setShowAmazonGuideModal(true)}>
+                Nasıl Alınır?
+              </span>
+            </div>
           </div>
           <div className="relative">
             <input 

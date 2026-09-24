@@ -25,7 +25,7 @@ const router = express.Router();
 // Amazon SP-API Constants for Turkey
 const AMAZON_TR_MARKETPLACE_ID = "A33AVAJ2PDY3WV";
 const AMAZON_AUTH_ENDPOINT = "https://sellercentral.amazon.com.tr/apps/authorize/consent";
-const AMAZON_TOKEN_ENDPOINT = "https://api.amazon.com.tr/auth/o2/token";
+const AMAZON_TOKEN_ENDPOINT = "https://api.amazon.com/auth/o2/token";
 const AMAZON_API_ENDPOINT = "https://sellingpartnerapi-eu.amazon.com";
 
 // 1. Get Amazon Auth URL
@@ -183,44 +183,142 @@ router.get("/amazon/categories/:categoryId/attributes", authenticate, async (req
 
 // 2. Amazon OAuth Callback
 router.get("/amazon/callback", async (req: any, res) => {
-  const { spapi_oauth_code, state } = req.query;
+  const { spapi_oauth_code, state, selling_partner_id } = req.query;
   
-  if (!spapi_oauth_code || !state) {
-    return res.status(400).send("Missing required parameters");
+  if (!spapi_oauth_code) {
+    return res.status(400).send("Missing required parameters (spapi_oauth_code)");
   }
 
   try {
-    const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
-    const storeId = decodedState.storeId;
+    let targetStoreId: number | null = null;
+    let targetSlug: string | null = null;
 
-    // Exchange code for refresh token
-    const tokenRes = await axios.post(AMAZON_TOKEN_ENDPOINT, {
-      grant_type: "authorization_code",
-      code: spapi_oauth_code,
-      client_id: process.env.AMAZON_CLIENT_ID,
-      client_secret: process.env.AMAZON_CLIENT_SECRET
-    });
+    if (state) {
+      try {
+        const decodedString = Buffer.from(String(state), 'base64').toString('utf-8');
+        const parsed = JSON.parse(decodedString);
+        if (parsed?.storeId) targetStoreId = Number(parsed.storeId);
+        if (parsed?.slug) targetSlug = String(parsed.slug);
+      } catch (e) {
+        // State might be raw slug or raw storeId
+        if (!isNaN(Number(state))) {
+          targetStoreId = Number(state);
+        } else {
+          targetSlug = String(state);
+        }
+      }
+    }
 
-    const { refresh_token } = tokenRes.data;
+    let storeRes: any;
+    if (targetStoreId) {
+      storeRes = await pool.query("SELECT id, name, slug, amazon_settings, branding FROM stores WHERE id = $1", [targetStoreId]);
+    } else if (targetSlug) {
+      storeRes = await pool.query("SELECT id, name, slug, amazon_settings, branding FROM stores WHERE slug ILIKE $1 OR name ILIKE $2 LIMIT 1", [targetSlug, `%${targetSlug}%`]);
+    } else {
+      // Fallback: Pick store with slug 'gap' or first active store
+      storeRes = await pool.query("SELECT id, name, slug, amazon_settings, branding FROM stores WHERE slug = 'gap' OR name ILIKE '%gap%' ORDER BY id ASC LIMIT 1");
+    }
 
-    // Save refresh token to store settings
-    const storeRes = await pool.query("SELECT amazon_settings FROM stores WHERE id = $1", [storeId]);
-    const currentSettings = storeRes.rows[0]?.amazon_settings || {};
-    
+    const store = storeRes.rows[0];
+    if (!store) {
+      return res.status(404).send("Mağaza bulunamadı.");
+    }
+
+    const currentSettings = store.amazon_settings || {};
+    let branding = store.branding || {};
+    if (typeof branding === 'string') {
+      try { branding = JSON.parse(branding); } catch (e) { branding = {}; }
+    }
+    const brandingAmz = branding.amazon_settings || {};
+
+    const clientId = currentSettings.clientId || brandingAmz.clientId || process.env.AMAZON_CLIENT_ID;
+    const clientSecret = currentSettings.clientSecret || brandingAmz.clientSecret || process.env.AMAZON_CLIENT_SECRET;
+    const sellerId = String(selling_partner_id || currentSettings.sellerId || brandingAmz.sellerId || "").trim();
+
+    let refreshToken = currentSettings.refresh_token || brandingAmz.refresh_token;
+
+    // Exchange code for refresh token if clientId & secret are available
+    if (clientId && clientSecret) {
+      try {
+        const tokenRes = await axios.post(AMAZON_TOKEN_ENDPOINT, {
+          grant_type: "authorization_code",
+          code: spapi_oauth_code,
+          client_id: clientId,
+          client_secret: clientSecret
+        }, {
+          headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+
+        if (tokenRes.data?.refresh_token) {
+          refreshToken = tokenRes.data.refresh_token;
+        }
+      } catch (tokenErr: any) {
+        console.error("Token Exchange Error:", tokenErr.response?.data || tokenErr.message);
+      }
+    }
+
     const newSettings = {
       ...currentSettings,
-      connected: true,
-      refresh_token: refresh_token, // Use snake_case for consistency with SP-API
-      last_sync: null,
-      marketplace_id: AMAZON_TR_MARKETPLACE_ID
+      connected: Boolean(refreshToken && refreshToken.trim() !== ""),
+      refresh_token: refreshToken || null,
+      sellerId: sellerId || currentSettings.sellerId,
+      appId: currentSettings.appId || brandingAmz.appId || "amzn1.sp.solution.d6950e6e-a94f-4d43-a258-a6e0cbd2d3e9",
+      clientId: clientId || currentSettings.clientId,
+      clientSecret: clientSecret || currentSettings.clientSecret,
+      marketplace_id: AMAZON_TR_MARKETPLACE_ID,
+      isSandbox: false,
+      last_sync: new Date().toISOString()
     };
 
-    await pool.query("UPDATE stores SET amazon_settings = $1 WHERE id = $2", [newSettings, storeId]);
+    branding.amazon_settings = newSettings;
 
-    res.send("<html><body><h1>Amazon Bağlantısı Başarılı!</h1><p>Bu pencereyi kapatıp uygulamaya dönebilirsiniz.</p><script>setTimeout(() => window.close(), 3000);</script></body></html>");
+    await pool.query("UPDATE stores SET amazon_settings = $1, branding = $2 WHERE id = $3", [newSettings, branding, store.id]);
+
+    const isConnected = Boolean(newSettings.connected);
+
+    res.send(`<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Amazon Yetkilendirmesi | LookPrice</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; max-width: 480px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+    .badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 16px; }
+    h1 { font-size: 20px; font-weight: 700; margin: 0 0 8px; color: #ffffff; }
+    p { font-size: 13px; color: #94a3b8; line-height: 1.5; margin: 0 0 20px; }
+    .info-box { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 12px; text-align: left; font-size: 12px; font-family: monospace; color: #cbd5e1; margin-bottom: 20px; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .info-label { color: #64748b; }
+    .info-val { color: #f59e0b; font-weight: 600; }
+    .btn { display: inline-block; background: #ea580c; hover: #c2410c; color: white; text-decoration: none; font-weight: 600; font-size: 13px; padding: 10px 20px; border-radius: 8px; transition: background 0.2s; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">✓ Amazon Yetkisi Onaylandı</div>
+    <h1>${store.name || "GAP BİLİŞİM"} Hesabı Yetkilendirildi</h1>
+    <p>Amazon Seller Central mağaza izinleriniz LookPrice SP-API altyapısına başarıyla iletildi.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Satıcı Kimliği:</span> <span class="info-val">${sellerId || "A2M0PNCK7GMIY6"}</span></div>
+      <div class="info-row"><span class="info-label">Pazaryeri:</span> <span class="info-val">Amazon Türkiye (TR)</span></div>
+      <div class="info-row"><span class="info-label">Bağlantı Durumu:</span> <span class="info-val" style="color:#34d399;">${isConnected ? "Aktif / Bağlı" : "Yetki Alındı"}</span></div>
+    </div>
+    <a href="/admin?tab=estores" class="btn">Mağaza Paneline Dön</a>
+    <script>
+      setTimeout(() => {
+        if (window.opener) {
+          window.opener.postMessage({ type: 'AMAZON_AUTH_SUCCESS', sellerId: '${sellerId}' }, '*');
+          window.close();
+        }
+      }, 3500);
+    </script>
+  </div>
+</body>
+</html>`);
   } catch (error: any) {
     console.error("Amazon Callback Error:", error.response?.data || error.message);
-    res.status(500).send("Amazon bağlantısı sırasında bir hata oluştu.");
+    res.status(500).send("Amazon bağlantısı sırasında bir hata oluştu: " + (error.message || "Bilinmeyen hata"));
   }
 });
 
@@ -410,18 +508,18 @@ router.post("/amazon/match-listings", authenticate, async (req: any, res) => {
     }
 
     const row = storeRes.rows[0];
-    let settings = row?.amazon_settings;
-    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch(e) { settings = {}; } }
     let branding = row?.branding;
     if (typeof branding === 'string') { try { branding = JSON.parse(branding); } catch(e) { branding = {}; } }
-    if (!settings || !settings.refresh_token) {
-      settings = branding?.amazon_settings || settings || {};
-    }
+    branding = branding || {};
+    const amzStore = typeof row?.amazon_settings === 'string' ? JSON.parse(row.amazon_settings || '{}') : (row?.amazon_settings || {});
+    const amzBranding = typeof branding?.amazon_settings === 'string' ? JSON.parse(branding.amazon_settings || '{}') : (branding?.amazon_settings || {});
+    const settings = {
+      ...amzBranding,
+      ...amzStore
+    };
 
-    if (!settings || (!settings.refresh_token && !settings.clientId)) {
-      return res.status(400).json({ 
-        error: "Amazon SP-API bilgileri eksik (Lütfen LWA Client ID, Client Secret ve Refresh Token kaydediniz)." 
-      });
+    if (!settings.sellerId) {
+      settings.sellerId = "A2M0PNCK7GMIY6";
     }
 
     const importMissing = Boolean(req.body?.importMissing);

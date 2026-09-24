@@ -104,21 +104,21 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
   }, [products]);
 
-  const handleMatchListings = async (importMissing: boolean = false) => {
+  const handleMatchHbListings = async (importMissing: boolean = false) => {
     try {
       setIsMatchingListings(true);
       const res = await api.matchHepsiburadaListings(importMissing, currentStoreId);
-      const data = res.data;
-      if (data && data.success) {
-        setMatchResult(data);
+      const data = (res as any)?.data ?? res;
+      if (data && (data.success || data.matchedCount !== undefined)) {
+        setMatchResult({ ...data, marketplaceKey: 'hepsiburada' });
         toast.success(
           isTr 
-            ? `Hepsiburada İlan Eşleştirme Başarılı! ${data.matchedCount} ürün eşleştirildi.`
-            : `Sync completed! ${data.matchedCount} matched.`
+            ? `Hepsiburada İlan Eşleştirme Başarılı! ${data.matchedCount || 0} ürün eşleştirildi, ${data.importedCount || 0} yeni ürün aktarıldı.`
+            : `Hepsiburada sync completed! ${data.matchedCount || 0} matched.`
         );
         if (onRefresh) onRefresh();
       } else {
-        toast.error(data?.message || (isTr ? "Eşleştirme işlemi tamamlanamadı." : "Match failed."));
+        toast.error(data?.message || data?.error || (isTr ? "Eşleştirme işlemi tamamlanamadı." : "Match failed."));
       }
     } catch (err: any) {
       toast.error(err.response?.data?.error || err.message || (isTr ? "Eşleştirme hatası" : "Matching error"));
@@ -127,11 +127,41 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
   };
 
+  const handleMatchAmazonListings = async (importMissing: boolean = true) => {
+    try {
+      setIsMatchingListings(true);
+      const res = await api.matchAmazonListings(importMissing, currentStoreId);
+      const data = (res as any)?.data ?? res;
+      if (data && (data.success || data.matchedCount !== undefined)) {
+        setMatchResult({ ...data, marketplaceKey: 'amazon' });
+        toast.success(
+          isTr 
+            ? `Amazon İlan Eşleştirme Başarılı! ${data.matchedCount || 0} ürün eşleştirildi, ${data.importedCount || 0} yeni ürün aktarıldı.`
+            : `Amazon sync completed! ${data.matchedCount || 0} matched.`
+        );
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(data?.message || data?.error || (isTr ? "Amazon eşleştirme işlemi tamamlanamadı." : "Amazon match failed."));
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || (isTr ? "Amazon eşleştirme hatası" : "Amazon match error"));
+    } finally {
+      setIsMatchingListings(false);
+    }
+  };
+
+  const handleMatchListings = async (importMissing: boolean = false) => {
+    if (selectedMarketplace === 'amazon') {
+      return handleMatchAmazonListings(true);
+    }
+    return handleMatchHbListings(importMissing);
+  };
+
   const handleCheckBulkPendingStatus = async () => {
     try {
       setIsCheckingBulkPending(true);
       const res = await api.checkHepsiburadaBulkPendingStatus(currentStoreId);
-      const data = res.data;
+      const data = (res as any)?.data ?? res;
       if (data && data.success) {
         toast.success(data.message, { duration: 6000 });
         if (data.matchedCount > 0 && onRefresh) {
@@ -151,7 +181,8 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     try {
       setIsSyncingOrders(true);
       const res = await api.syncHepsiburadaOrders(currentStoreId, { beginDate: '2026-09-01', timespan: 30 });
-      const count = res.data?.count || 0;
+      const data = (res as any)?.data ?? res;
+      const count = data?.count || 0;
       toast.success(
         isTr 
           ? `${count} adet Hepsiburada siparişi (01.09.2026 ve sonrası) başarıyla kontrol edilip çekildi!`
@@ -797,7 +828,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
             onMatchListings={handleMatchListings}
             onCheckBulkPending={handleCheckBulkPendingStatus}
             onSyncOrders={handleSyncHepsiburadaOrders}
-            onSyncAmazon={handleMatchListings}
+            onSyncAmazon={() => handleMatchAmazonListings(true)}
             onBulkPublish={handleBulkPublishSelected}
             onBulkUnpublish={handleBulkUnpublishSelected}
           />

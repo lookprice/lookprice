@@ -421,7 +421,7 @@ export const SettingsEStoresTab = ({
     try {
       setAmazonMatching(true);
       const res = await api.matchAmazonListings(true, currentStoreId);
-      const data = res.data || res;
+      const data = (res as any)?.data ?? res;
       if (data && data.success) {
         toast.success(
           lang === 'tr'
@@ -568,16 +568,16 @@ export const SettingsEStoresTab = ({
     try {
       setHbMatching(true);
       const res = await api.matchHepsiburadaListings(true, currentStoreId);
-      const data = res.data;
-      if (data && data.success) {
+      const data = (res as any)?.data ?? res;
+      if (data && (data.success || data.matchedCount !== undefined)) {
         toast.success(
           lang === 'tr'
-            ? `Hepsiburada Eşleştirme Başarılı! ${data.matchedCount} ürün eşleşti, ${data.importedCount} yeni ürün aktarıldı.`
-            : `Sync completed! ${data.matchedCount} matched, ${data.importedCount} imported.`
+            ? `Hepsiburada Eşleştirme Başarılı! ${data.matchedCount || 0} ürün eşleşti, ${data.importedCount || 0} yeni ürün aktarıldı.`
+            : `Sync completed! ${data.matchedCount || 0} matched, ${data.importedCount || 0} imported.`
         );
         if (onRefresh) onRefresh();
       } else {
-        toast.error(data?.message || (lang === 'tr' ? "Eşleştirme başarısız" : "Matching failed"));
+        toast.error(data?.message || data?.error || (lang === 'tr' ? "Eşleştirme başarısız" : "Matching failed"));
       }
     } catch (err: any) {
       toast.error(err.response?.data?.error || err.message || (lang === 'tr' ? "Eşleştirme hatası" : "Matching error"));
