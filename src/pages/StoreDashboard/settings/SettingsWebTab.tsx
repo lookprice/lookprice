@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { ShopThemeStudio } from "../../../components/dashboard/ShopThemeStudio";
 import { HorecaThemeStudio } from "../../../components/dashboard/HorecaThemeStudio";
 import { BookstoreThemeStudio } from "../../../components/dashboard/BookstoreThemeStudio";
+import { resolveDomainId } from "../../../utils/sectorCapability";
 import {
   Palette,
   Tag,
@@ -74,19 +75,9 @@ export const SettingsWebTab = ({
   savingBranding,
 }: SettingsWebTabProps) => {
   const txt = (tr: string, en: string, el: string) => (lang === "tr" ? tr : lang === "el" ? el : en);
-  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
-  const isGapStore = 
-    branding?.slug?.toLowerCase() === 'gap' || 
-    branding?.store_name?.toUpperCase().includes('GAP') ||
-    branding?.name?.toUpperCase().includes('GAP');
-
-  const isBookstore = !isGapStore && !isPortfolio && !isCafeRestaurant && Boolean(
-    branding?.bookstore_module_enabled === true ||
-    branding?.bookstore_license_enabled === true ||
-    branding?.store_concept === 'bookstore' ||
-    branding?.sector === 'bookstore' ||
-    branding?.page_layout_settings?.sector === 'bookstore'
-  );
+  const domainId = resolveDomainId(branding);
+  const isCafeRestaurant = domainId === 'HORECA' || domainId === 'HOTEL';
+  const isBookstore = domainId === 'BOOKSTORE';
 
   const [activeSubTab, setActiveSubTab] = useState<'brand' | 'theme' | 'labels' | 'legal' | 'contact' | 'analytics'>('brand');
 

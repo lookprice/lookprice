@@ -2,6 +2,7 @@ import { toast } from 'sonner';
 import { useState } from "react";
 import { api } from "../services/api";
 import { Product } from "../types";
+import { resolveDomainId } from "../utils/sectorCapability";
 
 export const useProductActions = (user: any, currentStoreId: number | undefined, products: Product[], lang: string, fetchData: (background?: boolean) => Promise<void>) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -151,14 +152,7 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     }
 
     // Ensure bookstore badges and sector_data curated_badges are synchronized perfectly
-    const isBookstore = Boolean(
-      branding?.bookstore_module_enabled === true ||
-      branding?.branding?.bookstore_module_enabled === true ||
-      branding?.bookstore_license_enabled === true ||
-      branding?.branding?.bookstore_license_enabled === true ||
-      branding?.store_type === 'bookstore' ||
-      branding?.page_layout_settings?.sector === 'bookstore'
-    );
+    const isBookstore = resolveDomainId(branding) === "BOOKSTORE";
 
     if (isBookstore && sector_data && typeof sector_data === 'object') {
       sector_data.curated_badges = data.labels;

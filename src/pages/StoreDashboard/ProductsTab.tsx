@@ -5,6 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/translations";
 import { useTableManager } from "@/hooks/useTableManager";
 import { BOOKSTORE_BADGES, extractProductLabels, hasBookstoreBadge, toggleBookstoreBadgeData } from "@/data/bookstoreBadges";
+import { resolveDomainId } from "@/utils/sectorCapability";
 
 // Vertical Slices
 import { ProductsTabProps, MarketplaceFilterType, MarketplaceModalTab, MarketplaceModalStatus } from "./products/types";
@@ -77,32 +78,12 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const [marketplaceModalTab, setMarketplaceModalTab] = useState<MarketplaceModalTab>('all');
   const [marketplaceModalStatus, setMarketplaceModalStatus] = useState<MarketplaceModalStatus>('all');
 
-  // Sector and Store Category Detection
-  const sectorType = (branding?.store_type || branding?.page_layout_settings?.sector || '').toLowerCase();
-  const isCafe = sectorType === 'horeca' || sectorType === 'cafe' || sectorType === 'restaurant' || isCafeRestaurant;
-  const isPortfolio = sectorType === 'real_estate' || sectorType === 'automotive' || sectorType === 'emlak' || sectorType === 'oto';
-  const isShopLp = !isCafe && !isPortfolio;
-  const isBookstore = useMemo(() => {
-    return (
-      branding?.page_layout_settings?.bookstore_mode === true || 
-      branding?.theme_config?.bookstore_mode === true ||
-      branding?.bookstore_module_enabled === true ||
-      branding?.bookstore_license_enabled === true ||
-      branding?.store_concept === 'bookstore' ||
-      sectorType.includes('book') ||
-      sectorType.includes('kitap') ||
-      sectorType.includes('sahaf') ||
-      sectorType.includes('yayın') ||
-      (branding?.store_name || '').toLowerCase().includes('book') ||
-      (branding?.store_name || '').toLowerCase().includes('kitap') ||
-      (branding?.name || '').toLowerCase().includes('book') ||
-      (branding?.name || '').toLowerCase().includes('kitap') ||
-      (branding?.slug || '').toLowerCase().includes('book') ||
-      (branding?.slug || '').toLowerCase().includes('kitap') ||
-      (branding?.slug || '').toLowerCase().includes('dgbook') ||
-      products.some((p: any) => p.author || (p as any).sector_data?.author || (p as any).sector_data?.isbn || (Array.isArray(p.labels) && p.labels.length > 0) || (p as any).sector_data?.curated_badges?.length > 0)
-    );
-  }, [branding, sectorType, products]);
+  // Sector and Store Category Detection via SSOT Domain Resolver
+  const domainId = resolveDomainId(branding);
+  const isCafe = domainId === 'HORECA' || domainId === 'HOTEL' || isCafeRestaurant;
+  const isPortfolio = domainId === 'REAL_ESTATE' || domainId === 'AUTOMOTIVE';
+  const isBookstore = domainId === 'BOOKSTORE';
+  const isShopLp = domainId === 'RETAIL' || domainId === 'BOOKSTORE';
 
   // Table Manager for responsive columns & metadata display modes
   const tableManager = useTableManager({

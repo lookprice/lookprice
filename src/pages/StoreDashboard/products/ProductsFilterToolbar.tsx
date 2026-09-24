@@ -375,8 +375,8 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
         </div>
       </div>
 
-      {/* E-Marketplace Quick Filter Chips for shopLP (Only visible when connected) */}
-      {isShopLp && connectedMarketplaces.hasAnyConnected && (
+      {/* E-Marketplace Quick Filter Chips for shopLP */}
+      {isShopLp && (
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60 overflow-x-auto pb-1 scrollbar-none text-xs">
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-[11px] font-bold text-slate-400 mr-1 hidden sm:inline">Pazaryeri:</span>
@@ -393,153 +393,161 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               {lang === 'tr' ? 'Tümü' : 'All'}
             </button>
 
-            <button
-              type="button"
-              onClick={() => { setMarketplaceFilter('listed'); setPage(1); }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                marketplaceFilter === 'listed'
-                  ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
-                  : 'bg-white text-orange-800 border-orange-200 hover:bg-orange-50'
-              }`}
-            >
-              <Store className="w-3 h-3" />
-              {lang === 'tr' ? 'Satışta' : 'In Marketplace'}
-              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                marketplaceFilter === 'listed' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
-              }`}>
-                {marketplaceActiveCount}
+            {connectedMarketplaces.hasAnyConnected ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setMarketplaceFilter('listed'); setPage(1); }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    marketplaceFilter === 'listed'
+                      ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
+                      : 'bg-white text-orange-800 border-orange-200 hover:bg-orange-50'
+                  }`}
+                >
+                  <Store className="w-3 h-3" />
+                  {lang === 'tr' ? 'Satışta' : 'In Marketplace'}
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    marketplaceFilter === 'listed' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
+                  }`}>
+                    {marketplaceActiveCount}
+                  </span>
+                </button>
+
+                {connectedMarketplaces.hepsiburada && (
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      marketplaceFilter === 'hepsiburada'
+                        ? 'bg-orange-600 text-white border-orange-600 shadow-xs'
+                        : 'bg-white text-orange-900 border-orange-200 hover:bg-orange-50'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                    HB
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                      marketplaceFilter === 'hepsiburada' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
+                    }`}>
+                      {hbActiveCount}
+                    </span>
+                  </button>
+                )}
+
+                {connectedMarketplaces.trendyol && (
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('trendyol'); setPage(1); }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      marketplaceFilter === 'trendyol'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-50'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    TY
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                      marketplaceFilter === 'trendyol' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900'
+                    }`}>
+                      {tyActiveCount}
+                    </span>
+                  </button>
+                )}
+
+                {connectedMarketplaces.n11 && (
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('n11'); setPage(1); }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      marketplaceFilter === 'n11'
+                        ? 'bg-red-600 text-white border-red-600 shadow-xs'
+                        : 'bg-white text-red-900 border-red-200 hover:bg-red-50'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                    N11
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                      marketplaceFilter === 'n11' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-900'
+                    }`}>
+                      {n11ActiveCount}
+                    </span>
+                  </button>
+                )}
+
+                {connectedMarketplaces.amazon && (
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('amazon'); setPage(1); }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      marketplaceFilter === 'amazon'
+                        ? 'bg-slate-800 text-amber-300 border-slate-800 shadow-xs'
+                        : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    AMZ
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                      marketplaceFilter === 'amazon' ? 'bg-white/20 text-white' : 'bg-amber-100 text-slate-900'
+                    }`}>
+                      {amzActiveCount}
+                    </span>
+                  </button>
+                )}
+
+                {connectedMarketplaces.pazarama && (
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('pazarama'); setPage(1); }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      marketplaceFilter === 'pazarama'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-50'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    PZR
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                      marketplaceFilter === 'pazarama' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-900'
+                    }`}>
+                      {pzrActiveCount}
+                    </span>
+                  </button>
+                )}
+
+                {marketplaceErrorCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setMarketplaceFilter('errors'); setPage(1); }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      marketplaceFilter === 'errors'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                        : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                    }`}
+                  >
+                    <AlertTriangle className="w-3 h-3 text-rose-500" />
+                    {lang === 'tr' ? 'Hatalı' : 'Marketplace Errors'}
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-200 text-rose-900 animate-pulse">
+                      {marketplaceErrorCount}
+                    </span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => { setMarketplaceFilter('not_listed'); setPage(1); }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 cursor-pointer ${
+                    marketplaceFilter === 'not_listed'
+                      ? 'bg-slate-700 text-white border-slate-700 shadow-xs'
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {lang === 'tr' ? 'Pasif' : 'Not Listed'}
+                </button>
+              </>
+            ) : (
+              <span className="text-[11px] font-medium text-slate-400 italic">
+                {lang === 'tr' ? 'Pazaryeri entegrasyonu tanımlanmamış' : 'No marketplaces connected'}
               </span>
-            </button>
-
-            {connectedMarketplaces.hepsiburada && (
-              <button
-                type="button"
-                onClick={() => { setMarketplaceFilter('hepsiburada'); setPage(1); }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                  marketplaceFilter === 'hepsiburada'
-                    ? 'bg-orange-600 text-white border-orange-600 shadow-xs'
-                    : 'bg-white text-orange-900 border-orange-200 hover:bg-orange-50'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                HB
-                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  marketplaceFilter === 'hepsiburada' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-900'
-                }`}>
-                  {hbActiveCount}
-                </span>
-              </button>
             )}
-
-            {connectedMarketplaces.trendyol && (
-              <button
-                type="button"
-                onClick={() => { setMarketplaceFilter('trendyol'); setPage(1); }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                  marketplaceFilter === 'trendyol'
-                    ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                    : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-50'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                TY
-                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  marketplaceFilter === 'trendyol' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900'
-                }`}>
-                  {tyActiveCount}
-                </span>
-              </button>
-            )}
-
-            {connectedMarketplaces.n11 && (
-              <button
-                type="button"
-                onClick={() => { setMarketplaceFilter('n11'); setPage(1); }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                  marketplaceFilter === 'n11'
-                    ? 'bg-red-600 text-white border-red-600 shadow-xs'
-                    : 'bg-white text-red-900 border-red-200 hover:bg-red-50'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                N11
-                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  marketplaceFilter === 'n11' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-900'
-                }`}>
-                  {n11ActiveCount}
-                </span>
-              </button>
-            )}
-
-            {connectedMarketplaces.amazon && (
-              <button
-                type="button"
-                onClick={() => { setMarketplaceFilter('amazon'); setPage(1); }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                  marketplaceFilter === 'amazon'
-                    ? 'bg-slate-800 text-amber-300 border-slate-800 shadow-xs'
-                    : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                AMZ
-                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  marketplaceFilter === 'amazon' ? 'bg-white/20 text-white' : 'bg-amber-100 text-slate-900'
-                }`}>
-                  {amzActiveCount}
-                </span>
-              </button>
-            )}
-
-            {connectedMarketplaces.pazarama && (
-              <button
-                type="button"
-                onClick={() => { setMarketplaceFilter('pazarama'); setPage(1); }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                  marketplaceFilter === 'pazarama'
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                    : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-50'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                PZR
-                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  marketplaceFilter === 'pazarama' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-900'
-                }`}>
-                  {pzrActiveCount}
-                </span>
-              </button>
-            )}
-
-            {marketplaceErrorCount > 0 && (
-              <button
-                type="button"
-                onClick={() => { setMarketplaceFilter('errors'); setPage(1); }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                  marketplaceFilter === 'errors'
-                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                    : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                }`}
-              >
-                <AlertTriangle className="w-3 h-3 text-rose-500" />
-                {lang === 'tr' ? 'Hatalı' : 'Marketplace Errors'}
-                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-200 text-rose-900 animate-pulse">
-                  {marketplaceErrorCount}
-                </span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => { setMarketplaceFilter('not_listed'); setPage(1); }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border shrink-0 cursor-pointer ${
-                marketplaceFilter === 'not_listed'
-                  ? 'bg-slate-700 text-white border-slate-700 shadow-xs'
-                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {lang === 'tr' ? 'Pasif' : 'Not Listed'}
-            </button>
           </div>
 
           <button
@@ -549,10 +557,10 @@ export const ProductsFilterToolbar: React.FC<ProductsFilterToolbarProps> = ({
               setMarketplaceModalStatus('active');
               setShowMarketplaceListingsModal(true);
             }}
-            className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline flex items-center gap-1 shrink-0 ml-auto cursor-pointer"
+            className="px-2.5 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-bold text-orange-700 hover:bg-orange-100 transition-colors flex items-center gap-1 shrink-0 ml-auto cursor-pointer"
           >
             <ExternalLink className="w-3 h-3" />
-            {lang === 'tr' ? 'E-marketler' : 'Manage All Marketplace Listings'}
+            {lang === 'tr' ? 'E-marketler Entegrasyonu' : 'Manage Marketplace Listings'}
           </button>
         </div>
       )}

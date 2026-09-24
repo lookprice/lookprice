@@ -9,6 +9,7 @@ import { MarketplaceProductFields } from "../../../components/marketplace/Market
 import ProductMovementModal from "../../../components/ProductMovementModal";
 import { BookstoreSectorSpecs } from "../../../components/bookstore/BookstoreSectorSpecs";
 import { getConnectedMarketplaces } from "../../../utils/marketplaceEStores";
+import { resolveDomainId } from "../../../utils/sectorCapability";
 import { BOOKSTORE_CATEGORIES } from "../../../data/bookstoreCategories";
 import { BOOKSTORE_BADGES, extractProductLabels } from "../../../data/bookstoreBadges";
 
@@ -71,24 +72,13 @@ export const ProductModal = ({
   const [matrixSizes, setMatrixSizes] = useState("");
   const [showMovementModal, setShowMovementModal] = useState(false);
 
-  const isCafeRestaurant = branding?.store_type === 'cafe_restaurant' || branding?.page_layout_settings?.sector === 'cafe_restaurant';
-  const isPortfolio = branding?.store_type === 'real_estate' || branding?.store_type === 'motor_vehicle' || branding?.store_type === 'portfolio' || branding?.page_layout_settings?.sector === 'real_estate' || branding?.page_layout_settings?.sector === 'automotive';
-  const isShopLp = !isCafeRestaurant && !isPortfolio;
+  const domainId = resolveDomainId(branding);
+  const isCafeRestaurant = domainId === 'HORECA' || domainId === 'HOTEL';
+  const isPortfolio = domainId === 'REAL_ESTATE' || domainId === 'AUTOMOTIVE';
+  const isBookstore = domainId === 'BOOKSTORE';
+  const isShopLp = domainId === 'RETAIL' || domainId === 'BOOKSTORE';
   const connectedMarketplaces = useMemo(() => getConnectedMarketplaces(branding), [branding]);
   const isHbEnabled = isShopLp && connectedMarketplaces.hepsiburada;
-  const isGapStore = 
-    branding?.slug?.toLowerCase() === 'gap' || 
-    branding?.store_name?.toUpperCase().includes('GAP') ||
-    branding?.name?.toUpperCase().includes('GAP');
-
-  const isBookstore = !isGapStore && !isPortfolio && !isCafeRestaurant && Boolean(
-    branding?.bookstore_module_enabled === true ||
-    branding?.branding?.bookstore_module_enabled === true ||
-    branding?.bookstore_license_enabled === true ||
-    branding?.branding?.bookstore_license_enabled === true ||
-    branding?.store_type === 'bookstore' ||
-    branding?.page_layout_settings?.sector === 'bookstore'
-  );
 
   useEffect(() => {
     if (showProductModal && isHbEnabled) {
