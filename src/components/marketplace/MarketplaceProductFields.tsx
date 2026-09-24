@@ -4,6 +4,7 @@ import { getAttributesForCategory, MarketplaceAttribute } from "@/data/marketpla
 import { autoHydrateTargetAttributes } from "@/services/crossMarketplaceAttributeMapper";
 import { api } from "@/services/api";
 import { getMarketplaceListingUrl, slugifyText } from "@/utils/marketplaceUrls";
+import { getConnectedMarketplaces, ConnectedMarketplaces } from "@/utils/marketplaceEStores";
 
 interface MarketplaceProductFieldsProps {
   product: any;
@@ -11,6 +12,8 @@ interface MarketplaceProductFieldsProps {
   isTr: boolean;
   categories: any[];
   storeSettings?: any;
+  connectedMarketplaces?: ConnectedMarketplaces;
+  branding?: any;
 }
 
 export const MarketplaceProductFields = ({ 
@@ -18,7 +21,9 @@ export const MarketplaceProductFields = ({
   onUpdate, 
   isTr, 
   categories = [], 
-  storeSettings 
+  storeSettings,
+  connectedMarketplaces,
+  branding
 }: MarketplaceProductFieldsProps) => {
   const getHbData = (prod: any) => {
     let mp = prod?.marketplace_data;
@@ -393,6 +398,7 @@ export const MarketplaceProductFields = ({
       ...product,
       amazon_asin: extractedAsin,
       amazon_sku: updatedAmz.sku,
+      amazon_url: directUrl,
       is_amazon_active: true,
       marketplace_data: fullMp
     });
@@ -427,6 +433,10 @@ export const MarketplaceProductFields = ({
     marketplace_data: getFullMarketplacePayload(marketData, amzData)
   });
 
+  const activeConnections = connectedMarketplaces || getConnectedMarketplaces(branding || { hepsiburada_settings: storeSettings });
+  const showHbSection = activeConnections.hepsiburada;
+  const showAmzSection = activeConnections.amazon;
+
   return (
     <div className="space-y-3 mt-3">
       {/* Hidden inputs for form synchronization */}
@@ -440,7 +450,8 @@ export const MarketplaceProductFields = ({
       <input type="hidden" name="is_amazon_active" value={String(Boolean(product?.is_amazon_active || product?.amazon_asin || amzData.asin))} />
 
       {/* 1. HEPSIBURADA INTEGRATION SECTION */}
-      <div className="p-3.5 bg-orange-50/40 dark:bg-orange-950/20 rounded-2xl border border-orange-200/90 dark:border-orange-900/50 space-y-3">
+      {showHbSection && (
+        <div className="p-3.5 bg-orange-50/40 dark:bg-orange-950/20 rounded-2xl border border-orange-200/90 dark:border-orange-900/50 space-y-3">
         {/* HEADER */}
         <div className="flex items-center justify-between border-b border-orange-200/60 pb-2">
           <div className="flex items-center space-x-2">
@@ -791,78 +802,81 @@ export const MarketplaceProductFields = ({
           </div>
         )}
       </div>
+      )}
 
       {/* 2. AMAZON TR INTEGRATION SECTION */}
-      <div className="p-3.5 bg-amber-50/40 dark:bg-amber-950/20 rounded-2xl border border-amber-200/90 dark:border-amber-900/50 space-y-2.5">
-        <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
-          <div className="flex items-center space-x-2">
-            <div className="p-1.5 bg-amber-600 text-white rounded-lg shadow-2xs">
-              <Layers className="h-3.5 w-3.5" />
+      {showAmzSection && (
+        <div className="p-3.5 bg-amber-50/40 dark:bg-amber-950/20 rounded-2xl border border-amber-200/90 dark:border-amber-900/50 space-y-2.5">
+          <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
+            <div className="flex items-center space-x-2">
+              <div className="p-1.5 bg-amber-600 text-white rounded-lg shadow-2xs">
+                <Layers className="h-3.5 w-3.5" />
+              </div>
+              <div>
+                <span className="text-xs font-black text-amber-950 dark:text-amber-200 uppercase tracking-wider block">
+                  {isTr ? "Amazon TR Entegrasyonu & ASIN Kilitleme" : "Amazon TR Integration & ASIN Lock"}
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-xs font-black text-amber-950 dark:text-amber-200 uppercase tracking-wider block">
-                {isTr ? "Amazon TR Entegrasyonu & ASIN Kilitleme" : "Amazon TR Integration & ASIN Lock"}
+
+            {(product?.amazon_asin || amzData.asin) ? (
+              <span className="inline-flex items-center space-x-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <Lock className="h-3 w-3 text-emerald-600" />
+                <span>ASIN: {product?.amazon_asin || amzData.asin}</span>
               </span>
+            ) : (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                {isTr ? "ASIN Bekliyor" : "No ASIN"}
+              </span>
+            )}
+          </div>
+
+          <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight flex items-center gap-1.5">
+                <Lock className="w-3 h-3 text-amber-600" />
+                <span>{isTr ? "Amazon ASIN veya İlan Linki" : "Amazon ASIN or Direct URL"}</span>
+              </label>
+              {amzLiveUrl && (
+                <a
+                  href={amzLiveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-bold text-amber-600 hover:text-amber-800 dark:text-amber-400 flex items-center gap-1 hover:underline"
+                >
+                  <span>{isTr ? "Amazon İlanını Aç" : "Open Amazon"}</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
-          </div>
 
-          {(product?.amazon_asin || amzData.asin) ? (
-            <span className="inline-flex items-center space-x-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
-              <Lock className="h-3 w-3 text-emerald-600" />
-              <span>ASIN: {product?.amazon_asin || amzData.asin}</span>
-            </span>
-          ) : (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-              {isTr ? "ASIN Bekliyor" : "No ASIN"}
-            </span>
-          )}
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                placeholder={isTr ? "örn: B07QJ32SJR veya https://www.amazon.com.tr/dp/B07QJ32SJR" : "e.g. B07QJ32SJR or Amazon URL"}
+                value={amzAsinInput}
+                onChange={(e) => handleAmzAsinChange(e.target.value)}
+                className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-slate-100 focus:bg-white focus:border-amber-500 outline-none"
+              />
+              {amzAsinInput && (
+                <button
+                  type="button"
+                  onClick={() => handleAmzAsinChange("")}
+                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  title={isTr ? "ASIN Temizle" : "Clear"}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <p className="text-[9px] text-slate-500 dark:text-slate-400">
+              {isTr 
+                ? "Amazon TR'de aktif olan ürünün ASIN kodunu veya linkini buraya yapıştırarak ürünü doğrudan canlı Amazon ilanına bağlayabilirsiniz."
+                : "Paste the Amazon ASIN or direct URL to connect this product directly to the Amazon listing."}
+            </p>
+          </div>
         </div>
-
-        <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800 space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight flex items-center gap-1.5">
-              <Lock className="w-3 h-3 text-amber-600" />
-              <span>{isTr ? "Amazon ASIN veya İlan Linki" : "Amazon ASIN or Direct URL"}</span>
-            </label>
-            {amzLiveUrl && (
-              <a
-                href={amzLiveUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] font-bold text-amber-600 hover:text-amber-800 dark:text-amber-400 flex items-center gap-1 hover:underline"
-              >
-                <span>{isTr ? "Amazon İlanını Aç" : "Open Amazon"}</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              placeholder={isTr ? "örn: B07QJ32SJR veya https://www.amazon.com.tr/dp/B07QJ32SJR" : "e.g. B07QJ32SJR or Amazon URL"}
-              value={amzAsinInput}
-              onChange={(e) => handleAmzAsinChange(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-slate-100 focus:bg-white focus:border-amber-500 outline-none"
-            />
-            {amzAsinInput && (
-              <button
-                type="button"
-                onClick={() => handleAmzAsinChange("")}
-                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                title={isTr ? "ASIN Temizle" : "Clear"}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <p className="text-[9px] text-slate-500 dark:text-slate-400">
-            {isTr 
-              ? "Amazon TR'de aktif olan ürünün ASIN kodunu veya linkini buraya yapıştırarak ürünü doğrudan canlı Amazon ilanına bağlayabilirsiniz."
-              : "Paste the Amazon ASIN or direct URL to connect this product directly to the Amazon listing."}
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -493,8 +493,8 @@ export const api = {
   testAmazonConnection: (storeId?: number, data?: any) => api.post("/api/integrations/amazon/test-connection", { storeId, ...data }),
   bulkSyncAmazon: (storeId?: number) => api.post("/api/integrations/amazon/bulk-sync", { storeId }),
   syncAmazonOrders: (storeId?: number) => api.post("/api/integrations/amazon/sync", { storeId }),
-  matchAmazonListings: (importMissing: any = true, storeId?: number) => {
-    const isImport = typeof importMissing === 'boolean' ? importMissing : true;
+  matchAmazonListings: (importMissing: any = false, storeId?: number) => {
+    const isImport = typeof importMissing === 'boolean' ? importMissing : false;
     return api.post("/api/integrations/amazon/match-listings", { importMissing: isImport, storeId });
   },
   getAmazonListings: (storeId?: number) => api.get(`/api/integrations/amazon/listings${storeId ? `?storeId=${storeId}` : ""}`),
@@ -529,8 +529,8 @@ export const api = {
     storeId?: number; 
   }) => api.post("/api/integrations/hepsiburada/settings", data),
   syncHepsiburadaOrders: (storeId?: number, params?: { beginDate?: string; timespan?: number }) => api.post("/api/integrations/hepsiburada/sync", { storeId, ...(params || {}) }),
-  matchHepsiburadaListings: (importMissing: any = true, storeId?: number) => {
-    const isImport = typeof importMissing === 'boolean' ? importMissing : true;
+  matchHepsiburadaListings: (importMissing: any = false, storeId?: number) => {
+    const isImport = typeof importMissing === 'boolean' ? importMissing : false;
     return api.post("/api/integrations/hepsiburada/match-listings", { importMissing: isImport, storeId });
   },
   checkHepsiburadaProductStatus: (productId: number, storeId?: number) => api.post("/api/integrations/hepsiburada/check-product-status", { productId, storeId }),

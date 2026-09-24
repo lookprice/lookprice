@@ -593,8 +593,8 @@ export class AmazonService {
           price: listing.price,
           stock: listing.quantity
         });
-      } else if (importMissing) {
-        const newName = title || (sku ? `Amazon Portföy Ürünü (${sku})` : `Amazon Portföy Ürünü (${asin})`);
+      } else if (importMissing && title && title.trim().length >= 3 && !title.includes('Amazon Portföy')) {
+        const newName = title.trim();
         const newBarcode = barcode || sku || asin || `AMZ-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const newPrice = listing.price || 0;
         const newStock = listing.quantity || 0;

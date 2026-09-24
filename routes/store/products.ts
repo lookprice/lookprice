@@ -2023,7 +2023,8 @@ router.get("/lookup-barcode", async (req: any, res) => {
           category: bookData.category || "Edebiyat",
           sub_category: bookData.sub_category || "Roman",
           description: bookData.description || "",
-          image_url: bookData.image_url || generateHighResBookCoverSvg(bookData.name, bookData.author, bookData.publisher, bookData.category)
+          image_url: bookData.image_url || generateHighResBookCoverSvg(bookData.name, bookData.author, bookData.publisher, bookData.category),
+          market_prices: bookData.market_prices || null
         }
       });
     }

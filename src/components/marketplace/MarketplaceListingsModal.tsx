@@ -139,7 +139,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
     }
   };
 
-  const handleMatchAmazonListings = async (importMissing: boolean = true) => {
+  const handleMatchAmazonListings = async (importMissing: boolean = false) => {
     try {
       setIsMatchingListings(true);
       const res = await api.matchAmazonListings(importMissing, currentStoreId);

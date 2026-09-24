@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
-import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2 } from "lucide-react";
+import { X, Plus, Trash2, Search, Flame, Sparkles, Camera, Upload, Palette, History, BookOpen, Check, Star, Award, Crown, Clock, Tag, Loader2, TrendingUp, ExternalLink } from "lucide-react";
 import { MultiImageUploader } from "../../../components/MultiImageUploader";
 import { api } from "../../../services/api";
 import { compressImageToWebP } from "../../../utils/imageUtils";
@@ -78,10 +78,10 @@ export const ProductModal = ({
   const isBookstore = domainId === 'BOOKSTORE';
   const isShopLp = domainId === 'RETAIL' || domainId === 'BOOKSTORE';
   const connectedMarketplaces = useMemo(() => getConnectedMarketplaces(branding), [branding]);
-  const isMarketplaceEnabled = isShopLp;
+  const isMarketplaceEnabled = isShopLp && connectedMarketplaces.hasAnyConnected;
 
   useEffect(() => {
-    if (showProductModal && isMarketplaceEnabled) {
+    if (showProductModal && isMarketplaceEnabled && connectedMarketplaces.hepsiburada) {
       setLoadingHbCategories(true);
       api.getHepsiburadaCategories(branding?.id || branding?.store_id)
         .then(res => {
@@ -91,7 +91,7 @@ export const ProductModal = ({
         .catch(err => console.error("HB Cat Fetch Error:", err))
         .finally(() => setLoadingHbCategories(false));
     }
-  }, [showProductModal, isMarketplaceEnabled]);
+  }, [showProductModal, isMarketplaceEnabled, connectedMarketplaces.hepsiburada]);
 
   const handleVariantImageUpload = async (vIdx: number, file: File) => {
     try {
@@ -115,6 +115,7 @@ export const ProductModal = ({
 
   const [isPublishingToHb, setIsPublishingToHb] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [marketPrices, setMarketPrices] = useState<any>(null);
 
   const handleAutoLookup = async () => {
     // Find barcode input from modal form
@@ -150,6 +151,19 @@ export const ProductModal = ({
         setValAndTrigger('form textarea[name="description"]', d.description);
         setValAndTrigger('form input[name="image_url"]', d.image_url);
 
+        if (d.market_prices) {
+          setMarketPrices(d.market_prices);
+          const priceEl = document.querySelector('form input[name="price"]') as HTMLInputElement;
+          if (priceEl && (!priceEl.value || parseFloat(priceEl.value) === 0)) {
+            const suggested = d.market_prices.suggested_price || d.market_prices.min_price || d.market_prices.avg_price;
+            if (suggested && suggested > 0) {
+              setValAndTrigger('form input[name="price"]', suggested.toString());
+            }
+          }
+        } else {
+          setMarketPrices(null);
+        }
+
         if (d.image_url) {
           setProductImageUrl(d.image_url);
         }
@@ -163,13 +177,18 @@ export const ProductModal = ({
             category: d.category || prev?.category,
             sub_category: d.sub_category || prev?.sub_category,
             description: d.description || prev?.description,
-            image_url: d.image_url || prev?.image_url
+            image_url: d.image_url || prev?.image_url,
+            market_prices: d.market_prices || prev?.market_prices
           }));
         }
 
+        const priceInfoText = d.market_prices 
+          ? `\n\n📊 Piyasa Fiyat Analizi Bulundu:\n• Önerilen / Canlı Fiyat: ₺${(d.market_prices.suggested_price || d.market_prices.min_price)?.toFixed(2)}\n• Piyasa Aralığı: ₺${d.market_prices.min_price?.toFixed(2)} - ₺${d.market_prices.max_price?.toFixed(2)}`
+          : '';
+
         alert(isTr 
-          ? `Kitap bilgileri ve kapak görseli başarıyla getirildi:\n\n• Eser: ${d.name}\n• Yazar: ${d.author || 'Belirtilmemiş'}\n• Yayıncı: ${d.publisher || d.brand || 'Belirtilmemiş'}` 
-          : `Book details retrieved successfully!\n\n• Title: ${d.name}\n• Author: ${d.author || 'Not specified'}\n• Publisher: ${d.publisher || d.brand || 'Not specified'}`);
+          ? `Kitap bilgileri ve piyasa analizi başarıyla getirildi:\n\n• Eser: ${d.name}\n• Yazar: ${d.author || 'Belirtilmemiş'}\n• Yayıncı: ${d.publisher || d.brand || 'Belirtilmemiş'}${priceInfoText}` 
+          : `Book details retrieved successfully!\n\n• Title: ${d.name}\n• Author: ${d.author || 'Not specified'}\n• Publisher: ${d.publisher || d.brand || 'Not specified'}${priceInfoText}`);
       } else {
         alert(dataObj?.error || (isTr ? "Kataloglarda bu ISBN numarasına ait kitap bulunamadı." : "Book not found in catalogs."));
       }
@@ -304,6 +323,7 @@ export const ProductModal = ({
 
   useEffect(() => {
     if (showProductModal) {
+      setMarketPrices(editingProduct?.market_prices || null);
       if (editingProduct?.id && isCafeRestaurant) {
         fetchRecipe(editingProduct.id);
       } else {
@@ -1002,6 +1022,141 @@ export const ProductModal = ({
                   </div>
                 </div>
 
+                {/* 1.5. CANLI PİYASA FİYAT ANALİZİ & KARŞILAŞTIRMA */}
+                {marketPrices && (
+                  <div className="p-2.5 bg-gradient-to-br from-indigo-50/90 via-purple-50/60 to-blue-50/90 dark:from-slate-900 dark:to-slate-950 rounded-xl border border-indigo-200 dark:border-indigo-900/60 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between border-b border-indigo-200/70 pb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="p-1 bg-indigo-600 text-white rounded-md shadow-2xs">
+                          <TrendingUp className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-[11px] font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-tight">
+                          {isTr ? "📊 Canlı Piyasa Fiyat Analizi" : "📊 Live Market Price Analysis"}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMarketPrices(null)}
+                        className="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        title={isTr ? "Kapat" : "Close"}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 text-center">
+                      <div className="p-1.5 bg-white/90 dark:bg-slate-900 rounded-lg border border-emerald-200 dark:border-emerald-900/60">
+                        <span className="text-[9px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-tighter block">
+                          {isTr ? "En Düşük" : "Min Price"}
+                        </span>
+                        <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 block">
+                          ₺{marketPrices.min_price?.toFixed(2)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.querySelector('form input[name="price"]') as HTMLInputElement;
+                            if (el) {
+                              el.value = marketPrices.min_price?.toString();
+                              el.dispatchEvent(new Event('input', { bubbles: true }));
+                              el.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                          }}
+                          className="mt-1 w-full py-0.5 px-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold tracking-tight cursor-pointer transition-colors"
+                        >
+                          {isTr ? "Uygula" : "Apply"}
+                        </button>
+                      </div>
+
+                      <div className="p-1.5 bg-white/90 dark:bg-slate-900 rounded-lg border border-indigo-200 dark:border-indigo-900/60">
+                        <span className="text-[9px] font-black text-indigo-800 dark:text-indigo-300 uppercase tracking-tighter block">
+                          {isTr ? "Piyasa Ort." : "Avg Price"}
+                        </span>
+                        <span className="text-xs font-black text-indigo-700 dark:text-indigo-400 block">
+                          ₺{marketPrices.avg_price?.toFixed(2)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.querySelector('form input[name="price"]') as HTMLInputElement;
+                            if (el) {
+                              el.value = marketPrices.avg_price?.toString();
+                              el.dispatchEvent(new Event('input', { bubbles: true }));
+                              el.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                          }}
+                          className="mt-1 w-full py-0.5 px-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9px] font-bold tracking-tight cursor-pointer transition-colors"
+                        >
+                          {isTr ? "Uygula" : "Apply"}
+                        </button>
+                      </div>
+
+                      <div className="p-1.5 bg-white/90 dark:bg-slate-900 rounded-lg border border-purple-200 dark:border-purple-900/60">
+                        <span className="text-[9px] font-black text-purple-800 dark:text-purple-300 uppercase tracking-tighter block">
+                          {isTr ? "Etiket / Liste" : "List Price"}
+                        </span>
+                        <span className="text-xs font-black text-purple-700 dark:text-purple-400 block">
+                          ₺{(marketPrices.suggested_price || marketPrices.list_price)?.toFixed(2)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.querySelector('form input[name="price"]') as HTMLInputElement;
+                            if (el) {
+                              el.value = (marketPrices.suggested_price || marketPrices.list_price)?.toString();
+                              el.dispatchEvent(new Event('input', { bubbles: true }));
+                              el.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            const oldEl = document.querySelector('form input[name="old_price"]') as HTMLInputElement;
+                            if (oldEl && marketPrices.list_price) {
+                              oldEl.value = marketPrices.list_price.toString();
+                              oldEl.dispatchEvent(new Event('input', { bubbles: true }));
+                              oldEl.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                          }}
+                          className="mt-1 w-full py-0.5 px-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-[9px] font-bold tracking-tight cursor-pointer transition-colors"
+                        >
+                          {isTr ? "Uygula" : "Apply"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Sources List */}
+                    {marketPrices.sources && marketPrices.sources.length > 0 && (
+                      <div className="space-y-1 pt-1 border-t border-indigo-100 dark:border-indigo-900/40">
+                        <span className="text-[9px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+                          {isTr ? "Taranan Kaynaklar & Canlı Fiyatlar:" : "Scraped Sources:"}
+                        </span>
+                        <div className="max-h-28 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                          {marketPrices.sources.map((s: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between text-[10px] p-1.5 bg-white/80 dark:bg-slate-900/80 rounded-md border border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.is_exact_match ? 'bg-emerald-500' : 'bg-indigo-400'}`}></span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{s.source_name}</span>
+                                {s.publisher && <span className="text-[9px] text-slate-500 truncate">({s.publisher})</span>}
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="font-black text-indigo-700 dark:text-indigo-300">{s.price_formatted || `₺${s.price?.toFixed(2)}`}</span>
+                                {s.url && (
+                                  <a
+                                    href={s.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-0.5 hover:bg-indigo-100 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded transition-colors"
+                                    title={isTr ? "Sayfayı Aç" : "Open Link"}
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* 2. STOK, BİRİM & KARGO */}
                 <div className="p-2 bg-amber-50/30 rounded-xl border border-amber-100 space-y-1.5">
                   <div className="flex items-center justify-between border-b border-amber-100 pb-0.5">
@@ -1303,6 +1458,8 @@ export const ProductModal = ({
                       isTr={isTr}
                       categories={hbCategories}
                       storeSettings={branding?.hepsiburada_settings}
+                      connectedMarketplaces={connectedMarketplaces}
+                      branding={branding}
                     />
                     {editingProduct?.id && connectedMarketplaces.hepsiburada && (
                       <button
