@@ -3,6 +3,7 @@ import { Search, ChevronDown, CheckCircle2, Layers, Sparkles, SlidersHorizontal,
 import { getAttributesForCategory, MarketplaceAttribute } from "@/data/marketplaceCategoriesData";
 import { autoHydrateTargetAttributes } from "@/services/crossMarketplaceAttributeMapper";
 import { api } from "@/services/api";
+import { getMarketplaceListingUrl, slugifyText } from "@/utils/marketplaceUrls";
 
 interface MarketplaceProductFieldsProps {
   product: any;
@@ -255,12 +256,13 @@ export const MarketplaceProductFields = ({
     setHbSkuInput(val);
     const raw = String(val || "").trim();
     if (!raw) {
-      const updated = { ...marketData, hepsiburadaSku: "", productUrl: "" };
+      const updated = { ...marketData, hepsiburadaSku: "", productId: "", productUrl: "" };
       setMarketData(updated);
-      const fullMp = getFullMarketplacePayload(updated);
+      const fullMp = getFullMarketplacePayload(updated, amzData);
       onUpdate({
         ...product,
         hepsiburada_sku: "",
+        hepsiburada_url: "",
         is_hepsiburada_active: false,
         marketplace_data: fullMp
       });
@@ -271,39 +273,70 @@ export const MarketplaceProductFields = ({
     let directUrl = "";
 
     // If pasted a full URL
-    if (raw.startsWith("http")) {
-      directUrl = raw;
+    if (raw.startsWith("http") || raw.includes("hepsiburada.com")) {
+      directUrl = raw.startsWith("http") ? raw : `https://${raw}`;
+      const pmMatch = raw.match(/-pm-([A-Za-z0-9]+)/i);
+      const pMatch = raw.match(/-p-([A-Za-z0-9]+)/i);
       const hbcvMatch = raw.match(/HBCV[0-9A-Z]+/i);
       const hbcMatch = raw.match(/HBC[0-9A-Z]+/i);
+      const bsMatch = raw.match(/BS[0-9A-Z]+/i);
+
+      if (pmMatch) {
+        extractedSku = pmMatch[1].toUpperCase();
+      } else if (pMatch) {
+        extractedSku = pMatch[1].toUpperCase();
+      } else if (hbcvMatch) {
+        extractedSku = hbcvMatch[0].toUpperCase();
+      } else if (hbcMatch) {
+        extractedSku = hbcMatch[0].toUpperCase();
+      } else if (bsMatch) {
+        extractedSku = bsMatch[0].toUpperCase();
+      }
+    } else {
+      // User entered SKU directly (e.g. HBC0000J8TRQM or HBCV00008VOOO3)
+      const hbcvMatch = raw.match(/HBCV[0-9A-Z]+/i);
+      const hbcMatch = raw.match(/HBC[0-9A-Z]+/i);
+      const bsMatch = raw.match(/BS[0-9A-Z]+/i);
+
       if (hbcvMatch) {
         extractedSku = hbcvMatch[0].toUpperCase();
       } else if (hbcMatch) {
         extractedSku = hbcMatch[0].toUpperCase();
-      }
-    } else {
-      const hbcvMatch = raw.match(/HBCV[0-9A-Z]+/i);
-      if (hbcvMatch) {
-        extractedSku = hbcvMatch[0].toUpperCase();
+      } else if (bsMatch) {
+        extractedSku = bsMatch[0].toUpperCase();
+      } else {
+        extractedSku = raw.trim().toUpperCase();
       }
     }
 
+    const prodSlug = slugifyText(product?.name || "urun");
+    const sellerParam = "?magaza=Enrakipsiz";
+
     if (!directUrl && extractedSku) {
-      directUrl = `https://www.hepsiburada.com/urun-p-${extractedSku.toLowerCase()}`;
+      if (extractedSku.startsWith("HBCV") || extractedSku.startsWith("HBV")) {
+        directUrl = `https://www.hepsiburada.com/${prodSlug}-p-${extractedSku}${sellerParam}`;
+      } else {
+        directUrl = `https://www.hepsiburada.com/${prodSlug}-pm-${extractedSku}${sellerParam}`;
+      }
+    } else if (directUrl && !directUrl.includes("magaza=")) {
+      directUrl = directUrl.includes("?") ? `${directUrl}&magaza=Enrakipsiz` : `${directUrl}${sellerParam}`;
     }
 
     const updated = {
       ...marketData,
       hepsiburadaSku: extractedSku,
+      productId: extractedSku.startsWith("HBCV") ? (marketData.productId || extractedSku) : extractedSku,
       productUrl: directUrl,
       status: 'ACTIVE',
       isSalable: true,
       lastSync: new Date().toISOString()
     };
     setMarketData(updated);
-    const fullMp = getFullMarketplacePayload(updated);
+    const fullMp = getFullMarketplacePayload(updated, amzData);
     onUpdate({
       ...product,
       hepsiburada_sku: extractedSku,
+      hepsiburada_url: directUrl,
       is_hepsiburada_active: true,
       marketplace_data: fullMp
     });
@@ -376,20 +409,32 @@ export const MarketplaceProductFields = ({
     return false;
   };
 
-  const hbLiveUrl = product?.hepsiburada_sku 
-    ? (marketData.productUrl || `https://www.hepsiburada.com/urun-p-${String(product.hepsiburada_sku).toLowerCase()}`)
-    : (marketData.productUrl || null);
+  const hbLiveUrl = getMarketplaceListingUrl('hepsiburada', {
+    ...product,
+    name: product?.name,
+    barcode: product?.barcode,
+    hepsiburada_sku: hbSkuInput || product?.hepsiburada_sku || marketData.hepsiburadaSku,
+    hepsiburada_url: marketData.productUrl || product?.hepsiburada_url,
+    marketplace_data: getFullMarketplacePayload(marketData, amzData)
+  });
 
-  const amzLiveUrl = product?.amazon_asin
-    ? (amzData.productUrl || `https://www.amazon.com.tr/dp/${product.amazon_asin}`)
-    : (amzData.productUrl || null);
+  const amzLiveUrl = getMarketplaceListingUrl('amazon', {
+    ...product,
+    name: product?.name,
+    barcode: product?.barcode,
+    amazon_asin: amzAsinInput || product?.amazon_asin || amzData.asin,
+    amazon_url: amzData.productUrl || product?.amazon_url,
+    marketplace_data: getFullMarketplacePayload(marketData, amzData)
+  });
 
   return (
     <div className="space-y-3 mt-3">
       {/* Hidden inputs for form synchronization */}
       <input type="hidden" name="marketplace_data" value={fullMarketplaceJson} />
+      <input type="hidden" name="hepsiburada_url" value={product?.hepsiburada_url || marketData.productUrl || ""} />
       <input type="hidden" name="hepsiburada_sku" value={product?.hepsiburada_sku || marketData.hepsiburadaSku || ""} />
-      <input type="hidden" name="is_hepsiburada_active" value={String(Boolean(product?.is_hepsiburada_active || product?.hepsiburada_sku || marketData.hepsiburadaSku))} />
+      <input type="hidden" name="is_hepsiburada_active" value={String(Boolean(product?.is_hepsiburada_active || product?.hepsiburada_sku || marketData.hepsiburadaSku || product?.hepsiburada_url || marketData.productUrl))} />
+      <input type="hidden" name="amazon_url" value={product?.amazon_url || amzData.productUrl || ""} />
       <input type="hidden" name="amazon_asin" value={product?.amazon_asin || amzData.asin || ""} />
       <input type="hidden" name="amazon_sku" value={product?.amazon_sku || amzData.sku || ""} />
       <input type="hidden" name="is_amazon_active" value={String(Boolean(product?.is_amazon_active || product?.amazon_asin || amzData.asin))} />

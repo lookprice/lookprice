@@ -449,6 +449,12 @@ export const ProductModal = ({
               onClick={() => {
                 setShowProductModal(false);
                 setEditingProduct(null);
+                if (typeof window !== 'undefined' && sessionStorage.getItem('returnToMarketplaceModal') === 'true') {
+                  sessionStorage.removeItem('returnToMarketplaceModal');
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('reopenMarketplaceModal'));
+                  }, 50);
+                }
               }}
               className="p-1 hover:bg-white/10 rounded-full transition-colors text-slate-300 hover:text-white border-0 outline-none cursor-pointer"
             >
@@ -1322,6 +1328,12 @@ export const ProductModal = ({
               onClick={() => {
                 setShowProductModal(false);
                 setEditingProduct(null);
+                if (typeof window !== 'undefined' && sessionStorage.getItem('returnToMarketplaceModal') === 'true') {
+                  sessionStorage.removeItem('returnToMarketplaceModal');
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('reopenMarketplaceModal'));
+                  }, 50);
+                }
               }}
               className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer border-0"
             >

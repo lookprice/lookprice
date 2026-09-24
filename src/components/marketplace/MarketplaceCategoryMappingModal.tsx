@@ -50,7 +50,27 @@ export const MarketplaceCategoryMappingModal: React.FC<MarketplaceCategoryMappin
   onRefresh,
   lang = 'tr'
 }) => {
-  const [activeMarketplace, setActiveMarketplace] = useState<MarketplaceType>(initialMarketplace);
+  const [activeMarketplace, setActiveMarketplace] = useState<MarketplaceType>(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const urlTab = url.searchParams.get('mapTab') as MarketplaceType;
+      if (urlTab) return urlTab;
+      const savedTab = localStorage.getItem('categoryMappingModalTab') as MarketplaceType;
+      if (savedTab) return savedTab;
+    }
+    return initialMarketplace;
+  });
+
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      localStorage.setItem('categoryMappingModalTab', activeMarketplace);
+      if (window.history && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('mapTab', activeMarketplace);
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [isOpen, activeMarketplace]);
   const [saving, setSaving] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
 

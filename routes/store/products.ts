@@ -1071,18 +1071,31 @@ router.put("/:id", async (req: any, res) => {
     const finalHbSku = req.body.hepsiburada_sku !== undefined 
       ? (String(req.body.hepsiburada_sku).trim() || null)
       : (finalMarketplaceData?.hepsiburada?.hepsiburadaSku || finalMarketplaceData?.hepsiburada?.hbSku || existingProductRes.rows[0]?.hepsiburada_sku || null);
+    const finalHbUrl = req.body.hepsiburada_url !== undefined
+      ? (String(req.body.hepsiburada_url).trim() || null)
+      : (finalMarketplaceData?.hepsiburada?.productUrl || existingProductRes.rows[0]?.hepsiburada_url || null);
     const finalIsHbActive = req.body.is_hepsiburada_active !== undefined 
       ? Boolean(req.body.is_hepsiburada_active) 
-      : (Boolean(finalHbSku) && finalMarketplaceData?.hepsiburada?.status !== 'PENDING_APPROVAL');
+      : (Boolean(finalHbSku || finalHbUrl) && finalMarketplaceData?.hepsiburada?.status !== 'PENDING_APPROVAL');
     const finalAmzAsin = req.body.amazon_asin !== undefined 
       ? (String(req.body.amazon_asin).trim() || null) 
       : (finalMarketplaceData?.amazon?.asin || existingProductRes.rows[0]?.amazon_asin || null);
     const finalAmzSku = req.body.amazon_sku !== undefined 
       ? (String(req.body.amazon_sku).trim() || null) 
       : (finalMarketplaceData?.amazon?.sku || existingProductRes.rows[0]?.amazon_sku || null);
+    const finalAmzUrl = req.body.amazon_url !== undefined
+      ? (String(req.body.amazon_url).trim() || null)
+      : (finalMarketplaceData?.amazon?.productUrl || existingProductRes.rows[0]?.amazon_url || null);
     const finalIsAmzActive = req.body.is_amazon_active !== undefined 
       ? Boolean(req.body.is_amazon_active) 
-      : (Boolean(finalAmzAsin) || existingProductRes.rows[0]?.is_amazon_active || false);
+      : (Boolean(finalAmzAsin || finalAmzUrl) || existingProductRes.rows[0]?.is_amazon_active || false);
+
+    if (finalHbUrl && finalMarketplaceData?.hepsiburada) {
+      finalMarketplaceData.hepsiburada.productUrl = finalHbUrl;
+    }
+    if (finalAmzUrl && finalMarketplaceData?.amazon) {
+      finalMarketplaceData.amazon.productUrl = finalAmzUrl;
+    }
 
     await pool.query(`
       UPDATE products SET 
@@ -1097,8 +1110,9 @@ router.put("/:id", async (req: any, res) => {
         marketplace_data = $35::jsonb, sector_data = $36::jsonb,
         hepsiburada_sku = $37, is_hepsiburada_active = $38,
         amazon_asin = $39, amazon_sku = $40, is_amazon_active = $41,
+        hepsiburada_url = $42, amazon_url = $43,
         updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $42 AND store_id = $43
+      WHERE id = $44 AND store_id = $45
     `, [
       finalBarcode, finalProductCode, name, finalPrice, currency || 'TRY', 
       parseFloat(cost_price) || 0, cost_currency || 'TRY', description || '', 
@@ -1123,6 +1137,7 @@ router.put("/:id", async (req: any, res) => {
       JSON.stringify(finalSectorData),
       finalHbSku, finalIsHbActive,
       finalAmzAsin, finalAmzSku, finalIsAmzActive,
+      finalHbUrl, finalAmzUrl,
       id, storeId
     ]);
 

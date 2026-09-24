@@ -137,6 +137,9 @@ export const ProductsModalsContainer: React.FC<ProductsModalsContainerProps> = (
             if (onRefresh) onRefresh();
           }}
           onEditProduct={(product) => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('returnToMarketplaceModal', 'true');
+            }
             setShowMarketplaceListingsModal(false);
             onEdit(product);
           }}

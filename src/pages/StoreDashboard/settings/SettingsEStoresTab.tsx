@@ -81,7 +81,29 @@ export const SettingsEStoresTab = ({
   }
 
   // Active sub-tab for minimalist, uncluttered view
-  const [activeTab, setActiveTab] = useState<MarketplaceTabId>('hepsiburada');
+  const [activeTab, setActiveTab] = useState<MarketplaceTabId>(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const urlTab = (url.searchParams.get('mpTab') || url.searchParams.get('estoreTab')) as MarketplaceTabId;
+      if (urlTab) return urlTab;
+      const saved = localStorage.getItem(`estores_activeTab_${currentStoreId || 'admin'}`) as MarketplaceTabId;
+      if (saved) return saved;
+    }
+    return 'hepsiburada';
+  });
+
+  useEffect(() => {
+    if (activeTab && typeof window !== 'undefined') {
+      localStorage.setItem(`estores_activeTab_${currentStoreId || 'admin'}`, activeTab);
+      if (window.history && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('estoreTab') !== activeTab) {
+          url.searchParams.set('estoreTab', activeTab);
+          window.history.replaceState({}, '', url.toString());
+        }
+      }
+    }
+  }, [activeTab, currentStoreId]);
 
   const amazonSync = useIntegrationSync('Amazon', t);
   const n11Sync = useIntegrationSync('N11', t);
@@ -129,8 +151,16 @@ export const SettingsEStoresTab = ({
   const [selectedMappingMarketplace, setSelectedMappingMarketplace] = useState<'hepsiburada' | 'trendyol' | 'amazon' | 'pazarama'>('hepsiburada');
 
   // Unified Marketplace Listings & Error Modal
-  const [showListingsModal, setShowListingsModal] = useState(false);
-  const [listingsModalTab, setListingsModalTab] = useState<'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama'>('hepsiburada');
+  const [showListingsModal, setShowListingsModal] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const url = new URL(window.location.href);
+    return url.searchParams.get('marketplaceModal') === 'true' || localStorage.getItem('showMarketplaceListingsModal') === 'true';
+  });
+  const [listingsModalTab, setListingsModalTab] = useState<'all' | 'hepsiburada' | 'trendyol' | 'n11' | 'amazon' | 'pazarama'>(() => {
+    if (typeof window === 'undefined') return 'hepsiburada';
+    const url = new URL(window.location.href);
+    return (url.searchParams.get('mpTab') as any) || (localStorage.getItem('marketplaceModalTab') as any) || 'hepsiburada';
+  });
 
   // Product counts per marketplace
   const hbLiveCount = products.filter(p => p.is_hepsiburada_active).length;

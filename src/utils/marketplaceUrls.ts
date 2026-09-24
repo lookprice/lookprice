@@ -58,23 +58,15 @@ export function cleanHepsiburadaMasterSku(sku: any): string {
 export function isHepsiburadaMasterCatalogId(code: any): boolean {
   if (!code) return false;
   const str = cleanHepsiburadaMasterSku(code).toUpperCase();
-  // Variant SKUs (HBCV... or HBV...) do NOT work with -pm- public product page URLs on Hepsiburada!
-  // Master Catalog Product IDs start with HBC0, HBC, HB0, HB or BS (without V).
-  if (str.startsWith('HBCV') || str.startsWith('HBV')) {
-    return false;
-  }
   return str.startsWith('HBC') || str.startsWith('HB0') || str.startsWith('HB') || str.startsWith('BS');
 }
 
 export function isHepsiburadaValidProductUrl(url: any): boolean {
   if (!url || typeof url !== 'string') return false;
-  if (!url.startsWith('http')) return false;
-  if (url.includes('/ara?')) return false;
-  // If the direct URL contains -pm-HBCV or -pm-HBV, it is a dead 404 link on Hepsiburada!
-  if (url.match(/-pm-HBCV/i) || url.match(/-pm-HBV/i) || url.match(/\/HBCV[0-9A-Z]+/i)) {
-    return false;
-  }
-  return true;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('http')) return false;
+  if (trimmed.includes('/ara?')) return false;
+  return trimmed.includes('hepsiburada.com');
 }
 
 export function parseMarketplaceData(p: any): any {
@@ -110,50 +102,50 @@ export function getMarketplaceListingUrl(
     case 'hepsiburada': {
       const hb = mpData.hepsiburada || {};
       const manualUrl = product.hepsiburada_url;
-      const hbProductId = hb.productId || hb.hepsiburadaSku || product.hepsiburada_sku;
+      const directUrl = hb.productUrl || hb.url;
+      const sellerParam = '?magaza=Enrakipsiz';
+
+      // 1. Highest Priority: Direct full URL (explicitly set by operator or synced from HB)
+      const effectiveDirectUrl = (manualUrl && isHepsiburadaValidProductUrl(manualUrl))
+        ? manualUrl
+        : (directUrl && isHepsiburadaValidProductUrl(directUrl) ? directUrl : null);
+
+      if (effectiveDirectUrl) {
+        let clean = effectiveDirectUrl.trim();
+        if (!clean.includes('magaza=') && clean.includes('hepsiburada.com')) {
+          clean = clean.includes('?') ? `${clean}&magaza=Enrakipsiz` : `${clean}${sellerParam}`;
+        }
+        return clean;
+      }
+
+      // 2. Second Priority: Explicit Hepsiburada SKU / Product ID (locked by operator or catalog)
+      const hbProductId = product.hepsiburada_sku || hb.productId || hb.hepsiburadaSku;
       const cleanPid = cleanHepsiburadaMasterSku(hbProductId);
 
-      // 1. If merchant manually provided a custom valid Hepsiburada URL, respect it
-      if (manualUrl && isHepsiburadaValidProductUrl(manualUrl) && !manualUrl.includes('HBCV')) {
-        return manualUrl;
+      if (cleanPid) {
+        const upperPid = cleanPid.toUpperCase();
+        // Variant SKUs start with HBCV or HBV -> use -p-
+        if (upperPid.startsWith('HBCV') || upperPid.startsWith('HBV')) {
+          return `https://www.hepsiburada.com/${slug || 'urun'}-p-${upperPid}${sellerParam}`;
+        }
+        // Master Catalog IDs (HBC..., HB..., BS...) -> use -pm-
+        return `https://www.hepsiburada.com/${slug || 'urun'}-pm-${upperPid}${sellerParam}`;
       }
 
-      // 2. Legacy BS Master Catalog IDs (e.g. BS10162, BS130157) are permanent 301 redirects on Hepsiburada
-      if (cleanPid && cleanPid.toUpperCase().startsWith('BS')) {
-        return `https://www.hepsiburada.com/${slug || 'urun'}-pm-${cleanPid}`;
-      }
-
-      // 3. Check direct catalog SKU in product.sku or product_code if it's a BS code
+      // 3. Third Priority: BS Master SKU in product.sku or product_code
       const directBsSku = cleanHepsiburadaMasterSku(product.sku || product.product_code);
       if (directBsSku && directBsSku.toUpperCase().startsWith('BS')) {
-        return `https://www.hepsiburada.com/${slug || 'urun'}-pm-${directBsSku}`;
-      }
-
-      // 4. GUARANTEED 404-FREE GOLD STANDARD: EAN Barcode Search on Hepsiburada
-      // HBC codes assigned during seller uploads are frequently merged/archived/deleted by HB, leading to 404s.
-      // Searching by EAN barcode on Hepsiburada NEVER gives 404 and always lands on the active live listing!
-      if (barcode) {
-        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(barcode)}`;
-      }
-
-      // 5. If no barcode exists, fallback to constructed HBC catalog URL if available
-      if (cleanPid && isHepsiburadaMasterCatalogId(cleanPid)) {
-        return `https://www.hepsiburada.com/${slug || 'urun'}-pm-${cleanPid}`;
-      }
-
-      // 6. Fallback to existing directUrl if stored
-      const directUrl = hb.productUrl || hb.url;
-      if (directUrl && isHepsiburadaValidProductUrl(directUrl)) {
-        let cleanedUrl = directUrl.replace(/-pm-([A-Za-z0-9-]+)/gi, (m, p1) => `-pm-${cleanHepsiburadaMasterSku(p1)}`);
-        if (cleanedUrl.includes('hepsiburada.com/-pm-')) {
-          cleanedUrl = cleanedUrl.replace('hepsiburada.com/-pm-', `hepsiburada.com/${slug || 'urun'}-pm-`);
-        }
-        return cleanedUrl;
+        return `https://www.hepsiburada.com/${slug || 'urun'}-pm-${directBsSku.toUpperCase()}${sellerParam}`;
       }
 
       if (!fallbackToSearch) return null;
 
-      // 7. Final Search Fallback: Product Name
+      // 4. Search Fallback: EAN Barcode (ONLY if no direct URL or HB SKU exists)
+      if (barcode) {
+        return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(barcode)}`;
+      }
+
+      // 5. Final Search Fallback: Product Name
       if (name) {
         return `https://www.hepsiburada.com/ara?q=${encodeURIComponent(name)}`;
       }

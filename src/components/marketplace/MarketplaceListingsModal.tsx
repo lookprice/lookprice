@@ -43,15 +43,27 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 }) => {
   const isTr = lang === 'tr';
   const [localProducts, setLocalProducts] = useState<any[]>(products);
-  const [selectedMarketplace, setSelectedMarketplace] = useState<MarketplaceKey>(initialMarketplace);
-  const [selectedStatus, setSelectedStatus] = useState<ListingStatus>(initialStatus);
-
-  useEffect(() => {
-    if (isOpen) {
-      if (initialMarketplace) setSelectedMarketplace(initialMarketplace);
-      if (initialStatus) setSelectedStatus(initialStatus);
+  const [selectedMarketplace, setSelectedMarketplace] = useState<MarketplaceKey>(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const urlTab = url.searchParams.get('mpTab') as MarketplaceKey;
+      if (urlTab) return urlTab;
+      const savedTab = localStorage.getItem('marketplaceModalTab') as MarketplaceKey;
+      if (savedTab) return savedTab;
     }
-  }, [isOpen, initialMarketplace, initialStatus]);
+    return initialMarketplace;
+  });
+
+  const [selectedStatus, setSelectedStatus] = useState<ListingStatus>(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const urlStatus = url.searchParams.get('mpStatus') as ListingStatus;
+      if (urlStatus) return urlStatus;
+      const savedStatus = localStorage.getItem('marketplaceModalStatus') as ListingStatus;
+      if (savedStatus) return savedStatus;
+    }
+    return initialStatus;
+  });
 
   useEffect(() => {
     if (isOpen && typeof window !== 'undefined') {
@@ -61,7 +73,7 @@ export const MarketplaceListingsModal: React.FC<MarketplaceListingsModalProps> =
 
       if (window.history && window.history.replaceState) {
         const url = new URL(window.location.href);
-        const currentTab = url.searchParams.get('tab') || 'settings';
+        const currentTab = url.searchParams.get('tab') || 'products';
         url.searchParams.set('tab', currentTab);
         url.searchParams.set('marketplaceModal', 'true');
         url.searchParams.set('mpTab', selectedMarketplace);

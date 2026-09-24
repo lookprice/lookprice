@@ -137,10 +137,12 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       product_type: rawData.product_type || 'product',
       sync_group: rawData.sync_group === 'on',
       marketplace_data: marketplaceData,
+      hepsiburada_url: rawData.hepsiburada_url || marketplaceData?.hepsiburada?.productUrl || editingProduct?.hepsiburada_url || null,
       hepsiburada_sku: rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku || editingProduct?.hepsiburada_sku || null,
-      is_hepsiburada_active: rawData.is_hepsiburada_active === 'true' || rawData.is_hepsiburada_active === true || Boolean(rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku),
+      is_hepsiburada_active: rawData.is_hepsiburada_active === 'true' || rawData.is_hepsiburada_active === true || Boolean(rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku || rawData.hepsiburada_url),
       amazon_asin: rawData.amazon_asin || marketplaceData?.amazon?.asin || editingProduct?.amazon_asin || null,
       amazon_sku: rawData.amazon_sku || marketplaceData?.amazon?.sku || editingProduct?.amazon_sku || null,
+      amazon_url: rawData.amazon_url || marketplaceData?.amazon?.productUrl || editingProduct?.amazon_url || null,
       is_amazon_active: rawData.is_amazon_active === 'true' || rawData.is_amazon_active === true || Boolean(rawData.amazon_asin || marketplaceData?.amazon?.asin)
     };
 
@@ -256,6 +258,13 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
     setShowProductModal(false);
     setEditingProduct(null);
     setShowDescription(false);
+
+    if (typeof window !== 'undefined' && sessionStorage.getItem('returnToMarketplaceModal') === 'true') {
+      sessionStorage.removeItem('returnToMarketplaceModal');
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('reopenMarketplaceModal'));
+      }, 50);
+    }
 
     toast.promise(savePromise, {
       loading: lang === 'tr' ? "Ürün kaydediliyor..." : "Saving product...",

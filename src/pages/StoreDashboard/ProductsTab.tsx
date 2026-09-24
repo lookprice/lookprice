@@ -6,6 +6,7 @@ import { translations } from "@/translations";
 import { useTableManager } from "@/hooks/useTableManager";
 import { BOOKSTORE_BADGES, extractProductLabels, hasBookstoreBadge, toggleBookstoreBadgeData } from "@/data/bookstoreBadges";
 import { resolveDomainId } from "@/utils/sectorCapability";
+import { getMarketplaceListingUrl } from "@/utils/marketplaceUrls";
 
 // Vertical Slices
 import { ProductsTabProps, MarketplaceFilterType, MarketplaceModalTab, MarketplaceModalStatus } from "./products/types";
@@ -74,9 +75,29 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isAiMenuModalOpen, setIsAiMenuModalOpen] = useState(false);
   const [showBulkPublishModal, setShowBulkPublishModal] = useState(false);
-  const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(false);
-  const [marketplaceModalTab, setMarketplaceModalTab] = useState<MarketplaceModalTab>('all');
-  const [marketplaceModalStatus, setMarketplaceModalStatus] = useState<MarketplaceModalStatus>('all');
+  const [showMarketplaceListingsModal, setShowMarketplaceListingsModal] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const url = new URL(window.location.href);
+    return url.searchParams.get('marketplaceModal') === 'true' || localStorage.getItem('showMarketplaceListingsModal') === 'true';
+  });
+  const [marketplaceModalTab, setMarketplaceModalTab] = useState<MarketplaceModalTab>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const url = new URL(window.location.href);
+    return (url.searchParams.get('mpTab') as any) || (localStorage.getItem('marketplaceModalTab') as any) || 'all';
+  });
+  const [marketplaceModalStatus, setMarketplaceModalStatus] = useState<MarketplaceModalStatus>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const url = new URL(window.location.href);
+    return (url.searchParams.get('mpStatus') as any) || (localStorage.getItem('marketplaceModalStatus') as any) || 'all';
+  });
+
+  useEffect(() => {
+    const handleReopen = () => {
+      setShowMarketplaceListingsModal(true);
+    };
+    window.addEventListener('reopenMarketplaceModal', handleReopen);
+    return () => window.removeEventListener('reopenMarketplaceModal', handleReopen);
+  }, []);
 
   // Sector and Store Category Detection via SSOT Domain Resolver
   const domainId = resolveDomainId(branding);
@@ -299,19 +320,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   // Marketplace helpers
   const getHepsiburadaUrl = (p: any): string | null => {
     if (!p) return null;
-    if (p.hepsiburada_url && typeof p.hepsiburada_url === 'string' && p.hepsiburada_url.startsWith('http')) {
-      return p.hepsiburada_url;
-    }
-    const hbSku = p.hepsiburada_sku || p.hepsiburada_listing_id;
-    if (hbSku) {
-      const cleanSku = String(hbSku).trim();
-      const slug = (p.name || 'urun')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      return `https://www.hepsiburada.com/${slug}-p-${cleanSku}`;
-    }
-    return null;
+    return getMarketplaceListingUrl('hepsiburada', p);
   };
 
   const isHepsiburadaPending = (p: any): boolean => {
@@ -325,56 +334,22 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
 
   const getTrendyolUrl = (p: any): string | null => {
     if (!p) return null;
-    if (p.trendyol_url && typeof p.trendyol_url === 'string' && p.trendyol_url.startsWith('http')) {
-      return p.trendyol_url;
-    }
-    if (p.trendyol_barcode || p.barcode) {
-      const query = encodeURIComponent(p.trendyol_barcode || p.barcode);
-      return `https://www.trendyol.com/sr?q=${query}`;
-    }
-    return null;
+    return getMarketplaceListingUrl('trendyol', p);
   };
 
   const getN11Url = (p: any): string | null => {
     if (!p) return null;
-    if (p.n11_url && typeof p.n11_url === 'string' && p.n11_url.startsWith('http')) {
-      return p.n11_url;
-    }
-    if (p.n11_id || p.n11_product_id) {
-      return `https://www.n11.com/urun/${p.n11_id || p.n11_product_id}`;
-    }
-    if (p.barcode) {
-      return `https://www.n11.com/arama?q=${encodeURIComponent(p.barcode)}`;
-    }
-    return null;
+    return getMarketplaceListingUrl('n11', p);
   };
 
   const getAmazonUrl = (p: any): string | null => {
     if (!p) return null;
-    if (p.amazon_url && typeof p.amazon_url === 'string' && p.amazon_url.startsWith('http')) {
-      return p.amazon_url;
-    }
-    if (p.amazon_asin) {
-      return `https://www.amazon.com.tr/dp/${p.amazon_asin}`;
-    }
-    if (p.barcode) {
-      return `https://www.amazon.com.tr/s?k=${encodeURIComponent(p.barcode)}`;
-    }
-    return null;
+    return getMarketplaceListingUrl('amazon', p);
   };
 
   const getPazaramaUrl = (p: any): string | null => {
     if (!p) return null;
-    if (p.pazarama_url && typeof p.pazarama_url === 'string' && p.pazarama_url.startsWith('http')) {
-      return p.pazarama_url;
-    }
-    if (p.pazarama_code || p.pazarama_id) {
-      return `https://www.pazarama.com/urun/${p.pazarama_code || p.pazarama_id}`;
-    }
-    if (p.barcode) {
-      return `https://www.pazarama.com/arama?q=${encodeURIComponent(p.barcode)}`;
-    }
-    return null;
+    return getMarketplaceListingUrl('pazarama', p);
   };
 
   const connectedMarketplaces = useMemo(() => {
