@@ -185,6 +185,264 @@ export const BOOKSTORE_BADGES: BookstoreBadgeDefinition[] = [
   }
 ];
 
+// Sector-specific contextual definitions for shopLP, horecaLP, hotel and bookstore
+export function getSectorBadges(storeType?: string): BookstoreBadgeDefinition[] {
+  const normType = (storeType || "").toLowerCase().trim();
+
+  // HorecaLP (Restaurant, Cafe, Bar, Horeca)
+  if (normType === "cafe" || normType === "restaurant" || normType === "horeca" || normType === "horecalp") {
+    return [
+      {
+        ...BOOKSTORE_BADGES[0],
+        labelTr: "Çok Satan & Popüler Lezzetler",
+        labelEn: "Popular & Bestsellers",
+        badgeTr: "ÇOK SATAN",
+        badgeEn: "BESTSELLER",
+        gridTitleTr: "En Çok Tercih Edilen Lezzetler",
+        gridTitleEn: "Most Popular Dishes",
+        gridSubtitleTr: "Misafirlerimizin en beğendiği ve en çok sipariş verdiği menü lezzetleri",
+        gridSubtitleEn: "Guest favorite top choices"
+      },
+      {
+        ...BOOKSTORE_BADGES[1],
+        labelTr: "Şefin İmzası & Spesiyal",
+        labelEn: "Chef's Signature Pick",
+        badgeTr: "ŞEFİN İMZASI",
+        badgeEn: "CHEF'S SPECIAL",
+        gridTitleTr: "Şefin Özel İmzalı Lezzetleri",
+        gridTitleEn: "Chef's Signature Selections",
+        gridSubtitleTr: "Mutfak şefimizin özel reçetesiyle hazırlanan eşsiz spesiyaller",
+        gridSubtitleEn: "Exclusive recipes crafted by our head chef"
+      },
+      {
+        ...BOOKSTORE_BADGES[2],
+        labelTr: "Günün Menüsü & Fırsat",
+        labelEn: "Daily Special & Deal",
+        badgeTr: "GÜNÜN FIRSATI",
+        badgeEn: "DAILY SPECIAL",
+        gridTitleTr: "Günün Menüleri & Fırsatlar",
+        gridTitleEn: "Daily Special Offers",
+        gridSubtitleTr: "Güne özel avantajlı fiyata sahip enfes menüler ve ikramlar",
+        gridSubtitleEn: "Special advantageous daily offerings"
+      },
+      {
+        ...BOOKSTORE_BADGES[3],
+        labelTr: "Ödüllü & Tescilli Lezzetler",
+        labelEn: "Award-Winning Recipes",
+        badgeTr: "ÖDÜLLÜ LEZZET",
+        badgeEn: "AWARD WINNER",
+        gridTitleTr: "Gastronomi Ödüllü Lezzetler",
+        gridTitleEn: "Award-Winning Gourmet Picks",
+        gridSubtitleTr: "Gastronomi otoriteleri tarafından ödüle layık görülen tescilli tatlar",
+        gridSubtitleEn: "Celebrated recipes with gastronomy recognition"
+      },
+      {
+        ...BOOKSTORE_BADGES[4],
+        labelTr: "Gurme Seçimi & Önerilen",
+        labelEn: "Gourmet Choice",
+        badgeTr: "GURME SEÇİMİ",
+        badgeEn: "GOURMET PICK",
+        gridTitleTr: "Gurme Seçimi Özel Tabaklar",
+        gridTitleEn: "Gourmet Curated Plates",
+        gridSubtitleTr: "Farklı damak zevklerine hitap eden özel lezzet eşleşmeleri",
+        gridSubtitleEn: "Curated pairings for discerning tastes"
+      },
+      {
+        ...BOOKSTORE_BADGES[5],
+        labelTr: "Yeni Eklenen Lezzetler",
+        labelEn: "New Dishes",
+        badgeTr: "YENİ LEZZET",
+        badgeEn: "NEW DISH",
+        gridTitleTr: "Menümüze Yeni Katılanlar",
+        gridTitleEn: "New Additions to Our Menu",
+        gridSubtitleTr: "Mutfak ekibimizin bu sezon menümüze dahil ettiği taze tabaklar",
+        gridSubtitleEn: "Fresh new additions to our menu"
+      },
+      {
+        ...BOOKSTORE_BADGES[6],
+        labelTr: "Sezonluk & Günlük Taze",
+        labelEn: "Seasonal & Daily Fresh",
+        badgeTr: "SEZONLUK",
+        badgeEn: "SEASONAL",
+        gridTitleTr: "Mevsimlik & Sezonluk Lezzetler",
+        gridTitleEn: "Seasonal Fresh Specials",
+        gridSubtitleTr: "Mevsiminde toplanan taze malzemelerle sınırlı süre sunulan tatlar",
+        gridSubtitleEn: "Limited-time recipes made with seasonal produce"
+      }
+    ];
+  }
+
+  // Hotel (Otel, Butik Otel, Tatil Köyü, Konaklama)
+  if (normType === "hotel" || normType === "otel") {
+    return [
+      {
+        ...BOOKSTORE_BADGES[0],
+        labelTr: "En Çok Tercih Edilen Odalar",
+        labelEn: "Most Booked Rooms",
+        badgeTr: "ÇOK TERCİH EDİLEN",
+        badgeEn: "MOST BOOKED",
+        gridTitleTr: "En Çok Tercih Edilen Süit & Odalar",
+        gridTitleEn: "Most Popular Rooms & Suites",
+        gridSubtitleTr: "Misafirlerimizin en yüksek puan verdiği ve en çok konakladığı odalar",
+        gridSubtitleEn: "Top-rated accommodations chosen by our guests"
+      },
+      {
+        ...BOOKSTORE_BADGES[1],
+        labelTr: "VIP & Balayı Süiti",
+        labelEn: "VIP & Honeymoon Pick",
+        badgeTr: "VIP SÜİT",
+        badgeEn: "VIP SUITE",
+        gridTitleTr: "VIP & Balayı Özel Süitleri",
+        gridTitleEn: "VIP & Honeymoon Suites",
+        gridSubtitleTr: "Özel jakuzili, geniş teraslı ve kusursuz konfor sunan lüks süitler",
+        gridSubtitleEn: "Exclusive luxury suites with private jacuzzi and panoramic views"
+      },
+      {
+        ...BOOKSTORE_BADGES[2],
+        labelTr: "Erken Rezervasyon & Fırsat",
+        labelEn: "Early Bird Deals",
+        badgeTr: "ERKEN REZERVASYON",
+        badgeEn: "SPECIAL OFFER",
+        gridTitleTr: "Fırsat & Erken Rezervasyon Odaları",
+        gridTitleEn: "Special Discounted Accommodations",
+        gridSubtitleTr: "Avantajlı fiyatlar ve ücretsiz iptal güvencesiyle sınırlı kontenjan",
+        gridSubtitleEn: "Advantageous rates with flexible cancellation"
+      },
+      {
+        ...BOOKSTORE_BADGES[3],
+        labelTr: "Panoramik Manzara & Premium",
+        labelEn: "Panoramic View & Premium",
+        badgeTr: "PANORAMİK MANZARA",
+        badgeEn: "PANORAMIC VIEW",
+        gridTitleTr: "Deniz & Doğa Manzaralı Premium Odalar",
+        gridTitleEn: "Sea & Nature View Premium Rooms",
+        gridSubtitleTr: "Büyüleyici manzaraya ve geniş yaşam alanına sahip seçkin odalar",
+        gridSubtitleEn: "Unobstructed breathtaking views and premium amenities"
+      },
+      {
+        ...BOOKSTORE_BADGES[4],
+        labelTr: "Otel Tavsiyesi & Öne Çıkan",
+        labelEn: "Hotel's Choice",
+        badgeTr: "OTEL TAVSİYESİ",
+        badgeEn: "HOTEL'S CHOICE",
+        gridTitleTr: "Tesisimizin Öne Çıkan Tavsiyeleri",
+        gridTitleEn: "Handpicked Recommendations",
+        gridSubtitleTr: "Konfor, konum ve fiyat/performans dengesi en yüksek odalarımız",
+        gridSubtitleEn: "Best balance of comfort, location and value"
+      },
+      {
+        ...BOOKSTORE_BADGES[5],
+        labelTr: "Yeni & Yenilenen Odalar",
+        labelEn: "Newly Renovated",
+        badgeTr: "YENİLENEN ODA",
+        badgeEn: "RENOVATED",
+        gridTitleTr: "Yepyeni & Yenilenen Süitler",
+        gridTitleEn: "Newly Renovated Accommodations",
+        gridSubtitleTr: "En son teknoloji ve modern mobilyalarla baştan yaratılan odalar",
+        gridSubtitleEn: "Recently redesigned with modern aesthetics and supreme comfort"
+      },
+      {
+        ...BOOKSTORE_BADGES[6],
+        labelTr: "Son Kontenjan & Fırsatlar",
+        labelEn: "Last Rooms Available",
+        badgeTr: "SON ODALAR",
+        badgeEn: "LAST ROOMS",
+        gridTitleTr: "Son Kalan Odalar & Sınırlı Kontenjan",
+        gridTitleEn: "Last Available Rooms",
+        gridSubtitleTr: "Bu tarih aralığı için hızla tükenen son müsait odalar",
+        gridSubtitleEn: "High demand rooms selling out fast"
+      }
+    ];
+  }
+
+  // Bookstore (Kitap, Kırtasiye, Sahaf)
+  if (normType === "bookstore" || normType === "kitap") {
+    return BOOKSTORE_BADGES;
+  }
+
+  // General Retail / shopLP (Elektronik, Giyim, Kozmetik, Perakende)
+  return [
+    {
+      ...BOOKSTORE_BADGES[0],
+      labelTr: "Çok Satanlar & Popüler",
+      labelEn: "Bestsellers & Popular",
+      badgeTr: "ÇOK SATAN",
+      badgeEn: "BESTSELLER",
+      gridTitleTr: "Çok Satan ve Popüler Ürünler",
+      gridTitleEn: "Top Bestselling Products",
+      gridSubtitleTr: "Müşterilerimiz tarafından en çok sipariş verilen favori ürünler",
+      gridSubtitleEn: "Customer favorite top-selling products"
+    },
+    {
+      ...BOOKSTORE_BADGES[1],
+      labelTr: "Haftanın & Ayın Ürünü",
+      labelEn: "Product of the Week",
+      badgeTr: "HAFTANIN ÜRÜNÜ",
+      badgeEn: "WEEKLY PICK",
+      gridTitleTr: "Haftanın Öne Çıkan Ürünleri",
+      gridTitleEn: "Featured Products of the Week",
+      gridSubtitleTr: "Bu haftanın vitrin manşetinde yer alan özel seçki",
+      gridSubtitleEn: "Handpicked weekly featured spotlight products"
+    },
+    {
+      ...BOOKSTORE_BADGES[2],
+      labelTr: "Günün & Haftanın Fırsatı",
+      labelEn: "Deals & Discounts",
+      badgeTr: "FIRSAT ÜRÜNÜ",
+      badgeEn: "SPECIAL DEAL",
+      gridTitleTr: "Fırsat & İndirimli Ürünler",
+      gridTitleEn: "Special Product Deals",
+      gridSubtitleTr: "Sınırlı süreye özel avantajlı fiyatlar ve indirimli seçkin ürünler",
+      gridSubtitleEn: "Limited-time deals and advantageous prices on selected items"
+    },
+    {
+      ...BOOKSTORE_BADGES[3],
+      labelTr: "Premium & Seçkin Seri",
+      labelEn: "Premium & Award Winners",
+      badgeTr: "PREMIUM",
+      badgeEn: "PREMIUM",
+      gridTitleTr: "Premium & Ödüllü Tasarımlar",
+      gridTitleEn: "Award-Winning & Premium Collection",
+      gridSubtitleTr: "Üstün kalite standartlarına ve tasarım ödüllerine sahip modeller",
+      gridSubtitleEn: "Superior quality and recognized design excellence"
+    },
+    {
+      ...BOOKSTORE_BADGES[4],
+      labelTr: "Editörün & Uzmanın Seçimi",
+      labelEn: "Editor's Choice",
+      badgeTr: "ÖNE ÇIKAN",
+      badgeEn: "EDITOR'S PICK",
+      gridTitleTr: "Uzmanlarımızın Seçtiği Ürünler",
+      gridTitleEn: "Expert Curated Products",
+      gridSubtitleTr: "Ürün uzmanlarımızın performans ve dayanıklılık tavsiyeleri",
+      gridSubtitleEn: "Curated recommendations based on performance and quality"
+    },
+    {
+      ...BOOKSTORE_BADGES[5],
+      labelTr: "Yeni Gelenler & Trendler",
+      labelEn: "New Arrivals & Trends",
+      badgeTr: "YENİ GELEN",
+      badgeEn: "NEW ARRIVAL",
+      gridTitleTr: "Yeni Gelenler & Sezon Trendleri",
+      gridTitleEn: "New Arrivals & Season Trends",
+      gridSubtitleTr: "Koleksiyonumuza yeni eklenen en taze ve popüler ürünler",
+      gridSubtitleEn: "Fresh additions and current season trends"
+    },
+    {
+      ...BOOKSTORE_BADGES[6],
+      labelTr: "Sınırlı Stok & Ön Sipariş",
+      labelEn: "Limited Stock & Pre-Order",
+      badgeTr: "ÖN SİPARİŞ",
+      badgeEn: "PRE-ORDER",
+      gridTitleTr: "Sınırlı Kontenjan & Ön Sipariş",
+      gridTitleEn: "Limited Edition & Pre-Order",
+      gridSubtitleTr: "Hızla tükenen sınırlı üretimler ve ön sipariş fırsatları",
+      gridSubtitleEn: "Limited production batches and pre-order availability"
+    }
+  ];
+}
+
+
 // Helper to normalize labels array from product
 export function extractProductLabels(product: any): string[] {
   if (!product) return [];
@@ -325,6 +583,13 @@ export function hasBookstoreBadge(product: any, badgeId: string): boolean {
 export function getProductBookstoreBadges(product: any): BookstoreBadgeDefinition[] {
   if (!product) return [];
   return BOOKSTORE_BADGES.filter(badge => hasBookstoreBadge(product, badge.id));
+}
+
+// Get matched badge definitions for a product with sector awareness
+export function getProductSectorBadges(product: any, storeType?: string): BookstoreBadgeDefinition[] {
+  if (!product) return [];
+  const list = getSectorBadges(storeType);
+  return list.filter(badge => hasBookstoreBadge(product, badge.id));
 }
 
 // Helper to toggle badge on product and return updated fields for API

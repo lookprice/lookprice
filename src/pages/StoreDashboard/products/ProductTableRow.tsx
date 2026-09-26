@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 import { api } from "@/services/api";
 import { BookstoreBadgePopover } from "./BookstoreBadgePopover";
-import { BOOKSTORE_BADGES } from "@/data/bookstoreBadges";
+import { getSectorBadges } from "@/data/bookstoreBadges";
 
 interface ProductTableRowProps {
   product: any;
@@ -422,64 +422,73 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                       {lang === 'tr' ? 'ÇOK SATAN' : 'BESTSELLER'}
                     </span>
                   )}
-                  {isBookstore && (
-                    <>
-                      {getProductBadgesLocal(p).map((badgeKey) => {
-                        const def = BOOKSTORE_BADGES.find(b => 
-                          b.id.toLowerCase() === badgeKey.toLowerCase() || 
-                          b.labelTr.toLowerCase() === badgeKey.toLowerCase() || 
-                          b.badgeTr.toLowerCase() === badgeKey.toLowerCase()
-                        );
-                        if (!def) return null;
-                        const IconComp = 
-                          def.iconName === 'Flame' ? Flame :
-                          def.iconName === 'Sparkles' ? Sparkles :
-                          def.iconName === 'Star' ? Star :
-                          def.iconName === 'Award' ? Award :
-                          def.iconName === 'Crown' ? Crown :
-                          def.iconName === 'Clock' ? Clock : Tag;
-                        return (
-                          <span 
-                            key={`table-badge-${p.id}-${def.id}`}
-                            className={`text-[8px] font-bold px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 shadow-2xs ${def.badgeBgClass}`}
-                            title={`${lang === 'tr' ? def.labelTr : def.labelEn} (${lang === 'tr' ? def.gridTitleTr : def.gridTitleEn})`}
+                  {/* Sectoral Modern Showcase Badges & Quick Popover */}
+                  {(() => {
+                    const rowSector = isBookstore ? 'bookstore' : isCafe ? 'cafe' : isShopLp ? 'shoplp' : 'shoplp';
+                    const activeBadges = getProductBadgesLocal(p);
+                    const sectorBadgesList = getSectorBadges(rowSector);
+
+                    return (
+                      <>
+                        {activeBadges.map((badgeKey) => {
+                          const def = sectorBadgesList.find(b => 
+                            b.id.toLowerCase() === badgeKey.toLowerCase() || 
+                            b.labelTr.toLowerCase() === badgeKey.toLowerCase() || 
+                            b.badgeTr.toLowerCase() === badgeKey.toLowerCase() ||
+                            b.aliases.some(a => a.toLowerCase() === badgeKey.toLowerCase())
+                          );
+                          if (!def) return null;
+                          const IconComp = 
+                            def.iconName === 'Flame' ? Flame :
+                            def.iconName === 'Sparkles' ? Sparkles :
+                            def.iconName === 'Star' ? Star :
+                            def.iconName === 'Award' ? Award :
+                            def.iconName === 'Crown' ? Crown :
+                            def.iconName === 'Clock' ? Clock : Tag;
+                          return (
+                            <span 
+                              key={`table-badge-${p.id}-${def.id}`}
+                              className={`text-[8px] font-bold px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 shadow-2xs ${def.badgeBgClass}`}
+                              title={`${lang === 'tr' ? def.labelTr : def.labelEn} (${lang === 'tr' ? def.gridTitleTr : def.gridTitleEn})`}
+                            >
+                              <IconComp className="w-2.5 h-2.5 shrink-0" />
+                              <span>{lang === 'tr' ? def.badgeTr : def.badgeEn}</span>
+                            </span>
+                          );
+                        })}
+
+                        {/* Quick Rozet/Izgara Secici Popover Trigger for All Sectors */}
+                        <div className="relative inline-block book-badge-popover">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBadgePopoverProductId(badgePopoverProductId === p.id ? null : p.id);
+                            }}
+                            className={`text-[8px] font-bold px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 transition-all cursor-pointer ${
+                              badgePopoverProductId === p.id 
+                                ? 'bg-indigo-600 text-white shadow-xs' 
+                                : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80'
+                            }`}
+                            title={lang === 'tr' ? "Vitrin Rozetlerini & Izgaralarını Değiştir" : "Edit Showcase Badges"}
                           >
-                            <IconComp className="w-2.5 h-2.5 shrink-0" />
-                            <span>{lang === 'tr' ? def.badgeTr : def.badgeEn}</span>
-                          </span>
-                        );
-                      })}
+                            <Sparkles className="w-2.5 h-2.5 text-indigo-600" />
+                            <span>{lang === 'tr' ? 'Rozet' : 'Badges'}</span>
+                          </button>
 
-                      {/* Quick Rozet/Izgara Secici Popover Trigger */}
-                      <div className="relative inline-block book-badge-popover">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setBadgePopoverProductId(badgePopoverProductId === p.id ? null : p.id);
-                          }}
-                          className={`text-[8px] font-bold px-1.5 py-0.2 rounded inline-flex items-center gap-0.5 transition-all cursor-pointer ${
-                            badgePopoverProductId === p.id 
-                              ? 'bg-indigo-600 text-white shadow-xs' 
-                              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80'
-                          }`}
-                          title={lang === 'tr' ? "Kitap Vitrin Rozetlerini & Izgaralarini Degistir" : "Edit Showcase Badges"}
-                        >
-                          <Sparkles className="w-2.5 h-2.5" />
-                          <span>{lang === 'tr' ? 'Rozet' : 'Badges'}</span>
-                        </button>
-
-                        <BookstoreBadgePopover
-                          product={p}
-                          isOpen={badgePopoverProductId === p.id}
-                          onClose={() => setBadgePopoverProductId(null)}
-                          onToggleBadge={handleToggleBookBadge}
-                          hasProductBadge={hasProductBadgeLocal}
-                          lang={lang}
-                        />
-                      </div>
-                    </>
-                  )}
+                          <BookstoreBadgePopover
+                            product={p}
+                            isOpen={badgePopoverProductId === p.id}
+                            onClose={() => setBadgePopoverProductId(null)}
+                            onToggleBadge={handleToggleBookBadge}
+                            hasProductBadge={hasProductBadgeLocal}
+                            lang={lang}
+                            storeType={rowSector}
+                          />
+                        </div>
+                      </>
+                    );
+                  })()}
                   {p.is_web_sale === false && (
                     <span className="text-[8px] font-bold text-rose-500 bg-rose-50 border border-rose-100 px-1 py-0.2 rounded uppercase">
                       {lang === 'tr' ? 'KAPALI' : 'OFFLINE'}

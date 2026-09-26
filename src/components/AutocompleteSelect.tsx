@@ -62,42 +62,47 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
 
     for (const item of items) {
       if (!item) continue;
-      const mainVal = normalizeSearch(item[displayField] || item.title || item.company_title || item.full_name || [item.name, item.surname].filter(Boolean).join(' ') || item.name || '');
-      const secVal = secondaryField ? normalizeSearch(item[secondaryField] || item.secondary_info || '') : '';
-      const taxVal = normalizeSearch(item.tax_number || item.tc_id || item.vkn || '');
-      const phoneVal = normalizeSearch(item.phone || item.tel || '');
-      const emailVal = normalizeSearch(item.email || '');
+      const titleTarget = normalizeSearch(item[displayField] || item.title || item.company_title || item.full_name || [item.name, item.surname].filter(Boolean).join(' ') || item.name || '');
+      const taxTarget = normalizeSearch(String(item.tax_number || item.tc_id || item.vkn || ''));
+      const phoneTarget = normalizeSearch(String(item.phone || item.tel || item.gsm || ''));
+      const emailTarget = normalizeSearch(String(item.email || ''));
+      const codeTarget = normalizeSearch(String(item.code || item.barcode || item.customer_code || item.company_code || ''));
+      const cityTarget = normalizeSearch(String(item.city || item.district || item.tax_office || ''));
 
-      const combinedText = `${mainVal} ${secVal} ${taxVal} ${phoneVal} ${emailVal}`;
+      const searchableFields = [titleTarget, taxTarget, phoneTarget, emailTarget, codeTarget, cityTarget].filter(Boolean);
+      const combinedCleanText = searchableFields.join(' ');
 
-      // Every search term must be matched
-      const matchesAll = searchTerms.every(term => combinedText.includes(term));
+      // Every search term must be found in the clean actual data fields
+      const matchesAll = searchTerms.every(term => combinedCleanText.includes(term));
       if (!matchesAll) continue;
 
       let score = 0;
       // High score for exact or start-of-title matches
-      if (mainVal === rawSearch) {
-        score += 2000;
-      } else if (mainVal.startsWith(rawSearch)) {
-        score += 1000;
-      } else if (mainVal.includes(rawSearch)) {
-        score += 500;
+      if (titleTarget === rawSearch) {
+        score += 10000;
+      } else if (titleTarget.startsWith(rawSearch)) {
+        score += 5000;
       } else {
-        // Individual word start matches
-        const words = mainVal.split(/\s+/);
+        const words = titleTarget.split(/\s+/);
         if (words.some(w => w.startsWith(rawSearch))) {
-          score += 300;
+          score += 3000;
+        } else if (titleTarget.includes(rawSearch)) {
+          score += 1500;
         }
       }
 
-      if (taxVal && taxVal.startsWith(rawSearch)) score += 400;
-      else if (taxVal && taxVal.includes(rawSearch)) score += 200;
+      if (taxTarget === rawSearch) {
+        score += 8000;
+      } else if (taxTarget.startsWith(rawSearch)) {
+        score += 4000;
+      } else if (taxTarget.includes(rawSearch)) {
+        score += 2000;
+      }
 
-      if (phoneVal && phoneVal.includes(rawSearch)) score += 100;
-      if (emailVal && emailVal.includes(rawSearch)) score += 80;
-
-      // Corporate companies get bonus score to appear above generic contacts
-      if (item.type === 'company') score += 50;
+      if (codeTarget.startsWith(rawSearch)) score += 3000;
+      if (phoneTarget.includes(rawSearch)) score += 1000;
+      if (emailTarget.includes(rawSearch)) score += 800;
+      if (cityTarget.includes(rawSearch)) score += 400;
 
       scoredItems.push({ item, score });
     }
@@ -105,7 +110,7 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
     // Sort by relevance score descending
     scoredItems.sort((a, b) => b.score - a.score);
     return scoredItems.map(si => si.item);
-  }, [items, search, displayField, secondaryField]);
+  }, [items, search, displayField]);
 
   const getIcon = (itemType?: string) => {
     const activeType = itemType || type;

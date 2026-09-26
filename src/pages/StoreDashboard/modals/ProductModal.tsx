@@ -11,7 +11,7 @@ import { BookstoreSectorSpecs } from "../../../components/bookstore/BookstoreSec
 import { getConnectedMarketplaces } from "../../../utils/marketplaceEStores";
 import { resolveDomainId } from "../../../utils/sectorCapability";
 import { BOOKSTORE_CATEGORIES } from "../../../data/bookstoreCategories";
-import { BOOKSTORE_BADGES, extractProductLabels } from "../../../data/bookstoreBadges";
+import { getSectorBadges, extractProductLabels } from "../../../data/bookstoreBadges";
 
 interface ProductModalProps {
   showProductModal: boolean;
@@ -1537,82 +1537,70 @@ export const ProductModal = ({
                     </div>
                   </div>
 
-                  {/* Etiketler & Rozetler */}
-                  {isBookstore ? (
-                    <div className="space-y-1 pt-0.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-indigo-600" />
-                          <span>{isTr ? "Vitrin Rozetleri & Izgara Seçimi" : "Showcase Badges & Curated Grids"}</span>
-                        </label>
-                        <span className="text-[9px] text-slate-500 font-medium">
-                          {isTr ? "Seçilen ızgaralarda listelenir" : "Appears in selected rows"}
-                        </span>
+                  {/* Etiketler & Vitrin Izgara Rozetleri (Tüm Sektörler İçin Modern Rozet Izgarası) */}
+                  {(() => {
+                    const modalSector = isBookstore ? 'bookstore' : (branding?.store_type || 'shoplp');
+                    const sectorBadgesList = getSectorBadges(modalSector);
+
+                    return (
+                      <div className="space-y-1 pt-0.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                            <span>{isTr ? "Vitrin Rozetleri & Izgara Seçimi" : "Showcase Badges & Curated Grids"}</span>
+                          </label>
+                          <span className="text-[9px] text-slate-500 font-medium">
+                            {isTr ? "Seçilen vitrin ızgaralarında öne çıkarılır" : "Featured in selected showcase rows"}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+                          {sectorBadgesList.map((b) => {
+                            const isSelected = selectedBookBadges.some(s => s.toLowerCase() === b.id.toLowerCase());
+                            const IconComponent = 
+                              b.iconName === 'Flame' ? Flame :
+                              b.iconName === 'Sparkles' ? Sparkles :
+                              b.iconName === 'Star' ? Star :
+                              b.iconName === 'Award' ? Award :
+                              b.iconName === 'Crown' ? Crown :
+                              b.iconName === 'Clock' ? Clock : Tag;
+
+                            return (
+                              <button
+                                key={`badge-opt-${b.id}`}
+                                type="button"
+                                onClick={() => toggleBookBadge(b.id)}
+                                className={`px-2 py-1.5 rounded-lg text-[10px] font-black flex items-center justify-between gap-1 transition-all border cursor-pointer select-none text-left ${
+                                  isSelected
+                                    ? `${b.badgeBgClass} border-transparent shadow-xs scale-[1.01]`
+                                    : "bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 truncate">
+                                  <IconComponent className={`w-3.5 h-3.5 shrink-0 ${isSelected ? "text-current" : b.textClass}`} />
+                                  <span className="truncate">{isTr ? b.labelTr : b.labelEn}</span>
+                                </div>
+                                {isSelected ? (
+                                  <Check className="w-3.5 h-3.5 shrink-0 ml-1" />
+                                ) : (
+                                  <Plus className="w-3.5 h-3.5 shrink-0 text-slate-400 opacity-60 ml-1" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Hidden form inputs to pass values seamlessly */}
+                        <input type="hidden" name="labels" value={selectedBookBadges.join(", ")} />
+                        {selectedBookBadges.some(s => s.toLowerCase() === "bestseller") && (
+                          <input type="hidden" name="is_bestseller" value="on" />
+                        )}
+                        {selectedBookBadges.some(s => s.toLowerCase() === "featured_week") && (
+                          <input type="hidden" name="sector_spec_is_weekly_pick" value="true" />
+                        )}
                       </div>
-
-                      <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-white rounded-lg border border-slate-200">
-                        {BOOKSTORE_BADGES.map((b) => {
-                          const isSelected = selectedBookBadges.some(s => s.toLowerCase() === b.id.toLowerCase());
-                          const IconComponent = 
-                            b.iconName === 'Flame' ? Flame :
-                            b.iconName === 'Sparkles' ? Sparkles :
-                            b.iconName === 'Star' ? Star :
-                            b.iconName === 'Award' ? Award :
-                            b.iconName === 'Crown' ? Crown :
-                            b.iconName === 'Clock' ? Clock : Tag;
-
-                          return (
-                            <button
-                              key={`badge-opt-${b.id}`}
-                              type="button"
-                              onClick={() => toggleBookBadge(b.id)}
-                              className={`px-2 py-1.5 rounded-lg text-[10px] font-black flex items-center justify-between gap-1 transition-all border cursor-pointer select-none text-left ${
-                                isSelected
-                                  ? `${b.badgeBgClass} border-transparent shadow-xs scale-[1.01]`
-                                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
-                              }`}
-                            >
-                              <div className="flex items-center gap-1.5 truncate">
-                                <IconComponent className={`w-3.5 h-3.5 shrink-0 ${isSelected ? "text-current" : b.textClass}`} />
-                                <span className="truncate">{isTr ? b.labelTr : b.labelEn}</span>
-                              </div>
-                              {isSelected ? (
-                                <Check className="w-3.5 h-3.5 shrink-0 ml-1" />
-                              ) : (
-                                <Plus className="w-3 h-3 shrink-0 text-slate-400 opacity-60 ml-1" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Hidden form inputs to pass values seamlessly */}
-                      <input type="hidden" name="labels" value={selectedBookBadges.join(", ")} />
-                      {selectedBookBadges.some(s => s.toLowerCase() === "bestseller") && (
-                        <input type="hidden" name="is_bestseller" value="on" />
-                      )}
-                      {selectedBookBadges.some(s => s.toLowerCase() === "featured_week") && (
-                        <input type="hidden" name="sector_spec_is_weekly_pick" value="true" />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-0.5">
-                      <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                        {isTr ? "Etiketler / Rozetler" : "Labels"}
-                      </label>
-                      <input
-                        type="text"
-                        name="labels"
-                        placeholder={isTr ? "Örn: Kampanya, Fırsat" : "e.g. Campaign, Deal"}
-                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg focus:border-indigo-600 font-semibold text-slate-900 text-xs h-7 shadow-2xs outline-none"
-                        defaultValue={
-                          Array.isArray(editingProduct?.labels) 
-                            ? editingProduct.labels.join(", ") 
-                            : (typeof editingProduct?.labels === 'string' ? editingProduct.labels.replace(/[\[\]"]/g, '') : "")
-                        }
-                      />
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Vitrin ve Satış Durumu Anahtarları (Kompakt Tek Satır) */}
                   <div className="p-1.5 bg-slate-100/90 rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-2">

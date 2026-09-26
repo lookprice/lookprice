@@ -1235,7 +1235,10 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {rooms.map((room) => {
-              const baseBBPrice = room.price_per_night || 2500;
+              const currentBBInfo = getNightRateForDate(room, searchCheckIn, 'BB');
+              const baseBBPrice = currentBBInfo.price;
+              const standardBaseBB = room.board_prices?.bed_breakfast || room.price_per_night || 2500;
+              const isSpecialApplied = currentBBInfo.isSpecial;
               const flexDiscountRate = room.non_refundable_discount || 15;
               const nonRefundablePrice = Math.round(baseBBPrice * (1 - flexDiscountRate / 100));
               const roomPhotoList = room.images && room.images.length > 0 ? room.images : [room.cover_image || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80"];
@@ -1268,6 +1271,12 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                         </div>
                       )}
 
+                      {isSpecialApplied && (
+                        <div className="absolute top-10 left-2.5 bg-amber-500 text-slate-950 text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+                          <span>🎉 {currentBBInfo.title || "Özel Sezon Fiyatı"}</span>
+                        </div>
+                      )}
+
                       <div className="absolute bottom-2.5 left-2.5 bg-slate-950/80 backdrop-blur-xs text-slate-200 text-[9px] font-black px-2 py-1 rounded-lg border border-slate-800 flex items-center gap-1">
                         <Camera className="w-3 h-3 text-slate-300" />
                         <span>{roomPhotoList.length} Fotoğraf</span>
@@ -1293,11 +1302,11 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                         </div>
                       </div>
 
-                      {/* BOARD RATES TABLE */}
-                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800/80 space-y-1 text-xs">
+                      {/* BOARD RATES TABLE FOR SELECTED DATES */}
+                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800/80 space-y-1.5 text-xs">
                         <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                          <span>Pansiyon Tipi</span>
-                          <span>Gecelik Tutar</span>
+                          <span>Pansiyon Seçenekleri</span>
+                          <span>Seçili Tarih Tutarı</span>
                         </div>
 
                         <div className="flex justify-between items-center font-bold text-slate-200 text-[11px]">
@@ -1305,8 +1314,27 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                             <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                             Oda + Kahvaltı (BB)
                           </span>
-                          <span className="text-white font-black">₺{baseBBPrice.toLocaleString('tr-TR')}</span>
+                          <div className="flex items-center gap-1.5">
+                            {isSpecialApplied && standardBaseBB !== baseBBPrice && (
+                              <span className="text-[10px] text-slate-500 line-through">₺{standardBaseBB.toLocaleString('tr-TR')}</span>
+                            )}
+                            <span className={`font-black ${isSpecialApplied ? "text-amber-400" : "text-white"}`}>₺{baseBBPrice.toLocaleString('tr-TR')}</span>
+                          </div>
                         </div>
+
+                        {/* Additional Board Options */}
+                        {room.board_prices?.half_board && (
+                          <div className="flex justify-between items-center font-medium text-slate-400 text-[10px] pt-1 border-t border-slate-900">
+                            <span>Yarım Pansiyon (HB)</span>
+                            <span className="text-slate-200 font-bold">₺{getNightRateForDate(room, searchCheckIn, 'HB').price.toLocaleString('tr-TR')}</span>
+                          </div>
+                        )}
+                        {room.board_prices?.all_inclusive && (
+                          <div className="flex justify-between items-center font-medium text-slate-400 text-[10px]">
+                            <span>Her Şey Dahil (AI)</span>
+                            <span className="text-slate-200 font-bold">₺{getNightRateForDate(room, searchCheckIn, 'AI').price.toLocaleString('tr-TR')}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1315,7 +1343,12 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   <div className="p-4 pt-0 border-t border-slate-800/60 flex items-center justify-between gap-2 mt-3">
                     <div>
                       <span className="block text-[8px] font-black uppercase text-slate-400">Gecelik</span>
-                      <span className="text-base font-black text-white">₺{baseBBPrice.toLocaleString('tr-TR')}</span>
+                      <div className="flex items-baseline gap-1">
+                        {isSpecialApplied && standardBaseBB !== baseBBPrice && (
+                          <span className="text-[10px] text-slate-500 line-through">₺{standardBaseBB.toLocaleString('tr-TR')}</span>
+                        )}
+                        <span className={`text-base font-black ${isSpecialApplied ? "text-amber-400" : "text-white"}`}>₺{baseBBPrice.toLocaleString('tr-TR')}</span>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1.5">

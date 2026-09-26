@@ -123,6 +123,33 @@ export interface HotelRoom {
   };
 }
 
+export const formatBoardType = (type?: string | null): string => {
+  if (!type) return "Oda & Kahvaltı (BB)";
+  const normalized = type.toLowerCase().replace(/[\s-]+/g, '_').trim();
+  switch (normalized) {
+    case 'room_only':
+    case 'ro':
+      return 'Sadece Oda (RO)';
+    case 'bed_breakfast':
+    case 'bb':
+      return 'Oda & Kahvaltı (BB)';
+    case 'half_board':
+    case 'hb':
+      return 'Yarım Pansiyon (HB)';
+    case 'full_board':
+    case 'fb':
+      return 'Tam Pansiyon (FB)';
+    case 'all_inclusive':
+    case 'ai':
+      return 'Her Şey Dahil (AI)';
+    case 'ultra_all_inclusive':
+    case 'uai':
+      return 'Ultra Her Şey Dahil (UAI)';
+    default:
+      return type;
+  }
+};
+
 export interface ParsedBedAndCapacity {
   doubleBeds: number;
   singleBeds: number;

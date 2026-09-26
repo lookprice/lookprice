@@ -9,6 +9,7 @@ import {
   Info,
   Receipt
 } from "lucide-react";
+import { formatBoardType } from "./hotelTypes";
 
 export interface HotelGuestsTabProps {
   calculateAgeBreakdownStats: () => any;
@@ -236,6 +237,9 @@ export const HotelGuestsTab: React.FC<HotelGuestsTabProps> = ({
               ) : (
                 (sortedGuests || []).map((g) => {
                   const theme = getRoomTheme(g.room_number);
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const isStayingToday = g.room_status === 'occupied' && (!g.check_in_date || g.check_in_date <= todayStr) && (!g.check_out_date || g.check_out_date >= todayStr);
+                  
                   return (
                     <tr key={g.id} className={`${theme.rowBg} ${theme.leftBorder} border-b border-slate-200/60 dark:border-slate-800/80 transition-colors`}>
                       <td className="p-3.5">
@@ -245,8 +249,8 @@ export const HotelGuestsTab: React.FC<HotelGuestsTabProps> = ({
                           </span>
                           <div>
                             <p className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate max-w-[140px]">{g.room_type}</p>
-                            <span className={`inline-block text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${g.room_status === 'occupied' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                              {g.room_status === 'occupied' ? '🟢 Konaklıyor' : '🟡 Gelecek Rezervasyon'}
+                            <span className={`inline-block text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${isStayingToday ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+                              {isStayingToday ? '🟢 Konaklıyor' : '🟡 Gelecek Rezervasyon'}
                             </span>
                           </div>
                         </div>
@@ -303,7 +307,7 @@ export const HotelGuestsTab: React.FC<HotelGuestsTabProps> = ({
 
                       <td className="p-3.5">
                         <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded font-black text-xs border border-indigo-200 dark:border-indigo-800">
-                          {g.board_type}
+                          {formatBoardType(g.board_type)}
                         </span>
                       </td>
 
@@ -319,7 +323,7 @@ export const HotelGuestsTab: React.FC<HotelGuestsTabProps> = ({
                             <span>Detay</span>
                           </button>
 
-                          {g.room_status === 'occupied' && g.age >= 18 && (
+                          {isStayingToday && g.age >= 18 && (
                             <button
                               type="button"
                               onClick={() => setCheckOutModalRoom(g.room)}

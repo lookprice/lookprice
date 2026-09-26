@@ -1,5 +1,6 @@
 import React from "react";
 import { UserCheck, X, Plus, Receipt } from "lucide-react";
+import { formatBoardType } from "./hotelTypes";
 
 export interface HotelInspectGuestModalProps {
   inspectGuestModal: any | null;
@@ -98,7 +99,7 @@ export const HotelInspectGuestModal: React.FC<HotelInspectGuestModalProps> = ({
           <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
             <span className="text-[10px] font-black uppercase text-slate-400">Pansiyon Tipi</span>
             <p className="font-bold text-slate-900 dark:text-white mt-0.5">
-              {inspectGuestModal.board_type}
+              {formatBoardType(inspectGuestModal.board_type)}
             </p>
           </div>
 
@@ -135,47 +136,68 @@ export const HotelInspectGuestModal: React.FC<HotelInspectGuestModalProps> = ({
         </div>
 
         {/* MODAL ACTIONS */}
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs cursor-pointer"
-          >
-            Kapat
-          </button>
+        {(() => {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const isStayingToday = inspectGuestModal.room_status === 'occupied' && 
+            (!inspectGuestModal.check_in_date || inspectGuestModal.check_in_date <= todayStr) && 
+            (!inspectGuestModal.check_out_date || inspectGuestModal.check_out_date >= todayStr);
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const r = inspectGuestModal.room;
-                onClose();
-                setSelectedAgeCategoryModal(null);
-                setAddExpenseModalRoom(r);
-              }}
-              className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Adisyon Ekle</span>
-            </button>
-
-            {inspectGuestModal.room_status === 'occupied' && inspectGuestModal.age >= 18 && (
+          return (
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
-                onClick={() => {
-                  const r = inspectGuestModal.room;
-                  onClose();
-                  setSelectedAgeCategoryModal(null);
-                  setCheckOutModalRoom(r);
-                }}
-                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                onClick={onClose}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs cursor-pointer"
               >
-                <Receipt className="h-4 w-4" />
-                <span>Folyo Kapat & Check-Out</span>
+                Kapat
               </button>
-            )}
-          </div>
-        </div>
+
+              <div className="flex items-center gap-2">
+                {isStayingToday ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const r = inspectGuestModal.room;
+                      onClose();
+                      setSelectedAgeCategoryModal(null);
+                      setAddExpenseModalRoom(r);
+                    }}
+                    className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Adisyon Ekle</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-not-allowed border border-slate-200 dark:border-slate-700"
+                    title="Misafir henüz otelde fiilen konaklamadığı için adisyon eklenemez"
+                  >
+                    <Plus className="h-4 w-4 text-slate-400" />
+                    <span>Adisyon Ekle (Giriş Yapılmadı)</span>
+                  </button>
+                )}
+
+                {isStayingToday && inspectGuestModal.age >= 18 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const r = inspectGuestModal.room;
+                      onClose();
+                      setSelectedAgeCategoryModal(null);
+                      setCheckOutModalRoom(r);
+                    }}
+                    className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Receipt className="h-4 w-4" />
+                    <span>Folyo Kapat & Check-Out</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
