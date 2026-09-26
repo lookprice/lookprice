@@ -1728,6 +1728,15 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     return { age, category, bracket, discountRate, labelTr, discountText };
   };
 
+  const isGuestActiveToday = (room: HotelRoom): boolean => {
+    if (room.status !== 'occupied' || !room.current_guest) return false;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const cin = room.current_guest.check_in_date;
+    const cout = room.current_guest.check_out_date;
+    if (!cin || !cout) return true;
+    return cin <= todayStr && cout > todayStr;
+  };
+
   // Helper to determine real-time status for TODAY (A room is ONLY occupied if a guest is in-house TODAY)
   const getEffectiveRoomStatus = (room: HotelRoom): 'vacant' | 'occupied' | 'maintenance' | 'staff' => {
     if (!room) return 'vacant';
@@ -1999,7 +2008,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         email: newGuest.email,
         check_in_date: newGuest.check_in_date,
         check_out_date: newGuest.check_out_date,
-        board_type: newGuest.board_type,
+        board_type: newGuest.board_type as any,
         main_guest_age: newGuest.age,
         guests: processedAdditionalGuests.map(ag => ({
           first_name: ag.first_name,
@@ -2009,7 +2018,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         })),
         notes: newGuest.notes,
         created_at: new Date().toISOString()
-      };
+      } as any;
 
       setRooms(rooms.map(r => r.id === checkInModalRoom.id ? {
         ...r,
@@ -2523,15 +2532,6 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const isGuestActiveToday = (room: HotelRoom): boolean => {
-    if (room.status !== 'occupied' || !room.current_guest) return false;
-    const todayStr = new Date().toISOString().split('T')[0];
-    const cin = room.current_guest.check_in_date;
-    const cout = room.current_guest.check_out_date;
-    if (!cin || !cout) return true;
-    return cin <= todayStr && cout > todayStr;
   };
 
   return (

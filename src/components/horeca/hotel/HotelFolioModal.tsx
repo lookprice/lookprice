@@ -35,8 +35,8 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
 
   const details = computeRoomFolioDetails(checkOutModalRoom);
   const todayStr = new Date().toISOString().split('T')[0];
-  const guestCheckIn = checkOutModalRoom.current_guest?.check_in || '';
-  const guestCheckOut = checkOutModalRoom.current_guest?.check_out || '';
+  const guestCheckIn = (checkOutModalRoom.current_guest as any)?.check_in_date || (checkOutModalRoom.current_guest as any)?.check_in || (checkOutModalRoom as any).reservation?.check_in_date || '';
+  const guestCheckOut = (checkOutModalRoom.current_guest as any)?.check_out_date || (checkOutModalRoom.current_guest as any)?.check_out || (checkOutModalRoom as any).reservation?.check_out_date || '';
   
   // Is reservation strictly in the future (today is before check-in date)?
   const isFutureStay = Boolean(guestCheckIn && guestCheckIn > todayStr);

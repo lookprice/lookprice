@@ -1,6 +1,6 @@
 import React from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Zap, Droplets, DoorClosed, Star, Award, Quote } from "lucide-react";
+import { Zap, Droplets, DoorClosed, Star, Award, Quote, Utensils, AlertCircle, Sparkles } from "lucide-react";
 
 interface SectorSpecsProps {
   sector: string;
@@ -886,14 +886,80 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
     </div>
   );
 
-  const isSpecialSector = sector === "automotive" || sector === "fashion" || sector === "tech" || sector === "real_estate";
+  const renderHoreca = () => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2">
+        {data.calories && (
+          <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100 text-center">
+            <span className="text-[8px] font-extrabold text-amber-600 uppercase block mb-0.5">
+              {lang === "tr" ? "KALORİ" : "CALORIES"}
+            </span>
+            <span className="text-xs font-black text-amber-950">
+              {data.calories} kcal
+            </span>
+          </div>
+        )}
+        {data.prep_time_min && (
+          <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100 text-center">
+            <span className="text-[8px] font-extrabold text-amber-600 uppercase block mb-0.5">
+              {lang === "tr" ? "HAZIRLIK" : "PREP"}
+            </span>
+            <span className="text-xs font-black text-amber-950">
+              ~{data.prep_time_min} {lang === "tr" ? "dk" : "min"}
+            </span>
+          </div>
+        )}
+        {data.portion_size && (
+          <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100 text-center">
+            <span className="text-[8px] font-extrabold text-amber-600 uppercase block mb-0.5">
+              {lang === "tr" ? "PORSİYON" : "PORTION"}
+            </span>
+            <span className="text-xs font-black text-amber-950 truncate block">
+              {data.portion_size}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {data.allergens && (Array.isArray(data.allergens) ? data.allergens.length > 0 : String(data.allergens).trim()) && (
+        <div className="p-3 bg-rose-50/60 rounded-xl border border-rose-100">
+          <div className="flex items-center gap-1.5 mb-1">
+            <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+            <span className="text-[9px] font-extrabold text-rose-700 uppercase tracking-wide">
+              {lang === "tr" ? "ALERJEN & BESİN UYARILARI" : "ALLERGENS & WARNINGS"}
+            </span>
+          </div>
+          <p className="text-xs font-semibold text-rose-950">
+            {Array.isArray(data.allergens) ? data.allergens.join(", ") : String(data.allergens)}
+          </p>
+        </div>
+      )}
+
+      {(data.ingredients || data.recipe) && (
+        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Utensils className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wide">
+              {lang === "tr" ? "İÇİNDEKİLER & LEZZET NOTLARI" : "INGREDIENTS & TASTE NOTES"}
+            </span>
+          </div>
+          <p className="text-xs text-slate-700 leading-relaxed font-normal">
+            {String(data.ingredients || data.recipe)}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  const isSpecialSector = sector === "automotive" || sector === "fashion" || sector === "tech" || sector === "real_estate" || sector === "horeca";
   
   const hasAutomotiveData = sector === "automotive" && (data.hp || data.engine || data.transmission || data.fuel || data.is_trade_in_available !== undefined || data.mileage !== undefined || data.paint_report);
   const hasFashionData = sector === "fashion" && (data.material || data.fit || data.collection);
   const hasTechData = sector === "tech" && (data.cpu || data.ram || data.storage);
   const hasRealEstateData = sector === "real_estate" && (data.square_meters || data.rooms || data.building_age || data.floor || data.heating || data.furnished !== undefined || data.in_gated_community !== undefined || data.dues || data.zoning_status || data.deed_type || data.kocan_type || data.sqm_gross || data.kaks || data.gabari || data.commercial_devir_status || data.monthly_rent_income || data.frontage_width || data.ceiling_height || data.water_tank_capacity || data.is_main_road_frontage);
+  const hasHorecaData = sector === "horeca" && (data.calories || data.prep_time_min || data.portion_size || data.allergens || data.ingredients || data.recipe);
 
-  const hasSpecialContent = hasAutomotiveData || hasFashionData || hasTechData || hasRealEstateData;
+  const hasSpecialContent = hasAutomotiveData || hasFashionData || hasTechData || hasRealEstateData || hasHorecaData;
 
   if (!hasSpecialContent && cleanEntries.length === 0) {
     return null;
@@ -902,13 +968,14 @@ export const SectorSpecs: React.FC<SectorSpecsProps> = ({
   return (
     <div className="mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <h4 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-        <span>{lang === "tr" ? "TEKNİK ÖZELLİKLER & BİLGİLER" : "TECHNICAL SPECIFICATIONS"}</span>
+        <span>{sector === "horeca" ? (lang === "tr" ? "GASTRONOMİ & BESİN PROFİLİ" : "CULINARY & NUTRITIONAL PROFILE") : (lang === "tr" ? "TEKNİK ÖZELLİKLER & BİLGİLER" : "TECHNICAL SPECIFICATIONS")}</span>
         <div className="flex-1 h-[1px] bg-slate-100" />
       </h4>
       {sector === "automotive" && renderAutomotive()}
       {sector === "fashion" && renderFashion()}
       {sector === "tech" && renderTech()}
       {sector === "real_estate" && renderRealEstate()}
+      {sector === "horeca" && renderHoreca()}
       
       {/* Custom spec key-values for general products or custom additions */}
       {(cleanEntries.length > 0 && (!isSpecialSector || !hasSpecialContent)) && (

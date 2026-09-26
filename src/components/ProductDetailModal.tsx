@@ -1026,11 +1026,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
             )}
 
-            {/* Technical Description (if present) */}
+            {/* Technical Description / Chef's Note (if present) */}
             {((product as any).technical_description || (product.sector_data as any)?.technical_description) && (
               <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/60">
                 <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                  {lang === "tr" ? "TEKNİK AÇIKLAMA" : "TECHNICAL DESCRIPTION"}
+                  {(store?.store_type as string) === 'horeca' || sector === 'horeca' ? (lang === "tr" ? "ŞEFİN ÖZEL NOTU & AÇIKLAMA" : "CHEF'S SPECIAL NOTE") : (lang === "tr" ? "TEKNİK AÇIKLAMA" : "TECHNICAL DESCRIPTION")}
                 </h4>
                 <p className="text-slate-700 text-xs leading-relaxed whitespace-pre-wrap font-normal">
                   {(product as any).technical_description || (product.sector_data as any)?.technical_description}
@@ -1038,17 +1038,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
             )}
 
-            {/* Technical & Literature Specifications (High-density micro cards) */}
+            {/* Technical & Culinary Specifications (High-density micro cards) */}
             <SectorSpecs
               sector={
-                product?.type === "vehicle" || store?.store_type === "motor_vehicle"
-                  ? "automotive"
-                  : product?.type === "real_estate" || store?.store_type === "real_estate"
-                    ? "real_estate"
-                    : sector
+                (store?.store_type as string) === "horeca" || sector === "horeca"
+                  ? "horeca"
+                  : product?.type === "vehicle" || store?.store_type === "motor_vehicle"
+                    ? "automotive"
+                    : product?.type === "real_estate" || store?.store_type === "real_estate"
+                      ? "real_estate"
+                      : sector
               }
               data={{
                 ...(product.sector_data || {}),
+                ...((store?.store_type as string) === "horeca" || sector === "horeca" ? {
+                  calories: (product as any).calories || (product.sector_data as any)?.calories,
+                  prep_time_min: (product as any).prep_time_min || (product.sector_data as any)?.prep_time_min,
+                  portion_size: (product as any).portion_size || (product.sector_data as any)?.portion_size,
+                  allergens: (product as any).allergens || (product.sector_data as any)?.allergens,
+                  ingredients: (product as any).ingredients || (product.sector_data as any)?.ingredients || (product as any).recipe,
+                } : {}),
                 ...(product?.type === "vehicle" || store?.store_type === "motor_vehicle" ? {
                   hp: (product as any).hp || (product.sector_data as any)?.hp,
                   engine: (product as any).engine || (product.sector_data as any)?.engine,
