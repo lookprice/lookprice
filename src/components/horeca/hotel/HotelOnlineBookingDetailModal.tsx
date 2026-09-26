@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { X, Phone, Mail, UserCheck, CheckCircle2, Edit3, Save, AlertCircle } from "lucide-react";
 
+const getNextDay = (dateStr: string): string => {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  }
+  return dateStr;
+};
+
 interface HotelOnlineBookingDetailModalProps {
   selectedOnlineResModal: any | null;
   onClose: () => void;
@@ -373,7 +383,14 @@ export const HotelOnlineBookingDetailModal: React.FC<HotelOnlineBookingDetailMod
                   type="date"
                   required
                   value={editForm.check_in_date}
-                  onChange={(e) => setEditForm({ ...editForm, check_in_date: e.target.value })}
+                  onChange={(e) => {
+                    const newCheckIn = e.target.value;
+                    setEditForm({
+                      ...editForm,
+                      check_in_date: newCheckIn,
+                      check_out_date: getNextDay(newCheckIn)
+                    });
+                  }}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white"
                 />
               </div>

@@ -276,7 +276,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     setGuestForm(prev => ({
       ...prev,
       check_in_date: newCheckIn,
-      check_out_date: (!prev.check_out_date || prev.check_out_date <= newCheckIn) ? minCheckOut : prev.check_out_date
+      check_out_date: minCheckOut
     }));
   };
 
@@ -1728,14 +1728,24 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     return { age, category, bracket, discountRate, labelTr, discountText };
   };
 
+  // Helper to determine real-time status for TODAY (A room is ONLY occupied if a guest is in-house TODAY)
+  const getEffectiveRoomStatus = (room: HotelRoom): 'vacant' | 'occupied' | 'maintenance' | 'staff' => {
+    if (!room) return 'vacant';
+    if (room.status === 'maintenance' || room.status === 'disabled') return 'maintenance';
+    if (room.status === 'staff') return 'staff';
+    if (isGuestActiveToday(room)) return 'occupied';
+    return 'vacant';
+  };
+
   // Check if room has today's check-out
   const isTodayCheckOut = (room: HotelRoom) => {
-    if (room.status !== 'occupied' || !room.current_guest?.check_out_date) return false;
+    if (!room || !room.current_guest?.check_out_date) return false;
+    if (!isGuestActiveToday(room)) return false;
     const todayStr = new Date().toISOString().split('T')[0];
     return room.current_guest.check_out_date === todayStr;
   };
 
-  // Filtered rooms
+  // Filtered rooms based on real-time TODAY status
   const filteredRooms = rooms.filter(room => {
     const term = searchTerm.trim().toLowerCase();
     
@@ -1755,23 +1765,24 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
 
     if (!matchesSearch) return false;
 
+    const effStatus = getEffectiveRoomStatus(room);
+
     if (statusFilter === 'all') return true;
     if (statusFilter === 'checkout_today') return isTodayCheckOut(room);
-    if (statusFilter === 'maintenance') return room.status === 'maintenance' || room.status === 'disabled';
-    if (statusFilter === 'vacant') {
-      const s = String(room.status || '');
-      return s === 'vacant' || s === 'available' || s === 'clean' || !room.status || (s !== 'occupied' && s !== 'maintenance' && s !== 'staff' && s !== 'disabled');
-    }
-    return room.status === statusFilter;
+    if (statusFilter === 'maintenance') return effStatus === 'maintenance';
+    if (statusFilter === 'staff') return effStatus === 'staff';
+    if (statusFilter === 'vacant') return effStatus === 'vacant';
+    if (statusFilter === 'occupied') return effStatus === 'occupied';
+    return effStatus === statusFilter;
   });
 
-  // Calculate statistics
+  // Calculate statistics based on real-time status
   const totalRooms = (Array.isArray(rooms) ? rooms : []).length;
-  const occupiedRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && r.status === 'occupied').length;
+  const occupiedRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && getEffectiveRoomStatus(r) === 'occupied').length;
   const todayCheckOuts = (Array.isArray(rooms) ? rooms : []).filter(r => r && isTodayCheckOut(r)).length;
-  const maintenanceRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && (r.status === 'maintenance' || r.status === 'disabled')).length;
-  const staffRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && r.status === 'staff').length;
-  const availableRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && r.status === 'vacant').length;
+  const maintenanceRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && getEffectiveRoomStatus(r) === 'maintenance').length;
+  const staffRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && getEffectiveRoomStatus(r) === 'staff').length;
+  const availableRooms = (Array.isArray(rooms) ? rooms : []).filter(r => r && getEffectiveRoomStatus(r) === 'vacant').length;
   const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
   // Handle Create / Edit Room
@@ -1967,13 +1978,47 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       notes: (guestForm.notes || "").trim()
     };
 
-    setRooms(rooms.map(r => r.id === checkInModalRoom.id ? {
-      ...r,
-      status: 'occupied',
-      current_guest: newGuest,
-      additional_guests: processedAdditionalGuests,
-      folio: r.folio || { id: `folio-${Date.now()}`, total_amount: 0, items: [] }
-    } : r));
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isCheckInTodayOrPast = guestForm.check_in_date <= todayStr;
+
+    if (isCheckInTodayOrPast) {
+      setRooms(rooms.map(r => r.id === checkInModalRoom.id ? {
+        ...r,
+        status: 'occupied',
+        current_guest: newGuest,
+        additional_guests: processedAdditionalGuests,
+        folio: r.folio || { id: `folio-${Date.now()}`, total_amount: 0, items: [] }
+      } : r));
+    } else {
+      const newReservation: RoomReservation = {
+        id: `res-${Date.now()}`,
+        first_name: newGuest.first_name,
+        last_name: newGuest.last_name,
+        identity_no: newGuest.identity_no,
+        phone: newGuest.phone,
+        email: newGuest.email,
+        check_in_date: newGuest.check_in_date,
+        check_out_date: newGuest.check_out_date,
+        board_type: newGuest.board_type,
+        main_guest_age: newGuest.age,
+        guests: processedAdditionalGuests.map(ag => ({
+          first_name: ag.first_name,
+          last_name: ag.last_name,
+          age: ag.age,
+          birth_date: ag.birth_date
+        })),
+        notes: newGuest.notes,
+        created_at: new Date().toISOString()
+      };
+
+      setRooms(rooms.map(r => r.id === checkInModalRoom.id ? {
+        ...r,
+        status: r.current_guest && isGuestActiveToday(r) ? 'occupied' : 'vacant',
+        reservations: [...(r.reservations || []), newReservation]
+      } : r));
+
+      alert(`📅 Gelecek tarihli (${formatDisplayDate(newGuest.check_in_date)}) rezervasyon başarıyla kaydedildi. Oda bugün boş (müsait) kalmaya devam edecektir.`);
+    }
 
     setCheckInModalRoom(null);
     setGuestForm({

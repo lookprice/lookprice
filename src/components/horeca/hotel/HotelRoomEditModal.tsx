@@ -21,6 +21,16 @@ import {
 } from 'lucide-react';
 import { HotelRoom } from '../HotelRoomManagement';
 
+const getNextDay = (dateStr: string): string => {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  }
+  return dateStr;
+};
+
 interface HotelRoomEditModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -602,8 +612,10 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                               type="date"
                               value={sp.start_date}
                               onChange={(e) => {
+                                const newStart = e.target.value;
                                 const updated = [...roomForm.special_prices];
-                                updated[spIdx].start_date = e.target.value;
+                                updated[spIdx].start_date = newStart;
+                                updated[spIdx].end_date = getNextDay(newStart);
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
                               className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-[10px]"
@@ -623,19 +635,21 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                           <div className="sm:col-span-2">
                             <input
                               type="text"
-                              placeholder="3.500"
+                              placeholder="Taban Fiyat"
                               value={formatThousand(sp.price_per_night)}
                               onChange={(e) => {
                                 const newBase = parseThousand(e.target.value);
                                 const updated = [...roomForm.special_prices];
                                 updated[spIdx].price_per_night = newBase;
-                                updated[spIdx].board_prices = {
-                                  room_only: Math.round(newBase * 0.88),
-                                  bed_breakfast: newBase,
-                                  half_board: Math.round(newBase * 1.28),
-                                  full_board: Math.round(newBase * 1.56),
-                                  all_inclusive: Math.round(newBase * 1.92)
-                                };
+                                if (!updated[spIdx].board_prices || Object.keys(updated[spIdx].board_prices).length === 0) {
+                                  updated[spIdx].board_prices = {
+                                    room_only: Math.round(newBase * 0.88),
+                                    bed_breakfast: newBase,
+                                    half_board: Math.round(newBase * 1.28),
+                                    full_board: Math.round(newBase * 1.56),
+                                    all_inclusive: Math.round(newBase * 1.92)
+                                  };
+                                }
                                 setRoomForm({ ...roomForm, special_prices: updated });
                               }}
                               className="w-full px-2 py-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 rounded-lg font-black text-amber-900 dark:text-amber-100 text-xs"
@@ -653,6 +667,130 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
+                          </div>
+                        </div>
+
+                        {/* ÖZEL TARİFEYE AİT PANSİYON TİPLERİ VE FİYATLARI */}
+                        <div className="pt-2 border-t border-amber-100 dark:border-amber-900/40 space-y-1">
+                          <div className="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                            <span>Özel Dönem Pansiyon Fiyatları (Ayrı Ayrı Düzenlenebilir)</span>
+                            <span className="text-[9px] font-normal text-slate-400">0 girilen pansiyon sunulmaz</span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+                            {/* RO */}
+                            <div>
+                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Sadece Oda (RO)</label>
+                              <input
+                                type="text"
+                                placeholder="0"
+                                value={formatThousand(sp.board_prices?.room_only || 0)}
+                                onChange={(e) => {
+                                  const val = parseThousand(e.target.value);
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...(updated[spIdx].board_prices || {}),
+                                    room_only: val
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            {/* BB */}
+                            <div>
+                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Oda Kahvaltı (BB)</label>
+                              <input
+                                type="text"
+                                placeholder="0"
+                                value={formatThousand(sp.board_prices?.bed_breakfast || 0)}
+                                onChange={(e) => {
+                                  const val = parseThousand(e.target.value);
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...(updated[spIdx].board_prices || {}),
+                                    bed_breakfast: val
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            {/* HB */}
+                            <div>
+                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Yarım Pansiyon (HB)</label>
+                              <input
+                                type="text"
+                                placeholder="0"
+                                value={formatThousand(sp.board_prices?.half_board || 0)}
+                                onChange={(e) => {
+                                  const val = parseThousand(e.target.value);
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...(updated[spIdx].board_prices || {}),
+                                    half_board: val
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            {/* FB */}
+                            <div>
+                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Tam Pansiyon (FB)</label>
+                              <input
+                                type="text"
+                                placeholder="0"
+                                value={formatThousand(sp.board_prices?.full_board || 0)}
+                                onChange={(e) => {
+                                  const val = parseThousand(e.target.value);
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...(updated[spIdx].board_prices || {}),
+                                    full_board: val
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            {/* AI */}
+                            <div>
+                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Her Şey Dahil (AI)</label>
+                              <input
+                                type="text"
+                                placeholder="0"
+                                value={formatThousand(sp.board_prices?.all_inclusive || 0)}
+                                onChange={(e) => {
+                                  const val = parseThousand(e.target.value);
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...(updated[spIdx].board_prices || {}),
+                                    all_inclusive: val
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            {/* UAI */}
+                            <div>
+                              <label className="text-[9px] font-extrabold text-slate-500 block truncate">Ultra Her Şey Dahil (UAI)</label>
+                              <input
+                                type="text"
+                                placeholder="0"
+                                value={formatThousand(sp.board_prices?.ultra_all_inclusive || 0)}
+                                onChange={(e) => {
+                                  const val = parseThousand(e.target.value);
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...(updated[spIdx].board_prices || {}),
+                                    ultra_all_inclusive: val
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-lg font-bold text-xs"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -713,8 +851,10 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                             type="date"
                             value={cd.start_date}
                             onChange={(e) => {
+                              const newStart = e.target.value;
                               const updated = [...roomForm.closed_dates];
-                              updated[cdIdx].start_date = e.target.value;
+                              updated[cdIdx].start_date = newStart;
+                              updated[cdIdx].end_date = getNextDay(newStart);
                               setRoomForm({ ...roomForm, closed_dates: updated });
                             }}
                             className="px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-[10px]"

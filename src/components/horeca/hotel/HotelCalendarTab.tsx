@@ -140,20 +140,24 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
             {/* Period Selector Buttons */}
             <div className="flex items-center gap-0.5 bg-white/10 p-0.5 rounded-lg border border-white/15 text-[10px]">
               {[
-                { id: 'next_7', label: '7G' },
-                { id: 'next_14', label: '14G' },
-                { id: 'next_30', label: '30G' },
-                { id: 'next_60', label: '60G' },
+                { id: 'next_7', label: '7 Gün', days: 7 },
+                { id: 'next_14', label: '14 Gün', days: 14 },
+                { id: 'next_30', label: '30 Gün', days: 30 },
+                { id: 'next_60', label: '60 Gün', days: 60 },
               ].map(p => (
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setAnalysisPeriod(p.id as any)}
+                  onClick={() => {
+                    setAnalysisPeriod(p.id as any);
+                    setCalendarDaysCount(p.days);
+                  }}
                   className={`px-2 py-0.5 rounded font-black cursor-pointer transition-all ${
                     analysisPeriod === p.id
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-white/80 hover:bg-white/10'
                   }`}
+                  title={`${p.label} Göster`}
                 >
                   {p.label}
                 </button>
@@ -320,7 +324,7 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
             </div>
             <div>
               <h2 className="text-base font-black text-slate-900 dark:text-white">
-                60 Günlük Müsaitlik & Doluluk Takvimi (Rezervasyon Board)
+                {calendarDaysCount} Günlük Müsaitlik & Doluluk Takvimi (Rezervasyon Board)
               </h2>
               <p className="text-xs text-slate-500 font-medium">
                 Oda bazlı günlük müsaitlik durumu. Dolu günlerin üzerine tıklayarak misafir ve yaş detaylarını görebilirsiniz.
@@ -391,9 +395,18 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
             <div className="w-full sm:w-auto">
               <select
                 value={calendarDaysCount}
-                onChange={(e) => setCalendarDaysCount(Number(e.target.value) as any)}
+                onChange={(e) => {
+                  const cnt = Number(e.target.value);
+                  setCalendarDaysCount(cnt as any);
+                  if (cnt === 7) setAnalysisPeriod('next_7');
+                  else if (cnt === 14) setAnalysisPeriod('next_14');
+                  else if (cnt === 30) setAnalysisPeriod('next_30');
+                  else if (cnt === 60) setAnalysisPeriod('next_60');
+                }}
                 className="w-full sm:w-auto px-3 py-2 bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-800 dark:text-slate-200 cursor-pointer"
               >
+                <option value={7}>7 Gün Göster (1 Hafta)</option>
+                <option value={14}>14 Gün Göster (2 Hafta)</option>
                 <option value={30}>30 Gün Göster (1 Ay)</option>
                 <option value={60}>60 Gün Göster (2 Ay)</option>
               </select>

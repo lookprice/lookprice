@@ -2,6 +2,28 @@ import React, { useState, useEffect } from "react";
 import { UserCheck, X, Baby, Edit3, Check, Save, AlertCircle } from "lucide-react";
 import { RoomReservation } from "./hotelTypes";
 
+const formatBoardType = (bt: string | undefined): string => {
+  if (!bt) return "Oda Kahvaltı (BB)";
+  const b = bt.toLowerCase().trim();
+  if (b === 'ro' || b === 'room_only' || b === 'sadece_oda' || b === 'sadece oda') return "Sadece Oda (RO)";
+  if (b === 'bb' || b === 'bed_breakfast' || b === 'oda_kahvalti' || b === 'oda kahvaltı') return "Oda Kahvaltı (BB)";
+  if (b === 'hb' || b === 'half_board' || b === 'yarim_pansiyon' || b === 'yarım pansiyon') return "Yarım Pansiyon (HB)";
+  if (b === 'fb' || b === 'full_board' || b === 'tam_pansiyon' || b === 'tam pansiyon') return "Tam Pansiyon (FB)";
+  if (b === 'ai' || b === 'all_inclusive' || b === 'her_sey_dahil' || b === 'her şey dahil') return "Her Şey Dahil (AI)";
+  if (b === 'uai' || b === 'ultra_all_inclusive') return "Ultra Her Şey Dahil (UAI)";
+  return `${bt} Pansiyon`;
+};
+
+const getNextDay = (dateStr: string): string => {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  }
+  return dateStr;
+};
+
 export interface HotelReservationDetailModalProps {
   selectedReservationModal: any | null;
   onClose: () => void;
@@ -147,8 +169,8 @@ export const HotelReservationDetailModal: React.FC<HotelReservationDetailModalPr
                   </p>
                 )}
               </div>
-              <span className="px-3 py-1 bg-indigo-600 text-white rounded-xl text-xs font-black">
-                {selectedReservationModal.res.board_type || 'BB'} Pansiyon
+              <span className="px-3 py-1 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-xs">
+                {formatBoardType(selectedReservationModal.res.board_type)}
               </span>
             </div>
 
@@ -305,7 +327,14 @@ export const HotelReservationDetailModal: React.FC<HotelReservationDetailModalPr
                   type="date"
                   required
                   value={editForm.check_in_date}
-                  onChange={(e) => setEditForm({ ...editForm, check_in_date: e.target.value })}
+                  onChange={(e) => {
+                    const newCheckIn = e.target.value;
+                    setEditForm({
+                      ...editForm,
+                      check_in_date: newCheckIn,
+                      check_out_date: getNextDay(newCheckIn)
+                    });
+                  }}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                 />
               </div>

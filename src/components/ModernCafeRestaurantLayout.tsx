@@ -224,9 +224,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
   const handleCheckInChange = (newCheckIn: string) => {
     setSearchCheckIn(newCheckIn);
     const minCheckOut = getNextDayString(newCheckIn);
-    if (!searchCheckOut || searchCheckOut <= newCheckIn) {
-      setSearchCheckOut(minCheckOut);
-    }
+    setSearchCheckOut(minCheckOut);
   };
 
   // Dynamic Adults & Children List with Birth Dates
@@ -1254,14 +1252,20 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       {isHotelModuleActive && activeMode === 'hotel' && (
         <section id="rooms" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center max-w-xl mx-auto space-y-2 mb-8">
-            <div className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest flex items-center justify-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-slate-300" />
+            <div className={`text-[10px] font-extrabold uppercase tracking-widest flex items-center justify-center gap-1.5 ${
+              isDarkTheme ? "text-slate-300" : "text-emerald-700 dark:text-emerald-400"
+            }`}>
+              <Building2 className={`w-3.5 h-3.5 ${isDarkTheme ? "text-slate-300" : "text-emerald-600"}`} />
               <span>OTEL KONAKLAMA & SÜİTLER</span>
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight font-sans">
+            <h2 className={`text-2xl md:text-3xl font-black tracking-tight font-sans ${
+              isDarkTheme ? "text-white" : "text-slate-900"
+            }`}>
               Müsait Odalar ve Pansiyon Seçenekleri
             </h2>
-            <p className="text-[11px] font-medium text-slate-400">
+            <p className={`text-xs font-semibold ${
+              isDarkTheme ? "text-slate-400" : "text-slate-600"
+            }`}>
               Gecelik fiyatlar, oda olanakları ve LookPrice VIP esnek iptal avantajları
             </p>
           </div>
