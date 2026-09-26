@@ -630,7 +630,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                           <span className="text-[9px] font-black uppercase text-amber-900 dark:text-amber-200 tracking-wider flex items-center gap-1">
                             🍽️ Özel Tarih Pansiyon Fiyatlandırması (Gecelik ₺)
                           </span>
-                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                             <div>
                               <label className="text-[8px] font-bold text-slate-400 block truncate">Sadece Oda (RO)</label>
                               <input
@@ -695,7 +695,7 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                 className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-xs"
                               />
                             </div>
-                            <div className="col-span-2 sm:col-span-1">
+                            <div>
                               <label className="text-[8px] font-bold text-slate-400 block truncate">Her Şey Dahil (AI)</label>
                               <input
                                 type="text"
@@ -705,6 +705,22 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                                   updated[spIdx].board_prices = {
                                     ...spBoard,
                                     all_inclusive: parseThousand(e.target.value)
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[8px] font-bold text-slate-400 block truncate">Ultra Her Şey (UAI)</label>
+                              <input
+                                type="text"
+                                value={formatThousand(spBoard.ultra_all_inclusive ?? Math.round((sp.price_per_night || 2500) * 2.30))}
+                                onChange={(e) => {
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...spBoard,
+                                    ultra_all_inclusive: parseThousand(e.target.value)
                                   };
                                   setRoomForm({ ...roomForm, special_prices: updated });
                                 }}

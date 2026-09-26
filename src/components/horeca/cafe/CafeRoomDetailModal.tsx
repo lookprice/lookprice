@@ -14,12 +14,20 @@ interface CafeRoomDetailModalProps {
   room: HotelRoom | null;
   onClose: () => void;
   onBookRoom: (room: HotelRoom) => void;
+  searchCheckIn?: string;
+  searchCheckOut?: string;
+  getRoomBoardList?: (room: HotelRoom, dateStr: string) => any[];
+  isAvailable?: boolean;
 }
 
 export const CafeRoomDetailModal: React.FC<CafeRoomDetailModalProps> = ({
   room,
   onClose,
-  onBookRoom
+  onBookRoom,
+  searchCheckIn,
+  searchCheckOut,
+  getRoomBoardList,
+  isAvailable = true
 }) => {
   const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
 
@@ -29,6 +37,9 @@ export const CafeRoomDetailModal: React.FC<CafeRoomDetailModalProps> = ({
     ? room.images
     : [room.cover_image || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80"];
   const currentPhotoIndex = activeDetailImageIndex % galleryPhotos.length;
+
+  const boardList = (getRoomBoardList && searchCheckIn) ? getRoomBoardList(room, searchCheckIn) : [];
+  const cheapestBoard = boardList.length > 0 ? boardList.reduce((min, b) => b.price < min.price ? b : min, boardList[0]) : null;
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
@@ -107,12 +118,12 @@ export const CafeRoomDetailModal: React.FC<CafeRoomDetailModalProps> = ({
 
         {/* ROOM SPECIFICATIONS & DESCRIPTION */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-          <div className="space-y-3 p-4 bg-stone-50 rounded-2xl border border-stone-200">
-            <h4 className="text-xs font-black uppercase tracking-wider text-stone-900 flex items-center gap-1.5">
+          <div className="space-y-3 p-4 bg-stone-50 dark:bg-stone-800/60 rounded-2xl border border-stone-200 dark:border-stone-700">
+            <h4 className="text-xs font-black uppercase tracking-wider text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
               <BedDouble className="w-4 h-4 text-amber-600" />
               <span>Kapasite & Yatak Düzeni</span>
             </h4>
-            <div className="space-y-1.5 text-xs text-stone-700 font-bold">
+            <div className="space-y-2 text-xs text-stone-700 dark:text-stone-300 font-bold">
               <div className="flex justify-between">
                 <span className="text-stone-400">Konaklama Kapasitesi:</span>
                 <span>Maksimum {room.capacity} Yetişkin / Çocuk</span>
@@ -122,26 +133,60 @@ export const CafeRoomDetailModal: React.FC<CafeRoomDetailModalProps> = ({
                 <span>{room.bed_info || "Çift Kişilik King Yatak"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-stone-400">Durum:</span>
-                <span className="text-emerald-700 font-black">Hazır & Temiz (Müsait)</span>
+                <span className="text-stone-400">Tarih Durumu:</span>
+                <span className={isAvailable ? "text-emerald-700 dark:text-emerald-400 font-black" : "text-rose-600 font-black"}>
+                  {isAvailable ? "Müsait (Rezervasyona Açık)" : (room.status === 'maintenance' ? 'Bakımda' : 'Seçili Tarihte Dolu')}
+                </span>
               </div>
+              {searchCheckIn && searchCheckOut && (
+                <div className="flex justify-between text-[11px] pt-1 border-t border-stone-200 dark:border-stone-700">
+                  <span className="text-stone-400">Seçili Tarih:</span>
+                  <span className="text-stone-800 dark:text-stone-200">{searchCheckIn} ➔ {searchCheckOut}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="space-y-3 p-4 bg-stone-50 rounded-2xl border border-stone-200">
-            <h4 className="text-xs font-black uppercase tracking-wider text-stone-900 flex items-center gap-1.5">
+          <div className="space-y-3 p-4 bg-stone-50 dark:bg-stone-800/60 rounded-2xl border border-stone-200 dark:border-stone-700">
+            <h4 className="text-xs font-black uppercase tracking-wider text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
               <Banknote className="w-4 h-4 text-amber-600" />
-              <span>Başlangıç Fiyat Tarifesi</span>
+              <span>Pansiyon Fiyat Seçenekleri</span>
             </h4>
-            <div className="space-y-1.5 text-xs text-stone-700 font-bold">
-              <div className="flex justify-between">
-                <span className="text-stone-400">Oda + Kahvaltı (BB):</span>
-                <span className="text-amber-700 font-black">₺{(room.price_per_night || 2500).toLocaleString('tr-TR')} / Gece</span>
-              </div>
+            <div className="space-y-1.5 text-xs text-stone-700 dark:text-stone-300 font-bold">
+              {boardList.length > 0 ? (
+                boardList.map((opt) => (
+                  <div key={opt.key} className="flex justify-between items-center py-0.5">
+                    <span className="text-stone-500 flex items-center gap-1">
+                      <span>{opt.label}:</span>
+                      {opt.isSpecial && (
+                        <span className="text-[9px] bg-amber-500/20 text-amber-700 dark:text-amber-300 px-1 rounded font-bold">
+                          Özel Fiyat
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {opt.isSpecial && opt.standardPrice !== opt.price && (
+                        <span className="text-[10px] text-stone-400 line-through">
+                          ₺{opt.standardPrice.toLocaleString('tr-TR')}
+                        </span>
+                      )}
+                      <span className={opt.isSpecial ? "text-amber-600 dark:text-amber-400 font-black" : "text-stone-900 dark:text-white font-black"}>
+                        ₺{opt.price.toLocaleString('tr-TR')} / Gece
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex justify-between">
+                  <span className="text-stone-400">Oda & Kahvaltı (BB):</span>
+                  <span className="text-amber-700 font-black">₺{(room.price_per_night || 2500).toLocaleString('tr-TR')} / Gece</span>
+                </div>
+              )}
+
               {room.non_refundable_discount && (
-                <div className="flex justify-between text-emerald-700 font-black">
-                  <span>Esnek İptalsiz İndirim (%{room.non_refundable_discount}):</span>
-                  <span>₺{Math.round((room.price_per_night || 2500) * (1 - room.non_refundable_discount / 100)).toLocaleString('tr-TR')} / Gece</span>
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-black pt-1 border-t border-stone-200 dark:border-stone-700 text-[11px]">
+                  <span>Esnek İptalsiz İndirim:</span>
+                  <span>%{room.non_refundable_discount} Ek İndirim Uygulanır</span>
                 </div>
               )}
             </div>
@@ -174,17 +219,29 @@ export const CafeRoomDetailModal: React.FC<CafeRoomDetailModalProps> = ({
         {/* MODAL FOOTER ACTION */}
         <div className="pt-3 border-t border-stone-200 flex items-center justify-between gap-3">
           <div>
-            <span className="block text-[10px] font-black uppercase text-stone-400">Başlangıç Fiyatı</span>
-            <span className="text-xl font-black text-amber-700">₺{(room.price_per_night || 2500).toLocaleString('tr-TR')}</span>
+            <span className="block text-[10px] font-black uppercase text-stone-400">
+              {cheapestBoard ? 'En Uygun Pansiyon Fiyatı' : 'Başlangıç Fiyatı'}
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-black text-amber-700">
+                ₺{(cheapestBoard ? cheapestBoard.price : (room.price_per_night || 2500)).toLocaleString('tr-TR')}
+              </span>
+              <span className="text-xs text-stone-500 font-bold">'den başlayan</span>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={() => onBookRoom(room)}
-            className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+            disabled={!isAvailable}
+            className={`px-6 py-3 rounded-xl font-black text-xs shadow-lg transition-all flex items-center gap-2 cursor-pointer ${
+              isAvailable 
+                ? "bg-amber-600 hover:bg-amber-700 text-white active:scale-95" 
+                : "bg-stone-300 text-stone-500 cursor-not-allowed"
+            }`}
           >
             <Building2 className="w-4 h-4" />
-            <span>Bu Odada Konakla & Rezerve Et</span>
+            <span>{isAvailable ? "Bu Odada Konakla & Rezerve Et" : "Seçili Tarihte Dolu"}</span>
           </button>
         </div>
       </div>

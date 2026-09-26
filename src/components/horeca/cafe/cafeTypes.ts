@@ -3,7 +3,7 @@ export interface BookingChildGuest {
   birth_date: string;
 }
 
-export type BoardOptionKey = 'RO' | 'BB' | 'HB' | 'FB' | 'AI';
+export type BoardOptionKey = 'RO' | 'BB' | 'HB' | 'FB' | 'AI' | 'UAI';
 
 export const calculateGuestAgeInfo = (birthDateStr: string, customPolicy?: any) => {
   const policy = customPolicy || {

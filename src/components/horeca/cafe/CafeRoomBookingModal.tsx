@@ -140,31 +140,80 @@ export const CafeRoomBookingModal: React.FC<CafeRoomBookingModalProps> = ({
           </div>
 
           {/* BOARD OPTION SELECTOR */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase text-stone-500">1. Pansiyon Tipinizi Seçin</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { key: 'RO' as const, label: 'Sadece Oda (RO)', price: getSelectedBoardPrice(room, 'RO') },
-                { key: 'BB' as const, label: 'Oda + Kahvaltı (BB)', price: getSelectedBoardPrice(room, 'BB') },
-                { key: 'HB' as const, label: 'Yarım Pansiyon (HB)', price: getSelectedBoardPrice(room, 'HB') },
-                { key: 'AI' as const, label: 'Her Şey Dahil (AI)', price: getSelectedBoardPrice(room, 'AI') },
-              ].map(opt => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setSelectedBoardOption(opt.key)}
-                  className={`p-2.5 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer ${
-                    selectedBoardOption === opt.key
-                      ? "bg-amber-600 text-white border-amber-700 shadow-sm"
-                      : "bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100"
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span>{opt.label}</span>
-                    <span className="font-mono">₺{opt.price.toLocaleString('tr-TR')}</span>
-                  </div>
-                </button>
-              ))}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">
+                1. Pansiyon Tipinizi Seçin ({currentNights} Gece İçin)
+              </label>
+              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                Seçili: {
+                  selectedBoardOption === 'RO' ? 'Sadece Oda (RO)' :
+                  selectedBoardOption === 'BB' ? 'Oda & Kahvaltı (BB)' :
+                  selectedBoardOption === 'HB' ? 'Yarım Pansiyon (HB)' :
+                  selectedBoardOption === 'FB' ? 'Tam Pansiyon (FB)' :
+                  selectedBoardOption === 'AI' ? 'Her Şey Dahil (AI)' : 'Ultra Her Şey Dahil (UAI)'
+                }
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(() => {
+                const optionsList: Array<{ key: BoardOptionKey; label: string; desc: string }> = [
+                  { key: 'RO', label: 'Sadece Oda (RO)', desc: 'Yalnızca oda konaklaması' },
+                  { key: 'BB', label: 'Oda & Kahvaltı (BB)', desc: 'Zengin serpme/açık büfe kahvaltı dahil' },
+                  { key: 'HB', label: 'Yarım Pansiyon (HB)', desc: 'Kahvaltı + Akşam yemeği dahil' },
+                  { key: 'FB', label: 'Tam Pansiyon (FB)', desc: 'Kahvaltı + Öğle + Akşam yemeği dahil' },
+                  { key: 'AI', label: 'Her Şey Dahil (AI)', desc: 'Tüm ana & ara öğünler + içecekler dahil' },
+                ];
+
+                if (room.board_prices?.ultra_all_inclusive || room.price_ultra_all_inclusive) {
+                  optionsList.push({
+                    key: 'UAI',
+                    label: 'Ultra Her Şey Dahil (UAI)',
+                    desc: '24 saat kesintisiz premium yiyecek & içecek'
+                  });
+                }
+
+                return optionsList.map(opt => {
+                  const nightlyPrice = getSelectedBoardPrice(room, opt.key);
+                  const totalOptionPrice = nightlyPrice * currentNights;
+                  const isSelected = selectedBoardOption === opt.key;
+
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setSelectedBoardOption(opt.key)}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                        isSelected
+                          ? "bg-gradient-to-br from-amber-600 to-amber-700 text-white border-amber-800 shadow-md ring-2 ring-amber-500/30"
+                          : "bg-stone-50 dark:bg-stone-800/80 border-stone-200 dark:border-stone-700 text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            {isSelected && <Check className="w-3.5 h-3.5 text-white shrink-0" />}
+                            <span className="font-black text-xs truncate">{opt.label}</span>
+                          </div>
+                          <p className={`text-[10px] mt-0.5 line-clamp-1 ${isSelected ? 'text-amber-100' : 'text-stone-500 dark:text-stone-400'}`}>
+                            {opt.desc}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className={`block text-xs font-black font-mono ${isSelected ? 'text-white' : 'text-stone-900 dark:text-white'}`}>
+                            ₺{nightlyPrice.toLocaleString('tr-TR')}
+                            <span className="text-[9px] font-normal opacity-80">/gece</span>
+                          </span>
+                          <span className={`text-[10px] font-bold ${isSelected ? 'text-amber-200' : 'text-amber-700 dark:text-amber-400'}`}>
+                            Top. ₺{totalOptionPrice.toLocaleString('tr-TR')}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                });
+              })()}
             </div>
           </div>
 

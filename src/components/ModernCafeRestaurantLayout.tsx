@@ -250,18 +250,31 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
     setSearchChildrenList(prev => prev.filter(c => c.id !== id));
   };
 
-  // Room date availability check against occupied/maintenance dates
+  // Room date availability check against maintenance, closed dates, reservations, and occupied stays
   const isRoomAvailableForDates = (room: HotelRoom, checkIn: string, checkOut: string) => {
     if (room.status === 'maintenance') return false;
+    
+    // 1. Check closed dates
+    if (Array.isArray(room.closed_dates) && room.closed_dates.length > 0) {
+      const isClosed = room.closed_dates.some(cd => cd.start_date < checkOut && cd.end_date > checkIn);
+      if (isClosed) return false;
+    }
+
+    // 2. Check future reservations
+    if (Array.isArray(room.reservations) && room.reservations.length > 0) {
+      const hasConflict = room.reservations.some(r => r.check_in_date < checkOut && r.check_out_date > checkIn);
+      if (hasConflict) return false;
+    }
+
+    // 3. In-house occupied guests (only conflict if their actual stay overlaps with searched dates)
     if (room.status === 'occupied' && room.current_guest) {
-      const existingIn = room.current_guest.check_in_date;
-      const existingOut = room.current_guest.check_out_date;
-      if (existingIn && existingOut) {
-        if (checkIn < existingOut && checkOut > existingIn) {
-          return false;
-        }
+      const cgIn = room.current_guest.check_in_date;
+      const cgOut = room.current_guest.check_out_date;
+      if (cgIn && cgOut && cgIn < checkOut && cgOut > checkIn) {
+        return false;
       }
     }
+
     return true;
   };
 
@@ -271,7 +284,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
   // Booking Modal State
   const [selectedBookingRoom, setSelectedBookingRoom] = useState<HotelRoom | null>(null);
-  const [selectedBoardOption, setSelectedBoardOption] = useState<'RO' | 'BB' | 'HB' | 'FB' | 'AI'>('BB');
+  const [selectedBoardOption, setSelectedBoardOption] = useState<BoardOptionKey>('BB');
   const [isNonRefundableRate, setIsNonRefundableRate] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'bank_transfer' | 'credit_card' | 'pay_at_hotel'>('pay_at_hotel');
 
@@ -456,7 +469,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
   const currentNights = calculateNights(searchCheckIn, searchCheckOut);
 
   // Multi-night seasonal & special pricing resolution (Booking.com / Tatilbudur parity)
-  const getNightRateForDate = (room: HotelRoom, dateStr: string, board: 'RO' | 'BB' | 'HB' | 'FB' | 'AI') => {
+  const getNightRateForDate = (room: HotelRoom, dateStr: string, board: BoardOptionKey) => {
     // 1. Check if this specific night falls inside any special price rule
     if (Array.isArray(room.special_prices) && room.special_prices.length > 0) {
       const match = room.special_prices.find(sp => sp.start_date <= dateStr && sp.end_date >= dateStr);
@@ -469,6 +482,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
             case 'HB': if (spBoard.half_board) return { price: spBoard.half_board, isSpecial: true, title: match.title }; break;
             case 'FB': if (spBoard.full_board) return { price: spBoard.full_board, isSpecial: true, title: match.title }; break;
             case 'AI': if (spBoard.all_inclusive) return { price: spBoard.all_inclusive, isSpecial: true, title: match.title }; break;
+            case 'UAI': if (spBoard.ultra_all_inclusive) return { price: spBoard.ultra_all_inclusive, isSpecial: true, title: match.title }; break;
           }
         }
         const baseSpecial = match.price_per_night || 2500;
@@ -479,6 +493,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
           case 'HB': specialPrice = Math.round(baseSpecial * 1.28); break;
           case 'FB': specialPrice = Math.round(baseSpecial * 1.56); break;
           case 'AI': specialPrice = Math.round(baseSpecial * 1.92); break;
+          case 'UAI': specialPrice = Math.round(baseSpecial * 2.30); break;
         }
         return { price: specialPrice, isSpecial: true, title: match.title };
       }
@@ -489,26 +504,94 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
     const base = room.price_per_night || 2500;
     if (!bp) {
       switch (board) {
-        case 'RO': return { price: Math.round(base * 0.88), isSpecial: false };
+        case 'RO': return { price: room.price_room_only || Math.round(base * 0.88), isSpecial: false };
         case 'BB': return { price: base, isSpecial: false };
-        case 'HB': return { price: Math.round(base * 1.28), isSpecial: false };
-        case 'FB': return { price: Math.round(base * 1.56), isSpecial: false };
-        case 'AI': return { price: Math.round(base * 1.92), isSpecial: false };
+        case 'HB': return { price: room.price_half_board || Math.round(base * 1.28), isSpecial: false };
+        case 'FB': return { price: room.price_full_board || Math.round(base * 1.56), isSpecial: false };
+        case 'AI': return { price: room.price_all_inclusive || Math.round(base * 1.92), isSpecial: false };
+        case 'UAI': return { price: room.price_ultra_all_inclusive || Math.round(base * 2.30), isSpecial: false };
         default: return { price: base, isSpecial: false };
       }
     }
     switch (board) {
-      case 'RO': return { price: bp.room_only || Math.round(base * 0.88), isSpecial: false };
+      case 'RO': return { price: bp.room_only || room.price_room_only || Math.round(base * 0.88), isSpecial: false };
       case 'BB': return { price: bp.bed_breakfast || base, isSpecial: false };
-      case 'HB': return { price: bp.half_board || Math.round(base * 1.28), isSpecial: false };
-      case 'FB': return { price: bp.full_board || Math.round(base * 1.56), isSpecial: false };
-      case 'AI': return { price: bp.all_inclusive || Math.round(base * 1.92), isSpecial: false };
+      case 'HB': return { price: bp.half_board || room.price_half_board || Math.round(base * 1.28), isSpecial: false };
+      case 'FB': return { price: bp.full_board || room.price_full_board || Math.round(base * 1.56), isSpecial: false };
+      case 'AI': return { price: bp.all_inclusive || room.price_all_inclusive || Math.round(base * 1.92), isSpecial: false };
+      case 'UAI': return { price: bp.ultra_all_inclusive || room.price_ultra_all_inclusive || Math.round(base * 2.30), isSpecial: false };
       default: return { price: base, isSpecial: false };
     }
   };
 
+  // Get complete list of all supported board rates for a room on a given date
+  const getRoomBoardList = (room: HotelRoom, dateStr: string) => {
+    const list: Array<{ 
+      key: BoardOptionKey; 
+      label: string; 
+      price: number; 
+      standardPrice: number; 
+      isSpecial: boolean; 
+      specialTitle?: string 
+    }> = [
+      {
+        key: 'RO',
+        label: 'Sadece Oda (RO)',
+        price: getNightRateForDate(room, dateStr, 'RO').price,
+        standardPrice: room.board_prices?.room_only || room.price_room_only || Math.round((room.price_per_night || 2500) * 0.88),
+        isSpecial: getNightRateForDate(room, dateStr, 'RO').isSpecial,
+        specialTitle: getNightRateForDate(room, dateStr, 'RO').title
+      },
+      {
+        key: 'BB',
+        label: 'Oda & Kahvaltı (BB)',
+        price: getNightRateForDate(room, dateStr, 'BB').price,
+        standardPrice: room.board_prices?.bed_breakfast || room.price_per_night || 2500,
+        isSpecial: getNightRateForDate(room, dateStr, 'BB').isSpecial,
+        specialTitle: getNightRateForDate(room, dateStr, 'BB').title
+      },
+      {
+        key: 'HB',
+        label: 'Yarım Pansiyon (HB)',
+        price: getNightRateForDate(room, dateStr, 'HB').price,
+        standardPrice: room.board_prices?.half_board || room.price_half_board || Math.round((room.price_per_night || 2500) * 1.28),
+        isSpecial: getNightRateForDate(room, dateStr, 'HB').isSpecial,
+        specialTitle: getNightRateForDate(room, dateStr, 'HB').title
+      },
+      {
+        key: 'FB',
+        label: 'Tam Pansiyon (FB)',
+        price: getNightRateForDate(room, dateStr, 'FB').price,
+        standardPrice: room.board_prices?.full_board || room.price_full_board || Math.round((room.price_per_night || 2500) * 1.56),
+        isSpecial: getNightRateForDate(room, dateStr, 'FB').isSpecial,
+        specialTitle: getNightRateForDate(room, dateStr, 'FB').title
+      },
+      {
+        key: 'AI',
+        label: 'Her Şey Dahil (AI)',
+        price: getNightRateForDate(room, dateStr, 'AI').price,
+        standardPrice: room.board_prices?.all_inclusive || room.price_all_inclusive || Math.round((room.price_per_night || 2500) * 1.92),
+        isSpecial: getNightRateForDate(room, dateStr, 'AI').isSpecial,
+        specialTitle: getNightRateForDate(room, dateStr, 'AI').title
+      }
+    ];
+
+    if (room.board_prices?.ultra_all_inclusive || room.price_ultra_all_inclusive) {
+      list.push({
+        key: 'UAI',
+        label: 'Ultra Her Şey Dahil (UAI)',
+        price: getNightRateForDate(room, dateStr, 'UAI').price,
+        standardPrice: room.board_prices?.ultra_all_inclusive || room.price_ultra_all_inclusive || Math.round((room.price_per_night || 2500) * 2.30),
+        isSpecial: getNightRateForDate(room, dateStr, 'UAI').isSpecial,
+        specialTitle: getNightRateForDate(room, dateStr, 'UAI').title
+      });
+    }
+
+    return list;
+  };
+
   // Get base board rate per night for selected date
-  const getSelectedBoardPrice = (room: HotelRoom, board: 'RO' | 'BB' | 'HB' | 'FB' | 'AI') => {
+  const getSelectedBoardPrice = (room: HotelRoom, board: BoardOptionKey) => {
     const rateInfo = getNightRateForDate(room, searchCheckIn, board);
     return rateInfo.price;
   };
@@ -1065,13 +1148,15 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   <select
                     value={searchBoardType}
                     onChange={(e) => setSearchBoardType(e.target.value)}
-                    className="w-full mt-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-white shadow-xs focus:ring-1 focus:ring-slate-700"
+                    className="w-full mt-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-white shadow-xs focus:ring-1 focus:ring-slate-700 cursor-pointer"
                   >
                     <option value="all">Tüm Pansiyonlar</option>
-                    <option value="BB">Oda + Kahvaltı (BB)</option>
-                    <option value="HB">Yarım Pansiyon (HB)</option>
-                    <option value="AI">Her Şey Dahil (AI)</option>
                     <option value="RO">Sadece Oda (RO)</option>
+                    <option value="BB">Oda & Kahvaltı (BB)</option>
+                    <option value="HB">Yarım Pansiyon (HB)</option>
+                    <option value="FB">Tam Pansiyon (FB)</option>
+                    <option value="AI">Her Şey Dahil (AI)</option>
+                    <option value="UAI">Ultra Her Şey Dahil (UAI)</option>
                   </select>
                 </div>
               </div>
@@ -1235,12 +1320,11 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {rooms.map((room) => {
-              const currentBBInfo = getNightRateForDate(room, searchCheckIn, 'BB');
-              const baseBBPrice = currentBBInfo.price;
-              const standardBaseBB = room.board_prices?.bed_breakfast || room.price_per_night || 2500;
-              const isSpecialApplied = currentBBInfo.isSpecial;
-              const flexDiscountRate = room.non_refundable_discount || 15;
-              const nonRefundablePrice = Math.round(baseBBPrice * (1 - flexDiscountRate / 100));
+              const isAvailable = isRoomAvailableForDates(room, searchCheckIn, searchCheckOut);
+              const boardList = getRoomBoardList(room, searchCheckIn);
+              const cheapestBoard = boardList.reduce((min, b) => b.price < min.price ? b : min, boardList[0]);
+              const displayedBoard = searchBoardType === 'all' ? cheapestBoard : (boardList.find(b => b.key === searchBoardType) || cheapestBoard);
+              const isSpecialApplied = displayedBoard.isSpecial || boardList.some(b => b.isSpecial);
               const roomPhotoList = room.images && room.images.length > 0 ? room.images : [room.cover_image || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80"];
 
               return (
@@ -1259,21 +1343,24 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                       <div className="absolute top-2.5 left-2.5 bg-slate-950/90 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded border border-slate-800">
                         Oda #{room.room_number}
                       </div>
-                      {room.status === 'vacant' ? (
-                        <div className="absolute top-2.5 right-2.5 bg-emerald-600/90 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+
+                      {/* DATE-SPECIFIC AVAILABILITY BADGE */}
+                      {isAvailable ? (
+                        <div className="absolute top-2.5 right-2.5 bg-emerald-600/95 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" />
                           Müsait
                         </div>
                       ) : (
-                        <div className="absolute top-2.5 right-2.5 bg-slate-800 text-slate-300 text-[9px] font-black uppercase px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1">
+                        <div className="absolute top-2.5 right-2.5 bg-rose-600/95 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {room.status === 'occupied' ? 'Dolu' : 'Bakımda'}
+                          {room.status === 'maintenance' ? 'Bakımda' : 'Seçili Tarihte Dolu'}
                         </div>
                       )}
 
+                      {/* SPECIAL SEASON PROMO BADGE */}
                       {isSpecialApplied && (
-                        <div className="absolute top-10 left-2.5 bg-amber-500 text-slate-950 text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
-                          <span>🎉 {currentBBInfo.title || "Özel Sezon Fiyatı"}</span>
+                        <div className="absolute top-10 left-2.5 bg-amber-500 text-slate-950 text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm flex items-center gap-1 font-bold">
+                          <span>🎉 {displayedBoard.specialTitle || "Özel Sezon Fiyatı"}</span>
                         </div>
                       )}
 
@@ -1306,35 +1393,43 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                       <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800/80 space-y-1.5 text-xs">
                         <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
                           <span>Pansiyon Seçenekleri</span>
-                          <span>Seçili Tarih Tutarı</span>
+                          <span>Gecelik Fiyat</span>
                         </div>
 
-                        <div className="flex justify-between items-center font-bold text-slate-200 text-[11px]">
-                          <span className="flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                            Oda + Kahvaltı (BB)
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            {isSpecialApplied && standardBaseBB !== baseBBPrice && (
-                              <span className="text-[10px] text-slate-500 line-through">₺{standardBaseBB.toLocaleString('tr-TR')}</span>
-                            )}
-                            <span className={`font-black ${isSpecialApplied ? "text-amber-400" : "text-white"}`}>₺{baseBBPrice.toLocaleString('tr-TR')}</span>
-                          </div>
-                        </div>
+                        <div className="space-y-1">
+                          {boardList.map((opt) => {
+                            const isSelected = searchBoardType === 'all' 
+                              ? opt.key === cheapestBoard.key 
+                              : opt.key === searchBoardType;
 
-                        {/* Additional Board Options */}
-                        {room.board_prices?.half_board && (
-                          <div className="flex justify-between items-center font-medium text-slate-400 text-[10px] pt-1 border-t border-slate-900">
-                            <span>Yarım Pansiyon (HB)</span>
-                            <span className="text-slate-200 font-bold">₺{getNightRateForDate(room, searchCheckIn, 'HB').price.toLocaleString('tr-TR')}</span>
-                          </div>
-                        )}
-                        {room.board_prices?.all_inclusive && (
-                          <div className="flex justify-between items-center font-medium text-slate-400 text-[10px]">
-                            <span>Her Şey Dahil (AI)</span>
-                            <span className="text-slate-200 font-bold">₺{getNightRateForDate(room, searchCheckIn, 'AI').price.toLocaleString('tr-TR')}</span>
-                          </div>
-                        )}
+                            return (
+                              <div 
+                                key={opt.key}
+                                className={`flex justify-between items-center px-2 py-1 rounded-lg text-[11px] transition-colors ${
+                                  isSelected 
+                                    ? 'bg-slate-800/90 text-white font-black border border-slate-700' 
+                                    : 'text-slate-300 font-medium hover:bg-slate-900'
+                                }`}
+                              >
+                                <span className="flex items-center gap-1.5 truncate">
+                                  {isSelected && <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />}
+                                  <span className="truncate">{opt.label}</span>
+                                  {opt.isSpecial && (
+                                    <span className="text-[8px] bg-amber-500/20 text-amber-300 px-1 rounded font-bold">Özel</span>
+                                  )}
+                                </span>
+                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                  {opt.isSpecial && opt.standardPrice !== opt.price && (
+                                    <span className="text-[10px] text-slate-500 line-through">₺{opt.standardPrice.toLocaleString('tr-TR')}</span>
+                                  )}
+                                  <span className={opt.isSpecial ? "text-amber-400 font-bold" : "text-slate-100 font-bold"}>
+                                    ₺{opt.price.toLocaleString('tr-TR')}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1342,12 +1437,19 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                   {/* ACTION FOOTER */}
                   <div className="p-4 pt-0 border-t border-slate-800/60 flex items-center justify-between gap-2 mt-3">
                     <div>
-                      <span className="block text-[8px] font-black uppercase text-slate-400">Gecelik</span>
+                      <span className="block text-[8px] font-black uppercase text-slate-400">
+                        {searchBoardType === 'all' ? 'Gecelik En Uygun' : `Gecelik (${displayedBoard.label})`}
+                      </span>
                       <div className="flex items-baseline gap-1">
-                        {isSpecialApplied && standardBaseBB !== baseBBPrice && (
-                          <span className="text-[10px] text-slate-500 line-through">₺{standardBaseBB.toLocaleString('tr-TR')}</span>
+                        {displayedBoard.isSpecial && displayedBoard.standardPrice !== displayedBoard.price && (
+                          <span className="text-[10px] text-slate-500 line-through">₺{displayedBoard.standardPrice.toLocaleString('tr-TR')}</span>
                         )}
-                        <span className={`text-base font-black ${isSpecialApplied ? "text-amber-400" : "text-white"}`}>₺{baseBBPrice.toLocaleString('tr-TR')}</span>
+                        <span className={`text-base font-black ${displayedBoard.isSpecial ? "text-amber-400" : "text-white"}`}>
+                          ₺{displayedBoard.price.toLocaleString('tr-TR')}
+                        </span>
+                        {searchBoardType === 'all' && (
+                          <span className="text-[9px] text-slate-400 font-bold">'den başlayan</span>
+                        )}
                       </div>
                     </div>
 
@@ -1366,13 +1468,19 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                       <button
                         onClick={() => {
                           setSelectedBookingRoom(room);
-                          setSelectedBoardOption('BB');
+                          const defaultBoard = searchBoardType !== 'all' ? (searchBoardType as BoardOptionKey) : cheapestBoard.key;
+                          setSelectedBoardOption(defaultBoard);
                           setIsNonRefundableRate(false);
                         }}
-                        className="px-3.5 py-2 bg-slate-100 hover:bg-white text-slate-950 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                        disabled={!isAvailable}
+                        className={`px-3.5 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shadow-xs ${
+                          isAvailable 
+                            ? "bg-slate-100 hover:bg-white text-slate-950 active:scale-95" 
+                            : "bg-slate-800 text-slate-500 cursor-not-allowed"
+                        }`}
                       >
                         <Building2 className="w-3.5 h-3.5" />
-                        <span>Rezerve Et</span>
+                        <span>{isAvailable ? "Rezerve Et" : "Dolu"}</span>
                       </button>
                     </div>
                   </div>
@@ -1582,10 +1690,17 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       <CafeRoomDetailModal
         room={viewDetailRoom}
         onClose={() => setViewDetailRoom(null)}
+        searchCheckIn={searchCheckIn}
+        searchCheckOut={searchCheckOut}
+        getRoomBoardList={getRoomBoardList}
+        isAvailable={viewDetailRoom ? isRoomAvailableForDates(viewDetailRoom, searchCheckIn, searchCheckOut) : true}
         onBookRoom={(room) => {
           setSelectedBookingRoom(room);
           setViewDetailRoom(null);
-          setSelectedBoardOption('BB');
+          const boardList = getRoomBoardList(room, searchCheckIn);
+          const cheapest = boardList.reduce((min, b) => b.price < min.price ? b : min, boardList[0]);
+          const defaultBoard = searchBoardType !== 'all' ? (searchBoardType as BoardOptionKey) : cheapest.key;
+          setSelectedBoardOption(defaultBoard);
           setIsNonRefundableRate(false);
         }}
       />
