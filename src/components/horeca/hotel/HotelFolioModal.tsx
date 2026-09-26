@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Receipt, Plus, Printer } from 'lucide-react';
+import { X, Receipt, Plus, Printer, AlertTriangle, Clock } from 'lucide-react';
 import { HotelRoom } from '../HotelRoomManagement';
 
 interface HotelFolioModalProps {
@@ -34,6 +34,15 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
   if (!checkOutModalRoom || !checkOutModalRoom.current_guest) return null;
 
   const details = computeRoomFolioDetails(checkOutModalRoom);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const guestCheckIn = checkOutModalRoom.current_guest?.check_in || '';
+  const guestCheckOut = checkOutModalRoom.current_guest?.check_out || '';
+  
+  // Is reservation strictly in the future (today is before check-in date)?
+  const isFutureStay = Boolean(guestCheckIn && guestCheckIn > todayStr);
+  
+  // Is the guest physically staying in-house today?
+  const isGuestInHouse = checkOutModalRoom.status === 'occupied' && !isFutureStay;
 
   return (
     <>
@@ -53,6 +62,21 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
               <X className="h-5 w-5" />
             </button>
           </div>
+
+          {/* WARNING BANNER FOR FUTURE STAY / NOT YET IN-HOUSE */}
+          {!isGuestInHouse && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 rounded-2xl flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-black block">
+                  Misafir Henüz Otele Giriş Yapmadı {guestCheckIn ? `(Konaklama Başlangıcı: ${guestCheckIn})` : ''}
+                </span>
+                <span className="text-[11px] opacity-90 block mt-0.5">
+                  Konaklama tarihi başlamadığı için adisyon ekleme ve check-out işlemleri pasiftir. Bu işlemler misafirin otele fiili giriş tarihinde ve oda "Dolu" statüsündeyken aktifleşir.
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* STAY DETAILS BADGES */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700">
@@ -125,8 +149,14 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
                   <span className="text-sm font-black text-slate-900 dark:text-white">₺{details.restaurantTotal.toLocaleString('tr-TR')}</span>
                   <button
                     type="button"
-                    onClick={() => setAddExpenseModalRoom(checkOutModalRoom)}
-                    className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 text-amber-800 dark:text-amber-300 text-[10px] font-bold rounded-lg cursor-pointer transition-all flex items-center gap-0.5"
+                    disabled={!isGuestInHouse}
+                    onClick={() => isGuestInHouse && setAddExpenseModalRoom(checkOutModalRoom)}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 ${
+                      isGuestInHouse
+                        ? "bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 text-amber-800 dark:text-amber-300 cursor-pointer shadow-2xs"
+                        : "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-60"
+                    }`}
+                    title={!isGuestInHouse ? "Misafir henüz otele giriş yapmadığı için adisyon eklenemez" : "Adisyon / Minibar Ekle"}
                   >
                     <Plus className="h-3 w-3" />
                     <span>Adisyon / Minibar Ekle</span>
@@ -225,11 +255,17 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => handleExecuteCheckOut(checkOutModalRoom)}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5"
+                disabled={!isGuestInHouse}
+                onClick={() => isGuestInHouse && handleExecuteCheckOut(checkOutModalRoom)}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 transition-all ${
+                  isGuestInHouse
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95"
+                    : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-700"
+                }`}
+                title={!isGuestInHouse ? "Misafir henüz otele giriş yapmadığı için check-out yapılamaz" : "Folio Kapat & Check-Out"}
               >
                 <Receipt className="h-4 w-4" />
-                <span>Folio Kapat & Check-Out</span>
+                <span>{isGuestInHouse ? "Folio Kapat & Check-Out" : "Check-Out (Giriş Tarihi Bekleniyor)"}</span>
               </button>
             </div>
           </div>
@@ -249,7 +285,13 @@ export const HotelFolioModal: React.FC<HotelFolioModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleAddExpenseToFolio} className="space-y-3">
+            <form onSubmit={(e) => {
+              if (!isGuestInHouse) {
+                e.preventDefault();
+                return;
+              }
+              handleAddExpenseToFolio(e);
+            }} className="space-y-3">
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase">Harcama Kalemi / Adisyon</label>
                 <input

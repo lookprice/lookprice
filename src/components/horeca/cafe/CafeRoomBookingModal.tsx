@@ -128,15 +128,6 @@ export const CafeRoomBookingModal: React.FC<CafeRoomBookingModalProps> = ({
                 </span>
               </div>
             </div>
-
-            {breakdown.hasSpecialPriceApplied && (
-              <div className="p-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-400/40 rounded-xl flex items-center gap-1.5 text-[11px] font-black text-amber-900 dark:text-amber-100">
-                <span className="text-base">🎉</span>
-                <span>
-                  Özel Sezon Fiyatı Aktif: {breakdown.appliedSpecialTitles?.join(', ') || 'Özel Gün Tarifesi'}
-                </span>
-              </div>
-            )}
           </div>
 
           {/* BOARD OPTION SELECTOR */}
@@ -158,23 +149,45 @@ export const CafeRoomBookingModal: React.FC<CafeRoomBookingModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {(() => {
-                const optionsList: Array<{ key: BoardOptionKey; label: string; desc: string }> = [
+                const allDefinitions: Array<{ key: BoardOptionKey; label: string; desc: string }> = [
                   { key: 'RO', label: 'Sadece Oda (RO)', desc: 'Yalnızca oda konaklaması' },
                   { key: 'BB', label: 'Oda & Kahvaltı (BB)', desc: 'Zengin serpme/açık büfe kahvaltı dahil' },
                   { key: 'HB', label: 'Yarım Pansiyon (HB)', desc: 'Kahvaltı + Akşam yemeği dahil' },
                   { key: 'FB', label: 'Tam Pansiyon (FB)', desc: 'Kahvaltı + Öğle + Akşam yemeği dahil' },
                   { key: 'AI', label: 'Her Şey Dahil (AI)', desc: 'Tüm ana & ara öğünler + içecekler dahil' },
+                  { key: 'UAI', label: 'Ultra Her Şey Dahil (UAI)', desc: '24 saat kesintisiz premium yiyecek & içecek' }
                 ];
 
-                if (room.board_prices?.ultra_all_inclusive || room.price_ultra_all_inclusive) {
-                  optionsList.push({
-                    key: 'UAI',
-                    label: 'Ultra Her Şey Dahil (UAI)',
-                    desc: '24 saat kesintisiz premium yiyecek & içecek'
-                  });
-                }
+                const bp = room.board_prices;
+                const activeSpecial = Array.isArray(room.special_prices)
+                  ? room.special_prices.find(sp => sp.start_date <= searchCheckIn && sp.end_date >= searchCheckIn)
+                  : null;
 
-                return optionsList.map(opt => {
+                const filtered = allDefinitions.filter(opt => {
+                  const spVal = activeSpecial?.board_prices ? (activeSpecial.board_prices as any)[
+                    opt.key === 'RO' ? 'room_only' :
+                    opt.key === 'BB' ? 'bed_breakfast' :
+                    opt.key === 'HB' ? 'half_board' :
+                    opt.key === 'FB' ? 'full_board' :
+                    opt.key === 'AI' ? 'all_inclusive' : 'ultra_all_inclusive'
+                  ] : undefined;
+
+                  const stdVal = bp ? (bp as any)[
+                    opt.key === 'RO' ? 'room_only' :
+                    opt.key === 'BB' ? 'bed_breakfast' :
+                    opt.key === 'HB' ? 'half_board' :
+                    opt.key === 'FB' ? 'full_board' :
+                    opt.key === 'AI' ? 'all_inclusive' : 'ultra_all_inclusive'
+                  ] : (opt.key === 'BB' ? room.price_per_night : undefined);
+
+                  const isSet = (spVal !== undefined && Number(spVal) > 0) || (stdVal !== undefined && Number(stdVal) > 0);
+                  const rate = getSelectedBoardPrice(room, opt.key);
+                  return isSet && rate > 0;
+                });
+
+                const displayList = filtered.length > 0 ? filtered : [allDefinitions[1]]; // fallback to BB
+
+                return displayList.map(opt => {
                   const nightlyPrice = getSelectedBoardPrice(room, opt.key);
                   const totalOptionPrice = nightlyPrice * currentNights;
                   const isSelected = selectedBoardOption === opt.key;

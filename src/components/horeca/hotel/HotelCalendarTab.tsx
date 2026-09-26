@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   TrendingUp,
   Users,
@@ -10,7 +10,11 @@ import {
   CalendarRange,
   ChevronLeft,
   ChevronRight,
-  Plus
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Filter,
+  X
 } from "lucide-react";
 import { HotelRoom } from "./hotelTypes";
 
@@ -34,6 +38,8 @@ export interface HotelCalendarTabProps {
   setCheckInModalRoom: (room: HotelRoom | null) => void;
   setGuestForm: React.Dispatch<React.SetStateAction<any>>;
   getNextDayString: (dateStr: string) => string;
+  selectedCalendarRoomId?: string | null;
+  setSelectedCalendarRoomId?: (id: string | null) => void;
 }
 
 export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
@@ -56,7 +62,18 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
   setCheckInModalRoom,
   setGuestForm,
   getNextDayString,
+  selectedCalendarRoomId,
+  setSelectedCalendarRoomId,
 }) => {
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [internalRoomFilter, setInternalRoomFilter] = useState<string>('all');
+
+  const activeRoomId = selectedCalendarRoomId !== undefined ? selectedCalendarRoomId : (internalRoomFilter !== 'all' ? internalRoomFilter : null);
+
+  const displayedRooms = activeRoomId
+    ? rooms.filter(r => r.id === activeRoomId || r.room_number === activeRoomId)
+    : rooms;
+
   const stats = calculateAgeBreakdownStats();
   const { start, end, title } = getAnalizDateRange();
 
@@ -92,264 +109,208 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
   }
 
   return (
-    <div className="space-y-6">
-      {/* ANALYTICS CONTROL & AGE GROUP SUMMARY SECTION */}
-      <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 text-white rounded-2xl p-4 sm:p-6 shadow-md space-y-5 max-w-full overflow-hidden border border-emerald-700/50">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/15 pb-4">
-          <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-emerald-300 shrink-0" />
-              <span>{isTr ? "Gelecek Misafir & Yaş Grubu Dağılımı" : "Guest & Age Group Distribution"}</span>
-            </h2>
-            <p className="text-xs text-emerald-100/70 font-medium mt-0.5">
-              {isTr 
-                ? `Seçilen dönem (${title}: ${start} ~ ${end}) yaş kırılımları ve oda doluluk analizi` 
-                : `Guest age categories and occupancy for selected period (${title})`}
-            </p>
+    <div className="space-y-4">
+      {/* COLLAPSIBLE ANALYTICS BAR & DASHBOARD */}
+      <div className="bg-gradient-to-r from-emerald-900 via-teal-950 to-slate-900 text-white rounded-2xl p-3 sm:p-4 shadow-md border border-emerald-800/60 transition-all">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/20 text-emerald-300 rounded-xl shrink-0">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xs sm:text-sm font-black text-white">
+                  {isTr ? "Gelecek Misafir & Yaş Grubu Analizi" : "Guest & Age Group Distribution"}
+                </h2>
+                <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/80">
+                  {title} ({start} ~ {end})
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-emerald-200/90 font-bold flex-wrap">
+                <span>👥 Toplam: <strong className="text-white font-black">{stats.totalGuests}</strong> Kişi</span>
+                <span className="text-emerald-500">•</span>
+                <span>🧑 Yetişkin: <strong className="text-white font-black">{stats.totalAdults}</strong></span>
+                <span className="text-emerald-500">•</span>
+                <span>👶 Çocuk/Bebek: <strong className="text-white font-black">{stats.totalChildrenAll}</strong></span>
+              </div>
+            </div>
           </div>
 
-          {/* PERIOD SELECTOR BUTTONS */}
-          <div className="flex flex-wrap items-center gap-1 bg-white/10 backdrop-blur-xs p-1 rounded-xl border border-white/15 w-full md:w-auto">
-            {[
-              { id: 'next_7', label: isTr ? '7 Gün' : '7 Days' },
-              { id: 'next_14', label: isTr ? '14 Gün' : '14 Days' },
-              { id: 'next_30', label: isTr ? '30 Gün' : '30 Days' },
-              { id: 'next_60', label: isTr ? '60 Gün' : '60 Days' },
-              { id: 'custom', label: isTr ? 'Özel' : 'Custom' }
-            ].map(p => (
-              <button
-                key={p.id}
-                onClick={() => setAnalysisPeriod(p.id as any)}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex-1 sm:flex-initial text-center whitespace-nowrap ${
-                  analysisPeriod === p.id
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-white/80 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            {/* Period Selector Buttons */}
+            <div className="flex items-center gap-0.5 bg-white/10 p-0.5 rounded-lg border border-white/15 text-[10px]">
+              {[
+                { id: 'next_7', label: '7G' },
+                { id: 'next_14', label: '14G' },
+                { id: 'next_30', label: '30G' },
+                { id: 'next_60', label: '60G' },
+              ].map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setAnalysisPeriod(p.id as any)}
+                  className={`px-2 py-0.5 rounded font-black cursor-pointer transition-all ${
+                    analysisPeriod === p.id
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-white/80 hover:bg-white/10'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsAnalyticsOpen(!isAnalyticsOpen)}
+              className="px-2.5 py-1 bg-emerald-600/90 hover:bg-emerald-500 text-white rounded-lg text-xs font-black flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+            >
+              <span>{isAnalyticsOpen ? "İstatistikleri Gizle" : "İstatistikleri Göster"}</span>
+              {isAnalyticsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
           </div>
         </div>
 
-        {/* CUSTOM DATE INPUTS IF CUSTOM SELECTED */}
-        {analysisPeriod === 'custom' && (
-          <div className="flex flex-wrap items-center gap-3 p-3 bg-white/10 rounded-xl border border-white/15">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-emerald-100">Başlangıç:</span>
-              <input
-                type="date"
-                value={customAnalizStart}
-                onChange={(e) => setCustomAnalizStart(e.target.value)}
-                className="px-3 py-1.5 bg-slate-900/80 border border-white/20 rounded-lg text-xs font-bold text-white"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-emerald-100">Bitiş:</span>
-              <input
-                type="date"
-                value={customAnalizEnd}
-                onChange={(e) => setCustomAnalizEnd(e.target.value)}
-                className="px-3 py-1.5 bg-slate-900/80 border border-white/20 rounded-lg text-xs font-bold text-white"
-              />
+        {/* EXPANDABLE DRILLDOWN STATS */}
+        {isAnalyticsOpen && (
+          <div className="pt-3 mt-3 border-t border-white/15 space-y-3">
+            {/* ANALYTICS STAT CARDS GRID - INTERACTIVE DRILLDOWNS */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              {/* TOTAL EXPECTED GUESTS */}
+              <button
+                type="button"
+                onClick={() => setSelectedAgeCategoryModal({
+                  category: 'all',
+                  title: `Tüm Misafir Kayıtları (${title})`,
+                  badge: `${stats.totalGuests} Kişi`,
+                  guests: stats.guestRecords
+                })}
+                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                title="Tüm kayıtlı misafir listesini görmek için tıklayın"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">Toplam Misafir</p>
+                  <Users className="h-3.5 w-3.5 text-emerald-300" />
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-white">{stats.totalGuests}</span>
+                  <span className="text-[10px] font-normal text-emerald-200">Kişi</span>
+                </div>
+              </button>
+
+              {/* ADULTS */}
+              <button
+                type="button"
+                onClick={() => setSelectedAgeCategoryModal({
+                  category: 'adults',
+                  title: `Yetişkin Misafir Kayıtları (18+ Yaş) - ${title}`,
+                  badge: `${stats.totalAdults} Yetişkin`,
+                  guests: stats.adultsList
+                })}
+                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                title="Yetişkin misafir kayıtlarını görmek için tıklayın"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">18+ Yetişkin</p>
+                  <UserCheck className="h-3.5 w-3.5 text-emerald-300" />
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-white">{stats.totalAdults}</span>
+                  <span className="text-[10px] font-normal text-emerald-200">Kişi</span>
+                </div>
+              </button>
+
+              {/* TOTAL CHILDREN & INFANTS */}
+              <button
+                type="button"
+                onClick={() => setSelectedAgeCategoryModal({
+                  category: 'children_all',
+                  title: `Çocuk ve Bebek Misafir Kayıtları (0-17 Yaş) - ${title}`,
+                  badge: `${stats.totalChildrenAll} Çocuk/Bebek`,
+                  guests: stats.childrenAllList
+                })}
+                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                title="Tüm çocuk kayıtlarını incelemek için tıklayın"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">0-17 Çocuk & Bebek</p>
+                  <Baby className="h-3.5 w-3.5 text-emerald-300" />
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-white">{stats.totalChildrenAll}</span>
+                  <span className="text-[10px] font-normal text-emerald-200">Kişi</span>
+                </div>
+              </button>
+
+              {/* INFANTS */}
+              <button
+                type="button"
+                onClick={() => setSelectedAgeCategoryModal({
+                  category: 'infants',
+                  title: `Bebek Misafir Kayıtları (0-2 Yaş) - ${title}`,
+                  badge: `${stats.infants} Bebek`,
+                  guests: stats.infantsList
+                })}
+                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                title="Bebek kayıtlarını incelemek için tıklayın"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">0-2 Bebek</p>
+                  <span className="text-[9px] font-bold text-emerald-300">%100 İnd.</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-white">{stats.infants}</span>
+                  <span className="text-[10px] font-normal text-emerald-200">Bebek</span>
+                </div>
+              </button>
+
+              {/* TODDLERS */}
+              <button
+                type="button"
+                onClick={() => setSelectedAgeCategoryModal({
+                  category: 'toddlers',
+                  title: `Küçük Çocuk Misafir Kayıtları (3-6 Yaş) - ${title}`,
+                  badge: `${stats.toddlers} Çocuk`,
+                  guests: stats.toddlersList
+                })}
+                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                title="3-6 Yaş kayıtlarını incelemek için tıklayın"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">3-6 Çocuk</p>
+                  <span className="text-[9px] font-bold text-emerald-300">%50 İnd.</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-white">{stats.toddlers}</span>
+                  <span className="text-[10px] font-normal text-emerald-200">Çocuk</span>
+                </div>
+              </button>
+
+              {/* SCHOOL TEENS */}
+              <button
+                type="button"
+                onClick={() => setSelectedAgeCategoryModal({
+                  category: 'school_teens',
+                  title: `Okul & Genç Misafir Kayıtları (7-17 Yaş) - ${title}`,
+                  badge: `${stats.schoolTeens} Genç`,
+                  guests: stats.schoolTeensList
+                })}
+                className="p-2.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-2xs"
+                title="7-17 Yaş kayıtlarını incelemek için tıklayın"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-bold uppercase text-emerald-200 tracking-wider">7-17 Genç</p>
+                  <span className="text-[9px] font-bold text-emerald-300">Standart</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-white">{stats.schoolTeens}</span>
+                  <span className="text-[10px] font-normal text-emerald-200">Genç</span>
+                </div>
+              </button>
             </div>
           </div>
         )}
-
-        {/* ANALYTICS STAT CARDS GRID - INTERACTIVE DRILLDOWNS */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {/* TOTAL EXPECTED GUESTS */}
-          <button
-            type="button"
-            onClick={() => setSelectedAgeCategoryModal({
-              category: 'all',
-              title: `Tüm Misafir Kayıtları (${title})`,
-              badge: `${stats.totalGuests} Kişi`,
-              guests: stats.guestRecords
-            })}
-            className="p-3.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-xs"
-            title="Tüm kayıtlı misafir listesini görmek için tıklayın"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase text-emerald-200 tracking-wider">Toplam Misafir</p>
-              <Users className="h-4 w-4 text-emerald-300" />
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-black text-white">{stats.totalGuests}</span>
-              <span className="text-xs font-normal text-emerald-200">Kişi</span>
-            </div>
-            <p className="text-[10px] text-white/70 font-medium">({title})</p>
-          </button>
-
-          {/* ADULTS */}
-          <button
-            type="button"
-            onClick={() => setSelectedAgeCategoryModal({
-              category: 'adults',
-              title: `Yetişkin Misafir Kayıtları (18+ Yaş) - ${title}`,
-              badge: `${stats.totalAdults} Yetişkin`,
-              guests: stats.adultsList
-            })}
-            className="p-3.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-xs"
-            title="Yetişkin misafir kayıtlarını görmek için tıklayın"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase text-emerald-200 tracking-wider">18+ Yetişkin</p>
-              <UserCheck className="h-4 w-4 text-emerald-300" />
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-black text-white">{stats.totalAdults}</span>
-              <span className="text-xs font-normal text-emerald-200">Kişi</span>
-            </div>
-            <p className="text-[10px] text-white/70 font-medium">Yetişkin Kayıtları</p>
-          </button>
-
-          {/* TOTAL CHILDREN & INFANTS */}
-          <button
-            type="button"
-            onClick={() => setSelectedAgeCategoryModal({
-              category: 'children_all',
-              title: `Çocuk ve Bebek Misafir Kayıtları (0-17 Yaş) - ${title}`,
-              badge: `${stats.totalChildrenAll} Çocuk/Bebek`,
-              guests: stats.childrenAllList
-            })}
-            className="p-3.5 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-xs"
-            title="Tüm çocuk kayıtlarını incelemek için tıklayın"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase text-emerald-200 tracking-wider">0-17 Çocuk & Bebek</p>
-              <Baby className="h-4 w-4 text-emerald-300" />
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-black text-white">{stats.totalChildrenAll}</span>
-              <span className="text-xs font-normal text-emerald-200">Kişi</span>
-            </div>
-            <p className="text-[10px] text-white/70 font-medium">Tüm Çocuklar</p>
-          </button>
-
-          {/* AGE BREAKDOWN DETAIL ITEM 1: INFANTS (0-2 YRS) */}
-          <button
-            type="button"
-            onClick={() => setSelectedAgeCategoryModal({
-              category: 'infants',
-              title: `0 - 2 Yaş Misafir Listesi - ${title}`,
-              badge: `${stats.totalInfants} Kişi (Ücretsiz)`,
-              guests: stats.infantsList
-            })}
-            className="p-3 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-xs"
-            title="0-2 yaş kayıtlarını incelemek için tıklayın"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase text-emerald-200 tracking-wider">0-2 Yaş</p>
-              <span className="px-1.5 py-0.5 bg-white/20 text-white rounded text-[9px] font-bold">Ücretsiz</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black text-white">{stats.totalInfants}</span>
-              <span className="text-xs font-normal text-emerald-200">Kişi</span>
-            </div>
-            <p className="text-[10px] text-white/70 font-medium">%100 İndirim</p>
-          </button>
-
-          {/* AGE BREAKDOWN DETAIL ITEM 2: TODDLERS (3-6 YRS) */}
-          <button
-            type="button"
-            onClick={() => setSelectedAgeCategoryModal({
-              category: 'toddlers',
-              title: `3 - 6 Yaş Misafir Listesi - ${title}`,
-              badge: `${stats.totalToddlers} Kişi`,
-              guests: stats.toddlersList
-            })}
-            className="p-3 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-xs"
-            title="3-6 yaş kayıtlarını incelemek için tıklayın"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase text-emerald-200 tracking-wider">3-6 Yaş</p>
-              <span className="px-1.5 py-0.5 bg-white/20 text-white rounded text-[9px] font-bold">İndirimli</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black text-white">{stats.totalToddlers}</span>
-              <span className="text-xs font-normal text-emerald-200">Kişi</span>
-            </div>
-            <p className="text-[10px] text-white/70 font-medium">Okul Öncesi</p>
-          </button>
-
-          {/* AGE BREAKDOWN DETAIL ITEM 3: SCHOOL AGE (7-12 YRS & TEENS) */}
-          <button
-            type="button"
-            onClick={() => setSelectedAgeCategoryModal({
-              category: 'school_age',
-              title: `7 - 17 Yaş Misafir Listesi - ${title}`,
-              badge: `${stats.totalChildren + stats.totalTeens} Kişi`,
-              guests: stats.schoolAgeList
-            })}
-            className="p-3 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl space-y-1 text-left transition-all cursor-pointer group shadow-xs"
-            title="7-17 yaş misafir kayıtlarını incelemek için tıklayın"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase text-emerald-200 tracking-wider">7-17 Yaş</p>
-              <span className="px-1.5 py-0.5 bg-white/20 text-white rounded text-[9px] font-bold">%50</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black text-white">{stats.totalChildren + stats.totalTeens}</span>
-              <span className="text-xs font-normal text-emerald-200">Kişi</span>
-            </div>
-            <p className="text-[10px] text-white/70 font-medium">Öğrenci & Genç</p>
-          </button>
-        </div>
-
-        {/* ESTIMATED OCCUPANCY & REVENUE SUMMARY */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-          <div className="p-3.5 bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase text-emerald-200">Dönem Doluluk Oranı</p>
-              <p className="text-2xl font-black text-white">%{stats.occupancyPercentage}</p>
-            </div>
-            <Activity className="h-7 w-7 text-emerald-300" />
-          </div>
-
-          <div className="p-3.5 bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase text-emerald-200">Tahmini Dönem Oda Geliri</p>
-              <p className="text-2xl font-black text-white">₺{stats.estimatedRevenue.toLocaleString('tr-TR')}</p>
-            </div>
-            <Receipt className="h-7 w-7 text-emerald-300" />
-          </div>
-
-          <div className="p-3.5 bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase text-emerald-200">Pansiyon Dağılımı</p>
-              <div className="flex flex-col gap-1 mt-2 min-w-[140px]">
-                {Object.entries({
-                  RO: isTr ? "Sadece Oda" : "Room Only",
-                  BB: isTr ? "Oda Kahvaltı" : "Bed & Breakfast",
-                  HB: isTr ? "Yarım Pansiyon" : "Half Board",
-                  FB: isTr ? "Tam Pansiyon" : "Full Board",
-                  AI: isTr ? "Her Şey Dahil" : "All Inclusive",
-                  UAI: isTr ? "Ultra Her Şey" : "Ultra All Inc."
-                }).map(([key, label]) => {
-                  const count = stats.boardCounts[key] || 0;
-                  if (count === 0) return null;
-                  return (
-                    <div key={key} className="flex items-center gap-1.5 px-2 py-0.5 bg-white/10 border border-white/15 rounded text-white font-bold text-[10px] justify-between">
-                      <div className="flex items-center gap-1">
-                        <span className="text-emerald-300 font-black text-[9px]">{key}</span>
-                        <span className="text-white/60">•</span>
-                        <span className="text-[9px] font-medium text-white/90">{label}</span>
-                      </div>
-                      <span className="px-1.5 py-0.5 bg-emerald-500 text-white rounded text-[9px] font-black">{count} Oda</span>
-                    </div>
-                  );
-                })}
-                {Object.values(stats.boardCounts).reduce((a: number, b: any) => a + Number(b), 0) === 0 && (
-                  <p className="text-[9px] text-white/50 italic font-medium">Aktif kayıt bulunmuyor</p>
-                )}
-              </div>
-            </div>
-            <PieChart className="h-7 w-7 text-emerald-300 self-start mt-1" />
-          </div>
-        </div>
       </div>
-
       {/* 60-DAY INTERACTIVE RESERVATION GANTT BOARD */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border-2 border-slate-200 dark:border-slate-800 shadow-xl space-y-4 max-w-full overflow-hidden">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
@@ -409,6 +370,24 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
               </button>
             </div>
 
+            {/* ODA SEÇİM FİLTRESİ */}
+            <div className="w-full sm:w-auto">
+              <select
+                value={activeRoomId || 'all'}
+                onChange={(e) => {
+                  const val = e.target.value === 'all' ? null : e.target.value;
+                  if (setSelectedCalendarRoomId) setSelectedCalendarRoomId(val);
+                  setInternalRoomFilter(e.target.value);
+                }}
+                className="w-full sm:w-auto px-3 py-2 bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-800 dark:text-slate-200 cursor-pointer"
+              >
+                <option value="all">Tüm Odalar ({rooms.length})</option>
+                {rooms.map(r => (
+                  <option key={r.id} value={r.id}>Oda #{r.room_number} ({r.room_type})</option>
+                ))}
+              </select>
+            </div>
+
             <div className="w-full sm:w-auto">
               <select
                 value={calendarDaysCount}
@@ -421,6 +400,27 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
             </div>
           </div>
         </div>
+
+        {/* ACTIVE ROOM FILTER BANNER */}
+        {activeRoomId && (
+          <div className="flex items-center justify-between p-2.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-xl text-xs">
+            <span className="font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+              <Filter className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Görüntülenen Oda: <strong>Oda #{rooms.find(r => r.id === activeRoomId || r.room_number === activeRoomId)?.room_number}</strong> ({rooms.find(r => r.id === activeRoomId || r.room_number === activeRoomId)?.room_type})</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (setSelectedCalendarRoomId) setSelectedCalendarRoomId(null);
+                setInternalRoomFilter('all');
+              }}
+              className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[10px] font-black text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 cursor-pointer flex items-center gap-1 shadow-2xs"
+            >
+              <X className="h-3 w-3" />
+              <span>Tüm Odaları Göster ({rooms.length})</span>
+            </button>
+          </div>
+        )}
 
         {/* LEGEND COLOR BAR */}
         <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700">
@@ -450,7 +450,7 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
               <tr>
                 {/* Sticky Left Room Column Header */}
                 <th className="p-3 w-48 bg-slate-200 dark:bg-slate-900 sticky left-0 z-30 font-black text-xs text-slate-900 dark:text-slate-100 border-r-2 border-slate-300 dark:border-slate-700 shadow-md">
-                  Oda No / Tipi
+                  Oda No
                 </th>
 
                 {/* Days Header Columns */}
@@ -475,7 +475,7 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
 
             {/* ROOM ROWS */}
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {rooms.map(room => (
+              {displayedRooms.map(room => (
                 <tr key={room.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                   {/* Sticky Left Room Cell */}
                   <td className="p-3 bg-white dark:bg-slate-900 sticky left-0 z-10 border-r-2 border-slate-300 dark:border-slate-700 shadow-sm">

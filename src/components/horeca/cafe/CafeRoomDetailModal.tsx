@@ -155,25 +155,13 @@ export const CafeRoomDetailModal: React.FC<CafeRoomDetailModalProps> = ({
             <div className="space-y-1.5 text-xs text-stone-700 dark:text-stone-300 font-bold">
               {boardList.length > 0 ? (
                 boardList.map((opt) => (
-                  <div key={opt.key} className="flex justify-between items-center py-0.5">
-                    <span className="text-stone-500 flex items-center gap-1">
-                      <span>{opt.label}:</span>
-                      {opt.isSpecial && (
-                        <span className="text-[9px] bg-amber-500/20 text-amber-700 dark:text-amber-300 px-1 rounded font-bold">
-                          Özel Fiyat
-                        </span>
-                      )}
+                  <div key={opt.key} className="flex justify-between items-center py-1">
+                    <span className="text-stone-600 dark:text-stone-300 font-medium">
+                      {opt.label}:
                     </span>
-                    <div className="flex items-center gap-1.5">
-                      {opt.isSpecial && opt.standardPrice !== opt.price && (
-                        <span className="text-[10px] text-stone-400 line-through">
-                          ₺{opt.standardPrice.toLocaleString('tr-TR')}
-                        </span>
-                      )}
-                      <span className={opt.isSpecial ? "text-amber-600 dark:text-amber-400 font-black" : "text-stone-900 dark:text-white font-black"}>
-                        ₺{opt.price.toLocaleString('tr-TR')} / Gece
-                      </span>
-                    </div>
+                    <span className="text-stone-900 dark:text-white font-black">
+                      ₺{opt.price.toLocaleString('tr-TR')} / Gece
+                    </span>
                   </div>
                 ))
               ) : (

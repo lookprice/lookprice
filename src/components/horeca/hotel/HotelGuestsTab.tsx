@@ -216,7 +216,7 @@ export const HotelGuestsTab: React.FC<HotelGuestsTabProps> = ({
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                <th className="p-3.5">Oda No & Tipi</th>
+                <th className="p-3.5">Oda No</th>
                 <th className="p-3.5">Misafir Adı & Rolü</th>
                 <th className="p-3.5">Yaş & Kategori</th>
                 <th className="p-3.5">Doğum Tarihi</th>
@@ -245,14 +245,11 @@ export const HotelGuestsTab: React.FC<HotelGuestsTabProps> = ({
                       <td className="p-3.5">
                         <div className="flex items-center gap-2">
                           <span className={`px-2.5 py-1 ${theme.badgeBg} rounded-lg font-black text-xs shrink-0`}>
-                            #{g.room_number}
+                            Oda #{g.room_number}
                           </span>
-                          <div>
-                            <p className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate max-w-[140px]">{g.room_type}</p>
-                            <span className={`inline-block text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${isStayingToday ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                              {isStayingToday ? '🟢 Konaklıyor' : '🟡 Gelecek Rezervasyon'}
-                            </span>
-                          </div>
+                          <span className={`inline-block text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${isStayingToday ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+                            {isStayingToday ? '🟢 Konaklıyor' : '🟡 Gelecek Rezervasyon'}
+                          </span>
                         </div>
                       </td>
 

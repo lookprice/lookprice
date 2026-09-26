@@ -738,8 +738,14 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
       const saved = localStorage.getItem(`hotelRoomDisplayMode_${storeId}`);
       if (saved === 'grid' || saved === 'list') return saved;
     } catch (e) {}
-    return 'list'; // Default: Liste (Tablo) Görünümü
+    return 'grid'; // Default: Kart Görünümü (User request)
   });
+  const [selectedCalendarRoomId, setSelectedCalendarRoomId] = useState<string | null>(null);
+
+  const handleOpenRoomCalendar = (roomId: string) => {
+    setSelectedCalendarRoomId(roomId);
+    setActiveViewMode('calendar');
+  };
 
   const [completedCheckoutData, setCompletedCheckoutData] = useState<{
     room: HotelRoom;
@@ -2712,6 +2718,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
           setCheckInModalRoom={setCheckInModalRoom}
           setGuestForm={setGuestForm}
           getNextDayString={getNextDayString}
+          selectedCalendarRoomId={selectedCalendarRoomId}
+          setSelectedCalendarRoomId={setSelectedCalendarRoomId}
         />
       )}
 
@@ -2933,7 +2941,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
             <table className="w-full text-left border-collapse min-w-[920px]">
               <thead>
                 <tr className="bg-slate-100 dark:bg-slate-800/80 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
-                  <th className="p-3.5 pl-5">Oda No & Tipi</th>
+                  <th className="p-3.5 pl-5">Oda No</th>
                   <th className="p-3.5">Kapasite</th>
                   <th className="p-3.5">Gecelik Fiyat</th>
                   <th className="p-3.5">Oda Durumu</th>
@@ -2957,19 +2965,26 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                     return (
                       <tr key={room.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="p-3.5 pl-5">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRoomDetailModal(room)}
-                            className="flex items-center gap-2 text-left hover:opacity-80 cursor-pointer group"
-                            title="Oda & Misafir Detayı"
-                          >
-                            <span className="text-sm font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                              Oda #{room.room_number}
-                            </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                              {room.room_type}
-                            </span>
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRoomDetailModal(room)}
+                              className="text-left hover:opacity-80 cursor-pointer group"
+                              title="Oda & Misafir Detayı"
+                            >
+                              <span className="text-sm font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                Oda #{room.room_number}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRoomCalendar(room.id)}
+                              className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              title={`Oda #${room.room_number} Takvimini Aç`}
+                            >
+                              <CalendarRange className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                         <td className="p-3.5">
                           {(() => {
@@ -3215,12 +3230,22 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRoomDetailModal(room)}
+                        className="text-base font-bold text-slate-900 dark:text-white tracking-tight hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer text-left"
+                        title="Oda & Misafir Detayını Aç"
+                      >
                         Oda #{room.room_number}
-                      </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 truncate max-w-[130px]" title={room.room_type}>
-                        {room.room_type}
-                      </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenRoomCalendar(room.id)}
+                        className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        title={`Oda #${room.room_number} Takvimini Aç`}
+                      >
+                        <CalendarRange className="h-4 w-4" />
+                      </button>
                     </div>
 
                     {/* SPECS BADGES - CLEAN HORIZONTAL BADGES */}
