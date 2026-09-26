@@ -25,6 +25,14 @@ export interface RoomSpecialPrice {
   start_date: string;
   end_date: string;
   price_per_night: number;
+  board_prices?: {
+    room_only?: number; // Sadece Oda (RO)
+    bed_breakfast?: number; // Oda + Kahvaltı (BB)
+    half_board?: number; // Yarım Pansiyon (HB)
+    full_board?: number; // Tam Pansiyon (FB)
+    all_inclusive?: number; // Her Şey Dahil (AI)
+    ultra_all_inclusive?: number; // Ultra Her Şey Dahil (UAI)
+  };
   note?: string;
 }
 

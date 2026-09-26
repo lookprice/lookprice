@@ -115,17 +115,28 @@ export const CafeRoomBookingModal: React.FC<CafeRoomBookingModalProps> = ({
         <form onSubmit={onExecuteReservation} className="space-y-4">
           
           {/* DATES & NIGHTS SUMMARY */}
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800 flex items-center justify-between text-xs font-bold text-amber-900 dark:text-amber-200">
-            <div>
-              <span className="block text-[10px] text-amber-700 uppercase font-black">Tarih Aralığı</span>
-              <span>{searchCheckIn} ➔ {searchCheckOut}</span>
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800 space-y-2 text-xs font-bold text-amber-900 dark:text-amber-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="block text-[10px] text-amber-700 uppercase font-black">Tarih Aralığı</span>
+                <span>{searchCheckIn} ➔ {searchCheckOut}</span>
+              </div>
+              <div className="text-right">
+                <span className="block text-[10px] text-amber-700 uppercase font-black">Süre & Misafir</span>
+                <span className="text-amber-800 dark:text-amber-300 font-extrabold">
+                  {currentNights} Gece • {searchAdults} Yetişkin{searchChildrenList.length > 0 ? `, ${searchChildrenList.length} Çocuk` : ''}
+                </span>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="block text-[10px] text-amber-700 uppercase font-black">Süre & Misafir</span>
-              <span className="text-amber-800 dark:text-amber-300 font-extrabold">
-                {currentNights} Gece • {searchAdults} Yetişkin{searchChildrenList.length > 0 ? `, ${searchChildrenList.length} Çocuk` : ''}
-              </span>
-            </div>
+
+            {breakdown.hasSpecialPriceApplied && (
+              <div className="p-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-400/40 rounded-xl flex items-center gap-1.5 text-[11px] font-black text-amber-900 dark:text-amber-100">
+                <span className="text-base">🎉</span>
+                <span>
+                  Özel Sezon Fiyatı Aktif: {breakdown.appliedSpecialTitles?.join(', ') || 'Özel Gün Tarifesi'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* BOARD OPTION SELECTOR */}

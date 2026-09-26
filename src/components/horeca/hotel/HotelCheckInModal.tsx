@@ -92,14 +92,18 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                 const isConflictForSelectedDates = hasGuestConflict || hasReservationConflict;
                 const isMaintenance = r.status === 'maintenance' || r.status === 'staff' || r.status === 'disabled';
 
+                const todayStr = new Date().toISOString().split('T')[0];
+                const isCurrentlyOccupiedToday = r.status === 'occupied' && r.current_guest &&
+                  (r.current_guest.check_in_date <= todayStr && r.current_guest.check_out_date > todayStr);
+
                 let statusLabel = '🟢 Boş & Hazır';
                 if (isMaintenance) {
                   statusLabel = '⚠️ Servis Dışı / Bakımda';
                 } else if (isConflictForSelectedDates) {
                   statusLabel = `🔴 Seçilen Tarihlerde Dolu (${targetIn} — ${targetOut})`;
-                } else if (r.status === 'occupied') {
-                  statusLabel = `🟢 Bugün Dolu (Fakat ${targetIn} Seçilen Tarihinde Müsait)`;
-                } else if (Array.isArray(r.reservations) && r.reservations.length > 0) {
+                } else if (isCurrentlyOccupiedToday && targetIn > todayStr) {
+                  statusLabel = `🟡 Şu An Dolu (Fakat ${targetIn} İleri Tarihinde Müsait)`;
+                } else if (Array.isArray(r.reservations) && r.reservations.filter((res: any) => (res as any).status !== 'cancelled' && (res as any).id !== activeResId && (res as any).reservation_code !== activeResCode).length > 0) {
                   statusLabel = '🟢 Müsait (Gelecek Tarihte Rezervasyonlu)';
                 }
 

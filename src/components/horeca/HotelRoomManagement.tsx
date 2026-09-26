@@ -137,7 +137,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         room_type: "Standart Deniz Manzaralı",
         capacity: 2,
         bed_info: "1 Çift Kişilik Yatak",
-        status: "occupied",
+        status: "vacant",
         price_per_night: 2500,
         board_prices: {
           room_only: 2200,
@@ -149,39 +149,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         non_refundable_discount: 15,
         amenities: ["WiFi", "Deniz Manzarası", "Balkon", "Klima", "LCD TV", "Minibar", "Fön Makinesi"],
         cover_image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80",
-        description: "Akdeniz manzaralı, geniş özel balkonlu ve modern iç tasarıma sahip deluxe deniz manzaralı oda.",
-        current_guest: {
-          id: "guest-1",
-          identity_no: "12345678901",
-          first_name: "Ahmet",
-          last_name: "Yılmaz",
-          birth_date: "1988-05-14",
-          age: 38,
-          age_category: "adult",
-          discount_rate: 0,
-          phone: "+90 532 111 2233",
-          check_in_date: todayStr,
-          check_out_date: todayStr // Today check-out demo!
-        },
-        additional_guests: [
-          {
-            identity_no: "98765432109",
-            first_name: "Ece",
-            last_name: "Yılmaz",
-            birth_date: "2020-03-10",
-            age: 6,
-            age_category: "infant",
-            discount_rate: 100 // 0-6 age 100% free
-          }
-        ],
-        folio: {
-          id: "folio-101",
-          total_amount: 850,
-          items: [
-            { id: "f-1", title: "Restoran Adisyon #1042 (Serpme Kahvaltı + Çay)", amount: 600, date: todayStr, category: "Restaurant" },
-            { id: "f-2", title: "Havuz Bar Adisyon #1055 (Taze Sıkma Meyve Suyu)", amount: 250, date: todayStr, category: "Bar" }
-          ]
-        }
+        description: "Akdeniz manzaralı, geniş özel balkonlu ve modern iç tasarıma sahip deluxe deniz manzaralı oda."
       },
       {
         id: "room-102",
@@ -235,7 +203,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         room_type: "Family Duplex Süit",
         capacity: 4,
         bed_info: "2 Çift Kişilik Yatak",
-        status: "occupied",
+        status: "vacant",
         price_per_night: 5000,
         board_prices: {
           room_only: 4500,
@@ -247,27 +215,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         non_refundable_discount: 15,
         amenities: ["WiFi", "Dublex Çift Kat", "Balkon", "Çift Banyo", "Klima", "TV", "Minibar"],
         cover_image: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1000&q=80",
-        description: "Geniş aileler için ideal, çift katlı, çift banyolu ve ferah dubleks aile süiti.",
-        current_guest: {
-          id: "guest-2",
-          identity_no: "45678912345",
-          first_name: "Mehmet",
-          last_name: "Kaya",
-          birth_date: "1980-11-20",
-          age: 45,
-          age_category: "adult",
-          discount_rate: 0,
-          phone: "+90 542 999 8877",
-          check_in_date: todayStr,
-          check_out_date: tomorrowStr
-        },
-        folio: {
-          id: "folio-201",
-          total_amount: 1400,
-          items: [
-            { id: "f-3", title: "Akşam Yemeği Adisyon #1088 (Izgara Balık + Salata)", amount: 1400, date: todayStr, category: "Restaurant" }
-          ]
-        }
+        description: "Geniş aileler için ideal, çift katlı, çift banyolu ve ferah dubleks aile süiti."
       }
     ];
   });

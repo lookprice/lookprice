@@ -151,6 +151,9 @@ export const PurchaseInvoiceFormModal: React.FC<PurchaseInvoiceFormModalProps> =
                     displayField="display"
                     secondaryField="phone"
                     value={companySearch}
+                    onSearchChange={(val) => {
+                      setCompanySearch(val);
+                    }}
                     onSelect={(item) => {
                       if (!item) {
                         setCompanyId('');

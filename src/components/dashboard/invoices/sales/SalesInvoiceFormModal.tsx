@@ -348,6 +348,9 @@ export const SalesInvoiceFormModal: React.FC<SalesInvoiceFormModalProps> = ({
                     displayField="display"
                     secondaryField="secondary_info"
                     value={customerSearch}
+                    onSearchChange={(val) => {
+                      setCustomerSearch(val);
+                    }}
                     onSelect={(item) => {
                       if (!item) {
                         setCustomerId('');

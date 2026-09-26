@@ -455,31 +455,96 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
 
   const currentNights = calculateNights(searchCheckIn, searchCheckOut);
 
-  // Get base board rate per night
-  const getSelectedBoardPrice = (room: HotelRoom, board: 'RO' | 'BB' | 'HB' | 'FB' | 'AI') => {
+  // Multi-night seasonal & special pricing resolution (Booking.com / Tatilbudur parity)
+  const getNightRateForDate = (room: HotelRoom, dateStr: string, board: 'RO' | 'BB' | 'HB' | 'FB' | 'AI') => {
+    // 1. Check if this specific night falls inside any special price rule
+    if (Array.isArray(room.special_prices) && room.special_prices.length > 0) {
+      const match = room.special_prices.find(sp => sp.start_date <= dateStr && sp.end_date >= dateStr);
+      if (match) {
+        const spBoard = match.board_prices;
+        if (spBoard) {
+          switch (board) {
+            case 'RO': if (spBoard.room_only) return { price: spBoard.room_only, isSpecial: true, title: match.title }; break;
+            case 'BB': if (spBoard.bed_breakfast) return { price: spBoard.bed_breakfast, isSpecial: true, title: match.title }; break;
+            case 'HB': if (spBoard.half_board) return { price: spBoard.half_board, isSpecial: true, title: match.title }; break;
+            case 'FB': if (spBoard.full_board) return { price: spBoard.full_board, isSpecial: true, title: match.title }; break;
+            case 'AI': if (spBoard.all_inclusive) return { price: spBoard.all_inclusive, isSpecial: true, title: match.title }; break;
+          }
+        }
+        const baseSpecial = match.price_per_night || 2500;
+        let specialPrice = baseSpecial;
+        switch (board) {
+          case 'RO': specialPrice = Math.round(baseSpecial * 0.88); break;
+          case 'BB': specialPrice = baseSpecial; break;
+          case 'HB': specialPrice = Math.round(baseSpecial * 1.28); break;
+          case 'FB': specialPrice = Math.round(baseSpecial * 1.56); break;
+          case 'AI': specialPrice = Math.round(baseSpecial * 1.92); break;
+        }
+        return { price: specialPrice, isSpecial: true, title: match.title };
+      }
+    }
+
+    // 2. Standard base board rate
     const bp = room.board_prices;
-    if (!bp) return room.price_per_night || 2500;
+    const base = room.price_per_night || 2500;
+    if (!bp) {
+      switch (board) {
+        case 'RO': return { price: Math.round(base * 0.88), isSpecial: false };
+        case 'BB': return { price: base, isSpecial: false };
+        case 'HB': return { price: Math.round(base * 1.28), isSpecial: false };
+        case 'FB': return { price: Math.round(base * 1.56), isSpecial: false };
+        case 'AI': return { price: Math.round(base * 1.92), isSpecial: false };
+        default: return { price: base, isSpecial: false };
+      }
+    }
     switch (board) {
-      case 'RO': return bp.room_only || Math.round((room.price_per_night || 2500) * 0.88);
-      case 'BB': return bp.bed_breakfast || room.price_per_night || 2500;
-      case 'HB': return bp.half_board || Math.round((room.price_per_night || 2500) * 1.28);
-      case 'FB': return bp.full_board || Math.round((room.price_per_night || 2500) * 1.56);
-      case 'AI': return bp.all_inclusive || Math.round((room.price_per_night || 2500) * 1.92);
-      default: return room.price_per_night || 2500;
+      case 'RO': return { price: bp.room_only || Math.round(base * 0.88), isSpecial: false };
+      case 'BB': return { price: bp.bed_breakfast || base, isSpecial: false };
+      case 'HB': return { price: bp.half_board || Math.round(base * 1.28), isSpecial: false };
+      case 'FB': return { price: bp.full_board || Math.round(base * 1.56), isSpecial: false };
+      case 'AI': return { price: bp.all_inclusive || Math.round(base * 1.92), isSpecial: false };
+      default: return { price: base, isSpecial: false };
     }
   };
 
-  // Detailed transparent price calculation table breakdown
+  // Get base board rate per night for selected date
+  const getSelectedBoardPrice = (room: HotelRoom, board: 'RO' | 'BB' | 'HB' | 'FB' | 'AI') => {
+    const rateInfo = getNightRateForDate(room, searchCheckIn, board);
+    return rateInfo.price;
+  };
+
+  // Detailed transparent price calculation table breakdown with night-by-night seasonal calculation
   const computeDetailedBreakdown = (room: HotelRoom) => {
     const nights = calculateNights(searchCheckIn, searchCheckOut);
-    const baseNightlyPrice = getSelectedBoardPrice(room, selectedBoardOption);
     const isPerPerson = room.pricing_type !== 'per_room';
+    
+    // Night-by-night calculation for seasonal price overrides
+    const nightBreakdowns: Array<{ date: string; rate: number; isSpecial: boolean; title?: string }> = [];
+    const checkInDateObj = new Date(searchCheckIn);
+    
+    for (let i = 0; i < nights; i++) {
+      const currentNightDate = new Date(checkInDateObj);
+      currentNightDate.setDate(checkInDateObj.getDate() + i);
+      const dateStr = currentNightDate.toISOString().split('T')[0];
+      const rateInfo = getNightRateForDate(room, dateStr, selectedBoardOption);
+      nightBreakdowns.push({
+        date: dateStr,
+        rate: rateInfo.price,
+        isSpecial: rateInfo.isSpecial,
+        title: rateInfo.title
+      });
+    }
+
+    const totalNightlyRateSum = nightBreakdowns.reduce((acc, nb) => acc + nb.rate, 0);
+    const averageNightlyPrice = Math.round(totalNightlyRateSum / nights);
+    const hasSpecialPriceApplied = nightBreakdowns.some(nb => nb.isSpecial);
+    const appliedSpecialTitles = Array.from(new Set(nightBreakdowns.filter(nb => nb.isSpecial && nb.title).map(nb => nb.title!)));
     
     let adultsGrossAmount = 0;
     if (isPerPerson) {
-      adultsGrossAmount = searchAdults * baseNightlyPrice * nights;
+      adultsGrossAmount = searchAdults * totalNightlyRateSum;
     } else {
-      adultsGrossAmount = baseNightlyPrice * nights;
+      adultsGrossAmount = totalNightlyRateSum;
     }
 
     // Calculate each child's gross, discount, and net
@@ -490,7 +555,7 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
       let net = 0;
       
       if (isPerPerson) {
-        gross = baseNightlyPrice * nights;
+        gross = totalNightlyRateSum;
         discountAmount = Math.round(gross * (ageInfo.discountRate / 100));
         net = gross - discountAmount;
       }
@@ -525,7 +590,11 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
     return {
       isPerPerson,
       nights,
-      baseNightlyPrice,
+      baseNightlyPrice: averageNightlyPrice,
+      totalNightlyRateSum,
+      hasSpecialPriceApplied,
+      appliedSpecialTitles,
+      nightBreakdowns,
       adultsCount: searchAdults,
       adultsGrossAmount,
       childrenDetails,
@@ -946,8 +1015,9 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                     type="date"
                     min={todayStr}
                     value={searchCheckIn}
+                    onClick={(e) => (e.currentTarget as any).showPicker?.()}
                     onChange={(e) => handleCheckInChange(e.target.value)}
-                    className="w-full mt-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-white shadow-xs focus:ring-1 focus:ring-slate-700"
+                    className="w-full mt-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-white shadow-xs focus:ring-1 focus:ring-slate-700 cursor-pointer [color-scheme:dark]"
                   />
                 </div>
 
@@ -959,8 +1029,9 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
                     type="date"
                     min={getNextDayString(searchCheckIn)}
                     value={searchCheckOut}
+                    onClick={(e) => (e.currentTarget as any).showPicker?.()}
                     onChange={(e) => setSearchCheckOut(e.target.value)}
-                    className="w-full mt-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-white shadow-xs focus:ring-1 focus:ring-slate-700"
+                    className="w-full mt-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-white shadow-xs focus:ring-1 focus:ring-slate-700 cursor-pointer [color-scheme:dark]"
                   />
                 </div>
 

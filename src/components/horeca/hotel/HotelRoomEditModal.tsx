@@ -502,12 +502,20 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
+                    const baseRate = Math.round((roomForm.price_per_night || 2500) * 1.5);
                     const newRule = {
                       id: `sp-${Date.now()}`,
                       title: "Kurban Bayramı Özel",
                       start_date: new Date().toISOString().split('T')[0],
                       end_date: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
-                      price_per_night: Math.round((roomForm.price_per_night || 2500) * 1.5)
+                      price_per_night: baseRate,
+                      board_prices: {
+                        room_only: Math.round(baseRate * 0.88),
+                        bed_breakfast: baseRate,
+                        half_board: Math.round(baseRate * 1.28),
+                        full_board: Math.round(baseRate * 1.56),
+                        all_inclusive: Math.round(baseRate * 1.92)
+                      }
                     };
                     setRoomForm({
                       ...roomForm,
@@ -522,81 +530,192 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
               </div>
 
               {Array.isArray(roomForm.special_prices) && roomForm.special_prices.length > 0 ? (
-                <div className="space-y-2">
-                  {roomForm.special_prices.map((sp: any, spIdx: number) => (
-                    <div key={sp.id || spIdx} className="p-3 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 rounded-xl grid grid-cols-1 sm:grid-cols-12 gap-2 items-center text-xs">
-                      <div className="sm:col-span-4">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase block">Özel Gün / Etkinlik Adı</label>
-                        <input
-                          type="text"
-                          placeholder="Örn: Yılbaşı, Bayram, Sömestr"
-                          value={sp.title}
-                          onChange={(e) => {
-                            const updated = [...roomForm.special_prices];
-                            updated[spIdx].title = e.target.value;
-                            setRoomForm({ ...roomForm, special_prices: updated });
-                          }}
-                          className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-slate-800 dark:text-slate-100"
-                        />
-                      </div>
-                      <div className="sm:col-span-4">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase block">Başlangıç - Bitiş Tarihi</label>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="date"
-                            value={sp.start_date}
-                            onChange={(e) => {
-                              const updated = [...roomForm.special_prices];
-                              updated[spIdx].start_date = e.target.value;
-                              setRoomForm({ ...roomForm, special_prices: updated });
-                            }}
-                            className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-[10px]"
-                          />
-                          <span>-</span>
-                          <input
-                            type="date"
-                            value={sp.end_date}
-                            onChange={(e) => {
-                              const updated = [...roomForm.special_prices];
-                              updated[spIdx].end_date = e.target.value;
-                              setRoomForm({ ...roomForm, special_prices: updated });
-                            }}
-                            className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-[10px]"
-                          />
+                <div className="space-y-3">
+                  {roomForm.special_prices.map((sp: any, spIdx: number) => {
+                    const spBoard = sp.board_prices || {
+                      room_only: Math.round((sp.price_per_night || 2500) * 0.88),
+                      bed_breakfast: sp.price_per_night || 2500,
+                      half_board: Math.round((sp.price_per_night || 2500) * 1.28),
+                      full_board: Math.round((sp.price_per_night || 2500) * 1.56),
+                      all_inclusive: Math.round((sp.price_per_night || 2500) * 1.92)
+                    };
+
+                    return (
+                      <div key={sp.id || spIdx} className="p-3.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/80 rounded-2xl space-y-3 text-xs shadow-2xs">
+                        {/* Top row: Title, Dates, Base Price, Delete */}
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                          <div className="sm:col-span-4">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase block">Özel Gün / Etkinlik Adı</label>
+                            <input
+                              type="text"
+                              placeholder="Örn: Yılbaşı, Bayram, Sömestr"
+                              value={sp.title}
+                              onChange={(e) => {
+                                const updated = [...roomForm.special_prices];
+                                updated[spIdx].title = e.target.value;
+                                setRoomForm({ ...roomForm, special_prices: updated });
+                              }}
+                              className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border rounded-xl font-bold text-slate-800 dark:text-slate-100"
+                            />
+                          </div>
+                          <div className="sm:col-span-4">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase block">Başlangıç - Bitiş Tarihi</label>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="date"
+                                value={sp.start_date}
+                                onChange={(e) => {
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].start_date = e.target.value;
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-1.5 py-1.5 bg-slate-50 dark:bg-slate-800 border rounded-xl font-bold text-[10px]"
+                              />
+                              <span className="font-bold text-slate-400">-</span>
+                              <input
+                                type="date"
+                                value={sp.end_date}
+                                onChange={(e) => {
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].end_date = e.target.value;
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-1.5 py-1.5 bg-slate-50 dark:bg-slate-800 border rounded-xl font-bold text-[10px]"
+                              />
+                            </div>
+                          </div>
+                          <div className="sm:col-span-3">
+                            <label className="text-[9px] font-bold text-amber-700 dark:text-amber-300 uppercase block">Standart Gecelik (₺)</label>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1.5 text-xs font-bold text-amber-600">₺</span>
+                              <input
+                                type="text"
+                                placeholder="3.500"
+                                value={formatThousand(sp.price_per_night)}
+                                onChange={(e) => {
+                                  const newBase = parseThousand(e.target.value);
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].price_per_night = newBase;
+                                  // Auto adjust board prices if not individually locked
+                                  updated[spIdx].board_prices = {
+                                    room_only: Math.round(newBase * 0.88),
+                                    bed_breakfast: newBase,
+                                    half_board: Math.round(newBase * 1.28),
+                                    full_board: Math.round(newBase * 1.56),
+                                    all_inclusive: Math.round(newBase * 1.92)
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full pl-6 pr-2 py-1.5 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-300 rounded-xl font-black text-amber-900 dark:text-amber-100"
+                              />
+                            </div>
+                          </div>
+                          <div className="sm:col-span-1 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = roomForm.special_prices.filter((_: any, i: number) => i !== spIdx);
+                                setRoomForm({ ...roomForm, special_prices: updated });
+                              }}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg cursor-pointer"
+                              title="Kuralı Sil"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Board option pricing breakdown inputs for Booking / Tatilbudur multi-board parity */}
+                        <div className="pt-2 border-t border-amber-100 dark:border-amber-900/40 space-y-1.5">
+                          <span className="text-[9px] font-black uppercase text-amber-900 dark:text-amber-200 tracking-wider flex items-center gap-1">
+                            🍽️ Özel Tarih Pansiyon Fiyatlandırması (Gecelik ₺)
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                            <div>
+                              <label className="text-[8px] font-bold text-slate-400 block truncate">Sadece Oda (RO)</label>
+                              <input
+                                type="text"
+                                value={formatThousand(spBoard.room_only ?? Math.round((sp.price_per_night || 2500) * 0.88))}
+                                onChange={(e) => {
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...spBoard,
+                                    room_only: parseThousand(e.target.value)
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[8px] font-bold text-slate-400 block truncate">Oda + Kahvaltı (BB)</label>
+                              <input
+                                type="text"
+                                value={formatThousand(spBoard.bed_breakfast ?? (sp.price_per_night || 2500))}
+                                onChange={(e) => {
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...spBoard,
+                                    bed_breakfast: parseThousand(e.target.value)
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[8px] font-bold text-slate-400 block truncate">Yarım Pansiyon (HB)</label>
+                              <input
+                                type="text"
+                                value={formatThousand(spBoard.half_board ?? Math.round((sp.price_per_night || 2500) * 1.28))}
+                                onChange={(e) => {
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...spBoard,
+                                    half_board: parseThousand(e.target.value)
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[8px] font-bold text-slate-400 block truncate">Tam Pansiyon (FB)</label>
+                              <input
+                                type="text"
+                                value={formatThousand(spBoard.full_board ?? Math.round((sp.price_per_night || 2500) * 1.56))}
+                                onChange={(e) => {
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...spBoard,
+                                    full_board: parseThousand(e.target.value)
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                            <div className="col-span-2 sm:col-span-1">
+                              <label className="text-[8px] font-bold text-slate-400 block truncate">Her Şey Dahil (AI)</label>
+                              <input
+                                type="text"
+                                value={formatThousand(spBoard.all_inclusive ?? Math.round((sp.price_per_night || 2500) * 1.92))}
+                                onChange={(e) => {
+                                  const updated = [...roomForm.special_prices];
+                                  updated[spIdx].board_prices = {
+                                    ...spBoard,
+                                    all_inclusive: parseThousand(e.target.value)
+                                  };
+                                  setRoomForm({ ...roomForm, special_prices: updated });
+                                }}
+                                className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded-lg font-bold text-xs"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="sm:col-span-3">
-                        <label className="text-[9px] font-bold text-amber-700 dark:text-amber-300 uppercase block">Gecelik Fiyat (₺)</label>
-                        <div className="relative">
-                          <span className="absolute left-2 top-1 text-xs font-bold text-amber-600">₺</span>
-                          <input
-                            type="text"
-                            placeholder="3.500"
-                            value={formatThousand(sp.price_per_night)}
-                            onChange={(e) => {
-                              const updated = [...roomForm.special_prices];
-                              updated[spIdx].price_per_night = parseThousand(e.target.value);
-                              setRoomForm({ ...roomForm, special_prices: updated });
-                            }}
-                            className="w-full pl-6 pr-2 py-1 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-300 rounded font-black text-amber-900 dark:text-amber-100"
-                          />
-                        </div>
-                      </div>
-                      <div className="sm:col-span-1 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = roomForm.special_prices.filter((_: any, i: number) => i !== spIdx);
-                            setRoomForm({ ...roomForm, special_prices: updated });
-                          }}
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg cursor-pointer"
-                          title="Kuralı Sil"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="p-3 bg-white/60 dark:bg-slate-900/60 rounded-xl border border-dashed border-amber-200 dark:border-amber-800 text-center">
