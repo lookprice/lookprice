@@ -19,6 +19,23 @@ export interface RoomReservation {
   notes?: string;
 }
 
+export interface RoomSpecialPrice {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  price_per_night: number;
+  note?: string;
+}
+
+export interface RoomClosedDate {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  reason?: string;
+}
+
 export interface HotelRoom {
   id: string;
   room_number: string; // e.g., "101", "202", "SUITE-A", "BUNGLOW-1"
@@ -29,6 +46,8 @@ export interface HotelRoom {
   bed_info?: string; // e.g., "1 Double + 1 Single"
   status: 'vacant' | 'occupied' | 'maintenance' | 'staff' | 'disabled';
   pricing_type?: 'per_room' | 'per_person';
+  special_prices?: RoomSpecialPrice[];
+  closed_dates?: RoomClosedDate[];
   price_per_night?: number;
   price_room_only?: number;
   price_half_board?: number;

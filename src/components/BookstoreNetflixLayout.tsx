@@ -269,6 +269,16 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
     });
   }, [products, searchQuery, selectedCategory, selectedSubCategory, selectedAuthor, selectedPublisher, selectedBadge]);
 
+  const resetAllFiltersAndGoHome = () => {
+    setActiveTab("home");
+    setSearchQuery("");
+    setSelectedCategory("all");
+    setSelectedSubCategory("all");
+    setSelectedAuthor("all");
+    setSelectedPublisher("all");
+    setSelectedBadge("all");
+  };
+
   const isSearchActive = searchQuery.trim().length > 0 || selectedCategory !== "all" || selectedSubCategory !== "all" || selectedAuthor !== "all" || selectedPublisher !== "all" || selectedBadge !== "all" || activeTab === "catalog";
 
   const basketItemCount = useMemo(() => {
@@ -300,7 +310,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
           {/* Brand Logo & Store Name */}
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setActiveTab("home"); setSearchQuery(""); }}>
+            <div className="flex items-center gap-3 cursor-pointer" onClick={resetAllFiltersAndGoHome}>
               {storeLogo ? (
                 <img src={storeLogo} alt={storeName} className="h-8 md:h-9 object-contain" />
               ) : (
@@ -318,7 +328,7 @@ export const BookstoreNetflixLayout: React.FC<BookstoreNetflixLayoutProps> = ({
             <nav className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-bold text-slate-300">
               <button
                 type="button"
-                onClick={() => { setActiveTab("home"); setSearchQuery(""); }}
+                onClick={resetAllFiltersAndGoHome}
                 className={`transition-colors hover:text-white cursor-pointer ${activeTab === "home" && !isSearchActive ? "text-white font-black" : "text-slate-400"}`}
               >
                 {isTr ? "Ana Sayfa" : "Home"}

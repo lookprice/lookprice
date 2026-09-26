@@ -18,6 +18,8 @@ import { HotelRoomDetailModal } from "./hotel/HotelRoomDetailModal";
 import {
   HotelRoom,
   RoomReservation,
+  RoomSpecialPrice,
+  RoomClosedDate,
   ParsedBedAndCapacity,
   parseBedAndCapacity,
   getDemoRooms
@@ -1434,6 +1436,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     description?: string;
     status?: HotelRoom['status'];
     pricing_type?: 'per_room' | 'per_person';
+    special_prices?: RoomSpecialPrice[];
+    closed_dates?: RoomClosedDate[];
     notes?: string;
   }
 
@@ -1565,6 +1569,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         amenitiesStr: (roomToEdit.amenities || ["WiFi", "Deniz Manzarası", "Balkon", "Klima", "LCD TV"]).join(", "),
         cover_image: roomToEdit.cover_image || "",
         images: roomToEdit.images || (roomToEdit.cover_image ? [roomToEdit.cover_image] : []),
+        special_prices: roomToEdit.special_prices || [],
+        closed_dates: roomToEdit.closed_dates || [],
         description: roomToEdit.description || "",
         status: roomToEdit.status,
         notes: roomToEdit.notes || ""
@@ -1852,6 +1858,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         amenities: amenitiesList,
         cover_image: roomForm.cover_image || (roomImages[0] || ""),
         images: roomImages,
+        special_prices: roomForm.special_prices || [],
+        closed_dates: roomForm.closed_dates || [],
         description: roomForm.description,
         status: roomForm.status,
         notes: roomForm.notes
@@ -1872,6 +1880,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         amenities: amenitiesList,
         cover_image: roomForm.cover_image || (roomImages[0] || ""),
         images: roomImages,
+        special_prices: roomForm.special_prices || [],
+        closed_dates: roomForm.closed_dates || [],
         description: roomForm.description,
         status: roomForm.status,
         notes: roomForm.notes

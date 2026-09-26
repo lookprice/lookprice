@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useDeferredValue } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, User, Building2, Package, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { normalizeSearch } from '../lib/searchUtils';
@@ -33,8 +33,6 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const isTr = lang === 'tr';
 
-  const deferredSearch = useDeferredValue(search);
-
   useEffect(() => {
     setSearch(value);
   }, [value]);
@@ -49,18 +47,56 @@ export const AutocompleteSelect: React.FC<AutocompleteSelectProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredItems = items.filter(item => {
-    const mainVal = normalizeSearch(item[displayField] || item.title || item.company_title || item.full_name || [item.name, item.surname].filter(Boolean).join(' ') || '');
-    const secVal = secondaryField ? normalizeSearch(item[secondaryField] || item.secondary_info || '') : '';
-    const taxVal = normalizeSearch(item.tax_number || item.tc_id || '');
-    const phoneVal = normalizeSearch(item.phone || '');
-    const emailVal = normalizeSearch(item.email || '');
-    const combinedSearchText = `${mainVal} ${secVal} ${taxVal} ${phoneVal} ${emailVal}`;
+  // Instant real-time relevance-weighted search filtering
+  const filteredItems = React.useMemo(() => {
+    const rawSearch = normalizeSearch(search).trim();
+    if (!rawSearch) return items;
 
-    const searchTerms = normalizeSearch(deferredSearch).split(/\s+/).filter(Boolean);
-    if (searchTerms.length === 0) return true;
-    return searchTerms.every(term => combinedSearchText.includes(term));
-  });
+    const searchTerms = rawSearch.split(/\s+/).filter(Boolean);
+    if (searchTerms.length === 0) return items;
+
+    const scoredItems: { item: any; score: number }[] = [];
+
+    for (const item of items) {
+      const mainVal = normalizeSearch(item[displayField] || item.title || item.company_title || item.full_name || [item.name, item.surname].filter(Boolean).join(' ') || '');
+      const secVal = secondaryField ? normalizeSearch(item[secondaryField] || item.secondary_info || '') : '';
+      const taxVal = normalizeSearch(item.tax_number || item.tc_id || '');
+      const phoneVal = normalizeSearch(item.phone || '');
+      const emailVal = normalizeSearch(item.email || '');
+
+      const combinedText = `${mainVal} ${secVal} ${taxVal} ${phoneVal} ${emailVal}`;
+
+      // Every search term must be matched
+      const matchesAll = searchTerms.every(term => combinedText.includes(term));
+      if (!matchesAll) continue;
+
+      let score = 0;
+      // High score for exact or start-of-title matches
+      if (mainVal === rawSearch) {
+        score += 1000;
+      } else if (mainVal.startsWith(rawSearch)) {
+        score += 500;
+      } else if (mainVal.includes(rawSearch)) {
+        score += 200;
+      } else {
+        // Individual word start matches
+        const words = mainVal.split(/\s+/);
+        if (words.some(w => w.startsWith(rawSearch))) {
+          score += 150;
+        }
+      }
+
+      if (taxVal && taxVal.includes(rawSearch)) score += 100;
+      if (phoneVal && phoneVal.includes(rawSearch)) score += 80;
+      if (emailVal && emailVal.includes(rawSearch)) score += 60;
+
+      scoredItems.push({ item, score });
+    }
+
+    // Sort by relevance score descending
+    scoredItems.sort((a, b) => b.score - a.score);
+    return scoredItems.map(si => si.item);
+  }, [items, search, displayField, secondaryField]);
 
   const getIcon = (itemType?: string) => {
     const activeType = itemType || type;

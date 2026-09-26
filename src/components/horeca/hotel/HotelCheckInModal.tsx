@@ -70,11 +70,45 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
               }}
               className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-xl text-xs font-black text-slate-900 dark:text-white"
             >
-              {rooms.map(r => (
-                <option key={r.id} value={r.id}>
-                  Oda #{r.room_number} - {r.room_type} ({r.status === 'vacant' ? '🟢 Boş & Hazır' : r.status === 'occupied' ? '🔴 Dolu' : '⚠️ Tadilat/Servis Dışı'})
-                </option>
-              ))}
+              {rooms.map(r => {
+                const targetIn = guestForm.check_in_date || new Date().toISOString().split('T')[0];
+                const targetOut = guestForm.check_out_date || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+                const hasGuestConflict = r.status === 'occupied' && r.current_guest &&
+                  (r.current_guest.check_in_date < targetOut && r.current_guest.check_out_date > targetIn);
+
+                const activeResId = (checkInModalRoom as any)?.active_res_id || (checkInModalRoom as any)?.res_id || (checkInModalRoom as any)?.id;
+                const activeResCode = (checkInModalRoom as any)?.reservation_code;
+
+                const hasReservationConflict = Array.isArray(r.reservations) &&
+                  r.reservations.some(res => 
+                    (res as any).status !== 'cancelled' && 
+                    (res as any).id !== activeResId && 
+                    (res as any).reservation_code !== activeResCode &&
+                    res.check_in_date < targetOut && 
+                    res.check_out_date > targetIn
+                  );
+
+                const isConflictForSelectedDates = hasGuestConflict || hasReservationConflict;
+                const isMaintenance = r.status === 'maintenance' || r.status === 'staff' || r.status === 'disabled';
+
+                let statusLabel = '🟢 Boş & Hazır';
+                if (isMaintenance) {
+                  statusLabel = '⚠️ Servis Dışı / Bakımda';
+                } else if (isConflictForSelectedDates) {
+                  statusLabel = `🔴 Seçilen Tarihlerde Dolu (${targetIn} — ${targetOut})`;
+                } else if (r.status === 'occupied') {
+                  statusLabel = `🟢 Bugün Dolu (Fakat ${targetIn} Seçilen Tarihinde Müsait)`;
+                } else if (Array.isArray(r.reservations) && r.reservations.length > 0) {
+                  statusLabel = '🟢 Müsait (Gelecek Tarihte Rezervasyonlu)';
+                }
+
+                return (
+                  <option key={r.id} value={r.id} disabled={isConflictForSelectedDates || isMaintenance}>
+                    Oda #{r.room_number} - {r.room_type} ({statusLabel})
+                  </option>
+                );
+              })}
             </select>
           </div>
 

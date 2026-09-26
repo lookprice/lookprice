@@ -146,22 +146,22 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
           isFlipped
             ? { scale: 1, y: 0, rotateY: 180 }
             : isHovered
-            ? { scale: 1.04, y: -5, rotateY: -22 }
-            : { scale: 1, y: 0, rotateY: [0, -22, 0] }
+            ? { scale: 1.03, y: -4, rotateY: 0 }
+            : { scale: 1, y: 0, rotateY: 0 }
         }
         transition={
           isFlipped
-            ? { duration: 0.6, ease: [0.4, 0, 0.2, 1] }
-            : isHovered
-            ? { type: "spring", stiffness: 300, damping: 25 }
-            : { duration: 3.2, repeat: Infinity, repeatDelay: 4.5, ease: "easeInOut" }
+            ? { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
+            : { type: "spring", stiffness: 350, damping: 25 }
         }
         style={{ transformStyle: "preserve-3d" }}
         className="relative w-full rounded-2xl shadow-lg hover:shadow-2xl transition-shadow duration-300 bg-slate-900 border border-slate-800 h-[420px] sm:h-[440px]"
       >
         {/* FRONT COVER: Netflix Style Cinematic Book Poster */}
         <div
-          className="absolute inset-0 w-full h-full flex flex-col justify-between bg-slate-900 rounded-2xl overflow-hidden cursor-pointer"
+          className={`absolute inset-0 w-full h-full flex flex-col justify-between bg-slate-900 rounded-2xl overflow-hidden cursor-pointer transition-opacity duration-300 ${
+            isFlipped ? "pointer-events-none z-0 opacity-0" : "pointer-events-auto z-10 opacity-100"
+          }`}
           style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
           onClick={() => onView(product)}
         >
@@ -329,7 +329,9 @@ export const BookCardNetflix: React.FC<BookCardNetflixProps> = ({
 
         {/* BACK COVER: Detailed Synopsis, Publisher, Branches (Always rendered upright with rotateY(180deg)) */}
         <div
-          className="absolute inset-0 w-full h-full flex flex-col justify-between p-4 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-200 rounded-2xl overflow-y-auto no-scrollbar border border-slate-800"
+          className={`absolute inset-0 w-full h-full flex flex-col justify-between p-4 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-200 rounded-2xl overflow-y-auto no-scrollbar border border-slate-800 transition-opacity duration-300 ${
+            isFlipped ? "pointer-events-auto z-10 opacity-100" : "pointer-events-none z-0 opacity-0"
+          }`}
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",

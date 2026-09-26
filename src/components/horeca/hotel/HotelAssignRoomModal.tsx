@@ -40,37 +40,74 @@ export const HotelAssignRoomModal: React.FC<HotelAssignRoomModalProps> = ({
         </p>
 
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-          {rooms.map(r => (
-            <label 
-              key={r.id}
-              className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                selectedTargetRoomId === r.id
-                  ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 ring-2 ring-indigo-500'
-                  : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:border-slate-400'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <input
-                  type="radio"
-                  name="assign_room_select"
-                  checked={selectedTargetRoomId === r.id}
-                  onChange={() => setSelectedTargetRoomId(r.id)}
-                  className="text-indigo-600 focus:ring-indigo-500"
-                />
-                <div>
-                  <p className="font-bold text-xs text-slate-900 dark:text-white">
-                    Oda #{r.room_number} - {r.room_type}
-                  </p>
-                  <span className={`text-[10px] font-bold ${r.status === 'vacant' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {r.status === 'vacant' ? '🟢 Boş & Hazır' : r.status === 'occupied' ? '🔴 Dolu' : '⚪ Bakımda'}
-                  </span>
+          {rooms.map(r => {
+            const targetIn = assignRoomModalRes?.check_in_date || new Date().toISOString().split('T')[0];
+            const targetOut = assignRoomModalRes?.check_out_date || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+            const hasGuestConflict = r.status === 'occupied' && r.current_guest &&
+              (r.current_guest.check_in_date < targetOut && r.current_guest.check_out_date > targetIn);
+
+            const currentResId = assignRoomModalRes?.id;
+            const currentResCode = assignRoomModalRes?.reservation_code;
+
+            const hasReservationConflict = Array.isArray(r.reservations) &&
+              r.reservations.some(res => 
+                res.status !== 'cancelled' && 
+                res.id !== currentResId && 
+                res.reservation_code !== currentResCode &&
+                res.check_in_date < targetOut && 
+                res.check_out_date > targetIn
+              );
+
+            const isConflictForSelectedDates = hasGuestConflict || hasReservationConflict;
+            const isMaintenance = r.status === 'maintenance' || r.status === 'staff' || r.status === 'disabled';
+
+            let statusLabel = '🟢 Boş & Hazır';
+            if (isMaintenance) {
+              statusLabel = '⚠️ Servis Dışı';
+            } else if (isConflictForSelectedDates) {
+              statusLabel = `🔴 Seçilen Tarihlerde Dolu (${targetIn} — ${targetOut})`;
+            } else if (r.status === 'occupied') {
+              statusLabel = '🟢 Bugün Dolu (Seçilen İleri Tarihte Müsait)';
+            } else if (Array.isArray(r.reservations) && r.reservations.length > 0) {
+              statusLabel = '🟢 Müsait (Gelecekte Rezervasyonu Var)';
+            }
+
+            return (
+              <label 
+                key={r.id}
+                className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                  isConflictForSelectedDates || isMaintenance
+                    ? 'opacity-50 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 cursor-not-allowed'
+                    : selectedTargetRoomId === r.id
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 ring-2 ring-indigo-500 cursor-pointer'
+                    : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:border-slate-400 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="radio"
+                    name="assign_room_select"
+                    disabled={isConflictForSelectedDates || isMaintenance}
+                    checked={selectedTargetRoomId === r.id}
+                    onChange={() => setSelectedTargetRoomId(r.id)}
+                    className="text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <p className="font-bold text-xs text-slate-900 dark:text-white">
+                      Oda #{r.room_number} - {r.room_type}
+                    </p>
+                    <span className={`text-[10px] font-bold ${isConflictForSelectedDates ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {statusLabel}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <span className="font-bold text-xs text-slate-600 dark:text-slate-300">
-                ₺{formatThousand(r.price_per_night || 0)} /gece
-              </span>
-            </label>
-          ))}
+                <span className="font-bold text-xs text-slate-600 dark:text-slate-300">
+                  ₺{formatThousand(r.price_per_night || 0)} /gece
+                </span>
+              </label>
+            );
+          })}
         </div>
 
         <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">

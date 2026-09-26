@@ -8,7 +8,10 @@ import {
   Camera, 
   Upload, 
   SlidersHorizontal, 
-  CheckCircle2 
+  CheckCircle2,
+  Sparkles,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { HotelRoom } from '../HotelRoomManagement';
 
@@ -476,7 +479,233 @@ export const HotelRoomEditModal: React.FC<HotelRoomEditModalProps> = ({
             </div>
           </div>
 
-          {/* BÖLÜM 4: ODA OLANAKLARI & HIZLI SEÇİM */}
+          {/* BÖLÜM 4: ÖZEL GÜN FİYATLARI VE TARİH KABATMA / BLOKAJ (Bayram, Yılbaşı, Sömestr) */}
+          <div className="p-4 sm:p-5 bg-amber-50/50 dark:bg-amber-950/20 rounded-2xl border border-amber-200 dark:border-amber-800/80 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-amber-200 dark:border-amber-800/60 pb-3">
+              <div>
+                <span className="text-xs font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  4. Özel Gün Fiyatları & Tarih Blokajı / Kapatma (Bayram, Yılbaşı, Sömestr)
+                </span>
+                <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                  Bayram, yılbaşı, sömestr veya yüksek sezonda geçerli özel fiyatlandırma ve odayı tarihe göre satışa kapatma (blokaj) kuralları.
+                </p>
+              </div>
+            </div>
+
+            {/* Özel Gün Fiyat Listesi & Ekleme */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black text-amber-950 dark:text-amber-100 uppercase tracking-wider">
+                  🎉 Tanımlı Özel Gün & Sezon Fiyatları
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newRule = {
+                      id: `sp-${Date.now()}`,
+                      title: "Kurban Bayramı Özel",
+                      start_date: new Date().toISOString().split('T')[0],
+                      end_date: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+                      price_per_night: Math.round((roomForm.price_per_night || 2500) * 1.5)
+                    };
+                    setRoomForm({
+                      ...roomForm,
+                      special_prices: [...(roomForm.special_prices || []), newRule]
+                    });
+                  }}
+                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Özel Gün Fiyatı Ekle</span>
+                </button>
+              </div>
+
+              {Array.isArray(roomForm.special_prices) && roomForm.special_prices.length > 0 ? (
+                <div className="space-y-2">
+                  {roomForm.special_prices.map((sp: any, spIdx: number) => (
+                    <div key={sp.id || spIdx} className="p-3 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 rounded-xl grid grid-cols-1 sm:grid-cols-12 gap-2 items-center text-xs">
+                      <div className="sm:col-span-4">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase block">Özel Gün / Etkinlik Adı</label>
+                        <input
+                          type="text"
+                          placeholder="Örn: Yılbaşı, Bayram, Sömestr"
+                          value={sp.title}
+                          onChange={(e) => {
+                            const updated = [...roomForm.special_prices];
+                            updated[spIdx].title = e.target.value;
+                            setRoomForm({ ...roomForm, special_prices: updated });
+                          }}
+                          className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+                      <div className="sm:col-span-4">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase block">Başlangıç - Bitiş Tarihi</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="date"
+                            value={sp.start_date}
+                            onChange={(e) => {
+                              const updated = [...roomForm.special_prices];
+                              updated[spIdx].start_date = e.target.value;
+                              setRoomForm({ ...roomForm, special_prices: updated });
+                            }}
+                            className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-[10px]"
+                          />
+                          <span>-</span>
+                          <input
+                            type="date"
+                            value={sp.end_date}
+                            onChange={(e) => {
+                              const updated = [...roomForm.special_prices];
+                              updated[spIdx].end_date = e.target.value;
+                              setRoomForm({ ...roomForm, special_prices: updated });
+                            }}
+                            className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border rounded font-bold text-[10px]"
+                          />
+                        </div>
+                      </div>
+                      <div className="sm:col-span-3">
+                        <label className="text-[9px] font-bold text-amber-700 dark:text-amber-300 uppercase block">Gecelik Fiyat (₺)</label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1 text-xs font-bold text-amber-600">₺</span>
+                          <input
+                            type="text"
+                            placeholder="3.500"
+                            value={formatThousand(sp.price_per_night)}
+                            onChange={(e) => {
+                              const updated = [...roomForm.special_prices];
+                              updated[spIdx].price_per_night = parseThousand(e.target.value);
+                              setRoomForm({ ...roomForm, special_prices: updated });
+                            }}
+                            className="w-full pl-6 pr-2 py-1 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-300 rounded font-black text-amber-900 dark:text-amber-100"
+                          />
+                        </div>
+                      </div>
+                      <div className="sm:col-span-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = roomForm.special_prices.filter((_: any, i: number) => i !== spIdx);
+                            setRoomForm({ ...roomForm, special_prices: updated });
+                          }}
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg cursor-pointer"
+                          title="Kuralı Sil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 bg-white/60 dark:bg-slate-900/60 rounded-xl border border-dashed border-amber-200 dark:border-amber-800 text-center">
+                  <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                    Henüz bu oda için özel gün fiyatı tanımlanmadı. "Özel Gün Fiyatı Ekle" butonunu kullanarak bayram, yılbaşı veya yüksek sezon fiyatı ekleyebilirsiniz.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Tarih Kapatma & Blokaj Listesi & Ekleme */}
+            <div className="pt-3 border-t border-amber-200 dark:border-amber-800/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black text-rose-900 dark:text-rose-200 uppercase tracking-wider">
+                  🔒 Tarih Blokajı / Oda Kapatma (Tadilat, Özel Etkinlik vb.)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newBlock = {
+                      id: `cd-${Date.now()}`,
+                      title: "Özel Tadilat / Kapatma",
+                      start_date: new Date().toISOString().split('T')[0],
+                      end_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+                      reason: "Tesis içi bakım çalışması"
+                    };
+                    setRoomForm({
+                      ...roomForm,
+                      closed_dates: [...(roomForm.closed_dates || []), newBlock]
+                    });
+                  }}
+                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Tarih Kapat / Blokaj Ekle</span>
+                </button>
+              </div>
+
+              {Array.isArray(roomForm.closed_dates) && roomForm.closed_dates.length > 0 ? (
+                <div className="space-y-2">
+                  {roomForm.closed_dates.map((cd: any, cdIdx: number) => (
+                    <div key={cd.id || cdIdx} className="p-3 bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/60 rounded-xl grid grid-cols-1 sm:grid-cols-12 gap-2 items-center text-xs">
+                      <div className="sm:col-span-5">
+                        <label className="text-[9px] font-bold text-rose-800 dark:text-rose-300 uppercase block">Kapatma / Blokaj Nedeni</label>
+                        <input
+                          type="text"
+                          placeholder="Örn: Tadilat, Sahiplik Kullanımı"
+                          value={cd.title}
+                          onChange={(e) => {
+                            const updated = [...roomForm.closed_dates];
+                            updated[cdIdx].title = e.target.value;
+                            setRoomForm({ ...roomForm, closed_dates: updated });
+                          }}
+                          className="w-full px-2 py-1 bg-white dark:bg-slate-900 border border-rose-300 rounded font-bold text-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+                      <div className="sm:col-span-6">
+                        <label className="text-[9px] font-bold text-rose-800 dark:text-rose-300 uppercase block">Kapatılan Tarih Aralığı</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="date"
+                            value={cd.start_date}
+                            onChange={(e) => {
+                              const updated = [...roomForm.closed_dates];
+                              updated[cdIdx].start_date = e.target.value;
+                              setRoomForm({ ...roomForm, closed_dates: updated });
+                            }}
+                            className="w-full px-1.5 py-1 bg-white dark:bg-slate-900 border rounded font-bold text-[10px]"
+                          />
+                          <span>-</span>
+                          <input
+                            type="date"
+                            value={cd.end_date}
+                            onChange={(e) => {
+                              const updated = [...roomForm.closed_dates];
+                              updated[cdIdx].end_date = e.target.value;
+                              setRoomForm({ ...roomForm, closed_dates: updated });
+                            }}
+                            className="w-full px-1.5 py-1 bg-white dark:bg-slate-900 border rounded font-bold text-[10px]"
+                          />
+                        </div>
+                      </div>
+                      <div className="sm:col-span-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = roomForm.closed_dates.filter((_: any, i: number) => i !== cdIdx);
+                            setRoomForm({ ...roomForm, closed_dates: updated });
+                          }}
+                          className="p-1.5 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900 rounded-lg cursor-pointer"
+                          title="Blokajı Sil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 bg-white/60 dark:bg-slate-900/60 rounded-xl border border-dashed border-rose-200 dark:border-rose-800 text-center">
+                  <p className="text-xs text-rose-700 dark:text-rose-300 font-medium">
+                    Bu oda için herhangi bir kapalı tarih veya blokaj kuralı yok.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* BÖLÜM 5: ODA OLANAKLARI & HIZLI SEÇİM */}
           <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
