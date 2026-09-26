@@ -211,13 +211,23 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
                   onChange={(e) => setUnit(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500"
                 >
-                  <option value="Adet">{isTr ? 'Adet' : 'pcs'}</option>
-                  <option value="ml">ml</option>
-                  <option value="cl">cl</option>
+                  <option value="ml">ml (Mililitre)</option>
+                  <option value="cl">cl (Santilitre)</option>
                   <option value="cc">cc</option>
-                  <option value="Litre">{isTr ? 'Litre' : 'Liters'}</option>
-                  <option value="gr">gr</option>
-                  <option value="kg">kg</option>
+                  <option value="Litre">{isTr ? 'Litre (Lt)' : 'Liters (Lt)'}</option>
+                  <option value="gr">gr (Gram)</option>
+                  <option value="kg">kg (Kilogram)</option>
+                  <option value="Adet">{isTr ? 'Adet (Ad)' : 'pcs'}</option>
+                  <option value="Porsiyon">{isTr ? 'Porsiyon' : 'Portion'}</option>
+                  <option value="Dilim">{isTr ? 'Dilim' : 'Slice'}</option>
+                  <option value="Shot">Shot</option>
+                  <option value="Ölçek">{isTr ? 'Ölçek / Scoop' : 'Scoop'}</option>
+                  <option value="Damlalık">{isTr ? 'Damlalık / Dash' : 'Dash'}</option>
+                  <option value="Paket">{isTr ? 'Paket' : 'Pack'}</option>
+                  <option value="Şişe">{isTr ? 'Şişe' : 'Bottle'}</option>
+                  <option value="Kutu">{isTr ? 'Kutu' : 'Can/Box'}</option>
+                  <option value="Fincan">{isTr ? 'Fincan' : 'Cup'}</option>
+                  <option value="Bardak">{isTr ? 'Bardak' : 'Glass'}</option>
                 </select>
               </div>
 
@@ -226,7 +236,7 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
                 <button
                   type="button"
                   onClick={handleAddIngredient}
-                  className="w-full h-11 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
+                  className="w-full h-11 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-slate-800 active:scale-95 transition-all shadow-sm cursor-pointer"
                   title={isTr ? "Malzemeyi Listeye Ekle" : "Add Ingredient to List"}
                 >
                   <Plus className="h-5 w-5" />
@@ -253,26 +263,68 @@ export const RecipeModal = ({ product, products, onClose, lang }: RecipeModalPro
             ) : (
               <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-50">
                 {recipeItems.map((item, index) => (
-                  <div key={index} className="px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                    <div className="space-y-1">
-                      <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                  <div key={index} className="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors gap-3">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <p className="text-sm font-black text-slate-800 uppercase tracking-tight truncate">
                         {item.ingredient_name}
                       </p>
                       <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider flex items-center gap-1.5">
                         {isTr ? 'GÜNCEL STOK' : 'CURRENT STOCK'}: 
                         <span className={item.ingredient_stock <= 0 ? "text-rose-500 font-black" : "text-slate-600 font-black"}>
-                          {item.ingredient_stock} {item.ingredient_unit}
+                          {item.ingredient_stock} {item.ingredient_unit || item.unit || 'Adet'}
                         </span>
                       </p>
                     </div>
-                    <div className="flex items-center gap-6">
-                      <span className="text-sm font-mono font-black text-slate-900 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-xl">
-                        {item.quantity} {item.unit}
-                      </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <input
+                        type="number"
+                        step="any"
+                        min="0.001"
+                        value={item.quantity !== undefined ? item.quantity : (item.amount || "")}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setRecipeItems(prev => {
+                            const next = [...prev];
+                            next[index] = { ...next[index], quantity: val, amount: val };
+                            return next;
+                          });
+                        }}
+                        className="w-20 px-2.5 py-1.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs font-mono font-black text-slate-900 text-center outline-none focus:border-amber-500"
+                      />
+                      <select
+                        value={item.unit || item.ingredient_unit || 'Adet'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setRecipeItems(prev => {
+                            const next = [...prev];
+                            next[index] = { ...next[index], unit: val, ingredient_unit: val };
+                            return next;
+                          });
+                        }}
+                        className="w-24 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="ml">ml</option>
+                        <option value="cl">cl</option>
+                        <option value="cc">cc</option>
+                        <option value="Litre">{isTr ? 'Litre (Lt)' : 'Lt'}</option>
+                        <option value="gr">gr (Gram)</option>
+                        <option value="kg">kg</option>
+                        <option value="Adet">{isTr ? 'Adet' : 'pcs'}</option>
+                        <option value="Porsiyon">{isTr ? 'Porsiyon' : 'Portion'}</option>
+                        <option value="Dilim">{isTr ? 'Dilim' : 'Slice'}</option>
+                        <option value="Shot">Shot</option>
+                        <option value="Ölçek">{isTr ? 'Ölçek' : 'Scoop'}</option>
+                        <option value="Damlalık">{isTr ? 'Damlalık' : 'Dash'}</option>
+                        <option value="Paket">{isTr ? 'Paket' : 'Pack'}</option>
+                        <option value="Şişe">{isTr ? 'Şişe' : 'Bottle'}</option>
+                        <option value="Kutu">{isTr ? 'Kutu' : 'Can'}</option>
+                        <option value="Fincan">{isTr ? 'Fincan' : 'Cup'}</option>
+                        <option value="Bardak">{isTr ? 'Bardak' : 'Glass'}</option>
+                      </select>
                       <button
                         type="button"
                         onClick={() => handleRemoveIngredient(index)}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
                         title={isTr ? "Malzemeyi Sil" : "Delete Ingredient"}
                       >
                         <Trash2 className="h-4.5 w-4.5" />

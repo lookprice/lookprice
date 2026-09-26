@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 import { 
   Edit2, 
   Trash2, 
@@ -16,8 +16,14 @@ import {
   Award,
   Crown,
   Tag,
-  Store
+  Store,
+  Check,
+  X,
+  Loader2,
+  Pencil
 } from "lucide-react";
+import { toast } from "sonner";
+import { api } from "@/services/api";
 import { BookstoreBadgePopover } from "./BookstoreBadgePopover";
 import { BOOKSTORE_BADGES } from "@/data/bookstoreBadges";
 
@@ -106,6 +112,72 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
 }) => {
   const isRowOpen = tableManager.isRowExpanded(p.id);
 
+  // Fast Inline Price & Stock Editing States
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [tempPrice, setTempPrice] = useState<string>(String(p.price || ""));
+  const [isSavingPrice, setIsSavingPrice] = useState(false);
+
+  const [isEditingStock, setIsEditingStock] = useState(false);
+  const [tempStock, setTempStock] = useState<string>(String(p.stock_quantity ?? ""));
+  const [isSavingStock, setIsSavingStock] = useState(false);
+
+  const priceTouchTimer = useRef<any>(null);
+  const stockTouchTimer = useRef<any>(null);
+
+  const handleStartEditPrice = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (isViewer) return;
+    if (e) e.stopPropagation();
+    setTempPrice(String(p.price || ""));
+    setIsEditingPrice(true);
+  };
+
+  const handleSavePrice = async (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.stopPropagation();
+    const newP = parseFloat(tempPrice.replace(",", "."));
+    if (isNaN(newP) || newP < 0) {
+      toast.error(lang === "tr" ? "Lütfen geçerli bir fiyat girin" : "Invalid price");
+      return;
+    }
+    setIsSavingPrice(true);
+    try {
+      await api.updateProduct(p.id, { price: newP }, currentStoreId);
+      p.price = newP;
+      setIsEditingPrice(false);
+      toast.success(lang === "tr" ? `Fiyat güncellendi: ${newP} ${p.currency || 'TRY'}` : `Price updated: ${newP}`);
+    } catch (err) {
+      toast.error(lang === "tr" ? "Fiyat güncellenemedi" : "Failed to update price");
+    } finally {
+      setIsSavingPrice(false);
+    }
+  };
+
+  const handleStartEditStock = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (isViewer || p.product_type === "service") return;
+    if (e) e.stopPropagation();
+    setTempStock(String(p.stock_quantity ?? "0"));
+    setIsEditingStock(true);
+  };
+
+  const handleSaveStock = async (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.stopPropagation();
+    const newS = Math.floor(parseFloat(tempStock.replace(",", ".")));
+    if (isNaN(newS)) {
+      toast.error(lang === "tr" ? "Lütfen geçerli bir stok miktarı girin" : "Invalid stock quantity");
+      return;
+    }
+    setIsSavingStock(true);
+    try {
+      await api.updateProduct(p.id, { stock_quantity: newS }, currentStoreId);
+      p.stock_quantity = newS;
+      setIsEditingStock(false);
+      toast.success(lang === "tr" ? `Stok güncellendi: ${newS} ${p.unit || 'Adet'}` : `Stock updated: ${newS}`);
+    } catch (err) {
+      toast.error(lang === "tr" ? "Stok güncellenemedi" : "Failed to update stock");
+    } finally {
+      setIsSavingStock(false);
+    }
+  };
+
   return (
     <React.Fragment>
       <tr 
@@ -150,12 +222,16 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
         <td className="px-2.5 py-1.5">
           <div className="flex items-center gap-2.5">
             {tableManager.isColumnVisible('image') && (
-              <div className="relative group/img shrink-0">
+              <div 
+                className="relative group/img shrink-0 cursor-pointer"
+                onClick={() => !isViewer && onEdit(p)}
+                title={!isViewer ? (lang === 'tr' ? 'Ürünü düzenlemek için tıkla' : 'Click to edit product') : undefined}
+              >
                 {p.image_url ? (
                   <img 
                     src={p.image_url} 
                     alt={p.name} 
-                    className="w-8 h-8 rounded-lg object-contain p-0.5 bg-white border border-slate-200 shadow-2xs"
+                    className="w-8 h-8 rounded-lg object-contain p-0.5 bg-white border border-slate-200 shadow-2xs hover:scale-105 transition-transform"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
                       const target = e.currentTarget;
@@ -168,7 +244,7 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                     }}
                   />
                 ) : (
-                  <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200">
+                  <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200 hover:border-indigo-300 transition-colors">
                     <Package className="w-4 h-4 text-slate-400" />
                     {!isViewer && (
                       <button 
@@ -189,7 +265,15 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
             )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <div className="text-xs font-semibold text-slate-900 truncate max-w-[180px] sm:max-w-[240px] md:max-w-[320px] leading-tight" title={p.name}>
+                <div 
+                  onClick={() => !isViewer && onEdit(p)}
+                  className={`text-xs font-semibold text-slate-900 truncate max-w-[180px] sm:max-w-[240px] md:max-w-[320px] leading-tight ${
+                    !isViewer 
+                      ? 'cursor-pointer hover:text-indigo-600 hover:underline decoration-indigo-300 underline-offset-2 transition-colors' 
+                      : ''
+                  }`} 
+                  title={!isViewer ? (lang === 'tr' ? `${p.name} (Düzenlemek için tıkla)` : `${p.name} (Click to edit)`) : p.name}
+                >
                   {p.name || 'İsimsiz Ürün'}
                 </div>
                 {p.store_name && (showStoreName || (currentStoreId && Number(p.store_id) !== Number(currentStoreId))) && (
@@ -415,7 +499,40 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
         )}
         {tableManager.isColumnVisible('price') && (
           <td className="px-2.5 py-1.5 whitespace-nowrap">
-            {(() => {
+            {isEditingPrice ? (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  autoFocus
+                  value={tempPrice}
+                  onChange={(e) => setTempPrice(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSavePrice(e);
+                    if (e.key === "Escape") setIsEditingPrice(false);
+                  }}
+                  className="w-20 px-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 bg-white border-2 border-indigo-600 rounded-md shadow-xs outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={isSavingPrice}
+                  onClick={handleSavePrice}
+                  className="p-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-md cursor-pointer shadow-2xs transition-colors"
+                  title={lang === "tr" ? "Kaydet (Enter)" : "Save (Enter)"}
+                >
+                  {isSavingPrice ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPrice(false)}
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md cursor-pointer transition-colors"
+                  title={lang === "tr" ? "İptal (Esc)" : "Cancel (Esc)"}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (() => {
               let parsedVars: any[] = [];
               if (p.variants) {
                 if (typeof p.variants === 'string') {
@@ -447,9 +564,24 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                 );
               }
               return (
-                <span className="text-xs font-bold text-slate-900 tabular-nums">
-                  {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.currency || 'TRY').substring(0, 3)}</span>
-                </span>
+                <div 
+                  onDoubleClick={handleStartEditPrice}
+                  onTouchStart={(e) => {
+                    priceTouchTimer.current = setTimeout(() => handleStartEditPrice(e), 450);
+                  }}
+                  onTouchEnd={() => {
+                    if (priceTouchTimer.current) clearTimeout(priceTouchTimer.current);
+                  }}
+                  className={`group/price flex items-center gap-1.5 ${!isViewer ? 'cursor-pointer hover:bg-indigo-50/60 px-1 py-0.5 -mx-1 rounded transition-colors' : ''}`}
+                  title={!isViewer ? (lang === 'tr' ? "Çift tıkla veya basılı tut: Hızlı Fiyat Değiştir" : "Double-click or hold to quick edit price") : undefined}
+                >
+                  <span className="text-xs font-bold text-slate-900 tabular-nums">
+                    {Number(p.price).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 font-medium ml-0.5">{(p.currency || 'TRY').substring(0, 3)}</span>
+                  </span>
+                  {!isViewer && (
+                    <Pencil className="w-2.5 h-2.5 text-slate-300 group-hover/price:text-indigo-600 opacity-0 group-hover/price:opacity-100 transition-all" />
+                  )}
+                </div>
               );
             })()}
           </td>
@@ -481,6 +613,38 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
           <td className="px-2.5 py-1.5 whitespace-nowrap">
             {p.product_type === 'service' ? (
               <span className="text-[8px] font-medium text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded uppercase">{lang === 'tr' ? 'HİZMET' : 'SRV'}</span>
+            ) : isEditingStock ? (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="number"
+                  step="1"
+                  autoFocus
+                  value={tempStock}
+                  onChange={(e) => setTempStock(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveStock(e);
+                    if (e.key === "Escape") setIsEditingStock(false);
+                  }}
+                  className="w-16 px-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 bg-white border-2 border-indigo-600 rounded-md shadow-xs outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={isSavingStock}
+                  onClick={handleSaveStock}
+                  className="p-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-md cursor-pointer shadow-2xs transition-colors"
+                  title={lang === "tr" ? "Kaydet (Enter)" : "Save (Enter)"}
+                >
+                  {isSavingStock ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingStock(false)}
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md cursor-pointer transition-colors"
+                  title={lang === "tr" ? "İptal (Esc)" : "Cancel (Esc)"}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             ) : (() => {
               let vars: any[] = [];
               if (p.variants) {
@@ -496,8 +660,33 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                 : Number(p.stock_quantity) || 0;
               const isLowStock = effectiveStock <= Number(p.min_stock_level || 0);
 
+              if (hasVariants) {
+                return (
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-bold tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
+                      {Math.floor(effectiveStock)}
+                    </span>
+                    {isLowStock && (
+                      <span className="px-1 py-0.2 bg-rose-50 text-[8px] font-bold text-rose-600 border border-rose-100 rounded uppercase">
+                        !
+                      </span>
+                    )}
+                  </div>
+                );
+              }
+
               return (
-                <div className="flex items-center gap-1.5">
+                <div 
+                  onDoubleClick={handleStartEditStock}
+                  onTouchStart={(e) => {
+                    stockTouchTimer.current = setTimeout(() => handleStartEditStock(e), 450);
+                  }}
+                  onTouchEnd={() => {
+                    if (stockTouchTimer.current) clearTimeout(stockTouchTimer.current);
+                  }}
+                  className={`group/stock flex items-center gap-1.5 ${!isViewer ? 'cursor-pointer hover:bg-indigo-50/60 px-1 py-0.5 -mx-1 rounded transition-colors' : ''}`}
+                  title={!isViewer ? (lang === 'tr' ? "Çift tıkla veya basılı tut: Hızlı Stok Değiştir" : "Double-click or hold to quick edit stock") : undefined}
+                >
                   <span className={`text-xs font-bold tabular-nums ${isLowStock ? 'text-rose-600' : 'text-slate-800'}`}>
                     {Math.floor(effectiveStock)}
                   </span>
@@ -505,6 +694,9 @@ export const ProductTableRowComponent: React.FC<ProductTableRowProps> = ({
                     <span className="px-1 py-0.2 bg-rose-50 text-[8px] font-bold text-rose-600 border border-rose-100 rounded uppercase">
                       !
                     </span>
+                  )}
+                  {!isViewer && (
+                    <Pencil className="w-2.5 h-2.5 text-slate-300 group-hover/stock:text-indigo-600 opacity-0 group-hover/stock:opacity-100 transition-all" />
                   )}
                 </div>
               );

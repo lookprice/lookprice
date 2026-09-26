@@ -2962,10 +2962,11 @@ router.post("/pos/sale", async (req: any, res) => {
   const storeId = req.query.storeId || req.body.storeId;
   if (!storeId) return res.status(400).json({ error: "Store ID is required" });
   
-  const { items, total, paymentMethod, customerName, notes, currency, exchangeRate, status, tableNumber } = req.body;
+  const { items, total, paymentMethod, customerName, notes, currency, exchangeRate, status, tableNumber, waiterName, waiterId, orderSource } = req.body;
   const saleStatus = status || 'pending';
-  const resolvedCustomerName = customerName || (tableNumber ? `Masa ${tableNumber}` : 'Masa Siparişi');
-  const finalNotes = tableNumber ? `Masa ${tableNumber} - Dijital Menü` + (notes ? ` | ${notes}` : '') : (notes || 'Dijital Menü Siparişi');
+  const waiterBadge = waiterName ? ` [Garson: ${waiterName}]` : '';
+  const resolvedCustomerName = customerName || (tableNumber ? `${tableNumber}` : 'Masa Siparişi');
+  const finalNotes = (tableNumber ? `${tableNumber}` : 'Sipariş') + (orderSource === 'Garson Terminali' ? ' (Garson Terminali)' : ' (Dijital Menü)') + waiterBadge + (notes ? ` | ${notes}` : '');
   
   const client = await pool.connect();
   try {
@@ -3222,12 +3223,18 @@ const handlePublicHotelReservation = async (req: express.Request, res: express.R
     const fRoomNumber = String(room_number || roomNumber || '');
     const fRoomType = String(room_type || roomType || 'Standart Oda');
 
-    const fFirstName = guest_first_name || guest?.first_name || '';
-    const fLastName = guest_last_name || guest?.last_name || '';
-    const fGuestName = guest_name || (fFirstName || fLastName ? `${fFirstName} ${fLastName}`.trim() : 'Misafir');
-    const fIdentityNo = guest_identity_no || guest?.identity_no || '';
-    const fPhone = guest_phone || guest?.phone || '';
-    const fEmail = guest_email || guest?.email || '';
+    const fFirstName = String(guest_first_name || guest?.first_name || '').trim();
+    const fLastName = String(guest_last_name || guest?.last_name || '').trim();
+    const fGuestName = (fFirstName || fLastName ? `${fFirstName} ${fLastName}`.trim() : String(guest_name || 'Misafir')).trim();
+    const fIdentityNo = String(guest_identity_no || guest?.identity_no || '').trim();
+    const fPhone = String(guest_phone || guest?.phone || '').trim();
+    const fEmail = String(guest_email || guest?.email || '').trim();
+
+    if (!fFirstName || !fLastName || !fIdentityNo) {
+      return res.status(400).json({ 
+        error: "Otel rezervasyonu için Misafir Adı, Soyadı ve Pasaport veya Kimlik (TC) bilgileri zorunludur." 
+      });
+    }
 
     const fCheckIn = check_in_date || checkInDate || new Date().toISOString().split('T')[0];
     const fCheckOut = check_out_date || checkOutDate || new Date().toISOString().split('T')[0];

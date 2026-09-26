@@ -134,16 +134,22 @@ export const useProductActions = (user: any, currentStoreId: number | undefined,
       calories: Number(rawData.calories) || 0,
       prep_time_min: Number(rawData.prep_time_min) || 0,
       portion_size: String(rawData.portion_size || '').trim(),
+      protein: rawData.protein !== undefined && rawData.protein !== '' ? Number(String(rawData.protein).replace(',', '.')) : (sector_data.protein || null),
+      carbs: rawData.carbs !== undefined && rawData.carbs !== '' ? Number(String(rawData.carbs).replace(',', '.')) : (sector_data.carbs || null),
+      fat: rawData.fat !== undefined && rawData.fat !== '' ? Number(String(rawData.fat).replace(',', '.')) : (sector_data.fat || null),
+      sugar: rawData.sugar !== undefined && rawData.sugar !== '' ? Number(String(rawData.sugar).replace(',', '.')) : (sector_data.sugar || null),
+      fiber: rawData.fiber !== undefined && rawData.fiber !== '' ? Number(String(rawData.fiber).replace(',', '.')) : (sector_data.fiber || null),
+      allergen_warning: String(rawData.allergen_warning || sector_data.allergen_warning || '').trim(),
       product_type: rawData.product_type || 'product',
       sync_group: rawData.sync_group === 'on',
       marketplace_data: marketplaceData,
       hepsiburada_url: rawData.hepsiburada_url || marketplaceData?.hepsiburada?.productUrl || editingProduct?.hepsiburada_url || null,
       hepsiburada_sku: rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku || editingProduct?.hepsiburada_sku || null,
-      is_hepsiburada_active: rawData.is_hepsiburada_active === 'true' || rawData.is_hepsiburada_active === true || Boolean(rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku || rawData.hepsiburada_url),
+      is_hepsiburada_active: String(rawData.is_hepsiburada_active) === 'true' || rawData.is_hepsiburada_active === 'on' || Boolean(rawData.hepsiburada_sku || marketplaceData?.hepsiburada?.hepsiburadaSku || rawData.hepsiburada_url),
       amazon_asin: rawData.amazon_asin || marketplaceData?.amazon?.asin || editingProduct?.amazon_asin || null,
       amazon_sku: rawData.amazon_sku || marketplaceData?.amazon?.sku || editingProduct?.amazon_sku || null,
       amazon_url: rawData.amazon_url || marketplaceData?.amazon?.productUrl || editingProduct?.amazon_url || null,
-      is_amazon_active: rawData.is_amazon_active === 'true' || rawData.is_amazon_active === true || Boolean(rawData.amazon_asin || marketplaceData?.amazon?.asin)
+      is_amazon_active: String(rawData.is_amazon_active) === 'true' || rawData.is_amazon_active === 'on' || Boolean(rawData.amazon_asin || marketplaceData?.amazon?.asin)
     };
 
     // Defensive synchronization between top-level fields and book sector_data

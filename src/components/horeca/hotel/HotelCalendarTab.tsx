@@ -502,9 +502,9 @@ export const HotelCalendarTab: React.FC<HotelCalendarTabProps> = ({
                     const isCurrentGuestStay = room.status === 'occupied' && 
                       room.current_guest && 
                       room.current_guest.check_in_date <= d.dateStr && 
-                      room.current_guest.check_out_date >= d.dateStr;
+                      room.current_guest.check_out_date > d.dateStr;
 
-                    const reservationMatch = room.reservations?.find(r => r.check_in_date <= d.dateStr && r.check_out_date >= d.dateStr);
+                    const reservationMatch = room.reservations?.find(r => r.check_in_date <= d.dateStr && r.check_out_date > d.dateStr);
 
                     if (isCurrentGuestStay && room.current_guest) {
                       const cg = room.current_guest;

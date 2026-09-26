@@ -266,6 +266,17 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
           const tableNick = nicknames[cleanNum] || nicknames[table.table_number] || '';
           const isPressing = pressingTableId === table.id;
 
+          // Resolve matching sale and waiter attribution
+          const matchingSale = pendingSales.find(s => 
+            (s.restaurant_table_id && s.restaurant_table_id === table.id) ||
+            (s.customer_name && (s.customer_name === table.table_number || s.customer_name === `Masa ${cleanNum}` || s.customer_name === cleanNum))
+          );
+          let waiterTag = '';
+          if (matchingSale?.notes) {
+            const match = matchingSale.notes.match(/\[Garson:\s*([^\]]+)\]/i);
+            if (match && match[1]) waiterTag = match[1].trim();
+          }
+
           if (table.isGarsonTable) {
             return (
               <motion.button
@@ -359,16 +370,23 @@ export const TableGrid = ({ storeId, onTableSelect, refreshTrigger, pendingSales
                 </div>
               )}
 
-              {/* Table Status Badge */}
+              {/* Table Status Badge & Waiter Attribution */}
               {table.status === 'empty' && (
                 <span className="text-[10px] bg-emerald-100/90 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-200/60 text-center w-full truncate">
                   {t('Boş', 'Empty', 'Άδειο')}
                 </span>
               )}
               {table.status === 'occupied' && (
-                <span className="text-[10px] bg-rose-200/90 text-rose-950 font-extrabold px-1.5 py-0.5 rounded border border-rose-300 text-center w-full truncate">
-                  {table.totalAmount && table.totalAmount > 0 ? `${table.totalAmount.toFixed(2)} ₺` : t('Dolu', 'Occupied', 'Dolu')}
-                </span>
+                <div className="w-full space-y-0.5">
+                  <span className="text-[10px] bg-rose-200/90 text-rose-950 font-extrabold px-1.5 py-0.5 rounded border border-rose-300 text-center w-full truncate block">
+                    {table.totalAmount && table.totalAmount > 0 ? `${table.totalAmount.toFixed(2)} ₺` : t('Dolu', 'Occupied', 'Dolu')}
+                  </span>
+                  {waiterTag && (
+                    <span className="text-[9px] bg-indigo-100 text-indigo-900 font-bold px-1 py-0.2 rounded border border-indigo-200 text-center w-full truncate block">
+                      👤 {waiterTag}
+                    </span>
+                  )}
+                </div>
               )}
             </motion.div>
           );

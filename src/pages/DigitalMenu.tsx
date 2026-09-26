@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import { motion, AnimatePresence } from "motion/react";
-import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles, UserCheck, FlaskConical, RotateCcw, Clock, Utensils, Zap, Info } from "lucide-react";
+import { ShoppingBasket, CheckCircle2, Plus, Minus, Trash2, X, MessageSquare, AlertCircle, Edit3, ChevronDown, Check, Search, Keyboard, Flame, Sparkles, UserCheck, FlaskConical, RotateCcw, Clock, Utensils, Zap, Info, ShieldCheck, Smartphone, Send, Coffee } from "lucide-react";
 import { translateText } from "../utils/translator";
+import { StaffWaiter, getStoreWaiters } from "../utils/staffHelpers";
 
 const ALLERGEN_MAP: Record<string, { labelTr: string; labelEn: string; icon: string }> = {
   gluten: { labelTr: "Gluten", labelEn: "Gluten", icon: "🌾" },
@@ -24,6 +25,7 @@ const ALLERGEN_MAP: Record<string, { labelTr: string; labelEn: string; icon: str
 
 export default function DigitalMenuPage() {
   const { storeId, tableId } = useParams();
+  const [searchParams] = useSearchParams();
   const [store, setStore] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [allTables, setAllTables] = useState<any[]>([]);
@@ -40,6 +42,24 @@ export default function DigitalMenuPage() {
   const [productSearchQuery, setProductSearchQuery] = useState<string>("");
   const [variantModalProduct, setVariantModalProduct] = useState<any | null>(null);
   const [flippedProductId, setFlippedProductId] = useState<string | number | null>(null);
+
+  // Waiter Terminal Modes & State
+  const [isWaiterMode, setIsWaiterMode] = useState<boolean>(() => {
+    return localStorage.getItem(`digitalMenuWaiterMode_${storeId}`) === 'true';
+  });
+  const [activeWaiter, setActiveWaiter] = useState<StaffWaiter | null>(() => {
+    try {
+      const raw = localStorage.getItem(`digitalMenuWaiterUser_${storeId}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [showWaiterModal, setShowWaiterModal] = useState(false);
+  const [waiterPinInput, setWaiterPinInput] = useState('');
+  const [waiterPinError, setWaiterPinError] = useState(false);
+  const [selectedWaiterForPin, setSelectedWaiterForPin] = useState<StaffWaiter | null>(null);
+  const [waiterZoneCategory, setWaiterZoneCategory] = useState<'tables' | 'sunbeds' | 'pool' | 'vip' | 'custom'>('tables');
 
   const getRecipeItems = (prod: any) => {
     let recipe = prod.recipe_items;
@@ -78,6 +98,33 @@ export default function DigitalMenuPage() {
       setManualTableInput(tableId);
     }
   }, [tableId]);
+
+  // URL Auto-Authentication for Waiters (WhatsApp Link Flow)
+  useEffect(() => {
+    const urlGarsonPin = searchParams.get('garson_pin');
+    const urlGarsonId = searchParams.get('garson_id');
+    const urlMode = searchParams.get('mode');
+
+    if (store && (urlGarsonPin || urlMode === 'waiter')) {
+      const waiters = getStoreWaiters(store?.branding || store);
+      let matchedWaiter: StaffWaiter | undefined;
+      
+      if (urlGarsonId) {
+        matchedWaiter = waiters.find(w => w.id === urlGarsonId && (urlGarsonPin ? w.pin === urlGarsonPin : true));
+      } else if (urlGarsonPin) {
+        matchedWaiter = waiters.find(w => w.pin === urlGarsonPin);
+      }
+
+      if (matchedWaiter) {
+        setIsWaiterMode(true);
+        setActiveWaiter(matchedWaiter);
+        localStorage.setItem(`digitalMenuWaiterMode_${storeId}`, 'true');
+        localStorage.setItem(`digitalMenuWaiterUser_${storeId}`, JSON.stringify(matchedWaiter));
+      } else if (urlMode === 'waiter' && !isWaiterMode) {
+        setShowWaiterModal(true);
+      }
+    }
+  }, [store, searchParams, storeId, isWaiterMode]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -199,7 +246,7 @@ export default function DigitalMenuPage() {
     setCart(prev => prev.filter((_, idx) => idx !== index));
   };
 
-  const placeOrder = async () => {
+  const placeOrder = async (waiterPaymentChoice: 'open' | 'cash' | 'credit_card' = 'open') => {
     if (cart.length === 0) return;
     if (!activeTableId) {
       alert(t("Lütfen siparişiniz için bir masa seçin veya 'Garson Masası' seçeneğini işaretleyin.", "Please select a table for your order or check the 'Waiter Table' option.", "Επιλέξτε ένα τραπέζι για την παραγγελία σας ή επιλέξτε την επιλογή 'Τραπέζι Σερβιτόρου'."));
@@ -208,9 +255,16 @@ export default function DigitalMenuPage() {
       return;
     }
     try {
+      const isPaidOnSpot = isWaiterMode && waiterPaymentChoice !== 'open';
       const orderData = {
         storeId: Number(storeId),
         tableNumber: activeTableId,
+        customerName: activeTableId ? `${activeTableId}` : (isWaiterMode && activeWaiter ? `Garson: ${activeWaiter.name}` : 'Masa Siparişi'),
+        waiterName: isWaiterMode && activeWaiter ? activeWaiter.name : undefined,
+        waiterId: isWaiterMode && activeWaiter ? activeWaiter.id : undefined,
+        orderSource: isWaiterMode ? 'Garson Terminali' : 'Dijital Menü',
+        paymentMethod: isPaidOnSpot ? waiterPaymentChoice : 'cash',
+        notes: isPaidOnSpot ? `Şezlongda / Masada Mobil Tahsil Edildi (${waiterPaymentChoice === 'cash' ? 'Nakit' : 'Kredi Kartı / POS'})` : undefined,
         // If note is specified, attach it to product name so it appears in kitchen, cashier and invoices seamlessly
         items: cart.map(p => ({
           productId: p.id,
@@ -221,7 +275,7 @@ export default function DigitalMenuPage() {
           selected_variant_name: p.selected_variant_name || (p.selectedVariant ? p.selectedVariant.name : null)
         })),
         total: cart.reduce((sum, p) => sum + (Number(p.price) * p.quantity), 0),
-        status: 'pending'
+        status: isPaidOnSpot ? 'completed' : 'pending'
       };
       await api.createPublicPosSale(orderData, Number(storeId));
       setCart([]);
@@ -465,138 +519,146 @@ export default function DigitalMenuPage() {
           </button>
         </div>
 
-        {/* Brand Header */}
-        <header className={`p-4 rounded-3xl shadow-sm mb-4 border space-y-3.5 animate-fade-in pr-20 transition-colors ${
+        {/* Waiter Terminal Sticky HUD (when logged in as a waiter) */}
+        {isWaiterMode && activeWaiter && (
+          <div className="mb-3 p-2.5 bg-indigo-950 text-indigo-100 rounded-2xl border border-indigo-500/50 shadow-lg flex items-center justify-between gap-2 animate-fade-in">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+              <div className="min-w-0">
+                <div className="text-[11px] font-black text-white flex items-center gap-1.5 truncate">
+                  <UserCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span>{activeWaiter.name}</span>
+                  <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-indigo-800/80 text-indigo-200 font-normal">
+                    {activeWaiter.section || 'Saha'}
+                  </span>
+                </div>
+                <div className="text-[9.5px] text-indigo-300 font-bold truncate">
+                  📍 {activeTableId ? `${t('Aktif Konum', 'Active Location', 'Θέση')}: ${activeTableId}` : t('Masa/Şezlong Seçiniz', 'Select Table/Sunbed', 'Επιλέξτε')}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowTableSelector(true)}
+                className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10.5px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <Edit3 className="w-3 h-3" />
+                <span>{t('Alan Seç', 'Pick Zone', 'Επιλογή')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsWaiterMode(false);
+                  setActiveWaiter(null);
+                  localStorage.removeItem(`digitalMenuWaiterMode_${storeId}`);
+                  localStorage.removeItem(`digitalMenuWaiterUser_${storeId}`);
+                }}
+                className="p-1 text-indigo-300 hover:text-white hover:bg-indigo-900 rounded-md transition-all cursor-pointer"
+                title={t('Garson Modundan Çık', 'Exit Waiter Mode', 'Έξοδος')}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Streamlined Compact Brand Header */}
+        <header className={`p-2.5 sm:p-3 rounded-2xl shadow-2xs mb-3 border space-y-2 animate-fade-in transition-colors ${
           isDark ? "bg-slate-800/90 border-slate-700/80 text-white" :
           isAmber ? "bg-white border-amber-200/80 text-stone-900" :
           isEmerald ? "bg-white border-emerald-100 text-slate-900" :
           "bg-white border-slate-100 text-slate-900"
         }`}>
-          <div className="flex items-center gap-3">
-            {store.logo_url ? (
-              <img src={store.logo_url} alt={store.name} className="h-14 w-14 rounded-2xl object-cover border border-slate-100 shrink-0 shadow-sm" />
-            ) : (
-              <div className={`h-14 w-14 rounded-2xl flex items-center justify-center font-extrabold text-xl shrink-0 ${
-                isDark ? "bg-slate-700 text-amber-400" : isAmber ? "bg-amber-100 text-amber-800" : isEmerald ? "bg-emerald-100 text-emerald-800" : "bg-indigo-50 text-indigo-600"
-              }`}>
-                {store.name?.substring(0, 2).toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h1 className={`text-base font-extrabold tracking-tight truncate leading-tight ${
-                isDark ? "text-white" : "text-slate-800"
-              }`}>{store.name}</h1>
-              <div className="flex items-center gap-2 mt-1.5">
-                {activeTableId ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setManualTableInput(activeTableId);
-                      setShowTableSelector(true);
-                    }}
-                    className="px-2.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-full text-[10px] font-black border border-rose-100/50 transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    {t('Masa', 'Table', 'Τραπέζι')}: {activeTableId}
-                    <Edit3 className="w-2.5 h-2.5 text-rose-400" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setManualTableInput("");
-                      setShowTableSelector(true);
-                    }}
-                    className="px-2.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-full text-[10px] font-black border border-amber-100/50 transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    {t('Masa Seçilmedi', 'No Table Selected', 'Δεν επιλέχθηκε τραπέζι')}
-                    <AlertCircle className="w-2.5 h-2.5 text-amber-500 animate-pulse" />
-                  </button>
-                )}
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('Dijital Menü', 'Digital Menu', 'Ψηφιακό Μενού')}</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              {store.logo_url ? (
+                <img src={store.logo_url} alt={store.name} className="h-10 w-10 rounded-xl object-cover border border-slate-100 shrink-0 shadow-2xs" />
+              ) : (
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-extrabold text-base shrink-0 ${
+                  isDark ? "bg-slate-700 text-amber-400" : isAmber ? "bg-amber-100 text-amber-800" : isEmerald ? "bg-emerald-100 text-emerald-800" : "bg-indigo-50 text-indigo-600"
+                }`}>
+                  {store.name?.substring(0, 2).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h1 className={`text-sm font-black tracking-tight truncate leading-tight ${
+                  isDark ? "text-white" : "text-slate-800"
+                }`}>{store.name}</h1>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  {activeTableId ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualTableInput(activeTableId);
+                        setShowTableSelector(true);
+                      }}
+                      className="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[9.5px] font-black border border-rose-100/50 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      {t('Masa/Alan', 'Table/Zone', 'Τραπέζι')}: {activeTableId}
+                      <Edit3 className="w-2.5 h-2.5 text-rose-400" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualTableInput("");
+                        setShowTableSelector(true);
+                      }}
+                      className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-[9.5px] font-black border border-amber-100/50 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      {t('Masa Seçilmedi', 'No Table', 'Δεν επιλέχθηκε')}
+                      <AlertCircle className="w-2.5 h-2.5 text-amber-500 animate-pulse" />
+                    </button>
+                  )}
+
+                  {!isWaiterMode && (
+                    <button
+                      type="button"
+                      onClick={() => setShowWaiterModal(true)}
+                      className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[9.5px] font-black border border-indigo-100 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <Smartphone className="w-2.5 h-2.5 text-indigo-600" />
+                      <span>{t('Garson', 'Waiter', 'Σερβιτόρος')}</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Full-featured Search Bar inside Logo Section */}
+          {/* Compact Search Bar */}
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
               type="text"
               value={productSearchQuery}
               onChange={(e) => setProductSearchQuery(e.target.value)}
               placeholder={t("Menüde hızlıca ara...", "Fast search in menu...", "Γρήγορη αναζήτηση στο μενού...")}
-              className="w-full pl-9.5 pr-8 py-2 bg-slate-50 border-2 border-slate-100 rounded-2xl text-xs font-bold text-slate-700 placeholder-slate-400 outline-none focus:border-indigo-600 focus:bg-white transition-all shadow-inner animate-fade-in"
+              className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-bold text-slate-700 placeholder-slate-400 outline-none focus:border-indigo-600 focus:bg-white transition-all"
             />
             {productSearchQuery && (
               <button
                 onClick={() => setProductSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
             )}
           </div>
-
-          {/* Working Hours Status & Phone */}
-          {(() => {
-            const getWorkingHoursStatus = () => {
-              const wh = store?.working_hours || store?.branding?.working_hours;
-              if (!wh) return { isOpen: true, text: "7/7 Açık", badgeBg: "bg-emerald-50 text-emerald-700 border-emerald-200" };
-              const now = new Date();
-              const day = now.getDay();
-              const currentTime = now.getHours() * 60 + now.getMinutes();
-              let hoursStr = "";
-              if (day === 0) {
-                if (wh.is_sunday_closed) return { isOpen: false, text: t("Bugün Kapalı", "Closed Today", "Κλειστά Σήμερα"), badgeBg: "bg-rose-50 text-rose-700 border-rose-200" };
-                hoursStr = wh.sunday || "10:00 - 23:00";
-              } else if (day === 6) {
-                if (wh.is_saturday_closed) return { isOpen: false, text: t("Bugün Kapalı", "Closed Today", "Κλειστά Σήμερα"), badgeBg: "bg-rose-50 text-rose-700 border-rose-200" };
-                hoursStr = wh.saturday || "09:00 - 23:00";
-              } else {
-                hoursStr = wh.weekdays || "09:00 - 23:00";
-              }
-              const parts = hoursStr.split("-").map((s: string) => s.trim());
-              if (parts.length === 2) {
-                const [openH, openM] = parts[0].split(":").map(Number);
-                const [closeH, closeM] = parts[1].split(":").map(Number);
-                const openMinutes = (openH || 0) * 60 + (openM || 0);
-                const closeMinutes = (closeH || 0) * 60 + (closeM || 0);
-                const isOpen = currentTime >= openMinutes && currentTime <= closeMinutes;
-                return {
-                  isOpen,
-                  text: isOpen ? `${t('Açık', 'Open', 'Ανοιχτά')} (${parts[0]} - ${parts[1]})` : `${t('Kapalı', 'Closed', 'Κλειστά')} (${t('Açılış', 'Opens', 'Άνοιγμα')}: ${parts[0]})`,
-                  badgeBg: isOpen ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
-                };
-              }
-              return { isOpen: true, text: hoursStr, badgeBg: "bg-emerald-50 text-emerald-700 border-emerald-200" };
-            };
-            const workStatus = getWorkingHoursStatus();
-            return (
-              <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
-                <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black border ${workStatus.badgeBg} flex items-center gap-1`}>
-                  <Clock className="w-3 h-3" />
-                  {workStatus.text}
-                </span>
-                {store.phone && (
-                  <a href={`tel:${store.phone}`} className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1">
-                    <span>📞 {store.phone}</span>
-                  </a>
-                )}
-              </div>
-            );
-          })()}
         </header>
 
         {/* Warning alert if no table is selected */}
         {!activeTableId && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-sm animate-pulse">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
-                <AlertCircle className="w-5 h-5 shrink-0" />
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 mb-3 flex items-center justify-between shadow-xs animate-pulse">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-1.5 bg-amber-100 text-amber-800 rounded-lg shrink-0">
+                <AlertCircle className="w-4 h-4 shrink-0" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-slate-800 text-sm">{t('Masa Belirtilmedi', 'No Table Specified', 'Δεν έχει καθοριστεί τραπέζι')}</p>
-                <p className="text-xs text-slate-500 font-medium mt-0.5 leading-tight">{t('Siparişinizin mutfağa iletilebilmesi için masa seçin.', 'Select a table so your order can be sent to the kitchen.', 'Επιλέξτε ένα τραπέζι για να σταλεί η παραγγελία σας στην κουζίνα.')}</p>
+                <p className="font-extrabold text-slate-800 text-xs leading-tight">{t('Masa Belirtilmedi', 'No Table Specified', 'Δεν έχει καθοριστεί τραπέζι')}</p>
+                <p className="text-[10px] text-slate-500 font-medium leading-tight truncate">{t('Sipariş için masa seçin.', 'Select a table for ordering.', 'Επιλέξτε τραπέζι.')}</p>
               </div>
             </div>
             <button
@@ -605,38 +667,38 @@ export default function DigitalMenuPage() {
                 setManualTableInput("");
                 setShowTableSelector(true);
               }}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-amber-100 cursor-pointer shrink-0 ml-2"
+              className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10.5px] font-bold transition-all shadow-xs cursor-pointer shrink-0 ml-1.5"
             >
-              {t('Masa Seç', 'Select Table', 'Επιλογή Τραπεζιού')}
+              {t('Masa Seç', 'Select Table', 'Επιλογή')}
             </button>
           </div>
         )}
 
         {/* Table Service Call Quick Buttons */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
           <button
             type="button"
             onClick={() => handleTableCall('Garson Çağır')}
-            className="flex flex-col items-center justify-center p-3 bg-white hover:bg-amber-50 text-slate-800 hover:text-amber-800 rounded-2xl border border-slate-200 hover:border-amber-300 shadow-xs transition-all cursor-pointer active:scale-95"
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-white hover:bg-amber-50 text-slate-800 hover:text-amber-800 rounded-xl border border-slate-200/80 hover:border-amber-300 shadow-2xs transition-all cursor-pointer active:scale-95 shrink-0"
           >
-            <span className="text-lg mb-1">🛎️</span>
-            <span className="text-[11px] font-extrabold tracking-tight">{t('Garson Çağır', 'Call Waiter', 'Κλήση Σερβιτόρου')}</span>
+            <span className="text-sm">🛎️</span>
+            <span className="text-[10.5px] font-black tracking-tight truncate">{t('Garson Çağır', 'Call Waiter', 'Κλήση')}</span>
           </button>
           <button
             type="button"
             onClick={() => handleTableCall('Hesap İste')}
-            className="flex flex-col items-center justify-center p-3 bg-white hover:bg-emerald-50 text-slate-800 hover:text-emerald-800 rounded-2xl border border-slate-200 hover:border-emerald-300 shadow-xs transition-all cursor-pointer active:scale-95"
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-white hover:bg-emerald-50 text-slate-800 hover:text-emerald-800 rounded-xl border border-slate-200/80 hover:border-emerald-300 shadow-2xs transition-all cursor-pointer active:scale-95 shrink-0"
           >
-            <span className="text-lg mb-1">💳</span>
-            <span className="text-[11px] font-extrabold tracking-tight">{t('Hesap İste', 'Request Bill', 'Αίτημα Λογαριασμού')}</span>
+            <span className="text-sm">💳</span>
+            <span className="text-[10.5px] font-black tracking-tight truncate">{t('Hesap İste', 'Bill', 'Λογαριασμός')}</span>
           </button>
           <button
             type="button"
             onClick={() => handleTableCall('Yardım')}
-            className="flex flex-col items-center justify-center p-3 bg-white hover:bg-indigo-50 text-slate-800 hover:text-indigo-800 rounded-2xl border border-slate-200 hover:border-indigo-300 shadow-xs transition-all cursor-pointer active:scale-95"
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-white hover:bg-indigo-50 text-slate-800 hover:text-indigo-800 rounded-xl border border-slate-200/80 hover:border-indigo-300 shadow-2xs transition-all cursor-pointer active:scale-95 shrink-0"
           >
-            <span className="text-lg mb-1">🙋</span>
-            <span className="text-[11px] font-extrabold tracking-tight">{t('Yardım', 'Help', 'Βοήθεια')}</span>
+            <span className="text-sm">🙋</span>
+            <span className="text-[10.5px] font-black tracking-tight truncate">{t('Yardım', 'Help', 'Βοήθεια')}</span>
           </button>
         </div>
 
@@ -740,7 +802,7 @@ export default function DigitalMenuPage() {
         </div>
 
         {/* Product List */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {filteredProducts.map((product, idx) => {
             const isBestsellerProduct = product.is_bestseller; // Mark as bestseller based on database flag
             const vars = Array.isArray(product.variants) ? product.variants : (typeof product.variants === 'string' ? JSON.parse(product.variants || '[]') : []);
@@ -767,12 +829,24 @@ export default function DigitalMenuPage() {
             return (
               <div 
                 key={`menu-prod-${product.id || idx}-${idx}`} 
-                className="w-full relative h-[285px]"
+                className="w-full relative h-[225px]"
                 style={{ perspective: "1000px" }}
               >
                 <motion.div
-                  animate={{ rotateY: isFlipped ? 180 : 0 }}
-                  transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+                  animate={
+                    isFlipped
+                      ? { rotateY: 180 }
+                      : (hasDetailsToFlip
+                        ? { rotateY: [0, -10, 0, 6, 0] }
+                        : { rotateY: 0 })
+                  }
+                  transition={
+                    isFlipped
+                      ? { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
+                      : (hasDetailsToFlip
+                        ? { duration: 2.5, repeat: Infinity, repeatDelay: 4, ease: "easeInOut" }
+                        : { duration: 0.3 })
+                  }
                   style={{ transformStyle: "preserve-3d" }}
                   className="w-full h-full relative"
                 >
@@ -781,57 +855,54 @@ export default function DigitalMenuPage() {
                     onClick={() => {
                       if (pHasVars) handleProductClick(product);
                     }}
-                    className={`absolute inset-0 w-full h-full bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-all ${pHasVars ? 'cursor-pointer' : ''}`}
+                    className={`absolute inset-0 w-full h-full bg-white p-2.5 rounded-2xl shadow-2xs border border-slate-100 flex flex-col hover:shadow-sm transition-all ${pHasVars ? 'cursor-pointer' : ''}`}
                     style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
                   >
                     {/* Bestseller Badge */}
                     {isBestsellerProduct && (
-                      <span className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
+                      <span className="absolute top-1.5 left-1.5 z-10 bg-orange-500 text-white text-[8.5px] font-black px-1.5 py-0.2 rounded-full flex items-center gap-0.5 shadow-2xs">
                         <Flame className="w-2.5 h-2.5 text-white" />
                         {t("POPÜLER", "POPULAR", "ΔΗΜΟΦΙΛΗ")}
                       </span>
                     )}
 
-                    {/* Recipe / Nutrition Flask Button */}
+                    {/* Animated Recipe / Nutrition Flip Hint Badge */}
                     {hasDetailsToFlip && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setFlippedProductId(product.id);
                         }}
-                        className="absolute top-2 right-2 z-20 h-7 w-7 bg-slate-900/80 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90 border border-white/10"
-                        title={t("İçerik, Kalori ve Alerjen Bilgileri", "Recipe, Calories & Allergens", "Συστατικά & Αλλεργιογόνα")}
+                        className="absolute top-1.5 right-1.5 z-20 h-5 px-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white font-black text-[8.5px] rounded-full flex items-center gap-1 shadow-xs border border-white/40 animate-pulse cursor-pointer hover:scale-105 active:scale-90 transition-transform"
+                        title={t("İçerik, Kalori ve Alerjen Bilgileri (Çevir)", "Recipe & Nutrition (Flip)", "Συστατικά (Περιστροφή)")}
                       >
-                        {hasRecipe ? (
-                          <FlaskConical className="h-3.5 w-3.5 animate-pulse" />
-                        ) : (
-                          <Info className="h-3.5 w-3.5 text-emerald-400" />
-                        )}
+                        <Sparkles className="h-2.5 w-2.5 text-amber-200" />
+                        <span>{t("Detay 🔄", "Details 🔄", "Detay 🔄")}</span>
                       </button>
                     )}
 
-                    <div className="relative mb-2">
+                    <div className="relative mb-1.5">
                       <img 
                         src={getProductImage(product)} 
                         alt={product.name} 
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80';
                         }}
-                        className="w-full h-[115px] object-cover rounded-xl shadow-xs filter contrast-105 saturate-105" 
+                        className="w-full h-[90px] object-cover rounded-xl shadow-2xs filter contrast-105 saturate-105" 
                       />
                       
                       {Number(product.calories) > 0 && (
-                        <span className="absolute bottom-1.5 right-1.5 bg-black/70 backdrop-blur-xs text-amber-300 font-black text-[9px] px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                          <Zap className="w-2.5 h-2.5" />
+                        <span className="absolute bottom-1 right-1 bg-black/75 backdrop-blur-xs text-amber-300 font-black text-[8.5px] px-1 py-0.2 rounded-md flex items-center gap-0.5">
+                          <Zap className="w-2 h-2 text-amber-400" />
                           {product.calories} kcal
                         </span>
                       )}
                     </div>
 
-                    <h3 className="font-bold text-slate-800 text-sm line-clamp-1 leading-snug">{translateText(product.name, lang)}</h3>
+                    <h3 className="font-extrabold text-slate-800 text-xs line-clamp-1 leading-tight">{translateText(product.name, lang)}</h3>
                     
                     {product.description ? (
-                      <p className="text-[10px] text-slate-400 font-medium line-clamp-1 mt-0.5 leading-tight">
+                      <p className="text-[9.5px] text-slate-400 font-medium line-clamp-1 mt-0.5 leading-tight">
                         {translateText(product.description, lang)}
                       </p>
                     ) : (
@@ -839,7 +910,7 @@ export default function DigitalMenuPage() {
                         {pAllergens.length > 0 && (
                           <div className="flex gap-1 overflow-hidden">
                             {pAllergens.slice(0, 3).map((alg) => (
-                              <span key={alg} className="text-[9px] text-slate-500 font-bold bg-slate-100 px-1 py-0.2 rounded" title={ALLERGEN_MAP[alg]?.labelTr || alg}>
+                              <span key={alg} className="text-[8.5px] text-slate-500 font-bold bg-slate-100 px-1 py-0.2 rounded" title={ALLERGEN_MAP[alg]?.labelTr || alg}>
                                 {ALLERGEN_MAP[alg]?.icon || "⚠️"} {ALLERGEN_MAP[alg]?.labelTr || alg}
                               </span>
                             ))}
@@ -848,9 +919,9 @@ export default function DigitalMenuPage() {
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center mt-auto pt-1.5 border-t border-slate-100/70">
+                    <div className="flex justify-between items-center mt-auto pt-1 border-t border-slate-100">
                       <div>
-                        <p className="text-indigo-600 font-black text-sm leading-tight">
+                        <p className="text-indigo-600 font-black text-xs leading-tight">
                           {(() => {
                             let vars: any[] = [];
                             if (product.variants) {
@@ -874,13 +945,13 @@ export default function DigitalMenuPage() {
                           })()}
                         </p>
                         {product.portion_size && (
-                          <p className="text-[9px] text-slate-400 font-bold leading-none mt-0.5">{product.portion_size}</p>
+                          <p className="text-[8.5px] text-slate-400 font-bold leading-none mt-0.5 truncate">{product.portion_size}</p>
                         )}
                       </div>
                       
                       {/* Dynamic Quantity Selector for fast cart updates */}
                       {cartItem && !pHasVars ? (
-                        <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-xl overflow-hidden shadow-sm" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-lg overflow-hidden shadow-2xs" onClick={(e) => e.stopPropagation()}>
                           <button 
                             onClick={() => {
                               const cartIdx = cart.findIndex((item) => item.id === product.id);
@@ -892,11 +963,11 @@ export default function DigitalMenuPage() {
                                 }
                               }
                             }}
-                            className="px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-600 transition-colors cursor-pointer"
+                            className="px-2 py-1 hover:bg-indigo-100 text-indigo-600 transition-colors cursor-pointer"
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-2.5 w-2.5" />
                           </button>
-                          <span className="px-1.5 text-center text-xs font-black text-indigo-700 min-w-[1.25rem]">{cartItem.quantity}</span>
+                          <span className="px-1 text-center text-[11px] font-black text-indigo-700 min-w-[1rem]">{cartItem.quantity}</span>
                           <button 
                             onClick={() => {
                               const cartIdx = cart.findIndex((item) => item.id === product.id);
@@ -904,9 +975,9 @@ export default function DigitalMenuPage() {
                                 updateQuantity(cartIdx, 1);
                               }
                             }}
-                            className="px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-600 transition-colors cursor-pointer"
+                            className="px-2 py-1 hover:bg-indigo-100 text-indigo-600 transition-colors cursor-pointer"
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-2.5 w-2.5" />
                           </button>
                         </div>
                       ) : (
@@ -915,9 +986,9 @@ export default function DigitalMenuPage() {
                             e.stopPropagation();
                             handleProductClick(product);
                           }}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-2.5 py-1 rounded-lg text-[10.5px] flex items-center gap-0.5 transition-colors shadow-2xs cursor-pointer"
                         >
-                          <Plus className="w-3 h-3" /> {pHasVars ? t("Seçenek Seç", "Select Option", "Επιλογή") : t("Ekle", "Add", "Προσθήκη")}
+                          <Plus className="w-3 h-3" /> {pHasVars ? t("Seç", "Select", "Επιλογή") : t("Ekle", "Add", "Προσθήκη")}
                         </button>
                       )}
                     </div>
@@ -1173,19 +1244,48 @@ export default function DigitalMenuPage() {
                 ))}
               </div>
 
-              <div className="p-6 bg-slate-50/50 border-t border-slate-100 space-y-4">
+              <div className="p-4 sm:p-6 bg-slate-50/70 border-t border-slate-100 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-slate-500">{t('Sipariş Toplamı', 'Order Total', 'Σύνολο Παραγγελίας')}</span>
-                  <span className="text-xl font-black text-slate-800">{totalCartPrice.toFixed(2)} ₺</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-500">{t('Sipariş Toplamı', 'Order Total', 'Σύνολο Παραγγελίας')}</span>
+                  <span className="text-lg sm:text-xl font-black text-slate-800">{totalCartPrice.toFixed(2)} ₺</span>
                 </div>
                 
-                <button 
-                  onClick={placeOrder}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-100"
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                  {t('Siparişi Onayla ve Gönder', 'Confirm and Send Order', 'Επιβεβαίωση και Αποστολή Παραγγελίας')}
-                </button>
+                {isWaiterMode ? (
+                  <div className="space-y-2">
+                    <button 
+                      onClick={() => placeOrder('open')}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors shadow-md shadow-emerald-700/20 cursor-pointer"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      {t('Mutfağa / Bara İlet (Açık Adisyon)', 'Send to Kitchen/Bar (Open Tab)', 'Αποστολή στην Κουζίνα')}
+                    </button>
+                    
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <button 
+                        onClick={() => placeOrder('cash')}
+                        className="py-2.5 px-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                      >
+                        <span>💵</span>
+                        <span>{t('Şezlongda Nakit Alındı', 'Paid Cash on Spot', 'Πληρωμή Μετρητά')}</span>
+                      </button>
+                      <button 
+                        onClick={() => placeOrder('credit_card')}
+                        className="py-2.5 px-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                      >
+                        <span>💳</span>
+                        <span>{t('Mobil POS ile Alındı', 'Paid by Mobile POS', 'Πληρωμή POS')}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => placeOrder('open')}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-100 cursor-pointer"
+                  >
+                    <CheckCircle2 className="h-5 w-5" />
+                    {t('Siparişi Onayla ve Gönder', 'Confirm and Send Order', 'Επιβεβαίωση και Αποστολή Παραγγελίας')}
+                  </button>
+                )}
               </div>
             </motion.div>
           </>
@@ -1246,15 +1346,129 @@ export default function DigitalMenuPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Zone Category Tabs for Waiters & Staff */}
+                <div className="flex gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setWaiterZoneCategory('tables')}
+                    className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                      waiterZoneCategory === 'tables' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🪑 {t('Masalar', 'Tables', 'Τραπέζια')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWaiterZoneCategory('sunbeds')}
+                    className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                      waiterZoneCategory === 'sunbeds' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🏖️ {t('Şezlong & Havuz', 'Sunbeds & Pool', 'Ξαπλώστρες & Πισίνα')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWaiterZoneCategory('vip')}
+                    className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                      waiterZoneCategory === 'vip' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    👑 {t('Loca & Teras', 'Lounge & VIP', 'VIP & Βεράντα')}
+                  </button>
+                </div>
+
+                {/* Sunbeds & Pool Quick Select */}
+                {waiterZoneCategory === 'sunbeds' && (
+                  <div className="space-y-3 p-3 bg-cyan-50/70 dark:bg-cyan-950/30 rounded-2xl border border-cyan-200/80">
+                    <div className="text-[11px] font-black text-cyan-900 dark:text-cyan-200 uppercase tracking-wider">
+                      🏖️ {t('Havuz Kenarı & Şezlong Hızlı Seçim', 'Poolside & Sunbed Quick Pick', 'Επιλογή Ξαπλώστρας')}
+                    </div>
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((num) => {
+                        const tag = `Şezlong #${num}`;
+                        const isSelected = activeTableId === tag;
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              setActiveTableId(tag);
+                              setManualTableInput(tag);
+                              setShowTableSelector(false);
+                            }}
+                            className={`p-2 rounded-xl border text-xs font-bold transition-all text-center ${
+                              isSelected
+                                ? 'bg-cyan-600 text-white border-cyan-600 shadow-md'
+                                : 'bg-white text-slate-700 border-cyan-200 hover:bg-cyan-100/60'
+                            }`}
+                          >
+                            #{num}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {['Havuz Kenarı 1', 'Havuz Kenarı 2', 'Havuz Bar', 'Plaj Locası'].map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => {
+                            setActiveTableId(tag);
+                            setManualTableInput(tag);
+                            setShowTableSelector(false);
+                          }}
+                          className={`p-2 rounded-xl border text-xs font-bold text-center transition-all ${
+                            activeTableId === tag ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-white text-slate-700 border-cyan-200'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* VIP & Lounge Quick Select */}
+                {waiterZoneCategory === 'vip' && (
+                  <div className="space-y-3 p-3 bg-amber-50/70 dark:bg-amber-950/30 rounded-2xl border border-amber-200/80">
+                    <div className="text-[11px] font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider">
+                      👑 {t('Özel Loca & Teras Alanları', 'VIP Lounge & Terrace Areas', 'VIP Χώροι')}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {['Loca VIP 1', 'Loca VIP 2', 'Loca VIP 3', 'Teras Köşe', 'Bahçe Kamelya', 'Bar Önü'].map((tag) => {
+                        const isSelected = activeTableId === tag;
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              setActiveTableId(tag);
+                              setManualTableInput(tag);
+                              setShowTableSelector(false);
+                            }}
+                            className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all ${
+                              isSelected
+                                ? 'bg-amber-600 text-white border-amber-600 shadow-md'
+                                : 'bg-white text-slate-700 border-amber-200 hover:bg-amber-100/60'
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Garson / Ayakta Sipariş Option */}
-                <div className="bg-amber-50/90 p-4 rounded-2xl border border-amber-200/90 flex items-center justify-between gap-3 shadow-xs">
+                <div className="bg-amber-50/90 p-3.5 rounded-2xl border border-amber-200/90 flex items-center justify-between gap-3 shadow-xs">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-amber-100 text-amber-800 rounded-xl">
-                      <UserCheck className="w-5 h-5" />
+                    <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
+                      <UserCheck className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-xs text-amber-950 uppercase tracking-wider">{t('Garson Masası (Masa Seçilmeden)', 'Waiter Table (No Table Selected)', 'Τραπέζι Σερβιτόρου (Χωρίς Επιλογή Τραπεζιού)')}</h3>
-                      <p className="text-[11px] text-amber-800 font-medium">{t('Masa belli değilse veya garson tarafından alınıyorsa seçin', 'Select if the table is unknown or taken by the waiter', 'Επιλέξτε εάν το τραπέζι είναι άγνωστο ή λαμβάνεται από τον σερβιτόρο')}</p>
+                      <h3 className="font-extrabold text-xs text-amber-950 uppercase tracking-wider">{t('Garson Masası (Serbest Sipariş)', 'Waiter Floating Order', 'Τραπέζι Σερβιτόρου')}</h3>
+                      <p className="text-[10.5px] text-amber-800 font-medium">{t('Masa dışı veya hareketli siparişler için', 'For free floating orders', 'Για παραγγελίες εκτός τραπεζιού')}</p>
                     </div>
                   </div>
                   <button
@@ -1264,32 +1478,29 @@ export default function DigitalMenuPage() {
                       setManualTableInput("Garson Masası");
                       setShowTableSelector(false);
                     }}
-                    className={`px-4 py-2.5 rounded-xl font-black text-xs transition-all shrink-0 cursor-pointer ${
+                    className={`px-3.5 py-2 rounded-xl font-black text-xs transition-all shrink-0 cursor-pointer ${
                       activeTableId === "Garson Masası"
                         ? 'bg-amber-600 text-white shadow-sm'
                         : 'bg-white text-amber-800 border border-amber-300 hover:bg-amber-100/50'
                     }`}
                   >
-                    {activeTableId === "Garson Masası" ? t("SEÇİLİ", "SELECTED", "ΕΠΙΛΕΓΜΕΝΟ") : t("Garson Seç", "Select Waiter", "Επιλογή Σερβιτόρου")}
+                    {activeTableId === "Garson Masası" ? t("SEÇİLİ", "SELECTED", "ΕΠΙΛΕΓΜΕΝΟ") : t("Seç", "Select", "Επιλογή")}
                   </button>
                 </div>
 
                 {/* Custom / Crisis manual input */}
-                <div className="bg-rose-50/50 p-4 rounded-2xl border border-rose-100/60 space-y-3">
+                <div className="bg-rose-50/50 p-3.5 rounded-2xl border border-rose-100/60 space-y-2">
                   <div className="flex items-center gap-2">
                     <Keyboard className="w-4 h-4 text-rose-600" />
-                    <h3 className="font-bold text-xs text-rose-800 uppercase tracking-wider">{t('Manuel Masa Tanımlama', 'Manual Table Definition', 'Χειροκίνητος Ορισμός Τραπεζιού')}</h3>
+                    <h3 className="font-bold text-xs text-rose-800 uppercase tracking-wider">{t('Özel Alan / Masa / Şezlong Yazın', 'Custom Zone / Sunbed / Name', 'Χειροκίνητος Ορισμός')}</h3>
                   </div>
-                  <p className="text-xs text-rose-600/80 font-medium leading-relaxed">
-                    {t('QR kod okunamadıysa veya listede olmayan özel bir masa ise aşağıya manuel olarak masa numarası veya adını yazıp onaylayabilirsiniz.', 'If the QR code cannot be read or it is a special table not on the list, you can manually type the table number or name below and confirm.', 'Εάν ο κωδικός QR δεν μπορεί να διαβαστεί ή πρόκειται για ειδικό τραπέζι εκτός λίστας, μπορείτε να πληκτρολογήσετε χειροκίνητα τον αριθμό ή το όνομα του τραπεζιού παρακάτω και να επιβεβαιώσετε.')}
-                  </p>
                   <div className="flex gap-2">
                     <input 
                       type="text"
                       value={manualTableInput}
                       onChange={(e) => setManualTableInput(e.target.value)}
-                      placeholder={t('Örn: 5, Bahçe 2, VIP', 'e.g. 5, Garden 2, VIP', 'π.χ. 5, Κήπος 2, VIP')}
-                      className="flex-1 px-4 py-2.5 bg-white border border-rose-200 rounded-xl text-sm font-bold text-slate-800 placeholder-slate-400 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/5 transition-all"
+                      placeholder={t('Örn: Şezlong 14, Bahçe 2, Loca', 'e.g. Sunbed 14, Garden 2', 'π.χ. Ξαπλώστρα 14')}
+                      className="flex-1 px-3.5 py-2 bg-white border border-rose-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 outline-none focus:border-rose-500 transition-all"
                     />
                     <button
                       type="button"
@@ -1302,7 +1513,7 @@ export default function DigitalMenuPage() {
                           alert(t("Lütfen geçerli bir masa adı veya numarası girin.", "Please enter a valid table name or number.", "Εισαγάγετε ένα έγκυρο όνομα ή αριθμό τραπεζιού."));
                         }
                       }}
-                      className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
+                      className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
                     >
                       {t('Onayla', 'Confirm', 'Επιβεβαίωση')}
                     </button>
@@ -1310,23 +1521,23 @@ export default function DigitalMenuPage() {
                 </div>
 
                 {/* Pre-defined tables from database */}
-                {allTables.length > 0 && (
-                  <div className="space-y-3">
+                {(waiterZoneCategory === 'tables' || allTables.length > 0) && (
+                  <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider">{t('Tanımlı Masalar', 'Defined Tables', 'Ορισμένα Τραπέζια')}</h3>
-                      <div className="relative max-w-[150px] w-full">
+                      <div className="relative max-w-[140px] w-full">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                         <input
                           type="text"
                           value={tableSearchQuery}
                           onChange={(e) => setTableSearchQuery(e.target.value)}
-                          placeholder={t("Masa Ara...", "Search Table...", "Αναζήτηση Τραπεζιού...")}
-                          className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-slate-350 focus:bg-white transition-all"
+                          placeholder={t("Masa Ara...", "Search Table...", "Αναζήτηση...")}
+                          className="w-full pl-7 pr-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-indigo-400"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 max-h-[250px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[220px] overflow-y-auto pr-1">
                       {allTables
                         .filter(t => t.table_number.toLowerCase().includes(tableSearchQuery.toLowerCase()))
                         .map((table) => {
@@ -1340,15 +1551,15 @@ export default function DigitalMenuPage() {
                                 setManualTableInput(table.table_number);
                                 setShowTableSelector(false);
                               }}
-                              className={`p-3 rounded-xl border font-bold text-sm transition-all flex flex-col items-center justify-center relative cursor-pointer ${
+                              className={`p-2.5 rounded-xl border font-bold text-xs transition-all flex flex-col items-center justify-center relative cursor-pointer ${
                                 isSelected
-                                  ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-100'
-                                  : 'bg-white text-slate-700 border-slate-200 hover:border-rose-200 hover:bg-rose-50/20'
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/20'
                               }`}
                             >
                               <span>{table.table_number}</span>
                               {isSelected && (
-                                <Check className="w-3.5 h-3.5 absolute top-1 right-1" />
+                                <Check className="w-3 h-3 absolute top-1 right-1" />
                               )}
                             </button>
                           );
@@ -1444,6 +1655,216 @@ export default function DigitalMenuPage() {
                 </button>
               </div>
             </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Waiter Terminal PIN Login Modal */}
+      <AnimatePresence>
+        {showWaiterModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowWaiterModal(false);
+                setWaiterPinInput('');
+                setWaiterPinError(false);
+              }}
+              className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50"
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 pointer-events-none">
+              <motion.div
+                initial={{ scale: 0.94, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 15 }}
+                className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl max-w-[340px] w-full overflow-hidden text-slate-100 pointer-events-auto flex flex-col"
+              >
+                {/* Modal Header */}
+                <div className="px-4 py-3 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <div>
+                      <div className="text-xs font-black uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                        {t('Garson El Terminali Girişi', 'Waiter Terminal Login', 'Είσοδος Σερβιτόρου')}
+                      </div>
+                      <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest">
+                        {t('PIN ile Yetkilendirme', 'PIN Authorization', 'Εξουσιοδότηση PIN')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowWaiterModal(false);
+                      setWaiterPinInput('');
+                      setWaiterPinError(false);
+                    }}
+                    className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-3.5 space-y-3">
+                  {/* Waiter Roster Quick Selector */}
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      {t('Personel Seçimi', 'Select Staff', 'Επιλογή Προσωπικού')}
+                    </div>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                      {getStoreWaiters(store?.branding || store).filter(w => w.active).map((w) => {
+                        const isSelected = selectedWaiterForPin?.id === w.id;
+                        return (
+                          <button
+                            key={w.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedWaiterForPin(w);
+                              setWaiterPinInput('');
+                              setWaiterPinError(false);
+                            }}
+                            className={`px-2.5 py-1.5 rounded-lg border text-left shrink-0 transition-all text-xs font-bold cursor-pointer ${
+                              isSelected
+                                ? 'bg-indigo-500/20 border-indigo-400 text-indigo-300 ring-1 ring-indigo-500/40'
+                                : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:border-slate-600'
+                            }`}
+                          >
+                            <div className="text-[11px] font-extrabold text-slate-200">{w.name}</div>
+                            <div className="text-[9px] text-slate-400 font-normal">{w.section || 'Saha'}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* PIN Display */}
+                  <div className="py-1 flex flex-col items-center justify-center space-y-1.5">
+                    <div className="flex gap-2.5 justify-center">
+                      {Array.from({ length: 4 }).map((_, idx) => {
+                        const hasChar = waiterPinInput.length > idx;
+                        return (
+                          <motion.div
+                            key={idx}
+                            animate={waiterPinError ? { x: [0, -8, 8, -8, 8, 0] } : {}}
+                            transition={{ duration: 0.35 }}
+                            className={`w-4 h-4 rounded-md border-2 transition-all flex items-center justify-center ${
+                              hasChar
+                                ? 'bg-indigo-500 border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.6)] scale-105'
+                                : 'border-slate-700 bg-slate-950/60'
+                            }`}
+                          >
+                            {hasChar && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                    {waiterPinError && (
+                      <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest animate-pulse">
+                        ⚠️ {t('Hatalı PIN Kodu!', 'Invalid PIN!', 'Λανθασμένο PIN!')}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Keypad */}
+                  <div className="grid grid-cols-3 gap-1.5 max-w-[240px] mx-auto">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => {
+                          if (waiterPinInput.length < 4) {
+                            setWaiterPinError(false);
+                            const newVal = waiterPinInput + num;
+                            setWaiterPinInput(newVal);
+                            if (newVal.length === 4) {
+                              const waiters = getStoreWaiters(store?.branding || store);
+                              const targetWaiter = selectedWaiterForPin || waiters.find(w => w.pin === newVal);
+                              if (targetWaiter && (targetWaiter.pin === newVal || !selectedWaiterForPin)) {
+                                setIsWaiterMode(true);
+                                setActiveWaiter(targetWaiter);
+                                localStorage.setItem(`digitalMenuWaiterMode_${storeId}`, 'true');
+                                localStorage.setItem(`digitalMenuWaiterUser_${storeId}`, JSON.stringify(targetWaiter));
+                                setShowWaiterModal(false);
+                                setWaiterPinInput('');
+                              } else {
+                                setWaiterPinError(true);
+                                setWaiterPinInput('');
+                              }
+                            }
+                          }
+                        }}
+                        className="h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-base font-black text-slate-100 rounded-xl border border-slate-700/80 transition-all flex items-center justify-center cursor-pointer"
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWaiterPinInput('');
+                        setWaiterPinError(false);
+                      }}
+                      className="h-10 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 text-rose-300 rounded-xl text-[10px] font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                    >
+                      {t('SİL', 'CLR', 'ΔΙΑΓ')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (waiterPinInput.length < 4) {
+                          setWaiterPinError(false);
+                          const newVal = waiterPinInput + '0';
+                          setWaiterPinInput(newVal);
+                          if (newVal.length === 4) {
+                            const waiters = getStoreWaiters(store?.branding || store);
+                            const targetWaiter = selectedWaiterForPin || waiters.find(w => w.pin === newVal);
+                            if (targetWaiter && (targetWaiter.pin === newVal || !selectedWaiterForPin)) {
+                              setIsWaiterMode(true);
+                              setActiveWaiter(targetWaiter);
+                              localStorage.setItem(`digitalMenuWaiterMode_${storeId}`, 'true');
+                              localStorage.setItem(`digitalMenuWaiterUser_${storeId}`, JSON.stringify(targetWaiter));
+                              setShowWaiterModal(false);
+                              setWaiterPinInput('');
+                            } else {
+                              setWaiterPinError(true);
+                              setWaiterPinInput('');
+                            }
+                          }
+                        }
+                      }}
+                      className="h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-base font-black text-slate-100 rounded-xl border border-slate-700/80 transition-all flex items-center justify-center cursor-pointer"
+                    >
+                      0
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const waiters = getStoreWaiters(store?.branding || store);
+                        const targetWaiter = selectedWaiterForPin || waiters.find(w => w.pin === waiterPinInput);
+                        if (targetWaiter && targetWaiter.pin === waiterPinInput) {
+                          setIsWaiterMode(true);
+                          setActiveWaiter(targetWaiter);
+                          localStorage.setItem(`digitalMenuWaiterMode_${storeId}`, 'true');
+                          localStorage.setItem(`digitalMenuWaiterUser_${storeId}`, JSON.stringify(targetWaiter));
+                          setShowWaiterModal(false);
+                          setWaiterPinInput('');
+                        } else {
+                          setWaiterPinError(true);
+                          setWaiterPinInput('');
+                        }
+                      }}
+                      className="h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center shadow-md shadow-emerald-700/30 cursor-pointer"
+                    >
+                      {t('GİRİŞ', 'ENTER', 'ΕΙΣ')}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>

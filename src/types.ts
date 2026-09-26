@@ -92,6 +92,14 @@ export interface Product {
   is_web_sale?: boolean;
   is_bestseller?: boolean;
   is_sellable?: boolean;
+  hepsiburada_url?: string;
+  hepsiburada_sku?: string;
+  is_hepsiburada_active?: boolean;
+  amazon_asin?: string;
+  amazon_sku?: string;
+  amazon_url?: string;
+  is_amazon_active?: boolean;
+  marketplace_data?: any;
   product_type?: 'product' | 'service';
   type?: 'product' | 'vehicle' | 'real_estate';
   db_id?: number;
@@ -108,8 +116,6 @@ export interface Product {
   is_trade_in_available?: boolean;
   market_story?: string;
   technical_description?: string;
-  marketplace_data?: any;
-  is_hepsiburada_active?: boolean;
   tags?: string[];
   created_at: string;
   updated_at: string;

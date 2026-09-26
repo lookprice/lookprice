@@ -545,7 +545,16 @@ export const ModernCafeRestaurantLayout: React.FC<ModernCafeRestaurantLayoutProp
   // Execute Reservation Submit & Trigger Payment Workflow
   const handleExecuteReservation = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBookingRoom || !bookingGuestForm.first_name || !bookingGuestForm.last_name) return;
+    if (!selectedBookingRoom) return;
+
+    const firstName = (bookingGuestForm.first_name || '').trim();
+    const lastName = (bookingGuestForm.last_name || '').trim();
+    const idNo = (bookingGuestForm.identity_no || '').trim();
+
+    if (!firstName || !lastName || !idNo) {
+      alert("⚠️ Rezervasyon için Misafir Adı, Soyadı ve TC / Pasaport No alanları zorunludur. Lütfen bu alanları doldurunuz.");
+      return;
+    }
 
     const breakdown = computeDetailedBreakdown(selectedBookingRoom);
     const reservationCode = `REZ-${Date.now().toString().slice(-6)}`;

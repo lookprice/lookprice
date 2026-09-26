@@ -4,7 +4,7 @@ import { getAuthorizedStoreId, getTurkishSearchSnippet, normalizeTurkishParam, c
 import { isValidStandardBarcode } from "./invoiceMatching";
 import { GoogleGenAI } from "@google/genai";
 import XLSX from "xlsx";
-import { masterBookLookup, splitAndCleanCategory, generateHighResBookCoverSvg } from "./bookLookupService";
+import { masterBookLookup, generateHighResBookCoverSvg } from "./bookLookupService";
 
 /**
  * Reusable engine to merge a duplicate/temporary product into a target real product.
@@ -2030,7 +2030,7 @@ router.get("/lookup-barcode", async (req: any, res) => {
     }
 
     // Check existing database records if external catalog lookup is unavailable
-    const existing = await query(
+    const existing = await pool.query(
       "SELECT name, author, brand, category, sub_category, description, image_url FROM products WHERE barcode = $1 OR barcode = $2 LIMIT 1",
       [barcode, cleanBarcode]
     );

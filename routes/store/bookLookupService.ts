@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import * as cheerio from "cheerio";
 import { getGeminiApiKey } from "./utils";
 
 export interface BookMarketPriceSource {
@@ -179,7 +180,165 @@ const OFFLINE_CATALOG: Record<string, any> = {
 };
 
 /**
- * Direct scraper for Işık Kitabevi (isikkitabevi.net)
+ * Google Books Official REST API Resolver (100% Reliable for ISBNs)
+ */
+async function fetchGoogleBooksByIsbn(isbn: string): Promise<Partial<BookLookupResult> | null> {
+  const cleanIsbn = String(isbn || "").replace(/\D/g, "");
+  if (!cleanIsbn || cleanIsbn.length < 9) return null;
+
+  try {
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`, {
+      headers: {
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      },
+      signal: AbortSignal.timeout(3500)
+    });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (data && Array.isArray(data.items) && data.items.length > 0) {
+      const volume = data.items[0].volumeInfo || {};
+      const title = volume.title || "";
+      const subtitle = volume.subtitle ? `: ${volume.subtitle}` : "";
+      const fullName = `${title}${subtitle}`.trim();
+
+      if (!fullName) return null;
+
+      const author = Array.isArray(volume.authors) ? volume.authors.join(", ") : "";
+      const publisher = volume.publisher || "";
+      const description = volume.description || `${fullName} - ${author ? author + " eseridir. " : ""}${publisher ? publisher + " baskısı." : ""}`;
+      const rawCategory = Array.isArray(volume.categories) ? volume.categories[0] : "Edebiyat / Roman";
+      const { category: cat, subCategory: subCat } = splitAndCleanCategory(rawCategory);
+
+      // Best cover image
+      let cover = "";
+      if (volume.imageLinks) {
+        cover = volume.imageLinks.extraLarge || volume.imageLinks.large || volume.imageLinks.medium || volume.imageLinks.thumbnail || volume.imageLinks.smallThumbnail || "";
+        if (cover.startsWith("http://")) {
+          cover = cover.replace("http://", "https://");
+        }
+      }
+      if (!cover) {
+        cover = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`;
+      }
+
+      return {
+        name: fullName,
+        author,
+        publisher,
+        brand: publisher,
+        category: cat,
+        sub_category: subCat,
+        description,
+        image_url: cover,
+        source: "Google Books API"
+      };
+    }
+  } catch (e) {
+    // Failover
+  }
+  return null;
+}
+
+/**
+ * Direct Cheerio Scraper for Kitapyurdu
+ */
+async function scrapeKitapyurduByIsbn(isbn: string): Promise<Partial<BookLookupResult> | null> {
+  const cleanIsbn = String(isbn || "").replace(/\D/g, "");
+  if (!cleanIsbn || cleanIsbn.length < 9) return null;
+
+  try {
+    const url = `https://www.kitapyurdu.com/index.php?route=product/search&filter_name=${cleanIsbn}`;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8"
+      },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    const title = $(".name a span").first().text().trim() || $("h1.pr_header__heading").first().text().trim();
+    const author = $(".author a span").first().text().trim() || $(".pr_servicers .author span").first().text().trim();
+    const publisher = $(".publisher a span").first().text().trim() || $(".pr_servicers .publisher span").first().text().trim();
+    const cover = $(".pr_images img").first().attr("src") || $(".image img").first().attr("src") || "";
+    const description = $(".description_text").first().text().trim() || $(".pr_abstract").first().text().trim();
+
+    if (title && title.length > 2) {
+      const { category: cat, subCategory: subCat } = splitAndCleanCategory("Edebiyat / Roman");
+      return {
+        name: title,
+        author: author || "",
+        publisher: publisher || "",
+        brand: publisher || "",
+        category: cat,
+        sub_category: subCat,
+        description: description || `${title} - ${author ? author + " eseridir. " : ""}${publisher ? publisher + " baskısı." : ""}`,
+        image_url: cover || `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`,
+        source: "Kitapyurdu Scraper"
+      };
+    }
+  } catch (e) {
+    // Failover
+  }
+  return null;
+}
+
+/**
+ * Direct Cheerio Scraper for BKM Kitap
+ */
+async function scrapeBkmKitapByIsbn(isbn: string): Promise<Partial<BookLookupResult> | null> {
+  const cleanIsbn = String(isbn || "").replace(/\D/g, "");
+  if (!cleanIsbn || cleanIsbn.length < 9) return null;
+
+  try {
+    const url = `https://www.bkmkitap.com/arama?q=${cleanIsbn}`;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Accept-Language": "tr-TR,tr;q=0.9"
+      },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    const firstCard = $(".product-item").first();
+    if (firstCard.length > 0) {
+      const title = firstCard.find(".product-title").text().trim();
+      const author = firstCard.find(".product-author").text().trim();
+      const publisher = firstCard.find(".product-publisher").text().trim();
+      const cover = firstCard.find("img").attr("data-src") || firstCard.find("img").attr("src") || "";
+
+      if (title && title.length > 2) {
+        const { category: cat, subCategory: subCat } = splitAndCleanCategory("Edebiyat / Roman");
+        return {
+          name: title,
+          author: author || "",
+          publisher: publisher || "",
+          brand: publisher || "",
+          category: cat,
+          sub_category: subCat,
+          description: `${title} - ${author ? author + " eseridir. " : ""}`,
+          image_url: cover || `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`,
+          source: "BKM Kitap Scraper"
+        };
+      }
+    }
+  } catch (e) {
+    // Failover
+  }
+  return null;
+}
+
+/**
+ * Direct scraper for Işık Kitabevi (isikkitabevi.net) using Cheerio DOM Parser
  */
 async function scrapeIsikKitabevi(query: string): Promise<BookMarketPriceSource[]> {
   if (!query || query.trim().length < 2) return [];
@@ -194,44 +353,38 @@ async function scrapeIsikKitabevi(query: string): Promise<BookMarketPriceSource[
     if (!res.ok) return [];
 
     const html = await res.text();
-    const blocks = [...html.matchAll(/<div class='kitap'>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/gi)];
+    const $ = cheerio.load(html);
     const results: BookMarketPriceSource[] = [];
 
-    for (const b of blocks) {
-      const bHtml = b[1];
-      const titleMatch = bHtml.match(/<h1>([^<]+)<\/h1>/i);
-      const yazarMatch = bHtml.match(/<div class="yazar">([\s\S]*?)<\/div>/i);
-      const yayineviMatch = bHtml.match(/<div class="yayinevi">([\s\S]*?)<\/div>/i);
-      const fiyatMatch = bHtml.match(/<div class="fiyat">([\s\S]*?)<\/div>/i);
-      const linkMatch = bHtml.match(/href=["'](\.\/kitap\/store\.php\?id=\d+)["']/i);
+    $(".kitap").each((_, el) => {
+      const item = $(el);
+      const name = item.find("h1").text().trim();
+      const author = item.find(".yazar").text().replace(/<[^>]+>/g, "").trim();
+      const pubAndCat = item.find(".yayinevi").text().replace(/<[^>]+>/g, "").trim();
+      const priceRaw = item.find(".fiyat").text().trim();
+      const priceNum = parseFloat(priceRaw.replace(/[^\d\.,]/g, "").replace(",", ".")) || 0;
+      const href = item.find("a").attr("href") || "";
+      const directLink = href ? "https://isikkitabevi.net" + href.replace("./", "/") : url;
 
-      if (titleMatch && fiyatMatch) {
-        const name = titleMatch[1].trim();
-        const author = yazarMatch ? yazarMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-        const pubAndCat = yayineviMatch ? yayineviMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-        const priceRaw = fiyatMatch[1].replace(/<[^>]+>/g, "").trim();
-        const priceNum = parseFloat(priceRaw.replace(/[^\d\.,]/g, "").replace(",", ".")) || 0;
-        const directLink = linkMatch ? "https://isikkitabevi.net" + linkMatch[1].replace("./", "/") : url;
-
-        let pub = "";
-        if (pubAndCat.includes("/")) {
-          pub = pubAndCat.split("/").slice(1).join("/").trim();
-        } else {
-          pub = pubAndCat;
-        }
-
-        if (name && priceNum > 0) {
-          results.push({
-            source_name: `Işık Kitabevi`,
-            title: name,
-            publisher: pub,
-            price: priceNum,
-            price_formatted: `${priceNum.toFixed(2)} TL`,
-            url: directLink
-          });
-        }
+      let pub = "";
+      if (pubAndCat.includes("/")) {
+        pub = pubAndCat.split("/").slice(1).join("/").trim();
+      } else {
+        pub = pubAndCat;
       }
-    }
+
+      if (name && priceNum > 0) {
+        results.push({
+          source_name: `Işık Kitabevi`,
+          title: name,
+          publisher: pub,
+          price: priceNum,
+          price_formatted: `${priceNum.toFixed(2)} TL`,
+          url: directLink
+        });
+      }
+    });
+
     return results;
   } catch (err) {
     return [];
@@ -492,7 +645,34 @@ export async function masterBookLookup(barcode: string): Promise<BookLookupResul
     };
   }
 
-  // 2. Try OpenLibrary API
+  // 2. Try Google Books Official REST API (Fastest, highest accuracy for global & TR ISBNs)
+  if (!bookInfo) {
+    const gbInfo = await fetchGoogleBooksByIsbn(cleanBarcode);
+    if (gbInfo && gbInfo.name) {
+      bookInfo = gbInfo;
+      sourceTag = "Google Books API";
+    }
+  }
+
+  // 3. Try Direct Kitapyurdu Web Scraper (Cheerio DOM Parser)
+  if (!bookInfo) {
+    const kyInfo = await scrapeKitapyurduByIsbn(cleanBarcode);
+    if (kyInfo && kyInfo.name) {
+      bookInfo = kyInfo;
+      sourceTag = "Kitapyurdu Scraper";
+    }
+  }
+
+  // 4. Try Direct BKM Kitap Web Scraper (Cheerio DOM Parser)
+  if (!bookInfo) {
+    const bkmInfo = await scrapeBkmKitapByIsbn(cleanBarcode);
+    if (bkmInfo && bkmInfo.name) {
+      bookInfo = bkmInfo;
+      sourceTag = "BKM Kitap Scraper";
+    }
+  }
+
+  // 5. Try OpenLibrary API
   if (!bookInfo) {
     const olInfo = await fetchOpenLibraryBook(cleanBarcode);
     if (olInfo && olInfo.name) {
@@ -501,14 +681,14 @@ export async function masterBookLookup(barcode: string): Promise<BookLookupResul
     }
   }
 
-  // 3. Try Web Data Miner
+  // 6. Try Web Data Miner
   const { bookData: webInfo, webPrices } = await scrapeLiveWebForBook(cleanBarcode);
   if (!bookInfo && webInfo && webInfo.name) {
     bookInfo = webInfo;
     sourceTag = "Live Web Miner";
   }
 
-  // 4. Try Gemini AI fallback
+  // 7. Try Gemini AI fallback
   if (!bookInfo) {
     const geminiInfo = await tryGeminiLookup(cleanBarcode);
     if (geminiInfo && geminiInfo.name) {

@@ -330,7 +330,7 @@ export const MarketplaceProductFields = ({
     const updated = {
       ...marketData,
       hepsiburadaSku: extractedSku,
-      productId: extractedSku.startsWith("HBCV") ? (marketData.productId || extractedSku) : extractedSku,
+      productId: extractedSku.startsWith("HBCV") ? ((marketData as any).productId || extractedSku) : extractedSku,
       productUrl: directUrl,
       status: 'ACTIVE',
       isSalable: true,

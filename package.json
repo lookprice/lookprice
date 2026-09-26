@@ -24,6 +24,7 @@
     "adm-zip": "^0.5.17",
     "axios": "^1.14.0",
     "bcryptjs": "^3.0.3",
+    "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
     "codepage": "^1.15.0",
     "compression": "^1.8.1",

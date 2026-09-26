@@ -263,21 +263,26 @@ export const CafeRoomBookingModal: React.FC<CafeRoomBookingModalProps> = ({
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                placeholder="TC / Pasaport No"
-                value={bookingGuestForm.identity_no}
-                onChange={(e) => setBookingGuestForm({ ...bookingGuestForm, identity_no: e.target.value })}
-                className="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold"
-              />
-              <input
-                type="text"
-                required
-                placeholder="Telefon (+90 5XX) *"
-                value={bookingGuestForm.phone}
-                onChange={(e) => setBookingGuestForm({ ...bookingGuestForm, phone: e.target.value })}
-                className="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold"
-              />
+              <div>
+                <input
+                  type="text"
+                  required
+                  placeholder="TC / Pasaport No *"
+                  value={bookingGuestForm.identity_no}
+                  onChange={(e) => setBookingGuestForm({ ...bookingGuestForm, identity_no: e.target.value })}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+              <div>
+                <input
+                  type="text"
+                  required
+                  placeholder="Telefon (+90 5XX) *"
+                  value={bookingGuestForm.phone}
+                  onChange={(e) => setBookingGuestForm({ ...bookingGuestForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold"
+                />
+              </div>
             </div>
 
             <div>

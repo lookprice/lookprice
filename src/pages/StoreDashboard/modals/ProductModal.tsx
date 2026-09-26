@@ -61,6 +61,12 @@ export const ProductModal = ({
   const [calories, setCalories] = useState<number | string>("");
   const [prepTimeMin, setPrepTimeMin] = useState<number | string>("");
   const [portionSize, setPortionSize] = useState<string>("");
+  const [protein, setProtein] = useState<number | string>("");
+  const [carbs, setCarbs] = useState<number | string>("");
+  const [fat, setFat] = useState<number | string>("");
+  const [sugar, setSugar] = useState<number | string>("");
+  const [fiber, setFiber] = useState<number | string>("");
+  const [allergenWarning, setAllergenWarning] = useState<string>("");
 
   // Bookstore Curated Badges State
   const [selectedBookBadges, setSelectedBookBadges] = useState<string[]>([]);
@@ -356,6 +362,12 @@ export const ProductModal = ({
       setCalories(editingProduct?.calories || "");
       setPrepTimeMin(editingProduct?.prep_time_min || "");
       setPortionSize(editingProduct?.portion_size || "");
+      setProtein(editingProduct?.protein || editingProduct?.sector_data?.protein || "");
+      setCarbs(editingProduct?.carbs || editingProduct?.sector_data?.carbs || "");
+      setFat(editingProduct?.fat || editingProduct?.sector_data?.fat || "");
+      setSugar(editingProduct?.sugar || editingProduct?.sector_data?.sugar || "");
+      setFiber(editingProduct?.fiber || editingProduct?.sector_data?.fiber || "");
+      setAllergenWarning(editingProduct?.allergen_warning || editingProduct?.sector_data?.allergen_warning || "");
 
       if (isBookstore) {
         setSelectedBookBadges(extractProductLabels(editingProduct));
@@ -758,38 +770,45 @@ export const ProductModal = ({
                 {/* HORECA / CAFE RESTAURANT RECIPE & NUTRITION (Only if cafe_restaurant) */}
                 {isCafeRestaurant && (
                   <>
-                    <div className="p-3 bg-orange-50/40 rounded-xl border border-orange-200/80 space-y-2">
-                      <div className="flex justify-between items-center border-b border-orange-200 pb-1">
-                        <span className="text-[10px] font-black text-orange-950 uppercase tracking-wider flex items-center gap-1">
+                    {/* 1. MALZEME REÇETESİ (BOM) */}
+                    <div className="p-3 bg-orange-50/40 rounded-xl border border-orange-200/80 space-y-2.5">
+                      <div className="flex justify-between items-center border-b border-orange-200 pb-1.5">
+                        <div className="flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
-                          <span>{isTr ? "Malzeme Reçetesi (BOM)" : "Recipe (BOM)"}</span>
-                        </span>
+                          <span className="text-[10px] font-black text-orange-950 uppercase tracking-wider">
+                            {isTr ? "Malzeme Reçetesi (BOM)" : "Recipe / Bill of Materials (BOM)"}
+                          </span>
+                          <span className="text-[9px] font-bold text-orange-700 bg-orange-100/80 px-1.5 py-0.2 rounded">
+                            {recipeItems.length} {isTr ? "Kalem" : "Items"}
+                          </span>
+                        </div>
                         <button
                           type="button"
                           onClick={() => setShowIngredientSelector(!showIngredientSelector)}
-                          className="px-2 py-0.5 bg-orange-100 text-orange-900 rounded-md font-bold text-[10px] uppercase flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-[10px] uppercase flex items-center gap-1 transition-all shadow-2xs cursor-pointer active:scale-95"
                         >
                           <Plus className="h-3 w-3" />
-                          <span>{isTr ? "Malzeme Ekle" : "Add"}</span>
+                          <span>{isTr ? "Malzeme Ekle" : "Add Ingredient"}</span>
                         </button>
                       </div>
 
                       {showIngredientSelector && (
-                        <div className="p-2 bg-white rounded-lg border border-orange-300 space-y-1">
+                        <div className="p-2.5 bg-white rounded-xl border border-orange-300 space-y-2 shadow-sm">
                           <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                             <input
                               type="text"
-                              placeholder={isTr ? "Malzeme ara..." : "Search..."}
-                              className="w-full pl-8 pr-2 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-900"
+                              autoFocus
+                              placeholder={isTr ? "Malzeme adı veya barkod ile ara..." : "Search ingredient by name or barcode..."}
+                              className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-orange-500"
                               value={ingredientSearch}
                               onChange={(e) => setIngredientSearch(e.target.value)}
                             />
                           </div>
-                          <div className="max-h-28 overflow-y-auto space-y-0.5">
+                          <div className="max-h-36 overflow-y-auto space-y-1 divide-y divide-slate-100">
                             {products
                               .filter(p => p.id !== editingProduct?.id && (p.name.toLowerCase().includes(ingredientSearch.toLowerCase()) || p.barcode?.toLowerCase().includes(ingredientSearch.toLowerCase())))
-                              .slice(0, 8)
+                              .slice(0, 10)
                               .map(p => (
                                 <button
                                   key={p.id}
@@ -800,85 +819,316 @@ export const ProductModal = ({
                                         ingredient_id: p.id, 
                                         ingredient_name: p.name, 
                                         amount: 1, 
-                                        ingredient_unit: p.unit || 'ml' 
+                                        unit: p.unit || 'ml',
+                                        ingredient_unit: p.unit || 'ml',
+                                        ingredient_stock: p.stock_quantity || 0
                                       }]);
                                     }
                                     setShowIngredientSelector(false);
                                     setIngredientSearch("");
                                   }}
-                                  className="w-full text-left px-2 py-1 hover:bg-orange-50 rounded text-[11px] font-bold text-slate-800 flex justify-between items-center cursor-pointer"
+                                  className="w-full text-left px-2.5 py-1.5 hover:bg-orange-50/80 rounded-lg text-[11px] font-bold text-slate-800 flex justify-between items-center cursor-pointer transition-colors"
                                 >
-                                  <span>{p.name}</span>
-                                  <span className="text-[10px] px-1.5 py-0.2 bg-slate-200 rounded">{p.unit}</span>
+                                  <div className="min-w-0 pr-2">
+                                    <span className="truncate block">{p.name}</span>
+                                    <span className="text-[9px] text-slate-400 font-medium">Stok: {p.stock_quantity || 0} {p.unit || 'Adet'}</span>
+                                  </div>
+                                  <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-700 font-mono font-bold rounded-md shrink-0 border border-slate-200">{p.unit || 'Adet'}</span>
                                 </button>
                               ))}
                           </div>
                         </div>
                       )}
 
-                      <div className="space-y-1">
-                        {recipeItems.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-2 p-1.5 bg-white border border-orange-200 rounded-lg">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-slate-900 truncate">{item.ingredient_name}</p>
+                      {recipeItems.length === 0 ? (
+                        <div className="py-3 text-center text-slate-400 text-[11px] font-bold border border-dashed border-orange-200 rounded-lg bg-white/60">
+                          {isTr ? "Reçeteye henüz malzeme eklenmedi. (Yukarıdan 'Malzeme Ekle' butonunu kullanın)" : "No recipe ingredients added yet."}
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                          {recipeItems.map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-2 p-1.5 bg-white border border-orange-200 rounded-lg shadow-2xs">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-slate-900 truncate" title={item.ingredient_name}>{item.ingredient_name}</p>
+                                <p className="text-[9px] text-slate-400 font-medium">
+                                  {isTr ? 'Girdi ID' : 'ID'}: #{item.ingredient_id}
+                                </p>
+                              </div>
+
+                              {/* Miktar */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  min="0.001"
+                                  placeholder="Miktar"
+                                  className="w-16 sm:w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs font-mono font-bold text-slate-900 text-center focus:border-orange-500 outline-none"
+                                  value={item.amount || item.quantity || ""}
+                                  onChange={(e) => {
+                                    const newItems = [...recipeItems];
+                                    newItems[idx].amount = parseFloat(e.target.value) || 0;
+                                    newItems[idx].quantity = parseFloat(e.target.value) || 0;
+                                    setRecipeItems(newItems);
+                                  }}
+                                />
+
+                                {/* Birim Seçici */}
+                                <select
+                                  value={item.unit || item.ingredient_unit || "ml"}
+                                  onChange={(e) => {
+                                    const newItems = [...recipeItems];
+                                    newItems[idx].unit = e.target.value;
+                                    newItems[idx].ingredient_unit = e.target.value;
+                                    setRecipeItems(newItems);
+                                  }}
+                                  className="w-20 sm:w-24 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-bold text-slate-800 focus:border-orange-500 outline-none cursor-pointer"
+                                >
+                                  <option value="ml">ml</option>
+                                  <option value="cl">cl</option>
+                                  <option value="cc">cc</option>
+                                  <option value="Litre">{isTr ? 'Litre (Lt)' : 'Liters'}</option>
+                                  <option value="gr">gr (Gram)</option>
+                                  <option value="kg">kg</option>
+                                  <option value="Adet">{isTr ? 'Adet' : 'pcs'}</option>
+                                  <option value="Porsiyon">{isTr ? 'Porsiyon' : 'Portion'}</option>
+                                  <option value="Dilim">{isTr ? 'Dilim' : 'Slice'}</option>
+                                  <option value="Shot">Shot</option>
+                                  <option value="Ölçek">{isTr ? 'Ölçek' : 'Scoop'}</option>
+                                  <option value="Damlalık">{isTr ? 'Damlalık' : 'Dash'}</option>
+                                  <option value="Paket">{isTr ? 'Paket' : 'Pack'}</option>
+                                  <option value="Şişe">{isTr ? 'Şişe' : 'Bottle'}</option>
+                                  <option value="Kutu">{isTr ? 'Kutu' : 'Can'}</option>
+                                  <option value="Fincan">{isTr ? 'Fincan' : 'Cup'}</option>
+                                  <option value="Bardak">{isTr ? 'Bardak' : 'Glass'}</option>
+                                </select>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setRecipeItems(recipeItems.filter((_, i) => i !== idx))}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer shrink-0"
+                                title={isTr ? "Malzemeyi Çıkar" : "Remove"}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
-                            <input
-                              type="number"
-                              step="0.01"
-                              className="w-16 px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold text-slate-900 text-center"
-                              value={item.amount}
-                              onChange={(e) => {
-                                const newItems = [...recipeItems];
-                                newItems[idx].amount = parseFloat(e.target.value) || 0;
-                                setRecipeItems(newItems);
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setRecipeItems(recipeItems.filter((_, i) => i !== idx))}
-                              className="p-1 text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                       <input type="hidden" name="recipe_data" value={JSON.stringify(recipeItems)} />
                     </div>
 
-                    <div className="p-3 bg-emerald-50/40 rounded-xl border border-emerald-200/80 space-y-2">
-                      <div className="border-b border-emerald-200 pb-1 flex items-center justify-between">
-                        <span className="text-[10px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1">
+                    {/* 2. BESİN DEĞERLERİ & ALERJENLER */}
+                    <div className="p-3 bg-emerald-50/40 rounded-xl border border-emerald-200/80 space-y-2.5">
+                      <div className="border-b border-emerald-200 pb-1.5 flex items-center justify-between">
+                        <span className="text-[10px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                          <span>{isTr ? "Besin Değeri & Alerjenler" : "Nutrition & Allergens"}</span>
+                          <span>{isTr ? "Besin Değerleri & Porsiyon" : "Nutritional Values & Portion"}</span>
+                        </span>
+                        <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">
+                          HoReCa Standart
                         </span>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <input
-                          type="number"
-                          name="calories"
-                          value={calories}
-                          onChange={(e) => setCalories(e.target.value)}
-                          placeholder={isTr ? "Kalori (kcal)" : "Calories"}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
-                        />
-                        <input
-                          type="text"
-                          name="portion_size"
-                          value={portionSize}
-                          onChange={(e) => setPortionSize(e.target.value)}
-                          placeholder={isTr ? "Porsiyon (gr/ml)" : "Portion"}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
-                        />
-                        <input
-                          type="number"
-                          name="prep_time_min"
-                          value={prepTimeMin}
-                          onChange={(e) => setPrepTimeMin(e.target.value)}
-                          placeholder={isTr ? "Hazırlık (Dk)" : "Prep (Min)"}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
-                        />
+
+                      {/* Besin Değerleri Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {/* Kalori */}
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                            {isTr ? "Kalori (kcal)" : "Calories (kcal)"}
+                          </label>
+                          <input
+                            type="number"
+                            name="calories"
+                            value={calories}
+                            onChange={(e) => setCalories(e.target.value)}
+                            placeholder="örn: 320"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                          />
+                        </div>
+
+                        {/* Porsiyon */}
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                            {isTr ? "Porsiyon Ölçüsü" : "Portion Size"}
+                          </label>
+                          <input
+                            type="text"
+                            name="portion_size"
+                            value={portionSize}
+                            onChange={(e) => setPortionSize(e.target.value)}
+                            placeholder={isTr ? "örn: 250 gr / 330 ml" : "e.g: 250 g / 330 ml"}
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                          />
+                        </div>
+
+                        {/* Hazırlık Süresi */}
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                            {isTr ? "Hazırlık (Dk)" : "Prep (Min)"}
+                          </label>
+                          <input
+                            type="number"
+                            name="prep_time_min"
+                            value={prepTimeMin}
+                            onChange={(e) => setPrepTimeMin(e.target.value)}
+                            placeholder="örn: 12"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                          />
+                        </div>
+
+                        {/* Protein */}
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                            {isTr ? "Protein (g)" : "Protein (g)"}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            name="protein"
+                            value={protein}
+                            onChange={(e) => setProtein(e.target.value)}
+                            placeholder="örn: 18.5"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                          />
+                        </div>
+
+                        {/* Karbonhidrat */}
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                            {isTr ? "Karbonhidrat (g)" : "Carbs (g)"}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            name="carbs"
+                            value={carbs}
+                            onChange={(e) => setCarbs(e.target.value)}
+                            placeholder="örn: 42.0"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                          />
+                        </div>
+
+                        {/* Yağ */}
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                            {isTr ? "Yağ (g)" : "Fat (g)"}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            name="fat"
+                            value={fat}
+                            onChange={(e) => setFat(e.target.value)}
+                            placeholder="örn: 11.2"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                          />
+                        </div>
+
+                        {/* Şeker */}
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                            {isTr ? "Şeker (g)" : "Sugar (g)"}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            name="sugar"
+                            value={sugar}
+                            onChange={(e) => setSugar(e.target.value)}
+                            placeholder="örn: 4.5"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                          />
+                        </div>
+
+                        {/* Lif */}
+                        <div className="space-y-0.5">
+                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                            {isTr ? "Lif (g)" : "Fiber (g)"}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            name="fiber"
+                            value={fiber}
+                            onChange={(e) => setFiber(e.target.value)}
+                            placeholder="örn: 3.0"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                          />
+                        </div>
                       </div>
+
+                      {/* 3. ALERJENLER & DİYET ETİKETLERİ */}
+                      <div className="pt-2 border-t border-emerald-100 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[9px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                            <span>⚠️ {isTr ? "Alerjen & Diyet Seçimi" : "Allergens & Dietary Flags"}</span>
+                          </label>
+                          <span className="text-[9px] text-slate-400 font-bold">
+                            {selectedAllergens.length > 0 ? `${selectedAllergens.length} ${isTr ? "Seçildi" : "Selected"}` : (isTr ? "Alerjen Yok" : "None")}
+                          </span>
+                        </div>
+
+                        {/* Alerjen Seçim Rozetleri */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { id: "gluten", label: isTr ? "Gluten" : "Gluten", icon: "🌾" },
+                            { id: "laktoz", label: isTr ? "Laktoz / Süt" : "Lactose / Milk", icon: "🥛" },
+                            { id: "fistik", label: isTr ? "Yer Fıstığı" : "Peanuts", icon: "🥜" },
+                            { id: "sert_kabuklu", label: isTr ? "Fındık / Ceviz" : "Tree Nuts", icon: "🌰" },
+                            { id: "soya", label: isTr ? "Soya" : "Soy", icon: "🌱" },
+                            { id: "yumurta", label: isTr ? "Yumurta" : "Egg", icon: "🥚" },
+                            { id: "balik", label: isTr ? "Balık" : "Fish", icon: "🐟" },
+                            { id: "deniz_kabuklu", label: isTr ? "Deniz Ürünü" : "Shellfish", icon: "🦐" },
+                            { id: "kereviz", label: isTr ? "Kereviz" : "Celery", icon: "🥬" },
+                            { id: "hardal", label: isTr ? "Hardal" : "Mustard", icon: "🟡" },
+                            { id: "susam", label: isTr ? "Susam" : "Sesame", icon: "🥯" },
+                            { id: "sulfit", label: isTr ? "Sülfit" : "Sulphites", icon: "🍷" },
+                            { id: "aci", label: isTr ? "Acı / Baharat" : "Spicy", icon: "🌶️" },
+                            { id: "vejetaryen", label: isTr ? "Vejetaryen" : "Vegetarian", icon: "🥗" },
+                            { id: "vegan", label: isTr ? "Vegan" : "Vegan", icon: "🌿" }
+                          ].map((alg) => {
+                            const isSelected = selectedAllergens.includes(alg.id) || selectedAllergens.includes(alg.label);
+                            return (
+                              <button
+                                key={alg.id}
+                                type="button"
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setSelectedAllergens(selectedAllergens.filter(a => a !== alg.id && a !== alg.label));
+                                  } else {
+                                    setSelectedAllergens([...selectedAllergens, alg.id]);
+                                  }
+                                }}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer border ${
+                                  isSelected 
+                                    ? "bg-rose-600 text-white border-rose-600 shadow-2xs scale-[1.02]" 
+                                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                                }`}
+                              >
+                                <span>{alg.icon}</span>
+                                <span>{alg.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Alerjen & Çapraz Bulaşma Uyarısı (Serbest Metin) */}
+                        <div className="space-y-0.5 pt-1">
+                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-wider block">
+                            {isTr ? "Alerjen & Çapraz Bulaşma Açıklaması / Uyarısı" : "Allergen & Cross-Contamination Note"}
+                          </label>
+                          <input
+                            type="text"
+                            name="allergen_warning"
+                            value={allergenWarning}
+                            onChange={(e) => setAllergenWarning(e.target.value)}
+                            placeholder={isTr ? "örn: Eser miktarda yer fıstığı, ceviz ve susam içerebilir." : "e.g. May contain traces of peanuts and sesame."}
+                            className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-600 outline-none"
+                          />
+                        </div>
+                      </div>
+
                       <input type="hidden" name="allergens_data" value={JSON.stringify(selectedAllergens)} />
                     </div>
                   </>

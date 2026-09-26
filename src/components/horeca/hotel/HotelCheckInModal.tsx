@@ -80,7 +80,10 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase">TC / Pasaport No</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
+                <span>TC / Pasaport No</span>
+                <span className="text-rose-500 font-bold">* (Zorunlu)</span>
+              </label>
               <input
                 type="text"
                 required
@@ -105,10 +108,14 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase">Misafir Adı</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
+                <span>Misafir Adı</span>
+                <span className="text-rose-500 font-bold">* (Zorunlu)</span>
+              </label>
               <input
                 type="text"
                 required
+                placeholder="Adı"
                 value={guestForm.first_name}
                 onChange={(e) => setGuestForm({ ...guestForm, first_name: e.target.value })}
                 className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
@@ -116,10 +123,14 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
             </div>
 
             <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase">Soyadı</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
+                <span>Soyadı</span>
+                <span className="text-rose-500 font-bold">* (Zorunlu)</span>
+              </label>
               <input
                 type="text"
                 required
+                placeholder="Soyadı"
                 value={guestForm.last_name}
                 onChange={(e) => setGuestForm({ ...guestForm, last_name: e.target.value })}
                 className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
@@ -221,9 +232,13 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
-                      <label className="text-[9px] font-black uppercase text-slate-400">TC / Pasaport No</label>
+                      <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-0.5">
+                        <span>TC / Pasaport No</span>
+                        <span className="text-rose-500 font-bold">*</span>
+                      </label>
                       <input
                         type="text"
+                        required
                         placeholder="Kimlik / Pasaport"
                         value={ag.identity_no}
                         onChange={(e) => {
@@ -236,9 +251,13 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="text-[9px] font-black uppercase text-slate-400">Adı</label>
+                      <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-0.5">
+                        <span>Adı</span>
+                        <span className="text-rose-500 font-bold">*</span>
+                      </label>
                       <input
                         type="text"
+                        required
                         placeholder="Adı"
                         value={ag.first_name}
                         onChange={(e) => {
@@ -251,9 +270,13 @@ export const HotelCheckInModal: React.FC<HotelCheckInModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="text-[9px] font-black uppercase text-slate-400">Soyadı</label>
+                      <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-0.5">
+                        <span>Soyadı</span>
+                        <span className="text-rose-500 font-bold">*</span>
+                      </label>
                       <input
                         type="text"
+                        required
                         placeholder="Soyadı"
                         value={ag.last_name}
                         onChange={(e) => {

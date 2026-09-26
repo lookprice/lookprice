@@ -36,7 +36,15 @@ import {
   FileDown,
   Edit2,
   Trash2,
-  HelpCircle
+  HelpCircle,
+  Send,
+  Smartphone,
+  Sparkles,
+  ShieldCheck,
+  UserPlus,
+  CheckCircle2,
+  Copy,
+  ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations } from "@/translations";
@@ -55,6 +63,7 @@ import { toast } from "sonner";
 import { handleDownloadQuotationPDF } from "../../utils/dashboardUtils";
 import { numberToTurkishWords } from "../../utils/formatUtils";
 import { resolveDomainId, hasSectorCapability } from "../../utils/sectorCapability";
+import { StaffWaiter, getStoreWaiters, generateWaiterWhatsappInviteUrl } from "../../utils/staffHelpers";
 
 // Modular Components
 import { DashboardLayout } from "./DashboardLayout";
@@ -139,20 +148,48 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
     return (localStorage.getItem('lookprice_active_staff_role') as 'manager' | 'cashier' | 'waiter') || 'manager';
   });
 
+  const [activeWaiterId, setActiveWaiterId] = useState<string>(() => {
+    return localStorage.getItem('lookprice_active_waiter_id') || 'w_1';
+  });
+  const [activeWaiterName, setActiveWaiterName] = useState<string>(() => {
+    return localStorage.getItem('lookprice_active_waiter_name') || 'Garson 1 (Ahmet)';
+  });
+
   const [managerPin, setManagerPin] = useState(() => localStorage.getItem('lookprice_manager_pin') || '1234');
   const [cashierPin, setCashierPin] = useState(() => localStorage.getItem('lookprice_cashier_pin') || '2222');
   const [waiterPin, setWaiterPin] = useState(() => localStorage.getItem('lookprice_waiter_pin') || '3333');
 
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [modalRole, setModalRole] = useState<'manager' | 'cashier' | 'waiter'>('waiter');
+  const [modalSelectedWaiterId, setModalSelectedWaiterId] = useState<string>('w_1');
   const [pinValue, setPinValue] = useState('');
   const [pinError, setPinError] = useState(false);
   const [isEditingPins, setIsEditingPins] = useState(false);
+  const [staffConfigTab, setStaffConfigTab] = useState<'pins' | 'waiters'>('waiters');
+  const [editableWaiters, setEditableWaiters] = useState<StaffWaiter[]>([]);
+
+  const waiterList = useMemo(() => {
+    return getStoreWaiters(branding);
+  }, [branding]);
+
+  useEffect(() => {
+    if (waiterList && waiterList.length > 0) {
+      setEditableWaiters(JSON.parse(JSON.stringify(waiterList)));
+      if (!modalSelectedWaiterId || !waiterList.some(w => w.id === modalSelectedWaiterId)) {
+        setModalSelectedWaiterId(waiterList[0]?.id || 'w_1');
+      }
+    }
+  }, [waiterList]);
 
   // Sync state with localStorage
   useEffect(() => {
     localStorage.setItem('lookprice_active_staff_role', activeStaffRole);
   }, [activeStaffRole]);
+
+  useEffect(() => {
+    localStorage.setItem('lookprice_active_waiter_id', activeWaiterId);
+    localStorage.setItem('lookprice_active_waiter_name', activeWaiterName);
+  }, [activeWaiterId, activeWaiterName]);
 
   useEffect(() => {
     const rawStoreName = (branding?.store_name || "").trim();
@@ -187,19 +224,43 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
   }, [waiterPin]);
 
   const handleVerifyRolePin = (pinToVerify: string) => {
-    let targetPin = '';
-    if (modalRole === 'manager') targetPin = managerPin;
-    else if (modalRole === 'cashier') targetPin = cashierPin;
-    else if (modalRole === 'waiter') targetPin = waiterPin;
+    let isValid = false;
+    let resolvedWaiter: StaffWaiter | undefined;
 
-    if (pinToVerify === targetPin) {
+    if (modalRole === 'manager') {
+      isValid = (pinToVerify === managerPin);
+    } else if (modalRole === 'cashier') {
+      isValid = (pinToVerify === cashierPin);
+    } else if (modalRole === 'waiter') {
+      // Check if matches currently selected waiter in chip
+      resolvedWaiter = waiterList.find(w => w.id === modalSelectedWaiterId);
+      if (resolvedWaiter && resolvedWaiter.pin === pinToVerify) {
+        isValid = true;
+      } else {
+        // Fallback: check if matches ANY active waiter's pin or global waiter pin
+        const matchingWaiter = waiterList.find(w => w.active && w.pin === pinToVerify);
+        if (matchingWaiter) {
+          isValid = true;
+          resolvedWaiter = matchingWaiter;
+        } else if (pinToVerify === waiterPin) {
+          isValid = true;
+          resolvedWaiter = waiterList[0];
+        }
+      }
+    }
+
+    if (isValid) {
       setActiveStaffRole(modalRole);
+      if (modalRole === 'waiter' && resolvedWaiter) {
+        setActiveWaiterId(resolvedWaiter.id);
+        setActiveWaiterName(resolvedWaiter.name);
+      }
       setShowRoleModal(false);
       setPinValue('');
       setPinError(false);
       toast.success(isTr 
-        ? `${modalRole === 'manager' ? 'Yönetici' : modalRole === 'cashier' ? 'Kasiyer' : 'Garson'} oturumu açıldı!` 
-        : `Switched to ${modalRole === 'manager' ? 'Manager' : modalRole === 'cashier' ? 'Cashier' : 'Waiter'} role!`
+        ? `${modalRole === 'manager' ? 'Yönetici' : modalRole === 'cashier' ? 'Kasiyer' : `Garson (${resolvedWaiter?.name || 'Garson'})`} oturumu açıldı!` 
+        : `Switched to ${modalRole === 'manager' ? 'Manager' : modalRole === 'cashier' ? 'Cashier' : `Waiter (${resolvedWaiter?.name || 'Waiter'})`} role!`
       );
     } else {
       setPinError(true);
@@ -207,6 +268,21 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
       if (navigator.vibrate) {
         navigator.vibrate(200);
       }
+    }
+  };
+
+  const handleSaveStaffConfig = async () => {
+    try {
+      const updatedBranding = {
+        ...branding,
+        waiter_list: editableWaiters
+      };
+      await api.updateBranding(updatedBranding, currentStoreId);
+      setBranding(updatedBranding);
+      setIsEditingPins(false);
+      toast.success(isTr ? 'Kadro & PIN yapılandırması başarıyla kaydedildi!' : 'Staff & PIN settings saved!');
+    } catch (e) {
+      toast.error(isTr ? 'Kaydedilirken hata oluştu' : 'Failed to save staff settings');
     }
   };
   
@@ -1579,44 +1655,52 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
         handleImport={handleImport}
       />
 
-      {/* Cafe/Restaurant Role Switcher Keypad Modal */}
+      {/* Cafe/Restaurant Futuristic Minimalist Role Switcher & Waiter Terminal Modal */}
       <AnimatePresence>
         {showRoleModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md">
             <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              initial={{ scale: 0.94, opacity: 0, y: 15 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden"
+              exit={{ scale: 0.94, opacity: 0, y: 15 }}
+              className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl max-w-[360px] w-full overflow-hidden text-slate-100 max-h-[94vh] flex flex-col"
             >
-              {/* Modal Header */}
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <div>
-                  <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
-                    {txt('Çalışan Oturumu & Rolü', 'Staff Session & Role', 'Συνεδρία Προσωπικού & Ρόλος')}
-                  </h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                    {txt('Terminal Yetkilendirme Modeli', 'Terminal Authorization Model', 'Μοντέλο Εξουσιοδότησης Τερματικού')}
-                  </p>
+              {/* Futuristic Terminal Header */}
+              <div className="px-4 py-3 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                      {txt('Terminal Oturumu & PIN', 'Terminal Session & PIN', 'Συνεδρία Τερματικού & PIN')}
+                    </div>
+                    <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest">
+                      {txt('Yetkilendirilmiş Giriş', 'Authorized Access', 'Εξουσιοδοτημένη Είσοδος')}
+                    </p>
+                  </div>
                 </div>
                 <button
-                  onClick={() => setShowRoleModal(false)}
-                  className="p-2 hover:bg-slate-200 rounded-xl transition-all"
+                  onClick={() => {
+                    setShowRoleModal(false);
+                    setIsEditingPins(false);
+                    setPinValue('');
+                  }}
+                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
                 >
-                  <X className="h-5 w-5 text-slate-500" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Modal Content */}
-              <div className="p-6 space-y-6">
+              {/* Modal Body */}
+              <div className="p-3.5 sm:p-4 overflow-y-auto flex-1 space-y-3">
                 {!isEditingPins ? (
                   <>
-                    {/* Role Selection Row */}
-                    <div className="grid grid-cols-3 gap-2">
+                    {/* Role Selection Segmented Control */}
+                    <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/70 rounded-xl border border-slate-800">
                       {(['manager', 'cashier', 'waiter'] as const).map((r) => {
                         const isSel = modalRole === r;
-                        const label = r === 'manager' ? (txt('Yönetici', 'Manager', 'Διευθυντής')) : r === 'cashier' ? (txt('Kasiyer', 'Cashier', 'Ταμίας')) : (txt('Garson', 'Waiter', 'Σερβιτόρος'));
-                        const emoji = r === 'manager' ? '👑' : r === 'cashier' ? '💳' : '🍽️';
+                        const label = r === 'manager' ? txt('Yönetici', 'Manager', 'Διευθυντής') : r === 'cashier' ? txt('Kasiyer', 'Cashier', 'Ταμίας') : txt('Garson', 'Waiter', 'Σερβιτόρος');
+                        const icon = r === 'manager' ? '👑' : r === 'cashier' ? '💳' : '🍽️';
                         return (
                           <button
                             key={r}
@@ -1625,50 +1709,84 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                               setPinValue('');
                               setPinError(false);
                             }}
-                            className={`p-3 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all font-bold text-xs ${
+                            className={`py-2 px-1.5 rounded-lg font-black text-[11px] flex flex-col items-center gap-0.5 transition-all ${
                               isSel
-                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                : 'border-slate-100 bg-slate-50 hover:border-slate-200 text-slate-500'
+                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400/50'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                             }`}
                           >
-                            <span className="text-xl">{emoji}</span>
+                            <span className="text-sm">{icon}</span>
                             <span>{label}</span>
                           </button>
                         );
                       })}
                     </div>
 
-                    {/* PIN Input Dots Preview */}
-                    <div className="flex flex-col items-center justify-center space-y-2 py-4">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                        {txt('4 Haneli Giriş PIN Kodu', '4-Digit Entry PIN', '4-ψήφιο PIN Εισόδου')}
-                      </p>
-                      <div className="flex gap-4 justify-center py-2">
+                    {/* Waiter Roster Quick Selector (when in waiter mode) */}
+                    {modalRole === 'waiter' && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <span>{txt('Personel Seçimi', 'Select Staff', 'Επιλογή Προσωπικού')}</span>
+                          <span className="text-indigo-400 font-mono text-[9px]">
+                            {waiterList.filter(w => w.active).length} {txt('Aktif', 'Active', 'Ενεργό')}
+                          </span>
+                        </div>
+                        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                          {waiterList.filter(w => w.active).map((w) => {
+                            const isWSelected = modalSelectedWaiterId === w.id;
+                            return (
+                              <button
+                                key={w.id}
+                                onClick={() => {
+                                  setModalSelectedWaiterId(w.id);
+                                  setPinValue('');
+                                  setPinError(false);
+                                }}
+                                className={`px-2.5 py-1.5 rounded-lg border text-left shrink-0 transition-all text-xs font-bold ${
+                                  isWSelected
+                                    ? 'bg-indigo-500/20 border-indigo-400 text-indigo-300 ring-1 ring-indigo-500/40'
+                                    : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:border-slate-600'
+                                }`}
+                              >
+                                <div className="text-[11px] font-extrabold text-slate-200">{w.name}</div>
+                                <div className="text-[9px] text-slate-400 font-normal">{w.section || 'Saha'}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PIN Display Segmented Indicators */}
+                    <div className="py-1 flex flex-col items-center justify-center space-y-1.5">
+                      <div className="flex gap-2.5 justify-center">
                         {Array.from({ length: 4 }).map((_, idx) => {
                           const hasChar = pinValue.length > idx;
                           return (
                             <motion.div
                               key={idx}
-                              animate={pinError ? { x: [0, -10, 10, -10, 10, 0] } : {}}
-                              transition={{ duration: 0.4 }}
-                              className={`w-4 h-4 rounded-full border-2 transition-all ${
+                              animate={pinError ? { x: [0, -8, 8, -8, 8, 0] } : {}}
+                              transition={{ duration: 0.35 }}
+                              className={`w-4 h-4 rounded-md border-2 transition-all flex items-center justify-center ${
                                 hasChar
-                                  ? 'bg-indigo-600 border-indigo-600 scale-110 shadow-sm'
-                                  : 'border-slate-300 bg-transparent'
+                                  ? 'bg-indigo-500 border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.6)] scale-105'
+                                  : 'border-slate-700 bg-slate-950/60'
                               }`}
-                            />
+                            >
+                              {hasChar && <div className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />}
+                            </motion.div>
                           );
                         })}
                       </div>
                       {pinError && (
-                        <p className="text-xs font-black text-rose-500 uppercase tracking-wider animate-pulse">
-                          {txt('Hatalı Şifre!', 'Incorrect PIN!', 'Λανθασμένο PIN!')}
+                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest animate-pulse">
+                          ⚠️ {txt('Hatalı PIN Kodu!', 'Invalid PIN!', 'Λανθασμένο PIN!')}
                         </p>
                       )}
                     </div>
 
-                    {/* Keypad Grid */}
-                    <div className="grid grid-cols-3 gap-2.5 max-w-[280px] mx-auto pb-4">
+                    {/* Compact Tactile Keypad */}
+                    <div className="grid grid-cols-3 gap-1.5 max-w-[260px] mx-auto">
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                         <button
                           key={num}
@@ -1677,14 +1795,12 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                               setPinError(false);
                               const newVal = pinValue + num;
                               setPinValue(newVal);
-                              
-                              // Auto trigger verification on 4th digit
                               if (newVal.length === 4) {
                                 handleVerifyRolePin(newVal);
                               }
                             }
                           }}
-                          className="h-14 bg-slate-100 hover:bg-slate-200 active:scale-95 text-lg font-black text-slate-700 rounded-2xl transition-all flex items-center justify-center"
+                          className="h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-base font-black text-slate-100 rounded-xl border border-slate-700/80 transition-all flex items-center justify-center shadow-xs"
                         >
                           {num}
                         </button>
@@ -1694,9 +1810,9 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                           setPinValue('');
                           setPinError(false);
                         }}
-                        className="h-14 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center"
+                        className="h-10 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 text-rose-300 rounded-xl text-[10px] font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center"
                       >
-                        {txt('TEMİZLE', 'CLEAR', 'ΚΑΘΑΡΙΣΜΟΣ')}
+                        {txt('SİL', 'CLR', 'ΔΙΑΓ')}
                       </button>
                       <button
                         onClick={() => {
@@ -1709,93 +1825,226 @@ export default function StoreDashboard({ user, onLogout }: StoreDashboardProps) 
                             }
                           }
                         }}
-                        className="h-14 bg-slate-100 hover:bg-slate-200 active:scale-95 text-lg font-black text-slate-700 rounded-2xl transition-all flex items-center justify-center"
+                        className="h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-base font-black text-slate-100 rounded-xl border border-slate-700/80 transition-all flex items-center justify-center shadow-xs"
                       >
                         0
                       </button>
                       <button
                         onClick={() => handleVerifyRolePin(pinValue)}
-                        className="h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center"
+                        className="h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center shadow-md shadow-emerald-700/30"
                       >
-                        {txt('GİRİŞ', 'ENTER', 'ΕΙΣΟΔΟΣ')}
+                        {txt('GİRİŞ', 'ENTER', 'ΕΙΣ')}
                       </button>
                     </div>
 
-                    {/* Footer Controls / Pin customisation for manager */}
+                    {/* Manager Staff & PIN Config Link */}
                     {activeStaffRole === 'manager' && (
-                      <div className="pt-4 border-t border-slate-100 text-center">
+                      <div className="pt-2 border-t border-slate-800 text-center">
                         <button
-                          onClick={() => setIsEditingPins(true)}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-widest transition-colors"
+                          onClick={() => {
+                            setIsEditingPins(true);
+                            setEditableWaiters(JSON.parse(JSON.stringify(waiterList)));
+                          }}
+                          className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 uppercase tracking-widest inline-flex items-center gap-1.5 transition-colors"
                         >
-                          ⚙️ {txt('PIN Kodlarını Güncelle', 'Update PIN Codes', 'Ενημέρωση Κωδικών PIN')}
+                          <Smartphone className="w-3 h-3" />
+                          {txt('Kadro & WhatsApp Davet Portalı', 'Staff & WhatsApp Invite Hub', 'Προσωπικό & Πρόσκληση WhatsApp')}
                         </button>
                       </div>
                     )}
                   </>
                 ) : (
-                  /* Edit PINs Form (Only accessible to authenticated managers) */
-                  <div className="space-y-4 py-2">
-                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">
-                      {txt('YÖNETİCİ ŞİFRE AYARLARI', 'MANAGER PIN CONFIGURATION', 'ΡΥΘΜΙΣΕΙΣ PIN ΔΙΕΥΘΥΝΤΗ')}
-                    </h4>
-                    
-                    <div className="space-y-3.5">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                          👑 {txt('Yönetici PIN Kodu', 'Manager PIN', 'PIN Διευθυντή')}
-                        </label>
-                        <input
-                          type="password"
-                          maxLength={4}
-                          value={managerPin}
-                          onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ''))}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-center tracking-[0.5em] text-slate-700 focus:outline-none focus:border-indigo-500"
-                        />
+                  /* Staff & PIN Management Sub-View */
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                      <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[10px] font-bold">
+                        <button
+                          onClick={() => setStaffConfigTab('waiters')}
+                          className={`px-2.5 py-1 rounded-md transition-all ${
+                            staffConfigTab === 'waiters'
+                              ? 'bg-indigo-600 text-white'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          🍽️ {txt('Garson Kadrosu', 'Waiters', 'Σερβιτόροι')}
+                        </button>
+                        <button
+                          onClick={() => setStaffConfigTab('pins')}
+                          className={`px-2.5 py-1 rounded-md transition-all ${
+                            staffConfigTab === 'pins'
+                              ? 'bg-indigo-600 text-white'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          🔑 {txt('Yönetici/Kasa PIN', 'Admin/Cashier PIN', 'PIN Διαχείρισης')}
+                        </button>
                       </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                          💳 {txt('Kasiyer PIN Kodu', 'Cashier PIN', 'PIN Ταμία')}
-                        </label>
-                        <input
-                          type="password"
-                          maxLength={4}
-                          value={cashierPin}
-                          onChange={(e) => setCashierPin(e.target.value.replace(/\D/g, ''))}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-center tracking-[0.5em] text-slate-700 focus:outline-none focus:border-indigo-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                          🍽️ {txt('Garson PIN Kodu', 'Waiter PIN', 'PIN Σερβιτόρου')}
-                        </label>
-                        <input
-                          type="password"
-                          maxLength={4}
-                          value={waiterPin}
-                          onChange={(e) => setWaiterPin(e.target.value.replace(/\D/g, ''))}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-center tracking-[0.5em] text-slate-700 focus:outline-none focus:border-indigo-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-4 flex gap-2">
                       <button
                         onClick={() => setIsEditingPins(false)}
-                        className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                        className="text-[10px] text-slate-400 hover:text-white font-bold"
                       >
-                        {txt('Geri Dön', 'Go Back', 'Επιστροφή')}
+                        ✕ {txt('Kapat', 'Close', 'Κλείσιμο')}
+                      </button>
+                    </div>
+
+                    {staffConfigTab === 'waiters' ? (
+                      <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            {txt('Sezonluk & Etkinlik Kadrosu', 'Seasonal & Event Staff', 'Εποχικό Προσωπικό')}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newId = `w_${Date.now()}`;
+                              setEditableWaiters(prev => [
+                                ...prev,
+                                { id: newId, name: `Garson ${prev.length + 1}`, pin: `${1000 + prev.length + 1}`, section: 'Genel Saha', phone: '', active: true }
+                              ]);
+                            }}
+                            className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md"
+                          >
+                            <UserPlus className="w-3 h-3" />
+                            {txt('+ Yeni Garson', '+ Add Waiter', '+ Νέος')}
+                          </button>
+                        </div>
+
+                        {editableWaiters.map((w, idx) => (
+                          <div key={w.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <input
+                                type="text"
+                                placeholder={txt('Garson Adı', 'Waiter Name', 'Όνομα')}
+                                value={w.name}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, name: val } : item));
+                                }}
+                                className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs font-bold text-slate-100 flex-1 outline-none focus:border-indigo-400"
+                              />
+                              <input
+                                type="text"
+                                maxLength={4}
+                                placeholder="PIN"
+                                value={w.pin}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, pin: val } : item));
+                                }}
+                                className="w-14 bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs font-mono text-center font-bold text-amber-400 outline-none focus:border-indigo-400"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditableWaiters(prev => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/50 rounded"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                placeholder={txt('Bölüm (Örn: Havuz / Şezlong)', 'Section (e.g. Pool)', 'Τομέας')}
+                                value={w.section || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, section: val } : item));
+                                }}
+                                className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-[10.5px] text-slate-300 outline-none focus:border-indigo-400"
+                              />
+                              <input
+                                type="tel"
+                                placeholder="WhatsApp (905...)"
+                                value={w.phone || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, phone: val } : item));
+                                }}
+                                className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-[10.5px] font-mono text-slate-300 outline-none focus:border-indigo-400"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px]">
+                              <label className="flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={w.active}
+                                  onChange={(e) => {
+                                    const val = e.target.checked;
+                                    setEditableWaiters(prev => prev.map((item, i) => i === idx ? { ...item, active: val } : item));
+                                  }}
+                                  className="w-3.5 h-3.5 rounded text-indigo-600 bg-slate-900 border-slate-700"
+                                />
+                                <span>{w.active ? txt('Aktif', 'Active', 'Ενεργό') : txt('Pasif', 'Inactive', 'Ανενεργό')}</span>
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const inviteUrl = generateWaiterWhatsappInviteUrl(
+                                    w,
+                                    branding?.store_name || branding?.name || 'LookPrice',
+                                    publicUrl
+                                  );
+                                  window.open(inviteUrl, '_blank');
+                                }}
+                                className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 bg-emerald-950/80 border border-emerald-700/60 px-2 py-0.5 rounded"
+                              >
+                                <Send className="w-2.5 h-2.5" />
+                                <span>{txt('WhatsApp ile Gönder', 'Send WhatsApp', 'Αποστολή WhatsApp')}</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* Fixed Manager & Cashier PINs */
+                      <div className="space-y-2.5">
+                        <div className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            👑 {txt('Yönetici PIN Kodu', 'Manager PIN', 'PIN Διευθυντή')}
+                          </label>
+                          <input
+                            type="password"
+                            maxLength={4}
+                            value={managerPin}
+                            onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ''))}
+                            className="w-full px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-700 text-slate-100 font-mono text-center tracking-[0.4em] text-sm font-bold outline-none focus:border-indigo-400"
+                          />
+                        </div>
+
+                        <div className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            💳 {txt('Kasiyer PIN Kodu', 'Cashier PIN', 'PIN Ταμία')}
+                          </label>
+                          <input
+                            type="password"
+                            maxLength={4}
+                            value={cashierPin}
+                            onChange={(e) => setCashierPin(e.target.value.replace(/\D/g, ''))}
+                            className="w-full px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-700 text-slate-100 font-mono text-center tracking-[0.4em] text-sm font-bold outline-none focus:border-indigo-400"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex gap-2 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingPins(false)}
+                        className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all"
+                      >
+                        {txt('İptal', 'Cancel', 'Ακύρωση')}
                       </button>
                       <button
-                        onClick={() => {
-                          toast.success(txt('PIN kodları başarıyla kaydedildi!', 'PIN codes updated successfully!', 'Οι κωδικοί PIN ενημερώθηκαν επιτυχώς!'));
-                          setIsEditingPins(false);
-                        }}
-                        className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                        type="button"
+                        onClick={handleSaveStaffConfig}
+                        className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-700/40"
                       >
-                        {txt('Değişiklikleri Kaydet', 'Save Changes', 'Αποθήκευση Αλλαγών')}
+                        {txt('Kaydet', 'Save', 'Αποθήκευση')}
                       </button>
                     </div>
                   </div>

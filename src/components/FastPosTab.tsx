@@ -1547,6 +1547,15 @@ const FastPosTab = ({ storeId, onSaleComplete, branding, activeStaffRole = 'mana
   const handleTransferToRoom = async (room: HotelRoom, notes: string, printSlip: boolean) => {
     if (cart.length === 0) return;
 
+    if (room.status !== 'occupied') {
+      const errorMsg = lang === 'tr' 
+        ? `Boş odaya (Oda #${room.room_number}) adisyon aktarılamaz! Bu oda şu anda boş statüsündedir ve üzerinde kayıtlı konaklayan misafir bulunmamaktadır. Lütfen önce odaya misafir check-in işlemi yapınız.`
+        : `Cannot transfer bill to vacant room (Room #${room.room_number})! No checked-in guest found.`;
+      toast.error(errorMsg);
+      alert(`⚠️ ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+
     const guestName = room.current_guest 
       ? `${room.current_guest.first_name} ${room.current_guest.last_name}` 
       : '';

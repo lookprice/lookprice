@@ -21,12 +21,16 @@ import {
   Clock,
   Utensils,
   Percent,
-  ChevronRight
+  ChevronRight,
+  Send,
+  Smartphone,
+  UserPlus
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { api } from "../../../services/api";
 import { IrpModal } from "../../../components/IrpModal";
 import { HotelUpgradeModal } from "../../../components/modals/HotelUpgradeModal";
+import { StaffWaiter, getStoreWaiters, generateWaiterWhatsappInviteUrl } from "../../../utils/staffHelpers";
 
 interface SettingsStoreOpsTabProps {
   branding: any;
@@ -1313,6 +1317,139 @@ export const SettingsStoreOpsTab = ({
                     <label htmlFor="chk_hotel_module_sub" className="text-xs font-semibold text-slate-900 dark:text-slate-100 cursor-pointer flex-1">
                       {lang === 'tr' ? 'Oda Yönetimi & Restorandan Odaya Adisyon Entegrasyonu' : 'Enable Hotel & Room Billing'}
                     </label>
+                  </div>
+                </div>
+
+                {/* Dinamik Garson & Saha Personeli Kadrosu */}
+                <div className="col-span-1 md:col-span-2 p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <Smartphone className="w-3.5 h-3.5 text-indigo-500" />
+                        {txt('Garson & Saha Personeli Kadrosu (Dinamik/Sezonluk & WhatsApp Giriş)', 'Waiter Roster & WhatsApp Invites', 'Προσωπικό Σερβιτόρων & WhatsApp')}
+                      </h4>
+                      <p className="text-[10.5px] text-slate-500 mt-0.5">
+                        {txt('Havuz başı, şezlong, teras ve salon garsonlarını tanımlayın; tek tıkla WhatsApp üzerinden menü linki ve PIN şifresini gönderin.', 'Configure waiters for pool, beach, terrace; send direct terminal links & PIN via WhatsApp.', 'Ρυθμίστε σερβιτόρους και στείλτε συνδέσμους μέσω WhatsApp.')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = getStoreWaiters(branding);
+                        const newId = `w_${Date.now()}`;
+                        const updated = [
+                          ...current,
+                          { id: newId, name: `Garson ${current.length + 1}`, pin: `${1000 + current.length + 1}`, section: 'Havuz / Şezlong', phone: '', active: true }
+                        ];
+                        onBrandingChange('waiter_list', updated);
+                      }}
+                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all shadow-xs"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      <span>{txt('+ Yeni Garson Ekle', '+ Add Waiter', '+ Προσθήκη')}</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                    {getStoreWaiters(branding).map((w, idx) => (
+                      <div key={w.id} className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <input
+                            type="text"
+                            value={w.name}
+                            placeholder="Garson Adı"
+                            onChange={(e) => {
+                              const current = getStoreWaiters(branding);
+                              const updated = current.map((item, i) => i === idx ? { ...item, name: e.target.value } : item);
+                              onBrandingChange('waiter_list', updated);
+                            }}
+                            className="px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-bold flex-1"
+                          />
+                          <input
+                            type="text"
+                            maxLength={4}
+                            value={w.pin}
+                            placeholder="PIN"
+                            onChange={(e) => {
+                              const current = getStoreWaiters(branding);
+                              const updated = current.map((item, i) => i === idx ? { ...item, pin: e.target.value.replace(/\D/g, '') } : item);
+                              onBrandingChange('waiter_list', updated);
+                            }}
+                            className="w-14 px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-mono font-bold text-amber-500 text-center"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const current = getStoreWaiters(branding);
+                              const updated = current.filter((_, i) => i !== idx);
+                              onBrandingChange('waiter_list', updated);
+                            }}
+                            className="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <input
+                            type="text"
+                            value={w.section || ''}
+                            placeholder="Bölüm (Havuz, Salon...)"
+                            onChange={(e) => {
+                              const current = getStoreWaiters(branding);
+                              const updated = current.map((item, i) => i === idx ? { ...item, section: e.target.value } : item);
+                              onBrandingChange('waiter_list', updated);
+                            }}
+                            className="px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[11px]"
+                          />
+                          <input
+                            type="tel"
+                            value={w.phone || ''}
+                            placeholder="WhatsApp (905...)"
+                            onChange={(e) => {
+                              const current = getStoreWaiters(branding);
+                              const updated = current.map((item, i) => i === idx ? { ...item, phone: e.target.value } : item);
+                              onBrandingChange('waiter_list', updated);
+                            }}
+                            className="px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[11px] font-mono"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px]">
+                          <label className="flex items-center gap-1 cursor-pointer font-bold text-slate-500">
+                            <input
+                              type="checkbox"
+                              checked={w.active}
+                              onChange={(e) => {
+                                const current = getStoreWaiters(branding);
+                                const updated = current.map((item, i) => i === idx ? { ...item, active: e.target.checked } : item);
+                                onBrandingChange('waiter_list', updated);
+                              }}
+                              className="w-3.5 h-3.5 rounded text-indigo-600"
+                            />
+                            <span>{w.active ? 'Aktif' : 'Pasif'}</span>
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const effectiveSlug = branding.parent_slug || branding.slug;
+                              const menuUrl = `${window.location.origin}/s/${effectiveSlug}`;
+                              const inviteUrl = generateWaiterWhatsappInviteUrl(
+                                w,
+                                branding?.store_name || branding?.name || 'LookPrice',
+                                menuUrl
+                              );
+                              window.open(inviteUrl, '_blank');
+                            }}
+                            className="text-emerald-600 dark:text-emerald-400 hover:underline font-bold flex items-center gap-1"
+                          >
+                            <Send className="w-2.5 h-2.5" />
+                            <span>WhatsApp Davet</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

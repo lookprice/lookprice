@@ -61,6 +61,13 @@ export const printThermalReceipt = (options: ThermalReceiptOptions) => {
     fiscalInfo
   } = options;
 
+  // Auto extract waiter name from notes if not explicitly passed
+  let resolvedWaiter = waiterName;
+  if (!resolvedWaiter && notes) {
+    const match = notes.match(/\[Garson:\s*([^\]]+)\]/i);
+    if (match && match[1]) resolvedWaiter = match[1].trim();
+  }
+
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "0";
@@ -140,19 +147,19 @@ export const printThermalReceipt = (options: ThermalReceiptOptions) => {
           <!-- INFO TABLE -->
           <div style="text-align: left; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 6px;">
             ${tableNo ? `
-            <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 900; margin-bottom: 3px;">
-              <span>MASA / BÖLÜM:</span>
+            <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 900; margin-bottom: 3px; background: #000; color: #fff; padding: 2px 4px; border-radius: 2px;">
+              <span>MASA / LOKASYON:</span>
               <span style="font-size: 16px; font-weight: 900; text-transform: uppercase;">${tableNo}</span>
+            </div>` : ''}
+            ${resolvedWaiter ? `
+            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 900; margin-bottom: 3px; border: 1px solid #000; padding: 2px 4px; text-transform: uppercase;">
+              <span>🍽️ GARSON:</span>
+              <span style="font-size: 14px; font-weight: 900;">${resolvedWaiter}</span>
             </div>` : ''}
             ${customerName && customerName !== tableNo ? `
             <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
               <span>MÜŞTERİ / CARİ:</span>
               <span>${customerName}</span>
-            </div>` : ''}
-            ${waiterName ? `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-              <span>GARSON:</span>
-              <span>${waiterName}</span>
             </div>` : ''}
             <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
               <span>TARİH & SAAT:</span>

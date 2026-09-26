@@ -12,7 +12,8 @@ import {
   Trash2, 
   X,
   Camera,
-  HelpCircle
+  HelpCircle,
+  Package
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import Logo from "../components/Logo";
@@ -465,11 +466,47 @@ export default function CustomerScanPage({ customSlug }: { customSlug?: string }
                     </div>
                   )}
                 </div>
-                {product.description && (
-                  <div className="text-gray-700 text-lg font-medium border-t-2 border-gray-100 pt-6 text-center italic">
-                    "{product.description}"
-                  </div>
-                )}
+
+                {/* Stock Quantity Display Badge */}
+                {(() => {
+                  if (product.product_type === 'service') return null;
+                  let vars: any[] = [];
+                  if (product.variants) {
+                    if (typeof product.variants === 'string') {
+                      try { vars = JSON.parse(product.variants); } catch (e) { vars = []; }
+                    } else if (Array.isArray(product.variants)) {
+                      vars = product.variants;
+                    }
+                  }
+                  const stockQty = vars.length > 0
+                    ? vars.reduce((acc: number, curr: any) => acc + (Number(curr.stock_quantity) || Number(curr.stock) || 0), 0)
+                    : Number(product.stock_quantity ?? 0);
+
+                  return (
+                    <div className="bg-slate-100 border-2 border-slate-200/90 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+                      <div className="flex items-center space-x-2.5">
+                        <Package className="text-slate-600 h-5 w-5 shrink-0" />
+                        <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
+                          {lang === 'tr' ? 'STOKTAKİ ADET' : 'STOCK IN STORE'}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        <span className={`text-2xl font-black tabular-nums ${
+                          stockQty <= 0 
+                            ? 'text-rose-600' 
+                            : stockQty <= Number(product.min_stock_level || 5)
+                              ? 'text-amber-600'
+                              : 'text-emerald-700'
+                        }`}>
+                          {Math.floor(stockQty)}
+                        </span>
+                        <span className="text-xs font-bold text-slate-500 uppercase">
+                          {product.unit || (lang === 'tr' ? 'Adet' : 'Pcs')}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
                 
                 <div className="flex flex-col space-y-4 pt-4">
                   <div className="flex items-center justify-between bg-gray-100 p-2 rounded-3xl border-2 border-gray-200">

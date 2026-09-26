@@ -19,6 +19,8 @@ export interface BookstoreThemeConfig {
   show_row_bestsellers: boolean;
   title_bestsellers: string;
   subtitle_bestsellers: string;
+  title_weekly_picks?: string;
+  subtitle_weekly_picks?: string;
 
   show_row_new_arrivals: boolean;
   title_new_arrivals: string;

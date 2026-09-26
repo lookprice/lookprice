@@ -69,8 +69,8 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
           const firstOccupied = parsed.find(r => r.status === 'occupied');
           if (firstOccupied) {
             setSelectedRoomId(firstOccupied.id);
-          } else if (parsed.length > 0) {
-            setSelectedRoomId(parsed[0].id);
+          } else {
+            setSelectedRoomId(null);
           }
           return;
         }
@@ -86,8 +86,8 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
         const firstOccupied = res.hotel_rooms.find((r: HotelRoom) => r.status === 'occupied');
         if (firstOccupied) {
           setSelectedRoomId(firstOccupied.id);
-        } else if (res.hotel_rooms.length > 0) {
-          setSelectedRoomId(res.hotel_rooms[0].id);
+        } else {
+          setSelectedRoomId(null);
         }
       }
     }).catch(() => {});
@@ -136,6 +136,15 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
 
   const handleConfirm = async () => {
     if (!selectedRoom) return;
+    if (selectedRoom.status !== 'occupied') {
+      alert(
+        isTr 
+          ? `⚠️ Boş Odaya Adisyon Aktarılamaz!\n\nOda #${selectedRoom.room_number} şu anda boş statüsündedir ve üzerinde kayıtlı konaklayan misafir (check-in) bulunmamaktadır.\n\nAdisyon aktarımı yalnızca konaklayan (dolu) odaların folyosuna yapılabilir. Lütfen konaklayan bir oda seçiniz veya önce 'Otel & Oda Yönetimi' sekmesinden odaya misafir girişi yapınız.`
+          : `⚠️ Cannot Transfer Bill to Vacant Room!\n\nRoom #${selectedRoom.room_number} is currently vacant with no checked-in guest. Table bills can only be transferred to occupied rooms.`
+      );
+      return;
+    }
+
     try {
       setIsProcessing(true);
       await onConfirmTransfer(selectedRoom, transferNotes, printSlipOnTransfer);
@@ -260,22 +269,26 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
                       onClick={() => setSelectedRoomId(room.id)}
                       className={`p-3 rounded-2xl border-2 transition-all cursor-pointer text-left relative flex flex-col justify-between ${
                         isSelected 
-                          ? 'border-amber-500 bg-amber-500/10 shadow-sm' 
-                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-800/60'
+                          ? (isOccupied 
+                              ? 'border-amber-500 bg-amber-500/10 shadow-sm' 
+                              : 'border-rose-400 bg-rose-500/10 shadow-sm')
+                          : (isOccupied 
+                              ? 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-800/60' 
+                              : 'border-slate-200/60 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-900/40 opacity-80 hover:opacity-100')
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-sm font-black text-slate-900 dark:text-white">
                               {isTr ? `Oda ${room.room_number}` : `Room ${room.room_number}`}
                             </span>
                             <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md ${
                               isOccupied 
                                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' 
-                                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                             }`}>
-                              {isOccupied ? (isTr ? '🟢 Dolu' : 'Occupied') : (isTr ? 'Boş' : 'Vacant')}
+                              {isOccupied ? (isTr ? '🟢 Konaklıyor (Dolu)' : 'Occupied') : (isTr ? '🔴 Boş (Aktarılamaz)' : 'Vacant (Blocked)')}
                             </span>
                           </div>
                           <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block truncate">
@@ -284,7 +297,11 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
                         </div>
 
                         {isSelected && (
-                          <CheckCircle2 className="w-5 h-5 text-amber-500 shrink-0" />
+                          isOccupied ? (
+                            <CheckCircle2 className="w-5 h-5 text-amber-500 shrink-0" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+                          )
                         )}
                       </div>
 
@@ -292,7 +309,9 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
                       <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1">
                         <div className="flex items-center gap-1 text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
                           <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{guestName}</span>
+                          <span className={`truncate ${!isOccupied ? 'text-slate-400 italic font-normal' : ''}`}>
+                            {guestName}
+                          </span>
                         </div>
 
                         <div className="flex items-center justify-between text-[10px] text-slate-400">
@@ -313,6 +332,30 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
             )}
           </div>
 
+          {/* Selected Room Status: Empty Warning or Calculations */}
+          {selectedRoom && selectedRoom.status !== 'occupied' && (
+            <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 rounded-2xl flex items-start gap-3 text-rose-900 dark:text-rose-200 animate-in fade-in duration-200">
+              <div className="p-2 bg-rose-100 dark:bg-rose-900/50 rounded-xl shrink-0 mt-0.5">
+                <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div className="space-y-1 text-xs">
+                <p className="font-black text-sm text-rose-700 dark:text-rose-300">
+                  {isTr ? `Boş Odaya Adisyon Aktarılamaz! (Oda #${selectedRoom.room_number})` : `Cannot Transfer Bill to Vacant Room!`}
+                </p>
+                <p className="text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
+                  {isTr 
+                    ? `Bu oda şu anda boş statüsündedir ve üzerinde kayıtlı konaklayan misafir (check-in) bulunmamaktadır. Masa adisyonları yalnız ve yalnızca konaklayan (dolu) odaların folyo hesabına aktarılabilir.`
+                    : `This room is currently vacant. Only occupied rooms with an active guest can receive table bill charges.`}
+                </p>
+                <p className="text-[11px] font-bold text-rose-800 dark:text-rose-300 pt-0.5">
+                  {isTr 
+                    ? `👉 Lütfen yukarıdan yeşil etiketli konaklayan bir oda seçiniz veya 'Otel & Oda Yönetimi' sekmesinden odaya misafir girişi yapınız.`
+                    : `Please select an occupied room or check-in a guest first.`}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Transfer Note */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -327,8 +370,8 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
             />
           </div>
 
-          {/* Selected Room Calculation Preview */}
-          {selectedRoom && (
+          {/* Selected Room Calculation Preview (Only for occupied rooms) */}
+          {selectedRoom && selectedRoom.status === 'occupied' && (
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-500 dark:text-slate-400">
@@ -388,8 +431,12 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={!selectedRoom || isProcessing}
-            className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs sm:text-sm transition-all shadow-md shadow-amber-500/20 flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
+            disabled={!selectedRoom || selectedRoom.status !== 'occupied' || isProcessing}
+            className={`px-6 py-2.5 font-black rounded-xl text-xs sm:text-sm transition-all shadow-md flex items-center gap-2 ${
+              !selectedRoom || selectedRoom.status !== 'occupied' || isProcessing
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
+                : 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-amber-500/20 active:scale-98 cursor-pointer'
+            }`}
           >
             {isProcessing ? (
               <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
@@ -397,7 +444,11 @@ export const RoomTransferModal: React.FC<RoomTransferModalProps> = ({
               <>
                 <Building2 className="w-4 h-4" />
                 <span>
-                  {isTr 
+                  {!selectedRoom
+                    ? (isTr ? "Lütfen Bir Oda Seçiniz" : "Select a Room")
+                    : selectedRoom.status !== 'occupied'
+                    ? (isTr ? `Boş Odaya Aktarılamaz (Oda #${selectedRoom.room_number})` : `Cannot Transfer to Vacant Room`)
+                    : isTr 
                     ? `Odaya Aktar & Masayı Kapat (${totalAmount.toFixed(2)} ₺)` 
                     : `Charge Room & Close (${totalAmount.toFixed(2)} ₺)`}
                 </span>

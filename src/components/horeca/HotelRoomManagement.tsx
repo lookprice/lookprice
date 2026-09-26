@@ -591,6 +591,189 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
     setSelectedOnlineResModal(null);
     alert(isTr ? "Rezervasyon iptal edildi, uyarı pasif duruma alındı." : "Reservation cancelled.");
   };
+
+  // Revise Reservation Details (from Calendar or Room Reservations List)
+  const handleSaveReservationRevision = async (roomId: string, updatedRes: RoomReservation) => {
+    const updatedRooms = rooms.map(r => {
+      if (r.id === roomId || (selectedReservationModal && r.room_number === selectedReservationModal.room.room_number)) {
+        const reservations = Array.isArray(r.reservations) ? r.reservations : [];
+        const nextReservations = reservations.map(res => {
+          if (res.id === updatedRes.id) {
+            return { ...res, ...updatedRes };
+          }
+          return res;
+        });
+
+        // Also if room is currently occupied by this guest, update current_guest as well
+        let currentGuest = r.current_guest;
+        if (r.status === 'occupied' && currentGuest) {
+          if (currentGuest.id === updatedRes.id || currentGuest.identity_no === updatedRes.identity_no) {
+            currentGuest = {
+              ...currentGuest,
+              first_name: updatedRes.first_name,
+              last_name: updatedRes.last_name,
+              identity_no: updatedRes.identity_no,
+              phone: updatedRes.phone || currentGuest.phone,
+              email: (updatedRes as any).email || currentGuest.email,
+              check_in_date: updatedRes.check_in_date || currentGuest.check_in_date,
+              check_out_date: updatedRes.check_out_date || currentGuest.check_out_date,
+              board_type: updatedRes.board_type || currentGuest.board_type,
+              notes: updatedRes.notes || currentGuest.notes
+            };
+          }
+        }
+
+        return {
+          ...r,
+          reservations: nextReservations,
+          current_guest: currentGuest
+        };
+      }
+      return r;
+    });
+
+    setRooms(updatedRooms);
+    try {
+      localStorage.setItem(`hotel_rooms_${storeId || 'default'}`, JSON.stringify(updatedRooms));
+      window.dispatchEvent(new CustomEvent('hotel_rooms_updated', { detail: { storeId, rooms: updatedRooms } }));
+    } catch (e) {}
+
+    // Check if there is an online reservation corresponding to this
+    const matchedOnline = onlineReservations.find(item => 
+      item.id === updatedRes.id || 
+      `res-${item.id}` === updatedRes.id ||
+      item.guest_identity_no === updatedRes.identity_no
+    );
+    if (matchedOnline) {
+      try {
+        await api.updateHotelReservationStatus(matchedOnline.id, matchedOnline.status, {
+          guest_first_name: updatedRes.first_name,
+          guest_last_name: updatedRes.last_name,
+          guest_identity_no: updatedRes.identity_no,
+          guest_phone: updatedRes.phone,
+          guest_email: (updatedRes as any).email,
+          check_in_date: updatedRes.check_in_date,
+          check_out_date: updatedRes.check_out_date,
+          board_type: updatedRes.board_type,
+          special_requests: updatedRes.notes
+        }, storeId);
+
+        setOnlineReservations(prev => prev.map(item => item.id === matchedOnline.id ? {
+          ...item,
+          guest_first_name: updatedRes.first_name,
+          guest_last_name: updatedRes.last_name,
+          guest_identity_no: updatedRes.identity_no,
+          guest_phone: updatedRes.phone,
+          guest_email: (updatedRes as any).email,
+          check_in_date: updatedRes.check_in_date,
+          check_out_date: updatedRes.check_out_date,
+          board_type: updatedRes.board_type,
+          special_requests: updatedRes.notes
+        } : item));
+        window.dispatchEvent(new CustomEvent('hotel_reservations_updated', { detail: { storeId } }));
+      } catch (err) {
+        console.error("Failed to update matched online reservation:", err);
+      }
+    }
+
+    if (selectedReservationModal) {
+      setSelectedReservationModal({
+        ...selectedReservationModal,
+        res: updatedRes
+      });
+    }
+
+    alert(isTr ? "Rezervasyon ve misafir bilgileri başarıyla güncellendi." : "Reservation updated successfully.");
+  };
+
+  // Revise Online Reservation Details
+  const handleSaveOnlineReservationRevision = async (resId: number | string, updatedData: any) => {
+    try {
+      const targetRes = onlineReservations.find(r => r.id === resId);
+      const currentStatus = targetRes?.status || 'pending_action';
+      await api.updateHotelReservationStatus(resId, currentStatus, updatedData, storeId);
+
+      setOnlineReservations(prev => prev.map(item => item.id === resId ? { ...item, ...updatedData } : item));
+      window.dispatchEvent(new CustomEvent('hotel_reservations_updated', { detail: { storeId } }));
+
+      // Also check if any room has this reservation and update it
+      const updatedRooms = rooms.map(r => {
+        const reservations = Array.isArray(r.reservations) ? r.reservations : [];
+        let hasMatch = false;
+        const nextReservations = reservations.map(res => {
+          if (res.id === resId || res.id === `res-${resId}` || (targetRes && res.identity_no === targetRes.guest_identity_no)) {
+            hasMatch = true;
+            return {
+              ...res,
+              first_name: updatedData.guest_first_name || res.first_name,
+              last_name: updatedData.guest_last_name || res.last_name,
+              identity_no: updatedData.guest_identity_no || res.identity_no,
+              phone: updatedData.guest_phone || res.phone,
+              email: updatedData.guest_email || (res as any).email,
+              check_in_date: updatedData.check_in_date || res.check_in_date,
+              check_out_date: updatedData.check_out_date || res.check_out_date,
+              board_type: updatedData.board_name || res.board_type
+            };
+          }
+          return res;
+        });
+
+        if (hasMatch) {
+          return { ...r, reservations: nextReservations };
+        }
+        return r;
+      });
+
+      setRooms(updatedRooms);
+      try {
+        localStorage.setItem(`hotel_rooms_${storeId || 'default'}`, JSON.stringify(updatedRooms));
+        window.dispatchEvent(new CustomEvent('hotel_rooms_updated', { detail: { storeId, rooms: updatedRooms } }));
+      } catch (e) {}
+
+      if (selectedOnlineResModal && selectedOnlineResModal.id === resId) {
+        setSelectedOnlineResModal({
+          ...selectedOnlineResModal,
+          ...updatedData
+        });
+      }
+
+      alert(isTr ? "Web rezervasyon bilgileri başarıyla güncellendi." : "Online booking updated successfully.");
+    } catch (err: any) {
+      console.error("Failed to update online reservation:", err);
+      alert(err.message || (isTr ? "Rezervasyon güncellenirken hata oluştu." : "Failed to update reservation."));
+    }
+  };
+
+  // Revise Room Guests (Current Guest and Additional Guests)
+  const handleReviseRoomGuests = (roomId: string, updatedCurrentGuest: any, updatedAdditionalGuests: any[]) => {
+    const updatedRooms = rooms.map(r => {
+      if (r.id === roomId) {
+        return {
+          ...r,
+          current_guest: updatedCurrentGuest,
+          additional_guests: updatedAdditionalGuests
+        };
+      }
+      return r;
+    });
+
+    setRooms(updatedRooms);
+    try {
+      localStorage.setItem(`hotel_rooms_${storeId || 'default'}`, JSON.stringify(updatedRooms));
+      window.dispatchEvent(new CustomEvent('hotel_rooms_updated', { detail: { storeId, rooms: updatedRooms } }));
+    } catch (e) {}
+
+    if (selectedRoomDetailModal && selectedRoomDetailModal.id === roomId) {
+      setSelectedRoomDetailModal({
+        ...selectedRoomDetailModal,
+        current_guest: updatedCurrentGuest,
+        additional_guests: updatedAdditionalGuests
+      });
+    }
+
+    alert(isTr ? "Oda misafir bilgileri başarıyla güncellendi." : "Room guest details updated successfully.");
+  };
+
   const [selectedAgeCategoryModal, setSelectedAgeCategoryModal] = useState<{
     category: string;
     title: string;
@@ -1722,7 +1905,55 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
   // Handle Guest Check-In
   const handleExecuteCheckIn = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!checkInModalRoom || !guestForm.first_name || !guestForm.last_name) return;
+    if (!checkInModalRoom) return;
+
+    const idNo = (guestForm.identity_no || "").trim();
+    const fName = (guestForm.first_name || "").trim();
+    const lName = (guestForm.last_name || "").trim();
+
+    if (!idNo || !fName || !lName) {
+      alert(isTr 
+        ? "⚠️ Zorunlu Alanlar Eksik!\n\nOda girişi ve rezervasyon kaydı için Misafir TC / Pasaport No, Adı ve Soyadı alanları zorunludur." 
+        : "⚠️ Required fields missing!\n\nGuest ID / Passport, First Name, and Last Name are required.");
+      return;
+    }
+
+    // Check Date Overlap Conflict ("Bu oda o tarihte doludur")
+    const targetIn = guestForm.check_in_date;
+    const targetOut = guestForm.check_out_date;
+
+    const hasCurrentGuestConflict = checkInModalRoom.status === 'occupied' && 
+      checkInModalRoom.current_guest &&
+      checkInModalRoom.current_guest.check_in_date < targetOut && 
+      checkInModalRoom.current_guest.check_out_date > targetIn;
+
+    const matchedReservation = Array.isArray(checkInModalRoom.reservations) 
+      ? checkInModalRoom.reservations.find(r => r.check_in_date < targetOut && r.check_out_date > targetIn)
+      : null;
+
+    if (hasCurrentGuestConflict || matchedReservation) {
+      const conflictGuest = hasCurrentGuestConflict 
+        ? `${checkInModalRoom.current_guest?.first_name} ${checkInModalRoom.current_guest?.last_name}`
+        : `${matchedReservation?.first_name} ${matchedReservation?.last_name}`;
+      
+      alert(isTr
+        ? `⚠️ Bu Oda Seçilen Tarihlerde Doludur!\n\nOda #${checkInModalRoom.room_number}, ${targetIn} - ${targetOut} tarihleri arasında çakışan bir konaklama / rezervasyon barındırıyor.\n\nMevcut Kayıt: ${conflictGuest}\nLütfen farklı bir tarih aralığı veya boş bir oda seçiniz.`
+        : `⚠️ Room Occupied for Selected Dates!\n\nRoom #${checkInModalRoom.room_number} is already booked between ${targetIn} - ${targetOut}.\n\nExisting Guest: ${conflictGuest}\nPlease select another room or date.`);
+      return;
+    }
+
+    // Validate additional guests if any
+    if (Array.isArray(guestForm.additionalGuests) && guestForm.additionalGuests.length > 0) {
+      for (let i = 0; i < guestForm.additionalGuests.length; i++) {
+        const ag = guestForm.additionalGuests[i];
+        if (!ag.first_name?.trim() || !ag.last_name?.trim() || !ag.identity_no?.trim()) {
+          alert(isTr 
+            ? `⚠️ ${i + 2}. Ek Misafir için TC / Pasaport No, Adı ve Soyadı alanları zorunludur.` 
+            : `⚠️ Additional guest #${i + 2} requires ID / Passport, First Name, and Last Name.`);
+          return;
+        }
+      }
+    }
 
     const totalGuestsCount = 1 + (guestForm.additionalGuests?.length || 0);
     if (totalGuestsCount > checkInModalRoom.capacity) {
@@ -3291,6 +3522,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         onClose={() => setSelectedReservationModal(null)}
         formatDisplayDate={formatDisplayDate}
         calculateAgeDetails={calculateAgeDetails}
+        onSaveReservation={handleSaveReservationRevision}
       />
 
       {/* MODAL: ROOM DETAIL & FULL GUEST MANIFEST */}
@@ -3303,6 +3535,8 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         setCheckInModalRoom={setCheckInModalRoom}
         setCheckOutModalRoom={setCheckOutModalRoom}
         openAddOrEditRoomModal={openAddOrEditRoomModal}
+        onReviseRoomGuests={handleReviseRoomGuests}
+        onEditReservation={(room, res) => setSelectedReservationModal({ room, res })}
       />
 
       {/* MODAL: ADD / EDIT ROOM */}
@@ -3376,6 +3610,7 @@ export const HotelRoomManagement: React.FC<HotelRoomManagementProps> = ({
         handleCheckInOnlineReservation={handleCheckInOnlineReservation}
         handleConfirmOnlineReservation={handleConfirmOnlineReservation}
         handleCancelOnlineReservation={handleCancelOnlineReservation}
+        handleSaveOnlineReservationRevision={handleSaveOnlineReservationRevision}
       />
 
       {/* MODAL: ASSIGN ROOM SELECTOR FOR ONLINE RESERVATION */}

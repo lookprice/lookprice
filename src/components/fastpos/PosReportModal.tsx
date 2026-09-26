@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { motion } from "motion/react";
 import { 
   FileText, 
@@ -10,8 +10,11 @@ import {
   Package, 
   TrendingUp, 
   Search, 
-  Printer 
+  Printer,
+  UserCheck,
+  Award
 } from "lucide-react";
+import { getStoreWaiters } from "../../utils/staffHelpers";
 
 export interface PosReportModalProps {
   isOpen: boolean;
@@ -286,6 +289,66 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Waiter Roster Performance & Turnover breakdown */}
+              {(() => {
+                const storeWaiters = getStoreWaiters(branding).filter(w => w.active);
+                if (!storeWaiters || storeWaiters.length === 0) return null;
+                const grandTotal = (reportData.grand_total || reportData.payments?.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || Number(p.total) || 0), 0)) || 0;
+
+                return (
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+                    <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="w-4 h-4 text-indigo-600" />
+                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                          {lang === 'tr' ? 'Garson & Saha Personeli Ciro / Prim Dağılımı' : 'Waiter & Staff Turnover Breakdown'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {storeWaiters.length} {lang === 'tr' ? 'Aktif Garson' : 'Active Staff'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                      {storeWaiters.map((w, idx) => {
+                        // Find matching transactions or sales
+                        const wSales = (reportData.sales || []).filter((s: any) => (s.notes || '').includes(w.name) || (s.customer_name || '').includes(w.name));
+                        const wRevenue = wSales.reduce((sum: number, s: any) => sum + (Number(s.total_amount) || Number(s.total) || 0), 0);
+                        const pct = grandTotal > 0 ? ((wRevenue / grandTotal) * 100).toFixed(1) : '0.0';
+
+                        return (
+                          <div key={w.id} className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/60 hover:bg-slate-50 transition-all flex flex-col justify-between space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="text-xs font-extrabold text-slate-800 truncate">{w.name}</h4>
+                                <span className="text-[9.5px] text-slate-400 font-semibold">{w.section || 'Genel Saha'}</span>
+                              </div>
+                              <span className="w-6 h-6 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-black flex items-center justify-center">
+                                #{idx + 1}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="font-bold text-slate-500">{lang === 'tr' ? 'Ciro:' : 'Rev:'}</span>
+                                <span className="font-black text-indigo-700">{wRevenue > 0 ? `${wRevenue.toFixed(2)} ₺` : 'Aktif / Canlı'}</span>
+                              </div>
+                              <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
+                                <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${Math.min(100, Math.max(8, Number(pct)))}%` }} />
+                              </div>
+                              <div className="flex justify-between items-center text-[9.5px] text-slate-400">
+                                <span>{wSales.length} {lang === 'tr' ? 'Sipariş' : 'Orders'}</span>
+                                <span className="font-bold">%{pct} {lang === 'tr' ? 'Pay' : 'Share'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Product Quantities breakdown table */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
